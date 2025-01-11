@@ -38,6 +38,8 @@ import java.nio.file.StandardCopyOption
 import java.util.*
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
+import java.sql.Connection
+import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Timestamp
 
@@ -233,6 +235,107 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         }
     }
 
+    private fun deleteSimulationRunWithNameCascading(expId: Int, runName: String): Boolean {
+        // get the simulation run identifier
+        val simRunID = fetchSimulationRunID(expId, runName)
+        if (simRunID == null) {
+            DatabaseIfc.logger.warn { "There was no simulation run record for experiment: $expId and run name: $runName" }
+            return false
+        }
+        var deleteSimRunStr = DatabaseIfc.deleteFromTableWhereSQL(
+            "simulation_run", "run_name", defaultSchemaName
+        )
+        deleteSimRunStr = "$deleteSimRunStr and exp_id_fk = ?"
+        DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+        db.getConnection().use { connection ->
+            // do a transaction over the deletions
+            try {
+                connection.autoCommit = false
+                val cascades = makeCascadingDeletePreparedStatements(connection, simRunID)
+                for (statement in cascades) {
+                    statement.execute()
+                }
+                val ps = connection.prepareStatement(deleteSimRunStr)
+                ps.setString(1, runName)
+                ps.setInt(2, expId)
+                ps.execute()
+                connection.commit()
+                connection.autoCommit = true
+                return true
+            } catch (e: SQLException) {
+                connection.rollback()
+                DatabaseIfc.logger.warn { "There was an SQLException when trying to delete simulation run: $runName" }
+                DatabaseIfc.logger.warn { "SQLException: $e" }
+                connection.autoCommit = true
+                return false
+            } finally {
+                connection.autoCommit = true
+            }
+        }
+    }
+
+    /**
+     *  Retrieves the simulation run ID based on the experiment id and the run name.
+     */
+    private fun fetchSimulationRunID(expId: Int, runName: String): Int? {
+        val data: List<SimulationRunTableData> = db.selectTableDataIntoDbData(::SimulationRunTableData)
+        for (d in data) {
+            if ((d.exp_id_fk == expId) && (d.run_name == runName)) {
+                return d.run_id
+            }
+        }
+        return null
+    }
+
+    private fun makeCascadingDeletePreparedStatements(
+        connection: Connection,
+        simRunID: Int
+    )
+            : List<PreparedStatement> {
+        val statements = mutableListOf<PreparedStatement>()
+        val sqlStrings = makeCascadingDeleteSQLStrings()
+        for (sql in sqlStrings) {
+            val ps = connection.prepareStatement(sql)
+            ps.setInt(1, simRunID)
+        }
+        return statements
+    }
+
+    private fun makeCascadingDeleteSQLStrings(): List<String> {
+        val statements = mutableListOf<String>()
+        val deleteAcrossRepStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "across_rep_stat",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        val deleteWithinRepStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "within_rep_stat",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        val deleteBatchStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "batch_stat",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        val deleteWithinCounterStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "within_rep_counter_stat",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        val deleteFreqStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "frequency",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        val deleteHistogramStats = DatabaseIfc.deleteFromTableWhereSQL(
+            "histogram",
+            "sim_run_id_fk", defaultSchemaName
+        )
+        statements.add(deleteAcrossRepStats)
+        statements.add(deleteWithinRepStats)
+        statements.add(deleteBatchStats)
+        statements.add(deleteWithinCounterStats)
+        statements.add(deleteFreqStats)
+        statements.add(deleteHistogramStats)
+        return statements
+    }
+
     val withinRepResponseViewStatistics: DataFrame<WithinRepResponseViewData>
         get() {
             var df = db.selectTableDataIntoDbData(::WithinRepResponseViewData).toDataFrame()
@@ -313,12 +416,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     fun replicationDataArraysByExperimentAndResponse(): Map<String, Map<String, DoubleArray>> {
         val map = mutableMapOf<String, MutableMap<String, DoubleArray>>()
         val m = replicationDataByExperimentAndResponse()
-        for((expName, repDataMap) in m){
-            if (!map.containsKey(expName)){
+        for ((expName, repDataMap) in m) {
+            if (!map.containsKey(expName)) {
                 map[expName] = mutableMapOf()
             }
             val repMap = map[expName]!!
-            for ((rName, dataList) in repDataMap){
+            for ((rName, dataList) in repDataMap) {
                 repMap[rName] = dataList.toPrimitives(replaceNull = Double.NaN)
             }
         }
@@ -1000,12 +1103,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      */
     fun withinReplicationObservationsFor(expNameStr: String, statNameStr: String): DoubleArray {
         val expMap = replicationDataArraysByExperimentAndResponse()
-        if (!expMap.containsKey(expNameStr)){
+        if (!expMap.containsKey(expNameStr)) {
             return doubleArrayOf()
         }
         // get the response
         val repMap = expMap[expNameStr]!!
-        if (!repMap.containsKey(statNameStr)){
+        if (!repMap.containsKey(statNameStr)) {
             return doubleArrayOf()
         }
         return repMap[statNameStr]!!
@@ -1052,7 +1155,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         for (name in expNames) {
 //            theMap[name] = withinReplicationObservationsFor(name, responseName)
             val repArray = expMap[name]!![responseName]
-            theMap[name] = repArray?: doubleArrayOf()
+            theMap[name] = repArray ?: doubleArrayOf()
         }
         return theMap
     }
