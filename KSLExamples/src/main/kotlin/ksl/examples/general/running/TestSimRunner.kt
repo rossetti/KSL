@@ -113,6 +113,8 @@ fun testSimulationRunner(){
         srList.add(simulationRun)
     }
 
+    //test clearing
+ //   kdb.clearSimulationData(model)
 //    for(sRun in srList){
 //        println(sRun.toJson())
 //    }
