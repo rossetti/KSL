@@ -681,7 +681,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             // there was already and existing record for this experiment
             // this could be a chunk for an existing experiment
             // the experiment must be chunked or there is a potential user error
-            //TODO this logic is not working as I thought it did
             if (model.numChunks > 1) {
                 // run is a chunk, make sure there is not an existing simulation run
                 // just assume user wants to write over any existing simulation runs with the same name for this
