@@ -206,7 +206,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     fun deleteExperimentWithNameCascading(expName: String) {
         val experimentRecord = fetchExperimentData(expName)
         if (experimentRecord == null) {
-            DatabaseIfc.logger.info { "Delete Experiment Cascade: No experiment called $expName was in database: $label" }
+            DatabaseIfc.logger.info { "Database: $label : Delete Experiment Cascade: No experiment called $expName was in database, returning." }
             return
         }
         // run a transaction to cascade delete the related records
@@ -250,7 +250,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 }
                 connection.commit()
                 connection.autoCommit = true
-                DatabaseIfc.logger.info { "Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database: $label" }
+                DatabaseIfc.logger.info { "Database: $label : Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database." }
             } catch (e: SQLException) {
                 connection.rollback()
                 DatabaseIfc.logger.warn { "There was an SQLException when trying to delete Experiment: $expName" }
@@ -311,12 +311,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
-            DatabaseIfc.logger.info { "There was no simulation run record for experiment: $expId and run name: $runName" }
+            DatabaseIfc.logger.info { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName to delete. Returning" }
             return false
         }
         //TODO note that this approach depends on the database allowing cascade delete
         try {
-            DatabaseIfc.logger.info { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+            DatabaseIfc.logger.info { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId" }
             db.getConnection().use { connection ->
                 var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
@@ -326,16 +326,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 ps.execute()
                 val deleted = if (ps.updateCount > 0) {
                     // deletions do not have result set, so use updateCount
-                    DatabaseIfc.logger.info { "Deleted SimulationRun, $runName, for experiment $expId." }
+                    DatabaseIfc.logger.info { "\t Database: $label : Deleted SimulationRun, $runName, for experiment $expId." }
                     true
                 } else {
-                    DatabaseIfc.logger.info { "PreparedStatement: SimulationRun, $runName, was not deleted." }
+                    DatabaseIfc.logger.info { "\t Database: $label : PreparedStatement: SimulationRun, $runName, was not deleted, for experiment $expId." }
                     false
                 }
                 return deleted
             }
         } catch (e: SQLException) {
-            DatabaseIfc.logger.warn { "There was an SQLException when trying to delete simulation run: $runName" }
+            DatabaseIfc.logger.warn { "Database: $label : There was an SQLException when trying to delete simulation run: $runName" }
             DatabaseIfc.logger.warn { "SQLException: $e" }
             return false
         }
@@ -357,21 +357,18 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
-            DatabaseIfc.logger.info { "There was no simulation run record for experiment: $expId and run name: $runName" }
-     //       println("in deleteSimulationRunWithNameCascading: There was no simulation run record for experiment: $expId and run name: $runName")
+            DatabaseIfc.logger.info { "\t Database: $label : There was no simulation run record for experiment: $expId and run name: $runName" }
             return false
         }
-   //     println("in deleteSimulationRunWithNameCascading")
         var deleteSimRunStr = DatabaseIfc.deleteFromTableWhereSQL(
             "simulation_run", "run_name", defaultSchemaName
         )
         deleteSimRunStr = "$deleteSimRunStr and exp_id_fk = ?"
-        DatabaseIfc.logger.info { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+        DatabaseIfc.logger.info { "\t Database: $label : Getting a connection to delete simulation run $runName from experimentId = $expId in database." }
         db.getConnection().use { connection ->
             // do a transaction over the deletions
             try {
                 connection.autoCommit = false
-  //              println("executing deletion transaction")
                 val cascades = makeCascadingDeletePreparedStatements(connection, simRunID)
                 for (statement in cascades) {
                     statement.execute()
@@ -382,8 +379,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 ps.execute()
                 connection.commit()
                 connection.autoCommit = true
-   //             println("committing deletion transaction")
-                DatabaseIfc.logger.info { "Completed cascade delete for run $runName from experimentId = $expId in database: $label" }
+                DatabaseIfc.logger.info { "\t Database: $label : Completed cascade delete for run $runName from experimentId = $expId in database." }
                 return true
             } catch (e: SQLException) {
                 connection.rollback()
@@ -699,9 +695,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 // experiment during this simulation execution
                 currentExp = experimentRecord
                 DatabaseIfc.logger.info { "\t Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
-                deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
+                // deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
                 //TODO cascading
-                //deleteSimulationRunWithNameCascading(experimentRecord.exp_id, model.runName)
+                deleteSimulationRunWithNameCascading(experimentRecord.exp_id, model.runName)
                 // create the simulation run associated with the chunked experiment
                 // because if it was there by mistake, we just deleted it
                 // start simulation run record
@@ -1380,6 +1376,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @return an empty embedded SQLite database configured to hold KSL simulation results
          */
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
+            DatabaseIfc.logger.info { "Create SQLite Database for KSLDatabase: $dbName at path $dbDirectory" }
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
             val executed = database.executeScript(dbScriptsDir.resolve("KSL_SQLite.sql"))
             // database.defaultSchemaName = "main"
@@ -1409,6 +1406,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @return an empty embedded Derby database configured to hold KSL simulation results
          */
         fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
+            DatabaseIfc.logger.info { "Create Derby Database for KSLDatabase: $dbName at path $dbDirectory" }
             val derbyDatabase = DerbyDb.createDatabase(dbName, dbDirectory)
             executeKSLDbCreationScriptOnDatabase(derbyDatabase)
             derbyDatabase.defaultSchemaName = SCHEMA_NAME
@@ -1455,6 +1453,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             user: String = "postgres",
             pWord: String = ""
         ): Database {
+            DatabaseIfc.logger.info { "Create Postgres Database for KSLDatabase: $dbName" }
             val props: Properties = PostgresDb.createProperties(dbServerName, dbName, user, pWord)
             val db = Database.createDatabaseFromProperties(props)
             db.executeCommand("DROP SCHEMA IF EXISTS ksl_db CASCADE")
