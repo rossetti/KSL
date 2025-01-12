@@ -982,6 +982,7 @@ interface DatabaseIfc : DatabaseIOIfc {
             }
         } catch (e: SQLException) {
             logger.warn { "There was an SQLException when trying insert DbData data into : $tableName" }
+            logger.warn { "INSERT STATEMENT: $sql" }
             logger.warn { "SQLException: $e" }
             return 0
         }

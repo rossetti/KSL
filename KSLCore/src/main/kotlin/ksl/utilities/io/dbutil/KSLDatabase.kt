@@ -65,7 +65,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     init {
         configured = checkTableNames()
         if (!configured) {
-            DatabaseIfc.logger.error { "The database does not have the required tables for a KSLDatabase" }
+            DatabaseIfc.logger.error { "The database ${db.label} does not have the required tables for a KSLDatabase" }
             throw KSLDatabaseNotConfigured()
         }
         DatabaseIfc.logger.info { "KSLDatabase ${db.label} at initialization: Clear data option = $clearDataOption" }
@@ -1343,6 +1343,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 val dbCreate = classLoader.getResourceAsStream("KSL_Db.sql")
                 val dbDrop = classLoader.getResourceAsStream("KSL_DbDropScript.sql")
                 val dbSQLiteCreate = classLoader.getResourceAsStream("KSL_SQLite.sql")
+//                val dbDuckDbCreate = classLoader.getResourceAsStream("KSL_DuckDb.sql")
                 if (dbCreate != null) {
                     Files.copy(
                         dbCreate, dbScriptsDir.resolve("KSL_Db.sql"),
@@ -1364,6 +1365,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                     )
                     DatabaseIfc.logger.trace { "Copied KSL_SQLite.sql to $dbScriptsDir" }
                 }
+//                if (dbDuckDbCreate != null) {
+//                    Files.copy(
+//                        dbDuckDbCreate, dbScriptsDir.resolve("KSL_DuckDb.sql"),
+//                        StandardCopyOption.REPLACE_EXISTING
+//                    )
+//                    DatabaseIfc.logger.trace { "Copied KSL_DuckDb.sql to $dbScriptsDir" }
+//                }
             } catch (e: IOException) {
                 e.printStackTrace()
             }
@@ -1386,6 +1394,24 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             }
             return database
         }
+
+//        /** This method creates the database on disk and configures it to hold KSL simulation data.
+//         *
+//         * @param dbName the name of the database
+//         * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
+//         * @return an empty embedded SQLite database configured to hold KSL simulation results
+//         */
+//        fun createDuckDbKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
+//            DatabaseIfc.logger.info { "Create DuckDb Database for KSLDatabase: $dbName at path $dbDirectory" }
+//            val database = DuckDb.createDatabase(dbName, dbDirectory)
+//            val executed = database.executeScript(dbScriptsDir.resolve("KSL_DuckDb.sql"))
+//            database.defaultSchemaName = SCHEMA_NAME
+//            if (!executed) {
+//                DatabaseIfc.logger.error { "Unable to execute KSL_DuckDb.sql creation script" }
+//                throw DataAccessException("The execution script KSL_DuckDb.sql did not fully execute")
+//            }
+//            return database
+//        }
 
         /** This method creates the database on disk and configures it to hold KSL simulation data.
          *

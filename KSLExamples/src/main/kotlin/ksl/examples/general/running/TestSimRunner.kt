@@ -93,6 +93,7 @@ fun testSimulationRunner(){
     val kslDatabaseObserver = KSLDatabaseObserver(model)
     val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
 //        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+//    val sdb = KSLDatabase.createDuckDbKSLDatabase("TestDuckDbKSLDB.db", model.outputDirectory.dbDir)
     val kdb = KSLDatabase(sdb)
     KSLDatabaseObserver(model, kdb)
 
