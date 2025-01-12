@@ -163,7 +163,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     fun clearSimulationData(model: Model) {
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
-        deleteExperimentWithName(expName)
+       // deleteExperimentWithName(expName)
+        deleteExperimentWithNameCascading(expName)
     }
 
     /**
@@ -205,7 +206,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     fun deleteExperimentWithNameCascading(expName: String) {
         val experimentRecord = fetchExperimentData(expName)
         if (experimentRecord == null) {
-            DatabaseIfc.logger.trace { "Delete Experiment Cascade: No experiment called $expName was in database: $label" }
+            DatabaseIfc.logger.info { "Delete Experiment Cascade: No experiment called $expName was in database: $label" }
             return
         }
         // run a transaction to cascade delete the related records
@@ -249,7 +250,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 }
                 connection.commit()
                 connection.autoCommit = true
-                DatabaseIfc.logger.trace { "Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database: $label" }
+                DatabaseIfc.logger.info { "Delete Experiment Cascade: Deleted all records associated with experiment: $expName in database: $label" }
             } catch (e: SQLException) {
                 connection.rollback()
                 DatabaseIfc.logger.warn { "There was an SQLException when trying to delete Experiment: $expName" }
@@ -307,9 +308,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @return true if the record was deleted, false if it was not
      */
     private fun deleteSimulationRunWithName(expId: Int, runName: String): Boolean {
+        // get the simulation run identifier
+        val simRunID = fetchSimulationRunID(expId, runName)
+        if (simRunID == null) {
+            DatabaseIfc.logger.info { "There was no simulation run record for experiment: $expId and run name: $runName" }
+            return false
+        }
         //TODO note that this approach depends on the database allowing cascade delete
         try {
-            DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+            DatabaseIfc.logger.info { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
             db.getConnection().use { connection ->
                 var sql = DatabaseIfc.deleteFromTableWhereSQL("simulation_run", "run_name", defaultSchemaName)
                 sql = "$sql and exp_id_fk = ?"
@@ -319,10 +326,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 ps.execute()
                 val deleted = if (ps.updateCount > 0) {
                     // deletions do not have result set, so use updateCount
-                    DatabaseIfc.logger.trace { "Deleted SimulationRun, $runName, for experiment $expId." }
+                    DatabaseIfc.logger.info { "Deleted SimulationRun, $runName, for experiment $expId." }
                     true
                 } else {
-                    DatabaseIfc.logger.trace { "PreparedStatement: SimulationRun, $runName, was not deleted." }
+                    DatabaseIfc.logger.info { "PreparedStatement: SimulationRun, $runName, was not deleted." }
                     false
                 }
                 return deleted
@@ -350,21 +357,21 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         // get the simulation run identifier
         val simRunID = fetchSimulationRunID(expId, runName)
         if (simRunID == null) {
-            DatabaseIfc.logger.warn { "There was no simulation run record for experiment: $expId and run name: $runName" }
-            println("in deleteSimulationRunWithNameCascading: There was no simulation run record for experiment: $expId and run name: $runName")
+            DatabaseIfc.logger.info { "There was no simulation run record for experiment: $expId and run name: $runName" }
+     //       println("in deleteSimulationRunWithNameCascading: There was no simulation run record for experiment: $expId and run name: $runName")
             return false
         }
-        println("in deleteSimulationRunWithNameCascading")
+   //     println("in deleteSimulationRunWithNameCascading")
         var deleteSimRunStr = DatabaseIfc.deleteFromTableWhereSQL(
             "simulation_run", "run_name", defaultSchemaName
         )
         deleteSimRunStr = "$deleteSimRunStr and exp_id_fk = ?"
-        DatabaseIfc.logger.trace { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
+        DatabaseIfc.logger.info { "Getting a connection to delete simulation run $runName from experimentId = $expId in database: $label" }
         db.getConnection().use { connection ->
             // do a transaction over the deletions
             try {
                 connection.autoCommit = false
-                println("executing deletion transaction")
+  //              println("executing deletion transaction")
                 val cascades = makeCascadingDeletePreparedStatements(connection, simRunID)
                 for (statement in cascades) {
                     statement.execute()
@@ -375,7 +382,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 ps.execute()
                 connection.commit()
                 connection.autoCommit = true
-                println("committing deletion transaction")
+   //             println("committing deletion transaction")
+                DatabaseIfc.logger.info { "Completed cascade delete for run $runName from experimentId = $expId in database: $label" }
                 return true
             } catch (e: SQLException) {
                 connection.rollback()
@@ -648,6 +656,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
+            DatabaseIfc.logger.info { "\t Database: $label :  The experiment record was null. Insert new experiment record for simulation run = ${model.runName}" }
 //            println("**** The experiment record was null. Insert new experiment record: Database: ${db.label} Experiment: ${model.experimentName}")
             // this is a new experiment
             // create and insert the new experiment
@@ -656,10 +665,12 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             if (k == 0) {
                 throw DataAccessException("The experiment was not inserted")
             }
+            DatabaseIfc.logger.info { "\t Database: $label : Inserted new experiment record: exp_id = ${currentExp.exp_id}, exp_name = ${currentExp.exp_name}, model_name = ${currentExp.model_name}, sim_name = ${currentExp.sim_name}, num_chunks = ${currentExp.num_chunks}" }
             // create the simulation run associated with the new experiment
             // start simulation run record
             currentSimRun = createSimulationRunData(model)
             db.insertDbDataIntoTable(currentSimRun!!)
+            DatabaseIfc.logger.info { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
             // a new experiment requires capturing the model elements, controls, and rv parameters
             // capture the model elements associated with the experiment
             val modelElements: List<ModelElement> = model.getModelElements()
@@ -678,6 +689,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             }
         } else {
 //            println("**** The experiment record was not null. Database: ${db.label} Experiment: ${model.experimentName}")
+            DatabaseIfc.logger.info { "\t Database: $label :  The experiment record was not null. Experiment: ${model.experimentName}" }
             // there was already and existing record for this experiment
             // this could be a chunk for an existing experiment
             // the experiment must be chunked or there is a potential user error
@@ -686,14 +698,16 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
                 // just assume user wants to write over any existing simulation runs with the same name for this
                 // experiment during this simulation execution
                 currentExp = experimentRecord
-                DatabaseIfc.logger.info { "Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
+                DatabaseIfc.logger.info { "\t Database: ${label} : Execution has chunks: If necessary delete experiment id = ${experimentRecord.exp_id} with simulation run = ${model.runName}" }
                 deleteSimulationRunWithName(experimentRecord.exp_id, model.runName)
+                //TODO cascading
                 //deleteSimulationRunWithNameCascading(experimentRecord.exp_id, model.runName)
                 // create the simulation run associated with the chunked experiment
                 // because if it was there by mistake, we just deleted it
                 // start simulation run record
                 currentSimRun = createSimulationRunData(model)
                 db.insertDbDataIntoTable(currentSimRun!!)
+                DatabaseIfc.logger.info { "\t Database: $label : Inserted new simulation_run record: run_id = ${currentSimRun!!.run_id}, exp_id_fk = ${currentSimRun!!.exp_id_fk}, run_name = ${currentSimRun!!.run_name}" }
             } else {
                 // println(experimentRecord)
                 // not a chunk, same experiment but not chunked, this is a potential user error
