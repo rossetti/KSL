@@ -56,6 +56,9 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      */
     var defaultVelocity: GetValueIfc = ConstantRV.ONE
 
+    /**
+     *  The default initial location.
+     */
     abstract var defaultLocation: LocationIfc
 
     protected val myElements: MutableList<SpatialElement> = mutableListOf()
