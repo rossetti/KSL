@@ -205,6 +205,10 @@ class AllocateInOrderListedRule : AllocationRuleIfc {
     }
 }
 
+/**
+ *  This rule first randomly permutes the list and then allocates in the order of the permutation.
+ *  In essence, this approach randomly picks from the list.
+ */
 class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         val list = resourceList.toMutableList()
@@ -212,6 +216,10 @@ class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
         return allocateInOrder(amountNeeded, list)
     }
 }
+
+/**
+ *  This rule will sort the list according to the comparator and then allocate in the sorted order.
+ */
 open class AllocationRule(var comparator: Comparator<Resource>): AllocationRuleIfc{
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         return allocateInOrder(amountNeeded, resourceList.sortedWith(comparator))
@@ -219,8 +227,23 @@ open class AllocationRule(var comparator: Comparator<Resource>): AllocationRuleI
 
 }
 
+/**
+ *  This rule sorts the resources such that list is ordered from least to most utilized and
+ *  then allocates in the order listed.
+ */
 class LeastUtilizedAllocationRule: AllocationRule(LeastUtilizedComparator())
+
+/**
+ * This rule sorts the resources such that this is ordered from least seized to most seized and
+ * then allocates in the order listed.
+ */
 class LeastSeizedAllocationRule: AllocationRule(LeastSeizedComparator())
+
+/**
+ *  When the resources have capacity greater than one, then the resources are sorted
+ *  from most capacity available to least capacity available, and then allocated in the
+ *  order listed.
+ */
 class MostAvailableAllocationRule: AllocationRule(MostAvailableComparator())
 
 /**
