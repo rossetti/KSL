@@ -1307,9 +1307,10 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null) {
-            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-        }
+        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
+//        if (movableResource.homeBase != null) {
+//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+//        }
         release(a)
     }
 
@@ -1350,9 +1351,10 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResourceWithQ.homeBase != null) {
-            move(movableResourceWithQ, movableResourceWithQ.homeBase!!, emptyVelocity, emptyMovePriority)
-        }
+        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
+//        if (movableResource.homeBase != null) {
+//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+//        }
         release(a)
     }
 
@@ -1396,9 +1398,10 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null) {
-            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-        }
+        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
+//        if (movableResource.homeBase != null) {
+//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+//        }
         release(a)
     }
 
@@ -1441,10 +1444,11 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        if (movableResource.homeBase != null) {
-            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-        }
-        release(a)
+        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
+//        if (movableResource.homeBase != null) {
+//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
+//        }
+        release(a) //TODO may need to override the release function for movable resources
     }
 
     /**
