@@ -191,10 +191,6 @@ fun allocateInOrder(amountNeeded: Int, resourceList: List<Resource>): Map<Resour
     return allocations
 }
 
-//TODO randomize then allocate until amount is met
-//TODO sort to least utilized then allocate until amount is met
-//TODO sort to least seized then allocate until amount is met
-
 /**
  * The default is to allocate all available from each resource until amount needed is met
  * in the order in which the resources are listed within the list.
