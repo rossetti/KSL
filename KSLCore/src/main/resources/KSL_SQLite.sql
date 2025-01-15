@@ -32,6 +32,9 @@
 -- An experiment represents a set of 1 or more simulation runs and the experimental parameters
 -- that were used during the runs
 
+-- Revised: January 15, 2025
+-- Updated script to store TimeSeriesResponse data
+
 CREATE TABLE EXPERIMENT
 (
     EXP_ID                     INTEGER PRIMARY KEY,
@@ -280,6 +283,26 @@ CREATE TABLE FREQUENCY
     CUM_PROPORTION DOUBLE PRECISION,
     FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (RUN_ID) ON DELETE CASCADE,
     UNIQUE (ELEMENT_ID_FK, SIM_RUN_ID_FK, VALUE)
+);
+
+-- TIME_SERIES_RESPONSE represents within replication collection of response variables
+-- based on periods of time. The average value of the response during the period
+-- is recorded for each period for each replication of each simulation run
+
+CREATE TABLE TIME_SERIES_RESPONSE
+(
+    ID             INTEGER NOT NULL PRIMARY KEY,
+    ELEMENT_ID_FK  INTEGER NOT NULL,
+    SIM_RUN_ID_FK  INTEGER NOT NULL,
+    REP_ID         INTEGER NOT NULL CHECK (REP_ID >= 1),
+    STAT_NAME      VARCHAR(510),
+    PERIOD         INTEGER NOT NULL CHECK (PERIOD >= 1),
+    START_TIME     DOUBLE PRECISION CHECK (START_TIME >= 0),
+    END_TIME       DOUBLE PRECISION CHECK (END_TIME > START_TIME),
+    LENGTH         DOUBLE PRECISION CHECK (LENGTH > 0),
+    VALUE          DOUBLE PRECISION,
+    FOREIGN KEY (SIM_RUN_ID_FK) REFERENCES SIMULATION_RUN (RUN_ID) ON DELETE CASCADE,
+    UNIQUE (ELEMENT_ID_FK, SIM_RUN_ID_FK, REP_ID)
 );
 
 -- WITHIN_REP_RESPONSE_VIEW represents a reduced view of within replication statistics containing only the average for the replication
