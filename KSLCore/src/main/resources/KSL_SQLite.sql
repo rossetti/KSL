@@ -155,7 +155,7 @@ CREATE TABLE WITHIN_REP_STAT
 CREATE INDEX WRS_ME_FK_INDEX ON WITHIN_REP_STAT (SIM_RUN_ID_FK, ELEMENT_ID_FK);
 
 -- WITHIN_REP_COUNTER_STAT represents within replication final value for each counter for each replication of
--- each simulation simulation run of an experiment
+-- each simulation run of an experiment
 
 CREATE TABLE WITHIN_REP_COUNTER_STAT
 (
