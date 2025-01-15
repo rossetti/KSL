@@ -1322,7 +1322,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     companion object {
         val TableNames = listOf(
-            "frequency", "histogram",
+            "time_series_response", "frequency", "histogram",
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
             "rv_parameter", "control", "model_element", "simulation_run", "experiment"
         )
@@ -1710,6 +1710,19 @@ data class FrequencyTableData(
     var proportion: Double? = null,
     var cum_proportion: Double? = null
 ) : DbTableData("frequency", keyFields = listOf("id"), autoIncField = true)
+
+data class TimeSeriesResponseTableData(
+    var id: Int = -1,
+    var element_id_fk: Int = -1,
+    var sim_run_id_fk: Int = -1,
+    var rep_id: Int = -1,
+    var stat_name: String = "",
+    var period: Int = -1,
+    var start_time: Double? = null,
+    var end_time: Double? = null,
+    var length: Double? = null,
+    var value: Double? = null
+) : DbTableData("time_series_response", keyFields = listOf("id"), autoIncField = true)
 
 data class WithinRepResponseViewData(
     var exp_name: String = "",

@@ -1,3 +1,4 @@
+drob table ksl_db.time_series_response;
 drop table ksl_db.histogram;
 drop table ksl_db.frequency;
 drop table ksl_db.batch_stat;
