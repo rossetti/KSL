@@ -1387,6 +1387,8 @@ interface KSLProcessBuilder {
         transportPriority: Int = MOVE_PRIORITY,
         unLoadingPriority: Int = DELAY_PRIORITY
     ) {
+        //TODO need to handle distance based allocations
+        // need a seize(fleet: MovableResourcePool) suspending function
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.allocations[0].resource as MovableResource

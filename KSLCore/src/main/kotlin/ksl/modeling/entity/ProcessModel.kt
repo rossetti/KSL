@@ -1511,6 +1511,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 val resource = request.resourcePool!!
+                //TODO ISSUE: invoking selection rule?  Should the seize for a pool supply the selection rule?
+                //TODO this causes the selection rule to be invoked to see if resources are available
                 if (!resource.canAllocate(request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
@@ -1522,6 +1524,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(resourcePool.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
+                //TODO ISSUE: This causes both the selection rule and the allocation rule to be invoked
                 val allocation = resourcePool.allocate(entity, amountNeeded, queue, suspensionName)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${resourcePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
