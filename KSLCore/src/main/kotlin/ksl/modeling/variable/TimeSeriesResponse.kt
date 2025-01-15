@@ -84,8 +84,8 @@ interface TimeSeriesResponseCIfc {
 class TimeSeriesResponse(
     parent: ModelElement,
     periodLength: Double,
-    responses: Set<Response> = emptySet(),
-    counters: Set<Counter> = emptySet(),
+    responses: Set<ResponseCIfc> = emptySet(),
+    counters: Set<CounterCIfc> = emptySet(),
     override var autoStart: Boolean = true,
     name: String? = null
 ) : ModelElement(parent, name), TimeSeriesResponseCIfc {
@@ -93,7 +93,7 @@ class TimeSeriesResponse(
     constructor(
         parent: ModelElement,
         periodLength: Double,
-        response: Response,
+        response: ResponseCIfc,
         autoStart: Boolean = true,
         name: String? = null
     ) : this(parent, periodLength, setOf(response), emptySet(), autoStart, name)
@@ -101,7 +101,7 @@ class TimeSeriesResponse(
     constructor(
         parent: ModelElement,
         periodLength: Double,
-        counter: Counter,
+        counter: CounterCIfc,
         autoStart: Boolean = true,
         name: String? = null
     ) : this(parent, periodLength, emptySet(), setOf(counter), autoStart, name)
@@ -109,16 +109,16 @@ class TimeSeriesResponse(
     constructor(
         parent: ModelElement,
         periodLength: Double,
-        response: Response,
-        counter: Counter,
+        response: ResponseCIfc,
+        counter: CounterCIfc,
         autoStart: Boolean = true,
         name: String? = null
     ) : this(parent, periodLength, setOf(response), setOf(counter), autoStart, name)
 
-    private val myResponses = mutableMapOf<Response, PeriodStartData>()
-    private val myCounters = mutableMapOf<Counter, PeriodStartData>()
-    private val myResponseData = mutableMapOf<Response, MutableList<TimeSeriesPeriodData>>()
-    private val myCounterData = mutableMapOf<Counter, MutableList<TimeSeriesPeriodData>>()
+    private val myResponses = mutableMapOf<ResponseCIfc, PeriodStartData>()
+    private val myCounters = mutableMapOf<CounterCIfc, PeriodStartData>()
+    private val myResponseData = mutableMapOf<ResponseCIfc, MutableList<TimeSeriesPeriodData>>()
+    private val myCounterData = mutableMapOf<CounterCIfc, MutableList<TimeSeriesPeriodData>>()
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }

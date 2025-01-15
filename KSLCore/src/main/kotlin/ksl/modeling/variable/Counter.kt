@@ -22,6 +22,7 @@ import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.observers.DoublePairEmitter
 import ksl.utilities.observers.DoublePairEmitterIfc
@@ -51,7 +52,7 @@ import ksl.utilities.statistic.StatisticIfc
  *   The naming convention "CIfc" is used to denote controlled interface.
  *
  */
-interface CounterCIfc {
+interface CounterCIfc : ValueIfc, IdentityIfc {
 
     /**
      *  If true, the response will emit pairs Pair(time, value) every time

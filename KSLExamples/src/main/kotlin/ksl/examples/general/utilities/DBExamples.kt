@@ -66,8 +66,8 @@ object DBExamples {
 
         // this creates and attaches a KSLDatabase
 //        val sdb = KSLDatabase.createSQLiteKSLDatabase("TestSQLiteKSLDb")
-//        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
-        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+        val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
+//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
         val kdb = KSLDatabase(sdb)
         KSLDatabaseObserver(model, kdb)
         // this also creates and attached another KSLDatabase, using the defaults
@@ -76,7 +76,7 @@ object DBExamples {
         model.simulate()
         model.print()
 
-        println("Exporting from sqlite to Excel")
+//        println("Exporting from sqlite to Excel")
 //        adb.db.exportToExcel()
 
         sdb.writeAllTablesAsMarkdown()
@@ -104,9 +104,9 @@ object DBExamples {
             println(r)
         }
 
-        println("Exporting from postgres to csv")
+        println("Exporting from db to csv")
         sdb.exportAllTablesAsCSV()
-        println("Exporting from postgres to Excel")
+        println("Exporting from db to Excel")
         sdb.exportToExcel()
 
         println("Done!")
