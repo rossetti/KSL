@@ -767,6 +767,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             insertResponseVariableBatchStatistics(rMap)
             insertTimeWeightedBatchStatistics(twMap)
         }
+        //TODO this is where TimeSeriesResponse data should be inserted
     }
 
     internal fun afterExperiment(model: Model) {

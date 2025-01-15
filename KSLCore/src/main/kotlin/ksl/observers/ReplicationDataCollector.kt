@@ -54,8 +54,8 @@ class ReplicationDataCollector(
     addAll: Boolean = false,
     autoAttach: Boolean = true
 ) {
-    private val myResponses: MutableList<Response> = mutableListOf()
-    private val myCounters: MutableList<Counter> = mutableListOf()
+    private val myResponses: MutableList<ResponseCIfc> = mutableListOf()
+    private val myCounters: MutableList<CounterCIfc> = mutableListOf()
     private val myModel: Model = model
     private val myResponseData: MutableMap<String, DoubleArray> = mutableMapOf()
 
@@ -255,7 +255,7 @@ class ReplicationDataCollector(
      * @param responseVariable the response variable, must not be null and must be in model
      * @return the replication averages for the named response
      */
-    fun replicationAverages(responseVariable: Response): DoubleArray {
+    fun replicationAverages(responseVariable: ResponseCIfc): DoubleArray {
         return replicationData(responseVariable.name)
     }
 
@@ -265,7 +265,7 @@ class ReplicationDataCollector(
      * @param counter the counter, must not be null and must be in model
      * @return the counter final values for the named counter
      */
-    fun finalReplicationValues(counter: Counter): DoubleArray {
+    fun finalReplicationValues(counter: CounterCIfc): DoubleArray {
         return replicationData(counter.name)
     }
 
