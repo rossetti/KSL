@@ -47,6 +47,16 @@ interface TimeSeriesResponseCIfc {
     val periodCounter: Double
 
     /**
+     *  The counters associated with the time series response.
+     */
+    val counters: List<CounterCIfc>
+
+    /**
+     *  The responses associated with the time series response.
+     */
+    val responses: List<ResponseCIfc>
+
+    /**
      *  Returns all time series period data as a list for responses and counters
      */
     fun allTimeSeriesPeriodDataAsList() : List<TimeSeriesPeriodData>
@@ -116,7 +126,13 @@ class TimeSeriesResponse(
     ) : this(parent, periodLength, setOf(response), setOf(counter), autoStart, name)
 
     private val myResponses = mutableMapOf<ResponseCIfc, PeriodStartData>()
+    override val responses: List<ResponseCIfc>
+        get() = myResponses.keys.toList()
+
     private val myCounters = mutableMapOf<CounterCIfc, PeriodStartData>()
+    override val counters: List<CounterCIfc>
+        get() = myCounters.keys.toList()
+
     private val myResponseData = mutableMapOf<ResponseCIfc, MutableList<TimeSeriesPeriodData>>()
     private val myCounterData = mutableMapOf<CounterCIfc, MutableList<TimeSeriesPeriodData>>()
 

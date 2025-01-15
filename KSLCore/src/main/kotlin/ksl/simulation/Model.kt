@@ -111,6 +111,20 @@ class Model(
         get() = myFrequencies
 
     /**
+     *  A list of the TimeSeriesResponse model elements in the model
+     */
+    val timeSeriesResponses: List<TimeSeriesResponseCIfc>
+        get() {
+            val list = mutableListOf<TimeSeriesResponseCIfc>()
+            for ( (_, element) in myModelElementMap){
+                if (element is TimeSeriesResponseCIfc) {
+                    list.add(element)
+                }
+            }
+            return list
+        }
+
+    /**
      *  The names of all the response variables and counters in the model
      */
     val responseNames: List<String>
