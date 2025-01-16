@@ -164,8 +164,6 @@ class TimeSeriesResponse(
         }
     }
 
-
-
     private var myStartEvent: KSLEvent<Nothing>? = null
     private var myPeriodEvent: KSLEvent<Nothing>? = null
 
