@@ -1,9 +1,11 @@
 package ksl.modeling.variable
 
+import com.google.common.collect.HashBasedTable
+import com.google.common.collect.Table
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.WeightedStatisticIfc
-import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
@@ -11,7 +13,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 data class TimeSeriesPeriodData(
     val responseName: String,
     val repNum: Double,
-    val period: Double,
+    val period: Int,
     val startTime: Double,
     val length: Double,
     val value: Double?
@@ -37,6 +39,12 @@ interface TimeSeriesResponseCIfc {
     var autoStart: Boolean
 
     /**
+     *  If true, across replications statistics will be collected for each period.
+     *  The default is false.
+     */
+    var acrossRepStatisticsOption: Boolean
+
+    /**
      *  The length (in base time units) for the period
      */
     var periodLength: Double
@@ -44,7 +52,7 @@ interface TimeSeriesResponseCIfc {
     /**
      *  Counts the number of periods collected
      */
-    val periodCounter: Double
+    val periodCounter: Int
 
     /**
      *  The counters associated with the time series response.
@@ -97,6 +105,7 @@ class TimeSeriesResponse(
     responses: Set<ResponseCIfc> = emptySet(),
     counters: Set<CounterCIfc> = emptySet(),
     override var autoStart: Boolean = true,
+    override var acrossRepStatisticsOption: Boolean = false,
     name: String? = null
 ) : ModelElement(parent, name), TimeSeriesResponseCIfc {
 
@@ -105,16 +114,18 @@ class TimeSeriesResponse(
         periodLength: Double,
         response: ResponseCIfc,
         autoStart: Boolean = true,
+        acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), emptySet(), autoStart, name)
+    ) : this(parent, periodLength, setOf(response), emptySet(), autoStart, acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
         periodLength: Double,
         counter: CounterCIfc,
         autoStart: Boolean = true,
+        acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, emptySet(), setOf(counter), autoStart, name)
+    ) : this(parent, periodLength, emptySet(), setOf(counter), autoStart, acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
@@ -122,8 +133,9 @@ class TimeSeriesResponse(
         response: ResponseCIfc,
         counter: CounterCIfc,
         autoStart: Boolean = true,
+        acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), setOf(counter), autoStart, name)
+    ) : this(parent, periodLength, setOf(response), setOf(counter), autoStart, acrossRepStatisticsOption, name)
 
     private val myResponses = mutableMapOf<ResponseCIfc, PeriodStartData>()
     override val responses: List<ResponseCIfc>
@@ -135,6 +147,8 @@ class TimeSeriesResponse(
 
     private val myResponseData = mutableMapOf<ResponseCIfc, MutableList<TimeSeriesPeriodData>>()
     private val myCounterData = mutableMapOf<CounterCIfc, MutableList<TimeSeriesPeriodData>>()
+    private var myAcrossRepResponseStatsTable : Table<ResponseCIfc, Int, Statistic>? = null
+    private var myAcrossRepCounterStatsTable : Table<CounterCIfc, Int, Statistic>? = null
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
@@ -150,6 +164,8 @@ class TimeSeriesResponse(
         }
     }
 
+
+
     private var myStartEvent: KSLEvent<Nothing>? = null
     private var myPeriodEvent: KSLEvent<Nothing>? = null
 
@@ -163,7 +179,7 @@ class TimeSeriesResponse(
         }
     private var myPeriodLength = periodLength
 
-    override var periodCounter: Double = 0.0
+    override var periodCounter: Int = 0
         private set
 
     /**
@@ -264,7 +280,7 @@ class TimeSeriesResponse(
     }
 
     override fun initialize() {
-        periodCounter = 0.0
+        periodCounter = 0
         timeLastStarted = 0.0
         timeLastEnded = 0.0
         myStartEvent = null
@@ -292,6 +308,25 @@ class TimeSeriesResponse(
         }
         for((_, list) in myCounterData){
             list.clear()
+        }
+        if (acrossRepStatisticsOption){
+            // true, means turn on. so if not already created we need to create them
+            if (myAcrossRepResponseStatsTable == null) {
+                myAcrossRepResponseStatsTable = HashBasedTable.create()
+            } else {
+                myAcrossRepResponseStatsTable!!.clear()
+            }
+            if (myAcrossRepCounterStatsTable == null) {
+                myAcrossRepCounterStatsTable = HashBasedTable.create()
+            } else {
+                myAcrossRepCounterStatsTable!!.clear()
+            }
+        } else {
+            // false means we are not going to collect so can get rid of them
+            myAcrossRepResponseStatsTable?.clear()
+            myAcrossRepCounterStatsTable?.clear()
+            myAcrossRepResponseStatsTable = null
+            myAcrossRepCounterStatsTable = null
         }
     }
 
@@ -371,12 +406,28 @@ class TimeSeriesResponse(
             }
             //construct the data and capture it
             val responseData = TimeSeriesPeriodData(response.name, r, periodCounter, timeLastStarted, periodLength, value)
+            if ((myAcrossRepResponseStatsTable != null) && (value != null)){
+                var statistic = myAcrossRepResponseStatsTable!!.get(response, periodCounter)
+                if (statistic == null) {
+                    statistic = Statistic("${response.name}_Period_$periodCounter")
+                    myAcrossRepResponseStatsTable!!.put(response, periodCounter, statistic)
+                }
+                statistic.collect(value)
+            }
             myResponseData[response]?.add(responseData)
         }
 
         for ((counter, data) in myCounters) {
             val intervalCount: Double = counter.value - data.myTotalAtStart
             val counterData = TimeSeriesPeriodData(counter.name, r, periodCounter, timeLastStarted, periodLength, intervalCount)
+            if (myAcrossRepCounterStatsTable != null){
+                var statistic = myAcrossRepCounterStatsTable!!.get(counter, periodCounter)
+                if (statistic == null) {
+                    statistic = Statistic("${counter.name}_Period_$periodCounter")
+                    myAcrossRepCounterStatsTable!!.put(counter, periodCounter, statistic)
+                }
+                statistic.collect(intervalCount)
+            }
             myCounterData[counter]?.add(counterData)
         }
     }
