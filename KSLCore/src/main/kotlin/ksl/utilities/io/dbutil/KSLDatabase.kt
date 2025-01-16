@@ -767,7 +767,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             insertResponseVariableBatchStatistics(rMap)
             insertTimeWeightedBatchStatistics(twMap)
         }
-        //TODO this is where TimeSeriesResponse data should be inserted
     }
 
     internal fun afterExperiment(model: Model) {
@@ -781,6 +780,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         insertHistogramResponses(model.histograms)
         // insert the frequency data
         insertFrequencyResponses(model.frequencies)
+        //TODO this is where TimeSeriesResponse data should be inserted
     }
 
     private fun insertFrequencyResponses(frequencies: List<IntegerFrequencyResponse>) {
