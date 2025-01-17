@@ -50,12 +50,10 @@ data class TimeSeriesPeriodData(
 }
 
 data class TimeSeriesPeriodStatisticData(
-    val elementId: Int,
     val responseName: String,
     val period: Int,
     val startTime: Double,
     val endTime: Double,
-    val length: Double,
     val count: Double,
     val average: Double,
     val standardDeviation: Double,
@@ -66,19 +64,12 @@ data class TimeSeriesPeriodStatisticData(
     val upperLimit: Double,
     val min: Double,
     val max: Double,
-    val sum: Double,
-    val variance: Double,
-    val deviationSumOfSquares: Double,
     val kurtosis: Double,
     val skewness: Double,
-    val lag1Covariance: Double,
     val lag1Correlation: Double,
-    val vonNeumannLag1TestStatistic: Double,
     val numberMissing: Double
 ) {
     init {
-        require(length.isFinite()) { "The length of the time series period must be finite" }
-        require(length > 0.0) { "The length of the time series period must be > 0.0" }
         require(period >= 1.0) { "The period number must be >= 1" }
         require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
         require(endTime > startTime) { "The end time of the period must be > than the start time" }
@@ -372,12 +363,10 @@ class TimeSeriesResponse(
             val endTime = startTime + periodLength
             cell.value.confidenceLevel = confidenceLevel
             val data = TimeSeriesPeriodStatisticData(
-                elementId = cell.rowKey.id,
                 responseName = cell.rowKey.name,
                 period = period,
                 startTime = startTime,
                 endTime =endTime,
-                length = periodLength,
                 count = cell.value.count,
                 average = cell.value.average,
                 standardDeviation = cell.value.standardDeviation,
@@ -388,14 +377,9 @@ class TimeSeriesResponse(
                 upperLimit = cell.value.average + cell.value.halfWidth,
                 min = cell.value.min,
                 max = cell.value.max,
-                sum = cell.value.sum,
-                variance = cell.value.variance,
-                deviationSumOfSquares = cell.value.deviationSumOfSquares,
                 kurtosis = cell.value.kurtosis,
                 skewness = cell.value.skewness,
-                lag1Covariance = cell.value.lag1Covariance,
                 lag1Correlation = cell.value.lag1Correlation,
-                vonNeumannLag1TestStatistic = cell.value.vonNeumannLag1TestStatistic,
                 numberMissing = cell.value.numberMissing
             )
             list.add(data)
@@ -405,12 +389,10 @@ class TimeSeriesResponse(
             val startTime = defaultStartTime + (period - 1) * periodLength
             val endTime = startTime + periodLength
             val data = TimeSeriesPeriodStatisticData(
-                elementId = cell.rowKey.id,
                 responseName = cell.rowKey.name,
                 period = period,
                 startTime = startTime,
                 endTime =endTime,
-                length = periodLength,
                 count = cell.value.count,
                 average = cell.value.average,
                 standardDeviation = cell.value.standardDeviation,
@@ -421,14 +403,9 @@ class TimeSeriesResponse(
                 upperLimit = cell.value.average + cell.value.halfWidth,
                 min = cell.value.min,
                 max = cell.value.max,
-                sum = cell.value.sum,
-                variance = cell.value.variance,
-                deviationSumOfSquares = cell.value.deviationSumOfSquares,
                 kurtosis = cell.value.kurtosis,
                 skewness = cell.value.skewness,
-                lag1Covariance = cell.value.lag1Covariance,
                 lag1Correlation = cell.value.lag1Correlation,
-                vonNeumannLag1TestStatistic = cell.value.vonNeumannLag1TestStatistic,
                 numberMissing = cell.value.numberMissing
             )
             list.add(data)
