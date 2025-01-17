@@ -57,7 +57,7 @@ class HistogramResponse(
     name: String? = "${theResponse.name}:Histogram",
 ) : ModelElement(theResponse, name), HistogramResponseCIfc {
 
-    internal val myResponse = theResponse
+    private val myResponse = theResponse
     override val response: ResponseCIfc
         get() = myResponse
 
