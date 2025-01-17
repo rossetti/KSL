@@ -10,6 +10,21 @@ import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
+/**
+ *  The within replication data collected for time series responses.
+ *  For Response and TWResponse instances the value property represents
+ *  the average of the response over the indicated period. For Counter instances
+ *  the value property represents the total count during the indicated period.
+ *  @param elementId the model element id of the response or counter
+ *  @param responseName the name of the counter or response
+ *  @param repNum the replication that the period was within
+ *  @param period the number of the period, numbered consecutively starting at 1
+ *  @param startTime the time that the period started
+ *  @param length the length of time associated with the period
+ *  @param value the collected value. For Response and TWResponse instances the value property represents
+ *  the average of the response over the indicated period. For Counter instances
+ *  the value property represents the total count during the indicated period.
+ */
 data class TimeSeriesPeriodData(
     val elementId: Int,
     val responseName: String,
@@ -28,16 +43,21 @@ data class TimeSeriesPeriodData(
         require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
     }
 
+    /**
+     *  The ending time of the period.
+     */
     val endTime: Double = startTime + length
 }
 
-
+/**
+ *  A limiting view of a TimeSeriesResponse via an interface.
+ */
 interface TimeSeriesResponseCIfc {
 
     /**
      *  Indicates whether the collection will be scheduled to start automatically at time 0.0
      */
-    var autoStart: Boolean
+    var autoStartOption: Boolean
 
     /**
      *  If true, across replications statistics will be collected for each period.
@@ -100,12 +120,38 @@ interface TimeSeriesResponseCIfc {
     fun counterPeriodDataAsDataFrame(counter: CounterCIfc): DataFrame<TimeSeriesPeriodData>
 }
 
+/**
+ *  This class addresses the problem of collecting simulation responses by period. The typical use case
+ *  involves the reporting of statistics over fixed time periods, such as hourly, daily, monthly, yearly, etc.
+ *  A time series response divides the simulated time horizon into sequential periods, with the periods
+ *  marking the time frame over which performance is observed. Users specify which responses will
+ *  be tabulated by providing Response, TWResponse, or Counter instances. Then for each period during the
+ *  simulation horizon, the response over the period is recorded into a series of records,
+ *  constituting a time series for the response. For Response and TWResponse instance the recorded
+ *  response represents the average of the variable during the period. For Counter instances, the total
+ *  count during the period is recorded.  This data is recorded for every response, for every period,
+ *  for each replication.
+ *
+ * @param parent the parent model element for the time series response.
+ * @param periodLength the length of time for the period. This must be greater than zero.
+ * @param responses A set of responses to observe for each period. This set may be empty only if
+ * the counters set is not empty.
+ * @param counters A set of counters to observe for each period. This set may be empty only if
+ * the responses set is not empty.
+ * @param autoStartOption This option indicates that collection will start at automatically with
+ * the first period starting at time 0.0 of the simulation. The default is true.  If false is
+ * supplied, then the user is responsible for starting the collection via the startCollection() function.
+ * @param acrossRepStatisticsOption This option indicates that within memory statistics will be defined
+ * to collect statistics across the periods for each replication.  This will result in statistics for
+ * each period for each response. The default is false.
+ * @param name the name of the model element
+ */
 class TimeSeriesResponse(
     parent: ModelElement,
     periodLength: Double,
     responses: Set<ResponseCIfc> = emptySet(),
     counters: Set<CounterCIfc> = emptySet(),
-    override var autoStart: Boolean = true,
+    override var autoStartOption: Boolean = true,
     override var acrossRepStatisticsOption: Boolean = false,
     name: String? = null
 ) : ModelElement(parent, name), TimeSeriesResponseCIfc {
@@ -285,7 +331,7 @@ class TimeSeriesResponse(
         myStartEvent = null
         myPeriodEvent = null
         myPeriodLength = periodLength
-        if (autoStart) {
+        if (autoStartOption) {
             startCollection()
         }
     }
