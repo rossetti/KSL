@@ -43,7 +43,7 @@ fun main() {
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-//    val kslDatabaseObserver = KSLDatabaseObserver(sim)
+    val kslDatabaseObserver = KSLDatabaseObserver(sim)
 //    val testDb = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(sim)
     sim.simulate()
     sim.print()

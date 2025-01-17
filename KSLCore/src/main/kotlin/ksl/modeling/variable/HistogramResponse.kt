@@ -20,8 +20,14 @@ package ksl.modeling.variable
 
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.HistogramIfc
+
+interface HistogramResponseCIfc : IdentityIfc {
+    val histogram: HistogramIfc
+    val response: ResponseCIfc
+}
 
 /**
  * Tabulates a histogram for the indicated response.
@@ -49,17 +55,20 @@ class HistogramResponse(
     theResponse: Response,
     val cacheSize: Int = 512,
     name: String? = "${theResponse.name}:Histogram",
-) : ModelElement(theResponse, name) {
+) : ModelElement(theResponse, name), HistogramResponseCIfc {
 
-    internal val response = theResponse
+    internal val myResponse = theResponse
+    override val response: ResponseCIfc
+        get() = myResponse
+
     private val myObserver = ResponseObserver()
 
     init {
-        response.attachModelElementObserver(myObserver)
+        myResponse.attachModelElementObserver(myObserver)
     }
 
     private val myHistogram: CachedHistogram = CachedHistogram(cacheSize, name = this.name)
-    val histogram: HistogramIfc
+    override val histogram: HistogramIfc
         get() = myHistogram
 
     override fun beforeExperiment() {
@@ -71,15 +80,15 @@ class HistogramResponse(
      *  response.
      */
     fun stopCollecting(){
-        response.detachModelElementObserver(myObserver)
+        myResponse.detachModelElementObserver(myObserver)
     }
 
     /**
      *  Causes the histogram response to start observing the underlying response
      */
     fun startCollecting(){
-        if (!response.isModelElementObserverAttached(myObserver)){
-            response.attachModelElementObserver(myObserver)
+        if (!myResponse.isModelElementObserverAttached(myObserver)){
+            myResponse.attachModelElementObserver(myObserver)
         }
     }
 

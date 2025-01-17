@@ -858,7 +858,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return list;
     }
 
-    private fun insertHistogramResponses(histograms: List<HistogramResponse>) {
+    private fun insertHistogramResponses(histograms: List<HistogramResponseCIfc>) {
         val list = mutableListOf<HistogramTableData>()
         for (h in histograms) {
             val histRecords = createHistogramDataRecords(h, currentSimRun!!.run_id)
@@ -868,7 +868,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     private fun createHistogramDataRecords(
-        histResponse: HistogramResponse,
+        histResponse: HistogramResponseCIfc,
         simId: Int
     ): List<HistogramTableData> {
         val list = mutableListOf<HistogramTableData>()

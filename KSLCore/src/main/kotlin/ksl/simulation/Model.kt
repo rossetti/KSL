@@ -39,6 +39,7 @@ import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
+import ksl.utilities.statistic.IntegerFrequencyIfc
 import org.jetbrains.kotlinx.dataframe.api.remove
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -100,7 +101,7 @@ class Model(
      * A list of all the HistogramResponses within the model
      */
     private var myHistograms: MutableList<HistogramResponse> = ArrayList()
-    val histograms: List<HistogramResponse>
+    val histograms: List<HistogramResponseCIfc>
         get() = myHistograms
 
     /**
