@@ -11,8 +11,9 @@ import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 data class TimeSeriesPeriodData(
+    val elementId: Int,
     val responseName: String,
-    val repNum: Double,
+    val repNum: Int,
     val period: Int,
     val startTime: Double,
     val length: Double,
@@ -375,7 +376,7 @@ class TimeSeriesResponse(
     }
 
     private fun endPeriodCollection(){
-        val r = model.currentReplicationNumber.toDouble()
+        val r = model.currentReplicationNumber
         for ((response, data) in myResponses) {
             timeLastEnded = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
@@ -403,7 +404,8 @@ class TimeSeriesResponse(
                 }
             }
             //construct the data and capture it
-            val responseData = TimeSeriesPeriodData(response.name, r, periodCounter, timeLastStarted, periodLength, value)
+            val responseData = TimeSeriesPeriodData(response.id, response.name, r,
+                periodCounter, timeLastStarted, periodLength, value)
             if ((myAcrossRepResponseStatsTable != null) && (value != null)){
                 var statistic = myAcrossRepResponseStatsTable!!.get(response, periodCounter)
                 if (statistic == null) {
@@ -417,7 +419,8 @@ class TimeSeriesResponse(
 
         for ((counter, data) in myCounters) {
             val intervalCount: Double = counter.value - data.myTotalAtStart
-            val counterData = TimeSeriesPeriodData(counter.name, r, periodCounter, timeLastStarted, periodLength, intervalCount)
+            val counterData = TimeSeriesPeriodData(counter.id, counter.name, r, periodCounter,
+                timeLastStarted, periodLength, intervalCount)
             if (myAcrossRepCounterStatsTable != null){
                 var statistic = myAcrossRepCounterStatsTable!!.get(counter, periodCounter)
                 if (statistic == null) {

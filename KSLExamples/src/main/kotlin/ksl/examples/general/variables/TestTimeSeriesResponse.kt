@@ -9,6 +9,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
@@ -27,11 +28,19 @@ fun main() {
 
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
+
+    val sdb = KSLDatabase.createEmbeddedDerbyKSLDatabase("TestDerbyKSLDb", model.outputDirectory.dbDir)
+//        val sdb = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "postgres")
+    val kdb = KSLDatabase(sdb)
+    KSLDatabaseObserver(model, kdb)
+
     model.simulate()
     model.print()
     println()
     val df1 = dtp.timeSeriesResponse.allTimeSeriesPeriodDataAsDataFrame()
     df1.print(rowsLimit = 100)
+
+    kdb.timeSeriesResponseViewData.print()
 }
 
 class TestTimeSeriesResponse(
