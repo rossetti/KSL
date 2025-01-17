@@ -49,6 +49,9 @@ data class TimeSeriesPeriodData(
     val endTime: Double = startTime + length
 }
 
+/**
+ *  Holds the statistics by period across the simulation replications.
+ */
 data class TimeSeriesPeriodStatisticData(
     val responseName: String,
     val period: Int,
