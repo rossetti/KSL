@@ -1,6 +1,5 @@
 package ksl.modeling.variable
 
-import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.IntegerFrequencyIfc
