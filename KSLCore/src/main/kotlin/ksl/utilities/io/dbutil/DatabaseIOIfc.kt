@@ -265,5 +265,4 @@ interface DatabaseIOIfc {
         schemaName: String? = defaultSchemaName,
         skipFirstRow: Boolean = true
     )
-
 }

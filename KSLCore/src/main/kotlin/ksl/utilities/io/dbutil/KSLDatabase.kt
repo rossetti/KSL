@@ -649,6 +649,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             return df
         }
 
+    val timeSeriesResponseViewData: DataFrame<TimeSeriesResponseViewData>
+        get() {
+            var df = db.selectTableDataIntoDbData(::TimeSeriesResponseViewData).toDataFrame()
+            df = df.remove("numColumns", "schemaName", "tableName")
+            return df
+        }
+
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
@@ -780,7 +787,36 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         insertHistogramResponses(model.histograms)
         // insert the frequency data
         insertFrequencyResponses(model.frequencies)
-        //TODO this is where TimeSeriesResponse data should be inserted
+        insertTimeSeriesResponses(model.timeSeriesResponses)
+    }
+
+    private fun insertTimeSeriesResponses(responses: List<TimeSeriesResponseCIfc>){
+        val list = mutableListOf<TimeSeriesResponseTableData>()
+        for(response in responses){
+            val tsDataList = response.allTimeSeriesPeriodDataAsList()
+            for(tsData in tsDataList){
+                val record = createTimeSeriesResponseTableRecord(tsData, currentSimRun!!.run_id)
+                list.add(record)
+            }
+        }
+        db.insertAllDbDataIntoTable(list, tableName = "time_series_response")
+    }
+
+    private fun createTimeSeriesResponseTableRecord(
+        tsData: TimeSeriesPeriodData,
+        runId: Int
+    ): TimeSeriesResponseTableData {
+        val record = TimeSeriesResponseTableData()
+        record.element_id_fk = tsData.elementId
+        record.sim_run_id_fk = runId
+        record.rep_id = tsData.repNum
+        record.stat_name = tsData.responseName
+        record.period = tsData.period
+        record.start_time = tsData.startTime
+        record.end_time = tsData.endTime
+        record.length = tsData.length
+        record.value = tsData.value
+        return record
     }
 
     private fun insertFrequencyResponses(frequencies: List<IntegerFrequencyResponse>) {
@@ -789,7 +825,6 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
             val freqRecords = createFrequencyDataRecords(freq, currentSimRun!!.run_id)
             list.addAll(freqRecords)
         }
-        // println("db.insertDbDataIntoTable(list, \"frequency\")")
         db.insertAllDbDataIntoTable(list, "frequency")
     }
 
@@ -1794,6 +1829,21 @@ data class PWDiffWithinRepViewData(
     var diff_name: String = "",
     var a_minus_b: Double? = null
 ) : TabularData("pw_diff_within_rep_view")
+
+data class TimeSeriesResponseViewData(
+    var exp_name: String = "",
+    var element_id_fk: Int = -1,
+    var sim_run_id_fk: Int = -1,
+    var stat_name: String = "",
+    var period: Int = -1,
+    var start_time: Double? = null,
+    var end_time: Double? = null,
+    var stat_count: Double? = null,
+    var average: Double? = null,
+    var std_dev: Double? = null,
+    var minimum: Double? = null,
+    var maximum: Double? = null,
+) : TabularData("time_series_response_across_rep_view")
 
 class KSLDatabaseNotConfigured(msg: String = "KSLDatabase: The supplied database was not configured as a KSLDatabase!") :
     RuntimeException(msg)
