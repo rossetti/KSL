@@ -25,7 +25,7 @@ fun main() {
     val dtp = TestTimeSeriesResponse(model, 1, name = "Pharmacy")
     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-
+    dtp.timeSeriesResponse.acrossRepStatisticsOption = true
     // demonstrate capturing data to database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
 
@@ -41,6 +41,10 @@ fun main() {
     df1.print(rowsLimit = 100)
 
     kdb.timeSeriesResponseViewData.print()
+
+    println()
+
+    dtp.timeSeriesResponse.allAcrossReplicationStatisticsByPeriodAsDataFrame().print()
 }
 
 class TestTimeSeriesResponse(

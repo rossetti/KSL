@@ -4,6 +4,7 @@ import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Table
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.WeightedStatisticIfc
 import org.jetbrains.kotlinx.dataframe.DataFrame
@@ -46,6 +47,42 @@ data class TimeSeriesPeriodData(
      *  The ending time of the period.
      */
     val endTime: Double = startTime + length
+}
+
+data class TimeSeriesPeriodStatisticData(
+    val elementId: Int,
+    val responseName: String,
+    val period: Int,
+    val startTime: Double,
+    val endTime: Double,
+    val length: Double,
+    val count: Double,
+    val average: Double,
+    val standardDeviation: Double,
+    val standardError: Double,
+    val halfWidth: Double,
+    val confidenceLevel: Double,
+    val lowerLimit: Double,
+    val upperLimit: Double,
+    val min: Double,
+    val max: Double,
+    val sum: Double,
+    val variance: Double,
+    val deviationSumOfSquares: Double,
+    val kurtosis: Double,
+    val skewness: Double,
+    val lag1Covariance: Double,
+    val lag1Correlation: Double,
+    val vonNeumannLag1TestStatistic: Double,
+    val numberMissing: Double
+) {
+    init {
+        require(length.isFinite()) { "The length of the time series period must be finite" }
+        require(length > 0.0) { "The length of the time series period must be > 0.0" }
+        require(period >= 1.0) { "The period number must be >= 1" }
+        require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
+        require(endTime > startTime) { "The end time of the period must be > than the start time" }
+    }
 }
 
 /**
@@ -117,6 +154,45 @@ interface TimeSeriesResponseCIfc {
      *  or an empty data frame if the counter is not collected.
      */
     fun counterPeriodDataAsDataFrame(counter: CounterCIfc): DataFrame<TimeSeriesPeriodData>
+
+    /**
+     *  If the acrossRepStatisticsOption option is true, then this function
+     *  returns the across replication statistics for each period for the
+     *  specified [response]. If the response is not associated with the
+     *  time series collector, then an empty map is returned.
+     *
+     */
+    fun acrossReplicationStatisticsByPeriod(response: ResponseCIfc): Map<Int, Statistic>
+
+
+    /**
+     *  If the acrossRepStatisticsOption option is true, then this function
+     *  returns the across replication statistics for each period for the
+     *  specified [counter]. If the counter is not associated with the
+     *  time series collector, then an empty map is returned.
+     *
+     */
+    fun acrossReplicationStatisticsByPeriod(counter: CounterCIfc): Map<Int, Statistic>
+
+    /**
+     *  Returns a data frame of the across replication statistics by period where the
+     *  statistics are computed replications.
+     *  @param confidenceLevel the confidence level for the confidence interval on the average
+     */
+    fun allAcrossReplicationStatisticsByPeriodAsDataFrame(
+        confidenceLevel: Double = TimeSeriesResponse.defaultConfidenceLevel
+    ): DataFrame<TimeSeriesPeriodStatisticData> {
+        return allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel).toDataFrame()
+    }
+
+    /**
+     *  Returns a list of the across replication statistics by period where the
+     *  statistics are computed replications.
+     *  @param confidenceLevel the confidence level for the confidence interval on the average
+     */
+    fun allAcrossReplicationStatisticsByPeriodAsList(
+        confidenceLevel: Double = TimeSeriesResponse.defaultConfidenceLevel
+    ): List<TimeSeriesPeriodStatisticData>
 }
 
 /**
@@ -137,6 +213,9 @@ interface TimeSeriesResponseCIfc {
  *  want data collected during warmup periods, then specify the default start time for the
  *  time series to be greater than or equal to the specified warmup period length using
  *  the defaultStartTime property.  The default starting time of the first period is at time 0.0.
+ *
+ *  The collected responses are not automatically shown in console output. However, the data can
+ *  be accessed via a reference to the class or by using a KSLDatabase.
  *
  * @param parent the parent model element for the time series response.
  * @param periodLength the length of time for the period. This must be greater than zero.
@@ -265,6 +344,110 @@ class TimeSeriesResponse(
             }
             myPeriodEvent = null
         }
+    }
+
+    /**
+     *  If the acrossRepStatisticsOption option is true, then this function
+     *  returns the across replication statistics for each period for the
+     *  specified [response]. If the response is not associated with the
+     *  time series collector, then an empty map is returned.
+     *
+     */
+    override fun acrossReplicationStatisticsByPeriod(response: ResponseCIfc): Map<Int, Statistic> {
+        if (myAcrossRepResponseStatsTable == null) {
+            return emptyMap()
+        }
+        return myAcrossRepResponseStatsTable!!.row(response)
+    }
+
+    override fun allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel: Double): List<TimeSeriesPeriodStatisticData> {
+        require(!(confidenceLevel <= 0.0 || confidenceLevel >= 1.0)) { "Confidence Level must be (0,1)" }
+        if (myAcrossRepResponseStatsTable == null) {
+            return emptyList()
+        }
+        val list = mutableListOf<TimeSeriesPeriodStatisticData>()
+        for (cell in myAcrossRepResponseStatsTable!!.cellSet()) {
+            val period = cell.columnKey
+            val startTime = defaultStartTime + (period - 1) * periodLength
+            val endTime = startTime + periodLength
+            cell.value.confidenceLevel = confidenceLevel
+            val data = TimeSeriesPeriodStatisticData(
+                elementId = cell.rowKey.id,
+                responseName = cell.rowKey.name,
+                period = period,
+                startTime = startTime,
+                endTime =endTime,
+                length = periodLength,
+                count = cell.value.count,
+                average = cell.value.average,
+                standardDeviation = cell.value.standardDeviation,
+                standardError = cell.value.standardError,
+                halfWidth = cell.value.halfWidth,
+                confidenceLevel = cell.value.confidenceLevel,
+                lowerLimit = cell.value.average - cell.value.halfWidth,
+                upperLimit = cell.value.average + cell.value.halfWidth,
+                min = cell.value.min,
+                max = cell.value.max,
+                sum = cell.value.sum,
+                variance = cell.value.variance,
+                deviationSumOfSquares = cell.value.deviationSumOfSquares,
+                kurtosis = cell.value.kurtosis,
+                skewness = cell.value.skewness,
+                lag1Covariance = cell.value.lag1Covariance,
+                lag1Correlation = cell.value.lag1Correlation,
+                vonNeumannLag1TestStatistic = cell.value.vonNeumannLag1TestStatistic,
+                numberMissing = cell.value.numberMissing
+            )
+            list.add(data)
+        }
+        for (cell in myAcrossRepCounterStatsTable!!.cellSet()) {
+            val period = cell.columnKey
+            val startTime = defaultStartTime + (period - 1) * periodLength
+            val endTime = startTime + periodLength
+            val data = TimeSeriesPeriodStatisticData(
+                elementId = cell.rowKey.id,
+                responseName = cell.rowKey.name,
+                period = period,
+                startTime = startTime,
+                endTime =endTime,
+                length = periodLength,
+                count = cell.value.count,
+                average = cell.value.average,
+                standardDeviation = cell.value.standardDeviation,
+                standardError = cell.value.standardError,
+                halfWidth = cell.value.halfWidth,
+                confidenceLevel = cell.value.confidenceLevel,
+                lowerLimit = cell.value.average - cell.value.halfWidth,
+                upperLimit = cell.value.average + cell.value.halfWidth,
+                min = cell.value.min,
+                max = cell.value.max,
+                sum = cell.value.sum,
+                variance = cell.value.variance,
+                deviationSumOfSquares = cell.value.deviationSumOfSquares,
+                kurtosis = cell.value.kurtosis,
+                skewness = cell.value.skewness,
+                lag1Covariance = cell.value.lag1Covariance,
+                lag1Correlation = cell.value.lag1Correlation,
+                vonNeumannLag1TestStatistic = cell.value.vonNeumannLag1TestStatistic,
+                numberMissing = cell.value.numberMissing
+            )
+            list.add(data)
+        }
+        return list
+    }
+
+    /**
+     *  If the acrossRepStatisticsOption option is true, then this function
+     *  returns the across replication statistics for each period for the
+     *  specified [counter]. If the counter is not associated with the
+     *  time series collector, then an empty map is returned.
+     *
+     */
+    override fun acrossReplicationStatisticsByPeriod(counter: CounterCIfc): Map<Int, Statistic> {
+        if (myAcrossRepResponseStatsTable == null) {
+            return emptyMap()
+        }
+        return myAcrossRepCounterStatsTable!!.row(counter)
     }
 
     /**
@@ -477,5 +660,13 @@ class TimeSeriesResponse(
             }
             myCounterData[counter]?.add(counterData)
         }
+    }
+
+    companion object {
+        var defaultConfidenceLevel: Double = DEFAULT_CONFIDENCE_LEVEL
+            set(level) {
+                require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+                field = level
+            }
     }
 }
