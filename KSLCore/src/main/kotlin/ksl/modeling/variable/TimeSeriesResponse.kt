@@ -33,13 +33,12 @@ data class TimeSeriesPeriodData(
     val startTime: Double,
     val length: Double,
     val value: Double?
-)
-{
+) {
     init {
         require(length.isFinite()) { "The length of the time series period must be finite" }
         require(length > 0.0) { "The length of the time series period must be > 0.0" }
-        require(repNum >= 1.0) {"The replication number must be >= 1"}
-        require(period >= 1.0) {"The period number must be >= 1"}
+        require(repNum >= 1.0) { "The replication number must be >= 1" }
+        require(period >= 1.0) { "The period number must be >= 1" }
         require(startTime >= 0.0) { "The start time of the period must be >= 0.0" }
     }
 
@@ -55,9 +54,9 @@ data class TimeSeriesPeriodData(
 interface TimeSeriesResponseCIfc {
 
     /**
-     *  Indicates whether the collection will be scheduled to start automatically at time 0.0
+     *  The default time that the first period will start. By default, it is zero.
      */
-    var autoStartOption: Boolean
+    var defaultStartTime: Double
 
     /**
      *  If true, across replications statistics will be collected for each period.
@@ -88,12 +87,12 @@ interface TimeSeriesResponseCIfc {
     /**
      *  Returns all time series period data as a list for responses and counters
      */
-    fun allTimeSeriesPeriodDataAsList() : List<TimeSeriesPeriodData>
+    fun allTimeSeriesPeriodDataAsList(): List<TimeSeriesPeriodData>
 
     /**
      *  Returns all time series period data as a data frame for responses and counters
      */
-    fun allTimeSeriesPeriodDataAsDataFrame() : DataFrame<TimeSeriesPeriodData>
+    fun allTimeSeriesPeriodDataAsDataFrame(): DataFrame<TimeSeriesPeriodData>
 
     /**
      *  Provides a data frame representation of the response period data for the [response]
@@ -121,16 +120,23 @@ interface TimeSeriesResponseCIfc {
 }
 
 /**
- *  This class addresses the problem of collecting simulation responses by period. The typical use case
+ *  This class addresses the problem of collecting simulation responses by period. A typical use case
  *  involves the reporting of statistics over fixed time periods, such as hourly, daily, monthly, yearly, etc.
  *  A time series response divides the simulated time horizon into sequential periods, with the periods
  *  marking the time frame over which performance is observed. Users specify which responses will
  *  be tabulated by providing Response, TWResponse, or Counter instances. Then for each period during the
  *  simulation horizon, the response over the period is recorded into a series of records,
- *  constituting a time series for the response. For Response and TWResponse instance the recorded
+ *  constituting a time series for the response. For Response and TWResponse instances, the recorded
  *  response represents the average of the variable during the period. For Counter instances, the total
  *  count during the period is recorded.  This data is recorded for every response, for every period,
  *  for each replication.
+ *
+ *  This class does not react to warm up events.  That is, periods observed prior to the warmup event
+ *  will contain data that was observed during the warmup period.  The standard usage for this
+ *  class is likely not within an infinite horizon (steady-state) context. However, if you do not
+ *  want data collected during warmup periods, then specify the default start time for the
+ *  time series to be greater than or equal to the specified warmup period length using
+ *  the defaultStartTime property.  The default starting time of the first period is at time 0.0.
  *
  * @param parent the parent model element for the time series response.
  * @param periodLength the length of time for the period. This must be greater than zero.
@@ -138,9 +144,6 @@ interface TimeSeriesResponseCIfc {
  * the counters set is not empty.
  * @param counters A set of counters to observe for each period. This set may be empty only if
  * the responses set is not empty.
- * @param autoStartOption This option indicates that collection will start at automatically with
- * the first period starting at time 0.0 of the simulation. The default is true.  If false is
- * supplied, then the user is responsible for starting the collection via the startCollection() function.
  * @param acrossRepStatisticsOption This option indicates that within memory statistics will be defined
  * to collect statistics across the periods for each replication.  This will result in statistics for
  * each period for each response. The default is false.
@@ -151,7 +154,6 @@ class TimeSeriesResponse(
     periodLength: Double,
     responses: Set<ResponseCIfc> = emptySet(),
     counters: Set<CounterCIfc> = emptySet(),
-    override var autoStartOption: Boolean = true,
     override var acrossRepStatisticsOption: Boolean = false,
     name: String? = null
 ) : ModelElement(parent, name), TimeSeriesResponseCIfc {
@@ -160,29 +162,26 @@ class TimeSeriesResponse(
         parent: ModelElement,
         periodLength: Double,
         response: ResponseCIfc,
-        autoStart: Boolean = true,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), emptySet(), autoStart, acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, setOf(response), emptySet(), acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
         periodLength: Double,
         counter: CounterCIfc,
-        autoStart: Boolean = true,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, emptySet(), setOf(counter), autoStart, acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, emptySet(), setOf(counter), acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
         periodLength: Double,
         response: ResponseCIfc,
         counter: CounterCIfc,
-        autoStart: Boolean = true,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), setOf(counter), autoStart, acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, setOf(response), setOf(counter), acrossRepStatisticsOption, name)
 
     private val myResponses = mutableMapOf<ResponseCIfc, PeriodStartData>()
     override val responses: List<ResponseCIfc>
@@ -194,8 +193,8 @@ class TimeSeriesResponse(
 
     private val myResponseData = mutableMapOf<ResponseCIfc, MutableList<TimeSeriesPeriodData>>()
     private val myCounterData = mutableMapOf<CounterCIfc, MutableList<TimeSeriesPeriodData>>()
-    private var myAcrossRepResponseStatsTable : Table<ResponseCIfc, Int, Statistic>? = null
-    private var myAcrossRepCounterStatsTable : Table<CounterCIfc, Int, Statistic>? = null
+    private var myAcrossRepResponseStatsTable: Table<ResponseCIfc, Int, Statistic>? = null
+    private var myAcrossRepCounterStatsTable: Table<CounterCIfc, Int, Statistic>? = null
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
@@ -239,16 +238,15 @@ class TimeSeriesResponse(
      */
     private var timeLastEnded: Double = 0.0
 
-    /** Causes the start of the first period to be scheduled.
-     *  The collection must not have already been started.
-     *  @param startTime the time from the current time until the start of the first period
-     *  The default is 0.0
+    /**
+     *  The default time that the first period will start. By default, it is zero.
      */
-    fun startCollection(startTime: Double = 0.0) {
-        require(startTime >= 0.0) { "The start time must be >= 0.0" }
-        require(myStartEvent == null) { "The times series response collection has already been started" }
-        myStartEvent = schedule(this::startFirstPeriod, startTime, priority = KSLEvent.VERY_HIGH_PRIORITY)
-    }
+    override var defaultStartTime: Double = 0.0
+        set(value) {
+            require(value >= 0.0) { "The default start time must be >= 0.0" }
+            require(model.isNotRunning) { "The simulation cannot be running when changing the default start time." }
+            field = value
+        }
 
     /**
      *  If the collection has been scheduled to start or has started, this function
@@ -256,13 +254,13 @@ class TimeSeriesResponse(
      */
     fun cancelCollection() {
         if (myStartEvent != null) {
-            if (myStartEvent!!.isScheduled){
+            if (myStartEvent!!.isScheduled) {
                 myStartEvent?.cancel
             }
             myStartEvent = null
         }
         if (myPeriodEvent != null) {
-            if (myPeriodEvent!!.isScheduled){
+            if (myPeriodEvent!!.isScheduled) {
                 myPeriodEvent?.cancel
             }
             myPeriodEvent = null
@@ -272,12 +270,12 @@ class TimeSeriesResponse(
     /**
      *  Returns all time series period data as a list for responses and counters
      */
-    override fun allTimeSeriesPeriodDataAsList() : List<TimeSeriesPeriodData>{
+    override fun allTimeSeriesPeriodDataAsList(): List<TimeSeriesPeriodData> {
         val list = mutableListOf<TimeSeriesPeriodData>()
-        for((_, dataList) in myResponseData){
+        for ((_, dataList) in myResponseData) {
             list.addAll(dataList)
         }
-        for((_, dataList) in myCounterData){
+        for ((_, dataList) in myCounterData) {
             list.addAll(dataList)
         }
         return list
@@ -286,7 +284,7 @@ class TimeSeriesResponse(
     /**
      *  Returns all time series period data as a data frame for responses and counters
      */
-    override fun allTimeSeriesPeriodDataAsDataFrame() : DataFrame<TimeSeriesPeriodData>{
+    override fun allTimeSeriesPeriodDataAsDataFrame(): DataFrame<TimeSeriesPeriodData> {
         return allTimeSeriesPeriodDataAsList().toDataFrame()
     }
 
@@ -331,9 +329,7 @@ class TimeSeriesResponse(
         myStartEvent = null
         myPeriodEvent = null
         myPeriodLength = periodLength
-        if (autoStartOption) {
-            startCollection()
-        }
+        myStartEvent = schedule(this::startFirstPeriod, defaultStartTime, priority = KSLEvent.VERY_HIGH_PRIORITY)
     }
 
     override fun afterReplication() {
@@ -348,13 +344,13 @@ class TimeSeriesResponse(
 
     override fun beforeExperiment() {
         super.beforeExperiment()
-        for((_, list) in myResponseData){
+        for ((_, list) in myResponseData) {
             list.clear()
         }
-        for((_, list) in myCounterData){
+        for ((_, list) in myCounterData) {
             list.clear()
         }
-        if (acrossRepStatisticsOption){
+        if (acrossRepStatisticsOption) {
             // true, means turn on. so if not already created we need to create them
             if (myAcrossRepResponseStatsTable == null) {
                 myAcrossRepResponseStatsTable = HashBasedTable.create()
@@ -397,7 +393,7 @@ class TimeSeriesResponse(
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
-    private fun startPeriodCollection(){
+    private fun startPeriodCollection() {
         for ((response, data) in myResponses) {
             timeLastStarted = time
             val w: WeightedStatisticIfc = response.withinReplicationStatistic
@@ -421,7 +417,7 @@ class TimeSeriesResponse(
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
     }
 
-    private fun endPeriodCollection(){
+    private fun endPeriodCollection() {
         val r = model.currentReplicationNumber
         for ((response, data) in myResponses) {
             timeLastEnded = time
@@ -450,9 +446,11 @@ class TimeSeriesResponse(
                 }
             }
             //construct the data and capture it
-            val responseData = TimeSeriesPeriodData(response.id, response.name, r,
-                periodCounter, timeLastStarted, periodLength, value)
-            if ((myAcrossRepResponseStatsTable != null) && (value != null)){
+            val responseData = TimeSeriesPeriodData(
+                response.id, response.name, r,
+                periodCounter, timeLastStarted, periodLength, value
+            )
+            if ((myAcrossRepResponseStatsTable != null) && (value != null)) {
                 var statistic = myAcrossRepResponseStatsTable!!.get(response, periodCounter)
                 if (statistic == null) {
                     statistic = Statistic("${response.name}_Period_$periodCounter")
@@ -465,9 +463,11 @@ class TimeSeriesResponse(
 
         for ((counter, data) in myCounters) {
             val intervalCount: Double = counter.value - data.myTotalAtStart
-            val counterData = TimeSeriesPeriodData(counter.id, counter.name, r, periodCounter,
-                timeLastStarted, periodLength, intervalCount)
-            if (myAcrossRepCounterStatsTable != null){
+            val counterData = TimeSeriesPeriodData(
+                counter.id, counter.name, r, periodCounter,
+                timeLastStarted, periodLength, intervalCount
+            )
+            if (myAcrossRepCounterStatsTable != null) {
                 var statistic = myAcrossRepCounterStatsTable!!.get(counter, periodCounter)
                 if (statistic == null) {
                     statistic = Statistic("${counter.name}_Period_$periodCounter")
