@@ -41,7 +41,7 @@ interface RequestSelectionRuleIfc {
 class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
     override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
         val list = mutableListOf<ProcessModel.Entity.Request>()
-        if (amountAvailable <= 0){
+        if (amountAvailable <= 0) {
             return list
         }
         var startingAmount = amountAvailable
@@ -67,8 +67,7 @@ class RequestQ(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
-) :
-    Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
+) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
@@ -83,8 +82,8 @@ class RequestQ(
     fun removeAndTerminate(
         request: ProcessModel.Entity.Request,
         waitStats: Boolean = false,
-        afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null
-        ) {
+        afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
+    ) {
         remove(request, waitStats)
         request.entity.terminateProcess(afterTermination)
     }
@@ -96,7 +95,10 @@ class RequestQ(
      * The default is false.
      * @param afterTermination a function to invoke after the process is successfully terminated
      */
-    fun removeAllAndTerminate(waitStats: Boolean = false, afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null) {
+    fun removeAllAndTerminate(
+        waitStats: Boolean = false,
+        afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
+    ) {
         while (isNotEmpty) {
             val request = peekNext()
             removeAndTerminate(request!!, waitStats, afterTermination)
@@ -112,8 +114,8 @@ class RequestQ(
      * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
      * @return the number of waiting requests that were processed
      */
-    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int) : Int {
-        if (amountAvailable <= 0){
+    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int): Int {
+        if (amountAvailable <= 0) {
             return 0
         }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)

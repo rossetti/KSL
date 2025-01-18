@@ -550,6 +550,7 @@ class TimeSeriesResponse(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun startFirstPeriod(event: KSLEvent<Nothing>) {
         startPeriodCollection()
         myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
@@ -568,6 +569,7 @@ class TimeSeriesResponse(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun endPeriodEvent(event: KSLEvent<Nothing>) {
         periodCounter++
         timeLastEnded = time
