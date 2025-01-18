@@ -139,7 +139,7 @@ class Model(
      * A list of all the Variables within the model
      */
     private var myVariables: MutableList<Variable> = ArrayList()
-    val variables: List<Variable>
+    val variables: List<VariableIfc>
         get() = myVariables
 
     /**

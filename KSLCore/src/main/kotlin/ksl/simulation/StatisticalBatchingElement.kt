@@ -54,7 +54,7 @@ class StatisticalBatchingElement(
 
     /**
      *
-     * Amap of all batch statistics with the ResponseVariable variable as the key
+     * A map of all batch statistics with the ResponseVariable variable as the key
      */
     val allResponseBatchStatisticsAsMap: Map<ResponseCIfc, BatchStatisticIfc>
         get() = responseBatchingElement.allBatchStatisticsAsMap
@@ -72,7 +72,7 @@ class StatisticalBatchingElement(
      * @param response the ResponseVariable to look up
      * @return the BatchStatisticObserver
      */
-    fun batchStatisticObserverFor(response: Response): BatchStatisticObserver? {
+    fun batchStatisticObserverFor(response: ResponseCIfc): BatchStatisticObserver? {
         return if (response is TWResponse) {
             twBatchingElement.timeWeightedBatchObserverFor(response)
         } else {
@@ -85,7 +85,7 @@ class StatisticalBatchingElement(
      *
      * @param response the ResponseVariable to be removed
      */
-    fun remove(response: Response) {
+    fun remove(response: ResponseCIfc) {
         if (response is TWResponse) {
             twBatchingElement.remove(response)
         } else {
@@ -110,7 +110,7 @@ class StatisticalBatchingElement(
      * @param response the Response to look up
      * @return the returned BatchStatisticIfc
      */
-    fun batchStatisticFor(response: Response): BatchStatisticIfc {
+    fun batchStatisticFor(response: ResponseCIfc): BatchStatisticIfc {
         return if (response is TWResponse) {
             twBatchingElement.batchStatisticFor(response)
         } else {
