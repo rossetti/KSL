@@ -1,10 +1,12 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
@@ -75,6 +77,11 @@ class MovableResourceWithQ(
     var initialHomeBase: LocationIfc? = null
     var homeBase:LocationIfc? = null
 
+    val hasHomeBase: Boolean
+        get() = homeBase != null
+
+    private val homeBaseDriver = HomeBaseDriver()
+
     override fun initialize() {
         super.initialize()
         homeBase = initialHomeBase
@@ -104,5 +111,70 @@ class MovableResourceWithQ(
     override fun countObservers(): Int {
         return mySpatialElement.countObservers()
     }
+
+    /**
+     *  If the movable resource has a defined home base, and it is not
+     *  already returning to home, this function causes the
+     *  movable resource to be requested and sent to its home base.
+     *  If there are pending requests, this request will compete with them,
+     *  possibly waiting until finally causing the resource to return
+     *  to its home base.
+     */
+    fun sendToHomeBase(){
+        if (hasHomeBase  && !homeBaseDriver.returningHome){
+            homeBaseDriver.sendToHomeBase()
+        }
+    }
+
+    private val myHomeQ = RequestQ(this, "${this.name}:HomeBaseQ")
+
+    init {
+        myHomeQ.waitTimeStatOption = false
+        myHomeQ.defaultReportingOption = false
+    }
+
+    /**
+     *  @param option  If true the queue holding requests for moving to the home base
+     *  will report statistics
+     */
+    fun homeQStatistics(option: Boolean){
+        myHomeQ.waitTimeStatOption = option
+        myHomeQ.defaultReportingOption = option
+    }
+
+    /**
+     *  True indicates that the movable resource is in the process of returning
+     *  to its home base.
+     */
+    val isReturningHome: Boolean
+        get() = homeBaseDriver.returningHome
+
+    private inner class HomeBaseDriver() : ProcessModel(
+        this@MovableResourceWithQ, "${this@MovableResourceWithQ.name}:Driver"
+    ) {
+
+        var returningHome = false
+            private set
+
+        fun sendToHomeBase() {
+            if ((homeBase != null) && !returningHome){
+                val driver = Driver()
+                returningHome = true
+                activate(driver.returnToHomeProcess, priority = KSLEvent.VERY_HIGH_PRIORITY)
+            }
+        }
+
+        private inner class Driver() : Entity() {
+            val returnToHomeProcess = process {
+                require(homeBase != null) {"There is no home based defined for ${this@MovableResourceWithQ.name}"}
+                val a = seize(this@MovableResourceWithQ,
+                    queue = myHomeQ, seizePriority = KSLEvent.VERY_HIGH_PRIORITY)
+                move(this@MovableResourceWithQ, homeBase!!, movePriority = KSLEvent.VERY_HIGH_PRIORITY)
+                release(a)
+                returningHome = false
+            }
+        }
+    }
+
 
 }

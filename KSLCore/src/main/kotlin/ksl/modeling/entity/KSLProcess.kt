@@ -34,7 +34,6 @@ import ksl.modeling.entity.ProcessModel.Companion.YIELD_PRIORITY
 import ksl.modeling.entity.ProcessModel.Entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.*
-import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
@@ -1283,6 +1282,8 @@ interface KSLProcessBuilder {
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
+     *  @param sendToHomeBaseOption If true, and there are no pending requests, and the selected movable resource has a home base,
+     *  it will be sent to the home base after the transport. The default is false.
      */
     suspend fun transportWith(
         movableResource: MovableResource,
@@ -1296,7 +1297,8 @@ interface KSLProcessBuilder {
         emptyMovePriority: Int = MOVE_PRIORITY,
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
-        unLoadingPriority: Int = DELAY_PRIORITY
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        sendToHomeBaseOption: Boolean = false
     ) {
         val a = seize(movableResource, seizePriority = requestPriority, queue = transportQ)
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
@@ -1307,11 +1309,14 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
-//        if (movableResource.homeBase != null) {
-//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-//        }
         release(a)
+        if (sendToHomeBaseOption){
+            if (movableResource.hasHomeBase){
+                if (transportQ.isEmpty){
+                    movableResource.sendToHomeBase()
+                }
+            }
+        }
     }
 
     /**
@@ -1328,6 +1333,8 @@ interface KSLProcessBuilder {
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
+     *  @param sendToHomeBaseOption If true, and there are no pending requests, and the selected movable resource has a home base,
+     *  it will be sent to the home base after the transport. The default is false.
      */
     suspend fun transportWith(
         movableResourceWithQ: MovableResourceWithQ,
@@ -1340,7 +1347,8 @@ interface KSLProcessBuilder {
         emptyMovePriority: Int = MOVE_PRIORITY,
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
-        unLoadingPriority: Int = DELAY_PRIORITY
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        sendToHomeBaseOption: Boolean = false
     ) {
         val a = seize(movableResourceWithQ, seizePriority = requestPriority)
         move(movableResourceWithQ, entity.currentLocation, emptyVelocity, emptyMovePriority)
@@ -1351,11 +1359,14 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
-//        if (movableResource.homeBase != null) {
-//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-//        }
         release(a)
+        if (sendToHomeBaseOption){
+            if (movableResourceWithQ.hasHomeBase){
+                if (movableResourceWithQ.waitingQ.isEmpty){
+                    movableResourceWithQ.sendToHomeBase()
+                }
+            }
+        }
     }
 
     /**
@@ -1372,6 +1383,8 @@ interface KSLProcessBuilder {
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
+     *  @param sendToHomeBaseOption If true, and there are no pending requests, and the selected movable resource has a home base,
+     *  it will be sent to the home base after the transport. The default is false.
      */
     suspend fun transportWith(
         fleet: MovableResourcePool,
@@ -1385,7 +1398,8 @@ interface KSLProcessBuilder {
         emptyMovePriority: Int = MOVE_PRIORITY,
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
-        unLoadingPriority: Int = DELAY_PRIORITY
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        sendToHomeBaseOption: Boolean = false
     ) {
         //TODO need to handle distance based allocations
         // need a seize(fleet: MovableResourcePool) suspending function
@@ -1400,11 +1414,14 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
-//        if (movableResource.homeBase != null) {
-//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-//        }
         release(a)
+        if (sendToHomeBaseOption){
+            if (movableResource.hasHomeBase){
+                if (transportQ.isEmpty){
+                    movableResource.sendToHomeBase()
+                }
+            }
+        }
     }
 
     /**
@@ -1421,6 +1438,8 @@ interface KSLProcessBuilder {
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
+     *  @param sendToHomeBaseOption If true, and there are no pending requests, and the selected movable resource has a home base,
+     *  it will be sent to the home base after the transport
      */
     suspend fun transportWith(
         fleet: MovableResourcePoolWithQ,
@@ -1433,7 +1452,8 @@ interface KSLProcessBuilder {
         emptyMovePriority: Int = MOVE_PRIORITY,
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
-        unLoadingPriority: Int = DELAY_PRIORITY
+        unLoadingPriority: Int = DELAY_PRIORITY,
+        sendToHomeBaseOption: Boolean = false
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
@@ -1446,11 +1466,14 @@ interface KSLProcessBuilder {
         if (unLoadingDelay != ConstantRV.ZERO) {
             delay(unLoadingDelay, unLoadingPriority)
         }
-        //TODO this will cause the entity to experience the resource's move to its home base this is not what is expected
-//        if (movableResource.homeBase != null) {
-//            move(movableResource, movableResource.homeBase!!, emptyVelocity, emptyMovePriority)
-//        }
-        release(a) //TODO may need to override the release function for movable resources
+        release(a)
+        if (sendToHomeBaseOption){
+            if (movableResource.hasHomeBase){
+                if (fleet.myWaitingQ.isEmpty){
+                    movableResource.sendToHomeBase()
+                }
+            }
+        }
     }
 
     /**
