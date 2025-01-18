@@ -22,10 +22,7 @@
  */
 package ksl.simulation
 
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.ResponseBatchingElement
-import ksl.modeling.variable.TWBatchingElement
-import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.*
 import ksl.observers.BatchStatisticObserver
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.statistic.BatchStatisticIfc
@@ -59,14 +56,14 @@ class StatisticalBatchingElement(
      *
      * Amap of all batch statistics with the ResponseVariable variable as the key
      */
-    val allResponseBatchStatisticsAsMap: Map<Response, BatchStatisticIfc>
+    val allResponseBatchStatisticsAsMap: Map<ResponseCIfc, BatchStatisticIfc>
         get() = responseBatchingElement.allBatchStatisticsAsMap
 
     /**
      *
      * A map of all batch statistics with the TimeWeighted variable as the key
      */
-    val allTimeWeightedBatchStatisticsAsMap: Map<TWResponse, BatchStatisticIfc>
+    val allTimeWeightedBatchStatisticsAsMap: Map<TWResponseCIfc, BatchStatisticIfc>
         get() = twBatchingElement.allBatchStatisticsAsMap
 
     /**
@@ -159,7 +156,7 @@ class StatisticalBatchingElement(
     override fun beforeExperiment() {
         removeAll()
         // now add all appropriate responses to the batching
-        val list: List<Response> = model.responses
+        val list: List<ResponseCIfc> = model.responses
         for (r in list) {
             if (r is TWResponse) {
                 twBatchingElement.add(r)

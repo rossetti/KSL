@@ -115,9 +115,9 @@ class SimulationReporter(theModel: Model) {
      */
     fun frequencyTextResults(): String {
         val sb = StringBuilder()
-        for(h in frequencies){
-            sb.appendLine(h.name)
-            sb.appendLine(h.toDataFrame().remove("id", "name"))
+        for(f in frequencies){
+            sb.appendLine(f.name)
+            sb.appendLine(f.frequencyResponse.toDataFrame().remove("id", "name"))
         }
         return sb.toString()
     }

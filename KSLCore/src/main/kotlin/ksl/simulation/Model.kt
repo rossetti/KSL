@@ -37,10 +37,7 @@ import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
-import ksl.utilities.io.toDataFrame
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
-import ksl.utilities.statistic.IntegerFrequencyIfc
-import org.jetbrains.kotlinx.dataframe.api.remove
 import java.nio.file.Path
 import kotlin.time.Duration
 
@@ -87,14 +84,14 @@ class Model(
     var baseTimeUnit: TimeUnit = TimeUnit.MILLISECOND
 
     private var myResponses: MutableList<Response> = ArrayList()
-    val responses: List<Response>
+    val responses: List<ResponseCIfc>
         get() = myResponses
 
     /**
      * A list of all the Counters within the model
      */
     private var myCounters: MutableList<Counter> = ArrayList()
-    val counters: List<Counter>
+    val counters: List<CounterCIfc>
         get() = myCounters
 
     /**
@@ -108,7 +105,7 @@ class Model(
      * A list of all the IntegerFrequencyResponses within the model
      */
     private var myFrequencies: MutableList<IntegerFrequencyResponse> = ArrayList()
-    val frequencies: List<IntegerFrequencyResponse>
+    val frequencies: List<FrequencyResponseCIfc>
         get() = myFrequencies
 
     /**

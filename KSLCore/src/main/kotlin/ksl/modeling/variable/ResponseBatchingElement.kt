@@ -37,7 +37,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * weighted variables
      *
      */
-    private val myBatchStats: MutableMap<Response, BatchStatisticObserver> = mutableMapOf()
+    private val myBatchStats: MutableMap<ResponseCIfc, BatchStatisticObserver> = mutableMapOf()
 
     /**
      * Adds the supplied Response variable to the batching
@@ -49,7 +49,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * @param name name for BatchStatistic
      * @return the BatchStatisticObserver
      */
-    fun add(response: Response,
+    fun add(response: ResponseCIfc,
             minNumBatches: Int = BatchStatistic.MIN_NUM_BATCHES,
             minBatchSize: Int = BatchStatistic.MIN_NUM_OBS_PER_BATCH,
             maxNBMultiple: Int = BatchStatistic.MAX_BATCH_MULTIPLE,
@@ -60,7 +60,9 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
             minBatchSize, maxNBMultiple, name
         )
         myBatchStats[response] = bo
-        response.attachModelElementObserver(bo)
+        if (response is Response){
+            response.attachModelElementObserver(bo)
+        }
         return bo
     }
 
@@ -70,7 +72,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * @param response the ResponseVariable to look up
      * @return the BatchStatisticObserver
      */
-    fun batchStatisticObserverFor(response: Response): BatchStatisticObserver? {
+    fun batchStatisticObserverFor(response: ResponseCIfc): BatchStatisticObserver? {
         return myBatchStats[response]
     }
 
@@ -79,11 +81,13 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      *
      * @param response the Response to be removed
      */
-    fun remove(response: Response) {
+    fun remove(response: ResponseCIfc) {
         val bo: BatchStatisticObserver? = myBatchStats[response]
         if (bo != null){
-            response.detachModelElementObserver(bo)
-            myBatchStats.remove(response)
+            if (response is Response){
+                response.detachModelElementObserver(bo)
+                myBatchStats.remove(response)
+            }
         }
     }
 
@@ -96,7 +100,9 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
         for (response in myBatchStats.keys) {
             val bo: BatchStatisticObserver? = myBatchStats[response]
             if (bo != null){
-                response.detachModelElementObserver(bo)
+                if (response is Response){
+                    response.detachModelElementObserver(bo)
+                }
             }
         }
         myBatchStats.clear()
@@ -109,7 +115,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * @param response the Response to look up
      * @return the returned BatchStatistic
      */
-    fun batchStatisticFor(response: Response): BatchStatisticIfc {
+    fun batchStatisticFor(response: ResponseCIfc): BatchStatisticIfc {
         val bo: BatchStatisticObserver? = myBatchStats[response]
         return bo?.batchStatistics ?: BatchStatistic(theName = "${response.name} Across Batch Statistics")
     }
@@ -133,9 +139,9 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      *
      * @return a map of all batch statistics with the Response variable as the key
      */
-    val allBatchStatisticsAsMap: Map<Response, BatchStatisticIfc>
+    val allBatchStatisticsAsMap: Map<ResponseCIfc, BatchStatisticIfc>
         get() {
-            val map: MutableMap<Response, BatchStatisticIfc> = mutableMapOf()
+            val map: MutableMap<ResponseCIfc, BatchStatisticIfc> = mutableMapOf()
             for (tw in myBatchStats.keys) {
                 map[tw] = myBatchStats[tw]!!.batchStatistics
             }
@@ -162,14 +168,14 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
     }
 
     /**
-     * Gets the CSV row for the ResponseVariable
+     * Gets the CSV row for the Response
      *
      * @param response
      * @return the data as a string
      */
-    fun getCSVRow(response: Response): String {
+    fun getCSVRow(response: ResponseCIfc): String {
         val row = StringBuilder()
-        row.append(response.model.name)
+        row.append(model.name)
         row.append(",")
         row.append("Response")
         row.append(",")
@@ -184,7 +190,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * @param response
      * @return the header
      */
-    fun getCSVHeader(response: Response): String {
+    fun getCSVHeader(response: ResponseCIfc): String {
         val header = StringBuilder()
         header.append("Model,")
         header.append("StatType,")
