@@ -154,11 +154,13 @@ class TWBatchingElement(
      *
      * @param tw the TimeWeighted to be removed
      */
-    fun remove(tw: TWResponse) {
+    fun remove(tw: TWResponseCIfc) {
         val bo = myBatchStatsMap[tw]
         if (bo != null){
-            tw.detachModelElementObserver(bo)
-            myBatchStatsMap.remove(tw)
+            if (tw is TWResponse){
+                tw.detachModelElementObserver(bo)
+                myBatchStatsMap.remove(tw)
+            }
         }
     }
 
