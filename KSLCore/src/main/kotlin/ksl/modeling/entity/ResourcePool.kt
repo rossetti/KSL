@@ -414,6 +414,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @return a list, which may be empty, that has resources that can satisfy the requested amount
      */
     fun selectResources(amountNeeded: Int): List<Resource> {
+        //TODO this is where the selection rule is applied
         return resourceSelectionRule.selectResources(amountNeeded, findAvailableResources())
     }
 
@@ -449,7 +450,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         // this should select enough resources to meet the request based on how much they have available
-        //TODO this is where the selection rule is applied
+        //TODO this is where the selection rule is applied, pass in rule???
         val list = selectResources(amountNeeded)
         check(list.isNotEmpty()) { "There were no resources selected to allocate the $amountNeeded units requested, using the current selection rule" }
         ProcessModel.logger.trace { "There were ${list.size} resources selected that can allocate $amountNeeded units to the request, using the current selection rule." }
