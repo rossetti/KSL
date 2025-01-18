@@ -158,7 +158,6 @@ interface TimeSeriesResponseCIfc {
      */
     fun acrossReplicationStatisticsByPeriod(response: ResponseCIfc): Map<Int, Statistic>
 
-
     /**
      *  If the acrossRepStatisticsOption option is true, then this function
      *  returns the across replication statistics for each period for the
