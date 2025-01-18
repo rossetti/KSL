@@ -299,8 +299,8 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
 
     private val myResources: MutableList<Resource> = mutableListOf()
 
-    val resources: List<Resource>
-        get() = myResources.toList()
+    val resources: List<ResourceCIfc>
+        get() = myResources
 
     //TODO this is where the resource selection and allocation rules are defined/set
     var resourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
@@ -330,6 +330,10 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
     }
 
     protected fun addResource(resource: Resource) {
+        // prevent duplicates in the resources
+        if (myResources.contains(resource)) {
+            return
+        }
         myResources.add(resource)
         myNumBusy.observe(resource.numBusyUnits)
         //TODO consider aggregate state collection
