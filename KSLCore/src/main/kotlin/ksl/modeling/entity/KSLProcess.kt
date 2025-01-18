@@ -1314,6 +1314,7 @@ interface KSLProcessBuilder {
             if (movableResource.hasHomeBase){
                 if (transportQ.isEmpty){
                     movableResource.sendToHomeBase()
+                    yield()
                 }
             }
         }
@@ -1364,6 +1365,7 @@ interface KSLProcessBuilder {
             if (movableResourceWithQ.hasHomeBase){
                 if (movableResourceWithQ.waitingQ.isEmpty){
                     movableResourceWithQ.sendToHomeBase()
+                    yield()
                 }
             }
         }
@@ -1419,6 +1421,7 @@ interface KSLProcessBuilder {
             if (movableResource.hasHomeBase){
                 if (transportQ.isEmpty){
                     movableResource.sendToHomeBase()
+                    yield()
                 }
             }
         }
@@ -1471,6 +1474,7 @@ interface KSLProcessBuilder {
             if (movableResource.hasHomeBase){
                 if (fleet.myWaitingQ.isEmpty){
                     movableResource.sendToHomeBase()
+                    yield()
                 }
             }
         }
