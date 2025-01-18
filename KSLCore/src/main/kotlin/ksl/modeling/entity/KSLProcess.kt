@@ -811,6 +811,35 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a number of units from the indicated pool of resources
+     *
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource pool from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resourcePool: MovableResourcePool,
+        amountNeeded: Int = 1,
+        seizePriority: Int = SEIZE_PRIORITY,
+        queue: RequestQ,
+        suspensionName: String? = null
+    ): ResourcePoolAllocation {
+        //TODO will need to handle movable aspect ?
+        //TODO need to handle distance based allocations?
+        return seize(resourcePool as ResourcePool, amountNeeded, seizePriority, queue, suspensionName)
+    }
+
+    /**
+     *  Requests a number of units from the indicated pool of resources
      *  The queue that will hold the entity is internal to the resource pool.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -832,6 +861,33 @@ interface KSLProcessBuilder {
         suspensionName: String? = null
     ): ResourcePoolAllocation {
         return seize(resourcePool, amountNeeded, seizePriority, resourcePool.myWaitingQ, suspensionName)
+    }
+
+    /**
+     *  Requests a number of units from the indicated pool of resources
+     *  The queue that will hold the entity is internal to the resource pool.  If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling seize.
+     *  @param amountNeeded the number of units of the resource needed for the request.
+     *   The default is 1 unit.
+     *  @param resourcePool the resource pool from which the units are being requested.
+     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
+     *  requests that may be competing for the resource.
+     *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
+     *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
+     *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
+     *  of the resource have been allocated to the entity making the request. An allocation should not be returned until
+     *  all requested units of the resource have been allocated.
+     */
+    suspend fun seize(
+        resourcePool: MovableResourcePoolWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = SEIZE_PRIORITY,
+        suspensionName: String? = null
+    ): ResourcePoolAllocation {
+        //TODO will need to handle movable aspect ?
+        //TODO need to handle distance based allocations
+        return seize(resourcePool as ResourcePoolWithQ, amountNeeded, seizePriority, resourcePool.myWaitingQ, suspensionName)
     }
 
     /**
@@ -1403,8 +1459,6 @@ interface KSLProcessBuilder {
         unLoadingPriority: Int = DELAY_PRIORITY,
         sendToHomeBaseOption: Boolean = false
     ) {
-        //TODO need to handle distance based allocations
-        // need a seize(fleet: MovableResourcePool) suspending function
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.allocations[0].resource as MovableResource
