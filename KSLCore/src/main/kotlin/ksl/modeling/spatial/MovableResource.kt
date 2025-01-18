@@ -1,9 +1,13 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.RequestQ
 import ksl.modeling.entity.Resource
+import ksl.modeling.queue.Queue
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
+import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
@@ -80,6 +84,8 @@ class MovableResource(
     var initialHomeBase: LocationIfc? = null
     var homeBase:LocationIfc? = null
 
+    private val homeBaseDriver = HomeBaseDriver()
+
     override fun initialize() {
         super.initialize()
         homeBase = initialHomeBase
@@ -108,6 +114,44 @@ class MovableResource(
 
     override fun countObservers(): Int {
         return mySpatialElement.countObservers()
+    }
+
+    internal fun activateHomeBaseDriver(){
+        if ((homeBase != null) && !homeBaseDriver.returningHome){
+            homeBaseDriver.sendToHomeBase()
+        }
+    }
+
+    private inner class HomeBaseDriver() : ProcessModel(
+        this@MovableResource, "${this@MovableResource.name}:Driver"
+    ) {
+        val homeQ = RequestQ(this, "${this.name}:HomeBaseQ")
+        init {
+            homeQ.waitTimeStatOption = false
+            homeQ.defaultReportingOption = false
+        }
+
+        var returningHome = false
+            private set
+
+        fun sendToHomeBase() {
+            if ((homeBase != null) && !returningHome){
+                val driver = Driver()
+                returningHome = true
+                activate(driver.returnToHomeProcess, priority = KSLEvent.VERY_HIGH_PRIORITY)
+            }
+        }
+
+        private inner class Driver() : Entity() {
+            val returnToHomeProcess = process {
+                require(homeBase != null) {"There is no home based defined for ${this@MovableResource.name}"}
+                val a = seize(this@MovableResource,
+                    queue = homeQ, seizePriority = KSLEvent.VERY_HIGH_PRIORITY)
+                move(this@MovableResource, homeBase!!, movePriority = KSLEvent.VERY_HIGH_PRIORITY)
+                release(a)
+                returningHome = false
+            }
+        }
     }
 
 }
