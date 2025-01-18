@@ -132,11 +132,11 @@ class ReplicationDataCollector(
      * Adds all response variables and counters that are in the model to the data collector
      */
     fun addAllResponsesAndCounters() {
-        val counterList: List<Counter> = myModel.counters
+        val counterList: List<CounterCIfc> = myModel.counters
         for (counter in counterList) {
             addCounterResponse(counter)
         }
-        val responseVariables: List<Response> = myModel.responses
+        val responseVariables: List<ResponseCIfc> = myModel.responses
         for (r in responseVariables) {
             addResponse(r)
         }

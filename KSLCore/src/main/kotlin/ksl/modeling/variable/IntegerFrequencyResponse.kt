@@ -1,8 +1,13 @@
 package ksl.modeling.variable
 
 import ksl.simulation.ModelElement
+import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.IntegerFrequencyIfc
+
+interface FrequencyResponseCIfc : IdentityIfc {
+    val frequencyResponse: IntegerFrequencyIfc
+}
 
 /**
  * This class tabulates the frequency associated with
@@ -11,7 +16,7 @@ import ksl.utilities.statistic.IntegerFrequencyIfc
  * For every value presented a count is maintained.
  * There could be space/time performance issues if
  * the number of different values presented is large.
- * Use [lowerLimit] and [upperLimit] to limit the values
+ * Use lowerLimit and upperLimit to limit the values
  * that can be observed. Values lower than the lower limit
  * are counted as underflow and values greater than the upper limit
  * are counted as overflow.
@@ -34,13 +39,8 @@ class IntegerFrequencyResponse(
     parent: ModelElement,
     name: String,
     lowerLimit: Int = Int.MIN_VALUE,
-    upperLimit: Int = Int.MAX_VALUE,
-    private val myIntegerFrequency: IntegerFrequency = IntegerFrequency(
-        name = "${name}_Frequency",
-        lowerLimit = lowerLimit,
-        upperLimit = upperLimit
-    )
-) : ModelElement(parent, name), IntegerFrequencyIfc by myIntegerFrequency {
+    upperLimit: Int = Int.MAX_VALUE
+) : ModelElement(parent, name), FrequencyResponseCIfc {
 
     /**
      * This class tabulates the frequency associated with
@@ -69,6 +69,14 @@ class IntegerFrequencyResponse(
         name: String,
         intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
     ) : this(parent, name, intRange.first, intRange.last)
+
+    private val myIntegerFrequency: IntegerFrequency = IntegerFrequency(
+        name = "${name}_Frequency",
+        lowerLimit = lowerLimit,
+        upperLimit = upperLimit)
+
+    override val frequencyResponse: IntegerFrequencyIfc
+        get() = myIntegerFrequency
 
     var collectionOn = true
 

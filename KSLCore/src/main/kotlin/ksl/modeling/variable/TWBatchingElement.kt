@@ -122,7 +122,7 @@ class TWBatchingElement(
      * @param tw the TimeWeighted variable
      * @return the TWBatchStatisticObserver
      */
-    fun timeWeightedBatchObserverFor(tw: TWResponse): TWBatchStatisticObserver? {
+    fun timeWeightedBatchObserverFor(tw: TWResponseCIfc): TWBatchStatisticObserver? {
         return myBatchStatsMap[tw]
     }
 
@@ -137,13 +137,13 @@ class TWBatchingElement(
      * @return the TWBatchStatisticObserver
      */
     fun add(
-        tw: TWResponse,
+        tw: TWResponseCIfc,
         minNumBatches: Int = BatchStatistic.MIN_NUM_BATCHES,
         minBatchSize: Int = BatchStatistic.MIN_NUM_OBS_PER_BATCH,
         maxNBMultiple: Int = BatchStatistic.MAX_BATCH_MULTIPLE,
         name: String = tw.name
     ): TWBatchStatisticObserver {
-        val bo = TWBatchStatisticObserver(tw, minNumBatches, minBatchSize, maxNBMultiple, name)
+        val bo = TWBatchStatisticObserver(tw as TWResponse, minNumBatches, minBatchSize, maxNBMultiple, name)
         myBatchStatsMap[tw] = bo
         tw.attachModelElementObserver(bo)
         return bo
@@ -185,7 +185,7 @@ class TWBatchingElement(
      * @param tw the TimeWeighted to look up
      * @return the returned BatchStatistic
      */
-    fun batchStatisticFor(tw: TWResponse): BatchStatisticIfc {
+    fun batchStatisticFor(tw: TWResponseCIfc): BatchStatisticIfc {
         val bo = myBatchStatsMap[tw]
         return bo?.batchStatistics ?: BatchStatistic(theName = tw.name + " Across Batch Statistics")
     }
@@ -209,27 +209,14 @@ class TWBatchingElement(
      *
      * @return a map of all batch statistics with the TimeWeighted variable as the key
      */
-    val allBatchStatisticsAsMap: Map<TWResponse, BatchStatisticIfc>
+    val allBatchStatisticsAsMap: Map<TWResponseCIfc, BatchStatisticIfc>
         get() {
-            val map: MutableMap<TWResponse, BatchStatisticIfc> = mutableMapOf()
+            val map: MutableMap<TWResponseCIfc, BatchStatisticIfc> = mutableMapOf()
             for (tw in myBatchStatsMap.keys) {
                 map[tw] = myBatchStatsMap[tw]!!.batchStatistics
             }
             return map
         }
-    /**
-     * Gets the batch event priority
-     *
-     * @return The batch event priority
-     */
-    /**
-     * Sets the batch event priority.
-     *
-     * @param priority The batch event priority, lower means earlier
-     */
-
-
-
 
     /**
      * Checks if a batching event has been scheduled for this model element
@@ -276,15 +263,14 @@ class TWBatchingElement(
     fun approximateBatchInterval(repLength: Double, warmUp: Double): Double {
         require(repLength > 0.0) { "The length of the replication must be > 0" }
         require(warmUp >= 0) { "The warm up length must be >= 0" }
-        var deltaT: Double
-        if (repLength.isInfinite()) {
+        val deltaT: Double = if (repLength.isInfinite()) {
             // runlength is infinite
-            deltaT = DEFAULT_BATCH_INTERVAL
+            DEFAULT_BATCH_INTERVAL
         } else { // runlength is finite
             var t = repLength
             t = t - warmUp // actual observation length
             val n = timeWeightedStartingNumberOfBatches
-            deltaT = t / n
+            t / n
         }
         return deltaT
     }
@@ -351,9 +337,9 @@ class TWBatchingElement(
      * @param tw
      * @return the data as a string
      */
-    fun getCSVRow(tw: TWResponse): String {
+    fun getCSVRow(tw: TWResponseCIfc): String {
         val row = StringBuilder()
-        row.append(tw.model.name)
+        row.append(model.name)
         row.append(",")
         row.append("TimeWeighted")
         row.append(",")

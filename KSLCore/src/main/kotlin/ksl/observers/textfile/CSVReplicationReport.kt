@@ -18,7 +18,9 @@
 package ksl.observers.textfile
 
 import ksl.modeling.variable.Counter
+import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.WeightedStatistic
@@ -67,7 +69,7 @@ class CSVReplicationReport(
         myWriter.println()
     }
 
-    private fun writeLine(rv: Response) {
+    private fun writeLine(rv: ResponseCIfc) {
         myWriter.print(model.simulationName)
         myWriter.print(",")
         myWriter.print(model.name)
@@ -86,7 +88,7 @@ class CSVReplicationReport(
         myWriter.println()
     }
 
-    private fun writeLine(c: Counter) {
+    private fun writeLine(c: CounterCIfc) {
         myWriter.print(model.simulationName)
         myWriter.print(",")
         myWriter.print(model.name)

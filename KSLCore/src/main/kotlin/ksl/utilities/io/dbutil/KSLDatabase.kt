@@ -25,6 +25,7 @@ import ksl.controls.Controls
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.IdentityIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
@@ -764,15 +765,15 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
     internal fun afterReplication(model: Model) {
         // insert the within replication statistics
-        insertWithinRepResponses(model.responses)
+        insertWithinRepResponses(model.currentReplicationId, model.responses)
         // insert the within replication counters
-        insertWithinRepCounters(model.counters)
+        insertWithinRepCounters(model.currentReplicationId, model.counters)
         // insert the batch statistics if available
         if (model.batchingElement != null) {
             val rMap = model.batchingElement!!.allResponseBatchStatisticsAsMap
             val twMap = model.batchingElement!!.allTimeWeightedBatchStatisticsAsMap
-            insertResponseVariableBatchStatistics(rMap)
-            insertTimeWeightedBatchStatistics(twMap)
+            insertResponseVariableBatchStatistics(model.currentReplicationId, rMap)
+            insertTimeWeightedBatchStatistics(model.currentReplicationId, twMap)
         }
     }
 
@@ -819,7 +820,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return record
     }
 
-    private fun insertFrequencyResponses(frequencies: List<IntegerFrequencyResponse>) {
+    private fun insertFrequencyResponses(frequencies: List<FrequencyResponseCIfc>) {
         val list = mutableListOf<FrequencyTableData>()
         for (freq in frequencies) {
             val freqRecords = createFrequencyDataRecords(freq, currentSimRun!!.run_id)
@@ -829,11 +830,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     private fun createFrequencyDataRecords(
-        freq: IntegerFrequencyResponse,
+        freq: FrequencyResponseCIfc,
         simId: Int
     ): List<FrequencyTableData> {
         val list = mutableListOf<FrequencyTableData>()
-        val freqData = freq.frequencyData()
+        val freqData = freq.frequencyResponse.frequencyData()
         for (fd in freqData) {
             val record = FrequencyTableData()
             record.element_id_fk = freq.id
@@ -1002,11 +1003,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return rvp
     }
 
-    private fun createWithinRepStatRecord(response: Response, simId: Int): WithinRepStatTableData {
+    private fun createWithinRepStatRecord(repId: Int, response: ResponseCIfc, simId: Int): WithinRepStatTableData {
         val r = WithinRepStatTableData()
         r.element_id_fk = response.id
         r.sim_run_id_fk = simId
-        r.rep_id = response.model.currentReplicationId
+        r.rep_id = repId
         val s = response.withinReplicationStatistic
         r.stat_name = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
@@ -1039,11 +1040,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return r
     }
 
-    private fun createWithinRepCounterRecord(counter: Counter, simId: Int): WithinRepCounterStatTableData {
+    private fun createWithinRepCounterRecord(repId: Int, counter: CounterCIfc, simId: Int): WithinRepCounterStatTableData {
         val r = WithinRepCounterStatTableData()
         r.element_id_fk = counter.id
         r.sim_run_id_fk = simId
-        r.rep_id = counter.model.currentReplicationId
+        r.rep_id = repId
         r.stat_name = counter.name
         if (!counter.value.isNaN() && counter.value.isFinite()) {
             r.last_value = counter.value
@@ -1051,7 +1052,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return r
     }
 
-    private fun createAcrossRepStatRecord(response: ModelElement, simId: Int, s: StatisticIfc): AcrossRepStatTableData {
+    private fun createAcrossRepStatRecord(response: IdentityIfc, simId: Int, s: StatisticIfc): AcrossRepStatTableData {
         val r = AcrossRepStatTableData()
         r.element_id_fk = response.id
         r.sim_run_id_fk = simId
@@ -1110,11 +1111,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         return r
     }
 
-    private fun createBatchStatRecord(response: Response, simId: Int, s: BatchStatisticIfc): BatchStatTableData {
+    private fun createBatchStatRecord(repId: Int, response: ResponseCIfc, simId: Int, s: BatchStatisticIfc): BatchStatTableData {
         val r = BatchStatTableData()
         r.element_id_fk = response.id
         r.sim_run_id_fk = simId
-        r.rep_id = response.model.currentReplicationId
+        r.rep_id = repId
         r.stat_name = s.name
         if (!s.count.isNaN() && s.count.isFinite()) {
             r.stat_count = s.count
@@ -1209,25 +1210,25 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         db.insertAllDbDataIntoTable(list, "rv_parameter")
     }
 
-    private fun insertWithinRepResponses(responses: List<Response>) {
+    private fun insertWithinRepResponses(repId: Int, responses: List<ResponseCIfc>) {
         val list = mutableListOf<WithinRepStatTableData>()
         for (response in responses) {
-            val withinRepStatRecord = createWithinRepStatRecord(response, currentSimRun!!.run_id)
+            val withinRepStatRecord = createWithinRepStatRecord(repId, response, currentSimRun!!.run_id)
             list.add(withinRepStatRecord)
         }
         db.insertAllDbDataIntoTable(list, "within_rep_stat")
     }
 
-    private fun insertWithinRepCounters(counters: List<Counter>) {
+    private fun insertWithinRepCounters(repId: Int, counters: List<CounterCIfc>) {
         val list = mutableListOf<WithinRepCounterStatTableData>()
         for (counter in counters) {
-            val withinRepCounterRecord = createWithinRepCounterRecord(counter, currentSimRun!!.run_id)
+            val withinRepCounterRecord = createWithinRepCounterRecord(repId, counter, currentSimRun!!.run_id)
             list.add(withinRepCounterRecord)
         }
         db.insertAllDbDataIntoTable(list, "within_rep_counter_stat")
     }
 
-    private fun insertAcrossRepResponses(responses: List<Response>) {
+    private fun insertAcrossRepResponses(responses: List<ResponseCIfc>) {
         val list = mutableListOf<AcrossRepStatTableData>()
         for (response in responses) {
             val s = response.acrossReplicationStatistic
@@ -1237,7 +1238,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         db.insertAllDbDataIntoTable(list, "across_rep_stat")
     }
 
-    private fun insertAcrossRepResponsesForCounters(counters: List<Counter>) {
+    private fun insertAcrossRepResponsesForCounters(counters: List<CounterCIfc>) {
         val list = mutableListOf<AcrossRepStatTableData>()
         for (counter in counters) {
             val s = counter.acrossReplicationStatistic
@@ -1247,23 +1248,23 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         db.insertAllDbDataIntoTable(list, "across_rep_stat")
     }
 
-    private fun insertResponseVariableBatchStatistics(rMap: Map<Response, BatchStatisticIfc>) {
+    private fun insertResponseVariableBatchStatistics(repId: Int, rMap: Map<ResponseCIfc, BatchStatisticIfc>) {
         val list = mutableListOf<BatchStatTableData>()
         for (entry in rMap.entries.iterator()) {
             val r = entry.key
             val bs = entry.value
-            val batchStatRecord = createBatchStatRecord(r, currentSimRun!!.run_id, bs)
+            val batchStatRecord = createBatchStatRecord(repId, r, currentSimRun!!.run_id, bs)
             list.add(batchStatRecord)
         }
         db.insertAllDbDataIntoTable(list, "batch_stat")
     }
 
-    private fun insertTimeWeightedBatchStatistics(twMap: Map<TWResponse, BatchStatisticIfc>) {
+    private fun insertTimeWeightedBatchStatistics(repId:Int, twMap: Map<TWResponseCIfc, BatchStatisticIfc>) {
         val list = mutableListOf<BatchStatTableData>()
         for (entry in twMap.entries.iterator()) {
             val tw = entry.key
             val bs = entry.value
-            val batchStatRecord = createBatchStatRecord(tw, currentSimRun!!.run_id, bs)
+            val batchStatRecord = createBatchStatRecord(repId, tw, currentSimRun!!.run_id, bs)
             list.add(batchStatRecord)
         }
         db.insertAllDbDataIntoTable(list, "batch_stat")
