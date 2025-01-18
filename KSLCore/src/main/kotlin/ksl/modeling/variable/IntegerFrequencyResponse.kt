@@ -6,7 +6,7 @@ import ksl.utilities.statistic.IntegerFrequencyIfc
 
 /**
  * This class tabulates the frequency associated with
- * the integers presented to it based on the attached [variable].
+ * the integers presented to it.
  * Every value presented is interpreted as an integer
  * For every value presented a count is maintained.
  * There could be space/time performance issues if
@@ -44,7 +44,7 @@ class IntegerFrequencyResponse(
 
     /**
      * This class tabulates the frequency associated with
-     * the integers presented to it based on the attached [variable].
+     * the integers presented to it.
      * Every value presented is interpreted as an integer
      * For every value presented a count is maintained.
      * There could be space/time performance issues if
