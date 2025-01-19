@@ -206,6 +206,7 @@ class AllocateInOrderListedRule : AllocationRuleIfc {
  *  In essence, this approach randomly picks from the list.
  */
 class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
+    //TODO need to be able to use stream number
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         val list = resourceList.toMutableList()
         list.permute(stream)
