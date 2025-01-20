@@ -1,8 +1,6 @@
 package ksl.modeling.spatial
 
 import ksl.modeling.entity.RequestQ
-import ksl.modeling.entity.Resource
-import ksl.modeling.entity.ResourcePool
 import ksl.modeling.entity.ResourcePoolWithQ
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
