@@ -106,10 +106,13 @@ open class ResourceWithQ(
     protected var myCurrentChangeNotice: CapacityChangeNotice? = null
 
     /**
-     * The default rule is IGNORE. This can be changed via the useSchedule() function.
+     * The default rule is IGNORE. This can be changed via the useSchedule() function
+     * or when there is no schedule being used. The rule cannot be changed when there
+     * are pending capacity changes.
      */
     var capacityChangeRule: CapacityChangeRule = CapacityChangeRule.IGNORE
-        protected set(value){
+        set(value){
+            //check(model.isNotRunning) { "$time > Tried to change the capacity change rule of $name during replication ${model.currentReplicationNumber}." }
             require(!isUsingSchedule()){"Cannot change the rule because the resource is already using a capacity change schedule."}
             require(!isPendingCapacityChange){"Cannot change the rule when there are pending capacity changes."}
             field = value
