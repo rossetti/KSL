@@ -25,6 +25,7 @@ import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.permute
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * Provides for a method to select resources from a list such that
@@ -204,9 +205,17 @@ class AllocateInOrderListedRule : AllocationRuleIfc {
 /**
  *  This rule first randomly permutes the list and then allocates in the order of the permutation.
  *  In essence, this approach randomly picks from the list.
+ *  @param stream the stream to use for randomness
  */
 class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
-    //TODO need to be able to use stream number
+
+    /**
+     *  This rule first randomly permutes the list and then allocates in the order of the permutation.
+     *  In essence, this approach randomly picks from the list.
+     *  @param streamNum the stream number of the stream to use for randomness
+     */
+    constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
+
     override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         val list = resourceList.toMutableList()
         list.permute(stream)
