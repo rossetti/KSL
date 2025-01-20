@@ -30,10 +30,9 @@ open class ResourcePoolWithQ(
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
-    internal val myWaitingQ: RequestQ
+    internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
 
     init {
-        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
         for(resource in myResources){
             if (resource is ResourceWithQ){
                 require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
@@ -44,7 +43,20 @@ open class ResourcePoolWithQ(
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
+    val resourcesWithQ: List<ResourceWithQCIfc>
+        get() {
+            val list = mutableListOf<ResourceWithQCIfc>()
+            for(resource in myResources){
+                if (resource is ResourceWithQ){
+                    list.add(resource)
+                }
+            }
+            return list
+        }
+
     /** Makes the specified number of single unit resources and includes them in the pool.
+     *  The pool is configured with a queue and each created resource is a ResourceWithQ that
+     *  uses the pool's queue.
      *
      * @param parent the parent model element
      * @param numResources number of single unit resources to include in the pool
@@ -54,7 +66,28 @@ open class ResourcePoolWithQ(
     constructor(
         parent: ModelElement,
         numResources: Int = 1,
-        queue: RequestQ? = null,
+        name: String? = null
+    ) : this(parent, mutableListOf(), null, name
+    ) {
+        require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
+        for (i in 1..numResources) {
+            addResource(ResourceWithQ(this, queue = myWaitingQ, name = "${this.name}:R${i}"))
+        }
+    }
+
+    /** Makes the specified number of single unit resources and includes them in the pool.
+     *  The pool is configured with the supplied queue and each create resource is a ResourceWithQ that
+     *  uses the supplied queue.
+     *
+     * @param parent the parent model element
+     * @param numResources number of single unit resources to include in the pool
+     * @param name the name of the pool
+     * @author rossetti
+     */
+    constructor(
+        parent: ModelElement,
+        numResources: Int = 1,
+        queue: RequestQ,
         name: String? = null
     ) : this(
         parent,
@@ -63,8 +96,13 @@ open class ResourcePoolWithQ(
         name
     ) {
         for (i in 1..numResources) {
-            addResource(Resource(this, "${this.name}:R${i}"))
+            addResource(ResourceWithQ(this, queue = queue, name = "${this.name}:R${i}"))
         }
+    }
+
+    fun addResource(resource: ResourceWithQ) {
+        require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+        super.addResource(resource)
     }
 
 }

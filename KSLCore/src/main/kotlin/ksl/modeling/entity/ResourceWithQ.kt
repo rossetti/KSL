@@ -35,6 +35,15 @@ interface ResourceWithQCIfc : ResourceCIfc {
      * The number waiting and in service
      */
     val wip: TWResponseCIfc
+
+    /**
+     * Tells the resource to listen and react to capacity changes in the supplied
+     * schedule.  The model cannot be running when changing the schedule.
+     *
+     * @param schedule the schedule to use
+     * @param changeRule the rule to follow. By default, it is CapacityChangeRule.IGNORE.
+     */
+    fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule = CapacityChangeRule.IGNORE)
 }
 
 /**
@@ -140,11 +149,12 @@ open class ResourceWithQ(
 
     /**
      * Tells the resource to listen and react to capacity changes in the supplied
-     * Schedule.
+     * Schedule.  The model cannot be running when changing the schedule.
      *
-     * @param schedule the schedule to use, must not be null
+     * @param schedule the schedule to use
+     * @param changeRule the rule to follow. By default, it is CapacityChangeRule.IGNORE.
      */
-    fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule = CapacityChangeRule.IGNORE) {
+    override fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule) {
         check(model.isNotRunning) { "$time > Tried to change the schedule of $name during replication ${model.currentReplicationNumber}." }
         stateReportingOption = true
         stopUsingSchedule()
