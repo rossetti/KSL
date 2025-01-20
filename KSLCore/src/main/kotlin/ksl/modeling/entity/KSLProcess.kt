@@ -878,7 +878,7 @@ interface KSLProcessBuilder {
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority
      *  attribute for use in ranking the queue prior to the calling seize.
      *
-     *  @param resourcePool the resource pool from which the units are being requested.
+     *  @param movableResourcePoolWithQ the resource pool from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
@@ -891,7 +891,7 @@ interface KSLProcessBuilder {
      *  all requested units of the resource have been allocated.
      */
     suspend fun seize(
-        resourcePool: MovableResourcePoolWithQ,
+        movableResourcePoolWithQ: MovableResourcePoolWithQ,
         seizePriority: Int = SEIZE_PRIORITY,
         resourceSelectionRule: MovableResourceSelectionRuleIfc,
         resourceAllocationRule: MovableResourceAllocationRuleIfc,

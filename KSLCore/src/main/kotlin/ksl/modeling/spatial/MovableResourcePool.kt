@@ -106,6 +106,7 @@ class MovableResourcePool(
     }
 
     fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc) : Boolean {
+        //TODO this causes the selection rule to be invoked to see if resources are available
         TODO("Not implemented yet")
     }
 
@@ -116,6 +117,7 @@ class MovableResourcePool(
         resourceAllocationRule: MovableResourceAllocationRuleIfc,
         allocationName: String? = null
     ) : ResourcePoolAllocation {
+        //TODO This causes both the selection rule and the allocation rule to be invoked
         TODO("Not implemented yet")
     }
 

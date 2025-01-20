@@ -453,6 +453,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private val resourceAllocations: MutableMap<Resource, MutableList<Allocation>> = mutableMapOf()
 
+        //TODO I don't see a reason why the createRequest() functions should not be internal
+
         /**
          * Facilitates the creation of requests for the entity by clients that
          * have access to a reference to the entity or via the entity itself.
@@ -460,7 +462,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param amountNeeded the amount needed to fill the request
          * @return the constructed Request
          */
-        fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
+        internal fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
+            // called from seize(resource, ...)
             val request = Request(amountNeeded)
             request.resource = resource
             return request
@@ -473,28 +476,33 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param amountNeeded the amount needed to fill the request
          * @return the constructed Request
          */
-        fun createRequest(
+        internal fun createRequest(
             amountNeeded: Int = 1,
             resourcePool: ResourcePool,
-            resourceSelectionRule: ResourceSelectionRuleIfc
-        ): Request {
+         ): Request {
+            // called from seize(resourcePool, ...)
             val request = Request(amountNeeded)
             request.resourcePool = resourcePool
-            request.resourceSelectionRule = resourceSelectionRule
             return request
         }
 
-        fun createMovableResourceRequest(
-            resourcePool: MovableResourcePool,
-            resourceSelectionRule: MovableResourceSelectionRuleIfc
+        internal fun createMovableResourceRequest(
+            resourcePool: MovableResourcePool
         ): Request {
+            // called from seize(movableResourcePool, ...)
             val request = Request()
-            TODO("Not Implemented yet")
-//            request.resourcePool = resourcePool
-//            request.resourceSelectionRule = resourceSelectionRule
-//            return request
+            request.resourcePool = resourcePool
+            return request
         }
 
+        internal fun createMovableResourceRequest(
+            resourcePoolWithQ: MovableResourcePoolWithQ
+        ): Request {
+            //called from seize(movableResourcePoolWithQ, ....)
+            val request = Request()
+            request.resourcePool = resourcePoolWithQ
+            return request
+        }
 
         /**
          *  Represents some amount of units needed from 1 or more resources
@@ -512,8 +520,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 internal set
             val entity = this@Entity
             val amountRequested = amountNeeded
-            var resourceSelectionRule: ResourceSelectionRuleIfc? = null
-                internal set
         }
 
         /**
@@ -1503,19 +1509,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             //TODO analyze the usage of this: resourcePoolSeizeAction
             // this indicates that this method is NOT referenced
-            private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
-                val request = event.message!!
-                val resourcePool = request.resourcePool!!
-                val selectionRule = request.resourceSelectionRule!!
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
-                if (resourcePool.canAllocate(selectionRule, request.amountRequested)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
-                    request.entity.immediateResume()
-                } else {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
-                }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
-            }
+//            private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
+//                val request = event.message!!
+//                val resourcePool = request.resourcePool!!
+//                val selectionRule = request.resourceSelectionRule!!
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
+//                if (resourcePool.canAllocate(selectionRule, request.amountRequested)) {
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
+//                    request.entity.immediateResume()
+//                } else {
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
+//                }
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
+//            }
 
             override suspend fun seize(
                 resourcePool: ResourcePool,
@@ -1531,10 +1537,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
-                val request = createRequest(amountNeeded, resourcePool, resourceSelectionRule)
+                val request = createRequest(amountNeeded, resourcePool)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                //TODO this causes the selection rule to be invoked to see if resources are available
+                // this causes the selection rule to be invoked to see if resources are available
                 if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
@@ -1546,7 +1552,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(resourcePool.canAllocate(resourceSelectionRule, amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                //TODO This causes both the selection rule and the allocation rule to be invoked
+                // This causes both the selection rule and the allocation rule to be invoked
                 val allocation = resourcePool.allocate(entity, amountNeeded, queue,
                     resourceSelectionRule, resourceAllocationRule, suspensionName)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${resourcePool.name} : allocation_id = ${allocation.id}" }
@@ -1568,7 +1574,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
-                val request = createMovableResourceRequest(movableResourcePool, resourceSelectionRule)
+                val request = createMovableResourceRequest(movableResourcePool)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
                 //TODO this causes the selection rule to be invoked to see if resources are available
@@ -1590,20 +1596,44 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("Not yet implemented")
                 return allocation
             }
 
             override suspend fun seize(
-                resourcePool: MovableResourcePoolWithQ,
+                movableResourcePoolWithQ: MovableResourcePoolWithQ,
                 seizePriority: Int,
                 resourceSelectionRule: MovableResourceSelectionRuleIfc,
                 resourceAllocationRule: MovableResourceAllocationRuleIfc,
                 suspensionName: String?
             ): ResourcePoolAllocation {
-                //TODO MovableResourcePoolWithQ does not sub-class from MovableResourcePool
-                // consider a sub-class for ResourcePoolAllocation
-                TODO("Not yet implemented")
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEIZE
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePoolWithQ.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePoolWithQ.name}")
+                val request = createMovableResourceRequest(movableResourcePoolWithQ)
+                request.priority = entity.priority
+                val requestQ = movableResourcePoolWithQ.myWaitingQ
+                requestQ.enqueue(request) // put the request in the queue
+                // This causes the selection rule to be invoked to see if resources are available.
+                if (!movableResourcePoolWithQ.canAllocate(resourceSelectionRule)) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    entity.state.waitForResource()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                }
+                // entity has been told to resume
+                require(movableResourcePoolWithQ.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${movableResourcePoolWithQ.name}" }
+                requestQ.remove(request) // take the request out of the queue after possible wait
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
+                //This causes both the selection rule and the allocation rule to be invoked.
+                val allocation = movableResourcePoolWithQ.allocate(entity, requestQ,
+                    resourceSelectionRule, resourceAllocationRule, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${movableResourcePoolWithQ.name} : allocation_id = ${allocation.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${movableResourcePoolWithQ.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
