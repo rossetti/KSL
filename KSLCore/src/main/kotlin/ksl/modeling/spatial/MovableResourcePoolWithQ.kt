@@ -1,6 +1,8 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
+import ksl.modeling.entity.ResourcePoolAllocation
 import ksl.modeling.entity.ResourcePoolWithQ
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
@@ -71,5 +73,21 @@ class MovableResourcePoolWithQ(
 
     fun resourceByName(name: String): MovableResource? {
         return resourcesByName[name]
+    }
+
+    fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc) : Boolean {
+        //TODO this causes the selection rule to be invoked to see if resources are available
+        TODO("Not implemented yet")
+    }
+
+    internal fun allocate(
+        entity: ProcessModel.Entity,
+        queue: RequestQ,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc,
+        allocationName: String? = null
+    ) : ResourcePoolAllocation {
+        //TODO This causes both the selection rule and the allocation rule to be invoked
+        TODO("Not implemented yet")
     }
 }

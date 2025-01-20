@@ -448,6 +448,7 @@ open class ResourcePool(
      * that will have sufficient amount available to fill the request
      */
     fun canAllocate(resourceSelectionRule: ResourceSelectionRuleIfc, amountNeeded: Int): Boolean {
+        //TODO this causes the selection rule to be invoked to see if resources are available
         return selectResources(resourceSelectionRule, amountNeeded).isNotEmpty()
     }
 
@@ -474,6 +475,7 @@ open class ResourcePool(
         resourceAllocationRule: AllocationRuleIfc = defaultResourceAllocationRule,
         allocationName: String? = null
     ): ResourcePoolAllocation {
+        //TODO This causes both the selection rule and the allocation rule to be invoked
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         // this should select enough resources to meet the request based on how much they have available
