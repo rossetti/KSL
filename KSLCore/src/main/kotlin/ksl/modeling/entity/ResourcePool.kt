@@ -288,24 +288,15 @@ fun findAvailableResources(list: List<Resource>): MutableList<Resource> {
  * @param name the name of the pool
  * @author rossetti
  */
-open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: String? = null) :
-    ModelElement(parent, name) {
-    private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
-    val fractionBusyUnits: ResponseCIfc
-        get() = myFractionBusy
-
-    private val myResources: MutableList<Resource> = mutableListOf()
+open class ResourcePool(
+    parent: ModelElement,
+    resources: List<Resource>,
+    name: String? = null
+) : ModelElement(parent, name) {
+    protected val myResources: MutableList<Resource> = mutableListOf()
 
     val resources: List<ResourceCIfc>
         get() = myResources
-
-    //TODO this is where the resource selection and allocation rules are defined/set
-    var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
-    var defaultResourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
 
     init {
         for (r in resources) {
@@ -325,12 +316,30 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         numResources: Int = 1,
         name: String? = null
     ) : this(parent, mutableListOf(), name) {
+        require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
         for (i in 1..numResources) {
             addResource(Resource(this, "${this.name}:R${i}"))
         }
     }
 
-    protected fun addResource(resource: Resource) {
+    private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
+    val numBusyUnits: TWResponseCIfc
+        get() = myNumBusy
+
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
+    val fractionBusyUnits: ResponseCIfc
+        get() = myFractionBusy
+
+    //TODO this is where the resource selection and allocation rules are defined/set
+    var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
+    var defaultResourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
+
+    /**
+     *  Adds a resource to the pool. The model must not be running when adding a resource.
+     *  @param resource the resource to add
+     */
+    fun addResource(resource: Resource) {
+        require(model.isNotRunning) {"The model must not be running when adding a resource to pool (${this.name}"}
         // prevent duplicates in the resources
         if (myResources.contains(resource)) {
             return
@@ -380,7 +389,7 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         }
 
     override fun initialize() {
-        super.initialize()
+        require(myResources.isNotEmpty()) {"There were no resources in resource pool ${this.name} during initialization"}
     }
 
     override fun replicationEnded() {

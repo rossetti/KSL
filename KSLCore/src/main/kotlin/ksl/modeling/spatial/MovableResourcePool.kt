@@ -1,7 +1,6 @@
 package ksl.modeling.spatial
 
-import ksl.modeling.entity.Resource
-import ksl.modeling.entity.ResourcePool
+import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
@@ -15,11 +14,10 @@ import ksl.utilities.random.RandomIfc
  */
 fun interface MovableResourceSelectionRuleIfc {
     /**
-     * @param amountNeeded the amount needed from resources
      * @param list of resources to consider selecting from
      * @return the selected list of resources. It may be empty
      */
-    fun selectResources(amountNeeded: Int, list: List<MovableResource>): List<MovableResource>
+    fun selectResources(list: List<MovableResource>): List<MovableResource>
 }
 
 /**
@@ -34,13 +32,11 @@ fun interface MovableResourceAllocationRuleIfc {
      *
      * @param requestLocation the location associated with the request. This information can be
      * used to determine the allocation based on distances.
-     * @param amountNeeded the amount needed from resources
      * @param resourceList list of resources to be allocated from
      * @return the amount to allocate from each resource as a map
      */
     fun makeAllocations(
         requestLocation: LocationIfc,
-        amountNeeded: Int,
         resourceList: List<MovableResource>
     ): Map<MovableResource, Int>
 }
@@ -68,6 +64,8 @@ class MovableResourcePool(
     defaultVelocity: RandomIfc,
     name: String? = null
 ) : ResourcePool(parent, movableResources, name), VelocityIfc {
+    //TODO probably cannot sub-class from ResourcePool anymore
+
     protected val myVelocity = RandomVariable(this, defaultVelocity)
     val velocityRV: RandomSourceCIfc
         get() = myVelocity
@@ -111,4 +109,20 @@ class MovableResourcePool(
     fun resourceByName(name: String): MovableResource?{
         return resourcesByName[name]
     }
+
+    fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc) : Boolean {
+        TODO("Not implemented yet")
+    }
+
+    internal fun allocate(
+        entity: ProcessModel.Entity,
+        queue: RequestQ,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc,
+        allocationName: String? = null
+    ) : ResourcePoolAllocation {
+        TODO("Not implemented yet")
+    }
+
+
 }

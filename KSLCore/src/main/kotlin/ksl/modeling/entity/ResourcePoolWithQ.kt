@@ -34,6 +34,11 @@ open class ResourcePoolWithQ(
 
     init {
         myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
+        for(resource in myResources){
+            if (resource is ResourceWithQ){
+                require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+            }
+        }
     }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
