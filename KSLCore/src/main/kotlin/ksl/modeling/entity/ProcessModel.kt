@@ -509,13 +509,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *
          * @param amountNeeded the amount needed to fill the request
          */
-        inner class Request(amountNeeded: Int = 1) : QObject() {
+        inner class Request internal constructor(amountNeeded: Int = 1) : QObject() {
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
 
+            //subclasses of resource include ResourceWithQ, MovableResource, MovableResourceWithQ
             var resource: Resource? = null
                 internal set
+
+            //subclasses of ResourcePool include: ResourcePoolWithQ, MovableResourcePool, MovableResourcePoolWithQ
             var resourcePool: ResourcePool? = null
                 internal set
             val entity = this@Entity
