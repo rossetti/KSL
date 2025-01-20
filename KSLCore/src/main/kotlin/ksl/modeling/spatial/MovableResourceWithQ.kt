@@ -1,5 +1,7 @@
 package ksl.modeling.spatial
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
 import ksl.modeling.entity.ResourceWithQ
@@ -18,9 +20,34 @@ class MovableResourceWithQ(
     parent: ModelElement,
     initLocation: LocationIfc,
     defaultVelocity: RandomIfc,
+    initialCapacity: Int = 1,
     name: String? = null,
     queue: RequestQ? = null,
-) : ResourceWithQ(parent, name, 1, queue), SpatialElementIfc, VelocityIfc {
+) : ResourceWithQ(parent, name, initialCapacity, queue), SpatialElementIfc, VelocityIfc {
+    init {
+        require((initialCapacity == 0) || (initialCapacity == 1))
+        { "The initial capacity of a movable resource must be 0 or 1" }
+    }
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0,
+        upperBound = 1.0
+    )
+    override var initialCapacity
+        get() = super.initialCapacity
+        set(value) {
+            require((value == 0) || (value == 1)) { "The initial capacity of a movable resource must be 0 or 1" }
+            super.initialCapacity = value
+        }
+
+    override var capacity
+        get() = super.capacity
+        set(value) {
+            require((value == 0) || (value == 1)) { "The capacity of a movable resource must be 0 or 1" }
+            super.capacity = value
+        }
+
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
 
     protected val myVelocity = RandomVariable(this, defaultVelocity)
@@ -175,6 +202,5 @@ class MovableResourceWithQ(
             }
         }
     }
-
 
 }

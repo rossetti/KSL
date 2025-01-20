@@ -16,8 +16,12 @@ import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.toDouble
 
+interface MovableResourceIfc : SpatialElementIfc, VelocityIfc {
+
+}
+
 /**
- * A movable resource is a resource that resides within a spatial model and thus can be moved.
+ * A movable resource is a single unit capacity resource that resides within a spatial model and thus can be moved.
  * @param parent the parent model element
  * @param initLocation the initial starting location of the resource within the spatial model
  * @param defaultVelocity the default velocity for movement within the spatial model
@@ -29,7 +33,7 @@ class MovableResource(
     defaultVelocity: RandomIfc,
     initialCapacity: Int = 1,
     name: String? = null,
-) : Resource(parent, name, initialCapacity), SpatialElementIfc, VelocityIfc {
+) : Resource(parent, name, initialCapacity), MovableResourceIfc {
     init {
         require((initialCapacity == 0) || (initialCapacity == 1))
         { "The initial capacity of a movable resource must be 0 or 1" }
