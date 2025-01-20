@@ -371,7 +371,7 @@ open class Resource(
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
-        lowerBound = 1.0
+        lowerBound = 0.0
     )
     override var initialCapacity = capacity
         set(value) {
@@ -382,7 +382,7 @@ open class Resource(
             field = value
         }
 
-    private val instantUtilTW : TWResponse = TWResponse(this, "${this.name}:InstantaneousUtil")
+    protected val instantUtilTW : TWResponse = TWResponse(this, "${this.name}:InstantaneousUtil")
     override val timeAvgInstantaneousUtil: TWResponseCIfc
         get() = instantUtilTW
 

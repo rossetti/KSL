@@ -59,7 +59,7 @@ open class TaskProcessingSystem(
 
     override fun initialize() {
         super.initialize()
-        for ((name, processor) in myTaskProcessors) {
+        for ((_, processor) in myTaskProcessors) {
             if (processor is TransientTaskProcessor) {
                 processor.setup()
             }
@@ -68,7 +68,7 @@ open class TaskProcessingSystem(
 
     override fun warmUp() {
         super.warmUp()
-        for ((name, processor) in myTaskProcessors) {
+        for ((_, processor) in myTaskProcessors) {
             if (processor is TransientTaskProcessor) {
                 processor.resetStates()
             }
@@ -1309,6 +1309,7 @@ open class TaskProcessingSystem(
             }
         }
 
+        @Suppress("UNUSED_PARAMETER")
         private fun shutDownAction(event: KSLEvent<Nothing>) {
             // if the current task is not null we can't immediately start the shutdown
             // because the processor is executing a task;
