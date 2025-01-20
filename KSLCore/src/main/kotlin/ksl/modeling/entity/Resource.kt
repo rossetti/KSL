@@ -435,10 +435,6 @@ open class Resource(
     override val seizeCounter: CounterCIfc
         get() = mySeizeCounter
 
-//    protected val myReleaseCounter = Counter(this, name = "${this.name}:ReleaseCount")
-//    val releaseCounter: CounterCIfc
-//        get() = myReleaseCounter
-
     override var numBusy: Int = 0
         protected set(newValue) {
             require(newValue >= 0) { "The number busy must be >= 0" }
@@ -455,7 +451,6 @@ open class Resource(
                 val decrease = previousValue - newValue
                 myNumBusy.decrement(decrease.toDouble())
                 numTimesReleased++
-//                myReleaseCounter.increment()
             }
             // handle the state change
             if ((field == 0) && (capacity == 0)) {
