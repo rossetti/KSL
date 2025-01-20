@@ -697,6 +697,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             //TODO immediateResume() who calls this?
             // called from 1) within resourceSeizeAction(), 2)resourcePoolSeizeAction(), 3) HoldQueue.removeAndImmediateResume()
             // 4) private inner class ResumeAction : EventAction<Nothing>
+            // resourceSeizeAction() is no longer used
+            // resourcePoolSeizeAction() is no longer used
             // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
@@ -1454,18 +1456,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             //TODO analyze the usage of this: resourceSeizeAction
             // this indicates that this method is NOT referenced
-            private fun resourceSeizeAction(event: KSLEvent<Request>) {
-                val request = event.message!!
-                val resource = request.resource!!
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
-                if (resource.canAllocate(request.amountRequested)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
-                    request.entity.immediateResume()
-                } else {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
-                }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
-            }
+//            private fun resourceSeizeAction(event: KSLEvent<Request>) {
+//                val request = event.message!!
+//                val resource = request.resource!!
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
+//                if (resource.canAllocate(request.amountRequested)) {
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
+//                    request.entity.immediateResume()
+//                } else {
+//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
+//                }
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
+//            }
 
             override suspend fun yield(
                 yieldPriority: Int,

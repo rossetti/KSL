@@ -777,7 +777,7 @@ open class Resource(
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
-        //TODO need to have state implementations for: failed?
+        // need to have state implementations for: failed?
     }
 
     protected inner class InactiveState(aName: String, stateStatistics: Boolean = false) :
