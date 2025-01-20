@@ -56,17 +56,12 @@ class MovableResourcePoolWithQ(
         numResources: Int = 1,
         initLocation: LocationIfc,
         defaultVelocity: RandomIfc,
-        initialCapacity : Int = 1,
         queue: RequestQ? = null,
         name: String? = null
-    ) : this(
-        parent, mutableListOf(), defaultVelocity, queue, name
-    ) {
-        require((initialCapacity == 0) || (initialCapacity == 1))
-        { "The initial capacity of a movable resource must be 0 or 1" }
+    ) : this(parent, mutableListOf(), defaultVelocity, queue, name) {
         for (i in 1..numResources) {
             addResource(MovableResource(this, initLocation, defaultVelocity,
-                initialCapacity, "${this.name}:R${i}"))
+                "${this.name}:R${i}"))
         }
     }
 

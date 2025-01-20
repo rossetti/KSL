@@ -79,7 +79,6 @@ class MovableResourcePool(
      * @param numResources number of movable resources to include in the pool
      * @param initLocation the initial starting location of the resources within the spatial model
      * @param defaultVelocity the default velocity for movement within the spatial model
-     * @param initialCapacity the initial capacity of every movable resource. Must be 0 or 1.
      * @param name the name of the pool
      * @author rossetti
      */
@@ -88,15 +87,11 @@ class MovableResourcePool(
         numResources: Int = 1,
         initLocation: LocationIfc,
         defaultVelocity: RandomIfc,
-        initialCapacity : Int = 1,
         name: String? = null
     ) : this(parent, mutableListOf(), defaultVelocity, name
     ) {
-        require((initialCapacity == 0) || (initialCapacity == 1))
-        { "The initial capacity of a movable resource must be 0 or 1" }
         for (i in 1..numResources) {
-            addResource(MovableResource(this, initLocation,
-                defaultVelocity, initialCapacity,"${this.name}:R${i}"))
+            addResource(MovableResource(this, initLocation, defaultVelocity, "${this.name}:R${i}"))
         }
     }
 
