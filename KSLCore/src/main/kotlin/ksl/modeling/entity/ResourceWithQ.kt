@@ -78,6 +78,26 @@ open class ResourceWithQ(
     queue: RequestQ? = null,
 ) : Resource(parent, name, capacity), ResourceWithQCIfc {
 
+    /**
+     * Holds the entities that are waiting for allocations of the resource's units
+     */
+    internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+    override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+        get() = myWaitingQ
+
+    /**
+     *  The number waiting plus number in service: Q(t) + B(t)
+     */
+    protected val myWIP = AggregateTWResponse(this, "${this.name}:WIP")
+
+    override val wip: TWResponseCIfc
+        get() = myWIP
+
+    init {
+        myWIP.observe(myWaitingQ.numInQ)
+        myWIP.observe(myNumBusy)
+    }
+
     protected var myNoticeCount = 0
     protected var myCapacitySchedule: CapacitySchedule? = null
 
@@ -86,11 +106,10 @@ open class ResourceWithQ(
     protected var myCurrentChangeNotice: CapacityChangeNotice? = null
 
     /**
-     * The default rule is IGNORE. This can be changed when a CapacitySchedule
-     * is used.
+     * The default rule is IGNORE. This can be changed via the useSchedule() function.
      */
     var capacityChangeRule: CapacityChangeRule = CapacityChangeRule.IGNORE
-        set(value){
+        protected set(value){
             require(!isUsingSchedule()){"Cannot change the rule because the resource is already using a capacity change schedule."}
             require(!isPendingCapacityChange){"Cannot change the rule when there are pending capacity changes."}
             field = value
@@ -103,28 +122,6 @@ open class ResourceWithQ(
      */
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
-
-    /**
-     * Holds the entities that are waiting for allocations of the resource's units
-     */
-    internal val myWaitingQ: RequestQ
-
-    /**
-     *  The number waiting plus number in service: Q(t) + B(t)
-     */
-    protected val myWIP = AggregateTWResponse(this, "${this.name}:WIP")
-
-    init {
-        myWaitingQ = queue ?: RequestQ(this, "${this.name}:Q")
-        myWIP.observe(myWaitingQ.numInQ)
-        myWIP.observe(myNumBusy)
-    }
-
-    override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
-        get() = myWaitingQ
-
-    override val wip: TWResponseCIfc
-        get() = myWIP
 
     override var defaultReportingOption: Boolean
         get() = super.defaultReportingOption
