@@ -1,9 +1,10 @@
 package ksl.modeling.spatial
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
 import ksl.modeling.entity.Resource
-import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
@@ -14,7 +15,6 @@ import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.toDouble
-
 
 /**
  * A movable resource is a resource that resides within a spatial model and thus can be moved.
@@ -27,9 +27,35 @@ class MovableResource(
     parent: ModelElement,
     initLocation: LocationIfc,
     defaultVelocity: RandomIfc,
+    initialCapacity: Int = 1,
     name: String? = null,
-) : Resource(parent, name, 1), SpatialElementIfc, VelocityIfc {
+) : Resource(parent, name, initialCapacity), SpatialElementIfc, VelocityIfc {
+    init {
+        require((initialCapacity == 0) || (initialCapacity == 1))
+        { "The initial capacity of a movable resource must be 0 or 1" }
+    }
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0,
+        upperBound = 1.0
+    )
+    override var initialCapacity
+        get() = super.initialCapacity
+        set(value) {
+            require((value == 0) || (value == 1)) { "The initial capacity of a movable resource must be 0 or 1" }
+            super.initialCapacity = value
+        }
+
+    override var capacity
+        get() = super.capacity
+        set(value) {
+            require((value == 0) || (value == 1)) { "The capacity of a movable resource must be 0 or 1" }
+            super.capacity = value
+        }
+
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
+
     protected val myVelocity = RandomVariable(this, defaultVelocity)
     val velocityRV: RandomSourceCIfc
         get() = myVelocity
@@ -82,7 +108,7 @@ class MovableResource(
         get() = mySpatialElement.observableComponent
 
     var initialHomeBase: LocationIfc? = null
-    var homeBase:LocationIfc? = null
+    var homeBase: LocationIfc? = null
 
     val hasHomeBase: Boolean
         get() = homeBase != null
@@ -127,13 +153,14 @@ class MovableResource(
      *  possibly waiting until finally causing the resource to return
      *  to its home base.
      */
-    fun sendToHomeBase(){
-        if (hasHomeBase && !homeBaseDriver.returningHome){
+    fun sendToHomeBase() {
+        if (hasHomeBase && !homeBaseDriver.returningHome) {
             homeBaseDriver.sendToHomeBase()
         }
     }
 
     private val myHomeQ = RequestQ(this, "${this.name}:HomeBaseQ")
+
     init {
         myHomeQ.waitTimeStatOption = false
         myHomeQ.defaultReportingOption = false
@@ -143,7 +170,7 @@ class MovableResource(
      *  @param option  If true the queue holding requests for moving to the home base
      *  will report statistics
      */
-    fun homeQStatistics(option: Boolean){
+    fun homeQStatistics(option: Boolean) {
         myHomeQ.waitTimeStatOption = option
         myHomeQ.defaultReportingOption = option
     }
@@ -163,7 +190,7 @@ class MovableResource(
             private set
 
         fun sendToHomeBase() {
-            if ((homeBase != null) && !returningHome){
+            if ((homeBase != null) && !returningHome) {
                 val driver = Driver()
                 returningHome = true
                 activate(driver.returnToHomeProcess, priority = KSLEvent.VERY_HIGH_PRIORITY)
@@ -172,9 +199,11 @@ class MovableResource(
 
         inner class Driver() : Entity() {
             val returnToHomeProcess = process {
-                require(homeBase != null) {"There is no home based defined for ${this@MovableResource.name}"}
-                val a = seize(this@MovableResource,
-                    queue = myHomeQ, seizePriority = KSLEvent.VERY_HIGH_PRIORITY)
+                require(homeBase != null) { "There is no home based defined for ${this@MovableResource.name}" }
+                val a = seize(
+                    this@MovableResource,
+                    queue = myHomeQ, seizePriority = KSLEvent.VERY_HIGH_PRIORITY
+                )
                 move(this@MovableResource, homeBase!!, movePriority = KSLEvent.VERY_HIGH_PRIORITY)
                 release(a)
                 returningHome = false

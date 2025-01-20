@@ -9,6 +9,43 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
 
 /**
+ * Provides for a method to select resources from a list such that
+ * the returned list will contain resources that can fully fill the amount needed
+ * or the list will be empty.
+ */
+fun interface MovableResourceSelectionRuleIfc {
+    /**
+     * @param amountNeeded the amount needed from resources
+     * @param list of resources to consider selecting from
+     * @return the selected list of resources. It may be empty
+     */
+    fun selectResources(amountNeeded: Int, list: List<MovableResource>): List<MovableResource>
+}
+
+/**
+ *  Function to determine how to allocate requirement for units across
+ *  a list of resources that have sufficient available units to meet
+ *  the amount needed.
+ */
+fun interface MovableResourceAllocationRuleIfc {
+
+    /** The method assumes that the provided list of resources has
+     *  enough units available to satisfy the needs of the request.
+     *
+     * @param requestLocation the location associated with the request. This information can be
+     * used to determine the allocation based on distances.
+     * @param amountNeeded the amount needed from resources
+     * @param resourceList list of resources to be allocated from
+     * @return the amount to allocate from each resource as a map
+     */
+    fun makeAllocations(
+        requestLocation: LocationIfc,
+        amountNeeded: Int,
+        resourceList: List<MovableResource>
+    ): Map<MovableResource, Int>
+}
+
+/**
  * A MovableResourcePool represents a list of MovableResource from which
  * resources can be selected to fill requests made by Entities.
  *
@@ -38,12 +75,13 @@ class MovableResourcePool(
         get() = myVelocity
     private val resourcesByName = mutableMapOf<String, MovableResource>()
 
-    /** Makes the specified number of single unit resources and includes them in the pool.
+    /** Makes the specified number of movable resources and includes them in the pool.
      *
      * @param parent the parent model element
-     * @param numResources number of single unit resources to include in the pool
+     * @param numResources number of movable resources to include in the pool
      * @param initLocation the initial starting location of the resources within the spatial model
      * @param defaultVelocity the default velocity for movement within the spatial model
+     * @param initialCapacity the initial capacity of every movable resource. Must be 0 or 1.
      * @param name the name of the pool
      * @author rossetti
      */
@@ -52,11 +90,15 @@ class MovableResourcePool(
         numResources: Int = 1,
         initLocation: LocationIfc,
         defaultVelocity: RandomIfc,
+        initialCapacity : Int = 1,
         name: String? = null
     ) : this(parent, mutableListOf(), defaultVelocity, name
     ) {
+        require((initialCapacity == 0) || (initialCapacity == 1))
+        { "The initial capacity of a movable resource must be 0 or 1" }
         for (i in 1..numResources) {
-            addResource(MovableResource(this, initLocation, defaultVelocity, "${this.name}:R${i}"))
+            addResource(MovableResource(this, initLocation,
+                defaultVelocity, initialCapacity,"${this.name}:R${i}"))
         }
     }
 

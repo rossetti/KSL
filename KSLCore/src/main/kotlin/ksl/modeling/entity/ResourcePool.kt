@@ -304,8 +304,8 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         get() = myResources
 
     //TODO this is where the resource selection and allocation rules are defined/set
-    var resourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
-    var resourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
+    var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
+    var defaultResourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
 
     init {
         for (r in resources) {
@@ -320,11 +320,11 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @param name the name of the pool
      * @author rossetti
      */
-    constructor(parent: ModelElement, numResources: Int = 1, name: String? = null) : this(
-        parent,
-        mutableListOf(),
-        name
-    ) {
+    constructor(
+        parent: ModelElement,
+        numResources: Int = 1,
+        name: String? = null
+    ) : this(parent, mutableListOf(), name) {
         for (i in 1..numResources) {
             addResource(Resource(this, "${this.name}:R${i}"))
         }
@@ -412,11 +412,24 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      *  units available than the requested amount.
      *
      * @param amountNeeded the amount needed by a request
+     * @param resourceSelectionRule the resource selection rule to use for selecting the resources
      * @return a list, which may be empty, that has resources that can satisfy the requested amount
      */
-    fun selectResources(amountNeeded: Int): List<Resource> {
+    protected open fun selectResources(
+        resourceSelectionRule: ResourceSelectionRuleIfc,
+        amountNeeded: Int
+    ): List<Resource> {
         //TODO this is where the selection rule is applied
         return resourceSelectionRule.selectResources(amountNeeded, findAvailableResources())
+    }
+
+    protected open fun makeAllocations(
+        resourceAllocationRule: AllocationRuleIfc,
+        amountNeeded: Int,
+        resourceList: List<Resource>
+    ) : Map<Resource, Int>{
+        //TODO this is where the allocation rule is applied
+        return resourceAllocationRule.makeAllocations(amountNeeded, resourceList)
     }
 
     /** For use, before calling allocate()
@@ -425,8 +438,8 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @return true if and only if resources can be selected according to the current resource selection rule
      * that will have sufficient amount available to fill the request
      */
-    fun canAllocate(amountNeeded: Int): Boolean {
-        return selectResources(amountNeeded).isNotEmpty()
+    fun canAllocate(resourceSelectionRule: ResourceSelectionRuleIfc, amountNeeded: Int): Boolean {
+        return selectResources(resourceSelectionRule, amountNeeded).isNotEmpty()
     }
 
     /**
@@ -439,6 +452,8 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
      * @param allocationName an optional name for the allocation
      * @param queue the queue associated with the allocation.  That is, where the entities would have had
      * to wait if the allocation was not immediately filled
+     * @param resourceSelectionRule The rule to use to select resources to allocate from
+     * @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
@@ -446,18 +461,18 @@ open class ResourcePool(parent: ModelElement, resources: List<Resource>, name: S
         entity: ProcessModel.Entity,
         amountNeeded: Int = 1,
         queue: RequestQ,
+        resourceSelectionRule: ResourceSelectionRuleIfc = defaultResourceSelectionRule,
+        resourceAllocationRule: AllocationRuleIfc = defaultResourceAllocationRule,
         allocationName: String? = null
     ): ResourcePoolAllocation {
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         // this should select enough resources to meet the request based on how much they have available
-        //TODO this is where the selection rule is applied, pass in rule???
-        val list = selectResources(amountNeeded)
+        val list = selectResources(resourceSelectionRule, amountNeeded)
         check(list.isNotEmpty()) { "There were no resources selected to allocate the $amountNeeded units requested, using the current selection rule" }
         ProcessModel.logger.trace { "There were ${list.size} resources selected that can allocate $amountNeeded units to the request, using the current selection rule." }
         val a = ResourcePoolAllocation(entity, this, amountNeeded, queue, allocationName)
-        //TODO this is where the allocation rule is applied
-        val resourceIntMap = resourceAllocationRule.makeAllocations(amountNeeded, list)
+        val resourceIntMap = makeAllocations(resourceAllocationRule, amountNeeded, list)
         ProcessModel.logger.trace { "There were ${resourceIntMap.size} allocations made to meet the $amountNeeded units needed." }
         for ((resource, amt) in resourceIntMap) {
             val ra = resource.allocate(entity, amt, queue, allocationName)

@@ -473,9 +473,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param amountNeeded the amount needed to fill the request
          * @return the constructed Request
          */
-        fun createRequest(amountNeeded: Int = 1, resourcePool: ResourcePool): Request {
+        fun createRequest(
+            amountNeeded: Int = 1,
+            resourcePool: ResourcePool,
+            resourceSelectionRule: ResourceSelectionRuleIfc
+        ): Request {
             val request = Request(amountNeeded)
             request.resourcePool = resourcePool
+            request.resourceSelectionRule = resourceSelectionRule
             return request
         }
 
@@ -495,6 +500,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 internal set
             val entity = this@Entity
             val amountRequested = amountNeeded
+            var resourceSelectionRule: ResourceSelectionRuleIfc? = null
+                internal set
         }
 
         /**
@@ -1484,9 +1491,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             //TODO analyze the usage of this: resourcePoolSeizeAction
             private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
                 val request = event.message!!
-                val resource = request.resourcePool!!
+                val resourcePool = request.resourcePool!!
+                val selectionRule = request.resourceSelectionRule!!
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
-                if (resource.canAllocate(request.amountRequested)) {
+                if (resourcePool.canAllocate(selectionRule, request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
                     request.entity.immediateResume()
                 } else {
@@ -1500,6 +1508,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 amountNeeded: Int,
                 seizePriority: Int,
                 queue: RequestQ,
+                resourceSelectionRule: ResourceSelectionRuleIfc,
+                resourceAllocationRule: AllocationRuleIfc,
                 suspensionName: String?
             ): ResourcePoolAllocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
@@ -1507,13 +1517,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
-                val request = createRequest(amountNeeded, resourcePool)
+                val request = createRequest(amountNeeded, resourcePool, resourceSelectionRule)
                 request.priority = entity.priority
                 queue.enqueue(request) // put the request in the queue
-                val resource = request.resourcePool!!
-                //TODO ISSUE: invoking selection rule?  Should the seize for a pool supply the selection rule?
                 //TODO this causes the selection rule to be invoked to see if resources are available
-                if (!resource.canAllocate(request.amountRequested)) {
+                if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
                     suspend()
@@ -1521,11 +1529,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 }
                 // entity has been told to resume
-                require(resourcePool.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
+                require(resourcePool.canAllocate(resourceSelectionRule, amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                //TODO ISSUE: This causes both the selection rule and the allocation rule to be invoked
-                val allocation = resourcePool.allocate(entity, amountNeeded, queue, suspensionName)
+                //TODO This causes both the selection rule and the allocation rule to be invoked
+                val allocation = resourcePool.allocate(entity, amountNeeded, queue,
+                    resourceSelectionRule, resourceAllocationRule, suspensionName)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${resourcePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
