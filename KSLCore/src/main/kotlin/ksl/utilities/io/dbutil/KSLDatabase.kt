@@ -295,6 +295,9 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
         val deleteModelElements = DatabaseIfc.deleteFromTableWhereSQL(
             "model_element", "exp_id_fk", defaultSchemaName
         )
+        list.add(deleteControls)
+        list.add(deleteRVParameters)
+        list.add(deleteModelElements)
         return list
     }
 
