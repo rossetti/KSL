@@ -64,7 +64,12 @@ class MovableResourcePool(
     defaultVelocity: RandomIfc,
     name: String? = null
 ) : ResourcePool(parent, movableResources, name), VelocityIfc {
-    //TODO probably cannot sub-class from ResourcePool anymore
+    //TODO cannot sub-class from ResourcePool anymore
+    // ISSUES:
+    // a) allows Resource to be added but they are not movable
+    // b) does not have movable resource selection or allocation defaults
+    // c) If not subclass, then Request will not work correctly
+    //
 
     protected val myVelocity = RandomVariable(this, defaultVelocity)
     val velocityRV: RandomSourceCIfc
@@ -107,6 +112,7 @@ class MovableResourcePool(
 
     fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc) : Boolean {
         //TODO this causes the selection rule to be invoked to see if resources are available
+        //resourceSelectionRule.
         TODO("Not implemented yet")
     }
 
