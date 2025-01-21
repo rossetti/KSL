@@ -100,6 +100,7 @@ class Allocation(
 
     var amountReleased = 0
         private set
+
     internal fun deallocate(){
         amountReleased = amount
         amount = 0
