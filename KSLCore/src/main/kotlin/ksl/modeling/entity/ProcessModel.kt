@@ -453,56 +453,56 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private val resourceAllocations: MutableMap<Resource, MutableList<Allocation>> = mutableMapOf()
 
-        //TODO I don't see a reason why the createRequest() functions should not be internal
-
-        /**
-         * Facilitates the creation of requests for the entity by clients that
-         * have access to a reference to the entity or via the entity itself.
-         *
-         * @param amountNeeded the amount needed to fill the request
-         * @return the constructed Request
-         */
-        internal fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
-            // called from seize(resource, ...)
-            val request = Request(amountNeeded)
-            request.resource = resource
-            return request
-        }
-
-        /**
-         * Facilitates the creation of requests for the entity by clients that
-         * have access to a reference to the entity or via the entity itself.
-         *
-         * @param amountNeeded the amount needed to fill the request
-         * @return the constructed Request
-         */
-        internal fun createRequest(
-            amountNeeded: Int = 1,
-            resourcePool: ResourcePool,
-         ): Request {
-            // called from seize(resourcePool, ...)
-            val request = Request(amountNeeded)
-            request.resourcePool = resourcePool
-            return request
-        }
-
-        internal fun createMovableResourceRequest(
-            resourcePool: MovableResourcePool
-        ): Request {
-            // called from seize(movableResourcePool, ...)
-            val request = Request()
-            request.resourcePool = resourcePool
-            return request
-        }
-
-        internal fun createMovableResourceRequest(
-            resourcePoolWithQ: MovableResourcePoolWithQ
-        ): Request {
-            //called from seize(movableResourcePoolWithQ, ....)
-            val request = Request()
-            request.resourcePool = resourcePoolWithQ
-            return request
-        }
+//        //TODO I don't see a reason why the createRequest() functions should not be internal
+//
+//        /**
+//         * Facilitates the creation of requests for the entity by clients that
+//         * have access to a reference to the entity or via the entity itself.
+//         *
+//         * @param amountNeeded the amount needed to fill the request
+//         * @return the constructed Request
+//         */
+//        internal fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
+//            // called from seize(resource, ...)
+//            val request = Request(amountNeeded)
+////            request.resource = resource
+//            return request
+//        }
+//
+//        /**
+//         * Facilitates the creation of requests for the entity by clients that
+//         * have access to a reference to the entity or via the entity itself.
+//         *
+//         * @param amountNeeded the amount needed to fill the request
+//         * @return the constructed Request
+//         */
+//        internal fun createRequest(
+//            amountNeeded: Int = 1,
+//            resourcePool: ResourcePool,
+//         ): Request {
+//            // called from seize(resourcePool, ...)
+//            val request = Request(amountNeeded)
+////            request.resourcePool = resourcePool
+//            return request
+//        }
+//
+//        internal fun createMovableResourceRequest(
+//            resourcePool: MovableResourcePool
+//        ): Request {
+//            // called from seize(movableResourcePool, ...)
+//            val request = Request()
+////            request.resourcePool = resourcePool
+//            return request
+//        }
+//
+//        internal fun createMovableResourceRequest(
+//            resourcePoolWithQ: MovableResourcePoolWithQ
+//        ): Request {
+//            //called from seize(movableResourcePoolWithQ, ....)
+//            val request = Request()
+////            request.resourcePool = resourcePoolWithQ
+//            return request
+//        }
 
         /**
          *  Represents some amount of units needed from 1 or more resources
@@ -513,16 +513,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
             }
-
-            //subclasses of resource include ResourceWithQ, MovableResource, MovableResourceWithQ
-            var resource: Resource? = null
-                internal set
-
-            //subclasses of ResourcePool include: ResourcePoolWithQ, MovableResourcePool, MovableResourcePoolWithQ
-            var resourcePool: ResourcePool? = null
-                internal set
             val entity = this@Entity
             val amountRequested = amountNeeded
+
+            //subclasses of resource include ResourceWithQ, MovableResource, MovableResourceWithQ
+//            var resource: Resource? = null
+//                internal set
+
+            //subclasses of ResourcePool include: ResourcePoolWithQ, MovableResourcePool, MovableResourcePoolWithQ
+//            var resourcePool: ResourcePool? = null
+//                internal set
+
         }
 
         /**
@@ -1490,8 +1491,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-                val request = createRequest(amountNeeded, resource)
-                request.priority = entity.priority
+                val request = Request(amountNeeded)
+                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 if (!resource.canAllocate(request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
@@ -1542,8 +1543,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
-                val request = createRequest(amountNeeded, resourcePool)
-                request.priority = entity.priority
+                val request = Request(amountNeeded)
+                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
                 if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
@@ -1579,8 +1580,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
-                val request = createMovableResourceRequest(movableResourcePool)
-                request.priority = entity.priority
+                val request = Request()
+                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 //TODO this causes the selection rule to be invoked to see if resources are available
                 if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
@@ -1615,9 +1616,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePoolWithQ.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePoolWithQ.name}")
-                val request = createMovableResourceRequest(movableResourcePoolWithQ)
-                request.priority = entity.priority
-                val requestQ = movableResourcePoolWithQ.myWaitingQ
+                val request = Request()
+                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
+                val requestQ = movableResourcePoolWithQ.myWaitingQ //TODO overload method does not work because MovableResourcePoolWithQ does not subclass from MovableResourcePool
                 requestQ.enqueue(request) // put the request in the queue
                 // This causes the selection rule to be invoked to see if resources are available.
                 if (!movableResourcePoolWithQ.canAllocate(resourceSelectionRule)) {
