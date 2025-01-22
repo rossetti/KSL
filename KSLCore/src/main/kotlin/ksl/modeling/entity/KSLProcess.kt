@@ -970,10 +970,10 @@ interface KSLProcessBuilder {
 
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
-     *  Equivalent to: seize(), delay(), release()
-     *  The queue that will hold the entity is internal to the resource.  If the queue
+     *  Equivalent to: seize(), delay(), release(). The queue that will hold the entity is internal to the resource.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling use.
+     *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -998,7 +998,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
-     *  Equivalent to: seize(), delay(), release()
+     *  Equivalent to: seize(), delay(), release(). If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
@@ -1028,7 +1030,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
-     *  Equivalent to: seize(), delay(), release()
+     *  Equivalent to: seize(), delay(), release(). If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
+     *  prior to the calling use.
      *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
@@ -1220,7 +1224,8 @@ interface KSLProcessBuilder {
 
     /**
      *  Causes movement of the spatial element from its current location to the specified location at
-     *  the supplied velocity.
+     *  the supplied velocity.  The entity will experience the time needed to move the spatial element.
+     *
      *  @param spatialElement, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1239,7 +1244,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Causes movement of the movable resource from its current location to the specified location at
-     *  the supplied velocity.
+     *  the supplied velocity. The entity experiences the time needed for the movable resource to move
+     *  to the specified location.
+     *
      *  @param movableResource, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1262,7 +1269,9 @@ interface KSLProcessBuilder {
 
     /**
      *  Causes movement of the movable resource from its current location to the specified location at
-     *  the supplied velocity.
+     *  the supplied velocity. The entity experiences the time needed for the movable resource to move
+     *  to the specified location.
+     *
      *  @param movableResourceWithQ, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1287,6 +1296,7 @@ interface KSLProcessBuilder {
      *  Causes movement of the entity and the spatial element from the current location to the specified location at
      *  the supplied velocity. The entity and the spatial element must be at the same location to start the movement.
      *  If not specified, the default velocity of the spatial element is used for the movement.
+     *
      *  @param spatialElement, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1307,6 +1317,7 @@ interface KSLProcessBuilder {
      *  Causes movement of the entity and the movable resource from the current location to the specified location at
      *  the supplied velocity. The entity and the movable resource must be at the same location to start the movement.
      *  If not specified, the default velocity of the spatial element is used for the movement.
+     *
      *  @param movableResource, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1327,6 +1338,7 @@ interface KSLProcessBuilder {
      *  Causes movement of the entity and the movable resource from the current location to the specified location at
      *  the supplied velocity. The entity and the movable resource must be at the same location to start the movement.
      *  If not specified, the default velocity of the spatial element is used for the movement.
+     *
      *  @param movableResourceWithQ, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param velocity the velocity associated with the movement
@@ -1345,15 +1357,21 @@ interface KSLProcessBuilder {
 
     /**
      *  Causes transport of the entity via the movable resource from the entity's current location to the specified location at
-     *  the supplied velocities.
-     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  the supplied velocities.  The entity experiences the time for the movable resource to move to its current location.
+     *  If not specified, the default velocity of the movable resource is used for the movement.  If the home base option is
+     *  specified, the entity does not experience the time for the movable resource to proceed to its home base after
+     *  the entity releases the movable resource.
+     *
+     *  If the queue is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute \
+     *  for use in ranking the queue prior to the calling for transport.
+     *
      *  @param movableResource, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
      *  @param transportQ the queue that the entity waits in if the resource is busy
-     *  @param requestPriority, a priority can be used to determine the order of events for
-     *  requests for transport
+     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
@@ -1398,14 +1416,20 @@ interface KSLProcessBuilder {
 
     /**
      *  Causes transport of the entity via the movable resource from the entity's current location to the specified location at
-     *  the supplied velocities.
-     *  If not specified, the default velocity of the movable resource is used for the movement.
+     *  the supplied velocities.  The entity experiences the time for the movable resource to move to its current location.
+     *  If not specified, the default velocity of the movable resource is used for the movement.  If the home base option is
+     *  specified, the entity does not experience the time for the movable resource to proceed to its home base after
+     *  the entity releases the movable resource.
+     *
+     *  If the queue is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute \
+     *  for use in ranking the queue prior to the calling for transport.
+     *
      *  @param movableResourceWithQ, the spatial element that will be moved
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the order of events for
-     *  requests for transport
+     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
@@ -1451,12 +1475,16 @@ interface KSLProcessBuilder {
      *  Causes transport of the entity via a movable resource within the fleet from the entity's current location to the specified location at
      *  the supplied velocities.
      *  If not specified, the default velocity of the movable resource is used for the movement.
+     *
+     *  If the queue is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute \
+     *  for use in ranking the queue prior to the calling for transport.
+     *
      *  @param fleet, the pool of movable resources
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the order of events for
-     *  requests for transport
+     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
@@ -1505,12 +1533,16 @@ interface KSLProcessBuilder {
      *  Causes transport of the entity via a movable resource within the fleet from the entity's current location to the specified location at
      *  the supplied velocities.
      *  If not specified, the default velocity of the movable resource is used for the movement.
+     *
+     *  If the queue is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute \
+     *  for use in ranking the queue prior to the calling for transport.
+     *
      *  @param fleet, the pool of movable resources
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the order of events for
-     *  requests for transport
+     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
      *  @param transportPriority, since the move is scheduled, a priority can be used to determine the order of events for
