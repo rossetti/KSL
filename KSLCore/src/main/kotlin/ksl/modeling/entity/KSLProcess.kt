@@ -1469,7 +1469,7 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
-        val movableResource = a.allocations[0].resource as MovableResource
+        val movableResource = a.allocations[0].myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
         if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
@@ -1522,7 +1522,7 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
-        val movableResource = a.allocations[0].resource as MovableResource
+        val movableResource = a.allocations[0].myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
         if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)

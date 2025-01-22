@@ -504,8 +504,8 @@ open class ResourcePool(
 
     fun deallocate(poolAllocation: ResourcePoolAllocation) {
         for (allocation in poolAllocation.allocations) {
-            ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.resource.name}" }
-            allocation.resource.deallocate(allocation)
+            ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }
+            allocation.myResource.deallocate(allocation)
         }
     }
 

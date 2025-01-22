@@ -605,10 +605,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param allocation the allocation created by the resource for the entity
          */
         internal fun allocate(allocation: Allocation) {
-            if (!resourceAllocations.contains(allocation.resource)) {
-                resourceAllocations[allocation.resource] = mutableListOf()
+            if (!resourceAllocations.contains(allocation.myResource)) {
+                resourceAllocations[allocation.myResource] = mutableListOf()
             }
-            resourceAllocations[allocation.resource]!!.add(allocation)
+            resourceAllocations[allocation.myResource]!!.add(allocation)
         }
 
         /**
@@ -618,9 +618,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param allocation the allocation to be removed (deallocated) from the entity
          */
         internal fun deallocate(allocation: Allocation) {
-            resourceAllocations[allocation.resource]!!.remove(allocation)
-            if (resourceAllocations[allocation.resource]!!.isEmpty()) {
-                resourceAllocations.remove(allocation.resource)
+            resourceAllocations[allocation.myResource]!!.remove(allocation)
+            if (resourceAllocations[allocation.myResource]!!.isEmpty()) {
+                resourceAllocations.remove(allocation.myResource)
             }
         }
 
@@ -1744,14 +1744,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override fun release(allocation: Allocation, releasePriority: Int) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RELEASE : entity_id = ${entity.id}: ${allocation.amount} units of ${allocation.resource.name}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RELEASE : entity_id = ${entity.id}: ${allocation.amount} units of ${allocation.myResource.name}" }
                 // we cannot assume that a resource has a queue
-                allocation.resource.deallocate(allocation)
+                allocation.myResource.deallocate(allocation)
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
-                    allocation.queue.processWaitingRequests(allocation.resource.numAvailableUnits, releasePriority)
+                    allocation.myQueue.processWaitingRequests(allocation.myResource.numAvailableUnits, releasePriority)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : RELEASE: entity_id = ${entity.id} : allocation_id = ${allocation.id}" }
 
