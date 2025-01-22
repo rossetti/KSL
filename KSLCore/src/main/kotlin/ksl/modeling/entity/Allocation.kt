@@ -18,9 +18,65 @@
 
 package ksl.modeling.entity
 
-import ksl.simulation.KSLEvent
+import ksl.modeling.queue.QueueCIfc
 
 private var allocationCounter = 0
+
+interface AllocationIfc {
+
+    val id: Int
+
+    /**
+     *  The time that the allocation was allocated to its resource
+     */
+    val timeAllocated: Double
+
+    /**
+     *  The time that the allocation was deallocated
+     */
+    val timeDeallocated: Double
+
+    /**
+     * The total elapsed time since allocation if not yet deallocated.  If
+     * deallocated, the total time between de-allocation and allocation
+     */
+    val totalTimeAllocated: Double
+
+    /**
+     *  An optional name for the allocation
+     */
+    val name: String?
+
+    /**
+     *  The amount of the allocation representing the units allocated of the resource
+     */
+    val amount: Int
+
+    /**
+     *  True if the allocation is currently allocated to a resource
+     */
+    val isAllocated: Boolean
+
+    /**
+     *  True if no units are allocated
+     */
+    val isDeallocated: Boolean
+
+    /**
+     *  The amount of the allocation that has been released
+     */
+    val amountReleased: Int
+
+    /**
+     *  The queue that held the request associated with the allocation
+     */
+    val queue: QueueCIfc<ProcessModel.Entity.Request>
+
+    /**
+     *  The resource associated with the allocation
+     */
+    val resource: ResourceCIfc
+}
 
 /**
  *  An allocation represents a distinct usage of a resource by an entity with an amount allocated.
@@ -29,92 +85,78 @@ private var allocationCounter = 0
  *  resource result in multiple allocations (when filled).  An allocation is not created until
  *  the requested amount is available.
  *
- *  @param entity the entity associated with the allocation
- *  @param resource the resource associated with the allocation
+ *  @param myEntity the entity associated with the allocation
+ *  @param myResource the resource associated with the allocation
  *  @param theAmount the amount allocated of the resource to the entity
- *  @param queue the queue that the entity had to wait in when requesting the allocation
+ *  @param myQueue the queue that the entity had to wait in when requesting the allocation
  *  @param allocationName the name of the allocation
- *  processed by the resource. The default actions are supplied by the entity associated with the allocation.
+ *  processed by the resource.
  */
-class Allocation(
-    val entity: ProcessModel.Entity,
-    val resource: Resource,
+class Allocation internal constructor(
+    internal val myEntity: ProcessModel.Entity,
+    internal val myResource: Resource,
     theAmount: Int = 1,
-    val queue: RequestQ,
+    internal val myQueue: RequestQ,
     allocationName: String? = null
-) {
+) : AllocationIfc {
     init {
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
 
-    val id = allocationCounter++
+    override val queue: QueueCIfc<ProcessModel.Entity.Request>
+        get() = myQueue
 
-    var allocationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
+    override val resource: ResourceCIfc
+        get() = myResource
 
-    /**
-     *  The time that the allocation was allocated to its resource
-     */
-    val timeAllocated: Double = resource.time
-    var timeDeallocated: Double = Double.NaN
+    override val id = allocationCounter++
+
+    override val timeAllocated: Double = myResource.time
+
+    override var timeDeallocated: Double = Double.NaN
         private set
 
-    /**
-     * The total elapsed time since allocation if not yet deallocated.  If
-     * deallocated, the total time between de-allocation and allocation
-     */
-    val totalTimeAllocated: Double
+    override val totalTimeAllocated: Double
         get() {
             return if (timeDeallocated.isNaN()){
-                resource.time - timeAllocated
+                myResource.time - timeAllocated
             } else {
                 timeDeallocated - timeAllocated
             }
         }
 
-    /**
-     *  An optional name for the allocation
-     */
-    var name: String? = allocationName
+    override var name: String? = allocationName
         private set
 
-    /**
-     *  The amount of the allocation representing the units allocated of the resource
-     */
-    var amount: Int = theAmount
+    override var amount: Int = theAmount
         private set(value) {
             require(value >= 0) { "The amount allocated must be >= 0" }
             field = value
         }
 
-    /**
-     *  True if the allocation is currently allocated to a resource
-     */
-    val isAllocated: Boolean
+    override val isAllocated: Boolean
         get() = amount > 0
 
-    /**
-     *  True if no units are allocated
-     */
-    val isDeallocated: Boolean
+    override val isDeallocated: Boolean
         get() = !isAllocated
 
-    var amountReleased = 0
+    override var amountReleased = 0
         private set
 
     internal fun deallocate(){
         amountReleased = amount
         amount = 0
-        timeDeallocated = resource.time
+        timeDeallocated = myResource.time
     }
 
     override fun toString(): String {
         val sb = StringBuilder()
         sb.append("Entity ")
-        sb.append(entity.id)
+        sb.append(myEntity.id)
         sb.append(" holds ")
         sb.append(amount)
         sb.append(" units of resource ")
-        sb.append(resource.name)
+        sb.append(myResource.name)
         return sb.toString()
     }
 }

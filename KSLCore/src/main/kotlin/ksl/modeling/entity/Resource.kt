@@ -742,20 +742,20 @@ open class Resource(
      */
     open fun deallocate(allocation: Allocation) {
         require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
-        require(allocation.resource === this) { "The allocations was not on this resource." }
-        require(entityAllocations.contains(allocation.entity)) { "The entity associated with the allocation is not using this resource." }
-        val b: Boolean = entityAllocations[allocation.entity]!!.contains(allocation)
+        require(allocation.myResource === this) { "The allocations was not on this resource." }
+        require(entityAllocations.contains(allocation.myEntity)) { "The entity associated with the allocation is not using this resource." }
+        val b: Boolean = entityAllocations[allocation.myEntity]!!.contains(allocation)
         require(b) { "The supplied allocation is not currently allocated for this resource." }
         //need to remove from allocations for the specific entity
-        entityAllocations[allocation.entity]!!.remove(allocation)
-        if (entityAllocations[allocation.entity]!!.isEmpty()) {
+        entityAllocations[allocation.myEntity]!!.remove(allocation)
+        if (entityAllocations[allocation.myEntity]!!.isEmpty()) {
             // no more allocations for this entity, remove it from the map also
-            entityAllocations.remove(allocation.entity)
+            entityAllocations.remove(allocation.myEntity)
         }
         // give back to the resource
         numBusy = numBusy - allocation.amount
         // need to also deallocate from the entity
-        allocation.entity.deallocate(allocation)
+        allocation.myEntity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
         allocation.deallocate()
         deallocationNotification(allocation)
