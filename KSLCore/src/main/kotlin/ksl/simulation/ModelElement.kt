@@ -1952,17 +1952,36 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         val timeInQueue: Double
 
         /**
-         * Checks if the QObject is queued
+         * Checks if the QObject is currently queued
          */
         val isQueued: Boolean
+
+        /**
+         *  Indicates if the QObject is not currently queued
+         */
         val isNotQueued: Boolean
 
+        /**
+         *  For use within the station package. Tracks the current receiver
+         */
         val currentReceiver: QObjectReceiverIfc?
 
+        /**
+         *  For use within the station package. Tracks the current sender
+         */
         val sender: QObjectSenderIfc?
 
+        /**
+         *  An object that promises to produce a value. Can be used
+         *  to carry a general value with the queue object.
+         */
         val valueObject: GetValueIfc?
 
+        /**
+         *  An attribute to denote the type of queue object. Useful
+         *  when the only thing that distinguishes subtypes is an integer value.
+         *  For example, this could be randomly assigned.
+         */
         val qObjectType: Int
 
     }
