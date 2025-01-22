@@ -847,6 +847,10 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a movable resource from the indicated pool of resources
+     *  The queue that will hold the entity is supplied to the movable resource pool.  The
+     *  movable resources in the pool will select requests from the queue. If the queue
+     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority
+     *  attribute for use in ranking the queue prior to the calling seize.
      *
      *  @param movableResourcePool the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
@@ -855,7 +859,8 @@ interface KSLProcessBuilder {
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
-     *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
+     *  @param resourceSelectionRule The rule to use to select resources to allocate from. If null is supplied, then
+     *  the pool's default rule is used.
      *  @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources.
      *  By default, the pool's default rule is used.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
@@ -876,7 +881,7 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a movable resource from the indicated pool of resources
-     *  The queue that will hold the entity is internal to the resource pool.  If the queue
+     *  The queue that will hold the entity is internal to the movable resource pool.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority
      *  attribute for use in ranking the queue prior to the calling seize.
      *
@@ -901,7 +906,8 @@ interface KSLProcessBuilder {
         resourceAllocationRule: MovableResourceAllocationRuleIfc? = null,
         suspensionName: String? = null
     ): Allocation {
-        return seize(movableResourcePoolWithQ, movableResourcePoolWithQ.myWaitingQ, requestLocation, seizePriority, resourceSelectionRule)
+        return seize(movableResourcePoolWithQ, movableResourcePoolWithQ.myWaitingQ, requestLocation, seizePriority,
+            resourceSelectionRule, resourceAllocationRule, suspensionName)
     }
 
     /**
