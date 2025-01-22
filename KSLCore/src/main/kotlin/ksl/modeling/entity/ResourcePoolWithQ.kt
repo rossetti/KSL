@@ -67,8 +67,7 @@ open class ResourcePoolWithQ(
         parent: ModelElement,
         numResources: Int = 1,
         name: String? = null
-    ) : this(parent, mutableListOf(), null, name
-    ) {
+    ) : this(parent, mutableListOf(), null, name) {
         require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
         for (i in 1..numResources) {
             addResource(ResourceWithQ(this, queue = myWaitingQ, name = "${this.name}:R${i}"))

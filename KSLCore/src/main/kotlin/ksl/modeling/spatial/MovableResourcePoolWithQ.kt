@@ -1,9 +1,7 @@
 package ksl.modeling.spatial
 
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.RequestQ
-import ksl.modeling.entity.ResourcePoolAllocation
-import ksl.modeling.entity.ResourcePoolWithQ
+import ksl.modeling.entity.*
+import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
@@ -33,21 +31,40 @@ class MovableResourcePoolWithQ(
     defaultVelocity: RandomIfc,
     queue: RequestQ? = null,
     name: String? = null
-) : ResourcePoolWithQ(parent, movableResources, queue, name), VelocityIfc {
-    protected val myVelocity = RandomVariable(this, defaultVelocity)
-    val velocityRV: RandomSourceCIfc
-        get() = myVelocity
-    override val velocity: GetValueIfc
-        get() = myVelocity
-    private val resourcesByName = mutableMapOf<String, MovableResource>()
+) : MovableResourcePool(parent, movableResources, defaultVelocity, name), VelocityIfc {
+    /**
+     * Holds the entities that are waiting for allocations of the resource's units
+     */
+    internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
 
-    /** Makes the specified number of movable resources and includes them in the pool.
+    init {
+        for(resource in myResources){
+            if (resource is MovableResourceWithQ){
+                require(resource.waitingQ == myWaitingQ) {"MovableResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+            }
+        }
+    }
+
+    val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+        get() = myWaitingQ
+
+    val resourcesWithQ: List<ResourceWithQCIfc>
+        get() {
+            val list = mutableListOf<ResourceWithQCIfc>()
+            for(resource in myResources){
+                if (resource is MovableResourceWithQ){
+                    list.add(resource)
+                }
+            }
+            return list
+        }
+
+    /** Makes the specified number of single unit resources and includes them in the pool.
+     *  The pool is configured with a queue and each created resource is a ResourceWithQ that
+     *  uses the pool's queue.
      *
      * @param parent the parent model element
      * @param numResources number of movable resources to include in the pool
-     * @param initLocation the initial starting location of the resources within the spatial model
-     * @param defaultVelocity the default velocity for movement within the spatial model
-     * @param initialCapacity the initial capacity of every movable resource. Must be 0 or 1.
      * @param name the name of the pool
      * @author rossetti
      */
@@ -56,38 +73,38 @@ class MovableResourcePoolWithQ(
         numResources: Int = 1,
         initLocation: LocationIfc,
         defaultVelocity: RandomIfc,
-        queue: RequestQ? = null,
         name: String? = null
-    ) : this(parent, mutableListOf(), defaultVelocity, queue, name) {
+    ) : this(parent, mutableListOf(), defaultVelocity, null, name) {
+        require(numResources >= 1) {"There must be 1 or more movable resources to create when creating ${this.name}"}
         for (i in 1..numResources) {
-            addResource(MovableResource(this, initLocation, defaultVelocity,
-                "${this.name}:R${i}"))
+            addResource(MovableResourceWithQ(this, initLocation, myVelocity, queue = myWaitingQ, name = "${this.name}:R${i}"))
         }
     }
 
-    fun addResource(resource: MovableResource) {
-        super.addResource(resource)
-        resourcesByName[resource.name] = resource
-        resource.velocityRV.initialRandomSource = myVelocity
-    }
-
-    fun resourceByName(name: String): MovableResource? {
-        return resourcesByName[name]
-    }
-
-    fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc) : Boolean {
-        //TODO this causes the selection rule to be invoked to see if resources are available
-        TODO("Not implemented yet")
-    }
-
-    internal fun allocate(
-        entity: ProcessModel.Entity,
+    /** Makes the specified number of single unit resources and includes them in the pool.
+     *  The pool is configured with the supplied queue and each create resource is a ResourceWithQ that
+     *  uses the supplied queue.
+     *
+     * @param parent the parent model element
+     * @param numResources number of single unit resources to include in the pool
+     * @param name the name of the pool
+     * @author rossetti
+     */
+    constructor(
+        parent: ModelElement,
+        numResources: Int = 1,
+        initLocation: LocationIfc,
+        defaultVelocity: RandomIfc,
         queue: RequestQ,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc,
-        allocationName: String? = null
-    ) : ResourcePoolAllocation {
-        //TODO This causes both the selection rule and the allocation rule to be invoked
-        TODO("Not implemented yet")
+        name: String? = null
+    ) : this(parent, mutableListOf(), defaultVelocity, queue, name){
+        for (i in 1..numResources) {
+            addResource(MovableResourceWithQ(this, initLocation, myVelocity, queue = myWaitingQ, name = "${this.name}:R${i}"))
+        }
+    }
+
+    fun addResource(resource: MovableResourceWithQ) {
+        require(resource.waitingQ == myWaitingQ) {"MovableResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+        super.addResource(resource)
     }
 }

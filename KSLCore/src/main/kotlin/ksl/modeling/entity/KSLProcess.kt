@@ -849,6 +849,7 @@ interface KSLProcessBuilder {
      *  Requests a movable resource from the indicated pool of resources
      *
      *  @param movableResourcePool the resource pool from which the units are being requested.
+     *  @param requestLocation The location of the request. The default is the entity's currentLocation
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
@@ -865,12 +866,13 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         movableResourcePool: MovableResourcePool,
-        seizePriority: Int = SEIZE_PRIORITY,
         queue: RequestQ,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc,
+        requestLocation: LocationIfc = entity.currentLocation,
+        seizePriority: Int = SEIZE_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc? = null,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc? = null,
         suspensionName: String? = null
-    ): ResourcePoolAllocation
+    ): Allocation
 
     /**
      *  Requests a movable resource from the indicated pool of resources
@@ -879,6 +881,7 @@ interface KSLProcessBuilder {
      *  attribute for use in ranking the queue prior to the calling seize.
      *
      *  @param movableResourcePoolWithQ the resource pool from which the units are being requested.
+     *  @param requestLocation The location of the request. The default is the entity's currentLocation
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
@@ -892,11 +895,14 @@ interface KSLProcessBuilder {
      */
     suspend fun seize(
         movableResourcePoolWithQ: MovableResourcePoolWithQ,
+        requestLocation: LocationIfc = entity.currentLocation,
         seizePriority: Int = SEIZE_PRIORITY,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc? = null,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc? = null,
         suspensionName: String? = null
-    ): ResourcePoolAllocation
+    ): Allocation {
+        return seize(movableResourcePoolWithQ, movableResourcePoolWithQ.myWaitingQ, requestLocation, seizePriority, resourceSelectionRule)
+    }
 
     /**
      *  Uses the resource with the amount of units for the delay and then releases it.
@@ -1469,7 +1475,7 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
         // must be 1 allocation for 1 unit seized
-        val movableResource = a.allocations[0].myResource as MovableResource
+        val movableResource = a.myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
         if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)
@@ -1522,7 +1528,7 @@ interface KSLProcessBuilder {
     ) {
         val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
-        val movableResource = a.allocations[0].myResource as MovableResource
+        val movableResource = a.myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
         if (loadingDelay != ConstantRV.ZERO) {
             delay(loadingDelay, loadingPriority)

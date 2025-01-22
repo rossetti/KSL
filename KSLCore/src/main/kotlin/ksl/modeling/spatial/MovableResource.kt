@@ -27,7 +27,7 @@ interface MovableResourceIfc : SpatialElementIfc, VelocityIfc {
  * @param defaultVelocity the default velocity for movement within the spatial model
  * @param name the name of the resource
  */
-class MovableResource(
+open class MovableResource(
     parent: ModelElement,
     initLocation: LocationIfc,
     defaultVelocity: RandomIfc,
@@ -80,10 +80,10 @@ class MovableResource(
             myFracTimeMovingEmpty.value = field.toDouble()
         }
 
-    private val myFracTimeMoving =
+    protected val myFracTimeMoving =
         TWResponse(this, name = "${this.name}:FracTimeMoving", initialValue = mySpatialElement.isMoving.toDouble())
-    private val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
-    private val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
+    protected val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
+    protected val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
 
     override val isTracked: Boolean
         get() = mySpatialElement.isTracked
@@ -116,7 +116,7 @@ class MovableResource(
     val hasHomeBase: Boolean
         get() = homeBase != null
 
-    private val homeBaseDriver = HomeBaseDriver()
+    protected val homeBaseDriver = HomeBaseDriver()
 
     override fun initialize() {
         super.initialize()
@@ -162,7 +162,7 @@ class MovableResource(
         }
     }
 
-    private val myHomeQ = RequestQ(this, "${this.name}:HomeBaseQ")
+    protected val myHomeQ = RequestQ(this, "${this.name}:HomeBaseQ")
 
     init {
         myHomeQ.waitTimeStatOption = false
@@ -185,7 +185,7 @@ class MovableResource(
     val isReturningHome: Boolean
         get() = homeBaseDriver.returningHome
 
-    private inner class HomeBaseDriver() : ProcessModel(
+    protected inner class HomeBaseDriver() : ProcessModel(
         this@MovableResource, "${this@MovableResource.name}:Driver"
     ) {
 

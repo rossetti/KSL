@@ -247,7 +247,7 @@ class LeastSeizedAllocationRule: AllocationRule(LeastSeizedComparator())
 
 /**
  *  When the resources have capacity greater than one, then the resources are sorted
- *  from most capacity available to least capacity available, and then allocated in the
+ *  from most capacity available to the least capacity available, and then allocated in the
  *  order listed.
  */
 class MostAvailableAllocationRule: AllocationRule(MostAvailableComparator())
@@ -446,6 +446,7 @@ open class ResourcePool(
         amountNeeded: Int,
         resourceList: List<Resource>
     ) : Map<Resource, Int>{
+        require(resourceList.isNotEmpty()) { "There must be at least one resource available to make an allocation" }
         //TODO this is where the allocation rule is applied
         return resourceAllocationRule.makeAllocations(amountNeeded, resourceList)
     }

@@ -20,7 +20,6 @@ package ksl.modeling.entity
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.Queue
-import ksl.modeling.spatial.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -29,6 +28,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.modeling.spatial.*
 import ksl.utilities.Identity
 import kotlin.IllegalStateException
 import kotlin.coroutines.*
@@ -874,6 +874,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ) {
         }
 
+        internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(
+            requestQ: RequestQ,
+            resourceWithQ: MovableResourceWithQ,
+            request: ProcessModel.Entity.Request
+        ) {
+            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resourceWithQ, request)
+        }
+
+        /**
+         * Subclasses of entity can override this method to provide behavior if a request associated
+         * with the entity has its requested resource become inactive while its request
+         * was waiting in the request queue.  This is not a trivial thing to do since the entity
+         * will be suspended after seizing a resource.  If the entity wants to stop waiting, then
+         * the process will have to be terminated and the termination logic will need to handle
+         * what to do after the termination.
+         *
+         * @param queue the queue holding the request
+         * @param resource the involved resource
+         * @param request the involved request
+         */
+        protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
+            queue: RequestQ, resource: MovableResourceWithQ, request: ProcessModel.Entity.Request
+        ) {
+        }
+
         /**
          *  A state pattern implementation to ensure that the entity only transitions to
          *  valid states from its current state.
@@ -1570,12 +1595,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override suspend fun seize(
                 movableResourcePool: MovableResourcePool,
-                seizePriority: Int,
                 queue: RequestQ,
-                resourceSelectionRule: MovableResourceSelectionRuleIfc,
-                resourceAllocationRule: MovableResourceAllocationRuleIfc,
+                requestLocation: LocationIfc,
+                seizePriority: Int,
+                resourceSelectionRule: MovableResourceSelectionRuleIfc?,
+                resourceAllocationRule: MovableResourceAllocationRuleIfc?,
                 suspensionName: String?
-            ): ResourcePoolAllocation {
+            ): Allocation {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
@@ -1596,47 +1622,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 //TODO This causes both the selection rule and the allocation rule to be invoked
-                val allocation = movableResourcePool.allocate(entity, queue,
+                val allocation = movableResourcePool.allocate(entity, requestLocation, queue,
                     resourceSelectionRule, resourceAllocationRule, suspensionName)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${movableResourcePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
-                return allocation
-            }
-
-            override suspend fun seize(
-                movableResourcePoolWithQ: MovableResourcePoolWithQ,
-                seizePriority: Int,
-                resourceSelectionRule: MovableResourceSelectionRuleIfc,
-                resourceAllocationRule: MovableResourceAllocationRuleIfc,
-                suspensionName: String?
-            ): ResourcePoolAllocation {
-                currentSuspendName = suspensionName
-                currentSuspendType = SuspendType.SEIZE
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePoolWithQ.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePoolWithQ.name}")
-                val request = Request()
-                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
-                val requestQ = movableResourcePoolWithQ.myWaitingQ //TODO overload method does not work because MovableResourcePoolWithQ does not subclass from MovableResourcePool
-                requestQ.enqueue(request) // put the request in the queue
-                // This causes the selection rule to be invoked to see if resources are available.
-                if (!movableResourcePoolWithQ.canAllocate(resourceSelectionRule)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                }
-                // entity has been told to resume
-                require(movableResourcePoolWithQ.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${movableResourcePoolWithQ.name}" }
-                requestQ.remove(request) // take the request out of the queue after possible wait
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                //This causes both the selection rule and the allocation rule to be invoked.
-                val allocation = movableResourcePoolWithQ.allocate(entity, requestQ,
-                    resourceSelectionRule, resourceAllocationRule, suspensionName)
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${movableResourcePoolWithQ.name} : allocation_id = ${allocation.id}" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${movableResourcePoolWithQ.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
