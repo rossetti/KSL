@@ -149,6 +149,11 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      * time average instantaneous utilization
      */
     val timeAvgInstantaneousUtil: TWResponseCIfc
+
+    /**
+     *  A general attribute that can be used to assist with selecting resources
+     */
+    val selectionCriteria: Double
 }
 
 /**
@@ -268,6 +273,16 @@ class NumAvailableComparator : Comparator<Resource> {
 }
 
 /**
+ *  Compares the resources based on the value of the selection criteria attribute
+ */
+class SelectionCriteriaComparator : Comparator<Resource> {
+    override fun compare(r1: Resource, r2: Resource): Int {
+        // number of seizes was the same. if exited earlier, then prefer it
+        return (r1.selectionCriteria.compareTo(r2.selectionCriteria))
+    }
+}
+
+/**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
  *  has an initial capacity that cannot be changed during a replication. This base resource class
  *  can only be busy or idle.
@@ -307,6 +322,8 @@ open class Resource(
             stateReportingOption = value
             field = value
         }
+
+    override var selectionCriteria: Double = 0.0
 
     /** A resource can be allocated to 0 or more entities.
      *  An entity that is using a resource can have more than 1 allocation of the resource.
