@@ -5,9 +5,11 @@ import ksl.controls.KSLControl
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
 import ksl.modeling.entity.Resource
+import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -16,8 +18,16 @@ import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.toDouble
 
-interface MovableResourceIfc : SpatialElementIfc, VelocityIfc {
+interface MovableResourceIfc : SpatialElementIfc, VelocityIfc 
 
+interface MoveableResourceCIfc: ResourceCIfc {
+    val velocityRV: RandomSourceCIfc
+    val initialHomeBase: LocationIfc?
+    val homeBase: LocationIfc?
+    val hasHomeBase: Boolean
+    val fracTimeMoving : TWResponseCIfc
+    val fracTimeTransporting: TWResponseCIfc
+    val fracTimeMovingEmpty: TWResponseCIfc
 }
 
 /**
@@ -32,7 +42,7 @@ open class MovableResource(
     initLocation: LocationIfc,
     defaultVelocity: RandomIfc,
     name: String? = null,
-) : Resource(parent, name, 1), MovableResourceIfc {
+) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
@@ -56,7 +66,7 @@ open class MovableResource(
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
 
     protected val myVelocity = RandomVariable(this, defaultVelocity)
-    val velocityRV: RandomSourceCIfc
+    override val velocityRV: RandomSourceCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
         get() = myVelocity
@@ -82,8 +92,14 @@ open class MovableResource(
 
     protected val myFracTimeMoving =
         TWResponse(this, name = "${this.name}:FracTimeMoving", initialValue = mySpatialElement.isMoving.toDouble())
+    override val fracTimeMoving : TWResponseCIfc
+        get() = myFracTimeMoving
     protected val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
+    override val fracTimeTransporting: TWResponseCIfc
+        get() = myFracTimeTransporting
     protected val myFracTimeMovingEmpty = TWResponse(this, name = "${this.name}:FracTimeMovingEmpty")
+    override val fracTimeMovingEmpty: TWResponseCIfc
+        get() = myFracTimeMovingEmpty
 
     override val isTracked: Boolean
         get() = mySpatialElement.isTracked
@@ -110,10 +126,10 @@ open class MovableResource(
     override val observableComponent: ObservableComponent<SpatialElementIfc>
         get() = mySpatialElement.observableComponent
 
-    var initialHomeBase: LocationIfc? = null
-    var homeBase: LocationIfc? = null
+    override var initialHomeBase: LocationIfc? = null
+    override var homeBase: LocationIfc? = null
 
-    val hasHomeBase: Boolean
+    override val hasHomeBase: Boolean
         get() = homeBase != null
 
     protected val homeBaseDriver = HomeBaseDriver()
