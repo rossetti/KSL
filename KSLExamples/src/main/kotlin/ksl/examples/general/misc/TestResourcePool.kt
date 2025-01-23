@@ -34,7 +34,7 @@ class TestResourcePool(parent: ModelElement) : ProcessModel(parent, null) {
     private val pool: ResourcePoolWithQ = ResourcePoolWithQ(this, 3, name = "pool")
 
     init {
-        pool.resourceAllocationRule = LeastUtilizedAllocationRule()
+        pool.defaultResourceAllocationRule= LeastUtilizedAllocationRule()
     }
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")

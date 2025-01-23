@@ -18,7 +18,7 @@ import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.toDouble
 
-interface MovableResourceIfc : SpatialElementIfc, VelocityIfc 
+interface MovableResourceIfc : SpatialElementIfc, VelocityIfc
 
 interface MoveableResourceCIfc: ResourceCIfc {
     val velocityRV: RandomSourceCIfc

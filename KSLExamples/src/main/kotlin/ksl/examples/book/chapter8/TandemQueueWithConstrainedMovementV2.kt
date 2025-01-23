@@ -36,9 +36,9 @@ class TandemQueueWithConstrainedMovementV2(
         spatialModel = dm
     }
 
-    private val mover1: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover1")
-    private val mover2: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover2")
-    private val mover3: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, "Mover3")
+    private val mover1: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, name = "Mover1")
+    private val mover2: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, name = "Mover2")
+    private val mover3: MovableResourceWithQ = MovableResourceWithQ(this, enter, myWalkingSpeedRV, name = "Mover3")
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
 
