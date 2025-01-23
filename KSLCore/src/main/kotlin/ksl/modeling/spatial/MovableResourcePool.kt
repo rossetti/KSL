@@ -69,6 +69,19 @@ fun findAvailableResources(list: List<MovableResource>): MutableList<MovableReso
     return rList
 }
 
+/**
+ *  Computes and assigns the distance to the provided location from the current location of the resource for
+ *  each resource. The distance is assigned to the resource's sectionCriteria attribute.
+ *  This mutates elements of the list.
+ *  
+ *  @param location the location
+ */
+fun List<MovableResource>.distancesTo(location: LocationIfc){
+    for(m in this) {
+        m.selectionCriteria = m.distanceTo(location)
+    }
+}
+
 open class MovableResourcePool(
     parent: ModelElement,
     movableResources: List<MovableResource>,
