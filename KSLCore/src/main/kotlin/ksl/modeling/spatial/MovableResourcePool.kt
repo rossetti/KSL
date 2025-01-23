@@ -116,6 +116,27 @@ fun List<MovableResource>.distancesTo(location: LocationIfc){
     }
 }
 
+/**
+ * A MovableResourcePool represents a list of movable resources from which
+ * resources can be selected to fill requests made by Entities.
+ *
+ * Resources are selected according to a ResourceSelectionRule.
+ * The assumption is that any of the resources
+ * within the pool may be used to fill the request.
+ *
+ * If no selection rule is supplied the pool selects a list of resources
+ * that can fully satisfy the request.  The default allocation rule is to allocate
+ * the movable resource that is closest to the entity.
+ *
+ * If no default rules are supplied, the first available movable resource
+ * is selected based on the order of the resources supplied.
+ *
+ * @param parent the parent model element
+ * @param movableResources a list of resources to be included in the pool
+ * @param defaultVelocity the default velocity fore all resources to use.
+ * @param name the name of the pool
+ * @author rossetti
+ */
 open class MovableResourcePool(
     parent: ModelElement,
     movableResources: List<MovableResource>,
@@ -178,8 +199,8 @@ open class MovableResourcePool(
     var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = ClosestResourceAllocationRule()
 
     /**
-     *  Adds a resource to the pool. The model must not be running when adding a resource.
-     *  @param resource the resource to add
+     *  Adds a movable resource to the pool. The model must not be running when adding a resource.
+     *  @param resource the movable resource to add
      */
     fun addResource(resource: MovableResource) {
         require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
