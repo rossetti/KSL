@@ -42,6 +42,40 @@ fun interface MovableResourceAllocationRuleIfc {
 }
 
 /**
+ *  Determines movable resource that is closest to the request location
+ */
+class ClosestResourceAllocationRule : MovableResourceAllocationRuleIfc {
+
+    override fun selectMovableResourceForAllocation(
+        requestLocation: LocationIfc,
+        resourceList: List<MovableResource>
+    ): MovableResource {
+        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
+        resourceList.distancesTo(requestLocation)
+        resourceList.sortedBy { it.selectionCriteria }
+        return resourceList.first()
+    }
+
+}
+
+/**
+ *  Determines movable resource that is furthest from the request location
+ */
+class FurthestResourceAllocationRule : MovableResourceAllocationRuleIfc {
+
+    override fun selectMovableResourceForAllocation(
+        requestLocation: LocationIfc,
+        resourceList: List<MovableResource>
+    ): MovableResource {
+        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
+        resourceList.distancesTo(requestLocation)
+        resourceList.sortedByDescending { it.selectionCriteria }
+        return resourceList.first()
+    }
+
+}
+
+/**
  * @return returns a (new) list of idle movable resources. It may be empty.
  */
 fun findIdleResources(list: List<MovableResource>): MutableList<MovableResource> {
@@ -73,7 +107,7 @@ fun findAvailableResources(list: List<MovableResource>): MutableList<MovableReso
  *  Computes and assigns the distance to the provided location from the current location of the resource for
  *  each resource. The distance is assigned to the resource's sectionCriteria attribute.
  *  This mutates elements of the list.
- *  
+ *
  *  @param location the location
  */
 fun List<MovableResource>.distancesTo(location: LocationIfc){
@@ -141,7 +175,7 @@ open class MovableResourcePool(
     //TODO this is where the resource selection and allocation rules are defined/set
 
     var defaultResourceSelectionRule: MovableResourceSelectionRuleIfc? = null
-    var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = null
+    var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = ClosestResourceAllocationRule()
 
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
