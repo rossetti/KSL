@@ -183,7 +183,10 @@ open class MovableResourcePool(
     override val velocity: GetValueIfc
         get() = myVelocity
 
-    protected val resourcesByName = mutableMapOf<String, MovableResource>()
+    protected val myResourcesByName = mutableMapOf<String, MovableResource>()
+
+    val resourcesByName: Map<String, MovableResource>
+         get() = myResourcesByName
 
     protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
     val numBusyUnits: TWResponseCIfc
@@ -210,7 +213,7 @@ open class MovableResourcePool(
         }
         myResources.add(resource)
         myNumBusy.observe(resource.numBusyUnits)
-        resourcesByName[resource.name] = resource
+        myResourcesByName[resource.name] = resource
         resource.velocityRV.initialRandomSource = myVelocity
     }
 
