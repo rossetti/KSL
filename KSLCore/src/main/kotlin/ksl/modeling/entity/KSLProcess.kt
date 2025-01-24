@@ -874,8 +874,8 @@ interface KSLProcessBuilder {
         queue: RequestQ,
         requestLocation: LocationIfc = entity.currentLocation,
         seizePriority: Int = SEIZE_PRIORITY,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc? = null,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc? = null,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = movableResourcePool.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = movableResourcePool.defaultMovableResourceAllocationRule,
         suspensionName: String? = null
     ): Allocation
 
@@ -902,8 +902,8 @@ interface KSLProcessBuilder {
         movableResourcePoolWithQ: MovableResourcePoolWithQ,
         requestLocation: LocationIfc = entity.currentLocation,
         seizePriority: Int = SEIZE_PRIORITY,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc? = null,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc? = null,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = movableResourcePoolWithQ.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = movableResourcePoolWithQ.defaultMovableResourceAllocationRule,
         suspensionName: String? = null
     ): Allocation {
         return seize(movableResourcePoolWithQ, movableResourcePoolWithQ.myWaitingQ, requestLocation, seizePriority,
@@ -1505,9 +1505,12 @@ interface KSLProcessBuilder {
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
         unLoadingPriority: Int = DELAY_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = fleet.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = fleet.defaultMovableResourceAllocationRule,
         sendToHomeBaseOption: Boolean = false
     ) {
-        val a = seize(fleet, seizePriority = requestPriority, queue = transportQ)
+        val a = seize(fleet, seizePriority = requestPriority, queue = transportQ,
+            resourceSelectionRule = resourceSelectionRule, resourceAllocationRule = resourceAllocationRule)
         // must be 1 allocation for 1 unit seized
         val movableResource = a.myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)
@@ -1562,9 +1565,12 @@ interface KSLProcessBuilder {
         loadingPriority: Int = DELAY_PRIORITY,
         transportPriority: Int = MOVE_PRIORITY,
         unLoadingPriority: Int = DELAY_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = fleet.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = fleet.defaultMovableResourceAllocationRule,
         sendToHomeBaseOption: Boolean = false
     ) {
-        val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ)
+        val a = seize(fleet, seizePriority = requestPriority, queue = fleet.myWaitingQ,
+            resourceSelectionRule = resourceSelectionRule, resourceAllocationRule = resourceAllocationRule)
         // must be 1 allocation for 1 unit seized because there is only 1 unit in each
         val movableResource = a.myResource as MovableResource
         move(movableResource, entity.currentLocation, emptyVelocity, emptyMovePriority)

@@ -1598,8 +1598,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue: RequestQ,
                 requestLocation: LocationIfc,
                 seizePriority: Int,
-                resourceSelectionRule: MovableResourceSelectionRuleIfc?,
-                resourceAllocationRule: MovableResourceAllocationRuleIfc?,
+                resourceSelectionRule: MovableResourceSelectionRuleIfc,
+                resourceAllocationRule: MovableResourceAllocationRuleIfc,
                 suspensionName: String?
             ): Allocation {
                 currentSuspendName = suspensionName

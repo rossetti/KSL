@@ -1,16 +1,11 @@
 package ksl.examples.book.chapter8
 
-import ksl.examples.general.spatial.SmallTransporterModel
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
-import ksl.modeling.spatial.DistancesModel
-import ksl.modeling.spatial.MovableResource
-import ksl.modeling.spatial.MovableResourceAllocateInOrderListedRule
-import ksl.modeling.spatial.MovableResourcePoolWithQ
+import ksl.modeling.spatial.*
 import ksl.modeling.variable.*
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
@@ -43,7 +38,11 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val moverList = listOf(mover1, mover2, mover3)
     private val movers = MovableResourcePoolWithQ(this, moverList, myWalkingSpeedRV, name = "Movers")
     init {
-        movers.defaultResourceAllocationRule = MovableResourceAllocateInOrderListedRule()
+       // movers.defaultMovableResourceAllocationRule = MovableResourceAllocateInOrderListedRule()
+        //movers.defaultMovableResourceAllocationRule = LeastSeizedMovableResourceAllocationRule()
+       // movers.defaultMovableResourceAllocationRule = FurthestMovableResourceAllocationRule()
+       // movers.defaultMovableResourceAllocationRule = LeastUtilizedMovableResourceAllocationRule()
+       // movers.defaultMovableResourceAllocationRule = RandomMovableResourceAllocationRule(4)
     }
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")

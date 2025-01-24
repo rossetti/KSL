@@ -5,7 +5,6 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.permute
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
@@ -21,13 +20,13 @@ fun interface MovableResourceSelectionRuleIfc {
      * @param list of resources to consider selecting from
      * @return the selected list of resources. It may be empty
      */
-    fun selectMovableResources(list: List<MovableResource>): List<MovableResource>
+    fun selectMovableResources(list: List<MovableResource>): MutableList<MovableResource>
 }
 
 /**
- *  Function to determine how to allocate requirement for units across
- *  a list of resources that have sufficient available units to meet
- *  the amount needed.
+ *  Function to determine which movable resource should be allocated to
+ *  a request. The function provides the location of the request to allow
+ *  distance based criteria to be used.
  */
 fun interface MovableResourceAllocationRuleIfc {
 
@@ -41,22 +40,22 @@ fun interface MovableResourceAllocationRuleIfc {
      */
     fun selectMovableResourceForAllocation(
         requestLocation: LocationIfc,
-        resourceList: List<MovableResource>
+        resourceList: MutableList<MovableResource>
     ): MovableResource
 }
 
 /**
  *  Determines movable resource that is closest to the request location
  */
-class ClosestResourceAllocationRule : MovableResourceAllocationRuleIfc {
+class ClosestMovableResourceAllocationRule : MovableResourceAllocationRuleIfc {
 
     override fun selectMovableResourceForAllocation(
         requestLocation: LocationIfc,
-        resourceList: List<MovableResource>
+        resourceList: MutableList<MovableResource>
     ): MovableResource {
         require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
         resourceList.distancesTo(requestLocation)
-        resourceList.sortedBy { it.selectionCriteria }
+        resourceList.sortBy { it.selectionCriteria }
         return resourceList.first()
     }
 
@@ -65,15 +64,15 @@ class ClosestResourceAllocationRule : MovableResourceAllocationRuleIfc {
 /**
  *  Determines movable resource that is furthest from the request location
  */
-class FurthestResourceAllocationRule : MovableResourceAllocationRuleIfc {
+class FurthestMovableResourceAllocationRule : MovableResourceAllocationRuleIfc {
 
     override fun selectMovableResourceForAllocation(
         requestLocation: LocationIfc,
-        resourceList: List<MovableResource>
+        resourceList: MutableList<MovableResource>
     ): MovableResource {
         require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
         resourceList.distancesTo(requestLocation)
-        resourceList.sortedByDescending { it.selectionCriteria }
+        resourceList.sortByDescending { it.selectionCriteria }
         return resourceList.first()
     }
 
@@ -83,7 +82,7 @@ class FurthestResourceAllocationRule : MovableResourceAllocationRuleIfc {
  *  This rule randomly picks from a list of movable resources that can satisfy the request.
  *  @param stream the stream to use for randomness
  */
-class MovableResourceRandomAllocationRule(val stream: RNStreamIfc) : MovableResourceAllocationRuleIfc {
+class RandomMovableResourceAllocationRule(val stream: RNStreamIfc) : MovableResourceAllocationRuleIfc {
 
     /**
      *  This rule randomly picks from a list of movable resources that can satisfy the request.
@@ -91,7 +90,8 @@ class MovableResourceRandomAllocationRule(val stream: RNStreamIfc) : MovableReso
      */
     constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
 
-    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+    override fun selectMovableResourceForAllocation(
+        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
         require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
         return resourceList.randomlySelect(stream)
     }
@@ -102,7 +102,8 @@ class MovableResourceRandomAllocationRule(val stream: RNStreamIfc) : MovableReso
  * in the order in which the resources are listed within the list.
  */
 class MovableResourceAllocateInOrderListedRule : MovableResourceAllocationRuleIfc {
-    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+    override fun selectMovableResourceForAllocation(
+        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
         require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
         return resourceList.first()
     }
@@ -112,9 +113,11 @@ class MovableResourceAllocateInOrderListedRule : MovableResourceAllocationRuleIf
  *  This rule will sort the list according to the comparator and then allocate the first element
  */
 open class MovableResourceAllocationRule(var comparator: Comparator<in MovableResource>) : MovableResourceAllocationRuleIfc {
-    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+    override fun selectMovableResourceForAllocation(
+        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
         require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        return resourceList.sortedWith(comparator).first()
+        resourceList.sortWith(comparator)
+        return resourceList.first()
     }
 }
 
@@ -141,6 +144,33 @@ fun findIdleResources(list: List<MovableResource>): MutableList<MovableResource>
         }
     }
     return rList
+}
+
+/**
+ *  Returns a list of movable resources that are available for allocation. If the returned list is empty, this means that
+ *  there were no movable resources available.  It is
+ *  important to note that the returned list may have more units available than requested.
+ *  Resource allocation rules are used to select from the returned list to specify which of the
+ *  list of resources may be allocated to meet the request.  This rule selects all that
+ *  are available.
+ *
+ */
+class MovableResourceSelectionRule : MovableResourceSelectionRuleIfc {
+    override fun selectMovableResources(list: List<MovableResource>): MutableList<MovableResource> {
+        if (list.isEmpty()) {
+            return mutableListOf()
+        }
+        val rList = mutableListOf<MovableResource>()
+        for (resource in list) {
+            if (resource.numAvailableUnits == 0) {
+                continue
+            } else {
+                rList.add(resource)
+            }
+        }
+        return rList
+    }
+
 }
 
 /** Filters the supplied list such that the returned list has movable resources that
@@ -225,8 +255,8 @@ open class MovableResourcePool(
 
     //TODO this is where the resource selection and allocation rules are defined/set
 
-    var defaultResourceSelectionRule: MovableResourceSelectionRuleIfc? = null
-    var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = ClosestResourceAllocationRule()
+    var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
+    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
 
     init {
         for (r in movableResources) {
@@ -346,7 +376,7 @@ open class MovableResourcePool(
      * @return true if and only if resources can be selected according to the current resource selection rule
      * that will have sufficient amount available to fill the request
      */
-    fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc?): Boolean {
+    fun canAllocate(resourceSelectionRule: MovableResourceSelectionRuleIfc): Boolean {
         // this causes the selection rule to be invoked to see if movable resources are available
         return selectMovableResources(resourceSelectionRule).isNotEmpty()
     }
@@ -362,10 +392,10 @@ open class MovableResourcePool(
      * @return a list, which may be empty, that has resources that can satisfy the requested amount
      */
     protected open fun selectMovableResources(
-        resourceSelectionRule: MovableResourceSelectionRuleIfc?
-    ): List<MovableResource> {
+        resourceSelectionRule: MovableResourceSelectionRuleIfc
+    ): MutableList<MovableResource> {
         val availableResources = findAvailableResources()
-        return resourceSelectionRule?.selectMovableResources(availableResources) ?: availableResources
+        return resourceSelectionRule.selectMovableResources(availableResources)
     }
 
     /**
@@ -376,12 +406,12 @@ open class MovableResourcePool(
      */
     protected open fun selectMovableResourceForAllocation(
         requestLocation: LocationIfc,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc?,
-        resourceList: List<MovableResource>
+        resourceAllocationRule: MovableResourceAllocationRuleIfc,
+        resourceList: MutableList<MovableResource>
     ): MovableResource {
         require(resourceList.isNotEmpty()) { "There must be at least one movable resource available to make an allocation" }
         // this is where the allocation rule is applied
-        return resourceAllocationRule?.selectMovableResourceForAllocation(requestLocation, resourceList) ?: resourceList.first()
+        return resourceAllocationRule.selectMovableResourceForAllocation(requestLocation, resourceList)
     }
 
     /**
@@ -401,8 +431,8 @@ open class MovableResourcePool(
         entity: ProcessModel.Entity,
         requestLocation: LocationIfc,
         queue: RequestQ,
-        resourceSelectionRule: MovableResourceSelectionRuleIfc?,
-        resourceAllocationRule: MovableResourceAllocationRuleIfc?,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc,
         allocationName: String? = null
     ): Allocation {
         // This causes both the selection rule and the allocation rule to be invoked
