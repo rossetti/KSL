@@ -2,6 +2,7 @@ package ksl.modeling.spatial
 
 import ksl.modeling.entity.*
 import ksl.modeling.variable.*
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
@@ -255,8 +256,26 @@ open class MovableResourcePool(
 
     //TODO this is where the resource selection and allocation rules are defined/set
 
-    var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
-    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
+    var initialDefaultMovableResourceSelectionRule : MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the initial resource selection rule during a replication has no effect during the replication." }
+            }
+        }
+
+    var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = initialDefaultMovableResourceSelectionRule
+
+    var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the initial resource allocation rule during a replication has no effect during the replication." }
+            }
+        }
+
+    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = initialDefaultMovableResourceAllocationRule
+
 
     init {
         for (r in movableResources) {
@@ -344,6 +363,8 @@ open class MovableResourcePool(
 
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
+        defaultMovableResourceAllocationRule = initialDefaultMovableResourceAllocationRule
+        defaultMovableResourceSelectionRule = initialDefaultMovableResourceSelectionRule
     }
 
     override fun replicationEnded() {
