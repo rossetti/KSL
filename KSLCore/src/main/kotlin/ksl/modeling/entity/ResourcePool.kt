@@ -355,7 +355,7 @@ open class ResourcePool(
                 Model.logger.warn { "Changing the resource allocation rule during a replication may cause replications to not start with the same conditions." }
             }
         }
-    
+
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
