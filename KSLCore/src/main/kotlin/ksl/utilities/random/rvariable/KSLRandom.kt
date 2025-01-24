@@ -1331,7 +1331,7 @@ object KSLRandom {
         require(list.isNotEmpty()){"Cannot select from an empty list"}
         return if (list.size == 1) {
             list[0]
-        } else list.get(stream.randInt(0, list.size - 1))
+        } else list[stream.randInt(0, list.size - 1)]
     }
 
     /**

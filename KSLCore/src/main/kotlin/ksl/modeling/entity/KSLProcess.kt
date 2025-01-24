@@ -810,7 +810,7 @@ interface KSLProcessBuilder {
         seizePriority: Int = SEIZE_PRIORITY,
         queue: RequestQ,
         resourceSelectionRule: ResourceSelectionRuleIfc = resourcePool.defaultResourceSelectionRule,
-        resourceAllocationRule: AllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
         suspensionName: String? = null
     ): ResourcePoolAllocation
 
@@ -838,7 +838,7 @@ interface KSLProcessBuilder {
         amountNeeded: Int = 1,
         seizePriority: Int = SEIZE_PRIORITY,
         resourceSelectionRule: ResourceSelectionRuleIfc = resourcePool.defaultResourceSelectionRule,
-        resourceAllocationRule: AllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
         suspensionName: String? = null
     ): ResourcePoolAllocation {
         return seize(resourcePool, amountNeeded, seizePriority, resourcePool.myWaitingQ,

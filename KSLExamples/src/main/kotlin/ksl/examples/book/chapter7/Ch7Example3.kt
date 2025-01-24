@@ -43,7 +43,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
     private val pool2: ResourcePoolWithQ = ResourcePoolWithQ(this, list2, name = "pool2")
 
     init {
-        val rule = LeastUtilizedAllocationRule()
+        val rule = LeastUtilizedResourceAllocationRule()
         pool1.defaultResourceAllocationRule = rule
         pool2.defaultResourceAllocationRule = rule
     }

@@ -18,10 +18,7 @@
 
 package ksl.examples.general.misc
 
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.LeastUtilizedAllocationRule
-import ksl.modeling.entity.ResourcePoolWithQ
+import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
@@ -34,7 +31,7 @@ class TestResourcePool(parent: ModelElement) : ProcessModel(parent, null) {
     private val pool: ResourcePoolWithQ = ResourcePoolWithQ(this, 3, name = "pool")
 
     init {
-        pool.defaultResourceAllocationRule= LeastUtilizedAllocationRule()
+        pool.defaultResourceAllocationRule= LeastUtilizedResourceAllocationRule()
     }
     private val tba = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")

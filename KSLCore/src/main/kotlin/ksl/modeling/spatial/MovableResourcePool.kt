@@ -5,6 +5,10 @@ import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.permute
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.randomlySelect
 
 
 /**
@@ -76,6 +80,57 @@ class FurthestResourceAllocationRule : MovableResourceAllocationRuleIfc {
 }
 
 /**
+ *  This rule randomly picks from a list of movable resources that can satisfy the request.
+ *  @param stream the stream to use for randomness
+ */
+class MovableResourceRandomAllocationRule(val stream: RNStreamIfc) : MovableResourceAllocationRuleIfc {
+
+    /**
+     *  This rule randomly picks from a list of movable resources that can satisfy the request.
+     *  @param streamNum the stream number of the stream to use for randomness
+     */
+    constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
+
+    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
+        return resourceList.randomlySelect(stream)
+    }
+}
+
+/**
+ * The default is to allocate all available from each resource until amount needed is met
+ * in the order in which the resources are listed within the list.
+ */
+class MovableResourceAllocateInOrderListedRule : MovableResourceAllocationRuleIfc {
+    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
+        return resourceList.first()
+    }
+}
+
+/**
+ *  This rule will sort the list according to the comparator and then allocate the first element
+ */
+open class MovableResourceAllocationRule(var comparator: Comparator<in MovableResource>) : MovableResourceAllocationRuleIfc {
+    override fun selectMovableResourceForAllocation(requestLocation: LocationIfc, resourceList: List<MovableResource>): MovableResource {
+        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
+        return resourceList.sortedWith(comparator).first()
+    }
+}
+
+/**
+ *  This rule sorts the resources such that list is ordered from least to most utilized and
+ *  then allocates the first element
+ */
+class LeastUtilizedMovableResourceAllocationRule : MovableResourceAllocationRule(LeastUtilizedComparator())
+
+/**
+ * This rule sorts the resources such that this is ordered from least seized to most seized and
+ * then allocates the first element
+ */
+class LeastSeizedMovableResourceAllocationRule : MovableResourceAllocationRule(LeastSeizedComparator())
+
+/**
  * @return returns a (new) list of idle movable resources. It may be empty.
  */
 fun findIdleResources(list: List<MovableResource>): MutableList<MovableResource> {
@@ -143,10 +198,35 @@ open class MovableResourcePool(
     defaultVelocity: RandomIfc,
     name: String? = null
 ) : ModelElement(parent, name), VelocityIfc {
+
+    protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
+    val numBusyUnits: TWResponseCIfc
+        get() = myNumBusy
+
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
+    val fractionBusyUnits: ResponseCIfc
+        get() = myFractionBusy
+
     protected val myResources: MutableList<MovableResource> = mutableListOf()
+
+    protected val myResourcesByName = mutableMapOf<String, MovableResource>()
+
+    val resourcesByName: Map<String, MovableResource>
+        get() = myResourcesByName
 
     val resources: List<ResourceCIfc>
         get() = myResources
+
+    protected val myVelocity = RandomVariable(this, defaultVelocity)
+    val velocityRV: RandomSourceCIfc
+        get() = myVelocity
+    override val velocity: GetValueIfc
+        get() = myVelocity
+
+    //TODO this is where the resource selection and allocation rules are defined/set
+
+    var defaultResourceSelectionRule: MovableResourceSelectionRuleIfc? = null
+    var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = ClosestResourceAllocationRule()
 
     init {
         for (r in movableResources) {
@@ -176,30 +256,6 @@ open class MovableResourcePool(
             addResource(MovableResource(this, initLocation, defaultVelocity, "${this.name}:R${i}"))
         }
     }
-
-    protected val myVelocity = RandomVariable(this, defaultVelocity)
-    val velocityRV: RandomSourceCIfc
-        get() = myVelocity
-    override val velocity: GetValueIfc
-        get() = myVelocity
-
-    protected val myResourcesByName = mutableMapOf<String, MovableResource>()
-
-    val resourcesByName: Map<String, MovableResource>
-         get() = myResourcesByName
-
-    protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
-    val fractionBusyUnits: ResponseCIfc
-        get() = myFractionBusy
-
-    //TODO this is where the resource selection and allocation rules are defined/set
-
-    var defaultResourceSelectionRule: MovableResourceSelectionRuleIfc? = null
-    var defaultResourceAllocationRule: MovableResourceAllocationRuleIfc? = ClosestResourceAllocationRule()
 
     /**
      *  Adds a movable resource to the pool. The model must not be running when adding a resource.
