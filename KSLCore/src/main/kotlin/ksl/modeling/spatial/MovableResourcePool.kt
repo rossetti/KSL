@@ -256,24 +256,31 @@ open class MovableResourcePool(
 
     var initialDefaultMovableResourceSelectionRule : MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
         set(value) {
+            require(model.isNotRunning) {"Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions"}
             field = value
-            if (model.isRunning){
-                Model.logger.warn { "Changing the initial resource selection rule during a replication has no effect during the replication." }
-            }
         }
 
     var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = initialDefaultMovableResourceSelectionRule
-
-    var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
         set(value) {
             field = value
             if (model.isRunning){
-                Model.logger.warn { "Changing the initial resource allocation rule during a replication has no effect during the replication." }
+                Model.logger.warn { "Changing the initial resource selection rule during a replication will only effect the current replication." }
             }
         }
 
-    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = initialDefaultMovableResourceAllocationRule
+    var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
+        set(value) {
+            require(model.isNotRunning) {"Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions"}
+            field = value
+        }
 
+    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = initialDefaultMovableResourceAllocationRule
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the initial resource allocation rule during a replication will only effect the current replication." }
+            }
+        }
 
     init {
         for (r in movableResources) {
