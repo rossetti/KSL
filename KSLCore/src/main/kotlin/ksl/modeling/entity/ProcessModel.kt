@@ -1560,7 +1560,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 seizePriority: Int,
                 queue: RequestQ,
                 resourceSelectionRule: ResourceSelectionRuleIfc,
-                resourceAllocationRule: AllocationRuleIfc,
+                resourceAllocationRule: ResourceAllocationRuleIfc,
                 suspensionName: String?
             ): ResourcePoolAllocation {
                 require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }

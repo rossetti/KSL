@@ -7,6 +7,7 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.spatial.MovableResource
+import ksl.modeling.spatial.MovableResourceAllocateInOrderListedRule
 import ksl.modeling.spatial.MovableResourcePoolWithQ
 import ksl.modeling.variable.*
 import ksl.simulation.Model
@@ -41,6 +42,9 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val mover3 = MovableResource(this, enter, myWalkingSpeedRV, "Mover3")
     private val moverList = listOf(mover1, mover2, mover3)
     private val movers = MovableResourcePoolWithQ(this, moverList, myWalkingSpeedRV, name = "Movers")
+    init {
+        movers.defaultResourceAllocationRule = MovableResourceAllocateInOrderListedRule()
+    }
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
     private val worker2: ResourceWithQ = ResourceWithQ(this, "worker2")
@@ -75,11 +79,14 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            //transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            transportWith(movers, station1)
             use(worker1, delayDuration = st1)
-            transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            //transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            transportWith(movers, station2)
             use(worker2, delayDuration = st2)
-            transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            //transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+            transportWith(movers, exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }

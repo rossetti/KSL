@@ -46,16 +46,16 @@ fun interface ResourceSelectionRuleIfc {
  *  a list of resources that have sufficient available units to meet
  *  the amount needed.
  */
-fun interface AllocationRuleIfc {
+fun interface ResourceAllocationRuleIfc {
 
     /** The method assumes that the provided list of resources has
      *  enough units available to satisfy the needs of the request.
      *
      * @param amountNeeded the amount needed from resources
-     * @param resourceList list of resources to be allocated from
+     * @param resourceList list of resources to be allocated from. The supplied list must not be empty.
      * @return the amount to allocate from each resource as a map
      */
-    fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int>
+    fun selectResourceForAllocation(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int>
 }
 
 /**
@@ -95,14 +95,14 @@ class ResourceSelectionRule : ResourceSelectionRuleIfc {
         var sum = 0
         val rList = mutableListOf<Resource>()
         for (resource in list) {
-            if (resource.numAvailableUnits == 0){
+            if (resource.numAvailableUnits == 0) {
                 continue
             } else {
                 sum = sum + resource.numAvailableUnits
                 rList.add(resource)
             }
         }
-        return if (sum >= amountNeeded){
+        return if (sum >= amountNeeded) {
             rList
         } else {
             emptyList()
@@ -139,7 +139,7 @@ fun List<Resource>.numAvailableUnits(): Int {
  *
  * @return returns a (new) list of resources that have available units. It may be empty.
  */
-fun List<Resource>.availableResources(): MutableList<Resource>{
+fun List<Resource>.availableResources(): MutableList<Resource> {
     return findAvailableResources(this)
 }
 
@@ -155,8 +155,8 @@ fun List<Resource>.hasSufficientAvailableUnits(amountNeeded: Int): Boolean {
  *  Checks if all resources in the list are available.
  *  Throws an exception if any of the resources in the list do not have available units
  */
-fun requireAllAvailable(resourceList: List<Resource>){
-    require(resourceList.isNotEmpty()){"The supplied list of resources was empty. Cannot have any available units"}
+fun requireAllAvailable(resourceList: List<Resource>) {
+    require(resourceList.isNotEmpty()) { "The supplied list of resources was empty. Cannot have any available units" }
     for (resource in resourceList) {
         require(resource.numAvailableUnits > 0) { "A supplied resource, ${resource.name} in the resource list does not have any units available." }
     }
@@ -196,8 +196,8 @@ fun allocateInOrder(amountNeeded: Int, resourceList: List<Resource>): Map<Resour
  * The default is to allocate all available from each resource until amount needed is met
  * in the order in which the resources are listed within the list.
  */
-class AllocateInOrderListedRule : AllocationRuleIfc {
-    override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
+class AllocateInOrderListedRule : ResourceAllocationRuleIfc {
+    override fun selectResourceForAllocation(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         return allocateInOrder(amountNeeded, resourceList)
     }
 }
@@ -207,7 +207,7 @@ class AllocateInOrderListedRule : AllocationRuleIfc {
  *  In essence, this approach randomly picks from the list.
  *  @param stream the stream to use for randomness
  */
-class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
+class RandomAllocationRule(val stream: RNStreamIfc) : ResourceAllocationRuleIfc {
 
     /**
      *  This rule first randomly permutes the list and then allocates in the order of the permutation.
@@ -216,7 +216,7 @@ class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
      */
     constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
 
-    override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
+    override fun selectResourceForAllocation(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         val list = resourceList.toMutableList()
         list.permute(stream)
         return allocateInOrder(amountNeeded, list)
@@ -226,8 +226,8 @@ class RandomAllocationRule(val stream: RNStreamIfc): AllocationRuleIfc{
 /**
  *  This rule will sort the list according to the comparator and then allocate in the sorted order.
  */
-open class AllocationRule(var comparator: Comparator<Resource>): AllocationRuleIfc{
-    override fun makeAllocations(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
+open class ResourceAllocationRule(var comparator: Comparator<Resource>) : ResourceAllocationRuleIfc {
+    override fun selectResourceForAllocation(amountNeeded: Int, resourceList: List<Resource>): Map<Resource, Int> {
         return allocateInOrder(amountNeeded, resourceList.sortedWith(comparator))
     }
 
@@ -237,20 +237,20 @@ open class AllocationRule(var comparator: Comparator<Resource>): AllocationRuleI
  *  This rule sorts the resources such that list is ordered from least to most utilized and
  *  then allocates in the order listed.
  */
-class LeastUtilizedAllocationRule: AllocationRule(LeastUtilizedComparator())
+class LeastUtilizedResourceAllocationRule : ResourceAllocationRule(LeastUtilizedComparator())
 
 /**
  * This rule sorts the resources such that this is ordered from least seized to most seized and
  * then allocates in the order listed.
  */
-class LeastSeizedAllocationRule: AllocationRule(LeastSeizedComparator())
+class LeastSeizedResourceAllocationRule : ResourceAllocationRule(LeastSeizedComparator())
 
 /**
  *  When the resources have capacity greater than one, then the resources are sorted
  *  from most capacity available to the least capacity available, and then allocated in the
  *  order listed.
  */
-class MostAvailableAllocationRule: AllocationRule(MostAvailableComparator())
+class MostAvailableResourceAllocationRule : ResourceAllocationRule(MostAvailableComparator())
 
 /**
  * @return returns a (new) list of idle resources. It may be empty.
@@ -325,7 +325,7 @@ open class ResourcePool(
         numResources: Int = 1,
         name: String? = null
     ) : this(parent, mutableListOf(), name) {
-        require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
+        require(numResources >= 1) { "There must be 1 or more resources to create when creating ${this.name}" }
         for (i in 1..numResources) {
             addResource(Resource(this, "${this.name}:R${i}"))
         }
@@ -341,14 +341,14 @@ open class ResourcePool(
 
     //TODO this is where the resource selection and allocation rules are defined/set
     var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
-    var defaultResourceAllocationRule: AllocationRuleIfc = AllocateInOrderListedRule()
+    var defaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
 
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
      */
     fun addResource(resource: Resource) {
-        require(model.isNotRunning) {"The model must not be running when adding a resource to pool (${this.name}"}
+        require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
         // prevent duplicates in the resources
         if (myResources.contains(resource)) {
             return
@@ -380,7 +380,7 @@ open class ResourcePool(
         }
 
     val numBusy: Int
-        get(){
+        get() {
             var sum = 0
             for (r in myResources) {
                 sum = sum + r.numBusy
@@ -398,7 +398,7 @@ open class ResourcePool(
         }
 
     override fun initialize() {
-        require(myResources.isNotEmpty()) {"There were no resources in resource pool ${this.name} during initialization"}
+        require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
     }
 
     override fun replicationEnded() {
@@ -442,13 +442,13 @@ open class ResourcePool(
     }
 
     protected open fun makeAllocations(
-        resourceAllocationRule: AllocationRuleIfc,
+        resourceAllocationRule: ResourceAllocationRuleIfc,
         amountNeeded: Int,
         resourceList: List<Resource>
-    ) : Map<Resource, Int>{
+    ): Map<Resource, Int> {
         require(resourceList.isNotEmpty()) { "There must be at least one resource available to make an allocation" }
         //TODO this is where the allocation rule is applied
-        return resourceAllocationRule.makeAllocations(amountNeeded, resourceList)
+        return resourceAllocationRule.selectResourceForAllocation(amountNeeded, resourceList)
     }
 
     /** For use, before calling allocate()
@@ -482,7 +482,7 @@ open class ResourcePool(
         amountNeeded: Int = 1,
         queue: RequestQ,
         resourceSelectionRule: ResourceSelectionRuleIfc = defaultResourceSelectionRule,
-        resourceAllocationRule: AllocationRuleIfc = defaultResourceAllocationRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = defaultResourceAllocationRule,
         allocationName: String? = null
     ): ResourcePoolAllocation {
         //TODO This causes both the selection rule and the allocation rule to be invoked
