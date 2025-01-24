@@ -22,6 +22,7 @@ import ksl.modeling.variable.AggregateTWResponse
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.permute
 import ksl.utilities.random.rng.RNStreamIfc
@@ -341,8 +342,20 @@ open class ResourcePool(
 
     //TODO this is where the resource selection and allocation rules are defined/set
     var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the resource selection rule during a replication may cause replications to not start with the same conditions." }
+            }
+        }
     var defaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
-
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the resource allocation rule during a replication may cause replications to not start with the same conditions." }
+            }
+        }
+    
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
