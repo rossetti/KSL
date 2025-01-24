@@ -254,8 +254,6 @@ open class MovableResourcePool(
     override val velocity: GetValueIfc
         get() = myVelocity
 
-    //TODO this is where the resource selection and allocation rules are defined/set
-
     var initialDefaultMovableResourceSelectionRule : MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
         set(value) {
             field = value
