@@ -340,21 +340,25 @@ open class ResourcePool(
     val fractionBusyUnits: ResponseCIfc
         get() = myFractionBusy
 
-    //TODO this is where the resource selection and allocation rules are defined/set
-    var defaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
+    var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
         set(value) {
             field = value
             if (model.isRunning){
-                Model.logger.warn { "Changing the resource selection rule during a replication may cause replications to not start with the same conditions." }
+                Model.logger.warn { "Changing the initial resource selection rule during a replication has no effect during the replication." }
             }
         }
-    var defaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
+
+    var defaultResourceSelectionRule: ResourceSelectionRuleIfc = initialDefaultResourceSelectionRule
+
+    var initialDefaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
         set(value) {
             field = value
             if (model.isRunning){
-                Model.logger.warn { "Changing the resource allocation rule during a replication may cause replications to not start with the same conditions." }
+                Model.logger.warn { "Changing the initial resource allocation rule during a replication has no effect during the replication." }
             }
         }
+
+    var defaultResourceAllocationRule: ResourceAllocationRuleIfc = initialDefaultResourceAllocationRule
 
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
@@ -412,6 +416,8 @@ open class ResourcePool(
 
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
+        defaultResourceSelectionRule = initialDefaultResourceSelectionRule
+        defaultResourceAllocationRule = initialDefaultResourceAllocationRule
     }
 
     override fun replicationEnded() {
