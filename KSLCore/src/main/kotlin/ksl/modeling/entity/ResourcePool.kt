@@ -342,23 +342,31 @@ open class ResourcePool(
 
     var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
         set(value) {
+            require(model.isNotRunning) {"Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions"}
             field = value
-            if (model.isRunning){
-                Model.logger.warn { "Changing the initial resource selection rule during a replication has no effect during the replication." }
-            }
         }
 
     var defaultResourceSelectionRule: ResourceSelectionRuleIfc = initialDefaultResourceSelectionRule
-
-    var initialDefaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
         set(value) {
             field = value
             if (model.isRunning){
-                Model.logger.warn { "Changing the initial resource allocation rule during a replication has no effect during the replication." }
+                Model.logger.warn { "Changing the initial resource selection rule during a replication will only effect the current replication." }
             }
         }
 
+    var initialDefaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
+        set(value) {
+            require(model.isNotRunning) {"Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions"}
+            field = value
+        }
+
     var defaultResourceAllocationRule: ResourceAllocationRuleIfc = initialDefaultResourceAllocationRule
+        set(value) {
+            field = value
+            if (model.isRunning){
+                Model.logger.warn { "Changing the initial resource allocation rule during a replication will only effect the current replication." }
+            }
+        }
 
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
