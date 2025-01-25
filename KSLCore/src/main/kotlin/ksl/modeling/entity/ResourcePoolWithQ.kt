@@ -35,7 +35,7 @@ open class ResourcePoolWithQ(
     init {
         for(resource in myResources){
             if (resource is ResourceWithQ){
-                require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+                require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue (${resource.myWaitingQ.name}) as the pool queue: ${myWaitingQ.name}."}
             }
         }
     }
