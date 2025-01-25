@@ -294,22 +294,30 @@ fun findAvailableResources(list: List<Resource>): MutableList<Resource> {
  * the order in which they are listed in the pool.
  *
  * @param parent the parent model element
- * @param resources a list of resources to be included in the pool
+ * @param poolResources a list of resources to be included in the pool
  * @param name the name of the pool
  * @author rossetti
  */
 open class ResourcePool(
     parent: ModelElement,
-    resources: List<Resource>,
+    poolResources: List<Resource>,
     name: String? = null
 ) : ModelElement(parent, name) {
     protected val myResources: MutableList<Resource> = mutableListOf()
+
+    private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
+    val numBusyUnits: TWResponseCIfc
+        get() = myNumBusy
+
+    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
+    val fractionBusyUnits: ResponseCIfc
+        get() = myFractionBusy
 
     val resources: List<ResourceCIfc>
         get() = myResources
 
     init {
-        for (r in resources) {
+        for (r in poolResources) {
             addResource(r)
         }
     }
@@ -331,14 +339,6 @@ open class ResourcePool(
             addResource(Resource(this, "${this.name}:R${i}"))
         }
     }
-
-    private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
-    val fractionBusyUnits: ResponseCIfc
-        get() = myFractionBusy
 
     var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
         set(value) {
