@@ -38,11 +38,11 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
     private val moverList = listOf(mover1, mover2, mover3)
     private val movers = MovableResourcePoolWithQ(this, moverList, myWalkingSpeedRV, name = "Movers")
     init {
-       // movers.defaultMovableResourceAllocationRule = MovableResourceAllocateInOrderListedRule()
-        //movers.defaultMovableResourceAllocationRule = LeastSeizedMovableResourceAllocationRule()
-       // movers.defaultMovableResourceAllocationRule = FurthestMovableResourceAllocationRule()
-       // movers.defaultMovableResourceAllocationRule = LeastUtilizedMovableResourceAllocationRule()
-       // movers.defaultMovableResourceAllocationRule = RandomMovableResourceAllocationRule(4)
+        movers.initialDefaultMovableResourceAllocationRule = MovableResourceAllocateInOrderListedRule()
+        //movers.initialDefaultMovableResourceAllocationRule = LeastSeizedMovableResourceAllocationRule()
+       // movers.initialDefaultMovableResourceAllocationRule = FurthestMovableResourceAllocationRule()
+       // movers.initialDefaultMovableResourceAllocationRule = LeastUtilizedMovableResourceAllocationRule()
+       // movers.initialDefaultMovableResourceAllocationRule = RandomMovableResourceAllocationRule(4)
     }
 
     private val worker1: ResourceWithQ = ResourceWithQ(this, "worker1")
