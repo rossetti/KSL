@@ -77,6 +77,16 @@ class RequestQ(
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
+    fun countRequestsFor(resource: ResourceCIfc) : Int {
+        val r = resource as Resource
+        return myResources[r] ?: 0
+    }
+
+    fun countRequestsFor(pool: ResourcePool) : Int {
+        val r = pool as ResourcePool
+        return myResourcePools[r] ?: 0
+    }
+
     //TODO need to override: remove(object), clear(), enqueue()
 
     override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
