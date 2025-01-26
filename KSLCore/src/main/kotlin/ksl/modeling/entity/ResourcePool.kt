@@ -302,28 +302,7 @@ open class ResourcePool(
     parent: ModelElement,
     poolResources: List<Resource>,
     name: String? = null
-) : ModelElement(parent, name) {
-
-    /**
-     *  Tracks which queues have requests targeting the resource pool
-     */
-    internal val myQueueSet = mutableListOf<RequestQ>()
-
-    /**
-     *  The resources that the resource pool contains
-     */
-    protected val myResources: MutableList<Resource> = mutableListOf()
-
-    private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
-    val fractionBusyUnits: ResponseCIfc
-        get() = myFractionBusy
-
-    val resources: List<ResourceCIfc>
-        get() = myResources
+) : AbstractResourcePool(parent, poolResources, name) {
 
     init {
         for (r in poolResources) {
@@ -381,7 +360,7 @@ open class ResourcePool(
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
      */
-    fun addResource(resource: Resource) {
+    final override fun addResource(resource: Resource) {
         require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
         // prevent duplicates in the resources
         if (myResources.contains(resource)) {
@@ -393,57 +372,10 @@ open class ResourcePool(
         //TODO consider aggregate state collection
     }
 
-    val numAvailableUnits: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.numAvailableUnits
-            }
-            return sum
-        }
-
-    val hasAvailableUnits: Boolean
-        get() = numAvailableUnits > 0
-
-    val capacity: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.capacity
-            }
-            return sum
-        }
-
-    val numBusy: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.numBusy
-            }
-            return sum
-        }
-
-    val fractionBusy: Double
-        get() {
-            return if (capacity == 0) {
-                0.0
-            } else {
-                numBusy.toDouble() / capacity.toDouble()
-            }
-        }
-
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
         defaultResourceSelectionRule = initialDefaultResourceSelectionRule
         defaultResourceAllocationRule = initialDefaultResourceAllocationRule
-    }
-
-    override fun replicationEnded() {
-        val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage
-        val avgMR = capacity
-        if (avgMR > 0.0) {
-            myFractionBusy.value = avgNR / avgMR
-        }
     }
 
     /**
@@ -459,7 +391,7 @@ open class ResourcePool(
     fun findAvailableResources(): List<Resource> {
         return findAvailableResources(myResources)
     }
-
+    
     /** Uses the pool's resource selection rule to select resources from those
      *  that are available that have enough units available to satisfy the request in full.
      *  If there are insufficient resources in the pool to satisfy the full amount, then
