@@ -63,16 +63,17 @@ open class MovableResourcePool(
     override val velocity: GetValueIfc
         get() = myVelocity
 
-    var initialDefaultMovableResourceSelectionRule : MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
+    var initialDefaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
         set(value) {
-            require(model.isNotRunning) {"Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions"}
+            require(model.isNotRunning) { "Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions" }
             field = value
         }
 
-    var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = initialDefaultMovableResourceSelectionRule
+    var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc =
+        initialDefaultMovableResourceSelectionRule
         set(value) {
             field = value
-            if (model.isRunning){
+            if (model.isRunning) {
                 Model.logger.warn { "Changing the initial resource selection rule during a replication will only effect the current replication." }
             }
         }
@@ -80,14 +81,15 @@ open class MovableResourcePool(
     var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc =
         ClosestMovableResourceAllocationRule()
         set(value) {
-            require(model.isNotRunning) {"Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions"}
+            require(model.isNotRunning) { "Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions" }
             field = value
         }
 
-    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = initialDefaultMovableResourceAllocationRule
+    var defaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc =
+        initialDefaultMovableResourceAllocationRule
         set(value) {
             field = value
-            if (model.isRunning){
+            if (model.isRunning) {
                 Model.logger.warn { "Changing the initial resource allocation rule during a replication will only effect the current replication." }
             }
         }
