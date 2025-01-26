@@ -509,9 +509,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *
          * @param amountNeeded the amount needed to fill the request
          */
-        inner class Request internal constructor(amountNeeded: Int = 1) : QObject() {
+        inner class Request internal constructor(
+            amountNeeded: Int = 1,
+            val resource: Resource?,
+            val resourcePool: ResourcePool?
+        ) : QObject() {
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
+                require((resource == null).xor(resourcePool == null)) {"Both resource and resource pool parameters were null"}
             }
             val entity = this@Entity
             val amountRequested = amountNeeded
@@ -1516,7 +1521,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-                val request = Request(amountNeeded)
+                val request = Request(amountNeeded, resource, resourcePool = null)
                 request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 if (!resource.canAllocate(request.amountRequested)) {

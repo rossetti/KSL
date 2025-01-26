@@ -69,7 +69,32 @@ class RequestQ(
     discipline: Discipline = Discipline.FIFO
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
+    //TODO track the number of requests for each resource
+    private val myResources = mutableMapOf<Resource, Int>()
+
+    //TODO track the number of requests for each resource pool
+    private val myResourcePools = mutableMapOf<ResourcePool, Int>()
+
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
+
+    //TODO need to override: remove(object), clear(), enqueue()
+
+    override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
+        super.enqueue(qObject, priority, obj)
+        //TODO
+    }
+
+    override fun clear() {
+        super.clear()
+        myResources.clear()
+        myResourcePools.clear()
+    }
+
+    override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
+        val b = super.remove(qObj, waitStats)
+        //TODO
+        return b
+    }
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
