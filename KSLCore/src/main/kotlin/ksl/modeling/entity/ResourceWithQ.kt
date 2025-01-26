@@ -378,7 +378,15 @@ open class ResourceWithQ(
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(){
-       // myQueueSet holds the queues that have request for this resource
+       // myQueueSet holds the queues that have requests for this resource
+        if (myQueueSet.isEmpty()){
+            // no queues are currently associated with this resource, no reason to notify
+            return
+        }
+        if (myQueueSet.size == 1){
+            // there is only one queue, no reason to decide, just notify it
+           // myQueueSet.first().processWaitingRequests()
+        }
 
         // in what order do we want to notify the queues
 
