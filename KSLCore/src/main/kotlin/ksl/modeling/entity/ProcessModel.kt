@@ -28,6 +28,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.internal.encodeByWriter
 import ksl.modeling.spatial.*
 import ksl.utilities.Identity
 import kotlin.IllegalStateException
@@ -511,23 +512,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         inner class Request internal constructor(
             amountNeeded: Int = 1,
-            val resource: Resource?,
-            val resourcePool: ResourcePool?
         ) : QObject() {
             init {
                 require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
-                require((resource == null).xor(resourcePool == null)) {"Both resource and resource pool parameters were null"}
             }
             val entity = this@Entity
             val amountRequested = amountNeeded
 
-            //subclasses of resource include ResourceWithQ, MovableResource, MovableResourceWithQ
-//            var resource: Resource? = null
-//                internal set
-
-            //subclasses of ResourcePool include: ResourcePoolWithQ, MovableResourcePool, MovableResourcePoolWithQ
-//            var resourcePool: ResourcePool? = null
-//                internal set
+            var resource: Resource? = null
+                internal set
+            var resourcePool: ResourcePool? = null
+                internal set
+            var movableResourcePool: MovableResourcePool? = null
 
         }
 
@@ -1521,7 +1517,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-                val request = Request(amountNeeded, resource, resourcePool = null)
+                val request = Request(amountNeeded)
+                request.resource = resource
                 request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 if (!resource.canAllocate(request.amountRequested)) {
@@ -1574,6 +1571,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
                 val request = Request(amountNeeded)
+                request.resourcePool = resourcePool
                 request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
@@ -1612,6 +1610,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
                 val request = Request()
+                request.movableResourcePool = movableResourcePool
                 request.priority = entity.priority //TODO consider adding a queue priority to seize() function
                 queue.enqueue(request) // put the request in the queue
                 //TODO this causes the selection rule to be invoked to see if resources are available

@@ -767,9 +767,6 @@ interface KSLProcessBuilder {
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
      *  requests that may be competing for the resource.
-     *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
-     *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
-     *  prior to the calling seize.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
