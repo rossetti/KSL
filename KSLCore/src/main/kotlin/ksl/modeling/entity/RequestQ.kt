@@ -70,12 +70,12 @@ class RequestQ(
     discipline: Discipline = Discipline.FIFO
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
-    //TODO track the number of requests for each resource
+    // track the number of requests for each resource
     private val myResources by lazy{ mutableMapOf<Resource, Int>()}
 
-    //TODO track the number of requests for each resource pool
+    // track the number of requests for each resource pool
     private val myResourcePools by lazy{ mutableMapOf<ResourcePool, Int>()}
-    //TODO track the number of requests for each movable resource pool
+    // track the number of requests for each movable resource pool
     private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
@@ -88,6 +88,11 @@ class RequestQ(
     fun countRequestsFor(pool: ResourcePool) : Int {
         val r = pool as ResourcePool
         return myResourcePools[r] ?: 0
+    }
+
+    fun countRequestsFor(pool: MovableResourcePool) : Int {
+        val r = pool as MovableResourcePool
+        return myMovableResourcePools[r] ?: 0
     }
 
     // need to override: remove(object), clear(), enqueue()
@@ -142,6 +147,7 @@ class RequestQ(
         super.clear()
         myResources.clear()
         myResourcePools.clear()
+        myMovableResourcePools.clear()
     }
 
     override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
