@@ -2,10 +2,7 @@ package ksl.modeling.spatial
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.RequestQ
-import ksl.modeling.entity.Resource
-import ksl.modeling.entity.ResourceCIfc
+import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomSourceCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
@@ -43,6 +40,11 @@ open class MovableResource(
     defaultVelocity: RandomIfc,
     name: String? = null,
 ) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
+
+    /**
+     *  The pools that currently contain the resource
+     */
+    internal val myMovableResourcePools = mutableSetOf<MovableResourcePool>()
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
