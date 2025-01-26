@@ -18,10 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.variable.AggregateTWResponse
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.ResponseCIfc
-import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.permute
@@ -256,8 +252,8 @@ class MostAvailableResourceAllocationRule : ResourceAllocationRule(MostAvailable
 /**
  * @return returns a (new) list of idle resources. It may be empty.
  */
-fun findIdleResources(list: List<Resource>): MutableList<Resource> {
-    val rList = mutableListOf<Resource>()
+fun <T: Resource>findIdleResources(list: List<T>): MutableList<T> {
+    val rList = mutableListOf<T>()
     for (ru in list) {
         if (ru.isIdle) {
             rList.add(ru)
@@ -271,8 +267,8 @@ fun findIdleResources(list: List<Resource>): MutableList<Resource> {
  *
  * @return returns a (new) list of resources that have available units. It may be empty.
  */
-fun findAvailableResources(list: List<Resource>): MutableList<Resource> {
-    val rList = mutableListOf<Resource>()
+fun <T: Resource>findAvailableResources(list: List<T>): MutableList<T> {
+    val rList = mutableListOf<T>()
     for (ru in list) {
         if (ru.hasAvailableUnits) {
             rList.add(ru)
@@ -302,12 +298,21 @@ open class ResourcePool(
     parent: ModelElement,
     poolResources: List<Resource>,
     name: String? = null
-) : AbstractResourcePool(parent, poolResources, name) {
+) : AbstractResourcePool<Resource>(parent, name) {
 
     init {
         for (r in poolResources) {
             addResource(r)
         }
+    }
+
+    /**
+     *  Adds a resource to the pool. The model must not be running when adding a resource.
+     *  @param resource the resource to add
+     */
+    final override fun addResource(resource: Resource) {
+        super.addResource(resource)
+        resource.myResourcePools.add(this)
     }
 
     /** Makes the specified number of single unit resources and includes them in the pool.
@@ -356,42 +361,12 @@ open class ResourcePool(
             }
         }
 
-    /**
-     *  Adds a resource to the pool. The model must not be running when adding a resource.
-     *  @param resource the resource to add
-     */
-    final override fun addResource(resource: Resource) {
-        require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
-        // prevent duplicates in the resources
-        if (myResources.contains(resource)) {
-            return
-        }
-        myResources.add(resource)
-        myNumBusy.observe(resource.numBusyUnits)
-        resource.myResourcePools.add(this)
-        //TODO consider aggregate state collection
-    }
-
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
         defaultResourceSelectionRule = initialDefaultResourceSelectionRule
         defaultResourceAllocationRule = initialDefaultResourceAllocationRule
     }
 
-    /**
-     * @return returns a list of idle resources. It may be empty.
-     */
-    fun findIdleResources(): List<Resource> {
-        return findIdleResources(myResources)
-    }
-
-    /**
-     * @return returns a list of resources that have available capacity. It may be empty.
-     */
-    fun findAvailableResources(): List<Resource> {
-        return findAvailableResources(myResources)
-    }
-    
     /** Uses the pool's resource selection rule to select resources from those
      *  that are available that have enough units available to satisfy the request in full.
      *  If there are insufficient resources in the pool to satisfy the full amount, then
@@ -406,7 +381,7 @@ open class ResourcePool(
         resourceSelectionRule: ResourceSelectionRuleIfc,
         amountNeeded: Int
     ): MutableList<Resource> {
-        //TODO this is where the selection rule is applied
+        // this is where the selection rule is applied
         return resourceSelectionRule.selectResources(amountNeeded, findAvailableResources())
     }
 
@@ -416,7 +391,7 @@ open class ResourcePool(
         resourceList: MutableList<Resource>
     ): Map<Resource, Int> {
         require(resourceList.isNotEmpty()) { "There must be at least one resource available to make an allocation" }
-        //TODO this is where the allocation rule is applied
+        // this is where the allocation rule is applied
         return resourceAllocationRule.selectResourceForAllocation(amountNeeded, resourceList)
     }
 
@@ -427,7 +402,7 @@ open class ResourcePool(
      * that will have sufficient amount available to fill the request
      */
     fun canAllocate(resourceSelectionRule: ResourceSelectionRuleIfc, amountNeeded: Int): Boolean {
-        //TODO this causes the selection rule to be invoked to see if resources are available
+        // this causes the selection rule to be invoked to see if resources are available
         return selectResources(resourceSelectionRule, amountNeeded).isNotEmpty()
     }
 
@@ -454,7 +429,7 @@ open class ResourcePool(
         resourceAllocationRule: ResourceAllocationRuleIfc = defaultResourceAllocationRule,
         allocationName: String? = null
     ): ResourcePoolAllocation {
-        //TODO This causes both the selection rule and the allocation rule to be invoked
+        // This causes both the selection rule and the allocation rule to be invoked
         require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
         check(numAvailableUnits >= amountNeeded) { "The amount requested, $amountNeeded must be <= the number of units available, $numAvailableUnits" }
         // this should select enough resources to meet the request based on how much they have available

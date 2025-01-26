@@ -33,11 +33,18 @@ open class ResourcePoolWithQ(
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
 
     init {
+        //TODO make this check unnecessary
         for(resource in myResources){
             if (resource is ResourceWithQ){
                 require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue (${resource.myWaitingQ.name}) as the pool queue: ${myWaitingQ.name}."}
             }
         }
+    }
+
+    fun addResource(resource: ResourceWithQ) {
+        //TODO make this check unnecessary
+        require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+        super.addResource(resource)
     }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
@@ -97,11 +104,6 @@ open class ResourcePoolWithQ(
         for (i in 1..numResources) {
             addResource(ResourceWithQ(this, queue = queue, name = "${this.name}:R${i}"))
         }
-    }
-
-    fun addResource(resource: ResourceWithQ) {
-        require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
-        super.addResource(resource)
     }
 
 }

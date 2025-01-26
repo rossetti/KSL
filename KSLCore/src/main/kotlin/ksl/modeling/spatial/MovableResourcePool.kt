@@ -6,201 +6,6 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.randomlySelect
-
-
-/**
- * Provides for a method to select resources from a list such that
- * the returned list will contain resources that can fully fill the amount needed
- * or the list will be empty.
- */
-fun interface MovableResourceSelectionRuleIfc {
-    /**
-     * @param list of resources to consider selecting from
-     * @return the selected list of resources. It may be empty
-     */
-    fun selectMovableResources(list: List<MovableResource>): MutableList<MovableResource>
-}
-
-/**
- *  Function to determine which movable resource should be allocated to
- *  a request. The function provides the location of the request to allow
- *  distance based criteria to be used.
- */
-fun interface MovableResourceAllocationRuleIfc {
-
-    /** The method assumes that the provided list of resources has
-     *  enough units available to satisfy the needs of the request.
-     *
-     * @param requestLocation the location associated with the request. This information can be
-     * used to determine the allocation based on distances.
-     * @param resourceList list of resources to be allocated from
-     * @return the amount to allocate from each resource as a map
-     */
-    fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc,
-        resourceList: MutableList<MovableResource>
-    ): MovableResource
-}
-
-/**
- *  Determines movable resource that is closest to the request location
- */
-class ClosestMovableResourceAllocationRule : MovableResourceAllocationRuleIfc {
-
-    override fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc,
-        resourceList: MutableList<MovableResource>
-    ): MovableResource {
-        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        resourceList.distancesTo(requestLocation)
-        resourceList.sortBy { it.selectionCriteria }
-        return resourceList.first()
-    }
-
-}
-
-/**
- *  Determines movable resource that is furthest from the request location
- */
-class FurthestMovableResourceAllocationRule : MovableResourceAllocationRuleIfc {
-
-    override fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc,
-        resourceList: MutableList<MovableResource>
-    ): MovableResource {
-        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        resourceList.distancesTo(requestLocation)
-        resourceList.sortByDescending { it.selectionCriteria }
-        return resourceList.first()
-    }
-
-}
-
-/**
- *  This rule randomly picks from a list of movable resources that can satisfy the request.
- *  @param stream the stream to use for randomness
- */
-class RandomMovableResourceAllocationRule(val stream: RNStreamIfc) : MovableResourceAllocationRuleIfc {
-
-    /**
-     *  This rule randomly picks from a list of movable resources that can satisfy the request.
-     *  @param streamNum the stream number of the stream to use for randomness
-     */
-    constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
-
-    override fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
-        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        return resourceList.randomlySelect(stream)
-    }
-}
-
-/**
- * The default is to allocate all available from each resource until amount needed is met
- * in the order in which the resources are listed within the list.
- */
-class MovableResourceAllocateInOrderListedRule : MovableResourceAllocationRuleIfc {
-    override fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
-        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        return resourceList.first()
-    }
-}
-
-/**
- *  This rule will sort the list according to the comparator and then allocate the first element
- */
-open class MovableResourceAllocationRule(var comparator: Comparator<in MovableResource>) : MovableResourceAllocationRuleIfc {
-    override fun selectMovableResourceForAllocation(
-        requestLocation: LocationIfc, resourceList: MutableList<MovableResource>): MovableResource {
-        require(resourceList.isNotEmpty()){ "The supplied list of movable resources was empty" }
-        resourceList.sortWith(comparator)
-        return resourceList.first()
-    }
-}
-
-/**
- *  This rule sorts the resources such that list is ordered from least to most utilized and
- *  then allocates the first element
- */
-class LeastUtilizedMovableResourceAllocationRule : MovableResourceAllocationRule(LeastUtilizedComparator())
-
-/**
- * This rule sorts the resources such that this is ordered from least seized to most seized and
- * then allocates the first element
- */
-class LeastSeizedMovableResourceAllocationRule : MovableResourceAllocationRule(LeastSeizedComparator())
-
-/**
- * @return returns a (new) list of idle movable resources. It may be empty.
- */
-fun findIdleResources(list: List<MovableResource>): MutableList<MovableResource> {
-    val rList = mutableListOf<MovableResource>()
-    for (ru in list) {
-        if (ru.isIdle) {
-            rList.add(ru)
-        }
-    }
-    return rList
-}
-
-/**
- *  Returns a list of movable resources that are available for allocation. If the returned list is empty, this means that
- *  there were no movable resources available.  It is
- *  important to note that the returned list may have more units available than requested.
- *  Resource allocation rules are used to select from the returned list to specify which of the
- *  list of resources may be allocated to meet the request.  This rule selects all that
- *  are available.
- *
- */
-class MovableResourceSelectionRule : MovableResourceSelectionRuleIfc {
-    override fun selectMovableResources(list: List<MovableResource>): MutableList<MovableResource> {
-        if (list.isEmpty()) {
-            return mutableListOf()
-        }
-        val rList = mutableListOf<MovableResource>()
-        for (resource in list) {
-            if (resource.numAvailableUnits == 0) {
-                continue
-            } else {
-                rList.add(resource)
-            }
-        }
-        return rList
-    }
-
-}
-
-/** Filters the supplied list such that the returned list has movable resources that
- * are available for allocation.
- *
- * @return returns a (new) list of movable resources are available for allocation. It may be empty.
- */
-fun findAvailableResources(list: List<MovableResource>): MutableList<MovableResource> {
-    val rList = mutableListOf<MovableResource>()
-    for (ru in list) {
-        if (ru.hasAvailableUnits) {
-            rList.add(ru)
-        }
-    }
-    return rList
-}
-
-/**
- *  Computes and assigns the distance to the provided location from the current location of the resource for
- *  each resource. The distance is assigned to the resource's sectionCriteria attribute.
- *  This mutates elements of the list.
- *
- *  @param location the location
- */
-fun List<MovableResource>.distancesTo(location: LocationIfc){
-    for(m in this) {
-        m.selectionCriteria = m.distanceTo(location)
-    }
-}
 
 /**
  * A MovableResourcePool represents a list of movable resources from which
@@ -228,25 +33,29 @@ open class MovableResourcePool(
     movableResources: List<MovableResource>,
     defaultVelocity: RandomIfc,
     name: String? = null
-) : ModelElement(parent, name), VelocityIfc {
-
-    protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
-    val numBusyUnits: TWResponseCIfc
-        get() = myNumBusy
-
-    protected val myFractionBusy: Response = Response(this, name = "${this.name}:FractionBusy")
-    val fractionBusyUnits: ResponseCIfc
-        get() = myFractionBusy
-
-    protected val myResources: MutableList<MovableResource> = mutableListOf()
+) : AbstractResourcePool<MovableResource>(parent, name), VelocityIfc {
 
     protected val myResourcesByName = mutableMapOf<String, MovableResource>()
 
     val resourcesByName: Map<String, MovableResource>
         get() = myResourcesByName
 
-    val resources: List<ResourceCIfc>
-        get() = myResources
+    init {
+        for (r in movableResources) {
+            addResource(r)
+        }
+    }
+
+    /**
+     *  Adds a movable resource to the pool. The model must not be running when adding a resource.
+     *  @param resource the movable resource to add
+     */
+    final override fun addResource(resource: MovableResource) {
+        super.addResource(resource)
+        myResourcesByName[resource.name] = resource
+        resource.velocityRV.initialRandomSource = myVelocity
+        resource.myMovableResourcePools.add(this)
+    }
 
     protected val myVelocity = RandomVariable(this, defaultVelocity)
     val velocityRV: RandomSourceCIfc
@@ -268,7 +77,8 @@ open class MovableResourcePool(
             }
         }
 
-    var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc = ClosestMovableResourceAllocationRule()
+    var initialDefaultMovableResourceAllocationRule: MovableResourceAllocationRuleIfc =
+        ClosestMovableResourceAllocationRule()
         set(value) {
             require(model.isNotRunning) {"Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions"}
             field = value
@@ -281,12 +91,6 @@ open class MovableResourcePool(
                 Model.logger.warn { "Changing the initial resource allocation rule during a replication will only effect the current replication." }
             }
         }
-
-    init {
-        for (r in movableResources) {
-            addResource(r)
-        }
-    }
 
     /** Makes the specified number of movable resources and includes them in the pool.
      *
@@ -311,90 +115,11 @@ open class MovableResourcePool(
         }
     }
 
-    /**
-     *  Adds a movable resource to the pool. The model must not be running when adding a resource.
-     *  @param resource the movable resource to add
-     */
-    fun addResource(resource: MovableResource) {
-        require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
-        // prevent duplicates in the resources
-        if (myResources.contains(resource)) {
-            return
-        }
-        myResources.add(resource)
-        myNumBusy.observe(resource.numBusyUnits)
-        myResourcesByName[resource.name] = resource
-        resource.velocityRV.initialRandomSource = myVelocity
-        //TODO need to add the pool to the resource, but can't because MovableResourcePool is not a subclass of ResourcePool
-    }
-
-    val numAvailableUnits: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.numAvailableUnits
-            }
-            return sum
-        }
-
-    val hasAvailableUnits: Boolean
-        get() = numAvailableUnits > 0
-
-    val capacity: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.capacity
-            }
-            return sum
-        }
-
-    val numBusy: Int
-        get() {
-            var sum = 0
-            for (r in myResources) {
-                sum = sum + r.numBusy
-            }
-            return sum
-        }
-
-    val fractionBusy: Double
-        get() {
-            return if (capacity == 0) {
-                0.0
-            } else {
-                numBusy.toDouble() / capacity.toDouble()
-            }
-        }
-
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
         defaultMovableResourceAllocationRule = initialDefaultMovableResourceAllocationRule
         defaultMovableResourceSelectionRule = initialDefaultMovableResourceSelectionRule
     }
-
-    override fun replicationEnded() {
-        val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage
-        val avgMR = capacity
-        if (avgMR > 0.0) {
-            myFractionBusy.value = avgNR / avgMR
-        }
-    }
-
-    /**
-     * @return returns a list of idle resources. It may be empty.
-     */
-    fun findIdleResources(): List<MovableResource> {
-        return findIdleResources(myResources)
-    }
-
-    /**
-     * @return returns a list of movable resources that have available capacity. It may be empty.
-     */
-    fun findAvailableResources(): List<MovableResource> {
-        return findAvailableResources(myResources)
-    }
-
 
     /** For use, before calling allocate()
      *

@@ -6,9 +6,11 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.ModelElement
 
-abstract class AbstractResourcePool(
+/**
+ *  An abstract base class that represents a pool of resources (or subclasses of Resource).
+ */
+abstract class AbstractResourcePool<T: Resource>(
     parent: ModelElement,
-    poolResources: List<Resource>,
     name: String? = null
 ) : ModelElement(parent, name) {
 
@@ -20,7 +22,8 @@ abstract class AbstractResourcePool(
     /**
      *  The resources that the resource pool contains
      */
-    protected val myResources: MutableList<Resource> = mutableListOf()
+    protected val myResources: MutableList<T> = mutableListOf()
+
     protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
     val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
@@ -68,7 +71,36 @@ abstract class AbstractResourcePool(
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
      */
-    abstract fun addResource(resource: Resource)
+  //  abstract fun addResource(resource: T)
+
+    /**
+     *  Adds a resource to the pool. The model must not be running when adding a resource.
+     *  @param resource the resource to add
+     */
+    open fun addResource(resource: T) {
+        require(model.isNotRunning) { "The model must not be running when adding a resource to pool (${this.name}" }
+        // prevent duplicates in the resources
+        if (myResources.contains(resource)) {
+            return
+        }
+        myResources.add(resource)
+        myNumBusy.observe(resource.numBusyUnits)
+        //TODO consider aggregate state collection
+    }
+
+    /**
+     * @return returns a list of idle resources. It may be empty.
+     */
+    fun findIdleResources(): List<T> {
+        return findIdleResources(myResources)
+    }
+
+    /**
+     * @return returns a list of resources that have available capacity. It may be empty.
+     */
+    fun findAvailableResources(): List<T> {
+        return findAvailableResources(myResources)
+    }
 
     override fun replicationEnded() {
         val avgNR = myNumBusy.withinReplicationStatistic.weightedAverage

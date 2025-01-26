@@ -38,11 +38,18 @@ class MovableResourcePoolWithQ(
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
 
     init {
+        //TODO need to remove this check
         for(resource in myResources){
             if (resource is MovableResourceWithQ){
                 require(resource.waitingQ == myWaitingQ) {"MovableResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
             }
         }
+    }
+
+    fun addResource(resource: MovableResourceWithQ) {
+        //TODO work to make this unnecessary
+        require(resource.waitingQ == myWaitingQ) {"MovableResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
+        super.addResource(resource)
     }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
@@ -101,10 +108,5 @@ class MovableResourcePoolWithQ(
         for (i in 1..numResources) {
             addResource(MovableResourceWithQ(this, initLocation, myVelocity, queue = myWaitingQ, name = "${this.name}:R${i}"))
         }
-    }
-
-    fun addResource(resource: MovableResourceWithQ) {
-        require(resource.waitingQ == myWaitingQ) {"MovableResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
-        super.addResource(resource)
     }
 }
