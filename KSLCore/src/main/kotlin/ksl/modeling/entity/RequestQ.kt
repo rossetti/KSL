@@ -252,7 +252,7 @@ class RequestQ(
         }
     }
 
-    /** The method processes a request queue to allocated units to the next waiting request. If there
+    /** The method processes a request queue to allocate units to the next waiting request. If there
      * is a sufficient amount available for the next request, then the next request in the queue is processed
      * and its associated entity is resumed from waiting for the request. The entity then proceeds to
      * have its request allocated.
@@ -266,6 +266,8 @@ class RequestQ(
             return 0
         }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+        // the selected request can be satisfied at the current time, tell the entity to stop waiting
+        // the entity will ask the resource for its allocation
         for (request in selectedRequests) {
             request.entity.resumeProcess(0.0, resumePriority)
         }

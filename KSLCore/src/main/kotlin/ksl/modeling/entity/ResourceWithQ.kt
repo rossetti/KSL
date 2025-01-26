@@ -377,6 +377,14 @@ open class ResourceWithQ(
         ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
     }
 
+    protected fun notifyWaitingRequestsOfCapacityIncrease(){
+       // myQueueSet holds the queues that have request for this resource
+
+        // in what order do we want to notify the queues
+
+        // there is no point in notifying after the resource has no units available
+    }
+
     protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice){
         ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
