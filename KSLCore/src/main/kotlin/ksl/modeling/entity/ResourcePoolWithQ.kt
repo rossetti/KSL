@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import com.google.common.collect.Queues
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
@@ -28,24 +29,9 @@ open class ResourcePoolWithQ(
     name: String? = null
 ) : ResourcePool(parent, resources, name) {
     /**
-     * Holds the entities that are waiting for allocations of the resource's units
+     * Holds the entities that are waiting for allocations of the resource's units in the pool
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
-
-//    init {
-//        //TODO make this check unnecessary
-//        for(resource in myResources){
-//            if (resource is ResourceWithQ){
-//                require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue (${resource.myWaitingQ.name}) as the pool queue: ${myWaitingQ.name}."}
-//            }
-//        }
-//    }
-//
-//    fun addResource(resource: ResourceWithQ) {
-//        //TODO make this check unnecessary
-//        require(resource.waitingQ == myWaitingQ) {"ResourceWithQ instance: ${resource.name} did not have the same queue as the pool."}
-//        super.addResource(resource)
-//    }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
@@ -62,22 +48,30 @@ open class ResourcePoolWithQ(
         }
 
     /** Makes the specified number of single unit resources and includes them in the pool.
-     *  The pool is configured with a queue and each created resource is a ResourceWithQ that
-     *  uses the pool's queue.
+     *  The pool is configured with a queue and each created resource uses the pool's queue.
+     *  Each resource is named based on the supplied name with ":Rn", where n is the resource number.
      *
      * @param parent the parent model element
      * @param numResources number of single unit resources to include in the pool
      * @param name the name of the pool
+     * @param resourcesWithQueuesOption if true the created resources will be instances of ResourceWithQ
+     * and their queues will use the pool's queue. If false, the resources will be instances
+     * of Resource and rely on the queue supplied by the pool. The default is false.
      * @author rossetti
      */
     constructor(
         parent: ModelElement,
         numResources: Int = 1,
+        resourcesWithQueuesOption: Boolean,
         name: String? = null
     ) : this(parent, mutableListOf(), null, name) {
         require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
         for (i in 1..numResources) {
-            addResource(ResourceWithQ(this, queue = myWaitingQ, name = "${this.name}:R${i}"))
+            if (resourcesWithQueuesOption){
+                addResource(ResourceWithQ(this, queue = myWaitingQ, name = "${this.name}:R${i}"))
+            } else {
+                addResource(Resource(this, name = "${this.name}:R${i}"))
+            }
         }
     }
 
