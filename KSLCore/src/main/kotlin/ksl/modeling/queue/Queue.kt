@@ -354,7 +354,7 @@ open class Queue<T : ModelElement.QObject>(
 
     override fun removedFromModel() {
         super.removedFromModel()
-        myList.clear()
+        clear()
         myQueueListeners.clear()
         status = Status.IGNORE
     }
@@ -387,7 +387,6 @@ open class Queue<T : ModelElement.QObject>(
         return myQueueListeners.remove(listener)
     }
 
-
     /**
      * Places the QObject in the queue, with the specified priority
      * Automatically, updates the number in queue response variable.
@@ -405,7 +404,7 @@ open class Queue<T : ModelElement.QObject>(
      * @param qObject - the QObject to enqueue
      * @param priority - the priority for ordering the object, lower has more priority
      * @param obj an Object to be "wrapped" and queued while the QObject is queued </S> */
-    fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject) {
+    open fun enqueue(qObject: T, priority: Int = qObject.priority, obj: Any? = qObject.attachedObject) {
         qObject.enterQueue(this, time, priority, obj)
         myDiscipline.add(qObject)
         status = Status.ENQUEUED
@@ -580,7 +579,7 @@ open class Queue<T : ModelElement.QObject>(
      * collected on the removed item, true means collect statistics
      * @return True if the item was removed.
      */
-    fun remove(qObj: T, waitStats: Boolean = waitTimeStatOption): Boolean {
+    open fun remove(qObj: T, waitStats: Boolean = waitTimeStatOption): Boolean {
         return if (myList.remove(qObj)) {
             if (waitStats) {
                 status = Status.DEQUEUED
@@ -615,16 +614,8 @@ open class Queue<T : ModelElement.QObject>(
      * @return the element previously at the specified position
      */
     fun remove(index: Int, waitStats: Boolean = waitTimeStatOption): T {
-        val qObj = myList.removeAt(index)
-        if (waitStats) {
-            status = Status.DEQUEUED
-            myTimeInQ.value = time - qObj.timeEnteredQueue
-        } else {
-            status = Status.IGNORE
-        }
-        myNumInQ.decrement()
-        qObj.exitQueue(time)
-        notifyQueueListeners(qObj)
+        val qObj = myList[index]
+        remove(qObj, waitStats)
         return qObj
     }
 
