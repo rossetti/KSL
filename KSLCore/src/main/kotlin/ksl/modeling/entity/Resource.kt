@@ -316,6 +316,16 @@ open class Resource(
         require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
     }
 
+    /**
+     *  Tracks which queues have requests targeting the resource
+     */
+    internal val myQueueSet = mutableSetOf<RequestQ>()
+
+    /**
+     *  The pools that currently contain the resource
+     */
+    internal val myResourcePools = mutableSetOf<ResourcePool>()
+
     override var defaultReportingOption: Boolean = true
         set(value) {
             myNumBusy.defaultReportingOption = value
@@ -700,6 +710,11 @@ open class Resource(
         // make previous state inactive and current state idle, for start of the replication
         myState = myIdleState
         capacity = initialCapacity
+    }
+
+    override fun afterReplication() {
+        super.afterReplication()
+        myQueueSet.clear()
     }
 
     /**

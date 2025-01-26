@@ -303,6 +303,15 @@ open class ResourcePool(
     poolResources: List<Resource>,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    /**
+     *  Tracks which queues have requests targeting the resource pool
+     */
+    internal val myQueueSet = mutableListOf<RequestQ>()
+
+    /**
+     *  The resources that the resource pool contains
+     */
     protected val myResources: MutableList<Resource> = mutableListOf()
 
     private val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
@@ -380,6 +389,7 @@ open class ResourcePool(
         }
         myResources.add(resource)
         myNumBusy.observe(resource.numBusyUnits)
+        resource.myResourcePools.add(this)
         //TODO consider aggregate state collection
     }
 
