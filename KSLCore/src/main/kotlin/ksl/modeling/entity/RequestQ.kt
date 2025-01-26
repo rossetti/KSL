@@ -19,6 +19,7 @@
 package ksl.modeling.entity
 
 import ksl.modeling.queue.Queue
+import ksl.modeling.spatial.MovableResourcePool
 import ksl.simulation.ModelElement
 
 interface RequestSelectionRuleIfc {
@@ -70,10 +71,12 @@ class RequestQ(
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
     //TODO track the number of requests for each resource
-    private val myResources = mutableMapOf<Resource, Int>()
+    private val myResources by lazy{ mutableMapOf<Resource, Int>()}
 
     //TODO track the number of requests for each resource pool
-    private val myResourcePools = mutableMapOf<ResourcePool, Int>()
+    private val myResourcePools by lazy{ mutableMapOf<ResourcePool, Int>()}
+    //TODO track the number of requests for each movable resource pool
+    private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
@@ -87,7 +90,7 @@ class RequestQ(
         return myResourcePools[r] ?: 0
     }
 
-    //TODO need to override: remove(object), clear(), enqueue()
+    // need to override: remove(object), clear(), enqueue()
 
     override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
         super.enqueue(qObject, priority, obj)
@@ -95,7 +98,7 @@ class RequestQ(
     }
 
     private fun registerResources(request: ProcessModel.Entity.Request){
-        //TODO track the resource or the pool
+        // register the resource or the pool
         if (request.resource != null) {
             // must be a resource request
             val resource = request.resource!!
@@ -120,7 +123,18 @@ class RequestQ(
             pool.myQueueSet.add(this)
             return
         }
-        //TODO may need to handle MovableResourcePool
+        if (request.movableResourcePool != null) {
+            // must be a request for a pool
+            val pool = request.movableResourcePool!!
+            if (myMovableResourcePools.contains(pool)){
+                val count = myMovableResourcePools[pool]!! + 1
+                myMovableResourcePools[pool] = count
+            } else {
+                myMovableResourcePools[pool] = 1
+            }
+            pool.myQueueSet.add(this)
+            return
+        }
         throw IllegalStateException("Unable to register $request. The request was not for a resource or a pool")
     }
 
@@ -167,7 +181,19 @@ class RequestQ(
             }
             return
         }
-        //TODO may need to handle MovableResourcePool
+        if (request.movableResourcePool != null){
+            // it was a request for a pool
+            val pool = request.movableResourcePool!!
+            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
+            val count = myMovableResourcePools[pool]!! - 1
+            if (count == 0){
+                myMovableResourcePools.remove(pool)
+                pool.myQueueSet.remove(this)
+            } else {
+                myMovableResourcePools[pool] = count
+            }
+            return
+        }
         throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
     }
 
