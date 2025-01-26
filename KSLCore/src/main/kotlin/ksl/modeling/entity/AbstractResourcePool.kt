@@ -15,7 +15,8 @@ abstract class AbstractResourcePool<T: Resource>(
 ) : ModelElement(parent, name) {
 
     /**
-     *  Tracks which queues have requests targeting the resource pool
+     *  Tracks which queues have requests targeting the resource pool.
+     *  Called internally in RequestQ.registerResources() and RequestQ.unregisterResources()
      */
     internal val myQueueSet = mutableListOf<RequestQ>()
 
@@ -66,12 +67,6 @@ abstract class AbstractResourcePool<T: Resource>(
                 numBusy.toDouble() / capacity.toDouble()
             }
         }
-
-    /**
-     *  Adds a resource to the pool. The model must not be running when adding a resource.
-     *  @param resource the resource to add
-     */
-  //  abstract fun addResource(resource: T)
 
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
