@@ -42,7 +42,9 @@ open class MovableResource(
 ) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
 
     /**
-     *  The pools that currently contain the resource
+     *  The pools that currently contain the resource. Called
+     *  from MovableResourcePool to indicate to the movable resource
+     *  which pools it is within.
      */
     internal val myMovableResourcePools = mutableSetOf<MovableResourcePool>()
 
