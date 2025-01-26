@@ -43,7 +43,7 @@ open class MovableResource(
 
     /**
      *  The pools that currently contain the resource. Called
-     *  from MovableResourcePool to indicate to the movable resource
+     *  from MovableResourcePool.addResource() to indicate to the movable resource
      *  which pools it is within.
      */
     internal val myMovableResourcePools = mutableSetOf<MovableResourcePool>()
