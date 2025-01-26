@@ -80,16 +80,31 @@ class RequestQ(
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
 
+    /**
+     *  Returns the number of requests targeting the supplied resource
+     *  that are waiting in the queue.
+     * @param resource the resource to check
+     */
     fun countRequestsFor(resource: ResourceCIfc) : Int {
         val r = resource as Resource
         return myResources[r] ?: 0
     }
 
+    /**
+     *  Returns the number of requests targeting the supplied resource pool
+     *  that are waiting in the queue.
+     * @param pool the resource pool to check
+     */
     fun countRequestsFor(pool: ResourcePool) : Int {
         val r = pool as ResourcePool
         return myResourcePools[r] ?: 0
     }
 
+    /**
+     *  Returns the number of requests targeting the supplied movable resource pool
+     *  that are waiting in the queue.
+     * @param pool the movable resource pool to check
+     */
     fun countRequestsFor(pool: MovableResourcePool) : Int {
         val r = pool as MovableResourcePool
         return myMovableResourcePools[r] ?: 0
