@@ -325,6 +325,7 @@ open class MovableResourcePool(
         myNumBusy.observe(resource.numBusyUnits)
         myResourcesByName[resource.name] = resource
         resource.velocityRV.initialRandomSource = myVelocity
+        //TODO need to add the pool to the resource, but can't because MovableResourcePool is not a subclass of ResourcePool
     }
 
     val numAvailableUnits: Int

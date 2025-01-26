@@ -81,7 +81,37 @@ class RequestQ(
 
     override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
         super.enqueue(qObject, priority, obj)
-        //TODO
+        registerResources(qObject)
+    }
+
+    private fun registerResources(request: ProcessModel.Entity.Request){
+        //TODO track the resource or the pool
+        if (request.resource != null) {
+            // must be a resource request
+            val resource = request.resource!!
+            if (myResources.contains(resource)){
+                val count = myResources[resource]!! + 1
+                myResources[resource] = count
+            } else {
+                myResources[resource] = 1
+            }
+            resource.myQueueSet.add(this)
+            return
+        }
+        if (request.resourcePool != null) {
+            // must be a request for a pool
+            val pool = request.resourcePool!!
+            if (myResourcePools.contains(pool)){
+                val count = myResourcePools[pool]!! + 1
+                myResourcePools[pool] = count
+            } else {
+                myResourcePools[pool] = 1
+            }
+            pool.myQueueSet.add(this)
+            return
+        }
+        //TODO may need to handle MovableResourcePool
+        throw IllegalStateException("Unable to register $request. The request was not for a resource or a pool")
     }
 
     override fun clear() {
@@ -92,8 +122,43 @@ class RequestQ(
 
     override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
         val b = super.remove(qObj, waitStats)
-        //TODO
-        return b
+        if (!b){
+            return false
+        }
+        unregisterResources(qObj)
+        return true
+    }
+
+    private fun unregisterResources(request: ProcessModel.Entity.Request){
+        // stop tracking the request
+        if (request.resource != null){
+            // it was a request for a resource
+            val resource = request.resource!!
+            require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
+            val count = myResources[resource]!! - 1
+            if (count == 0){
+                myResources.remove(resource)
+                resource.myQueueSet.remove(this)
+            } else {
+                myResources[resource] = count
+            }
+            return
+        }
+        if (request.resourcePool != null){
+            // it was a request for a pool
+            val pool = request.resourcePool!!
+            require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
+            val count = myResourcePools[pool]!! - 1
+            if (count == 0){
+                myResourcePools.remove(pool)
+                pool.myQueueSet.remove(this)
+            } else {
+                myResourcePools[pool] = count
+            }
+            return
+        }
+        //TODO may need to handle MovableResourcePool
+        throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
     }
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
