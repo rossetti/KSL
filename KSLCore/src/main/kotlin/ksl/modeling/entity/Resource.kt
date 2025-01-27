@@ -321,6 +321,8 @@ open class Resource(
      */
     internal val myQueueSet = mutableSetOf<RequestQ>()
 
+    var requestQNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
+
     /**
      *  The pools that currently contain the resource
      */
