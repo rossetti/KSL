@@ -111,10 +111,10 @@ open class ResourceWithQ(
      * are pending capacity changes.
      */
     var capacityChangeRule: CapacityChangeRule = CapacityChangeRule.IGNORE
-        set(value){
+        set(value) {
             //check(model.isNotRunning) { "$time > Tried to change the capacity change rule of $name during replication ${model.currentReplicationNumber}." }
-            require(!isUsingSchedule()){"Cannot change the rule because the resource is already using a capacity change schedule."}
-            require(!isPendingCapacityChange){"Cannot change the rule when there are pending capacity changes."}
+            require(!isUsingSchedule()) { "Cannot change the rule because the resource is already using a capacity change schedule." }
+            require(!isPendingCapacityChange) { "Cannot change the rule when there are pending capacity changes." }
             field = value
         }
 
@@ -193,9 +193,9 @@ open class ResourceWithQ(
             // current change set to null and any waiting changes cleared
             // in the case of the IGNORE rule a waiting change will have already scheduled
             // its end of change event.
-            if (isPendingCapacityChange){
+            if (isPendingCapacityChange) {
                 myCurrentChangeNotice?.changeEvent?.cancel = true
-                for(notice in myWaitingChangeNotices){
+                for (notice in myWaitingChangeNotices) {
                     notice.changeEvent?.cancel = true
                 }
                 myWaitingChangeNotices.clear()
@@ -212,7 +212,7 @@ open class ResourceWithQ(
                 handeIgnoreRuleDeallocation(allocation)
             } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
                 // for WAIT rule handle releases only until full change gets allocated and scheduled
-                if (myCurrentChangeNotice!!.changeEvent == null){
+                if (myCurrentChangeNotice!!.changeEvent == null) {
                     // once it is not null, the full change has been completed and is being processed
                     handleWaitRuleDeallocation(allocation)
                 }
@@ -305,9 +305,9 @@ open class ResourceWithQ(
     }
 
     protected fun handleIncomingChangeNoticeIgnoreRule(notice: CapacityChangeNotice) {
-        if (isPendingCapacityChange){
+        if (isPendingCapacityChange) {
             // capacity change is pending for the IGNORE rule
-            if (notice.capacity >= capacity){
+            if (notice.capacity >= capacity) {
                 // notice the above >= with = meaning keep the current capacity
                 // positive change with a negative change pending, cancel the pending negative change
                 myCurrentChangeNotice?.changeEvent?.cancel = true
@@ -316,10 +316,10 @@ open class ResourceWithQ(
                 // assume that the positive change cancels all waiting negative changes
                 myWaitingChangeNotices.clear()
                 // process the positive change now since there is no pending change anymore
-                if (notice.capacity > capacity){
+                if (notice.capacity > capacity) {
                     processPositiveCapacityChange(notice)
                 }
-            } else if (notice.capacity < capacity){
+            } else if (notice.capacity < capacity) {
                 // negative change with change pending
                 // a change is scheduled, find end time of newly arriving negative change notice
                 val endTime = time + notice.duration
@@ -338,10 +338,10 @@ open class ResourceWithQ(
             }
         } else {
             // no capacity change is pending for the IGNORE rule
-            if (notice.capacity > capacity){
+            if (notice.capacity > capacity) {
                 // positive change with no change pending
                 processPositiveCapacityChange(notice)
-            } else if (notice.capacity < capacity){
+            } else if (notice.capacity < capacity) {
                 // negative change with no change pending
                 negativeChangeNoPendingChangeIgnoreRule(notice)
             }
@@ -349,7 +349,7 @@ open class ResourceWithQ(
         }
     }
 
-    protected fun processPositiveCapacityChange(notice: CapacityChangeNotice){
+    protected fun processPositiveCapacityChange(notice: CapacityChangeNotice) {
         ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is increasing the capacity from $capacity to ${notice.capacity}." }
         // increasing the capacity immediately
         capacity = notice.capacity
@@ -377,23 +377,31 @@ open class ResourceWithQ(
         ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
     }
 
-    protected fun notifyWaitingRequestsOfCapacityIncrease(){
-       // myQueueSet holds the queues that have requests for this resource
-        if (myQueueSet.isEmpty()){
-            // no queues are currently associated with this resource, no reason to notify
+    protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
+        require(available >= 0) { "Resource: resource ($name), The amount available was less than 0 for notifications" }
+        if (available == 0) {
+            logger.trace { "$time > Resource: processed $0 waiting requests for new capacity." }
             return
         }
-        if (myQueueSet.size == 1){
-            // there is only one queue, no reason to decide, just notify it
-           // myQueueSet.first().processWaitingRequests()
+        // myQueueSet holds the queues that have requests for this resource
+        if (myQueueSet.isEmpty()) {
+            // no queues are currently associated with this resource, no reason to notify
+            logger.trace { "$time > Resource: processed $0 waiting requests for new capacity." }
+            return
         }
-
-        // in what order do we want to notify the queues
+        if (myQueueSet.size == 1) {
+            // there is only one queue, no reason to decide, just notify it
+            val queue = myQueueSet.first()
+            val n = queue.processWaitingRequests(available, priority)
+            logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
+            return
+        }
+        // there is more than 1 queue to notify, in what order should the notifications occur
 
         // there is no point in notifying after the resource has no units available
     }
 
-    protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice){
+    protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice) {
         ProcessModel.logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
@@ -422,7 +430,7 @@ open class ResourceWithQ(
     }
 
     protected fun handleIncomingChangeNoticeWaitRule(notice: ResourceWithQ.CapacityChangeNotice) {
-        if (isPendingCapacityChange){
+        if (isPendingCapacityChange) {
             // there is a change in progress, make incoming change wait
             // a positive change or a negative change must wait for current change to complete
             myWaitingChangeNotices.add(notice)
@@ -430,10 +438,10 @@ open class ResourceWithQ(
             ProcessModel.logger.trace { "$time > Resource: $name, incoming notice $notice must wait." }
         } else {
             // no capacity change is pending for the WAIT rule
-            if (notice.capacity > capacity){
+            if (notice.capacity > capacity) {
                 // positive change with no change pending
                 processPositiveCapacityChange(notice)
-            } else if (notice.capacity < capacity){
+            } else if (notice.capacity < capacity) {
                 // negative change with no change pending
                 negativeChangeNoPendingChangeWaitRule(notice)
             }
@@ -497,18 +505,23 @@ open class ResourceWithQ(
                 //  the change could be for positive or negative capacity
                 myCurrentChangeNotice = myWaitingChangeNotices.removeFirst()
                 ProcessModel.logger.trace { "$time > Resource: $name, notice $myCurrentChangeNotice was waiting but is now being processed" }
-                if (myCurrentChangeNotice!!.capacity > capacity){
+                if (myCurrentChangeNotice!!.capacity > capacity) {
                     // positive change after completing previous change
                     processPositiveCapacityChange(myCurrentChangeNotice!!)
                     // schedule the end of the capacity change, has full duration
                     myCurrentChangeNotice!!.changeEvent =
-                        schedule(this::capacityChangeAction, myCurrentChangeNotice!!.duration, message = myCurrentChangeNotice!!, priority = myCurrentChangeNotice!!.priority)
+                        schedule(
+                            this::capacityChangeAction,
+                            myCurrentChangeNotice!!.duration,
+                            message = myCurrentChangeNotice!!,
+                            priority = myCurrentChangeNotice!!.priority
+                        )
                     ProcessModel.logger.trace { "$time > Resource: $name, scheduled end of capacity change for ${myCurrentChangeNotice!!.changeEvent?.time}" }
-                } else if (myCurrentChangeNotice!!.capacity < capacity){
+                } else if (myCurrentChangeNotice!!.capacity < capacity) {
                     // negative change after completing previous change
                     negativeChangeAfterPendingChangeWaitRule(myCurrentChangeNotice!!)
                 }
-             }
+            }
         }
     }
 
@@ -539,7 +552,7 @@ open class ResourceWithQ(
 
     override fun resourceBecameInactive() {
         super.resourceBecameInactive()
-        for(request in myWaitingQ){
+        for (request in myWaitingQ) {
             request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(myWaitingQ, this, request)
         }
     }
