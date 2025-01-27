@@ -62,7 +62,7 @@ open class ResourcePoolWithQ(
     constructor(
         parent: ModelElement,
         numResources: Int = 1,
-        resourcesWithQueuesOption: Boolean,
+        resourcesWithQueuesOption: Boolean = false,
         name: String? = null
     ) : this(parent, mutableListOf(), null, name) {
         require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}

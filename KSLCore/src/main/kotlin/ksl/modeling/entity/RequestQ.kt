@@ -22,9 +22,18 @@ import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.MovableResourcePool
 import ksl.simulation.ModelElement
 
-interface RequestSelectionRuleIfc {
+/**
+ *  Determines the requests that will be allocated from the specified amount available from the
+ *  request queue. The total amount requested by the returned requests must not exceed the
+ *  amount available.
+ */
+fun interface RequestSelectionRuleIfc {
 
     /**
+     *  Determines the requests that will be allocated from the specified amount available from the
+     *  request queue. The total amount requested by the returned requests must not exceed the
+     *  amount available.
+     *
      * @param amountAvailable the amount available
      * @param requestQ the queue to search
      * @return the requests that were selected
@@ -39,7 +48,7 @@ interface RequestSelectionRuleIfc {
  *  returned. The list is ordered in the same order as the RequestQ.  No partial filling is
  *  permitted in this default rule.
  */
-class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
+object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
     override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
         val list = mutableListOf<ProcessModel.Entity.Request>()
         if (amountAvailable <= 0) {
@@ -54,6 +63,18 @@ class DefaultRequestSelectionRule : RequestSelectionRuleIfc {
         }
         return list
     }
+}
+
+fun <K> MutableMap<K, Int>.increment(key: K): Int {
+    val c = getOrDefault(key, 0) + 1
+    this[key] = c
+    return c
+}
+
+fun <K> MutableMap<K, Int>.decrement(key: K): Int {
+    val c = getOrDefault(key, 0) - 1
+    this[key] = c
+    return c
 }
 
 /**
@@ -78,7 +99,7 @@ class RequestQ(
     // track the number of requests for each movable resource pool
     private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
 
-    var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule()
+    var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule
 
     /**
      *  Returns the number of requests targeting the supplied resource
@@ -122,36 +143,21 @@ class RequestQ(
         if (request.resource != null) {
             // must be a resource request
             val resource = request.resource!!
-            if (myResources.contains(resource)){
-                val count = myResources[resource]!! + 1
-                myResources[resource] = count
-            } else {
-                myResources[resource] = 1
-            }
+            myResources.increment(resource)
             resource.myQueueSet.add(this)
             return
         }
         if (request.resourcePool != null) {
             // must be a request for a pool
             val pool = request.resourcePool!!
-            if (myResourcePools.contains(pool)){
-                val count = myResourcePools[pool]!! + 1
-                myResourcePools[pool] = count
-            } else {
-                myResourcePools[pool] = 1
-            }
+            myResourcePools.increment(pool)
             pool.myQueueSet.add(this)
             return
         }
         if (request.movableResourcePool != null) {
             // must be a request for a pool
             val pool = request.movableResourcePool!!
-            if (myMovableResourcePools.contains(pool)){
-                val count = myMovableResourcePools[pool]!! + 1
-                myMovableResourcePools[pool] = count
-            } else {
-                myMovableResourcePools[pool] = 1
-            }
+            myMovableResourcePools.increment(pool)
             pool.myQueueSet.add(this)
             return
         }
@@ -179,40 +185,55 @@ class RequestQ(
         if (request.resource != null){
             // it was a request for a resource
             val resource = request.resource!!
-            require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
-            val count = myResources[resource]!! - 1
-            if (count == 0){
+ //           require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
+            val c = myResources.decrement(resource)
+            if (c <= 0){
                 myResources.remove(resource)
                 resource.myQueueSet.remove(this)
-            } else {
-                myResources[resource] = count
             }
+//            val count = myResources[resource]!! - 1
+//            if (count == 0){
+//                myResources.remove(resource)
+//                resource.myQueueSet.remove(this)
+//            } else {
+//                myResources[resource] = count
+//            }
             return
         }
         if (request.resourcePool != null){
             // it was a request for a pool
             val pool = request.resourcePool!!
-            require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
-            val count = myResourcePools[pool]!! - 1
-            if (count == 0){
+ //           require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
+            val c = myResourcePools.decrement(pool)
+            if (c <= 0){
                 myResourcePools.remove(pool)
                 pool.myQueueSet.remove(this)
-            } else {
-                myResourcePools[pool] = count
             }
+//            val count = myResourcePools[pool]!! - 1
+//            if (count == 0){
+//                myResourcePools.remove(pool)
+//                pool.myQueueSet.remove(this)
+//            } else {
+//                myResourcePools[pool] = count
+//            }
             return
         }
         if (request.movableResourcePool != null){
             // it was a request for a pool
             val pool = request.movableResourcePool!!
-            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
-            val count = myMovableResourcePools[pool]!! - 1
-            if (count == 0){
+//            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
+            val c = myMovableResourcePools.decrement(pool)
+            if (c <= 0){
                 myMovableResourcePools.remove(pool)
                 pool.myQueueSet.remove(this)
-            } else {
-                myMovableResourcePools[pool] = count
             }
+//            val count = myMovableResourcePools[pool]!! - 1
+//            if (count == 0){
+//                myMovableResourcePools.remove(pool)
+//                pool.myQueueSet.remove(this)
+//            } else {
+//                myMovableResourcePools[pool] = count
+//            }
             return
         }
         throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
@@ -259,21 +280,31 @@ class RequestQ(
      *
      * @param amountAvailable the amount of units that are available to allocate to the next request
      * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
-     * @return the number of waiting requests that were processed
+     * @return the total amount to be allocated
      */
     internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int): Int {
         if (amountAvailable <= 0) {
             return 0
         }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
-        // the selected request can be satisfied at the current time, tell the entity to stop waiting
+        // the selected request can be satisfied at the current time, tell the entities to stop waiting
         // the entity will ask the resource for its allocation
-        for (request in selectedRequests) {
+        var sum = 0
+        val itr = selectedRequests.iterator()
+        // ensure that res
+        while (itr.hasNext() && sum <= amountAvailable) {
+            val request = itr.next()
             request.entity.resumeProcess(0.0, resumePriority)
+            sum = sum + request.amountRequested
         }
+//        for (request in selectedRequests) {
+//            sum = sum + request.amountRequested
+//            request.entity.resumeProcess(0.0, resumePriority)
+//            check(sum <= amountAvailable){"The total amount ($sum) to be allocated to the requests must be less than or equal to the amount available: $amountAvailable"}
+//        }
         //TODO this should return the total amount requested for the requests that were resumed
         // this represents the total amount that will be allocated from the resource or pool that
         // are associated with the requests
-        return selectedRequests.size
+        return sum
     }
 }
