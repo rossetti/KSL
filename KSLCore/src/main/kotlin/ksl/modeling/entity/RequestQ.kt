@@ -271,6 +271,9 @@ class RequestQ(
         for (request in selectedRequests) {
             request.entity.resumeProcess(0.0, resumePriority)
         }
+        //TODO this should return the total amount requested for the requests that were resumed
+        // this represents the total amount that will be allocated from the resource or pool that
+        // are associated with the requests
         return selectedRequests.size
     }
 }

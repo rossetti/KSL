@@ -46,6 +46,16 @@ interface ResourceWithQCIfc : ResourceCIfc {
     fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule = CapacityChangeRule.IGNORE)
 }
 
+fun interface RequestQueueNotificationRuleIfc {
+    fun ruleIterator(set: Set<RequestQ>) : Iterator<RequestQ>
+}
+
+object DefaultRequestQueueNotificationRule: RequestQueueNotificationRuleIfc {
+    override fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ> {
+        return set.iterator()
+    }
+}
+
 /**
  *  A resource is considered busy if at least 1 unit is allocated.  A resource is considered idle if no
  *  units have been allocated. The capacity can be changed during a replication; however, the capacity of
@@ -397,6 +407,14 @@ open class ResourceWithQ(
             return
         }
         // there is more than 1 queue to notify, in what order should the notifications occur
+        // two logical orderings: 1) the order in which they were added (reflects when request occurred)
+        // 2) in descending order of the number of requests for the resource in the queues
+        val itr = requestQNotificationRule.ruleIterator(myQueueSet)
+        while (itr.hasNext()){
+            val queue = itr.next()
+
+        }
+        TODO("Not implemented yet")
 
         // there is no point in notifying after the resource has no units available
     }
