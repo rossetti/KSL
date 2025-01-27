@@ -47,10 +47,16 @@ interface ResourceWithQCIfc : ResourceCIfc {
 }
 
 fun interface RequestQueueNotificationRuleIfc {
-    fun ruleIterator(set: Set<RequestQ>) : Iterator<RequestQ>
+    fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ>
 }
 
-object DefaultRequestQueueNotificationRule: RequestQueueNotificationRuleIfc {
+/**
+ *  This request queue notification rule causes the queues holding requests associated with a
+ *  resource to be notified in the order in which they were entered into their queues.  That is, a queue
+ *  holding a request for the resource will be notified before a queue holding a request the entered
+ *  its queue later (in time).
+ */
+object DefaultRequestQueueNotificationRule : RequestQueueNotificationRuleIfc {
     override fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ> {
         return set.iterator()
     }
@@ -384,40 +390,44 @@ open class ResourceWithQ(
         // The allocation records the queue that the entity waited in
         // so that release can affect waiting entities for the released allocation
         val n = myWaitingQ.processWaitingRequests(available, notice.priority)
-        ProcessModel.logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
+        ProcessModel.logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
         require(available >= 0) { "Resource: resource ($name), The amount available was less than 0 for notifications" }
         if (available == 0) {
-            logger.trace { "$time > Resource: processed $0 waiting requests for the positive capacity change." }
+            logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
             return
         }
         // myQueueSet holds the queues that have requests for this resource
         if (myQueueSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
-            logger.trace { "$time > Resource: processed $0 waiting requests for the positive capacity change." }
+            logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
             return
         }
         if (myQueueSet.size == 1) {
             // there is only one queue, no reason to decide, just notify it
             val queue = myQueueSet.first()
             val n = queue.processWaitingRequests(available, priority)
-            logger.trace { "$time > Resource: processed $n waiting requests for new capacity." }
+            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
             return
         }
         // there is more than 1 queue to notify, in what order should the notifications occur
         // two logical orderings: 1) the order in which they were added (reflects when request occurred)
         // 2) in descending order of the number of requests for the resource in the queues
         val itr = requestQNotificationRule.ruleIterator(myQueueSet)
-        while (itr.hasNext()){
+        var amountAvailable = available
+        while (itr.hasNext()) {
             val queue = itr.next()
-            //TODO need to ensure that notifications stop if all available will be allocated
-
+            // need to ensure that notifications stop if all available will be allocated
+            val n = queue.processWaitingRequests(amountAvailable, priority)
+            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
+            amountAvailable = amountAvailable - n
+            // there is no point in notifying after the resource has no units available
+            if (amountAvailable == 0) {
+                break
+            }
         }
-        TODO("Not implemented yet")
-
-        // there is no point in notifying after the resource has no units available
     }
 
     protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice) {
