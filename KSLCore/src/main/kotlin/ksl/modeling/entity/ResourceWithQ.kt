@@ -390,13 +390,13 @@ open class ResourceWithQ(
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
         require(available >= 0) { "Resource: resource ($name), The amount available was less than 0 for notifications" }
         if (available == 0) {
-            logger.trace { "$time > Resource: processed $0 waiting requests for new capacity." }
+            logger.trace { "$time > Resource: processed $0 waiting requests for the positive capacity change." }
             return
         }
         // myQueueSet holds the queues that have requests for this resource
         if (myQueueSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
-            logger.trace { "$time > Resource: processed $0 waiting requests for new capacity." }
+            logger.trace { "$time > Resource: processed $0 waiting requests for the positive capacity change." }
             return
         }
         if (myQueueSet.size == 1) {
@@ -412,6 +412,7 @@ open class ResourceWithQ(
         val itr = requestQNotificationRule.ruleIterator(myQueueSet)
         while (itr.hasNext()){
             val queue = itr.next()
+            //TODO need to ensure that notifications stop if all available will be allocated
 
         }
         TODO("Not implemented yet")
