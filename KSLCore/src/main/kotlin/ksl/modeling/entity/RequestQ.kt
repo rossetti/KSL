@@ -95,7 +95,6 @@ class RequestQ(
      * @param resource the resource to check
      */
     fun countRequestsFor(resource: ResourceCIfc) : Int {
-        val r = resource as Resource
         var count = 0
         for(request in myList){
             if (request.resource == resource) {
