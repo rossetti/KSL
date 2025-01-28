@@ -544,4 +544,27 @@ class MovableResourceWithQ(
             changeCapacity(notice)
         }
     }
+
+    companion object {
+        /**
+         *  Creates the required number of movable resources that have their own queues.
+         * @param parent the containing model element
+         * @param numToCreate the number of resources to create, must be 1 or more
+         * @param initLocation the initial starting location of the resource within the spatial model
+         * @param defaultVelocity the default velocity for movement within the spatial model
+         */
+        fun createMovableResourcesWithQueues(
+            parent: ModelElement,
+            numToCreate: Int,
+            initLocation: LocationIfc,
+            defaultVelocity: RandomIfc,
+        ): List<MovableResource> {
+            require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
+            val list = mutableListOf<MovableResource>()
+            for (i in 1..numToCreate) {
+                list.add(MovableResourceWithQ(parent, initLocation, defaultVelocity, name = "${parent.name}:R${i}"))
+            }
+            return list
+        }
+    }
 }

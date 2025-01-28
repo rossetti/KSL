@@ -51,47 +51,4 @@ class MovableResourcePoolWithQ(
             return list
         }
 
-    /** Makes the specified number of single unit resources and includes them in the pool.
-     *  The pool is configured with a queue and each created resource is a ResourceWithQ that
-     *  uses the pool's queue.
-     *
-     * @param parent the parent model element
-     * @param numResources number of movable resources to include in the pool
-     * @param name the name of the pool
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        initLocation: LocationIfc,
-        defaultVelocity: RandomIfc,
-        name: String? = null
-    ) : this(parent, mutableListOf(), defaultVelocity, null, name) {
-        require(numResources >= 1) {"There must be 1 or more movable resources to create when creating ${this.name}"}
-        for (i in 1..numResources) {
-            addResource(MovableResourceWithQ(this, initLocation, myVelocity, queue = myWaitingQ, name = "${this.name}:R${i}"))
-        }
-    }
-
-    /** Makes the specified number of single unit resources and includes them in the pool.
-     *  The pool is configured with the supplied queue and each create resource is a ResourceWithQ that
-     *  uses the supplied queue.
-     *
-     * @param parent the parent model element
-     * @param numResources number of single unit resources to include in the pool
-     * @param name the name of the pool
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        initLocation: LocationIfc,
-        defaultVelocity: RandomIfc,
-        queue: RequestQ,
-        name: String? = null
-    ) : this(parent, mutableListOf(), defaultVelocity, queue, name){
-        for (i in 1..numResources) {
-            addResource(MovableResourceWithQ(this, initLocation, myVelocity, queue = myWaitingQ, name = "${this.name}:R${i}"))
-        }
-    }
 }

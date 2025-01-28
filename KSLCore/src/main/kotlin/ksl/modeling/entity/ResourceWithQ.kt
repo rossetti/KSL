@@ -101,9 +101,10 @@ open class ResourceWithQ(
          *  capacity.
          * @param parent the containing model element
          * @param numToCreate the number of resources to create, must be 1 or more
-         * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1
+         * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1. The
+         * default is 1
          */
-        fun createResourcesWithQueues(parent: ModelElement, numToCreate: Int = 1, capacity: Int = 1): List<Resource> {
+        fun createResourcesWithQueues(parent: ModelElement, numToCreate: Int, capacity: Int = 1): List<Resource> {
             require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
             val list = mutableListOf<Resource>()

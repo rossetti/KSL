@@ -51,57 +51,5 @@ open class ResourcePoolWithQ(
             return list
         }
 
-    /** Makes the specified number of single unit resources and includes them in the pool.
-     *  The pool is configured with a queue and each created resource uses the pool's queue.
-     *  Each resource is named based on the supplied name with ":Rn", where n is the resource number.
-     *
-     * @param parent the parent model element
-     * @param numResources number of single unit resources to include in the pool
-     * @param name the name of the pool
-     * @param resourcesWithQueuesOption if true the created resources will be instances of ResourceWithQ
-     * and their queues will use the pool's queue. If false, the resources will be instances
-     * of Resource and rely on the queue supplied by the pool. The default is false.
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        resourcesWithQueuesOption: Boolean = false,
-        name: String? = null
-    ) : this(parent, mutableListOf(), null, name) {
-        require(numResources >= 1) {"There must be 1 or more resources to create when creating ${this.name}"}
-        for (i in 1..numResources) {
-            if (resourcesWithQueuesOption){
-                addResource(ResourceWithQ(this, queue = myWaitingQ, name = "${this.name}:R${i}"))
-            } else {
-                addResource(Resource(this, name = "${this.name}:R${i}"))
-            }
-        }
-    }
-
-    /** Makes the specified number of single unit resources and includes them in the pool.
-     *  The pool is configured with the supplied queue and each create resource is a ResourceWithQ that
-     *  uses the supplied queue.
-     *
-     * @param parent the parent model element
-     * @param numResources number of single unit resources to include in the pool
-     * @param name the name of the pool
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        queue: RequestQ,
-        name: String? = null
-    ) : this(
-        parent,
-        mutableListOf(),
-        queue,
-        name
-    ) {
-        for (i in 1..numResources) {
-            addResource(ResourceWithQ(this, queue = queue, name = "${this.name}:R${i}"))
-        }
-    }
 
 }
