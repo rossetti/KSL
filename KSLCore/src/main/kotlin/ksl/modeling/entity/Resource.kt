@@ -319,7 +319,7 @@ open class Resource(
     /**
      *  Tracks which queues have requests targeting the resource
      */
-    internal val myQueueSet = mutableSetOf<RequestQ>()
+    internal val myCapacityChangeQs = mutableSetOf<RequestQ>()
 
     var requestQNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
 
@@ -712,11 +712,6 @@ open class Resource(
         // make previous state inactive and current state idle, for start of the replication
         myState = myIdleState
         capacity = initialCapacity
-    }
-
-    override fun afterReplication() {
-        super.afterReplication()
-        myQueueSet.clear()
     }
 
     /**

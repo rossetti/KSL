@@ -65,18 +65,6 @@ object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
     }
 }
 
-fun <K> MutableMap<K, Int>.increment(key: K): Int {
-    val c = getOrDefault(key, 0) + 1
-    this[key] = c
-    return c
-}
-
-fun <K> MutableMap<K, Int>.decrement(key: K): Int {
-    val c = getOrDefault(key, 0) - 1
-    this[key] = c
-    return c
-}
-
 /**
  *  If the user supplies a request selection rule then this will override the default
  *  queue discipline for finding the next request from the queue.
@@ -92,12 +80,12 @@ class RequestQ(
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
     // track the number of requests for each resource
-    private val myResources by lazy{ mutableMapOf<Resource, Int>()}
+//    private val myResources by lazy{ mutableMapOf<Resource, Int>()}
 
     // track the number of requests for each resource pool
-    private val myResourcePools by lazy{ mutableMapOf<ResourcePool, Int>()}
+//    private val myResourcePools by lazy{ mutableMapOf<ResourcePool, Int>()}
     // track the number of requests for each movable resource pool
-    private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
+//    private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule
 
@@ -108,7 +96,13 @@ class RequestQ(
      */
     fun countRequestsFor(resource: ResourceCIfc) : Int {
         val r = resource as Resource
-        return myResources[r] ?: 0
+        var count = 0
+        for(request in myList){
+            if (request.resource == resource) {
+                count++
+            }
+        }
+        return count
     }
 
     /**
@@ -117,8 +111,13 @@ class RequestQ(
      * @param pool the resource pool to check
      */
     fun countRequestsFor(pool: ResourcePool) : Int {
-        val r = pool as ResourcePool
-        return myResourcePools[r] ?: 0
+        var count = 0
+        for(request in myList){
+            if (request.resourcePool == pool) {
+                count++
+            }
+        }
+        return count
     }
 
     /**
@@ -127,48 +126,53 @@ class RequestQ(
      * @param pool the movable resource pool to check
      */
     fun countRequestsFor(pool: MovableResourcePool) : Int {
-        val r = pool as MovableResourcePool
-        return myMovableResourcePools[r] ?: 0
+        var count = 0
+        for(request in myList){
+            if (request.resourcePool == pool) {
+                count++
+            }
+        }
+        return count
     }
 
     // need to override: remove(object), clear(), enqueue()
 
     override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
         super.enqueue(qObject, priority, obj)
-        registerResources(qObject)
+//        registerResources(qObject)
     }
 
-    private fun registerResources(request: ProcessModel.Entity.Request){
-        // register the resource or the pool
-        if (request.resource != null) {
-            // must be a resource request
-            val resource = request.resource!!
-            myResources.increment(resource)
-            resource.myQueueSet.add(this)
-            return
-        }
-        if (request.resourcePool != null) {
-            // must be a request for a pool
-            val pool = request.resourcePool!!
-            myResourcePools.increment(pool)
-            pool.myQueueSet.add(this)
-            return
-        }
-        if (request.movableResourcePool != null) {
-            // must be a request for a pool
-            val pool = request.movableResourcePool!!
-            myMovableResourcePools.increment(pool)
-            pool.myQueueSet.add(this)
-            return
-        }
-        throw IllegalStateException("Unable to register $request. The request was not for a resource or a pool")
-    }
+//    private fun registerResources(request: ProcessModel.Entity.Request){
+//        // register the resource or the pool
+//        if (request.resource != null) {
+//            // must be a resource request
+//            val resource = request.resource!!
+//            myResources.increment(resource)
+//            resource.myQueueSet.add(this)
+//            return
+//        }
+//        if (request.resourcePool != null) {
+//            // must be a request for a pool
+//            val pool = request.resourcePool!!
+//            myResourcePools.increment(pool)
+//            pool.myQueueSet.add(this)
+//            return
+//        }
+//        if (request.movableResourcePool != null) {
+//            // must be a request for a pool
+//            val pool = request.movableResourcePool!!
+//            myMovableResourcePools.increment(pool)
+//            pool.myQueueSet.add(this)
+//            return
+//        }
+//        throw IllegalStateException("Unable to register $request. The request was not for a resource or a pool")
+//    }
 
     override fun clear() {
         super.clear()
-        myResources.clear()
-        myResourcePools.clear()
-        myMovableResourcePools.clear()
+//        myResources.clear()
+//        myResourcePools.clear()
+//        myMovableResourcePools.clear()
     }
 
     override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
@@ -176,68 +180,68 @@ class RequestQ(
         if (!b){
             return false
         }
-        unregisterResources(qObj)
+//        unregisterResources(qObj)
         return true
     }
 
-    private fun unregisterResources(request: ProcessModel.Entity.Request){
-        // stop tracking the request
-        if (request.resource != null){
-            // it was a request for a resource
-            val resource = request.resource!!
- //           require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
-            val c = myResources.decrement(resource)
-            if (c <= 0){
-                myResources.remove(resource)
-                resource.myQueueSet.remove(this)
-            }
-//            val count = myResources[resource]!! - 1
-//            if (count == 0){
+//    private fun unregisterResources(request: ProcessModel.Entity.Request){
+//        // stop tracking the request
+//        if (request.resource != null){
+//            // it was a request for a resource
+//            val resource = request.resource!!
+// //           require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
+//            val c = myResources.decrement(resource)
+//            if (c <= 0){
 //                myResources.remove(resource)
 //                resource.myQueueSet.remove(this)
-//            } else {
-//                myResources[resource] = count
 //            }
-            return
-        }
-        if (request.resourcePool != null){
-            // it was a request for a pool
-            val pool = request.resourcePool!!
- //           require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
-            val c = myResourcePools.decrement(pool)
-            if (c <= 0){
-                myResourcePools.remove(pool)
-                pool.myQueueSet.remove(this)
-            }
-//            val count = myResourcePools[pool]!! - 1
-//            if (count == 0){
+////            val count = myResources[resource]!! - 1
+////            if (count == 0){
+////                myResources.remove(resource)
+////                resource.myQueueSet.remove(this)
+////            } else {
+////                myResources[resource] = count
+////            }
+//            return
+//        }
+//        if (request.resourcePool != null){
+//            // it was a request for a pool
+//            val pool = request.resourcePool!!
+// //           require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
+//            val c = myResourcePools.decrement(pool)
+//            if (c <= 0){
 //                myResourcePools.remove(pool)
 //                pool.myQueueSet.remove(this)
-//            } else {
-//                myResourcePools[pool] = count
 //            }
-            return
-        }
-        if (request.movableResourcePool != null){
-            // it was a request for a pool
-            val pool = request.movableResourcePool!!
-//            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
-            val c = myMovableResourcePools.decrement(pool)
-            if (c <= 0){
-                myMovableResourcePools.remove(pool)
-                pool.myQueueSet.remove(this)
-            }
-//            val count = myMovableResourcePools[pool]!! - 1
-//            if (count == 0){
+////            val count = myResourcePools[pool]!! - 1
+////            if (count == 0){
+////                myResourcePools.remove(pool)
+////                pool.myQueueSet.remove(this)
+////            } else {
+////                myResourcePools[pool] = count
+////            }
+//            return
+//        }
+//        if (request.movableResourcePool != null){
+//            // it was a request for a pool
+//            val pool = request.movableResourcePool!!
+////            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
+//            val c = myMovableResourcePools.decrement(pool)
+//            if (c <= 0){
 //                myMovableResourcePools.remove(pool)
 //                pool.myQueueSet.remove(this)
-//            } else {
-//                myMovableResourcePools[pool] = count
 //            }
-            return
-        }
-        throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
-    }
+////            val count = myMovableResourcePools[pool]!! - 1
+////            if (count == 0){
+////                myMovableResourcePools.remove(pool)
+////                pool.myQueueSet.remove(this)
+////            } else {
+////                myMovableResourcePools[pool] = count
+////            }
+//            return
+//        }
+//        throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
+//    }
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
