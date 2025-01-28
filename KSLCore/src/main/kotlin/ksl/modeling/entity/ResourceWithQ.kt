@@ -223,22 +223,6 @@ open class ResourceWithQ(
         }
     }
 
-    override fun deallocate(allocation: Allocation) {
-        super.deallocate(allocation)
-        // deallocation completed need to check for pending capacity change
-        if (isPendingCapacityChange) {
-            if (capacityChangeRule == CapacityChangeRule.IGNORE) {
-                handeIgnoreRuleDeallocation(allocation)
-            } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
-                // for WAIT rule handle releases only until full change gets allocated and scheduled
-                if (myCurrentChangeNotice!!.changeEvent == null) {
-                    // once it is not null, the full change has been completed and is being processed
-                    handleWaitRuleDeallocation(allocation)
-                }
-            }
-        }
-    }
-
     protected fun handeIgnoreRuleDeallocation(allocation: Allocation) {
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
@@ -591,10 +575,6 @@ open class ResourceWithQ(
         }
     }
 
-    override fun toString(): String {
-        return super.toString() + " q(t) = ${myWaitingQ.numInQ.value}"
-    }
-
     inner class CapacityChangeNotice(
         val capacity: Int = 0,
         val duration: Double = Double.POSITIVE_INFINITY,
@@ -645,6 +625,26 @@ open class ResourceWithQ(
             // tell resource to handle it
             changeCapacity(notice)
         }
+    }
+
+    override fun deallocate(allocation: Allocation) {
+        super.deallocate(allocation)
+        // deallocation completed need to check for pending capacity change
+        if (isPendingCapacityChange) {
+            if (capacityChangeRule == CapacityChangeRule.IGNORE) {
+                handeIgnoreRuleDeallocation(allocation)
+            } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+                // for WAIT rule handle releases only until full change gets allocated and scheduled
+                if (myCurrentChangeNotice!!.changeEvent == null) {
+                    // once it is not null, the full change has been completed and is being processed
+                    handleWaitRuleDeallocation(allocation)
+                }
+            }
+        }
+    }
+
+    override fun toString(): String {
+        return super.toString() + " q(t) = ${myWaitingQ.numInQ.value}"
     }
 
     companion object{
