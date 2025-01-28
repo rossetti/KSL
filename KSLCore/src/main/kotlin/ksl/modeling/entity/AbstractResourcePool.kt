@@ -18,7 +18,7 @@ abstract class AbstractResourcePool<T: Resource>(
      *  Tracks which queues have requests targeting the resource pool.
      *  Called internally in RequestQ.registerResources() and RequestQ.unregisterResources()
      */
-    internal val myQueueSet = mutableListOf<RequestQ>()
+    internal val myQueueSet = mutableListOf<RequestQ>() //TODO
 
     /**
      *  The resources that the resource pool contains

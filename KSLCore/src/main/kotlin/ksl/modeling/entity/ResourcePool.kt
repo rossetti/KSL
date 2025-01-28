@@ -310,7 +310,7 @@ open class ResourcePool(
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
      */
-    final override fun addResource(resource: Resource) {
+    override fun addResource(resource: Resource) {
         super.addResource(resource)
         resource.myResourcePools.add(this)
     }

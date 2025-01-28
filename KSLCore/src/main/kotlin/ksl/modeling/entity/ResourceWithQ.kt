@@ -98,6 +98,9 @@ open class ResourceWithQ(
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+    init {
+        registerCapacityChangeQueue(myWaitingQ)
+    }
     override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
@@ -300,7 +303,7 @@ open class ResourceWithQ(
      *  Handles the start of a change in capacity. If the capacity is increased over its current
      *  value and there are no pending changes, then the capacity is immediately increased and requests that are waiting
      *  for the resource will be processed to receive allocations from the resource.  If the
-     *  capacity is decreased from its current value, then the amount of the decrease is first filled
+     *  capacity is decreased from its current value, then the amount of the decrease is filled
      *  from idle units.  If there are not enough idle units to complete the decrease, then the change
      *  is processes according to the capacity change rule.
      *
@@ -402,14 +405,14 @@ open class ResourceWithQ(
         }
         // myQueueSet holds the queues that have requests for this resource
         //TODO can a resource not be associated with any queues?
-        if (myCapacityChangeQs.isEmpty()) {
+        if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
             return
         }
-        if (myCapacityChangeQs.size == 1) {
+        if (myCapacityChangeQSet.size == 1) {
             // there is only one queue, no reason to decide, just notify it
-            val queue = myCapacityChangeQs.first()
+            val queue = myCapacityChangeQSet.first()
             val n = queue.processWaitingRequests(available, priority)
             logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
             return
@@ -417,7 +420,7 @@ open class ResourceWithQ(
         // there is more than 1 queue to notify, in what order should the notifications occur
         // two logical orderings: 1) the order in which they were added (reflects when request occurred)
         // 2) in descending order of the number of requests for the resource in the queues
-        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQs)
+        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
         var amountAvailable = available
         while (itr.hasNext()) {
             val queue = itr.next()

@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import com.google.common.collect.Queues
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
@@ -32,6 +31,11 @@ open class ResourcePoolWithQ(
      * Holds the entities that are waiting for allocations of the resource's units in the pool
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+    init {
+        for (resource in resources) {
+            resource.registerCapacityChangeQueue(myWaitingQ)
+        }
+    }
 
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ

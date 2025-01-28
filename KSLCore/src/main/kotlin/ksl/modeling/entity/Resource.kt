@@ -319,7 +319,7 @@ open class Resource(
     /**
      *  Tracks which queues have requests targeting the resource
      */
-    internal val myCapacityChangeQs = mutableSetOf<RequestQ>()
+    protected val myCapacityChangeQSet = mutableSetOf<RequestQ>()
 
     var requestQNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
 
@@ -345,6 +345,10 @@ open class Resource(
     protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
+
+    fun registerCapacityChangeQueue(queue: RequestQ){
+        myCapacityChangeQSet.add(queue)
+    }
 
     /**
      * Add an allocation listener.  Allocation listeners are notified when (after)
