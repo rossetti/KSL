@@ -18,7 +18,6 @@
 
 package ksl.utilities.maps
 
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.Interval
@@ -151,6 +150,26 @@ object KSLMaps {
         return format.encodeToString(map)
     }
 
+}
+
+/**
+ *  Increments the element by 1. If the element does not exist in the
+ *  map, it is added to the map with a value of 1
+ */
+fun <K> MutableMap<K, Int>.increment(key: K): Int {
+    val c = getOrDefault(key, 0) + 1
+    this[key] = c
+    return c
+}
+
+/**
+ *  Decrements the element by 1. If the element does not exist in the
+ *  map, it is added to the map with a value of 1
+ */
+fun <K> MutableMap<K, Int>.decrement(key: K): Int {
+    val c = getOrDefault(key, 2) - 1
+    this[key] = c
+    return c
 }
 
 fun Map<String, Double>.toJson(): String {

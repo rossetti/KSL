@@ -394,34 +394,36 @@ open class ResourceWithQ(
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
+        //TODO can available be 0?
         require(available >= 0) { "Resource: resource ($name), The amount available was less than 0 for notifications" }
         if (available == 0) {
             logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
             return
         }
         // myQueueSet holds the queues that have requests for this resource
-        if (myQueueSet.isEmpty()) {
+        //TODO can a resource not be associated with any queues?
+        if (myCapacityChangeQs.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
             return
         }
-        if (myQueueSet.size == 1) {
+        if (myCapacityChangeQs.size == 1) {
             // there is only one queue, no reason to decide, just notify it
-            val queue = myQueueSet.first()
+            val queue = myCapacityChangeQs.first()
             val n = queue.processWaitingRequests(available, priority)
-            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
+            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
             return
         }
         // there is more than 1 queue to notify, in what order should the notifications occur
         // two logical orderings: 1) the order in which they were added (reflects when request occurred)
         // 2) in descending order of the number of requests for the resource in the queues
-        val itr = requestQNotificationRule.ruleIterator(myQueueSet)
+        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQs)
         var amountAvailable = available
         while (itr.hasNext()) {
             val queue = itr.next()
             // need to ensure that notifications stop if all available will be allocated
             val n = queue.processWaitingRequests(amountAvailable, priority)
-            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
+            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
             amountAvailable = amountAvailable - n
             // there is no point in notifying after the resource has no units available
             if (amountAvailable == 0) {
