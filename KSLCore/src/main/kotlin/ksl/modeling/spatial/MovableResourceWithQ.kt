@@ -62,6 +62,13 @@ class MovableResourceWithQ(
         myWIP.observe(myNumBusy)
     }
 
+    override var defaultReportingOption: Boolean
+        get() = super.defaultReportingOption
+        set(value) {
+            super.defaultReportingOption = value
+            myWaitingQ.defaultReportingOption = value
+        }
+
     protected var myNoticeCount = 0
     protected var myCapacitySchedule: CapacitySchedule? = null
 
@@ -89,13 +96,6 @@ class MovableResourceWithQ(
      */
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
-
-    override var defaultReportingOption: Boolean
-        get() = super.defaultReportingOption
-        set(value) {
-            super.defaultReportingOption = value
-            myWaitingQ.defaultReportingOption = value
-        }
 
     override fun afterReplication() {
         super.afterReplication()
