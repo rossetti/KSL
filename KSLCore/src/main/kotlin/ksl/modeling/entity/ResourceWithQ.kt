@@ -94,27 +94,6 @@ open class ResourceWithQ(
     queue: RequestQ? = null,
 ) : Resource(parent, name, capacity), ResourceWithQCIfc {
 
-    companion object{
-
-        /**
-         *  Creates the required number of resources that have their own queue, each with the specified
-         *  capacity.
-         * @param parent the containing model element
-         * @param numToCreate the number of resources to create, must be 1 or more
-         * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1. The
-         * default is 1
-         */
-        fun createResourcesWithQueues(parent: ModelElement, numToCreate: Int, capacity: Int = 1): List<Resource> {
-            require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
-            require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
-            val list = mutableListOf<Resource>()
-            for(i in 1..numToCreate){
-                list.add(ResourceWithQ(parent, capacity = capacity, name = "${parent.name}:R${i}"))
-            }
-            return list
-        }
-    }
-
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
@@ -137,6 +116,13 @@ open class ResourceWithQ(
         myWIP.observe(myWaitingQ.numInQ)
         myWIP.observe(myNumBusy)
     }
+
+    override var defaultReportingOption: Boolean
+        get() = super.defaultReportingOption
+        set(value) {
+            super.defaultReportingOption = value
+            myWaitingQ.defaultReportingOption = value
+        }
 
     protected var myNoticeCount = 0
     protected var myCapacitySchedule: CapacitySchedule? = null
@@ -165,14 +151,7 @@ open class ResourceWithQ(
      */
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
-
-    override var defaultReportingOption: Boolean
-        get() = super.defaultReportingOption
-        set(value) {
-            super.defaultReportingOption = value
-            myWaitingQ.defaultReportingOption = value
-        }
-
+    
     override fun afterReplication() {
         super.afterReplication()
         myWaitingChangeNotices.clear()
@@ -665,6 +644,27 @@ open class ResourceWithQ(
             notice.capacitySchedule = item.schedule
             // tell resource to handle it
             changeCapacity(notice)
+        }
+    }
+
+    companion object{
+
+        /**
+         *  Creates the required number of resources that have their own queue, each with the specified
+         *  capacity.
+         * @param parent the containing model element
+         * @param numToCreate the number of resources to create, must be 1 or more
+         * @param capacity the capacity for the resource at the beginning of each replication, must be at least 1. The
+         * default is 1
+         */
+        fun createResourcesWithQueues(parent: ModelElement, numToCreate: Int, capacity: Int = 1): List<Resource> {
+            require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
+            require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
+            val list = mutableListOf<Resource>()
+            for(i in 1..numToCreate){
+                list.add(ResourceWithQ(parent, capacity = capacity, name = "${parent.name}:R${i}"))
+            }
+            return list
         }
     }
 }
