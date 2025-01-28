@@ -21,7 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
-open class ResourcePoolWithQ(
+class ResourcePoolWithQ(
     parent: ModelElement,
     resources: List<Resource>,
     queue: RequestQ? = null,
@@ -32,7 +32,7 @@ open class ResourcePoolWithQ(
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
     init {
-        for (resource in resources) {
+        for (resource in myResources) {
             resource.registerCapacityChangeQueue(myWaitingQ)
         }
     }

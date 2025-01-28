@@ -36,7 +36,11 @@ class MovableResourcePoolWithQ(
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
-
+    init {
+        for (resource in myResources) {
+            resource.registerCapacityChangeQueue(myWaitingQ)
+        }
+    }
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 

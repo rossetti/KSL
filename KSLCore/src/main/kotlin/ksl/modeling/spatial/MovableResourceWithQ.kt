@@ -43,6 +43,9 @@ class MovableResourceWithQ(
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+    init {
+        registerCapacityChangeQueue(myWaitingQ)
+    }
     override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
