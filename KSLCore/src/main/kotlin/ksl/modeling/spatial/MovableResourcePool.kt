@@ -94,29 +94,6 @@ open class MovableResourcePool(
             }
         }
 
-    /** Makes the specified number of movable resources and includes them in the pool.
-     *
-     * @param parent the parent model element
-     * @param numResources number of movable resources to include in the pool
-     * @param initLocation the initial starting location of the resources within the spatial model
-     * @param defaultVelocity the default velocity for movement within the spatial model
-     * @param name the name of the pool
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        initLocation: LocationIfc,
-        defaultVelocity: RandomIfc,
-        name: String? = null
-    ) : this(
-        parent, mutableListOf(), defaultVelocity, name
-    ) {
-        for (i in 1..numResources) {
-            addResource(MovableResource(this, initLocation, defaultVelocity, "${this.name}:R${i}"))
-        }
-    }
-
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
         defaultMovableResourceAllocationRule = initialDefaultMovableResourceAllocationRule

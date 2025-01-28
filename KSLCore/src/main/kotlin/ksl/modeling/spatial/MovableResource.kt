@@ -17,12 +17,12 @@ import ksl.utilities.random.rvariable.toDouble
 
 interface MovableResourceIfc : SpatialElementIfc, VelocityIfc
 
-interface MoveableResourceCIfc: ResourceCIfc {
+interface MoveableResourceCIfc : ResourceCIfc {
     val velocityRV: RandomSourceCIfc
     val initialHomeBase: LocationIfc?
     val homeBase: LocationIfc?
     val hasHomeBase: Boolean
-    val fracTimeMoving : TWResponseCIfc
+    val fracTimeMoving: TWResponseCIfc
     val fracTimeTransporting: TWResponseCIfc
     val fracTimeMovingEmpty: TWResponseCIfc
 }
@@ -96,7 +96,7 @@ open class MovableResource(
 
     protected val myFracTimeMoving =
         TWResponse(this, name = "${this.name}:FracTimeMoving", initialValue = mySpatialElement.isMoving.toDouble())
-    override val fracTimeMoving : TWResponseCIfc
+    override val fracTimeMoving: TWResponseCIfc
         get() = myFracTimeMoving
     protected val myFracTimeTransporting = TWResponse(this, name = "${this.name}:FracTimeTransporting")
     override val fracTimeTransporting: TWResponseCIfc
@@ -233,5 +233,29 @@ open class MovableResource(
             }
         }
     }
+
+    companion object {
+        /**
+         *  Creates the required number of movable resources that have no queue.
+         * @param parent the containing model element
+         * @param numToCreate the number of resources to create, must be 1 or more
+         * @param initLocation the initial starting location of the resource within the spatial model
+         * @param defaultVelocity the default velocity for movement within the spatial model
+         */
+        fun createMovableResources(
+            parent: ModelElement,
+            numToCreate: Int,
+            initLocation: LocationIfc,
+            defaultVelocity: RandomIfc,
+        ): List<MovableResource> {
+            require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
+            val list = mutableListOf<MovableResource>()
+            for (i in 1..numToCreate) {
+                list.add(MovableResource(parent, initLocation, defaultVelocity, name = "${parent.name}:R${i}"))
+            }
+            return list
+        }
+    }
+
 
 }
