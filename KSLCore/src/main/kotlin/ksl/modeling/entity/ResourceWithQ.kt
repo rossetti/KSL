@@ -151,7 +151,7 @@ open class ResourceWithQ(
      */
     val isPendingCapacityChange
         get() = myCurrentChangeNotice != null
-    
+
     override fun afterReplication() {
         super.afterReplication()
         myWaitingChangeNotices.clear()
