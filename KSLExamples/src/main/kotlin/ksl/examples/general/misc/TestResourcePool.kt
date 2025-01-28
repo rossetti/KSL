@@ -28,7 +28,10 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
 
 class TestResourcePool(parent: ModelElement) : ProcessModel(parent, null) {
-    private val pool: ResourcePoolWithQ = ResourcePoolWithQ(this, 3, name = "pool")
+    private val pool: ResourcePoolWithQ = ResourcePoolWithQ(
+        this,
+        Resource.createResources(this, 3),
+        name = "pool")
 
     init {
         pool.defaultResourceAllocationRule= LeastUtilizedResourceAllocationRule()
