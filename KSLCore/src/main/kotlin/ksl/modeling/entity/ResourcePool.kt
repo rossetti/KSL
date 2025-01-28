@@ -315,24 +315,6 @@ open class ResourcePool(
         resource.myResourcePools.add(this)
     }
 
-    /** Makes the specified number of single unit resources and includes them in the pool.
-     *
-     * @param parent the parent model element
-     * @param numResources number of single unit resources to include in the pool
-     * @param name the name of the pool
-     * @author rossetti
-     */
-    constructor(
-        parent: ModelElement,
-        numResources: Int = 1,
-        name: String? = null
-    ) : this(parent, mutableListOf(), name) {
-        require(numResources >= 1) { "There must be 1 or more resources to create when creating ${this.name}" }
-        for (i in 1..numResources) {
-            addResource(Resource(this, "${this.name}:R${i}"))
-        }
-    }
-
     var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
         set(value) {
             require(model.isNotRunning) {"Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions"}
