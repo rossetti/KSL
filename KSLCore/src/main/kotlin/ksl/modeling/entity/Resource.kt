@@ -159,6 +159,13 @@ open class Resource(
         }
     }
 
+    protected val myCapacity = TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
+
+    val numActiveUnits: TWResponseCIfc
+        get() = myCapacity
+
+
+
     protected val myInactiveProp: Response = Response(this, name = "${this.name}:PTimeInactive")
     val proportionOfTimeInactive: ResponseCIfc
         get() = myInactiveProp
@@ -177,6 +184,14 @@ open class Resource(
             myBusyProp.defaultReportingOption = value
             field = value
         }
+
+    init {
+        stateReportingOption = false
+        myCapacity.defaultReportingOption = false
+        myInactiveProp.defaultReportingOption = false
+        myIdleProp.defaultReportingOption = false
+        myBusyProp.defaultReportingOption = false
+    }
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
@@ -221,16 +236,6 @@ open class Resource(
             myCapacity.value = field.toDouble()
             instantUtilTW.value = instantaneousUtil
         }
-
-    protected val myCapacity =
-        TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
-
-    val numActiveUnits: TWResponseCIfc
-        get() = myCapacity
-
-    init {
-        stateReportingOption = false
-    }
 
     protected val myNumBusy = TWResponse(this, "${this.name}:NumBusyUnits")
     override val numBusyUnits: TWResponseCIfc
