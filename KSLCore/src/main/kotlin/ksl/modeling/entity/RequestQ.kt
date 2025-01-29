@@ -79,14 +79,6 @@ class RequestQ(
     discipline: Discipline = Discipline.FIFO
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
-    // track the number of requests for each resource
-//    private val myResources by lazy{ mutableMapOf<Resource, Int>()}
-
-    // track the number of requests for each resource pool
-//    private val myResourcePools by lazy{ mutableMapOf<ResourcePool, Int>()}
-    // track the number of requests for each movable resource pool
-//    private val myMovableResourcePools by lazy {mutableMapOf<MovableResourcePool, Int>()}
-
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule
 
     /**
@@ -134,114 +126,6 @@ class RequestQ(
         return count
     }
 
-    // need to override: remove(object), clear(), enqueue()
-
-    override fun enqueue(qObject: ProcessModel.Entity.Request, priority: Int, obj: Any?) {
-        super.enqueue(qObject, priority, obj)
-//        registerResources(qObject)
-    }
-
-//    private fun registerResources(request: ProcessModel.Entity.Request){
-//        // register the resource or the pool
-//        if (request.resource != null) {
-//            // must be a resource request
-//            val resource = request.resource!!
-//            myResources.increment(resource)
-//            resource.myQueueSet.add(this)
-//            return
-//        }
-//        if (request.resourcePool != null) {
-//            // must be a request for a pool
-//            val pool = request.resourcePool!!
-//            myResourcePools.increment(pool)
-//            pool.myQueueSet.add(this)
-//            return
-//        }
-//        if (request.movableResourcePool != null) {
-//            // must be a request for a pool
-//            val pool = request.movableResourcePool!!
-//            myMovableResourcePools.increment(pool)
-//            pool.myQueueSet.add(this)
-//            return
-//        }
-//        throw IllegalStateException("Unable to register $request. The request was not for a resource or a pool")
-//    }
-
-    override fun clear() {
-        super.clear()
-//        myResources.clear()
-//        myResourcePools.clear()
-//        myMovableResourcePools.clear()
-    }
-
-    override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
-        val b = super.remove(qObj, waitStats)
-        if (!b){
-            return false
-        }
-//        unregisterResources(qObj)
-        return true
-    }
-
-//    private fun unregisterResources(request: ProcessModel.Entity.Request){
-//        // stop tracking the request
-//        if (request.resource != null){
-//            // it was a request for a resource
-//            val resource = request.resource!!
-// //           require(myResources.contains(resource)){"UnregisteringResources: The resource, ${resource.name}, was not registered."}
-//            val c = myResources.decrement(resource)
-//            if (c <= 0){
-//                myResources.remove(resource)
-//                resource.myQueueSet.remove(this)
-//            }
-////            val count = myResources[resource]!! - 1
-////            if (count == 0){
-////                myResources.remove(resource)
-////                resource.myQueueSet.remove(this)
-////            } else {
-////                myResources[resource] = count
-////            }
-//            return
-//        }
-//        if (request.resourcePool != null){
-//            // it was a request for a pool
-//            val pool = request.resourcePool!!
-// //           require(myResourcePools.contains(pool)){"UnregisteringResources: The resource pool, ${pool.name}, was not registered."}
-//            val c = myResourcePools.decrement(pool)
-//            if (c <= 0){
-//                myResourcePools.remove(pool)
-//                pool.myQueueSet.remove(this)
-//            }
-////            val count = myResourcePools[pool]!! - 1
-////            if (count == 0){
-////                myResourcePools.remove(pool)
-////                pool.myQueueSet.remove(this)
-////            } else {
-////                myResourcePools[pool] = count
-////            }
-//            return
-//        }
-//        if (request.movableResourcePool != null){
-//            // it was a request for a pool
-//            val pool = request.movableResourcePool!!
-////            require(myMovableResourcePools.contains(pool)){"UnregisteringResources: The movable resource pool, ${pool.name}, was not registered."}
-//            val c = myMovableResourcePools.decrement(pool)
-//            if (c <= 0){
-//                myMovableResourcePools.remove(pool)
-//                pool.myQueueSet.remove(this)
-//            }
-////            val count = myMovableResourcePools[pool]!! - 1
-////            if (count == 0){
-////                myMovableResourcePools.remove(pool)
-////                pool.myQueueSet.remove(this)
-////            } else {
-////                myMovableResourcePools[pool] = count
-////            }
-//            return
-//        }
-//        throw IllegalStateException("Unable to unregister $request. The request was not for a resource or a pool")
-//    }
-
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
@@ -283,7 +167,8 @@ class RequestQ(
      *
      * @param amountAvailable the amount of units that are available to allocate to the next request
      * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
-     * @return the total amount to be allocated
+     * @return the total amount to be allocated for the resumed entities.  This must be less than or equal to
+     * the amount available
      */
     internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int): Int {
         if (amountAvailable <= 0) {
@@ -300,14 +185,6 @@ class RequestQ(
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
         }
-//        for (request in selectedRequests) {
-//            sum = sum + request.amountRequested
-//            request.entity.resumeProcess(0.0, resumePriority)
-//            check(sum <= amountAvailable){"The total amount ($sum) to be allocated to the requests must be less than or equal to the amount available: $amountAvailable"}
-//        }
-        //TODO this should return the total amount requested for the requests that were resumed
-        // this represents the total amount that will be allocated from the resource or pool that
-        // are associated with the requests
         return sum
     }
 }

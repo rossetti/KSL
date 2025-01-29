@@ -27,244 +27,6 @@ import ksl.simulation.ModelElement
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
-interface ResourceCIfc : DefaultReportingOptionIfc {
-
-    /**
-     * The initial capacity of the resource at the start of the replication. The initial
-     * capacity must be greater than 0.
-     */
-    var initialCapacity: Int
-
-    /**
-     *  The current capacity of the resource. In general, it can be 0 or greater
-     */
-    val capacity: Int
-
-    /**
-     *  Access to the busy state. Busy means at least 1 unit of the resource is allocated.
-     */
-    val busyState: StateAccessorIfc
-
-    /**
-     *  Access to the idle state. Idle means that no units of the resource are allocated.
-     */
-    val idleState: StateAccessorIfc
-
-    /**
-     * Access to the inactive state. Inactive means that the capacity of the resource is 0
-     */
-    val inactiveState: StateAccessorIfc
-
-    /**
-     *  Indicates if proportion of time spent in states (idle, busy, inactive) is automatically reported
-     */
-    val stateReportingOption: Boolean
-
-    /**
-     *  The current state of the resource.
-     */
-    val state: StateAccessorIfc
-
-    /**
-     *  The last (previous) state before the current state.
-     */
-    val previousState: StateAccessorIfc
-
-    /** Checks if the resource is idle, has no units allocated
-     */
-    val isIdle: Boolean
-
-    /** Checks to see if the resource is busy, has some units allocated
-     */
-    val isBusy: Boolean
-
-    /** Checks to see if the resource is inactive
-     */
-    val isInactive: Boolean
-
-    /**
-     * Statistical response representing the number of busy units of the resource.
-     */
-    val numBusyUnits: TWResponseCIfc
-
-    /**
-     * Statistical response representing the utilization of the resource.
-     * This is the time average number of busy units divided by the time average
-     * capacity.
-     */
-    val scheduledUtil: ResponseCIfc
-
-    /**
-     *  The number of times the resource was seized
-     */
-    val seizeCounter: CounterCIfc
-
-    /**
-     *  If c(t) is the current capacity and b(t) is the current number busy,
-     *  then a(t) = c(t) - b(t) is the current number of available units.
-     *  Under some capacity change situations, a(t) may be negative.
-     */
-    val numAvailableUnits: Int
-
-    /**
-     *  If a(t) is greater than zero
-     */
-    val hasAvailableUnits: Boolean
-
-    /**
-     *  If b(t) is greater than zero
-     */
-    val hasBusyUnits: Boolean
-
-    /**
-     *  The number of busy units at any time t, b(t)
-     */
-    val numBusy: Int
-
-    /**
-     *  The number of times that the resource has been seized (allocated)
-     */
-    val numTimesSeized: Int
-
-    /**
-     *  The number of times that the resource has been released (deallocated)
-     */
-    val numTimesReleased: Int
-
-    /** If b(t) is the number of busy units, and c(t) is the current capacity, then
-     *  the instantaneous utilization iu(t) is
-     *
-     *  if b(t) = 0, then iu(t) = 0.0
-     *  if b(t) greater than or equal to c(t) then iu(t) = 1.0
-     *  else iu(t) = b(t)/c(t)
-     *
-     */
-    val instantaneousUtil: Double
-
-    /**
-     * time average instantaneous utilization
-     */
-    val timeAvgInstantaneousUtil: TWResponseCIfc
-
-    /**
-     *  A general attribute that can be used to assist with selecting resources
-     */
-    val selectionCriteria: Double
-}
-
-/**
- * An allocation listener is notified whenever the resource is allocated and when the resource
- * is deallocated. This allows general actions to occur when the resource's state changes
- * at these instances in time.
- */
-interface AllocationListenerIfc {
-
-    /**
-     * @param allocation the allocation that was allocated
-     */
-    fun allocate(allocation: Allocation)
-
-    /**
-     * @param allocation the allocation that was deallocated
-     */
-    fun deallocate(allocation: Allocation)
-}
-
-/**
- *  The ordering is determined such that more available units "rise to the top",
- *  then by least number times seized, then by oldest time last busy
- */
-class MostAvailableComparator : Comparator<Resource> {
-    override fun compare(r1: Resource, r2: Resource): Int {
-        if (r1.numAvailableUnits > r2.numAvailableUnits){
-            return -1
-        }
-        if (r1.numAvailableUnits < r2.numAvailableUnits){
-            return 1
-        }
-
-        if (r1.numTimesSeized < r2.numTimesSeized){
-            return -1
-        }
-        if (r1.numTimesSeized > r2.numTimesSeized){
-            return 1
-        }
-        // number of seizes was the same. if exited earlier, then prefer it
-        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
-    }
-
-}
-
-/**
- *  The number of times the resource was seized is used to determine the ordering.
- *  The less the number the smaller. If the number of times seized is equal, then
- *  the resource with the earliest time exiting the busy state is considered smaller.
- *  That is the one furthest back in time that the busy state was exited.
- */
-class LeastSeizedComparator : Comparator<Resource> {
-    override fun compare(r1: Resource, r2: Resource): Int {
-        if (r1.numTimesSeized < r2.numTimesSeized){
-            return -1
-        }
-        if (r1.numTimesSeized > r2.numTimesSeized){
-            return 1
-        }
-        // number of seizes was the same. if exited earlier, then prefer it
-        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
-    }
-
-}
-
-/*
-  The resource with smaller estimated instantaneous utilization is considered smaller. If there is a tie
-  then the resource that has been seized fewer times is smaller. If there still is a tie
- *  then the resource with the earliest time exiting the busy state is considered smaller.
- *  That is the one furthest back in time that the busy state was exited.
- */
-class LeastUtilizedComparator : Comparator<Resource> {
-    override fun compare(r1: Resource, r2: Resource): Int {
-        val u1 = r1.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
-        val u2 = r2.timeAvgInstantaneousUtil.withinReplicationStatistic.weightedAverage
-
-        if (u1 < u2){
-            return -1
-        }
-        if (u1 > u2) {
-            return 1
-        }
-
-        if (r1.numTimesSeized < r2.numTimesSeized){
-            return -1
-        }
-        if (r1.numTimesSeized > r2.numTimesSeized){
-            return 1
-        }
-        // number of seizes was the same. if exited earlier, then prefer it
-        return (r1.busyState.timeStateExited.compareTo(r2.busyState.timeStateExited))
-    }
-
-}
-
-/**
- *  Compares the resources based on the number available
- */
-class NumAvailableComparator : Comparator<Resource> {
-    override fun compare(r1: Resource, r2: Resource): Int {
-        // number of seizes was the same. if exited earlier, then prefer it
-        return (r1.numAvailableUnits.compareTo(r2.numAvailableUnits))
-    }
-}
-
-/**
- *  Compares the resources based on the value of the selection criteria attribute
- */
-class SelectionCriteriaComparator : Comparator<Resource> {
-    override fun compare(r1: Resource, r2: Resource): Int {
-        // number of seizes was the same. if exited earlier, then prefer it
-        return (r1.selectionCriteria.compareTo(r2.selectionCriteria))
-    }
-}
-
 /**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
  *  has an initial capacity that cannot be changed during a replication. This base resource class
@@ -329,8 +91,39 @@ open class Resource(
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
 
-    fun registerCapacityChangeQueue(queue: RequestQ){
+    /**
+     *  Resources can be associated with a capacity change schedule. If a capacity change occurs,
+     *  especially a decrease that makes the resource inactive or an increase that allows the resource
+     *  to be available occurs, then queues that hold requests for the resource may want to be notified
+     *  of the capacity change.
+     *
+     *  In the case of a capacity increase, the additional units will be automatically allocated
+     *  to waiting requests when the increase occurs if and only if the queue holding the requests
+     *  is associated with the resource.  The order of queue notification is governed by setting
+     *  of the proper (requestNotificationRule).
+     *
+     *  In the case of a capacity decrease that makes the resource inactive, the entities
+     *  associated with the requests held in the associated queues are notified so that they
+     *  may take action because the resource is inactive.
+     *
+     *  This function associates the request queue with the resource so
+     *  that the notification will occur.  For the case of resources that have queue because
+     *  of defined structure (ResourceWithQ, MovableResourceWithQ, ResourcePoolWithQ, MovableResourcePoolWithQ),
+     *  the registration of the queue is automatic when the resource is constructed or when added to the pool.
+     *  If you use a general, not attached queue to hold requests (via the seize() function) then, you should
+     *  consider using this function to register the queue. A queue may be registered with more than one
+     *  resource and a resource may have many queues registered.
+     */
+    fun registerCapacityChangeQueue(queue: RequestQ) {
         myCapacityChangeQSet.add(queue)
+    }
+
+    /**
+     *  This function permits a queue to be unregistered from a resource. If the queue was not registered,
+     *  then nothing occurs.
+     */
+    fun unregisterCapacityChangeQueue(queue: RequestQ) {
+        myCapacityChangeQSet.remove(queue)
     }
 
     /**
@@ -398,7 +191,7 @@ open class Resource(
             field = value
         }
 
-    protected val instantUtilTW : TWResponse = TWResponse(this, "${this.name}:InstantaneousUtil")
+    protected val instantUtilTW: TWResponse = TWResponse(this, "${this.name}:InstantaneousUtil")
     override val timeAvgInstantaneousUtil: TWResponseCIfc
         get() = instantUtilTW
 
@@ -807,10 +600,6 @@ open class Resource(
         }
     }
 
-    protected open fun resourceBecameActive() {
-
-    }
-
     protected var myNoticeCount = 0
     protected var myCapacitySchedule: CapacitySchedule? = null
 
@@ -860,7 +649,7 @@ open class Resource(
      * @param schedule the schedule to use
      * @param changeRule the rule to follow. By default, it is CapacityChangeRule.IGNORE.
      */
-   fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule) {
+    fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule) {
         check(model.isNotRunning) { "$time > Tried to change the schedule of $name during replication ${model.currentReplicationNumber}." }
         stateReportingOption = true
         stopUsingSchedule()
@@ -1040,48 +829,32 @@ open class Resource(
     }
 
     protected fun processPositiveCapacityChange(notice: CapacityChangeNotice) {
+        require(notice.capacity > capacity) { "The capacity after a capacity increase must be > than the current capacity " }
         logger.trace { "$time > Resource: $name, change notice $notice is increasing the capacity from $capacity to ${notice.capacity}." }
         // increasing the capacity immediately
         capacity = notice.capacity
         // resource could have been busy, idle, or inactive when adding the capacity
         // adding capacity cannot result in resource being inactive, must be either busy or idle after this
+        // the current capacity is now larger than it was. This causes some units to become available.
         val available = capacity - numBusy
         logger.trace { "$time > Resource: $this" }
+        logger.trace { "$time > Resource: $name, now has $available units." }
+        if (available == 0) {
+            logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
+            return
+        }
+        if (myCapacityChangeQSet.isEmpty()) {
+            // no queues are currently associated with this resource, no reason to notify
+            logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
+            return
+        }
         // this causes the newly available capacity to be allocated to any waiting requests
-        // this resumes their processes at the current simulated time
-        //TODO this requires there to be only one waiting queue to notify
-        // this causes limitations because the queue of waiting requests
-        // must be known to the resource. Currently, a Resource does not know the queue
-        // until allocations are made and at this point allocations are not involved since the entity is waiting in
-        // some queue. Once the entity receives units from the resource, we get an allocation.
-        // Here, we only know about the requests because ResourceWithQ forces there to be a singular request queue.
-        // If there was no access to a request queue, then the waiting requests could not be informed about the new capacity.
-        // The main issue is that in general, different seize() calls can use different request queues for the
-        // same Resource. Thus, an instance of Resource cannot know what request queues it may be involved with because
-        // currently this is not tracked for the resource. This would involve capturing the queue information everytime
-        // a seize() call occurs for a resource.  If there are more than one request queues involved with the resource,
-        // then what assumptions need to be made to the ordering of their notification of the new capacity must be made?
-        // The allocation records the queue that the entity waited in
-        // so that release can affect waiting entities for the released allocation
-//        val n = myWaitingQ.processWaitingRequests(available, notice.priority)
-//        ProcessModel.logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change causing $available available units." }
+        // which may resume the entity processes at the current simulated time
         notifyWaitingRequestsOfCapacityIncrease(available, notice.priority)
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
-        //TODO can available be 0?
-        require(available >= 0) { "Resource: resource ($name), The amount available was less than 0 for notifications" }
-        if (available == 0) {
-            logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
-            return
-        }
         // myCapacityChangeQSet holds the queues that may have requests for this resource
-        //TODO can a resource not be associated with any queues?
-        if (myCapacityChangeQSet.isEmpty()) {
-            // no queues are currently associated with this resource, no reason to notify
-            logger.trace { "$time > Resource: processed 0 waiting requests for the positive capacity change." }
-            return
-        }
         if (myCapacityChangeQSet.size == 1) {
             // there is only one queue, no reason to decide, just notify it
             val queue = myCapacityChangeQSet.first()
@@ -1256,13 +1029,39 @@ open class Resource(
         }
     }
 
-    //TODO call the myCapacityChangeQSet?
+    /**
+     *  This function is called from the InactiveState when the state is entered.
+     *  The purpose of this function is to permit the notification of entities that may have
+     *  requests waiting in a queue that is supported by the resource that became inactive. There might not be
+     *  requests in the queue by the entity when the resource becomes inactive; however,
+     *  if there are, then the entity may want to not have the request wait during the inactive period.
+     *  This allows the entity to react to this situation.
+     */
     protected fun resourceBecameInactive() {
-        TODO("not implemented yet")
-//        super.resourceBecameInactive()
-//        for (request in myWaitingQ) {
-//            request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(myWaitingQ, this, request)
-//        }
+        if (myCapacityChangeQSet.size == 1) {
+            // there is only one queue, no reason to decide, just notify it
+            val queue = myCapacityChangeQSet.first()
+            for (request in queue) {
+                request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(queue, this, request)
+            }
+            return
+        }
+        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
+        while (itr.hasNext()) {
+            val queue = itr.next()
+            for (request in queue) {
+                request.entity.resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(queue, this, request)
+            }
+        }
+    }
+
+    /**
+     *  This function is called from the InactiveState when the state is exited.
+     *  The current behavior is to do nothing. That is, the normal operation of the resource occurs.
+     *  This function can be used by subclasses to inject logic into this event.
+     */
+    protected open fun resourceBecameActive() {
+
     }
 
     inner class CapacityChangeNotice(
@@ -1318,8 +1117,7 @@ open class Resource(
     }
 
 
-
-    companion object{
+    companion object {
 
         /**
          *  Creates the required number of resources that have no queue, each with the specified capacity.
@@ -1331,7 +1129,7 @@ open class Resource(
             require(capacity >= 1) { "The initial capacity of the resource must be >= 1" }
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
             val list = mutableListOf<Resource>()
-            for(i in 1..numToCreate){
+            for (i in 1..numToCreate) {
                 list.add(Resource(parent, capacity = capacity, name = "${parent.name}:R${i}"))
             }
             return list

@@ -851,10 +851,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(
             requestQ: RequestQ,
-            resourceWithQ: ResourceWithQ,
+            resource: Resource,
             request: ProcessModel.Entity.Request
         ) {
-            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resourceWithQ, request)
+            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resource, request)
         }
 
         /**
@@ -863,23 +863,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * was waiting in the request queue.  This is not a trivial thing to do since the entity
          * will be suspended after seizing a resource.  If the entity wants to stop waiting, then
          * the process will have to be terminated and the termination logic will need to handle
-         * what to do after the termination.
+         * what to do after the termination.  However, if the entity can wait for a different
+         * resource, it is possible to remove the request from its current queue and place
+         * the request in a different queue that supports a different (active) resource.
          *
          * @param queue the queue holding the request
-         * @param resource the involved resource
+         * @param resource the involved resource that became inactive
          * @param request the involved request
          */
         protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
-            queue: RequestQ, resource: ResourceWithQ, request: ProcessModel.Entity.Request
+            queue: RequestQ, resource: Resource, request: ProcessModel.Entity.Request
         ) {
-        }
-
-        internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(
-            requestQ: RequestQ,
-            resourceWithQ: MovableResourceWithQ,
-            request: ProcessModel.Entity.Request
-        ) {
-            resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resourceWithQ, request)
         }
 
         /**
@@ -888,14 +882,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * was waiting in the request queue.  This is not a trivial thing to do since the entity
          * will be suspended after seizing a resource.  If the entity wants to stop waiting, then
          * the process will have to be terminated and the termination logic will need to handle
-         * what to do after the termination.
+         * what to do after the termination.  However, if the entity can wait for a different
+         * resource, it is possible to remove the request from its current queue and place
+         * the request in a different queue that supports a different (active) resource.
          *
          * @param queue the queue holding the request
          * @param resource the involved resource
          * @param request the involved request
          */
         protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
-            queue: RequestQ, resource: MovableResourceWithQ, request: ProcessModel.Entity.Request
+            queue: RequestQ, resource: MovableResource, request: ProcessModel.Entity.Request
         ) {
         }
 
