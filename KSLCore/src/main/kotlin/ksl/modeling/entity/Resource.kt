@@ -568,6 +568,18 @@ open class Resource(
         // deallocate the allocation, so it can't be used again
         allocation.deallocate()
         deallocationNotification(allocation)
+        // deallocation completed need to check for pending capacity change
+        if (isPendingCapacityChange) {
+            if (capacityChangeRule == CapacityChangeRule.IGNORE) {
+                handeIgnoreRuleDeallocation(allocation)
+            } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+                // for WAIT rule handle releases only until full change gets allocated and scheduled
+                if (myCurrentChangeNotice!!.changeEvent == null) {
+                    // once it is not null, the full change has been completed and is being processed
+                    handleWaitRuleDeallocation(allocation)
+                }
+            }
+        }
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
