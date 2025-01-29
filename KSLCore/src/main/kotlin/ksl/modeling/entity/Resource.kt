@@ -869,7 +869,7 @@ open class Resource(
             val queue = itr.next()
             // need to ensure that notifications stop if all available will be allocated
             val n = queue.processWaitingRequests(amountAvailable, priority)
-            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
+            logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $amountAvailable available units." }
             amountAvailable = amountAvailable - n
             // there is no point in notifying after the resource has no units available
             if (amountAvailable == 0) {
