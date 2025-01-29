@@ -25,13 +25,16 @@ import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 fun main(){
     //example1()
    // example2()
 
-    mvnExample()
+ //   mvnExample()
+
+    estimatePI()
 }
 
 fun example1(){
@@ -95,4 +98,22 @@ fun mvnExample(){
     println()
     rho.write()
     println(rho)
+}
+
+fun estimatePI(){
+    val a = 0.0
+    val b = 1.0
+    val ucdf = UniformRV(a, b)
+    val stat = Statistic("Area Estimator")
+    val n = 100 // sample size
+    for (i in 1..n) {
+        val x = ucdf.value
+        val gx = 4.0*kotlin.math.sqrt(1.0- x*x)
+        val y = (b - a) * gx
+        stat.collect(y)
+    }
+    System.out.printf("True Area = %10.3f %n", Math.PI)
+    System.out.printf("Area estimate = %10.3f %n", stat.average)
+    println("Confidence Interval")
+    println(stat.confidenceInterval)
 }
