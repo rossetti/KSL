@@ -78,14 +78,14 @@ class TandemQueueWithConstrainedMovementV3(parent: ModelElement, name: String? =
             currentLocation = enter
             wip.increment()
             timeStamp = time
-            //transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
-            transportWith(movers, station1)
+            transportWith(movers, station1, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+ //           transportWith(movers, station1)
             use(worker1, delayDuration = st1)
-            //transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
-            transportWith(movers, station2)
+            transportWith(movers, station2, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+ //           transportWith(movers, station2)
             use(worker2, delayDuration = st2)
-            //transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
-            transportWith(movers, exit)
+            transportWith(movers, exit, loadingDelay = myLoadingTime, unLoadingDelay = myUnLoadingTime)
+//            transportWith(movers, exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }

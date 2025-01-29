@@ -40,6 +40,12 @@ open class MovableResourcePool(
     val resourcesByName: Map<String, MovableResource>
         get() = myResourcesByName
 
+    protected val myVelocity = RandomVariable(this, defaultVelocity)
+    val velocityRV: RandomSourceCIfc
+        get() = myVelocity
+    override val velocity: GetValueIfc
+        get() = myVelocity
+
     init {
         for (r in movableResources) {
             addResource(r)
@@ -56,12 +62,6 @@ open class MovableResourcePool(
         resource.velocityRV.initialRandomSource = myVelocity
         resource.myMovableResourcePools.add(this)
     }
-
-    protected val myVelocity = RandomVariable(this, defaultVelocity)
-    val velocityRV: RandomSourceCIfc
-        get() = myVelocity
-    override val velocity: GetValueIfc
-        get() = myVelocity
 
     var initialDefaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc = MovableResourceSelectionRule()
         set(value) {

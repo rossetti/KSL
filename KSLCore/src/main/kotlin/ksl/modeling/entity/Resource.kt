@@ -570,20 +570,6 @@ open class Resource(
         deallocationNotification(allocation)
     }
 
-//    protected open fun resourceEnteredFailure() {
-//        val list = allocations()
-//        for (allocation in list) {
-//            allocation.failureActions.beginFailure(allocation)
-//        }
-//    }
-//
-//    protected open fun resourcedExitedFailure() {
-//        val list = allocations()
-//        for (allocation in list) {
-//            allocation.failureActions.endFailure(allocation)
-//        }
-//    }
-
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
         State(name = aName, useStatistic = stateStatistics) {
         // need to have state implementations for: failed?
