@@ -50,6 +50,19 @@ open class ResourcePool(
         }
     }
 
+    /** Makes the specified number of single unit resources and includes them in the pool.
+     *
+     * @param parent the parent model element
+     * @param numResources number of single unit resources to include in the pool
+     * @param name the name of the pool
+     * @author rossetti
+     */
+    constructor(
+        parent: ModelElement,
+        numResources: Int = 1,
+        name: String? = null
+    ) : this(parent, Resource.createResources(parent, numResources, 1), name)
+
     /**
      *  Adds a resource to the pool. The model must not be running when adding a resource.
      *  @param resource the resource to add
