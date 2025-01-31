@@ -46,6 +46,10 @@ interface ResourceWithQCIfc : ResourceCIfc {
     fun useSchedule(schedule: CapacitySchedule, changeRule: CapacityChangeRule = CapacityChangeRule.IGNORE)
 }
 
+/**
+ *  The request queue notification rule for controlling the order
+ *  in which queues are notified for processing requests after a capacity change.
+ */
 fun interface RequestQueueNotificationRuleIfc {
     fun ruleIterator(set: Set<RequestQ>): Iterator<RequestQ>
 }

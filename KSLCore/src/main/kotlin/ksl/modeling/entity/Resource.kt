@@ -66,7 +66,17 @@ open class Resource(
      */
     protected val myCapacityChangeQSet = mutableSetOf<RequestQ>()
 
-    var requestQNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
+    final override var initialRequestQueueNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when changing the initial request queue notification rule." }
+            field = value
+        }
+
+    /**
+     *  Changing this during a replication will only affect the current replication.
+     *  The rule will be reset to the initial setting at the beginning of each replication.
+     */
+    var requestQNotificationRule: RequestQueueNotificationRuleIfc = initialRequestQueueNotificationRule
 
     /**
      *  The pools that currently contain the resource
@@ -159,12 +169,11 @@ open class Resource(
         }
     }
 
-    protected val myCapacity = TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
+    protected val myCapacity =
+        TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
 
     val numActiveUnits: TWResponseCIfc
         get() = myCapacity
-
-
 
     protected val myInactiveProp: Response = Response(this, name = "${this.name}:PTimeInactive")
     val proportionOfTimeInactive: ResponseCIfc
@@ -497,6 +506,7 @@ open class Resource(
         // make previous state inactive and current state idle, for start of the replication
         myState = myIdleState
         capacity = initialCapacity
+        requestQNotificationRule = initialRequestQueueNotificationRule
     }
 
     /**
