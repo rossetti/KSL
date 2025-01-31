@@ -17,6 +17,7 @@
  */
 package ksl.modeling.entity
 
+import ksl.modeling.entity.CapacitySchedule.CapacityItem
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -25,6 +26,26 @@ interface CapacityChangeListenerIfc {
     fun scheduleStarted(schedule: CapacitySchedule)
     fun scheduleEnded(schedule: CapacitySchedule)
     fun capacityChange(item: CapacitySchedule.CapacityItem)
+}
+
+/** A CapacityItemData represents the data for an item on a CapacitySchedule. CapacityItems are placed
+ * on a CapacitySchedule in the order that they will execute. The first item will start
+ * when the schedule starts and each item will be scheduled sequentially based on the durations
+ * of the previous items.  At the specified start time, the capacity is to be set to the supplied
+ * value.
+ * @param capacity the value of the capacity to be specified at the start time
+ * @param duration the duration of the change
+ * @param priority the priority of the change
+ */
+data class CapacityItemData(
+    val capacity: Int,
+    val duration: Double,
+    val priority: Int = KSLEvent.DEFAULT_PRIORITY
+) {
+    init {
+        require(duration > 0.0) { "The start time must be >= 0.0" }
+        require(capacity >= 0) { "The capacity must be >= 0" }
+    }
 }
 
 interface CapacityScheduleCIfc {
@@ -86,7 +107,19 @@ interface CapacityScheduleCIfc {
         capacity: Int,
         duration: Double,
         itemPriority: Int = eventPriority
-    )
+    ) : CapacityItem
+
+    fun addItemData(itemData: CapacityItemData) : CapacityItem {
+        return addItem(itemData.capacity, itemData.duration, itemData.priority)
+    }
+
+    fun addItemData(itemDataList: List<CapacityItemData>) : List<CapacityItem> {
+        val list = mutableListOf<CapacityItem>()
+        for(item in itemDataList){
+            list.add(addItemData(item))
+        }
+        return list
+    }
 
     /**
      * Removes all capacity items from the schedule
@@ -193,6 +226,9 @@ class CapacitySchedule(
         private set
 
     private val myItems: MutableList<CapacityItem> = mutableListOf()
+    val items: List<CapacityItem>
+        get() = myItems
+
     private val myChangeListeners: MutableList<CapacityChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
 
@@ -260,12 +296,9 @@ class CapacitySchedule(
         capacity: Int,
         duration: Double,
         itemPriority: Int
-    ) {
+    ) : CapacityItem {
         require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
-        if (scheduleLength.isInfinite()){
-            // cannot add any more items once an item with infinite duration was added
-            return
-        }
+        require(scheduleLength.isFinite()) {"Cannot add items once the schedule length becomes infinite!"}
         if (myItems.isEmpty()){
             // first item being added, end event priority must be < first item's priority
             myEndEventPriority = itemPriority - 5
@@ -276,6 +309,7 @@ class CapacitySchedule(
         item.startTime = scheduleLength
         scheduleLength = scheduleLength + duration
         myItems.add(item)
+        return item
     }
 
     /**
@@ -397,7 +431,7 @@ class CapacitySchedule(
 
         val id: Long = idCounter
         var name: String = "Item:$id"
-        val schedule: CapacitySchedule = this@CapacitySchedule
+        internal val schedule: CapacitySchedule = this@CapacitySchedule
         internal var startEvent: KSLEvent<CapacityItem>? = null
 
         var startTime: Double = 0.0
