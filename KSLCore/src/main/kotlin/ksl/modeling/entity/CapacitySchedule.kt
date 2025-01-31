@@ -109,10 +109,16 @@ interface CapacityScheduleCIfc {
         itemPriority: Int = eventPriority
     ) : CapacityItem
 
+    /**
+     *  Allow the creation of capacity schedule items via a data class
+     */
     fun addItemData(itemData: CapacityItemData) : CapacityItem {
         return addItem(itemData.capacity, itemData.duration, itemData.priority)
     }
 
+    /**
+     *  Allow the creation of capacity schedule items via a data class
+     */
     fun addItemData(itemDataList: List<CapacityItemData>) : List<CapacityItem> {
         val list = mutableListOf<CapacityItem>()
         for(item in itemDataList){
