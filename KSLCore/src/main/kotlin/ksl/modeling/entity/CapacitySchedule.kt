@@ -27,6 +27,73 @@ interface CapacityChangeListenerIfc {
     fun capacityChange(item: CapacitySchedule.CapacityItem)
 }
 
+interface CapacityScheduleCIfc {
+
+    val eventPriority: Int
+
+    /**
+     * The schedule repeat flag controls whether
+     * the entire schedule will repeat after its entire duration
+     * has elapsed. The default is to repeat the schedule. The
+     * use of this flag only makes sense if a finite schedule length is
+     * specified
+     *
+     */
+    var isScheduleRepeatable: Boolean
+
+    /**
+     * Indicates whether the schedule should be started automatically upon initialization, default is true
+     */
+    var isAutoStartFlag: Boolean
+
+    /**
+     * The time from the beginning of the replication to the time that the schedule is to start
+     */
+    var initialStartTime: Double
+
+    /**
+     * The same listener cannot be added more than once. Listeners are
+     * notified of schedule changes in the sequence by which they were added.
+     *
+     * @param listener the listener to add to the schedule
+     */
+    fun addCapacityChangeListener(listener: CapacityChangeListenerIfc)
+
+    /**
+     *
+     * @param listener the listener to delete from the schedule
+     */
+    fun deleteCapacityChangeListener(listener: CapacityChangeListenerIfc)
+
+    /**
+     * Deletes all listeners
+     */
+    fun deleteCapacityChangeListeners()
+
+    /**
+     *
+     * @return the number of listeners
+     */
+    fun countScheduleChangeListeners(): Int
+
+    /**
+     * Adds an item to the schedule
+     * @param duration the duration of the item
+     * @param capacity a message or datum to attach to the item
+     * @return the created CapacityItem
+     * */
+    fun addItem(
+        capacity: Int,
+        duration: Double,
+        itemPriority: Int = eventPriority
+    )
+
+    /**
+     * Removes all capacity items from the schedule
+     */
+    fun clearSchedule()
+}
+
 /** A CapacitySchedule represents a known set of capacity specifications that last for a duration of time.
  *
  * A CapacitySchedule has an auto start flag, which controls whether the schedule should start automatically
@@ -66,14 +133,14 @@ class CapacitySchedule(
     startTime: Double = 0.0,
     autoStartOption: Boolean = true,
     repeatable: Boolean = false,
-    val eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+    override val eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), CapacityScheduleCIfc {
 
     init {
         require(startTime >= 0.0) {"The initial start time must be >= 0.0"}
     }
-    
+
     /**
      * The schedule repeat flag controls whether
      * the entire schedule will repeat after its entire duration
@@ -82,7 +149,7 @@ class CapacitySchedule(
      * specified
      *
      */
-    var isScheduleRepeatable: Boolean = repeatable
+    override var isScheduleRepeatable: Boolean = repeatable
         set(value) {
             require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
             field = value
@@ -93,7 +160,7 @@ class CapacitySchedule(
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    var isAutoStartFlag: Boolean = autoStartOption
+    override var isAutoStartFlag: Boolean = autoStartOption
         set(value) {
             require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
             field = value
@@ -102,7 +169,7 @@ class CapacitySchedule(
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    var initialStartTime: Double = startTime
+    override var initialStartTime: Double = startTime
         set(value) {
             require(value >= 0.0) {"The initial start time must be >= 0.0"}
             require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
@@ -146,7 +213,7 @@ class CapacitySchedule(
      *
      * @param listener the listener to add to the schedule
      */
-    fun addCapacityChangeListener(listener: CapacityChangeListenerIfc) {
+    override fun addCapacityChangeListener(listener: CapacityChangeListenerIfc) {
         require(!myChangeListeners.contains(listener)) { "The supplied listener is already attached" }
         myChangeListeners.add(listener)
     }
@@ -155,14 +222,14 @@ class CapacitySchedule(
      *
      * @param listener the listener to delete from the schedule
      */
-    fun deleteCapacityChangeListener(listener: CapacityChangeListenerIfc) {
+    override fun deleteCapacityChangeListener(listener: CapacityChangeListenerIfc) {
         myChangeListeners.remove(listener)
     }
 
     /**
      * Deletes all listeners
      */
-    fun deleteCapacityChangeListeners() {
+    override fun deleteCapacityChangeListeners() {
         myChangeListeners.clear()
     }
 
@@ -179,7 +246,7 @@ class CapacitySchedule(
      *
      * @return the number of listeners
      */
-    fun countScheduleChangeListeners(): Int {
+    override fun countScheduleChangeListeners(): Int {
         return myChangeListeners.size
     }
 
@@ -189,11 +256,12 @@ class CapacitySchedule(
      * @param capacity a message or datum to attach to the item
      * @return the created CapacityItem
      * */
-    fun addItem(
+    override fun addItem(
         capacity: Int,
         duration: Double,
-        itemPriority: Int = eventPriority
+        itemPriority: Int
     ) {
+        require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
         if (scheduleLength.isInfinite()){
             // cannot add any more items once an item with infinite duration was added
             return
@@ -213,7 +281,8 @@ class CapacitySchedule(
     /**
      * Removes all capacity items from the schedule
      */
-    fun clearSchedule() {
+    override fun clearSchedule() {
+        require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
         myItems.clear()
     }
 
