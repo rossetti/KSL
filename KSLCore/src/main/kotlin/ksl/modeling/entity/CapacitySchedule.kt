@@ -70,6 +70,10 @@ class CapacitySchedule(
     name: String? = null
 ) : ModelElement(parent, name) {
 
+    init {
+        require(startTime >= 0.0) {"The initial start time must be >= 0.0"}
+    }
+    
     /**
      * The schedule repeat flag controls whether
      * the entire schedule will repeat after its entire duration
@@ -78,19 +82,32 @@ class CapacitySchedule(
      * specified
      *
      */
-    val isScheduleRepeatable: Boolean = repeatable
+    var isScheduleRepeatable: Boolean = repeatable
+        set(value) {
+            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            field = value
+        }
 
     private var idCounter: Long = 0
 
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    val isAutoStartFlag: Boolean = autoStartOption
+    var isAutoStartFlag: Boolean = autoStartOption
+        set(value) {
+            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            field = value
+        }
 
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    val initialStartTime: Double = startTime
+    var initialStartTime: Double = startTime
+        set(value) {
+            require(value >= 0.0) {"The initial start time must be >= 0.0"}
+            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            field = value
+        }
 
     /**
      * Represents the total length of time of the schedule.
