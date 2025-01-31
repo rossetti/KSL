@@ -42,7 +42,7 @@ open class ResourcePool(
     parent: ModelElement,
     poolResources: List<Resource>,
     name: String? = null
-) : AbstractResourcePool<Resource>(parent, name) {
+) : AbstractResourcePool<Resource>(parent, name), ResourcePoolCIfc {
 
     init {
         for (r in poolResources) {
@@ -72,7 +72,7 @@ open class ResourcePool(
         resource.myResourcePools.add(this)
     }
 
-    var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
+    override var initialDefaultResourceSelectionRule: ResourceSelectionRuleIfc = ResourceSelectionRule()
         set(value) {
             require(model.isNotRunning) {"Changing the initial resource selection rule during a replication will cause replications to not have the same starting conditions"}
             field = value
@@ -86,7 +86,7 @@ open class ResourcePool(
             }
         }
 
-    var initialDefaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
+    override var initialDefaultResourceAllocationRule: ResourceAllocationRuleIfc = AllocateInOrderListedRule()
         set(value) {
             require(model.isNotRunning) {"Changing the initial resource allocation rule during a replication will cause replications to not have the same starting conditions"}
             field = value
