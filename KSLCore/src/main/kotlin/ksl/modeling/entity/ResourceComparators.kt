@@ -1,24 +1,6 @@
 package ksl.modeling.entity
 
 /**
- * An allocation listener is notified whenever the resource is allocated and when the resource
- * is deallocated. This allows general actions to occur when the resource's state changes
- * at these instances in time.
- */
-interface AllocationListenerIfc {
-
-    /**
-     * @param allocation the allocation that was allocated
-     */
-    fun allocate(allocation: Allocation)
-
-    /**
-     * @param allocation the allocation that was deallocated
-     */
-    fun deallocate(allocation: Allocation)
-}
-
-/**
  *  The ordering is determined such that more available units "rise to the top",
  *  then by least number times seized, then by oldest time last busy
  */
