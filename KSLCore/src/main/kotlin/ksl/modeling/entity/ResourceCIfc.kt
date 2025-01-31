@@ -129,4 +129,10 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      *  A general attribute that can be used to assist with selecting resources
      */
     val selectionCriteria: Double
+
+    /**
+     *  The initial request queue notification rule for controlling the order
+     *  in which queues are notified for processing requests after a capacity change.
+     */
+    val initialRequestQueueNotificationRule: RequestQueueNotificationRuleIfc
 }
