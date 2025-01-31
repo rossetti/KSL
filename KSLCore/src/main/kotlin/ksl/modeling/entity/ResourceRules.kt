@@ -63,8 +63,6 @@ class AllocateInOrderListedRule : ResourceAllocationRuleIfc {
     }
 }
 
-
-
 /**
  *  Returns the first resource that can (individually) entirely supply the requested amount.
  *  The return list will have 0 or 1 item.
