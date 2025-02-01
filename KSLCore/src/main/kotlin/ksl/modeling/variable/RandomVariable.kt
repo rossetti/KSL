@@ -79,17 +79,6 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
 
     fun asString(): String
 
-//    /**
-//     *  If the initial random source is a parameterized random variable,
-//     *  then its parameters are returned; otherwise, null is returned.
-//     */
-//    fun initialRandomSourceParameters(): RVParameters? {
-//        if (this.initialRandomSource is ParameterizedRV) {
-//            val me = this.initialRandomSource as ParameterizedRV
-//            return me.parameters
-//        }
-//        return null
-//    }
 }
 
 /**

@@ -453,57 +453,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private val resourceAllocations: MutableMap<Resource, MutableList<Allocation>> = mutableMapOf()
 
-//        //TODO I don't see a reason why the createRequest() functions should not be internal
-//
-//        /**
-//         * Facilitates the creation of requests for the entity by clients that
-//         * have access to a reference to the entity or via the entity itself.
-//         *
-//         * @param amountNeeded the amount needed to fill the request
-//         * @return the constructed Request
-//         */
-//        internal fun createRequest(amountNeeded: Int = 1, resource: Resource): Request {
-//            // called from seize(resource, ...)
-//            val request = Request(amountNeeded)
-////            request.resource = resource
-//            return request
-//        }
-//
-//        /**
-//         * Facilitates the creation of requests for the entity by clients that
-//         * have access to a reference to the entity or via the entity itself.
-//         *
-//         * @param amountNeeded the amount needed to fill the request
-//         * @return the constructed Request
-//         */
-//        internal fun createRequest(
-//            amountNeeded: Int = 1,
-//            resourcePool: ResourcePool,
-//         ): Request {
-//            // called from seize(resourcePool, ...)
-//            val request = Request(amountNeeded)
-////            request.resourcePool = resourcePool
-//            return request
-//        }
-//
-//        internal fun createMovableResourceRequest(
-//            resourcePool: MovableResourcePool
-//        ): Request {
-//            // called from seize(movableResourcePool, ...)
-//            val request = Request()
-////            request.resourcePool = resourcePool
-//            return request
-//        }
-//
-//        internal fun createMovableResourceRequest(
-//            resourcePoolWithQ: MovableResourcePoolWithQ
-//        ): Request {
-//            //called from seize(movableResourcePoolWithQ, ....)
-//            val request = Request()
-////            request.resourcePool = resourcePoolWithQ
-//            return request
-//        }
-
         /**
          *  Represents some amount of units needed from 1 or more resources
          *
@@ -697,10 +646,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         internal fun immediateResume() {
             //TODO immediateResume() who calls this?
-            // called from 1) within resourceSeizeAction(), 2)resourcePoolSeizeAction(), 3) HoldQueue.removeAndImmediateResume()
-            // 4) private inner class ResumeAction : EventAction<Nothing>
-            // resourceSeizeAction() is no longer used
-            // resourcePoolSeizeAction() is no longer used
+            // called from 1) HoldQueue.removeAndImmediateResume()
+            // 2) private inner class ResumeAction : EventAction<Nothing>
             // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
@@ -878,14 +825,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
-         *  A request in a request queue is there because it's entity is suspended. This function
+         *  A request, in a request queue, is there because it's entity is suspended. This function
          *  will remove the supplied request from the specified queue and place it in the queue
-         *  associated with the resource. If the resource has units of capacity available to satisfy
+         *  associated with the specified resource. If the resource has units of capacity available to satisfy
          *  the request, then the entity is resumed to allow the units to be allocated. If the resource
-         *  does not have sufficient units to satisfy the request, the entity stays suspended. The
-         *  specified resource must not be associated with the request. The request must be queued and
+         *  does not have sufficient units to satisfy the request, the entity stays suspended within the
+         *  resource's queue and will be processed as a normal request for the resource.
+         *
+         *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with
-         *  the supplied request.
+         *  the supplied request.  The request must be for a resource to be moved to a resource with a queue.
+         *
+         *  @param request the request to move
+         *  @param currentQueue the queue that the request is currently in
+         *  @param resource the new resource that the request to be for
+         *  @param resumePriority the priority of the resume if the request can be resumed
+         *  @param waitStats indicated whether the removal of the request from its current queue will cause
+         *  waiting time statistics to be collected for that queue. The default is false.
          */
         protected fun moveRequestToResource(
             request: ProcessModel.Entity.Request,
@@ -899,18 +855,121 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.entity == this) { "The request to move is not from this entity" }
             require(request.entity.isSuspended) { "The entity must be suspended" }
             require(request.resource != null) {"Cannot move the request to ${resource.name} because the request is not for a resource"}
-            require(request.resource != resource)
+            require(request.resource != resource) {"The supplied resource ${resource.name} must not be associated with the request."}
             currentQueue.remove(request, waitStats)
             val newQ = resource.myWaitingQ
             newQ.enqueue(request, request.priority)
+            // the request's original resource is replaced with the new resource
             request.resource = resource
-            // if the new resource has available units then its queue needs to be processed
-            // no seize occurred, must allow it to be resumed
-            if (resource.numAvailableUnits >= request.amountRequested){
-                newQ.processWaitingRequests(request.amountRequested, resumePriority)
+            if (newQ.size == 1){
+                // the moving request is the only request in the queue, we can check if it can be allocated
+                if (resource.canAllocate(request.amountRequested)){
+                    // if the resource can allocate the units then the request's entity can be resumed
+                    // otherwise it continues to wait in the new queue for normal processing
+                    request.entity.resumeProcess(0.0, resumePriority)
+                }
             }
         }
 
+        /**
+         *  A request, in a request queue, is there because it's entity is suspended. This function
+         *  will remove the supplied request from the specified queue and place it in the queue
+         *  associated with the specified resource pool. If the resource pool has units of capacity available to satisfy
+         *  the request, then the entity is resumed to allow the units to be allocated. If the resource pool
+         *  does not have sufficient units to satisfy the request, the entity stays suspended within the
+         *  resource pool's queue and will be processed as a normal request for the resource pool.
+         *
+         *  The specified resource pool must not be associated with the request. The request must be queued and
+         *  in the specified queue. The entity must currently be suspended and must be associated with
+         *  the supplied request.  The request must be a request for a resource pool to move to another pool.
+         *
+         *  @param request the request to move
+         *  @param currentQueue the queue that the request is currently in
+         *  @param pool the new resource pool that the request to be for
+         *  @param resourceSelectionRule the resource selection rule to use when checking if the request
+         *  can be allocated units from its new pool
+         *  @param resumePriority the priority of the resume if the request can be resumed
+         *  @param waitStats indicated whether the removal of the request from its current queue will cause
+         *  waiting time statistics to be collected for that queue. The default is false.
+         */
+        protected fun moveRequestToResourcePool(
+            request: ProcessModel.Entity.Request,
+            currentQueue: RequestQ,
+            pool: ResourcePoolWithQ,
+            resourceSelectionRule: ResourceSelectionRuleIfc,
+            resumePriority: Int,
+            waitStats: Boolean = false
+        ) {
+            require(request.isQueued) { "The request must be queued to move it" }
+            require(currentQueue == request.queue) { "The supplied queue is not the queue associated with the request that is moving" }
+            require(request.entity == this) { "The request to move is not from this entity" }
+            require(request.entity.isSuspended) { "The entity must be suspended" }
+            require(request.resourcePool != null) {"Cannot move the request to ${pool.name} because the request is not for a resource pool"}
+            require(request.resourcePool != pool) {"The supplied resource pool ${pool.name} must not be associated with the request."}
+            currentQueue.remove(request, waitStats)
+            val newQ = pool.myWaitingQ
+            newQ.enqueue(request, request.priority)
+            // the request's original resource pool is replaced with the new resource pool
+            request.resourcePool = pool
+            if (newQ.size == 1){
+                // the moving request is the only request in the queue, we can check if it can be allocated
+                if (pool.canAllocate(resourceSelectionRule, request.amountRequested)){
+                    // if the resource can allocate the units then the request's entity can be resumed
+                    // otherwise it continues to wait in the new queue for normal processing
+                    request.entity.resumeProcess(0.0, resumePriority)
+                }
+            }
+        }
+
+        /**
+         *  A request, in a request queue, is there because it's entity is suspended. This function
+         *  will remove the supplied request from the specified queue and place it in the queue
+         *  associated with the specified movable resource pool. If the movable resource pool has a unit of capacity available to satisfy
+         *  the request, then the entity is resumed to allow the unit to be allocated. If the movable resource pool
+         *  does not have a unit to satisfy the request, the entity stays suspended within the
+         *  movable resource pool's queue and will be processed as a normal request for the movable resource pool.
+         *
+         *  The specified movable resource pool must not be associated with the request. The request must be queued and
+         *  in the specified queue. The entity must currently be suspended and must be associated with
+         *  the supplied request.  The request must be a request for a movable resource pool to move to another movable resource pool.
+         *
+         *  @param request the request to move
+         *  @param currentQueue the queue that the request is currently in
+         *  @param pool the new resource pool that the request to be for
+         *  @param resourceSelectionRule the resource selection rule to use when checking if the request
+         *  can be allocated from its new pool
+         *  @param resumePriority the priority of the resume if the request can be resumed
+         *  @param waitStats indicated whether the removal of the request from its current queue will cause
+         *  waiting time statistics to be collected for that queue. The default is false.
+         */
+        protected fun moveRequestToMovableResourcePool(
+            request: ProcessModel.Entity.Request,
+            currentQueue: RequestQ,
+            pool: MovableResourcePoolWithQ,
+            resourceSelectionRule: MovableResourceSelectionRuleIfc,
+            resumePriority: Int,
+            waitStats: Boolean = false
+        ) {
+            require(request.isQueued) { "The request must be queued to move it" }
+            require(currentQueue == request.queue) { "The supplied queue is not the queue associated with the request that is moving" }
+            require(request.entity == this) { "The request to move is not from this entity" }
+            require(request.entity.isSuspended) { "The entity must be suspended" }
+            require(request.movableResourcePool != null) {"Cannot move the request to ${pool.name} because the request is not for a movable resource pool"}
+            require(request.movableResourcePool != pool) {"The supplied movable resource pool ${pool.name} must not be associated with the request."}
+            currentQueue.remove(request, waitStats)
+            val newQ = pool.myWaitingQ
+            newQ.enqueue(request, request.priority)
+            // the request's original movable resource pool is replaced with the new movable resource pool
+            request.movableResourcePool = pool
+            if (newQ.size == 1){
+                // the moving request is the only request in the queue, we can check if it can be allocated
+                if (pool.canAllocate(resourceSelectionRule)){
+                    // if the resource can allocate the units then the request's entity can be resumed
+                    // otherwise it continues to wait in the new queue for normal processing
+                    request.entity.resumeProcess(0.0, resumePriority)
+                }
+            }
+        }
 
         /**
          * Subclasses of entity can override this method to provide behavior if a request associated
@@ -1127,7 +1186,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var calledProcess: ProcessCoroutine? = null
 
             // can be used internally to control the priority of resuming after a suspension
-            internal var resumptionPriority: Int = ProcessModel.RESUME_PRIORITY
+            internal var resumptionPriority: Int = RESUME_PRIORITY
 
             // need a set to hold processes that are blocked waiting on the completion of this process
             private var blockedUntilCompletionListeners: MutableSet<ProcessCoroutine>? = null
@@ -1416,7 +1475,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // done blocking on the process so make sure that set is clear
                 blockingUntilCompletedSet?.clear()
                 blockingUntilCompletedSet = null
-                this.resumptionPriority = ProcessModel.RESUME_PRIORITY
+                this.resumptionPriority = RESUME_PRIORITY
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} stopped blocking until all complete for suspension $currentSuspendName, in process, ($this)" }
                 currentSuspendName = null
@@ -1512,26 +1571,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            //TODO analyze the usage of this: resourceSeizeAction
-            // this indicates that this method is NOT referenced
-//            private fun resourceSeizeAction(event: KSLEvent<Request>) {
-//                val request = event.message!!
-//                val resource = request.resource!!
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
-//                if (resource.canAllocate(request.amountRequested)) {
-//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
-//                    request.entity.immediateResume()
-//                } else {
-//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
-//                }
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
-//            }
-
             override suspend fun yield(
                 yieldPriority: Int,
                 suspensionName: String?
             ) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : YEILD: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : YIELD: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 delay(0.0, yieldPriority, suspensionName = "DELAY for YIELD: $suspensionName")
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : YIELD: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
             }
@@ -1550,7 +1594,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
                 val request = Request(amountNeeded)
                 request.resource = resource
-                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
+                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 if (!resource.canAllocate(request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
@@ -1560,32 +1604,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 }
                 // entity has been told to resume or resource has amount requested
-                require(resource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resource.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                val allocation = resource.allocate(entity, amountNeeded, queue, suspensionName)
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${resource.name} : allocation_id = ${allocation.id}" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                if (request.resource != resource){
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource ${resource.name} to resource ${request.resource?.name}" }
+                }
+                // the resource could be different because the request could have been moved, use the resource attached to the request
+                val theResource = request.resource ?: resource
+                // a probably redundant check to ensure the resource can actually allocate the units
+                require(theResource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${theResource.name}" }
+                val allocation = theResource.allocate(entity, amountNeeded, queue, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${theResource.name} : allocation_id = ${allocation.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END: SEIZE: RESOURCE: ${theResource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
             }
-
-            //TODO analyze the usage of this: resourcePoolSeizeAction
-            // this indicates that this method is NOT referenced
-//            private fun resourcePoolSeizeAction(event: KSLEvent<Request>) {
-//                val request = event.message!!
-//                val resourcePool = request.resourcePool!!
-//                val selectionRule = request.resourceSelectionRule!!
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action" }
-//                if (resourcePool.canAllocate(selectionRule, request.amountRequested)) {
-//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, available : immediate resume" }
-//                    request.entity.immediateResume()
-//                } else {
-//                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : amount = ${request.amountRequested}, not available : wait (suspended)" }
-//                }
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : seize action " }
-//            }
 
             override suspend fun seize(
                 resourcePool: ResourcePool,
@@ -1603,7 +1637,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
                 val request = Request(amountNeeded)
                 request.resourcePool = resourcePool
-                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
+                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
                 if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
@@ -1613,22 +1647,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 }
-                // entity has been told to resume
-                require(
-                    resourcePool.canAllocate(
-                        resourceSelectionRule,
-                        amountNeeded
-                    )
-                ) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${resourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                // This causes both the selection rule and the allocation rule to be invoked
-                val allocation = resourcePool.allocate(
-                    entity, amountNeeded, queue,
-                    resourceSelectionRule, resourceAllocationRule, suspensionName
-                )
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${resourcePool.name} : allocation_id = ${allocation.id}" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                if (request.resourcePool != resourcePool){
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${resourcePool.name} to resource pool ${request.resourcePool?.name}" }
+                }
+                // the resource pool could be different because the request could have been moved, use the resource pool attached to the request
+                val thePool = request.resourcePool ?: resourcePool
+                // a probably redundant check to ensure the resource pool can actually allocate the units
+                require(thePool.canAllocate(resourceSelectionRule, amountNeeded))
+                    { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name}" }
+                 // This causes both the selection rule and the allocation rule to be invoked
+                val allocation = thePool.allocate(entity, amountNeeded, queue,
+                    resourceSelectionRule, resourceAllocationRule, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${thePool.name} : allocation_id = ${allocation.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
@@ -1649,9 +1682,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
                 val request = Request()
                 request.movableResourcePool = movableResourcePool
-                request.priority = entity.priority //TODO consider adding a queue priority to seize() function
+                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
-                //TODO this causes the selection rule to be invoked to see if resources are available
+                // this causes the selection rule to be invoked to see if resources are available
                 if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
@@ -1660,16 +1693,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 }
                 // entity has been told to resume
-                require(movableResourcePool.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${movableResourcePool.name}" }
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
-                //TODO This causes both the selection rule and the allocation rule to be invoked
-                val allocation = movableResourcePool.allocate(
-                    entity, requestLocation, queue,
-                    resourceSelectionRule, resourceAllocationRule, suspensionName
-                )
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${movableResourcePool.name} : allocation_id = ${allocation.id}" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                if (request.movableResourcePool != movableResourcePool){
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${movableResourcePool.name} to resource pool ${request.movableResourcePool?.name}" }
+                }
+                // the resource pool could be different because the request could have been moved, use the resource pool attached to the request
+                val thePool = request.movableResourcePool ?: movableResourcePool
+                // a probably redundant check to ensure the resource pool can actually allocate the units
+                require(thePool.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${thePool.name}" }
+                // This causes both the selection rule and the allocation rule to be invoked
+                val allocation = thePool.allocate(entity, requestLocation, queue, resourceSelectionRule, resourceAllocationRule, suspensionName)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${thePool.name} : allocation_id = ${allocation.id}" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
@@ -2468,7 +2504,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myBlockedEntities.remove(entity)
             }
 
-            internal fun end(process: KSLProcess, ender: Entity, priority: Int = ProcessModel.RESUME_PRIORITY) {
+            internal fun end(process: KSLProcess, ender: Entity, priority: Int = RESUME_PRIORITY) {
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
@@ -2719,69 +2755,69 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  The default queuing priority. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        val QUEUE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val QUEUE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for seizing resources. The default is KSLEvent.VERY_HIGH_PRIORITY
          */
-        val SEIZE_PRIORITY = KSLEvent.HIGH_PRIORITY
+        const val SEIZE_PRIORITY = KSLEvent.HIGH_PRIORITY
 
         /**
          *  The default priority for requesting movable resources. The default is KSLEvent.HIGH_PRIORITY
          */
-        val TRANSPORT_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val TRANSPORT_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for requesting conveyor cells. The default is KSLEvent.HIGH_PRIORITY
          */
-        val CONVEYOR_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val CONVEYOR_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for releasing conveyor cells. The default is KSLEvent.VERY_HIGH_PRIORITY + 9.
          *  This makes the priority slightly less than very high.
          */
-        val CONVEYOR_EXIT_PRIORITY = KSLEvent.HIGH_PRIORITY + 9
+        const val CONVEYOR_EXIT_PRIORITY = KSLEvent.HIGH_PRIORITY + 9
 
         /**
          *  The default priority for time delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        val DELAY_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val DELAY_PRIORITY = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for move delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        val MOVE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val MOVE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for queueing for signals. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        val WAIT_FOR_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val WAIT_FOR_PRIORITY = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_HIGH_PRIORITY - 10.
          */
-        val RESUME_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY
+        const val RESUME_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_VERY_HIGH_PRIORITY - 9.
          *  This makes the priority slightly higher than VERY_VERY_HIGH.
          */
-        val RELEASE_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY - 9
+        const val RELEASE_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY - 9
 
         /**
          *  The default priority for interrupt delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        val INTERRUPT_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val INTERRUPT_PRIORITY = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for yielding control to the executive. The default is KSLEvent.LOW_PRIORITY.
          */
-        val YIELD_PRIORITY = KSLEvent.MEDIUM_LOW_PRIORITY
+        const val YIELD_PRIORITY = KSLEvent.MEDIUM_LOW_PRIORITY
 
         /**
          *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
          */
-        val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY - 10
+        const val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY - 10
 
         val logger = KotlinLogging.logger {}
     }
