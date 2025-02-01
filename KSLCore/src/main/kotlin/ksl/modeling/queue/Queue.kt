@@ -20,6 +20,7 @@ package ksl.modeling.queue
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.random.RandomIfc
 import java.util.*
 import java.util.function.Predicate
 
@@ -112,6 +113,8 @@ interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
      * @return True if the queue contains the specified element.
      */
     operator fun contains(qObj: T): Boolean
+
+    val initialRandomSource: RandomIfc
 }
 
 interface QueueIfc<T : ModelElement.QObject> : Iterable<T>{
@@ -345,6 +348,7 @@ open class Queue<T : ModelElement.QObject>(
         if (currentDiscipline != initialDiscipline) {
             currentDiscipline = initialDiscipline
         }
+        randomness = initialRandomSource
     }
 
     override fun afterReplication() {
@@ -842,12 +846,27 @@ open class Queue<T : ModelElement.QObject>(
     }
 
     /**
-     * If the Queue uses randomness, this controls it. By default, it uses
-     * the model's global source of uniform random variates.
-     * //TODO this does not consider initial random source protocol
-     * if the user decides to change it, replications may not be replications
+     * RandomIfc provides a reference to the underlying source of randomness
+     * to initialize each replication.
+     * Controls the underlying RandomIfc source for the RandomVariable. This is the
+     * source to which each replication will be initialized.  This is only used
+     * when the replication is initialized. Changing the reference has no effect
+     * during a replication, since the random variable will continue to use
+     * the reference returned by property randomSource.
      */
-    var randomness: RandomVariable = defaultUniformRV
+    final override var initialRandomSource: RandomIfc = defaultUniformRV
+        set(value) {
+            require(model.isNotRunning) {"The model should not be running when changing the initial random source"}
+            field = value
+        }
+
+    /**
+     * If the Queue uses randomness, this controls it. By default, it uses
+     * the model's global source of uniform random variates set via the initialRandomSource property
+     * if the user decides to change it, replications may not be replications.  Every
+     * replication will start with the same initial random source as per the initialRandomSource property.
+     */
+    var randomness: RandomIfc = initialRandomSource
 
     private inner class QueueListIterator : ListIterator<T> {
         private var myIterator: ListIterator<T> = myList.listIterator()
