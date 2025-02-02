@@ -140,6 +140,8 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
     private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")
+    val timeSeriesResponse = TimeSeriesResponse(this, 60.0, 6,
+        setOf(myJHBuntRecruiters.numBusyUnits, myMalWartRecruiters.numBusyUnits))
 
     init {
         hourlyResponseSchedule.scheduleRepeatFlag = false

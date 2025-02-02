@@ -74,7 +74,7 @@ class TestTimeSeriesResponse(
     val systemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myTimeSeriesResponse = TimeSeriesResponse(this, 100.0, setOf(mySysTime, myNS))
+    private val myTimeSeriesResponse = TimeSeriesResponse(this, 100.0, 5, setOf(mySysTime, myNS))
     val timeSeriesResponse: TimeSeriesResponseCIfc
         get() = myTimeSeriesResponse
 
