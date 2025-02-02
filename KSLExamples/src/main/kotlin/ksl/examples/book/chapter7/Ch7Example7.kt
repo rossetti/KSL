@@ -41,20 +41,13 @@ fun scheduledCase(){
     mixer.timeSeriesResponse.acrossRepStatisticsOption = true
     val kslDb = KSLDatabaseObserver(m)
     mixer.warningTime = 30.0
-//    m.lengthOfReplication = 360.0
     m.numberOfReplications = 400
     m.simulate()
     m.print()
     val r = m.simulationReporter
     r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
-
-//    val df1 = mixer.timeSeriesResponse.allTimeSeriesPeriodDataAsDataFrame()
-//    df1.print(rowsLimit = 100)
-
     kslDb.db.timeSeriesResponseViewData.print()
-
     println()
-
     mixer.timeSeriesResponse.allAcrossReplicationStatisticsByPeriodAsDataFrame().print()
 }
 
