@@ -22,6 +22,8 @@ import ksl.utilities.random.RandomIfc
  *
  * @param parent the parent model element
  * @param movableResources a list of resources to be included in the pool
+ * @param defaultVelocity the default velocity for movement within the spatial model
+ * @param queue the queue for the pool
  * @param name the name of the pool
  * @author rossetti
  */
@@ -32,23 +34,49 @@ class MovableResourcePoolWithQ(
     queue: RequestQ? = null,
     name: String? = null
 ) : MovableResourcePool(parent, movableResources, defaultVelocity, name), VelocityIfc {
+
+    /**
+     *  Creates the required number of movable resources for the pool. All created
+     *  movable resources have the same initial starting location. The pool uses
+     *  the supplied queue.
+     *
+     *  @param parent the containing model element
+     *  @param numUnits the number of resources to create, must be 1 or more
+     *  @param initLocation the initial starting location of the resource within the spatial model
+     *  @param defaultVelocity the default velocity for movement within the spatial model
+     *  @param queue the queue for the pool
+     *  @param name the name of the pool
+     */
+    constructor(
+        parent: ModelElement,
+        numUnits: Int,
+        initLocation: LocationIfc,
+        defaultVelocity: RandomIfc,
+        queue: RequestQ? = null,
+        name: String? = null
+    ) : this(parent, MovableResource.createMovableResources(parent, numUnits, initLocation, defaultVelocity, name),
+        defaultVelocity, queue, name
+    )
+
     /**
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+
     init {
         for (resource in myResources) {
             resource.registerCapacityChangeQueue(myWaitingQ)
         }
     }
+
     val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
         get() = myWaitingQ
 
     val resourcesWithQ: List<ResourceWithQCIfc>
         get() {
             val list = mutableListOf<ResourceWithQCIfc>()
-            for(resource in myResources){
-                if (resource is MovableResourceWithQ){
+            for (resource in myResources) {
+                if (resource is MovableResourceWithQ) {
                     list.add(resource)
                 }
             }

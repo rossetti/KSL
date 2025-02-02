@@ -247,11 +247,12 @@ open class MovableResource(
             numToCreate: Int,
             initLocation: LocationIfc,
             defaultVelocity: RandomIfc,
+            baseName: String? = parent.name
         ): List<MovableResource> {
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
             val list = mutableListOf<MovableResource>()
             for (i in 1..numToCreate) {
-                list.add(MovableResource(parent, initLocation, defaultVelocity, name = "${parent.name}:R${i}"))
+                list.add(MovableResource(parent, initLocation, defaultVelocity, name = "${baseName}:R${i}"))
             }
             return list
         }
