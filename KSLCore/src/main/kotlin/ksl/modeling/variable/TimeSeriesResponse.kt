@@ -2,6 +2,8 @@ package ksl.modeling.variable
 
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Table
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
@@ -9,6 +11,7 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.WeightedStatisticIfc
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.emptyDataFrame
+import org.jetbrains.kotlinx.dataframe.api.remove
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 /**
@@ -175,7 +178,13 @@ interface TimeSeriesResponseCIfc {
     fun allAcrossReplicationStatisticsByPeriodAsDataFrame(
         confidenceLevel: Double = TimeSeriesResponse.defaultConfidenceLevel
     ): DataFrame<TimeSeriesPeriodStatisticData> {
-        return allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel).toDataFrame()
+        var df = allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel).toDataFrame()
+        df = df.remove(
+            "standardError", "confidenceLevel", "kurtosis", "skewness",
+            "lag1Correlation", "numberMissing"
+        )
+        //return allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel).toDataFrame()
+        return df
     }
 
     /**
@@ -198,7 +207,8 @@ interface TimeSeriesResponseCIfc {
  *  constituting a time series for the response. For Response and TWResponse instances, the recorded
  *  response represents the average of the variable during the period. For Counter instances, the total
  *  count during the period is recorded.  This data is recorded for every response, for every period,
- *  for each replication.
+ *  for each replication.  The response or counter information is recorded at the end of each
+ *  completed period. The number of periods to collect must be supplied.
  *
  *  This class does not react to warm up events.  That is, periods observed prior to the warmup event
  *  will contain data that was observed during the warmup period.  The standard usage for this
@@ -224,36 +234,53 @@ interface TimeSeriesResponseCIfc {
 class TimeSeriesResponse(
     parent: ModelElement,
     periodLength: Double,
+    numPeriods: Int,
     responses: Set<ResponseCIfc> = emptySet(),
     counters: Set<CounterCIfc> = emptySet(),
     override var acrossRepStatisticsOption: Boolean = false,
     name: String? = null
 ) : ModelElement(parent, name), TimeSeriesResponseCIfc {
-
+    init {
+        require(numPeriods >= 1) {"The number of periods to collect must be >= 1"}
+    }
     constructor(
         parent: ModelElement,
         periodLength: Double,
+        numPeriods: Int,
         response: ResponseCIfc,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), emptySet(), acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, numPeriods, setOf(response), emptySet(), acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
         periodLength: Double,
+        numPeriods: Int,
         counter: CounterCIfc,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, emptySet(), setOf(counter), acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, numPeriods, emptySet(), setOf(counter), acrossRepStatisticsOption, name)
 
     constructor(
         parent: ModelElement,
         periodLength: Double,
+        numPeriods: Int,
         response: ResponseCIfc,
         counter: CounterCIfc,
         acrossRepStatisticsOption: Boolean = false,
         name: String? = null
-    ) : this(parent, periodLength, setOf(response), setOf(counter), acrossRepStatisticsOption, name)
+    ) : this(parent, periodLength, numPeriods, setOf(response), setOf(counter), acrossRepStatisticsOption, name)
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var numPeriodsToCollect = numPeriods
+        set(value) {
+            require(value >= 1) {"The number of periods to collect must be >= 1"}
+            require(model.isNotRunning) {"The model must not be running when changing the number of periods to collect."}
+            field = value
+        }
 
     private val myResponses = mutableMapOf<ResponseCIfc, PeriodStartData>()
     override val responses: List<ResponseCIfc>
@@ -578,7 +605,9 @@ class TimeSeriesResponse(
         // capture data from end of period which is the start of the next period
         startPeriodCollection()
         // schedule the next end of period
-        myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
+        if (periodCounter < numPeriodsToCollect){
+            myPeriodEvent = schedule(this::endPeriodEvent, myPeriodLength, priority = KSLEvent.MEDIUM_LOW_PRIORITY)
+        }
     }
 
     private fun endPeriodCollection() {
