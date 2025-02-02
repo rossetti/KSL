@@ -29,9 +29,6 @@ fun main() {
 
 class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    // define the random variables
-    private val tba = ExponentialRV(20.0)
-
     // test plan 1, distribution j
     private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1 * 4.1))
     private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2 * 4.2))
@@ -88,6 +85,8 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
+    // define the random variables
+    private val tba = ExponentialRV(20.0)
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
