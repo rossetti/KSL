@@ -490,22 +490,28 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
 
     /**
      * Estimates the number of observations needed in order to obtain a
-     * confidence interval with plus/minus the provided half-width.
+     * confidence interval with plus/minus the provided half-width. Uses the normal
+     * approximation method
      *
      * @param desiredHW the desired half-width, must be greater than zero
      * @param level the confidence level for the calculation. Defaults to
-     * the statistic's current confidence level
+     * the statistic's current confidence level.
      * @return the estimated sample size
      */
     fun estimateSampleSize(desiredHW: Double, level: Double = this.confidenceLevel): Long {
-        require(desiredHW > 0.0) { "The desired half-width must be > 0" }
-        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
-        val a = 1.0 - level
-        val a2 = a / 2.0
-        val z = Normal.stdNormalInvCDF(1.0 - a2)
-        val s = standardDeviation
-        val m = (z * s / desiredHW) * (z * s / desiredHW)
-        return (m + .5).roundToLong()
+        return Companion.estimateSampleSize(desiredHW, this.standardDeviation, level)
+    }
+
+    /**
+     * Estimate the sample size based on iterating the half-width equation based on the
+     * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW
+     *
+     * @param desiredHW the desired half-width (must be bigger than 0)
+     * @param level     the confidence level (must be between 0 and 1)
+     * @return the estimated sample size
+     */
+    fun estimateSampleSizeViaStudentT(desiredHW: Double, level: Double = this.confidenceLevel): Long {
+        return Companion.estimateSampleSizeViaStudentT(desiredHW, this.standardDeviation, level)
     }
 
     companion object {
@@ -693,7 +699,7 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
 
         /**
          * Estimate the sample size based on iterating the half-width equation based on the
-         * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= epsilon
+         * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW
          *
          * @param desiredHW the desired half-width (must be bigger than 0)
          * @param initStdDevEst  an initial estimate of the standard deviation (must be bigger than or equal to 0)
