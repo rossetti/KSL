@@ -1,12 +1,15 @@
 package ksl.examples.general.misc
 
 import ksl.utilities.distributions.Weibull
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.Statistic
-import org.jetbrains.letsPlot.commons.intern.math.ipow
-import org.jetbrains.letsPlot.commons.testing.assertContentEquals
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.ln
+import kotlin.math.sqrt
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
@@ -18,9 +21,28 @@ fun main(){
 //    val withOutSpaces = example.replace("\\p{Zs}+".toRegex(), "_")
 //    println(withOutSpaces)
  //   val lt1 = ConstantRV(10.0)
-    val lt2 = ShiftedGeometricRV(probOfSuccess = 0.2, streamNum = 1)
-    simulateDemandDuringLeadTime(1000, lt2)
+//    val lt2 = ShiftedGeometricRV(probOfSuccess = 0.2, streamNum = 1)
+//    simulateDemandDuringLeadTime(1000, lt2)
 
+    testBoxMuller()
+}
+
+fun testBoxMuller(n: Int = 1000){
+    val u = UniformRV(streamNum = 1)
+//    val h = CachedHistogram()
+    val data = mutableListOf<Double>()
+    for (i in 1..n) {
+        val u1 = u.value
+        val u2 = u.value
+        val x1 = cos(2.0*PI*u2)*sqrt(-2.0*ln(u1))
+//        h.collect(x1)
+        data.add(x1)
+    }
+//    println(h)
+//    h.currentHistogram.histogramPlot().showInBrowser()
+    val pdf = PDFModeler(data.toDoubleArray())
+    val results = pdf.showAllResultsInBrowser()
+    pdf.showAllGoodnessOfFitSummariesInBrowser(results)
 }
 
 fun chunky(){
