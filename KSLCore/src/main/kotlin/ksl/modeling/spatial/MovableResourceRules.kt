@@ -7,8 +7,8 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
 
 /**
- * Provides for a method to select resources from a list such that
- * the returned list will contain resources that can fully fill the amount needed
+ * Provides for a method to select movable resources from a list such that
+ * the returned list will contain movable resources that can satisfy the request
  * or the list will be empty.
  */
 fun interface MovableResourceSelectionRuleIfc {

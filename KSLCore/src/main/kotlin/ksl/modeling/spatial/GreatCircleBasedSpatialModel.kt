@@ -21,6 +21,13 @@ package ksl.modeling.spatial
 import ksl.utilities.math.KSLMath
 import kotlin.math.*
 
+/**
+ *  A [great circle](https://en.wikipedia.org/wiki/Great-circle_distance) spatial model represents the distance between two coordinates
+ *  on the earth based on latitude and longitude.  It provides an approximate distance
+ *  of travelling along the great circle between the coordinates. The model implemented within
+ *  the KSL allows for the adjustment of the distance based on circuity factor. The
+ *  circuity factor will adjust the distance based on the mode of transport road or rail.
+ */
 class GreatCircleBasedSpatialModel () : SpatialModel() {
     override var defaultLocation: LocationIfc = GPSCoordinate(latitude(), longitude(), "Greenwich")
 

@@ -128,7 +128,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
             delay(diagnosticTime)
             release(d1) // release machine first, because worker is needed to release
             release(dd1)
-            val twa = seize(transportWorkers)
+            val twa = seize(transportWorkers, seizePriority = KSLEvent.MEDIUM_PRIORITY)
             delay(moveTime)
             release(twa)
             // determine the test plan
@@ -144,7 +144,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
                 delay(tp.processTime)
                 release(t1)
                 release(tt1)
-                val twa1 = seize(transportWorkers)
+                val twa1 = seize(transportWorkers, seizePriority = KSLEvent.MEDIUM_PRIORITY)
                 delay(moveTime)
                 release(twa1)
             }
