@@ -37,6 +37,13 @@ class TwoStateMarkovChain(
         require((theInitialState == 0) || (theInitialState == 1)) { "The initial state must be 0 or 1" }
     }
 
+    constructor(
+        theInitialState: Int = 1,
+        p01: Double = 0.5,
+        p11: Double = 0.5,
+        streamNum: Int
+    ) : this(theInitialState, p01, p11, KSLRandom.rnStream(streamNum))
+
     override fun instance(stream: RNStreamIfc): RVariableIfc {
         return TwoStateMarkovChain(initialState, p01, p11, stream)
     }

@@ -37,6 +37,12 @@ class DPopulation(
     name: String? = null
 ) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name){
 
+    constructor(
+        elements: DoubleArray,
+        streamNum: Int,
+        name: String? = null
+    ) : this(elements, KSLRandom.rnStream(streamNum), name)
+
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
