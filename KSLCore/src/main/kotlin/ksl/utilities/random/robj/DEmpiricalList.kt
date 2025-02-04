@@ -37,6 +37,12 @@ class DEmpiricalList<T>(
         require(elements.size >= theCDF.size) { "The number of objects was less than the number of probabilities." }
     }
 
+    constructor(
+        elements: List<T>,
+        theCDF: DoubleArray,
+        streamNum: Int
+    ) : this(elements, theCDF, KSLRandom.rnStream(streamNum))
+
     override var rnStream: RNStreamIfc = stream
 
     val elements: List<T> = ArrayList(elements)
