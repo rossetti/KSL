@@ -26,6 +26,11 @@ class DUniformList<T>(
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : RList<T>(elements, stream) {
 
+    constructor(
+        elements: MutableList<T>,
+        streamNum: Int
+    ) : this(elements, KSLRandom.rnStream(streamNum))
+
     override val randomElement: T
         get() {
             require(this.isNotEmpty()) { "Cannot draw a random element from an empty list!" }

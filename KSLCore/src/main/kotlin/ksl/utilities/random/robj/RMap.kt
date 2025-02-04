@@ -14,6 +14,8 @@ class RMap<K, V>(
     stream: RNStreamIfc = KSLRandom.nextRNStream()
 ) : Map<K, V> by map, RElementIfc<V> {
 
+    constructor(map: Map<K, V>, streamNum: Int) : this(map, KSLRandom.rnStream(streamNum))
+
     override var rnStream: RNStreamIfc = stream
 
     private val myList: List<K>

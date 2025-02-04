@@ -50,6 +50,12 @@ open class DMarkovChain(
         require(KSLArrays.isSquare(transMatrix)) { "The probability transition matrix must be square" }
     }
 
+    constructor(
+        theInitialState: Int = 1,
+        transMatrix: Array<DoubleArray>,
+        streamNum: Int
+    ) : this(theInitialState, transMatrix, KSLRandom.rnStream(streamNum))
+
     protected var myStates: IntArray = IntArray(transMatrix.size)
     val states: IntArray
         get() = myStates.copyOf()
