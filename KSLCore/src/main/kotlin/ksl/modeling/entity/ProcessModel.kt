@@ -93,11 +93,30 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     }
 
+    /**
+     *  This class will activate the entity's default process or the process provided by the process name argument.
+     *  When the increment counter reaches the supplied initial count limit the entity's process will be activated.
+     *  If the reset count option is true the internal counter is reset and additional entities will be created
+     *  and activated when the count reaches the limit.  If the supplied process name is null (or not a
+     *  named process for the entity), then the entity's default process will be activated.  If both
+     *  are unspecified, then an error occurs.
+     *
+     *  This class works similarly to an EntityGenerator, except it is based on counts rather than time.
+     *  
+     * @param entityCreator the thing that creates the entities of the particular type. Typically,
+     * a reference to the constructor of the class
+     * @param initialCountLimit the limit to use to indicate when to activate the entity
+     * @param processName the name of the process, from the process() function that will be activated
+     * @param resetCountOption if true the counter will be reset after the activation occurs. True is the default.
+     * @param activationPriority the priority for scheduling the activation at the time the counter is reached
+     * @param name the model element name, must be unique.
+     */
     protected inner class ProcessActivator<T : Entity>(
         private val entityCreator: () -> T,
         initialCountLimit: Int = 1,
         var processName: String? = null,
         var resetCountOption: Boolean = true,
+        var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         name: String? = null
     ) : ModelElement(this@ProcessModel, name) {
 
@@ -107,17 +126,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         var initialActivationCountLimit = initialCountLimit
             set(value) {
-                require(value >= 0) { "The initial count limit must be >= 0" }
-                require(model.isNotRunning) {"The model must not be running when changing the initial activation count limit"}
+                require(value >= 1) { "The initial count limit must be >= 1" }
+                require(model.isNotRunning) { "The model must not be running when changing the initial activation count limit" }
                 field = value
             }
 
         private var activationCountLimit = initialCountLimit
-            set(value) {
-                require(value >= 0) { "The initial count limit must be >= 0" }
-                field = value
-                //TODO need to check if new value is less than the count and if so cause the activation
-            }
 
         private var myCount = 0
 
@@ -127,20 +141,39 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             activationCountLimit = initialActivationCountLimit
         }
 
-        fun increment() {
+        /**
+         *  Causes the activation counter to be incremented. Once the counter reaches the
+         *  limit the entity will be created and the entity's process is activated. If the reset count option is true,
+         *  the counter will be reset to allow additional entities to be activated.
+         *  @return if the count limit is reached and the entity created and activated, then
+         *  the entity instance will be returned.
+         */
+        fun increment(): T? {
             myCount++
-            if (myCount == activationCountLimit){
-                activateProcess()
-                if (resetCountOption){
+            if (myCount == activationCountLimit) {
+                if (resetCountOption) {
                     myCount = 0
                 }
+                return activateProcess()
             }
+            return null
         }
 
-        private fun activateProcess(){
-
+        private fun activateProcess(): T {
+            val entity = entityCreator()
+            require((processName != null) || (entity.defaultProcess != null)) { "The supplied process name and the entity's default process cannot both be null" }
+            if (processName != null) {
+                if (entity.processes.contains(processName)) {
+                    val p = entity.processes[processName]!!
+                    activate(p, priority = activationPriority)
+                }
+            } else {
+                if (entity.defaultProcess != null) {
+                    activate(entity.defaultProcess!!, priority = activationPriority)
+                }
+            }
+            return entity
         }
-
 
     }
 
