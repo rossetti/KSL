@@ -22,6 +22,7 @@ import ksl.modeling.variable.ValueIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
 import ksl.utilities.distributions.StudentT
+import ksl.utilities.statistic.Statistic.Companion
 import kotlin.math.floor
 import kotlin.math.log10
 
@@ -274,6 +275,32 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      */
     fun leadingDigitRule(multiplier: Double): Int{
         return floor(log10(multiplier * standardError)).toInt()
+    }
+
+    /**
+     * Estimates the number of observations needed in order to obtain a
+     * confidence interval with plus/minus the provided half-width. Uses the normal
+     * approximation method
+     *
+     * @param desiredHW the desired half-width, must be greater than zero
+     * @param level the confidence level for the calculation. Defaults to
+     * the statistic's current confidence level.
+     * @return the estimated sample size
+     */
+    fun estimateSampleSize(desiredHW: Double, level: Double = confidenceLevel): Long {
+        return Statistic.estimateSampleSize(desiredHW, standardDeviation, level)
+    }
+
+    /**
+     * Estimate the sample size based on iterating the half-width equation based on the
+     * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW
+     *
+     * @param desiredHW the desired half-width (must be bigger than 0)
+     * @param level     the confidence level (must be between 0 and 1)
+     * @return the estimated sample size
+     */
+    fun estimateSampleSizeViaStudentT(desiredHW: Double, level: Double = confidenceLevel): Long {
+        return Statistic.estimateSampleSizeViaStudentT(desiredHW, standardDeviation, level)
     }
 
     /**

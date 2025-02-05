@@ -488,32 +488,6 @@ class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArra
     val summaryStatisticsHeader: String
         get() = String.format("%-50s \t %12s \t %12s \t %12s", "Name", "Count", "Average", "Std. Dev.")
 
-    /**
-     * Estimates the number of observations needed in order to obtain a
-     * confidence interval with plus/minus the provided half-width. Uses the normal
-     * approximation method
-     *
-     * @param desiredHW the desired half-width, must be greater than zero
-     * @param level the confidence level for the calculation. Defaults to
-     * the statistic's current confidence level.
-     * @return the estimated sample size
-     */
-    fun estimateSampleSize(desiredHW: Double, level: Double = this.confidenceLevel): Long {
-        return Companion.estimateSampleSize(desiredHW, this.standardDeviation, level)
-    }
-
-    /**
-     * Estimate the sample size based on iterating the half-width equation based on the
-     * Student-T distribution:  hw = t(1-alpha/2, n-1)*s/sqrt(n) <= desiredHW
-     *
-     * @param desiredHW the desired half-width (must be bigger than 0)
-     * @param level     the confidence level (must be between 0 and 1)
-     * @return the estimated sample size
-     */
-    fun estimateSampleSizeViaStudentT(desiredHW: Double, level: Double = this.confidenceLevel): Long {
-        return Companion.estimateSampleSizeViaStudentT(desiredHW, this.standardDeviation, level)
-    }
-
     companion object {
 
         /**
