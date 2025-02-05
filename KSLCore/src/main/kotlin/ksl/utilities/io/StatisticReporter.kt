@@ -45,13 +45,23 @@ val D2FORMAT = DecimalFormat(".##")
  * @author rossetti
  * @param listOfStats a list containing the StatisticAccessorIfc instances
  */
-class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
-    private val myStats: MutableList<StatisticIfc>
-    private val myRowFormat: StringBuilder
-    private val myHeaderFormat: StringBuilder
+class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()) {
+
+    private val myStats: MutableList<StatisticIfc> = listOfStats
+    private val myRowFormat: StringBuilder = StringBuilder(DEFAULT_ROW_FORMAT)
+    private val myHeaderFormat: StringBuilder = StringBuilder(DEFAULT_HEADER_FORMAT)
     private val myNumCols = 120
     private val myNumDecPlaces = 6
-    private val myHline: StringBuilder
+    private val myHline: StringBuilder = StringBuilder()
+    init {
+        for (i in 1..myNumCols) {
+            myHline.append("-")
+        }
+    }
+
+//    constructor(statistics: List<Statistic>) : this() {
+//        myStats.addAll(statistics)
+//    }
 
     /**
      * Indicate whether to have time/date on the report
@@ -70,16 +80,6 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = ArrayList()) {
      *
      */
     var reportTitle: String? = null
-
-    init {
-        myStats = listOfStats
-        myHline = StringBuilder()
-        for (i in 1..myNumCols) {
-            myHline.append("-")
-        }
-        myRowFormat = StringBuilder(DEFAULT_ROW_FORMAT)
-        myHeaderFormat = StringBuilder(DEFAULT_HEADER_FORMAT)
-    }
 
     /**
      * Converts the statistics in the reporter to a data frame
