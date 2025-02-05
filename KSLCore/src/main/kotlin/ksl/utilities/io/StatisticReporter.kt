@@ -59,10 +59,6 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         }
     }
 
-//    constructor(statistics: List<Statistic>) : this() {
-//        myStats.addAll(statistics)
-//    }
-
     /**
      * Indicate whether to have time/date on the report
      * true means yes
@@ -118,6 +114,10 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
             return
         }
         myStats.add(statistic)
+    }
+
+    fun <T: StatisticIfc> addStatistics(stats: List<T>) {
+        stats.forEach { addStatistic(it) }
     }
 
     /**
@@ -598,10 +598,11 @@ fun main() {
     val s2 = Statistic("s2 blah")
     s1.collect(n.sample(100))
     s2.collect(n.sample(200))
-    val list: MutableList<StatisticIfc> = ArrayList()
+    val list: MutableList<Statistic> = ArrayList()
     list.add(s1)
     list.add(s2)
-    val r = StatisticReporter(list)
+    val r = StatisticReporter()
+    r.addStatistics(list)
     println(r.halfWidthSummaryReport(confLevel = .95))
     println(r.summaryReport())
     //r.setDecimalPlaces(2);
