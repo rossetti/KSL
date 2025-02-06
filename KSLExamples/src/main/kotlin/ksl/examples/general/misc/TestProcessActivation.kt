@@ -51,8 +51,10 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
             release(a)
             println("time = $time ended process 2 ${this@TestActivator}")
 
-            activator.increment()
-            println("time = $time incremented activator, last activated entity is ${activator.lastActivatedEntity?.name}")
+            val activated = activator.increment()
+            if (activated){
+                println("time = $time incremented activator, last activated entity is ${activator.lastActivatedEntity?.name}")
+            }
         }
     }
 

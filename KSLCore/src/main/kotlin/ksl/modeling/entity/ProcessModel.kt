@@ -107,7 +107,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * a reference to the constructor of the class
      * @param initialCountLimit the limit to use to indicate when to activate the entity
      * @param processName the name of the process, from the process() function that will be activated
-     * @param resetCountOption if true the counter will be reset after the activation occurs. True is the default.
+     * @param resetCountOption if true the counter will be reset after an activation occurs. True is the default.
+     * True allows multiple activations based on the count limit.
      * @param activationPriority the priority for scheduling the activation at the time the counter is reached
      * @param name the model element name, must be unique.
      */
@@ -124,6 +125,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(initialCountLimit > 0) { "The initial count limit must be >= 1" }
         }
 
+        /**
+         *  The count limit for activation, which can be changed only when the model is not running
+         *  This is the limit that specifies when the entity will be created and the process activated.
+         */
         var initialActivationCountLimit = initialCountLimit
             set(value) {
                 require(value >= 1) { "The initial count limit must be >= 1" }
@@ -131,15 +136,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 field = value
             }
 
+        /**
+         *  The default initialization option that specifies that the activator is on or off when the
+         *  model element is initialized. The default is true.
+         */
         var onAtInitializationOption: Boolean = true
             set(value) {
                 require(model.isNotRunning) { "The model must not be running when changing the on at initialization option" }
                 field = value
             }
+
+        /**
+         *  False will turn the activator off during a replication. True means that it is on.
+         *  This will be reset to the onAtInitializationOption so that each replication starts with
+         *  the same specification.
+         */
         var turnActivatorOn = onAtInitializationOption
 
         private var activationCountLimit = initialCountLimit
 
+        /**
+         *  The current count towards activation
+         */
         var count = 0
             private set
 
@@ -150,6 +168,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             turnActivatorOn = onAtInitializationOption
         }
 
+        /**
+         *  If not null, this property holds a reference to the entity created during the activation process.
+         */
         var lastActivatedEntity: T? = null
             private set
 
