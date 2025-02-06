@@ -156,7 +156,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private var activationCountLimit = initialCountLimit
 
         /**
-         *  The current count towards activation
+         *  The current count towards activation. If the reset count option is true, this will be
+         *  reset each time the limit is reached and an entity is created and activated.
          */
         var count = 0
             private set
