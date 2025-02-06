@@ -97,7 +97,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *  This class will activate the entity's default process or the process provided by the process name argument.
      *  When the increment counter reaches the supplied initial count limit the entity's process will be activated.
      *  If the reset count option is true the internal counter is reset and additional entities will be created
-     *  and activated when the count reaches the limit.  If the supplied process name is null (or not a
+     *  and activated when the count again reaches the limit.  If the supplied process name is null (or not a
      *  named process for the entity), then the entity's default process will be activated.  If both
      *  are unspecified, then an error occurs.
      *
