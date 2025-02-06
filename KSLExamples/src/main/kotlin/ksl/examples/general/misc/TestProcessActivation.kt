@@ -25,13 +25,39 @@ import ksl.modeling.entity.ResourceWithQ
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.distributions.Constant
+import ksl.utilities.random.rvariable.ConstantRV
 
 class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
 
     val resource: ResourceWithQ = ResourceWithQ(this, "R1")
 
+
+    private val activator = ProcessActivator(this::ActivationEntity, initialCountLimit = 3)
+    private val generator = EntityGenerator(this::TestActivator, timeBtwEvents = ConstantRV.ONE)
+
+    private inner class ActivationEntity: Entity() {
+
+        val test: KSLProcess = process(isDefaultProcess = true){
+            println("time = $time Activated the test activation process for entity ${entity.name}")
+        }
+    }
+
+    private inner class TestActivator: Entity() {
+        val process2: KSLProcess = process("process2", isDefaultProcess = true){
+            println("time = $time starting process 2 ${this@TestActivator}")
+            val a  = seize(resource)
+            delay(10.0)
+            release(a)
+            println("time = $time ended process 2 ${this@TestActivator}")
+
+            activator.increment()
+            println("time = $time incremented activator, last activated entity is ${activator.lastActivatedEntity?.name}")
+        }
+    }
+
     private inner class Customer: Entity() {
-        val process1 : KSLProcess = process() {
+        val process1 : KSLProcess = process(isDefaultProcess = true) {
             println("time = $time before the first delay in ${this@Customer}")
             delay(10.0)
             println("time = $time after the first delay in ${this@Customer}")
@@ -119,9 +145,9 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
     //   private var customer: Customer? = null
 
     override fun initialize() {
-        val e = Customer()
+    //    val e = Customer()
     //    activate(e.process1)
-        activate(e.process3)
+     //   activate(e.process3)
     }
 
 }

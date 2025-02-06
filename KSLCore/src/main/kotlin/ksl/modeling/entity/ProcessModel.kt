@@ -140,14 +140,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         private var activationCountLimit = initialCountLimit
 
-        private var myCount = 0
+        var count = 0
+            private set
 
         override fun initialize() {
             super.initialize()
-            myCount = 0
+            count = 0
             activationCountLimit = initialActivationCountLimit
             turnActivatorOn = onAtInitializationOption
         }
+
+        var lastActivatedEntity: T? = null
+            private set
 
         /**
          *  Causes the activation counter to be incremented. Once the counter reaches the
@@ -156,17 +160,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  @return if the count limit is reached and the entity created and activated, then
          *  the entity instance will be returned.
          */
-        fun increment(): T? {
+        fun increment()  {
             if (turnActivatorOn){
-                myCount++
-                if (myCount == activationCountLimit) {
+                count++
+                if (count == activationCountLimit) {
                     if (resetCountOption) {
-                        myCount = 0
+                        count = 0
                     }
-                    return activateProcess()
+                    lastActivatedEntity = activateProcess()
+                } else {
+                    lastActivatedEntity = null
                 }
             }
-            return null
         }
 
         private fun activateProcess(): T {
