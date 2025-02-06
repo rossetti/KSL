@@ -157,10 +157,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Causes the activation counter to be incremented. Once the counter reaches the
          *  limit the entity will be created and the entity's process is activated. If the reset count option is true,
          *  the counter will be reset to allow additional entities to be activated.
-         *  @return if the count limit is reached and the entity created and activated, then
-         *  the entity instance will be returned.
+         *  @return true if an activation occurred, false if an activation did not occur
          */
-        fun increment()  {
+        fun increment() : Boolean {
             if (turnActivatorOn){
                 count++
                 if (count == activationCountLimit) {
@@ -168,10 +167,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         count = 0
                     }
                     lastActivatedEntity = activateProcess()
+                    return true
                 } else {
                     lastActivatedEntity = null
                 }
             }
+            return false
         }
 
         private fun activateProcess(): T {
