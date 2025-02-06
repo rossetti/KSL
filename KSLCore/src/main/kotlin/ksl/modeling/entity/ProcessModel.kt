@@ -102,7 +102,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *  are unspecified, then an error occurs.
      *
      *  This class works similarly to an EntityGenerator, except it is based on counts rather than time.
-     *  
+     *
      * @param entityCreator the thing that creates the entities of the particular type. Typically,
      * a reference to the constructor of the class
      * @param initialCountLimit the limit to use to indicate when to activate the entity
