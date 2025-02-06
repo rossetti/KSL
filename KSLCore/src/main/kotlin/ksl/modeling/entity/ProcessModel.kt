@@ -131,6 +131,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 field = value
             }
 
+        var onAtInitializationOption: Boolean = true
+            set(value) {
+                require(model.isNotRunning) { "The model must not be running when changing the on at initialization option" }
+                field = value
+            }
+        var turnActivatorOn = onAtInitializationOption
+
         private var activationCountLimit = initialCountLimit
 
         private var myCount = 0
@@ -139,6 +146,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             super.initialize()
             myCount = 0
             activationCountLimit = initialActivationCountLimit
+            turnActivatorOn = onAtInitializationOption
         }
 
         /**
@@ -149,12 +157,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the entity instance will be returned.
          */
         fun increment(): T? {
-            myCount++
-            if (myCount == activationCountLimit) {
-                if (resetCountOption) {
-                    myCount = 0
+            if (turnActivatorOn){
+                myCount++
+                if (myCount == activationCountLimit) {
+                    if (resetCountOption) {
+                        myCount = 0
+                    }
+                    return activateProcess()
                 }
-                return activateProcess()
             }
             return null
         }
