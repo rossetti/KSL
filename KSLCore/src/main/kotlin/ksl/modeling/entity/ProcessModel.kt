@@ -1693,7 +1693,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override suspend fun <T: BatchingEntity<T>> waitingForBatch(
+            override suspend fun <T: BatchingEntity<T>> waitedForBatch(
                 candidateForBatch: T,
                 batchingQ: BatchQueue<T>,
                 batchName: String,
