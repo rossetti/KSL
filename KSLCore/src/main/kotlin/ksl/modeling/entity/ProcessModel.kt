@@ -1693,6 +1693,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            override suspend fun <T: BatchingEntity<T>> waitingForBatch(
+                candidateForBatch: T,
+                batchingQ: BatchQueue<T>,
+                batchName: String,
+                batchSize: Int,
+                predicate: (T) -> Boolean,
+                suspensionName: String?
+            ) : Boolean {
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.BATCHING
+//TODO
+
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                TODO("isBatchedIn is not implemented yet")
+                return false
+            }
+
             override suspend fun yield(
                 yieldPriority: Int,
                 suspensionName: String?
