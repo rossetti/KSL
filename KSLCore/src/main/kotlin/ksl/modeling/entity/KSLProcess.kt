@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.entity.ProcessModel.BatchingEntity
 import ksl.modeling.entity.ProcessModel.Companion.BLOCKAGE_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.CONVEYOR_EXIT_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.CONVEYOR_REQUEST_PRIORITY
@@ -92,6 +93,7 @@ enum class SuspendType {
     WAIT_FOR_ANY_ITEMS,
     WAIT_FOR_PROCESS,
     BLOCK_UNTIL_COMPLETION,
+    BATCHING,
     SEND,
     SEIZE,
     DELAY,
@@ -686,6 +688,64 @@ interface KSLProcessBuilder {
     ) {
         send(item, this, blockingPriority, suspensionName)
     }
+
+    /**
+     * The purpose of this suspending function is to allow a batching entity
+     * to wait for a batch to be formed.  If a batch can be formed using the
+     * candidate entity, then the batch is form and the function returns false.
+     * If the batch cannot be formed, the candidate entity waits in the batch queue
+     * and suspends. If the batch can be formed, the batch is attached to the batching
+     * entity using the supplied batch name. The batching entity will hold the batched
+     * entities in a list associated with the supplied batch name. The entities entering
+     * the batch queue wait until the number of entities satisfying the supplied predicate
+     * is equal to the supplied batch size. The returned Boolean value associated with the
+     * function indicates if the entity is part of the batch and if so, it must exit
+     * from the process. The entity that caused the batch to form, will cause the function
+     * to return false, when it returns from its suspension.  All entities that enter
+     * this suspending function will suspend. The resumption of the suspension is predicated
+     * on the formation of the batch.
+     *
+     * **WARNING**
+     * The proper use of this method must have the following form:
+     * ```
+     *  // within a process()
+     *
+     *  if (waitingForBatch(candidate, batchingQ, batchName, batchSize, predicate, suspensionName)) {
+     *      return@process
+     *  }
+     *  // the continuing entity is the one that caused the batch to be formed
+     * ```
+     * That is, you must wrap the usage of this suspending function within an if-statement construct.
+     * 
+     * Note the use of the [explicitly labeled return](https://kotlinlang.org/docs/returns.html#return-to-labels) to exit from the process. This is essential.
+     * The entities that waited for the batch because the if statement was true, will be resumed when
+     * the batch is formed and must be allowed to return from the process.
+     *
+     * @param candidateForBatch this must be the current entity, and it must be a batching entity
+     * @param batchingQ the queue from which to form the batch
+     * @param batchName the name to associate with the batch. By default, this will be the
+     * name of the batch queue.
+     * @param batchSize the number of elements to form into a batch. The default is specified by
+     * the batch queue's batch size property.
+     * @param predicate the predicate governing which entities from the queue are selected for
+     * the batch. By default, this is the specified by the batching predicate from the batch queue,
+     * which is an always true predicate. Thus, the default is to form a batch of the specified size
+     * from whatever is in the queue.
+     * @param suspensionName the name of the possible suspension point. This can be used by the entity to
+     * determine which send blocking it might be experiencing when blocked.  It is up to the client to
+     * ensure the name is meaningful and possibly unique.
+     * @return the returned Boolean indicates whether the suspending entity should exit from its
+     * process as a result of the call to the suspending function. The caller must cause the exit
+     * from the process for the entities within the batch.
+     */
+    suspend fun <T: BatchingEntity<T>> waitingForBatch(
+        candidateForBatch: T,
+        batchingQ: BatchQueue<T>,
+        batchName: String = batchingQ.name,
+        batchSize: Int = batchingQ.batchSize,
+        predicate: (T) -> Boolean = batchingQ.batchingPredicate,
+        suspensionName: String?
+    ) : Boolean
 
     /**
      *  Requests a number of units of the indicated resource.
