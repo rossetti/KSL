@@ -710,13 +710,13 @@ interface KSLProcessBuilder {
      * ```
      *  // within a process()
      *
-     *  if (waitingForBatch(candidate, batchingQ, batchName, batchSize, predicate, suspensionName)) {
+     *  if (waitedForBatch(candidate, batchingQ, batchName, batchSize, predicate, suspensionName)) {
      *      return@process
      *  }
      *  // the continuing entity is the one that caused the batch to be formed
      * ```
      * That is, you must wrap the usage of this suspending function within an if-statement construct.
-     * 
+     *
      * Note the use of the [explicitly labeled return](https://kotlinlang.org/docs/returns.html#return-to-labels) to exit from the process. This is essential.
      * The entities that waited for the batch because the if statement was true, will be resumed when
      * the batch is formed and must be allowed to return from the process.
@@ -738,7 +738,7 @@ interface KSLProcessBuilder {
      * process as a result of the call to the suspending function. The caller must cause the exit
      * from the process for the entities within the batch.
      */
-    suspend fun <T: BatchingEntity<T>> waitingForBatch(
+    suspend fun <T: BatchingEntity<T>> waitedForBatch(
         candidateForBatch: T,
         batchingQ: BatchQueue<T>,
         batchName: String = batchingQ.name,
