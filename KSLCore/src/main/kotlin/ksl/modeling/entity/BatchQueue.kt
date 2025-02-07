@@ -28,7 +28,7 @@ import ksl.simulation.ModelElement
  * This class is designed to hold entities that are waiting within a process.
  *
  */
-class BatchQueue<T : ProcessModel.Entity>(
+class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
     parent: ModelElement,
     defaultBatchSize: Int = 1,
     defaultPredicate: (T) -> Boolean = Companion::alwaysTrueFunction,
@@ -87,30 +87,11 @@ class BatchQueue<T : ProcessModel.Entity>(
         batchingPredicate = initialDefaultPredicate
     }
 
-    internal fun formBatch(
-        candidate: T,
+    internal fun selectBatch(
         batchingSize: Int,
         predicate: (T) -> Boolean
-    ){
-        // matching holds the elements in the queue that satisfy the predicate
-        val matching = this.myList.filter(predicate)
-
-
-        // the candidate should be placed in the queue (but not suspended)
-
-        // note that more than one process could be using the batch queue because it is shared state
-        // this means that some other process could have added a candidate before this candidate
-        // is being considered, also the batch size could have changed
-
-        // if the candidate does not meet the predicate then it should be added to the queue
-
-        // if the candidate meets the predicate it might be part of the batch
-        // if the number in the queue that meet the predicate
-
-
-        // if the size of the queue is less than the batch size then there can't be a batch formed
-
-
+    ): List<T> {
+        return this.myList.filter(predicate).take(batchingSize)
     }
 
     /** Removes the entity from the queue and tells it to resume its process
