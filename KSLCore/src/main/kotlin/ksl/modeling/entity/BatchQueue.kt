@@ -87,6 +87,12 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
         batchingPredicate = initialDefaultPredicate
     }
 
+    /**
+     *  The returned list represents a potential batch.
+     *  The returned list may have less than [batchingSize] elements
+     *  or may even be empty if a batch cannot be formed.
+     *  The entities in the returned list are suspended.
+     */
     internal fun selectBatch(
         batchingSize: Int,
         predicate: (T) -> Boolean
@@ -100,7 +106,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      * @param resumePriority the priority for the resumption of the suspended process
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
-    private fun removeAndResume(
+    internal fun removeAndResume(
         entity: T,
         resumePriority: Int = ProcessModel.RESUME_PRIORITY,
         waitStats: Boolean = true
@@ -116,7 +122,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      * @param entity the entity to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
-    private fun removeAndImmediateResume(
+    internal fun removeAndImmediateResume(
         entity: T,
         waitStats: Boolean = true
     ) {
@@ -133,7 +139,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      * @param resumePriority the priority for the resumption of the suspended process
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
-    private fun removeAllAndResume(resumePriority: Int = ProcessModel.RESUME_PRIORITY, waitStats: Boolean = true) {
+    internal fun removeAllAndResume(resumePriority: Int = ProcessModel.RESUME_PRIORITY, waitStats: Boolean = true) {
         while (isNotEmpty) {
             val entity = peekNext()
             removeAndResume(entity!!, resumePriority, waitStats)
@@ -146,7 +152,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      *
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
-    private fun removeAllWithImmediateResume(
+    internal fun removeAllWithImmediateResume(
         waitStats: Boolean = true
     ) {
         while (isNotEmpty) {
@@ -161,7 +167,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      * @param entity the entity to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue. The default is false.
      */
-    private fun removeAndTerminate(
+    internal fun removeAndTerminate(
         entity: T,
         waitStats: Boolean = false
     ) {
@@ -175,7 +181,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
      */
-    private fun removeAllAndTerminate(waitStats: Boolean = false) {
+    internal fun removeAllAndTerminate(waitStats: Boolean = false) {
         while (isNotEmpty) {
             val entity = peekNext()
             removeAndTerminate(entity!!, waitStats)
