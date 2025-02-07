@@ -2881,6 +2881,32 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
     }
 
+    inner class BatchingEntity<T: BatchingEntity<T>>(
+        val batchesIncludeSelf: Boolean = true,
+        aName: String? = null
+    ) : Entity(aName){
+        internal val myBatches : MutableMap<String, MutableList<T>> = mutableMapOf()
+        val batches: Map<String, List<T>>
+            get() = myBatches
+
+        fun clearBatches(){
+            myBatches.clear()
+        }
+
+        fun clearBatch(batchName: String){
+            myBatches.remove(batchName)?.clear()
+        }
+
+        operator fun get(name: String) : List<T> {
+            return myBatches[name] ?: emptyList()
+        }
+
+        operator fun contains(name: String) : Boolean {
+            return myBatches.containsKey(name)
+        }
+
+    }
+
     companion object {
 
         /**
