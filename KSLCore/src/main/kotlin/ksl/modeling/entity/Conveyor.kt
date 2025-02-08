@@ -2306,6 +2306,10 @@ interface ConveyorRequestIfc {
      *  True if the entity has reached its destination
      */
     val hasReachedDestination: Boolean
+
+    fun asString(): String {
+        return "Conveyor Request: conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}"
+    }
 }
 
 

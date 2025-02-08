@@ -2216,10 +2216,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Double {
                 require(entity.conveyorRequest != null) {
-                    "Attempted to ride without having requested the conveyor."
+                    "Attempted to ride without having requested the conveyor. The entity.conveyorRequest property was null."
                 }
                 require(entity.conveyorRequest == conveyorRequest) {
-                    "Attempted to ride without owning the supplied conveyor request."
+                    "Attempted to ride without owning the supplied conveyor request. \n" +
+                            "Entity Request was ${entity.conveyorRequest?.asString()} \n" +
+                            "Supplied Request was ${conveyorRequest.asString()}"
                 }
                 require(conveyorRequest.isBlockingEntry || conveyorRequest.isBlockingExit)
                 { "The supplied request is not blocking an entry or exit location" }
