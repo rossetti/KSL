@@ -692,7 +692,7 @@ interface KSLProcessBuilder {
     /**
      * The purpose of this suspending function is to allow a batching entity
      * to wait for a batch to be formed.  If a batch can be formed using the
-     * candidate entity, then the batch is form and the function returns false.
+     * candidate entity, then the batch is formed and the function returns false.
      * If the batch cannot be formed, the candidate entity waits in the batch queue
      * and suspends. If the batch can be formed, the batch is attached to the batching
      * entity using the supplied batch name. The batching entity will hold the batched

@@ -25,8 +25,22 @@ import ksl.simulation.ModelElement
 
 
 /**
- * This class is designed to hold entities that are waiting within a process.
+ * This class is designed to hold entities that are waiting within a process for the
+ * creation of a batch of entities via the waitedForBatch() suspending function.
+ * The main purpose of this class is to hold the entities that are waiting to be batched in
+ * a similar manner as a HoldQueue. The entities held within this queue are suspended until
+ * the batch is formed.  The parameters of this class permit the specification
+ * of a default batch size and a default predicate that will be used to form the batch
+ * via the waitForBatch() suspending function; however, the user can supply their own
+ * batch size and predicate at the suspending function call site.
  *
+ * @param parent the element's parent model element
+ * @param defaultBatchSize the default batch size for this queue
+ * @param defaultPredicate the default predicate to use when selecting elements for the batch.
+ * The default is an alwaysTrueFunction, such that every element in the queue satisfies the
+ * selection criterion.
+ * @param name the elements name
+ * @param discipline the queue discipline for the queue
  */
 class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
     parent: ModelElement,
