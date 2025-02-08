@@ -436,6 +436,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myInHoldQueueState = InHoldQueue()
         private val myActiveState = Active()
         private val myWaitingForResourceState = WaitingForResource()
+        private val myWaitingForBatchState = WaitingForBatch()
         private val myWaitingForConveyorState = WaitingForConveyor()
         private val myProcessEndedState = ProcessEndedState()
         private val myBlockedReceivingState = BlockedReceiving()
@@ -468,6 +469,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myWaitForProcessState
         val isBlockedUntilCompletion: Boolean
             get() = state == myBlockedUntilCompletion
+        val isWaitingForBatch: Boolean
+            get() = state == myWaitingForBatchState
 
         /**
          * If the entity is in a HoldQueue return the queue
@@ -1141,6 +1144,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("wait for resource for the entity")
             }
 
+            open fun waitForBatch() {
+                errorMessage("wait for resource for the entity")
+            }
+
             open fun waitForConveyor() {
                 errorMessage("wait for resource for the entity")
             }
@@ -1215,6 +1222,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 state = myWaitingForResourceState
             }
 
+            override fun waitForBatch() {
+                state = myWaitingForBatchState
+            }
+
             override fun waitForConveyor() {
                 state = myWaitingForConveyorState
             }
@@ -1259,6 +1270,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class WaitingForResource : EntityState("WaitingForResource") {
+            override fun activate() {
+                state = myActiveState
+            }
+        }
+
+        private inner class WaitingForBatch : EntityState("WaitingForBatch") {
             override fun activate() {
                 state = myActiveState
             }
@@ -1707,26 +1724,41 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 //always enter the queue to get waiting time statistics
                 batchingQ.enqueue(candidateForBatch, priority= entity.priority)
                 val possibleBatch = batchingQ.selectBatch(batchSize, predicate)
-                if (possibleBatch.size < batchSize){
+                // those that wait need to be suspended and will be part of the eventual batch
+                val waited = if (possibleBatch.size < batchSize){
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    //TODO entity.state.waitForResource() need waitForBatch state
+                    entity.state.waitForBatch()
                     suspend()
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    true
                 } else {
                     // batch size has been met
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: triggered the batching." }
                     val batch = possibleBatch.take(batchSize).toMutableList()
                     require(batch.contains(candidateForBatch)) {"The formed batch did not contain the candidate ${candidateForBatch.name}"}
                     if (!candidateForBatch.batchesIncludeSelf){
                         batch.remove(candidateForBatch)
                     }
+                    // collect the elements into the batch for the candidate to carry
                     candidateForBatch.addBatch(batchName, batch)
-                    //TODO need to resume the non-candidate elements and yield the candidate element
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: batched ${batch.size} elements in batch $batchName." }
+                    // just remove the candidate (active) entity from the queue, not need to resume
+                    batchingQ.remove(candidateForBatch)
+                    // now remove and resume the batched entities
+                    for(batchedEntity in batch){
+                        if (batchedEntity != candidateForBatch){
+                            batchingQ.removeAndResume(batchedEntity)
+                            logger.trace { "r = ${model.currentReplicationNumber} : $time > \t WAIT FOR BATCH: ENTITY: entity_id = ${batchedEntity.id}: in batch $batchName was resumed." }
+                        }
+                    }
+                    // now cause the candidate (active) entity to yield to allow batched entities to finish their process
+                    yield()
+                    false
                 }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
-                TODO("isBatchedIn is not implemented yet")
-                return false
+                return waited
             }
 
             override suspend fun yield(
@@ -2917,7 +2949,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
     }
 
-    inner class BatchingEntity<T: BatchingEntity<T>>(
+    open inner class BatchingEntity<T: BatchingEntity<T>>(
         val batchesIncludeSelf: Boolean = true,
         aName: String? = null
     ) : Entity(aName){
