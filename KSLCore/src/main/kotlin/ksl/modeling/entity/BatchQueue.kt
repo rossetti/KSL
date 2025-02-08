@@ -34,6 +34,10 @@ import ksl.simulation.ModelElement
  * via the waitForBatch() suspending function; however, the user can supply their own
  * batch size and predicate at the suspending function call site.
  *
+ * Notice that batches are formed from the **same** type (subclass) of BatchingEntity.
+ * Thus, this queue is limited to holding and participating in the forming of batches of the
+ * same type of entity.
+ *
  * @param parent the element's parent model element
  * @param defaultBatchSize the default batch size for this queue
  * @param defaultPredicate the default predicate to use when selecting elements for the batch.
@@ -41,6 +45,8 @@ import ksl.simulation.ModelElement
  * selection criterion.
  * @param name the elements name
  * @param discipline the queue discipline for the queue
+ * @param T the type of batching entity being held in the queue. A batching entity has
+ * additional functionality to hold the formed batches.
  */
 class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
     parent: ModelElement,
