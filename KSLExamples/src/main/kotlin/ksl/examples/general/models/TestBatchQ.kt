@@ -27,9 +27,9 @@ class TestBatchQ(
 
     private val batchQ = BatchQueue<Customer>(this, defaultBatchSize = 3)
     init {
-        println("batchQ name:  ${batchQ.name}")
-        println("batchQ num in queue: ${batchQ.numInQ.name}")
-        println("batchQ tiime in queue: ${batchQ.timeInQ.name}")
+//        println("batchQ name:  ${batchQ.name}")
+//        println("batchQ num in queue: ${batchQ.numInQ.name}")
+//        println("batchQ time in queue: ${batchQ.timeInQ.name}")
     }
    // private val rv = RandomVariable(this, DUniformRV(1..4, 1))
     private val rv = RandomVariable(this, ExponentialRV(2.0, 1))
