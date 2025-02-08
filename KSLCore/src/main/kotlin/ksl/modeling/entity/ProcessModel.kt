@@ -1701,10 +1701,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 predicate: (T) -> Boolean,
                 suspensionName: String?
             ) : Boolean {
+                require(entity == candidateForBatch){"The candidate for the batch ${candidateForBatch.name} is not the entity ${entity.name}"}
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BATCHING
-//TODO
-
+                //always enter the queue to get waiting time statistics
+                batchingQ.enqueue(candidateForBatch, priority= entity.priority)
+                val possibleBatch = batchingQ.selectBatch(batchSize, predicate)
+                if (possibleBatch.size < batchSize){
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    //TODO entity.state.waitForResource() need waitForBatch state
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                } else {
+                    // batch size has been met
+                    val batch = possibleBatch.take(batchSize).toMutableList()
+                    require(batch.contains(candidateForBatch)) {"The formed batch did not contain the candidate ${candidateForBatch.name}"}
+                    if (!candidateForBatch.batchesIncludeSelf){
+                        batch.remove(candidateForBatch)
+                    }
+                    candidateForBatch.addBatch(batchName, batch)
+                    //TODO need to resume the non-candidate elements and yield the candidate element
+                }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 TODO("isBatchedIn is not implemented yet")
@@ -2921,6 +2939,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         operator fun contains(name: String) : Boolean {
             return myBatches.containsKey(name)
+        }
+
+        internal fun addBatch(batchName: String, batch: List<T>){
+            if (batchName !in myBatches){
+                myBatches[batchName] = mutableListOf()
+            }
+            myBatches[batchName]!!.addAll(batch)
         }
 
     }
