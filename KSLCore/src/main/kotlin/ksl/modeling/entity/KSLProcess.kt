@@ -744,7 +744,7 @@ interface KSLProcessBuilder {
         batchName: String = batchingQ.name,
         batchSize: Int = batchingQ.batchSize,
         predicate: (T) -> Boolean = batchingQ.batchingPredicate,
-        suspensionName: String?
+        suspensionName: String? = null
     ) : Boolean
 
     /**

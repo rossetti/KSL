@@ -264,11 +264,11 @@ open class Queue<T : ModelElement.QObject>(
      */
     protected val myList: MutableList<T> = mutableListOf()
 
-    protected val myNumInQ: TWResponse = TWResponse(this, name = "${name}:NumInQ")
+    protected val myNumInQ: TWResponse = TWResponse(this, name = "${this.name}:NumInQ")
     override val numInQ : TWResponseCIfc
         get() = myNumInQ
 
-    protected val myTimeInQ: Response = Response(this, name = "${name}:TimeInQ")
+    protected val myTimeInQ: Response = Response(this, name = "${this.name}:TimeInQ")
     override val timeInQ : ResponseCIfc
         get() = myTimeInQ
 
