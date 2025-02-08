@@ -696,7 +696,7 @@ interface KSLProcessBuilder {
      * If the batch cannot be formed, the candidate entity waits in the batch queue
      * and suspends. If the batch can be formed, the batch is attached to the batching
      * entity using the supplied batch name. The batching entity will hold the batched
-     * entities in a list associated with the supplied batch name. The entities entering
+     * entities in a list associated with the supplied batch name via a map. The entities entering
      * the batch queue wait until the number of entities satisfying the supplied predicate
      * is equal to the supplied batch size. The returned Boolean value associated with the
      * function indicates if the entity is part of the batch and if so, it must exit
@@ -704,6 +704,10 @@ interface KSLProcessBuilder {
      * to return false, when it returns from its suspension.  All entities that enter
      * this suspending function will suspend. The resumption of the suspension is predicated
      * on the formation of the batch.
+     *
+     * Notice that the associated BatchingQueue must hold entities that are the same
+     * type (subclass) of BatchingEntity. Only entities of the same type can be batched
+     * together via this functionality.
      *
      * **WARNING**
      * The proper use of this method must have the following form:
@@ -715,11 +719,12 @@ interface KSLProcessBuilder {
      *  }
      *  // the continuing entity is the one that caused the batch to be formed
      * ```
-     * That is, you must wrap the usage of this suspending function within an if-statement construct.
+     * That is, you **must** wrap the usage of this suspending function within an if-statement construct.
      *
-     * Note the use of the [explicitly labeled return](https://kotlinlang.org/docs/returns.html#return-to-labels) to exit from the process. This is essential.
+     * Note the use of the [explicitly labeled return](https://kotlinlang.org/docs/returns.html#return-to-labels) to
+     * exit from the process. This is essential.
      * The entities that waited for the batch because the if statement was true, will be resumed when
-     * the batch is formed and must be allowed to return from the process.
+     * the batch is formed and must be allowed to return from the process and not continue with the current process.
      *
      * @param candidateForBatch this must be the current entity, and it must be a batching entity
      * @param batchingQ the queue from which to form the batch
