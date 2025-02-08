@@ -13,7 +13,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
-class TandemQueueWithConveyors(
+class TandemQueueWithWorkOnConveyors(
     parent: ModelElement,
     conveyorType: Conveyor.Type = Conveyor.Type.NON_ACCUMULATING,
     name: String? = null
@@ -70,15 +70,11 @@ class TandemQueueWithConveyors(
             timeStamp = time
             val conveyorRequest = requestConveyor(conveyor, enter, 1)
             rideConveyor(conveyorRequest, station1)
-            exitConveyor(conveyorRequest)
             use(worker1, delayDuration = st1)
-            val conveyorRequest2 = requestConveyor(conveyor, station1, 1)
-            rideConveyor(conveyorRequest2, station2)
-            exitConveyor(conveyorRequest2)
+            rideConveyor(conveyorRequest, station2)
             use(worker2, delayDuration = st2)
-            val conveyorRequest3 = requestConveyor(conveyor, station2, 1)
-            rideConveyor(conveyorRequest3, exit)
-            exitConveyor(conveyorRequest3)
+            rideConveyor(conveyorRequest, exit)
+            exitConveyor(conveyorRequest)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
