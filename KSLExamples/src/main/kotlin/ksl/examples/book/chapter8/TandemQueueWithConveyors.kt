@@ -30,8 +30,8 @@ class TandemQueueWithConveyors(
         .velocity(30.0)
         .cellSize(1)
         .maxCellsAllowed(1)
-        .firstSegment(enter, station1, 60)
-        .nextSegment(station2, 30)
+        .firstSegment(enter, station1, 70)
+        .nextSegment(station2, 40)
         .nextSegment(exit, 60)
         .build()
 
@@ -46,7 +46,7 @@ class TandemQueueWithConveyors(
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -64,7 +64,7 @@ class TandemQueueWithConveyors(
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
 
-    private inner class Customer : Entity() {
+    private inner class Part : Entity() {
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
@@ -79,6 +79,20 @@ class TandemQueueWithConveyors(
             val conveyorRequest3 = requestConveyor(conveyor, station2, 1)
             rideConveyor(conveyorRequest3, exit)
             exitConveyor(conveyorRequest3)
+            timeInSystem.value = time - timeStamp
+            wip.decrement()
+        }
+    }
+
+    private inner class Part2 : Entity() {
+        val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
+            wip.increment()
+            timeStamp = time
+            convey(conveyor, enter, station1)
+            use(worker1, delayDuration = st1)
+            convey(conveyor, station1, station2)
+            use(worker2, delayDuration = st2)
+            convey(conveyor, station2, exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }

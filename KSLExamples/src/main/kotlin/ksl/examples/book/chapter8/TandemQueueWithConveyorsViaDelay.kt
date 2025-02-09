@@ -37,7 +37,7 @@ class TandemQueueWithConveyorsViaDelay(parent: ModelElement, name: String? = nul
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
     val service2RV: RandomSourceCIfc
         get() = st2
-    private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
+    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -55,13 +55,13 @@ class TandemQueueWithConveyorsViaDelay(parent: ModelElement, name: String? = nul
     val unloadingTimeRV: RandomSourceCIfc
         get() = myUnLoadingTime
 
-    private inner class Customer : Entity() {
+    private inner class Part : Entity() {
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
-            delay(60.0/30.0) // 30 fpm for 60 ft
+            delay(70.0/30.0) // 30 fpm for 70 ft
             use(worker1, delayDuration = st1)
-            delay(30.0/30.0) // 30 fpm for 30 ft
+            delay(40.0/30.0) // 30 fpm for 40 ft
             use(worker2, delayDuration = st2)
             delay(60.0/30.0) // 30 fpm for 60 ft
             timeInSystem.value = time - timeStamp
