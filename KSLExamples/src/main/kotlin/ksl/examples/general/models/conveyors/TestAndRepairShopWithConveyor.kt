@@ -87,6 +87,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         get() = myArrivalGenerator
 
     // define the responses
+    //TODO num in the system should be about 18, why is it reporting at about 99??
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = wip
