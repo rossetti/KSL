@@ -109,6 +109,10 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         .nextSegment(myDiagnostics, 30)
         .build()
 
+    init {
+        loopConveyor.accessQueueAt(myRepair).defaultReportingOption = false
+    }
+
     // define the process
     private inner class Part : Entity() {
 
