@@ -1,6 +1,5 @@
-package ksl.examples.general.models
+package ksl.examples.general.models.conveyors
 
-import ksl.examples.book.chapter8.TestAndRepairShopResourceConstrained
 import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.Conveyor
@@ -19,9 +18,6 @@ import ksl.utilities.random.rvariable.TriangularRV
 import ksl.utilities.random.rvariable.UniformRV
 
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
-
-    // define the random variables
-    private val tba = ExponentialRV(20.0)
 
     // test plan 1, distribution j
     private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
@@ -79,7 +75,11 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
-    private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
+
+    // define the random variables
+    private val tba = ExponentialRV(20.0)
+
+    private val myArrivalGenerator = EntityGenerator(this::Part, tba, tba)
     init {
  //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
     }
@@ -97,31 +97,29 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     val probWithinLimit: ResponseCIfc
         get() = myContractLimit
 
-    private val loopConveyor: Conveyor
-
-    init {
-        loopConveyor = Conveyor.builder(this, "LoopConveyor")
-            .conveyorType(Conveyor.Type.NON_ACCUMULATING)
-            .velocity(10.0)
-            .cellSize(1)
-            .maxCellsAllowed(2)
-            .firstSegment(myDiagnostics, myTest1, 20)
-            .nextSegment(myTest2, 20)
-            .nextSegment(myRepair, 15)
-            .nextSegment(myTest3, 45)
-            .nextSegment(myDiagnostics, 30)
-            .build()
-    }
+    private val loopConveyor: Conveyor = Conveyor.builder(this, "LoopConveyor")
+        .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+        .velocity(10.0)
+        .cellSize(1)
+        .maxCellsAllowed(2)
+        .firstSegment(myDiagnostics, myTest1, 20)
+        .nextSegment(myTest2, 20)
+        .nextSegment(myRepair, 15)
+        .nextSegment(myTest3, 45)
+        .nextSegment(myDiagnostics, 30)
+        .build()
 
     // define the process
     private inner class Part : Entity() {
+
+        // determine the test plan
+        val plan: List<TestPlanStep> = planList.randomElement
+
         val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics
             use(myDiagnostics, delayDuration = diagnosticTime)
-            // determine the test plan
-            val plan: List<TestPlanStep> = planList.randomElement
             // get the iterator
             val itr = plan.iterator()
             var cr = requestConveyor(loopConveyor, myDiagnostics, cellSizes[plan]!!)
