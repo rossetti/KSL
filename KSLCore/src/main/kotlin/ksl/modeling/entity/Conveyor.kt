@@ -1191,6 +1191,7 @@ class Conveyor(
      */
     private fun itemReachedDestination(request: ConveyorRequest) {
         //TODO this is where the conveyor hold queue is resumed after riding, how does this get triggered
+        // this is called in moveForwardOneCell()
         request.currentLocation = request.destination!!
         // the trip has ended, need to block exit, resume the entity to proceed with exit
         // or allow it to start its next ride
@@ -1682,9 +1683,10 @@ class Conveyor(
          *  We assume that moving forward has been triggered by a time delay that
          *  represents the item moving through the cell. This represents the completion
          *  of that movement.  At the end of this movement, the item is fully covering the cell that it
-         *  occupies.
+         *  occupies.  This function is called from within function moveItemsForwardThroughCells()
          */
         internal fun moveForwardOneCell() {
+            //TODO maybe the conditions need to be reviewed, could item off the conveyor being missed
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
             // two cases, item is on conveyor or item is exiting the conveyor
@@ -1707,9 +1709,6 @@ class Conveyor(
             // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
             // in which case there MUST be a next cell
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
-//            if (frontCell!!.isEntryCell){
-//                timeStartedTraversal = time //TODO this is not correctly placed
-//            }
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
             occupyCell(frontCell!!.nextCell!!)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
@@ -1731,8 +1730,6 @@ class Conveyor(
                     conveyor.itemReachedDestination(this)
                 }
                 // this should be the end of a segment
-                // find the segment, and record the time to traverse the segment
-//                frontCell!!.cSegment.myTraversalTime.value = time - timeStartedTraversal //TODO not correct
             }
         }
 
