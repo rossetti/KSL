@@ -8,8 +8,8 @@ import ksl.utilities.io.MarkDown
 fun main() {
 //    conveyorViaDelays()
 //    tandemQViaConveyors(Conveyor.Type.NON_ACCUMULATING)
-//    tandemQViaConveyors(Conveyor.Type.ACCUMULATING)
-    tandemQWithWorkOnConveyor(Conveyor.Type.NON_ACCUMULATING)
+    tandemQViaConveyors(Conveyor.Type.ACCUMULATING)
+//    tandemQWithWorkOnConveyor(Conveyor.Type.NON_ACCUMULATING)
 //    tandemQWithWorkOnConveyor(Conveyor.Type.ACCUMULATING)
 
 }
