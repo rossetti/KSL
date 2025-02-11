@@ -810,18 +810,23 @@ class Conveyor(
      *  in the "train" of items moving forward by one cell.
      */
     private fun moveItemsForwardOneCell(cells: List<Cell>) {
+        //TODO review the logic of this function
         if (cells.isEmpty()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): no movable cells" }
             return
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): movable cells: [${cells.first().cellNumber}..${cells.last().cellNumber}]" }
         require(cells.last().isOccupied) { "CONVEYOR ($name): The last cell (${cells.last().cellNumber}) of the list was not occupied by an item" }
+        // the last cell of the list MUST now be occupied by an item
         // the last cell of the list may be the cell at the end of non-circular conveyor
         if (cells.last() == conveyorCells.last() && !isCircular) {
+            // the last cell is the conveyor's last cell and the conveyor is not circular
+            // the item at the last cell MUST be exiting
             val item = cells.last().item!!
             if (item.status != ItemStatus.EXITING) {
                 throw IllegalStateException("The last cell in the move forward list was the last cell of the conveyor but the item was not exiting.")
             }
+            // at this point the item in the last cell must be exiting
             // special case to allow movement to the exiting item at end of the conveyor
             moveItemsForwardThroughCells(cells)
         } else {
@@ -830,6 +835,7 @@ class Conveyor(
             if (item.status != ItemStatus.EXITING) {
                 require(cells.last().nextCell!!.isAvailable) { "CONVEYOR ($name): The cell (${cells.last().nextCell!!.cellNumber}) after the last cell (${cells.last().cellNumber}) is not available \n ${toString()}" }
             }
+            // item could be exiting or not, here. If it is not exiting, the next cell must be available. If it is exiting, then it moves through the final cel.
             moveItemsForwardThroughCells(cells)
         }
     }
