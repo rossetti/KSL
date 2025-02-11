@@ -265,9 +265,11 @@ class Conveyor(
      */
     internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
 
+    //TODO
+
     init {
-        conveyorHoldQ.waitTimeStatOption = false
-        conveyorHoldQ.defaultReportingOption = false
+//        conveyorHoldQ.waitTimeStatOption = false
+//        conveyorHoldQ.defaultReportingOption = false
     }
 
     private val conveyorSegments: ConveyorSegments = segmentData
@@ -1168,6 +1170,7 @@ class Conveyor(
      *  This method resumes the entity associated with the request
      */
     private fun itemFullyOffConveyor(request: ConveyorRequest, exitCell: Cell) {
+        //TODO this is where entity is resumed after exiting
         require(request.isBlockingExit) { "The request must be in the blocking exit state when moving off the conveyor" }
         require(exitCell.isExitCell) { "The supplied cell was not an exit cell" }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Request (${request.name}): status = ${request.status}: entity_id = ${request.entity.id} : fully off the conveyor: removing blockage" }
@@ -1512,6 +1515,7 @@ class Conveyor(
      *  exiting process.
      */
     internal fun startExitingProcess(request: ConveyorRequest) {
+        //TODO need to investigate startExitingProcess()
         require(request.isBlockingExit) { "The request must be blocking the exit to start the exiting process" }
         // the request is blocking the exit, it must be in the BlockingExit state
         request.status = ItemStatus.EXITING
