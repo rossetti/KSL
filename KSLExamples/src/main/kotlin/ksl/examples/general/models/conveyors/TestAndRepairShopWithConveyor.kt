@@ -131,9 +131,9 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             // iterate through the plan
             var entryLocation = myDiagnostics
             while (itr.hasNext()) {
+                val tp = itr.next()
                 val cellsNeeded = cellSizes[plan]!!
                 val cr = requestConveyor(loopConveyor, entryLocation, cellsNeeded)
-                val tp = itr.next()
                 rideConveyor(tp.resource)
                 exitConveyor(cr)
                 use(tp.resource, delayDuration = tp.processTime)
@@ -149,10 +149,10 @@ fun main() {
     val m = Model()
     val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
 
-    m.numberOfReplications = 10
-    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
-//        m.numberOfReplications = 1
-//    m.lengthOfReplication = 2.0*480.0
+//    m.numberOfReplications = 10
+//    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+        m.numberOfReplications = 1
+    m.lengthOfReplication = 1000000.0
     m.simulate()
     m.print()
     val r = m.simulationReporter
