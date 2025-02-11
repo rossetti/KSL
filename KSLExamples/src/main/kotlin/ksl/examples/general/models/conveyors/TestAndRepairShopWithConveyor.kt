@@ -74,8 +74,8 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
+//    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 2, testPlan4 to 2)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
-
     // define the random variables
     private val tba = ExponentialRV(20.0)
 
