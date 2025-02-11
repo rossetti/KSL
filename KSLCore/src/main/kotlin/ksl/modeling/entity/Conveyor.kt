@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
@@ -264,7 +265,9 @@ class Conveyor(
      *
      */
     internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
-
+    internal val exitingTestQ =  Queue<QObject>(this, "${this.name}:ExitingTestQ")
+    internal val ridingTestQ =  Queue<QObject>(this, "${this.name}:RidingTestQ")
+    internal val accessingTestQ =  Queue<QObject>(this, "${this.name}:AccessingTestQ")
     //TODO
 
     init {
@@ -1187,6 +1190,7 @@ class Conveyor(
      *  This method is called from ConveyorRequest.moveForwardOneCell()
      */
     private fun itemReachedDestination(request: ConveyorRequest) {
+        //TODO this is where the conveyor hold queue is resumed after riding, how does this get triggered
         request.currentLocation = request.destination!!
         // the trip has ended, need to block exit, resume the entity to proceed with exit
         // or allow it to start its next ride
@@ -1969,6 +1973,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : arrival for cells " }
     }
 
+    //TODO scheduleConveyAction(): This seems to be a problem
     internal fun scheduleConveyAction(
         conveyorRequest: ConveyorRequest,
         destination: IdentityIfc,
