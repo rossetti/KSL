@@ -127,16 +127,17 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             use(myDiagnostics, delayDuration = diagnosticTime)
             // get the iterator
             val itr = plan.iterator()
-            var cr = requestConveyor(loopConveyor, myDiagnostics, cellSizes[plan]!!)
+            //var cr = requestConveyor(loopConveyor, myDiagnostics, cellSizes[plan]!!)
             // iterate through the plan
+            var entryLocation = myDiagnostics
             while (itr.hasNext()) {
+                val cellsNeeded = cellSizes[plan]!!
+                val cr = requestConveyor(loopConveyor, entryLocation, cellsNeeded)
                 val tp = itr.next()
                 rideConveyor(tp.resource)
                 exitConveyor(cr)
                 use(tp.resource, delayDuration = tp.processTime)
-                if (tp.resource != myRepair) {
-                    cr = requestConveyor(loopConveyor, tp.resource, cellSizes[plan]!!)
-                }
+                entryLocation = tp.resource
             }
             timeInSystem.value = time - timeStamp
             wip.decrement()
