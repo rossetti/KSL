@@ -810,7 +810,7 @@ class Conveyor(
      *  in the "train" of items moving forward by one cell.
      */
     private fun moveItemsForwardOneCell(cells: List<Cell>) {
-        //TODO review the logic of this function
+        //TODO review the logic of this function moveItemsForwardOneCell()
         if (cells.isEmpty()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): no movable cells" }
             return
