@@ -1208,7 +1208,7 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             cancelConveyorMovement()
         }
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination})" }
         conveyorHoldQ.removeAndResume(request.entity)
         // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
