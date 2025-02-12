@@ -215,7 +215,7 @@ class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : Process
                 println("${entity.name}: time = $time after ride to ${i2.name}")
             }
             println("${entity.name}: The riding time was ${time - timeStamp}")
-            delay(2.5)
+//            delay(2.5)
 //            delay(10.0)
 //            println("${entity.name}: time = $time after second delay of 10.0 ")
             println("${entity.name}: time = $time before exit ")
