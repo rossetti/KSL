@@ -13,11 +13,14 @@ fun main() {
     //   partitionTest()
 //    buildTest()
 //    runConveyorTest(Conveyor.Type.ACCUMULATING)
-    runConveyorTest2(Conveyor.Type.ACCUMULATING)
+ //   runConveyorTest2(Conveyor.Type.ACCUMULATING)
+
 //    runConveyorTest3(Conveyor.Type.ACCUMULATING)
 //    runConveyorTest4(Conveyor.Type.ACCUMULATING)
  //   runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
+
+    runConveyorTest5(Conveyor.Type.ACCUMULATING)
 }
 
 fun partitionTest() {
@@ -154,6 +157,15 @@ fun runConveyorTest4(conveyorType: Conveyor.Type) {
     m.print()
 }
 
+fun runConveyorTest5(conveyorType: Conveyor.Type) {
+    val m = Model()
+    val test = TestConveyor5(m, conveyorType)
+    m.lengthOfReplication = 100.0
+    m.numberOfReplications = 1
+    m.simulate()
+    m.print()
+}
+
 class TestConveyor2(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
@@ -262,7 +274,7 @@ class TestConveyor3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
     private inner class Part(name: String? = null) : Entity(name) {
         val conveyingProcess: KSLProcess = process("test") {
             println("${entity.name}: time = $time before access at ${i1.name}")
-            var amt = 1
+            var amt = 2
             if (entity.name == "Part1") {
                 amt = 2
             }
@@ -375,6 +387,60 @@ class TestConveyor4(parent: ModelElement, conveyorType: Conveyor.Type) : Process
                 rideConveyor(a, i2)
                 println("${entity.name}: time = $time after ride to ${i2.name}")
             }
+            println("${entity.name}: time = $time before exit ")
+            exitConveyor(a)
+            println("${entity.name}: time = $time after exit ")
+        }
+
+    }
+
+}
+
+class TestConveyor5(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
+
+    val conveyor: Conveyor
+    val i1 = Identity(name = "A")
+    val i2 = Identity(name = "B")
+    val i3 = Identity(name = "C")
+
+    init {
+        conveyor = Conveyor.builder(this)
+            .conveyorType(conveyorType)
+            .velocity(1.0)
+            .cellSize(1)
+            .maxCellsAllowed(2)
+            .firstSegment(i1, i2, 10)
+            .nextSegment(i3, 20)
+            .nextSegment(i1, 5)
+            .build()
+        println(conveyor)
+        println()
+    }
+
+    override fun initialize() {
+        for (i in 1..5){
+            val p1 = Part("Part$i")
+            activate(p1.conveyingProcess, timeUntilActivation = 0.1)
+        }
+    }
+
+    private inner class Part(name: String? = null) : Entity(name) {
+        val conveyingProcess: KSLProcess = process("test") {
+            println("${entity.name}: time = $time before access at ${i1.name}")
+            val amt = 2
+            val a = requestConveyor(conveyor, i1, amt)
+            println("${entity.name}: time = $time after access")
+//            println("${entity.name}: time = $time before delay of 2.0")
+//            delay(2.0)
+//            println("${entity.name}: time = $time after delay of 2.0")
+            println("${entity.name}: time = $time before ride to ${i2.name}")
+            timeStamp = time
+            rideConveyor(a, i2)
+            println("${entity.name}: time = $time after ride to ${i2.name}")
+            println("${entity.name}: The riding time was ${time - timeStamp}")
+ //           delay(2.5)
+//            delay(10.0)
+//            println("${entity.name}: time = $time after second delay of 10.0 ")
             println("${entity.name}: time = $time before exit ")
             exitConveyor(a)
             println("${entity.name}: time = $time after exit ")
