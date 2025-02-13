@@ -2199,7 +2199,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 conveyor.accessingTestQ.enqueue(qObj)
                 hold(
                     conveyor.conveyorHoldQ,
-                    suspensionName = "$suspensionName:HoldForCells:${conveyor.conveyorHoldQ.name}"
+                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.conveyorHoldQ.name}"
                 )
                 conveyor.accessingTestQ.remove(qObj)
                 // ensure that the entity remembers that it is now "using" the conveyor
@@ -2243,7 +2243,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val qObj = QObject()
                 conveyor.ridingTestQ.enqueue(qObj)
                 //TODO need to investigate how this gets resumed !!!
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
+                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.conveyorHoldQ.name}")
                 conveyor.ridingTestQ.remove(qObj)
                 isMoving = false
                 if (destination is LocationIfc) {
