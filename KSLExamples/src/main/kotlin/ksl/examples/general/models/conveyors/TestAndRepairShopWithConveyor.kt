@@ -100,6 +100,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     private val loopConveyor: Conveyor = Conveyor.builder(this, "LoopConveyor")
         .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+//        .conveyorType(Conveyor.Type.ACCUMULATING)
         .velocity(10.0)
         .cellSize(1)
         .maxCellsAllowed(2)
@@ -149,10 +150,10 @@ fun main() {
     val m = Model()
     val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
 
-//    m.numberOfReplications = 10
-//    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
-        m.numberOfReplications = 1
-    m.lengthOfReplication = 1000000.0
+    m.numberOfReplications = 10
+    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+//        m.numberOfReplications = 1
+//    m.lengthOfReplication = 1000000.0
     m.simulate()
     m.print()
     val r = m.simulationReporter
