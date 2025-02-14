@@ -1571,7 +1571,7 @@ class Conveyor(
         override val rearCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
-        internal fun moveForwardOneCellV2(){
+        internal fun moveForwardOneCell(){
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             if (frontCell!!.isExitCell) {
                 // item may be exiting or passing through cell
@@ -1639,7 +1639,7 @@ class Conveyor(
          *  occupies.  This function is called from within function moveItemsForwardThroughCells()
          *  which is called by functions within the endOfCellTraversal() event.
          */
-        internal fun moveForwardOneCell() {
+        internal fun moveForwardOneCellOLD() {
             //TODO maybe the conditions need to be reviewed, could item off the conveyor being missed
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
