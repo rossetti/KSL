@@ -1571,6 +1571,30 @@ class Conveyor(
         override val rearCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
+        internal fun moveForwardOneCellV2(){
+            require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
+            if (frontCell!!.isExitCell) {
+                // item may be exiting or passing through cell
+                if (status == ItemStatus.EXITING) {
+                    // need to move the item forward, through its front cell, which is the exit cell
+                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location?.name})" }
+                    // item is exiting, move it forward and check if it is off the conveyor
+                    val exitCell = frontCell!! // captures the exit cell, because popping moves the item
+                    popRearCell() // moves item forward, item no longer occupies its rear cell, it now covers its exit cell (or is off conveyor)
+                    if (!occupiesCells) {
+                        // no longer on the conveyor
+                        status = ItemStatus.OFF
+                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has moved off the conveyor" }
+                        conveyor.itemFullyOffConveyor(this, exitCell)
+                    }
+                } else {
+                    // item is passing through the exit cell, need to move it forward
+                }
+            } else {
+                // the front cell is not an exit cell
+            }
+        }
+
         /**
          *  Causes an item already on the conveyor to move through the cell that it occupies.  This
          *  causes the cells that the item occupies to be updated to the next cell.
