@@ -2196,13 +2196,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     requestResumePriority
                 )
                 // holds the entity until the entry cell is blocked for entry
-                val qObj = QObject()
-                conveyor.accessingTestQ.enqueue(qObj)
                 hold(
-                    conveyor.conveyorHoldQ,
-                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.conveyorHoldQ.name}"
+                    conveyor.accessingHoldQ,
+                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.accessingHoldQ.name}"
                 )
-                conveyor.accessingTestQ.remove(qObj)
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
@@ -2242,11 +2239,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isMoving = true
                 // holds here while request rides on the conveyor
                 val timeStarted = time
-                val qObj = QObject()
-                conveyor.ridingTestQ.enqueue(qObj)
                 //TODO need to investigate how this gets resumed !!!
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.conveyorHoldQ.name}")
-                conveyor.ridingTestQ.remove(qObj)
+                hold(conveyor.ridingHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.ridingHoldQ.name}")
                 isMoving = false
                 if (destination is LocationIfc) {
                     currentLocation = destination
@@ -2276,10 +2270,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isMoving = true
                 // hold here while entity exits the conveyor
                 //TODO investigate where this gets resumed
-                val qObj = QObject()
-                conveyor.exitingTestQ.enqueue(qObj)
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
-                conveyor.exitingTestQ.remove(qObj)
+                hold(conveyor.exitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.exitingHoldQ.name}")
                 isMoving = false
                 entity.conveyorRequest = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
