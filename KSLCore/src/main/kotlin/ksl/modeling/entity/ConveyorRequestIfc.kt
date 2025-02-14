@@ -1,5 +1,6 @@
 package ksl.modeling.entity
 
+import ksl.modeling.entity.Conveyor.Cell
 import ksl.utilities.IdentityIfc
 
 /**
@@ -114,6 +115,11 @@ interface ConveyorRequestIfc {
      *  True if the entity has reached its destination
      */
     val hasReachedDestination: Boolean
+
+    /**
+     *  The conveyor cell on which the item entered the conveyor
+     */
+    val entryCell: Cell
 
     fun asString(): String {
         return "Conveyor Request: conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}"
