@@ -1588,11 +1588,15 @@ class Conveyor(
                         conveyor.itemFullyOffConveyor(this, exitCell)
                     }
                 } else {
-                    // item is passing through the exit cell, need to move it forward
+                    // item is not exiting, it must be passing through the exit cell onto the next segment, need to move it forward
                 }
             } else {
-                // the front cell is not an exit cell
-                require(status != ItemStatus.EXITING) {"CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : The item () cannot exit when its front cell ${frontCell?.cellNumber}"}
+                // the front cell is not an exit cell, the item must not be exiting
+                require(status != ItemStatus.EXITING) {"CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : The item (${this.name}) cannot exit when its front cell ${frontCell?.cellNumber} is not an exit cell"}
+                // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
+                // in which case there MUST be a next cell
+                check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
+
             }
         }
 
