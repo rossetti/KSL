@@ -1345,6 +1345,7 @@ class Conveyor(
      *  or it must initiate movement.
      */
     private fun beginRiding(request: ConveyorRequest) {
+        //TODO beginRiding(): examine this logic to ensure that riding actually occurs because of rideConveyor()
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : status = ${request.status}: begin riding..." }
         // the request has asked to start riding for the very first time
         if (!isCellTraversalInProgress()) {
@@ -1934,20 +1935,21 @@ class Conveyor(
         conveyorRequest.destination = destination
         // need to check if a cell traversal is in progress if so, don't make the request until after it ends
         if (isCellTraversalInProgress()) {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : arrival of ride request"}
             // handle cell traversal in progress differently by type of conveyor
             if (conveyorType == Type.NON_ACCUMULATING) {
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : arrival of ride request"}
                 // item has asked to ride non-accumulating conveyor and will block the cell
                 // cancel the current traversal
                 cancelConveyorMovement()
                 // schedule the need for conveyance at the current time, this will cause the blockage
                 schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for current time = $time : Non-Accumulating"}
             } else {
                 // cell traversal is in progress, must wait to end of current movement before engaging conveyor for ride
                 // determine time of end of cell traversal
                 val timeUntilEndOfTraversal = endCellTraversalEvent!!.timeRemaining
                 schedule(::startRideAction, timeUntilEndOfTraversal, message = conveyorRequest, priority = ridePriority)
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for time = ${time+ timeUntilEndOfTraversal}"}
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : scheduled start of ride for time = ${time+ timeUntilEndOfTraversal} : Accumulating"}
             }
          } else {
             // cell traversal is not in progress
