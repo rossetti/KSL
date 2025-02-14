@@ -700,6 +700,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        /**
+         *  If an entity is using a conveyor (has requested and received cells) this returns
+         *  the request. If null, then the entity should not be using a conveyor. This is
+         *  set via the requestConveyor() suspending function to the request and to null when
+         *  the entity exits the conveyor.
+         */
         var conveyorRequest: ConveyorRequestIfc? = null
             private set
 

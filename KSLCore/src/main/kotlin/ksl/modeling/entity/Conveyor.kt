@@ -1475,12 +1475,12 @@ class Conveyor(
         override var status: ItemStatus = ItemStatus.OFF
             internal set
 
-        val entryCell: Cell = entryCells[entryLocation]!!
+        override val entryCell: Cell = entryCells[entryLocation]!!
 
         override var currentLocation: IdentityIfc = entryLocation
             internal set
 
-        // destination should be set when asking to ride
+        // this is set when the scheduleConveyorAction() function occurs, called from suspending function: rideConveyor()
         override var destination: IdentityIfc? = null
             internal set
 
@@ -1571,7 +1571,7 @@ class Conveyor(
         override val rearCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
-        internal fun moveForwardOneCell(){
+        internal fun moveForwardOneCellPossible(){
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             if (frontCell!!.isExitCell) {
                 // item may be exiting or passing through cell
@@ -1639,7 +1639,7 @@ class Conveyor(
          *  occupies.  This function is called from within function moveItemsForwardThroughCells()
          *  which is called by functions within the endOfCellTraversal() event.
          */
-        internal fun moveForwardOneCellOLD() {
+        internal fun moveForwardOneCell() {
             //TODO maybe the conditions need to be reviewed, could item off the conveyor being missed
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
