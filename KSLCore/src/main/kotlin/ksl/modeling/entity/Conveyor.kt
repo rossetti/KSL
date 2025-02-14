@@ -18,7 +18,6 @@
 
 package ksl.modeling.entity
 
-import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
@@ -28,130 +27,6 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
-
-/**
- * This data class represents the origin [entryLocation] and destination [exitLocation] of a [length]
- * of a segment for a conveyor. See the class Conveyor for more
- * details on how segments are used to represent a conveyor.
- */
-data class Segment(val entryLocation: IdentityIfc, val exitLocation: IdentityIfc, val length: Int) {
-    init {
-        require(entryLocation != exitLocation) { "The start and the end of the segment must be different!" }
-        require(length >= 1) { "The length of the segment must be >= 1 unit" }
-    }
-
-    override fun toString(): String {
-        return "(start = ${entryLocation.name} --> end = ${exitLocation.name} : length = $length)"
-    }
-
-    val name: String
-        get() = "${entryLocation.name}-${exitLocation.name}"
-
-}
-
-/**
- * This class represents the data associated with segments of a conveyor and facilitates
- * the specification of segments for a conveyor.  See the class Conveyor for more
- * details on how segments are used to represent a conveyor.
- */
-class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
-    private val mySegments = mutableListOf<Segment>()
-    private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
-
-    var lastLocation: IdentityIfc = firstLocation
-        private set
-    var minimumSegmentLength = Integer.MAX_VALUE
-        private set
-    val segments: List<Segment>
-        get() = mySegments
-
-    fun toLocation(next: IdentityIfc, length: Int) {
-        require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
-        require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
-        require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
-        val sd = Segment(lastLocation, next, length)
-        mySegments.add(sd)
-        if (length <= minimumSegmentLength) {
-            minimumSegmentLength = length
-        }
-        lastLocation = next
-        if (!myDownStreamLocations.containsKey(sd.entryLocation)) {
-            myDownStreamLocations[sd.entryLocation] = mutableListOf()
-        }
-        for (loc in entryLocations) {
-            myDownStreamLocations[loc]?.add(sd.exitLocation)
-        }
-    }
-
-    val entryLocations: List<IdentityIfc>
-        get() {
-            val list = mutableListOf<IdentityIfc>()
-            for (seg in mySegments) {
-                list.add(seg.entryLocation)
-            }
-            return list
-        }
-
-    val exitLocations: List<IdentityIfc>
-        get() {
-            val list = mutableListOf<IdentityIfc>()
-            for (seg in mySegments) {
-                list.add(seg.exitLocation)
-            }
-            return list
-        }
-
-    val isCircular: Boolean
-        get() = firstLocation == lastLocation
-
-    fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
-        if (!entryLocations.contains(start))
-            return false
-        if (!exitLocations.contains(end))
-            return false
-        if (isCircular)
-            return true
-        return myDownStreamLocations[start]!!.contains(end)
-    }
-
-    val totalLength: Int
-        get() {
-            var sum = 0
-            for (seg in mySegments) {
-                sum = sum + seg.length
-            }
-            return sum
-        }
-
-    fun isEmpty(): Boolean {
-        return mySegments.isEmpty()
-    }
-
-    fun isNotEmpty() = !isEmpty()
-
-    override fun toString(): String {
-        val sb = StringBuilder()
-        sb.appendLine("first location = ${firstLocation.name}")
-        sb.appendLine("last location = ${lastLocation.name}")
-        for ((i, segment) in mySegments.withIndex()) {
-            sb.appendLine("Segment: ${(i + 1)} = $segment")
-        }
-        sb.appendLine("total length = $totalLength")
-        sb.appendLine("Downstream locations:")
-        for ((loc, list) in myDownStreamLocations) {
-            sb.appendLine(
-                "${loc.name} : ${
-                    list.joinToString(
-                        separator = " -> ",
-                        prefix = "[",
-                        postfix = "]",
-                        transform = { it.name })
-                }"
-            )
-        }
-        return sb.toString()
-    }
-}
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
@@ -808,6 +683,8 @@ class Conveyor(
      *  is simply an assignment such that each item now occupies the cell in front of its current
      *  cell location on the conveyor.  As such, the item occupying the last cell is the lead item
      *  in the "train" of items moving forward by one cell.
+     *
+     *  Called from within endCellTraversal() event
      */
     private fun moveItemsForwardOneCell(cells: List<Cell>) {
         //TODO review the logic of this function moveItemsForwardOneCell()
@@ -830,19 +707,24 @@ class Conveyor(
             // special case to allow movement to the exiting item at end of the conveyor
             moveItemsForwardThroughCells(cells)
         } else {
+            // the last cell of the list is not the last cell of the conveyor, check to make sure that there is a next cell
             require(cells.last().nextCell != null) { "CONVEYOR ($name): The last cell of the list does not have a following cell" }
             val item = cells.last().item!!
+            // item could be exiting or not, here. If it is not exiting, the next cell must be available. If it is exiting, then it moves through the final cell.
             if (item.status != ItemStatus.EXITING) {
+                // item is not exiting, ensure that next cell is available
                 require(cells.last().nextCell!!.isAvailable) { "CONVEYOR ($name): The cell (${cells.last().nextCell!!.cellNumber}) after the last cell (${cells.last().cellNumber}) is not available \n ${toString()}" }
             }
-            // item could be exiting or not, here. If it is not exiting, the next cell must be available. If it is exiting, then it moves through the final cel.
-            moveItemsForwardThroughCells(cells)
+             moveItemsForwardThroughCells(cells)
         }
     }
 
     /**
      *  Causes the items that are occupying cells within the list to move forward
-     *  by one cell.
+     *  by one cell. This is called by functions within the endOfCellTraversal() event.
+     *  Each item is moved (copied) to the next cell starting with the last cell
+     *  and working in reverse order. If the previous cell has an item,
+     *  the item is moved to the next cell, and so forth.
      */
     private fun moveItemsForwardThroughCells(cells: List<Cell>) {
         var lastItem: ConveyorRequest? = null
@@ -1176,7 +1058,7 @@ class Conveyor(
     /**
      *  This method is called after the item moves off the conveyor during the movement through cells.
      *  This method is called from ConveyorRequest.moveForwardOneCell().
-     *  This method resumes the entity associated with the request
+     *  This method resumes the entity associated with the request that is exiting.
      */
     private fun itemFullyOffConveyor(request: ConveyorRequest, exitCell: Cell) {
         //TODO this is where entity is resumed after exiting
@@ -1238,6 +1120,7 @@ class Conveyor(
     }
 
     private fun captureCellUsage(){
+        // called from endOfCellTraversal() event
         myNumOccupiedCells.value = numOccupiedCells.toDouble()
         for (seg in segments){
             seg.myNumOccupiedCells.value = seg.numOccupiedCells.toDouble()
@@ -1303,6 +1186,7 @@ class Conveyor(
      *  Depending on the type of conveyor, move the cells on the conveyor that can be moved
      */
     private fun moveCellsOnConveyor() {
+        // called from endOfCellTraversal() event
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}) : moving cells on the conveyor...." }
         if (conveyorType == Type.NON_ACCUMULATING) {
             nonAccumulatingConveyorMovement()
@@ -1313,6 +1197,9 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}) : .... completed moving cells on the conveyor" }
     }
 
+    /**
+     *  Called from within the endOfCellTraversal() event
+     */
     private fun nonAccumulatingConveyorMovement() {
         require(conveyorType == Type.NON_ACCUMULATING) { "The conveyor is not type non-accumulating" }
         if (!isOccupied() || hasBlockedCells()) {
@@ -1691,6 +1578,7 @@ class Conveyor(
          *  represents the item moving through the cell. This represents the completion
          *  of that movement.  At the end of this movement, the item is fully covering the cell that it
          *  occupies.  This function is called from within function moveItemsForwardThroughCells()
+         *  which is called by functions within the endOfCellTraversal() event.
          */
         internal fun moveForwardOneCell() {
             //TODO maybe the conditions need to be reviewed, could item off the conveyor being missed
@@ -1702,8 +1590,8 @@ class Conveyor(
                 // need to move the item forward, through its front cell, which is the exit cell
                 // item no longer occupies its rear cell
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location?.name})" }
-                val exitCell = frontCell!!
-                popRearCell()
+                val exitCell = frontCell!! // captures the exit cell, because popping moves the item
+                popRearCell() // moves item forward, item no longer occupies its rear cell, now cover exit cell (or is off conveyor)
                 if (!occupiesCells) {
                     // no longer on the conveyor
                     status = ItemStatus.OFF
@@ -1717,7 +1605,7 @@ class Conveyor(
             // in which case there MUST be a next cell
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
-            occupyCell(frontCell!!.nextCell!!)
+               (frontCell!!.nextCell!!)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
             if (status == ItemStatus.ENTERING) {
                 if (numCellsNeeded == numCellsOccupied) {
@@ -2205,124 +2093,6 @@ class Conveyor(
             }
             //TODO("Checking if we got here")
         }
-    }
-}
-
-/**
- *  A conveyor request represents the holding of cells on a conveyor and acts as
- *  a "ticket" to use the conveyor.  Once an entity has a conveyor request, the entity
- *  has control over the cells at the start of the segment associated with the entry
- *  location along the conveyor.  After receiving a request to
- *  access the conveyor the entity can either ride on the conveyor or exit. The conveyor
- *  request blocks at the point of access until riding or exiting. The request is placed
- *  in the blocking entry state.  When the entity
- *  asks to ride the conveyor then the request will be placed in the riding state. If the entity
- *  never rides the conveyor, then the request stays in the blocking entry state.  The property isWaitingForEntry
- *  indicates that the conveyor request is waiting to be allowed to block the entry cell of the conveyor
- *  at its current location. Once the conveyor request is used to ride the conveyor, the isWaitingToConvey property will
- *  report false. The isBlockingEntry property will report true until the request begins
- *  riding.  Once the request reaches its destination, the isBlockingExit property will be true and the
- *  request is in the blocking exit state.  When the request exits the conveyor the isCompleted property is true
- *  and the request is in the completed state.  Once in the completed state, the request can no longer be used
- *  for any interaction with the conveyor.
- */
-interface ConveyorRequestIfc {
-
-    val isWaitingForEntry: Boolean
-    val isBlockingEntry: Boolean
-    val isRiding: Boolean
-    val isBlockingExit: Boolean
-    val isCompleted: Boolean
-
-    val status: Conveyor.ItemStatus
-
-    /**
-     *  The location where the entity first accessed the conveyor
-     */
-    val entryLocation: IdentityIfc
-
-    /**
-     * The entity that needs to use the conveyor
-     */
-    val entity: ProcessModel.Entity
-
-    /**
-     *  The number of cells needed when riding on the conveyor
-     */
-    val numCellsNeeded: Int
-
-    /**
-     * The current location of the entity. This is assigned
-     * when the entity arrives at the end of a segment
-     */
-    val currentLocation: IdentityIfc
-
-    /**
-     * The final location where the entity wants to visit on the conveyor
-     */
-    val destination: IdentityIfc?
-
-    /**
-     *  The number of cells currently occupied on the conveyor.
-     *  This may be different from numCellsAllocated because an
-     *  allocation does not need to convey. It can be used to block
-     *  the conveyor at one of its entrance locations
-     */
-    val numCellsOccupied: Int
-
-    /**
-     *  True if the item occupies cells. After exiting the conveyor
-     *  the item does not occupy any cells
-     */
-    val occupiesCells: Boolean
-
-    /**
-     *  The conveyor the entity is using
-     */
-    val conveyor: Conveyor
-
-    /**
-     * The object riding on the conveyor has a front (facing towards) its destination
-     * and an end (facing where it originated). This cell is the furthermost cell
-     * occupied towards the front (in the direction of travel)
-     */
-    val frontCell: Conveyor.Cell?
-
-    /**
-     *  This cell is the furthermost cell occupied by the object towards the where
-     *  it originated.
-     */
-    val rearCell: Conveyor.Cell?
-
-    /**
-     *  True if the item has reached the last cell of the current segment
-     */
-    val hasReachedAnExitCell: Boolean
-
-    /**
-     *  Can be used when the entity is resumed
-     */
-    val accessResumePriority: Int
-
-    /**
-     *  While riding this is the location where the entity is heading
-     */
-    val plannedLocation: IdentityIfc?
-        get() {
-            return if (rearCell == null) {
-                null
-            } else {
-                rearCell!!.segment.exitLocation
-            }
-        }
-
-    /**
-     *  True if the entity has reached its destination
-     */
-    val hasReachedDestination: Boolean
-
-    fun asString(): String {
-        return "Conveyor Request: conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}"
     }
 }
 
