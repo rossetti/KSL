@@ -20,20 +20,23 @@ import ksl.utilities.random.rvariable.UniformRV
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
     // test plan 1, distribution j
-    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1*4.1))
-    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2*4.2))
-    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3*4.3))
-    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0*4.0))
+    private val t11 = RandomVariable(this, LognormalRV(20.0, 4.1 * 4.1))
+    private val t12 = RandomVariable(this, LognormalRV(12.0, 4.2 * 4.2))
+    private val t13 = RandomVariable(this, LognormalRV(18.0, 4.3 * 4.3))
+    private val t14 = RandomVariable(this, LognormalRV(16.0, 4.0 * 4.0))
+
     // test plan 2, distribution j
-    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0*4.0))
-    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0*4.0))
+    private val t21 = RandomVariable(this, LognormalRV(12.0, 4.0 * 4.0))
+    private val t22 = RandomVariable(this, LognormalRV(15.0, 4.0 * 4.0))
+
     // test plan 3, distribution j
-    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2*4.2))
-    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4*4.4))
-    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3*4.3))
+    private val t31 = RandomVariable(this, LognormalRV(18.0, 4.2 * 4.2))
+    private val t32 = RandomVariable(this, LognormalRV(14.0, 4.4 * 4.4))
+    private val t33 = RandomVariable(this, LognormalRV(12.0, 4.3 * 4.3))
+
     // test plan 4, distribution j
-    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0*4.0))
-    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0*4.0))
+    private val t41 = RandomVariable(this, LognormalRV(24.0, 4.0 * 4.0))
+    private val t42 = RandomVariable(this, LognormalRV(30.0, 4.0 * 4.0))
 
     private val r1 = RandomVariable(this, TriangularRV(30.0, 60.0, 80.0))
     private val r2 = RandomVariable(this, TriangularRV(45.0, 55.0, 70.0))
@@ -74,15 +77,20 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val sequences = listOf(testPlan1, testPlan2, testPlan3, testPlan4)
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
+
+    //    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 1, testPlan4 to 1)
 //    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 2, testPlan4 to 2)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
+
     // define the random variables
     private val tba = ExponentialRV(20.0)
 
     private val myArrivalGenerator = EntityGenerator(this::Part, tba, tba)
+
     init {
- //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
+        //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
     }
+
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
@@ -94,7 +102,8 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
     val systemTime: ResponseCIfc
         get() = timeInSystem
-    private val myContractLimit: IndicatorResponse = IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
+    private val myContractLimit: IndicatorResponse =
+        IndicatorResponse({ x -> x <= 480.0 }, timeInSystem, "ProbWithinLimit")
     val probWithinLimit: ResponseCIfc
         get() = myContractLimit
 
@@ -151,7 +160,7 @@ fun main() {
     val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
 
     m.numberOfReplications = 10
-    m.lengthOfReplication = 52.0* 5.0*2.0*480.0
+    m.lengthOfReplication = 52.0 * 5.0 * 2.0 * 480.0
 //        m.numberOfReplications = 1
 //    m.lengthOfReplication = 1000000.0
     m.simulate()
