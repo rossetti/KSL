@@ -264,10 +264,10 @@ class Conveyor(
      *  Because this queue is internal to the conveyor, statistics are not collected.
      *
      */
-    internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
-    internal val exitingTestQ =  Queue<QObject>(this, "${this.name}:ExitingTestQ")
-    internal val ridingTestQ =  Queue<QObject>(this, "${this.name}:RidingTestQ")
-    internal val accessingTestQ =  Queue<QObject>(this, "${this.name}:AccessingTestQ")
+//    internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
+    internal val exitingHoldQ =  HoldQueue(this, "${this.name}:ExitingHoldQ")
+    internal val ridingHoldQ =  HoldQueue(this, "${this.name}:RidingHoldQ")
+    internal val accessingHoldQ =  HoldQueue(this, "${this.name}:AccessingHoldQ")
     //TODO
 
     init {
@@ -1185,7 +1185,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Request (${request.name}): status = ${request.status}: entity_id = ${request.entity.id} : fully off the conveyor: removing blockage" }
         removeBlockage(exitCell)
         // item completed the exiting process, tell the entity that it can proceed
-        conveyorHoldQ.removeAndResume(request.entity)
+        exitingHoldQ.removeAndResume(request.entity)
         // cause the transition to the complete state from the blocking exit state
         request.exitConveyor()
     }
@@ -1209,7 +1209,7 @@ class Conveyor(
             cancelConveyorMovement()
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination!!.name}) : itemReachedDestination()" }
-        conveyorHoldQ.removeAndResume(request.entity)
+        ridingHoldQ.removeAndResume(request.entity)
         // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
 
@@ -1256,6 +1256,7 @@ class Conveyor(
      *  to block an entry cell of the conveyor.
      */
     private fun processRequestsWaitingToAccessConveyor() {
+        //TODO this resumes the entity in hold to access conveyor
         for ((location, cell) in entryCells) {
             if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
                 val prevCell = cell.previousCell
@@ -1274,7 +1275,7 @@ class Conveyor(
                     dequeueRequest(request)
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}"}
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
-                    conveyorHoldQ.removeAndResume(request.entity)
+                    accessingHoldQ.removeAndResume(request.entity)
                 } else {
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
                 }
@@ -1958,6 +1959,7 @@ class Conveyor(
     }
 
     private fun receiveRequest(event: KSLEvent<ConveyorRequest>) {
+        //TODO this resumes the entity waiting to access the conveyor
         val request = event.message!!
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
@@ -1969,7 +1971,7 @@ class Conveyor(
             // remove the request from the queue and start it processing
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation.name}" }
             dequeueRequest(request)
-            conveyorHoldQ.removeAndResume(request.entity)
+            accessingHoldQ.removeAndResume(request.entity)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }
         }
