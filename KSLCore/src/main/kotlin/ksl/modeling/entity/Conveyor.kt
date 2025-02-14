@@ -1592,6 +1592,7 @@ class Conveyor(
                 }
             } else {
                 // the front cell is not an exit cell
+                require(status != ItemStatus.EXITING) {"CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : The item () cannot exit when its front cell ${frontCell?.cellNumber}"}
             }
         }
 

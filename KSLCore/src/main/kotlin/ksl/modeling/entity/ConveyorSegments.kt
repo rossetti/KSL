@@ -22,6 +22,8 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
         require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
+        val numCells = length / cellSize
+        require(numCells >= 2) { "There must be at least 2 cells on each segment: length = $length, cellSize = $cellSize, results in $numCells cells" }
         val sd = Segment(lastLocation, next, length)
         mySegments.add(sd)
         if (length <= minimumSegmentLength) {
