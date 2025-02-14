@@ -1592,11 +1592,12 @@ class Conveyor(
                     // front cell is an exit cell, but item is not exiting, there needs to be a next cell
                     check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
                     // there is a next cell, because the item's front cell is an exit cell, the next cell must be an entry cell
-                    require(status == ItemStatus.ON) {"The item is not exiting at an exit cell and there is next cell. The item must have the ON status"}
+                    require(status == ItemStatus.ON) {"The item is not exiting at an exit cell and there is a next cell. The item must have the ON status"}
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
                     occupyCell(frontCell!!.nextCell!!) //this moves the item one cell forward
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
-                    //The items' front cell must be an entry cell, an entry cell cannot be a destination
+                    // The items' front cell must be an entry cell, an entry cell cannot be a destination
+                    // nothing further to check
                 }
             } else {
                 // the front cell is not an exit cell, the item must not be exiting
