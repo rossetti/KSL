@@ -1674,6 +1674,7 @@ class Conveyor(
             // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
             // in which case there MUST be a next cell
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
+            //TODO do we check for occupied next cell here or in call to this function
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
             occupyCell(frontCell!!.nextCell!!)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
@@ -1704,6 +1705,7 @@ class Conveyor(
          *  cells needs is reached, the oldest cell is removed from the cells occupied.
          */
         private fun occupyCell(cell: Cell) {
+            require(cell.isNotOccupied) {"Conveyor request attempted to occupy cell ${cell.cellNumber} but it is occupied! \n occupying request: ${cell.item?.asString()} \n offending request:  ${this.asString()}}"}
             if (myCellsOccupied.size < numCellsNeeded) {
                 myCellsOccupied.add(cell)
                 cell.item = this

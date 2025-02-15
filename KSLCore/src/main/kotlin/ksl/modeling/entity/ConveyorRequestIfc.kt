@@ -123,7 +123,7 @@ interface ConveyorRequestIfc {
 
     fun asString(): String {
         val sb = StringBuilder()
-        sb.appendLine("Conveyor Request")
+        sb.appendLine("Conveyor Request for entity ${entity.id}")
         sb.appendLine("conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}")
         sb.appendLine("Front cell = ${frontCell?.cellNumber}, Rear cell = ${rearCell?.cellNumber}")
         sb.appendLine("Has reached destination = $hasReachedDestination, Has reached exit cell $hasReachedAnExitCell")
