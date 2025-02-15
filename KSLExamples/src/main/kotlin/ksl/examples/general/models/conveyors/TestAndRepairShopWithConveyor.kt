@@ -122,6 +122,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     init {
         loopConveyor.accessQueueAt(myRepair).defaultReportingOption = false
+        println(loopConveyor)
     }
 
     // define the process
@@ -153,6 +154,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             wip.decrement()
         }
     }
+
 }
 
 fun main() {

@@ -122,6 +122,13 @@ interface ConveyorRequestIfc {
     val entryCell: Cell
 
     fun asString(): String {
-        return "Conveyor Request: conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}"
+        val sb = StringBuilder()
+        sb.appendLine("Conveyor Request")
+        sb.appendLine("conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}")
+        sb.appendLine("Front cell = ${frontCell?.cellNumber}, Rear cell = ${rearCell?.cellNumber}")
+        sb.appendLine("Has reached destination = $hasReachedDestination, Has reached exit cell $hasReachedAnExitCell")
+        sb.appendLine("status = $status, num cell occupied = $numCellsOccupied, num cells needed = $numCellsNeeded")
+        sb.appendLine("isRiding = $isRiding, isCompleted = $isCompleted, isBlockingExit = $isBlockingExit, isBlockingEntry = $isBlockingEntry, isWaitingForEntry = $isWaitingForEntry")
+        return sb.toString()
     }
 }
