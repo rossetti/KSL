@@ -27,6 +27,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
+import ksl.utilities.io.KSL
 
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
@@ -752,6 +753,15 @@ class Conveyor(
         myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / conveyorCells.size
         for (cSeg in segments){
             cSeg.replicationEnded()
+        }
+        var i = 0
+        KSL.out.println("End of Replication: ${model.currentReplicationNumber}")
+        KSL.out.println("Entities in ridingHoldQ: size = ${ridingHoldQ.size}")
+        for(entity in ridingHoldQ){
+            i++
+            KSL.out.println("$i $entity")
+            KSL.out.println(entity.conveyorRequest?.asString()!!)
+            KSL.out.println()
         }
     }
 
