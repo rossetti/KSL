@@ -20,7 +20,8 @@ fun main() {
  //   runConveyorTest(Conveyor.Type.NON_ACCUMULATING)
 //    blockedCellsTest()
 
-    runConveyorTest5(Conveyor.Type.ACCUMULATING)
+ //   runConveyorTest5(Conveyor.Type.ACCUMULATING)
+    runConveyorTest5(Conveyor.Type.NON_ACCUMULATING)
 }
 
 fun partitionTest() {
@@ -44,9 +45,19 @@ fun buildTest() {
         .cellSize(1)
         .firstSegment(i1, i2, 10)
         .nextSegment(i3, 20)
+//        .nextSegment(i1, 15)
         .build()
-
     println(c)
+
+    val entryCells = c.entryCells
+    val i1Cells = entryCells[i1]!!.previousCells(4)
+    println()
+    println("previous cells for $i1")
+    i1Cells.forEach { println(it) }
+    val i2Cells = entryCells[i2]!!.previousCells(30)
+    println()
+    println("previous cells for $i2")
+    i2Cells.forEach { println(it) }
 }
 
 class TestConveyor(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
