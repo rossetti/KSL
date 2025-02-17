@@ -9,9 +9,16 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.io.plotting.StateVariablePlot
+import ksl.utilities.statistic.TimeWeightedStatistic
 
 fun main(){
 
+ //   numberInQPlot()
+
+    runModel()
+}
+
+fun runModel(){
     val m = Model("Tool Crib Example")
     // setup historical variables
     val arrivals = doubleArrayOf(
@@ -36,6 +43,17 @@ fun main(){
 
     val nqPlot = StateVariablePlot(qOft, repNum = 1)
     nqPlot.showInBrowser()
+}
+
+fun numberInQPlot() {
+    val t = doubleArrayOf(0.0, 13.0, 14.0, 15.0, 17.0, 19.0, 19.0, 21.0, 22.0, 24.0, 27.0, 28.0, 31.0)
+    val n = doubleArrayOf(0.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0, 0.0)
+    val plot = StateVariablePlot(n, t, "Q(t)")
+    plot.showInBrowser()
+    plot.saveToFile("StateVariableDemo", plotTitle = "State Variable Plot")
+
+    val tws3 = TimeWeightedStatistic(n, t)
+    println(tws3)
 }
 
 class ToolCrib(
