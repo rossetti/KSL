@@ -1600,7 +1600,7 @@ class Conveyor(
         }
 
         override var entity: ProcessModel.Entity = requestingEntity
-            internal set
+            internal set //TODO to allow transfer of request to another entity
 
         override val conveyor = this@Conveyor
 
