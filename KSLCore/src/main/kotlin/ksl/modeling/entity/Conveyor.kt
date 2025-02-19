@@ -35,6 +35,7 @@ import ksl.utilities.io.KSL
  *  That is, regardless of whether intermediate cells are not available.
  *  This is simply the total number available.
  */
+@Suppress("unused")
 fun List<Conveyor.Cell>.numAvailable() : Int {
     var cnt = 0
     for(cell in this){
@@ -158,25 +159,37 @@ class Conveyor(
             field = value
         }
 
+    internal val myExitingHoldQ = HoldQueue(this, "${this.name}:ExitingHoldQ")
     /**
-     *  This holds the entities that are suspended because they are currently
-     *  using the conveyor in some fashion that causes them to be suspended.
-     *  For example, this is used to resume the entity's process
-     *  after the entity reaches its destination on the conveyor. The process is
-     *  then resumed and the entity can decide to exit the conveyor, experience
-     *  a process while on the conveyor, or continue riding to another destination.
-     *  Because this queue is internal to the conveyor, statistics are not collected.
-     *
+     *  Holds entities that are suspended because they are in the process of exiting the conveyor.
      */
-//    internal val conveyorHoldQ = HoldQueue(this, "${this.name}:HoldQ")
-    internal val exitingHoldQ = HoldQueue(this, "${this.name}:ExitingHoldQ")
-    internal val ridingHoldQ = HoldQueue(this, "${this.name}:RidingHoldQ")
-    internal val accessingHoldQ = HoldQueue(this, "${this.name}:AccessingHoldQ")
-    //TODO
+    @Suppress("unused")
+    val exitingHoldQ: QueueCIfc<ProcessModel.Entity>
+        get() = myExitingHoldQ
+
+    internal val myRidingHoldQ = HoldQueue(this, "${this.name}:RidingHoldQ")
+    /**
+     *  Holds entities that are suspended because they are in the process of riding the conveyor.
+     */
+    @Suppress("unused")
+    val ridingHoldQ: QueueCIfc<ProcessModel.Entity>
+        get() = myRidingHoldQ
+
+    internal val myAccessingHoldQ = HoldQueue(this, "${this.name}:AccessingHoldQ")
+    /**
+     *  Holds entities that are suspended because they are in the process of accessing the conveyor.
+     */
+    @Suppress("unused")
+    val accessingHoldQ: QueueCIfc<ProcessModel.Entity>
+        get() = myAccessingHoldQ
 
     init {
-//        conveyorHoldQ.waitTimeStatOption = false
-//        conveyorHoldQ.defaultReportingOption = false
+        myAccessingHoldQ.waitTimeStatOption = false
+        myAccessingHoldQ.defaultReportingOption = false
+        myRidingHoldQ.waitTimeStatOption = false
+        myRidingHoldQ.defaultReportingOption = false
+        myExitingHoldQ.waitTimeStatOption = false
+        myExitingHoldQ.defaultReportingOption = false
     }
 
     private val conveyorSegments: ConveyorSegments = segmentData
@@ -204,11 +217,13 @@ class Conveyor(
 
     // the cells associated with each exit location
     private val myExitCells = mutableMapOf<IdentityIfc, Cell>()
+    @Suppress("unused")
     val exitCells: Map<IdentityIfc, Cell>
         get() = myExitCells
 
     // holds the queues that hold requests that are waiting to use the conveyor associated with each entry location
     private val myAccessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
+    @Suppress("unused")
     val accessQueues: Map<IdentityIfc, QueueCIfc<ConveyorRequest>>
         get() = myAccessQueues
 
@@ -228,6 +243,7 @@ class Conveyor(
      *  Turns [on] or off the default reporting for the utilization and time average
      *  number of busy cells for each segment of the conveyor
      */
+    @Suppress("unused")
     fun segmentStatisticalReporting(on: Boolean = true) {
         for (seg in segments) {
             seg.myNumOccupiedCells.defaultReportingOption = on
@@ -273,10 +289,12 @@ class Conveyor(
 
     private val myNumOccupiedCells =
         TWResponse(this, "${this.name}:NumOccupiedCells", allowedDomain = Interval(0.0, conveyorCells.size.toDouble()))
+    @Suppress("unused")
     val numberOfOccupiedCells: TWResponseCIfc
         get() = myNumOccupiedCells
 
     private val myCellUtilization = Response(this, "${this.name}:CellUtilization")
+    @Suppress("unused")
     val cellUtilization: ResponseCIfc
         get() = myCellUtilization
 
@@ -313,10 +331,11 @@ class Conveyor(
     }
 
     /**
-     *  By default (false), items riding on the conveyor have priority to enter entry cells over items
-     *  waiting to enter.  By setting the priority to true, the items waiting to begin riding the
+     *  By default, items riding on the conveyor have priority to enter entry cells over items
+     *  waiting to enter.  This default setting is false. By setting the priority to true, the items waiting to begin riding the
      *  conveyor have priority to access over items already riding on the conveyor.
      */
+    @Suppress("unused")
     fun enteringPriorityAt(entryLocation: IdentityIfc, priority: Boolean) {
         require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) is not an entry location for (${name})" }
         enteringPriority[entryLocation] = priority
@@ -372,6 +391,7 @@ class Conveyor(
      * cells on the conveyor in the order from the furthest along (closest to the exit location of the last segment)
      * to the nearest request (closest to the entry location of the first segment).
      */
+    @Suppress("unused")
     fun conveyorRequests(): List<ConveyorRequestIfc> {
         return conveyorRequests(conveyorCells)
     }
@@ -410,6 +430,7 @@ class Conveyor(
      *  Returns a list of the cells that are blocked in the
      *  order of cell number.
      */
+    @Suppress("unused")
     fun blockedCells(): List<Cell> {
         return conveyorCells.filter { it.isBlocked }
     }
@@ -417,6 +438,7 @@ class Conveyor(
     /**
      * The entry locations that are blocked and the corresponding blocked cell
      */
+    @Suppress("unused")
     fun blockedEntryCells(): Map<IdentityIfc, Cell> {
         return myEntryCells.filterValues { it.isBlocked }
     }
@@ -424,6 +446,7 @@ class Conveyor(
     /**
      *  The exit locations that are blocked and the corresponding blocked cell
      */
+    @Suppress("unused")
     fun blockedExitCells(): Map<IdentityIfc, Cell> {
         return myExitCells.filterValues { it.isBlocked }
     }
@@ -446,15 +469,15 @@ class Conveyor(
      */
     fun hasNoBlockedCells(): Boolean = !hasBlockedCells()
 
-    /**
-     *  Finds the first blocked cell from the end of the conveyor.
-     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, 8 are blocked. Then, cell 8 is the first blocked cell from the end of the
-     *  conveyor. If no cells are blocked, then null is returned.
-     */
-    private fun firstBlockedCellFromEnd(): Cell? {
-        return conveyorCells.asReversed().firstOrNull { it.isBlocked }
-    }
+//    /**
+//     *  Finds the first blocked cell from the end of the conveyor.
+//     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+//     *  Suppose cells 1, 5, 8 are blocked. Then, cell 8 is the first blocked cell from the end of the
+//     *  conveyor. If no cells are blocked, then null is returned.
+//     */
+//    private fun firstBlockedCellFromEnd(): Cell? {
+//        return conveyorCells.asReversed().firstOrNull { it.isBlocked }
+//    }
 
     /**
      *  Finds the first occupied cell from the start of the conveyor.
@@ -466,178 +489,149 @@ class Conveyor(
         return conveyorCells.firstOrNull { it.isOccupied }
     }
 
-    /**
-     * Finds the first blocked cell from the supplied cell going
-     * forward on the conveyor. If there are no blocked cells, then
-     * null is returned.
-     */
-    private fun firstBlockedCellForwardFromCell(startingCell: Cell): Cell? {
-        return conveyorCells.subList(startingCell.index, conveyorCells.size).firstOrNull { it.isBlocked }
-    }
+//    /**
+//     * Finds the first blocked cell from the supplied cell going
+//     * forward on the conveyor. If there are no blocked cells, then
+//     * null is returned.
+//     */
+//    private fun firstBlockedCellForwardFromCell(startingCell: Cell): Cell? {
+//        return conveyorCells.subList(startingCell.index, conveyorCells.size).firstOrNull { it.isBlocked }
+//    }
 
-    /**
-     *  Checks if the supplied cell could move forward during the next cell traversal.
-     *  Returns true if the cell immediately in front of the cell is not occupied or
-     *  if the cell would be part of a train of cells that are pulled forward by
-     *  a lead cell behind a blockage.  If there are no blockages, then if the
-     *  conveyor has a movable cell then a train can be formed. The supplied
-     *  cell must be an occupied cell.
-     */
-    private fun couldCellMoveForward(cell: Cell): Boolean {
-        require(cell.isOccupied) { "The supplied cell is not occupied. No reason to check if it could move." }
-        if (cell.nextCell != null) {
-            // there is a next cell
-            if (cell.nextCell!!.isNotOccupied) {
-                return true
-            }
-            // the next cell is occupied, check for movable train
-            val fbc = firstBlockedCellForwardFromCell(cell)
-            if (fbc == null) {
-                // no blockages going forward, check entire conveyor
-                return findLeadingCell(conveyorCells) != null
-            } else {
-                // subset before first blocked cell
-                val cells = conveyorCells.subList(cell.index, fbc.index)
-                return findLeadingCell(cells) != null
-            }
-        }
-        return false
-    }
-
-    /**
-     *  Finds the cells from the end of the conveyor until the first blockage.
-     *  The returned list does not include the first cell that is blocked.
-     *  If the conveyor has no blocked cells or the last cell of the conveyor
-     *  is the first blocked cell, then this function returns an empty list.
-     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, 8 are blocked. Then the returned list contains
-     *  cells {9, 10, 11, 12} because cell 8 is the first blocked cell from the end of the
-     *  list.  These cells may or may not contain items.
-     */
-    private fun cellsFromEndUntilFirstBlockage(): List<Cell> {
-        if (conveyorCells.last().isBlocked || hasNoBlockedCells()) {
-            return emptyList()
-        }
-        // last is not blocked, and there is a blockage
-        val firstBlocked = firstBlockedCellFromEnd()!!
-        // don't include the blocked cell, but go to the end of the list
-        return conveyorCells.subList(firstBlocked.index + 1, conveyorCells.size)
-    }
-
-    /**
-     *  Partitions the conveyor cells into to sub lists. The first
-     *  of the pair contains all cells before (but not including) the first blocked
-     *  cell from the end of the list. The second of the pair contains
-     *  all cells after the blockage *including* the blockage.
-     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
-     *  list, the returned pair contains:
-     *
-     *  first = {1, 2, 3, 4, 5, 6, 7} (does not include the first blockage)
-     *  second = {8, 9, 10, 11, 12} (includes the first blockage)
-     *
-     *  If the conveyor has no blocked cells, then the pair is:
-     *
-     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-     *  second = {}
-     *
-     *  where the second is an empty list because there is no blockage to include.
-     *
-     *  If the last cell is the first blocked cell, then the pair is:
-     *
-     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
-     *  second = {12}
-     */
-    private fun partitionAtFirstBlockageAfterInclusive(): Pair<List<Cell>, List<Cell>> {
-        val fbc = firstBlockedCellFromEnd()
-        if (fbc == null) {
-            // no blocked cell, first is empty, second is all the cells
-            return Pair(conveyorCells, emptyList())
-        } else {
-            if (conveyorCells.last() == fbc) {
-                return Pair(conveyorCells.subList(0, fbc.index), conveyorCells.subList(fbc.index, conveyorCells.size))
-            } else {
-                val first = conveyorCells.subList(0, fbc.index)
-                val second = conveyorCells.subList(fbc.index, conveyorCells.size)
-                return Pair(first, second)
-            }
-        }
-    }
-
-    /**
-     *  Partitions the conveyor cells into to sub lists. The first
-     *  of the pair contains all cells before (and including) the first blocked
-     *  cell from the end of the list. The second of the pair contains
-     *  all cells after the blockage excluding the blockage.
-     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
-     *  list, the returned pair contains
-     *  first = {1, 2, 3, 4, 5, 6, 7, 8} (includes the first blockage)
-     *  second = {9, 10, 11, 12} (excludes the first blockage)
-     *  If the conveyor has no blocked cells, then the pair is:
-     *  first = {}
-     *  second = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-     *  where the first is an empty list.
-     *  If the last cell is the first blocked cell, then the pair is:
-     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-     *  second = {}
-     */
-    private fun partitionAtFirstBlockageAfterExclusive(): Pair<List<Cell>, List<Cell>> {
-        val fbc = firstBlockedCellFromEnd()
-        if (fbc == null) {
-            // no blocked cell, first is empty, second is all the cells
-            return Pair(emptyList(), conveyorCells)
-        } else {
-            if (conveyorCells.last() == fbc) {
-                return Pair(conveyorCells, emptyList())
-            } else {
-                val first = conveyorCells.subList(0, fbc.index + 1)
-                val second = conveyorCells.subList(fbc.index + 1, conveyorCells.size)
-                return Pair(first, second)
-            }
-        }
-    }
-
-    /**
-     *  Finds the cells that are behind a cell that is marked
-     *  as blocked.  For each cell that is blocked, capture
-     *  a list of cells behind the blockage but before the previous blockage. The returned
-     *  list of cells may be empty if the blocking cell
-     *  is the first cell of the list or if there are two consecutive blocked cells.
-     *
-     *  The list must not be empty and the last cell of the list must be blocked.
-     *
-     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
-     *  Suppose cells 1, 5, 11, 12 are blocked. Then, there will be map of lists as:
-     *  ```
-     *  1 : {empty}, because there are no cells in front of cell 1
-     *  5 : {2, 3, 4}
-     *  11 : {6, 7, 8, 9, 10}
-     *  12 : {empty}, because there are no cells between cell 11 and 12
-     *  ```
-     */
-    private fun cellsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Cell>> {
-        require(cells.isNotEmpty()) { "The supplied cell list was empty" }
-        require(cells.last().isBlocked) { "The last cell of the list was not blocked." }
-        val map = mutableMapOf<Cell, List<Cell>>()
-        if (cells[0].isBlocked) {
-            map[cells[0]] = emptyList()
-        }
-        var startIndex = 0
-        for (i in 1..cells.lastIndex) {
-            if (cells[i - 1].isBlocked && cells[i].isNotBlocked) {
-                // B --> U
-                startIndex = i
-            } else if (cells[i - 1].isNotBlocked && cells[i].isBlocked) {
-                // U --> B
-                map[cells[i]] = cells.subList(startIndex, i)
-            } else if (cells[i - 1].isBlocked && cells[i].isBlocked) {
-                // B --> B
-                map[cells[i]] = emptyList()
-            }
-        }
-        return map
-    }
+//    /**
+//     *  Finds the cells from the end of the conveyor until the first blockage.
+//     *  The returned list does not include the first cell that is blocked.
+//     *  If the conveyor has no blocked cells or the last cell of the conveyor
+//     *  is the first blocked cell, then this function returns an empty list.
+//     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+//     *  Suppose cells 1, 5, 8 are blocked. Then the returned list contains
+//     *  cells {9, 10, 11, 12} because cell 8 is the first blocked cell from the end of the
+//     *  list.  These cells may or may not contain items.
+//     */
+//    private fun cellsFromEndUntilFirstBlockage(): List<Cell> {
+//        if (conveyorCells.last().isBlocked || hasNoBlockedCells()) {
+//            return emptyList()
+//        }
+//        // last is not blocked, and there is a blockage
+//        val firstBlocked = firstBlockedCellFromEnd()!!
+//        // don't include the blocked cell, but go to the end of the list
+//        return conveyorCells.subList(firstBlocked.index + 1, conveyorCells.size)
+//    }
+//
+//    /**
+//     *  Partitions the conveyor cells into to sub lists. The first
+//     *  of the pair contains all cells before (but not including) the first blocked
+//     *  cell from the end of the list. The second of the pair contains
+//     *  all cells after the blockage *including* the blockage.
+//     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+//     *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
+//     *  list, the returned pair contains:
+//     *
+//     *  first = {1, 2, 3, 4, 5, 6, 7} (does not include the first blockage)
+//     *  second = {8, 9, 10, 11, 12} (includes the first blockage)
+//     *
+//     *  If the conveyor has no blocked cells, then the pair is:
+//     *
+//     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+//     *  second = {}
+//     *
+//     *  where the second is an empty list because there is no blockage to include.
+//     *
+//     *  If the last cell is the first blocked cell, then the pair is:
+//     *
+//     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+//     *  second = {12}
+//     */
+//    private fun partitionAtFirstBlockageAfterInclusive(): Pair<List<Cell>, List<Cell>> {
+//        val fbc = firstBlockedCellFromEnd()
+//        if (fbc == null) {
+//            // no blocked cell, first is empty, second is all the cells
+//            return Pair(conveyorCells, emptyList())
+//        } else {
+//            if (conveyorCells.last() == fbc) {
+//                return Pair(conveyorCells.subList(0, fbc.index), conveyorCells.subList(fbc.index, conveyorCells.size))
+//            } else {
+//                val first = conveyorCells.subList(0, fbc.index)
+//                val second = conveyorCells.subList(fbc.index, conveyorCells.size)
+//                return Pair(first, second)
+//            }
+//        }
+//    }
+//
+//    /**
+//     *  Partitions the conveyor cells into to sub lists. The first
+//     *  of the pair contains all cells before (and including) the first blocked
+//     *  cell from the end of the list. The second of the pair contains
+//     *  all cells after the blockage excluding the blockage.
+//     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+//     *  Suppose cells 1, 5, 8 are blocked. Because cell 8 is the first blocked cell from the end of the
+//     *  list, the returned pair contains
+//     *  first = {1, 2, 3, 4, 5, 6, 7, 8} (includes the first blockage)
+//     *  second = {9, 10, 11, 12} (excludes the first blockage)
+//     *  If the conveyor has no blocked cells, then the pair is:
+//     *  first = {}
+//     *  second = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+//     *  where the first is an empty list.
+//     *  If the last cell is the first blocked cell, then the pair is:
+//     *  first = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+//     *  second = {}
+//     */
+//    private fun partitionAtFirstBlockageAfterExclusive(): Pair<List<Cell>, List<Cell>> {
+//        val fbc = firstBlockedCellFromEnd()
+//        if (fbc == null) {
+//            // no blocked cell, first is empty, second is all the cells
+//            return Pair(emptyList(), conveyorCells)
+//        } else {
+//            if (conveyorCells.last() == fbc) {
+//                return Pair(conveyorCells, emptyList())
+//            } else {
+//                val first = conveyorCells.subList(0, fbc.index + 1)
+//                val second = conveyorCells.subList(fbc.index + 1, conveyorCells.size)
+//                return Pair(first, second)
+//            }
+//        }
+//    }
+//
+//    /**
+//     *  Finds the cells that are behind a cell that is marked
+//     *  as blocked.  For each cell that is blocked, capture
+//     *  a list of cells behind the blockage but before the previous blockage. The returned
+//     *  list of cells may be empty if the blocking cell
+//     *  is the first cell of the list or if there are two consecutive blocked cells.
+//     *
+//     *  The list must not be empty and the last cell of the list must be blocked.
+//     *
+//     *  For example, suppose we have 12 cells (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).
+//     *  Suppose cells 1, 5, 11, 12 are blocked. Then, there will be map of lists as:
+//     *  ```
+//     *  1 : {empty}, because there are no cells in front of cell 1
+//     *  5 : {2, 3, 4}
+//     *  11 : {6, 7, 8, 9, 10}
+//     *  12 : {empty}, because there are no cells between cell 11 and 12
+//     *  ```
+//     */
+//    private fun cellsBehindBlockedCells(cells: List<Cell>): Map<Cell, List<Cell>> {
+//        require(cells.isNotEmpty()) { "The supplied cell list was empty" }
+//        require(cells.last().isBlocked) { "The last cell of the list was not blocked." }
+//        val map = mutableMapOf<Cell, List<Cell>>()
+//        if (cells[0].isBlocked) {
+//            map[cells[0]] = emptyList()
+//        }
+//        var startIndex = 0
+//        for (i in 1..cells.lastIndex) {
+//            if (cells[i - 1].isBlocked && cells[i].isNotBlocked) {
+//                // B --> U
+//                startIndex = i
+//            } else if (cells[i - 1].isNotBlocked && cells[i].isBlocked) {
+//                // U --> B
+//                map[cells[i]] = cells.subList(startIndex, i)
+//            } else if (cells[i - 1].isBlocked && cells[i].isBlocked) {
+//                // B --> B
+//                map[cells[i]] = emptyList()
+//            }
+//        }
+//        return map
+//    }
 
     /**
      *  Processing the cells in reverse order, find the first cell that is occupied and for which its next cell exists and
@@ -723,7 +717,6 @@ class Conveyor(
      *  Called from within endCellTraversal() event
      */
     private fun moveItemsForwardOneCell(cells: List<Cell>) {
-        //TODO review the logic of this function moveItemsForwardOneCell()
         if (cells.isEmpty()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): no movable cells" }
             return
@@ -791,8 +784,8 @@ class Conveyor(
         }
         var i = 0
         KSL.out.println("End of Replication: ${model.currentReplicationNumber}")
-        KSL.out.println("Entities in ridingHoldQ: size = ${ridingHoldQ.size}")
-        for (entity in ridingHoldQ) {
+        KSL.out.println("Entities in ridingHoldQ: size = ${myRidingHoldQ.size}")
+        for (entity in myRidingHoldQ) {
             i++
             KSL.out.println("$i $entity")
             KSL.out.println(entity.conveyorRequest?.asString()!!)
@@ -812,6 +805,7 @@ class Conveyor(
      *  riding on a conveyor is completely on the conveyor. That is, when the item's
      *  rear most cell first occupies the entry cell.
      */
+    @Suppress("unused")
     fun isEntryLocationBlocked(entryLocation: IdentityIfc): Boolean {
         require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         val entryCell = myEntryCells[entryLocation]!!
@@ -827,6 +821,7 @@ class Conveyor(
      *  still on the conveyor. The exit cell becomes unblocked the instant that the item
      *  is fully off of the conveyor
      */
+    @Suppress("unused")
     fun isExitLocationBlocked(exitLocation: IdentityIfc): Boolean {
         require(exitLocations.contains(exitLocation)) { "The location ($exitLocation) is not a valid exit point on the conveyor" }
         val exitCell = myExitCells[exitLocation]!!
@@ -837,6 +832,7 @@ class Conveyor(
      *  If the conveyor has been stopped using the stopConveyor() function, this will start it moving.
      *  If the conveyor has not been stopped using the stopConveyor() function, this method does nothing.
      */
+    @Suppress("unused")
     fun startConveyor() {
         if (isStopped) {
             isStopped = false
@@ -844,7 +840,7 @@ class Conveyor(
             if (event != null) {
                 if (event.time > time) {
                     // The cancelled event is still in the future undo the cancellation
-                    event.cancel = false;
+                    event.cancel = false
                     endCellTraversalEvent = event
                 } else {
                     // the time of the cell traversal has passed, need to restart the conveyor
@@ -859,6 +855,7 @@ class Conveyor(
      *  If a cell traversal is scheduled, it will be cancelled and movement on the conveyor
      *  will not occur.
      */
+    @Suppress("unused")
     fun stopConveyor() {
         isStopped = true
         stoppedCellTraversalEvent = endCellTraversalEvent
@@ -897,6 +894,7 @@ class Conveyor(
         val isExitCell: Boolean
             get() = type == CellType.EXIT
 
+        @Suppress("unused")
         val isInnerCell: Boolean
             get() = type == CellType.INNER
 
@@ -912,6 +910,7 @@ class Conveyor(
         val isFirst : Boolean
             get() = cellNumber == 1
 
+        @Suppress("unused")
         val isLast: Boolean
             get() = cellNumber == cellList.size
 
@@ -942,6 +941,7 @@ class Conveyor(
          *  unless the cell is first and the conveyor is circular, then the previous
          *  cell is the cell at the end of the last segment.
          */
+        @Suppress("unused")
         val previousCell: Cell?
             get() {
                 if (cellList.first() == this) {
@@ -974,6 +974,8 @@ class Conveyor(
         val isNotBlocked: Boolean
             get() = !isBlocked
 
+        //TODO maybe this needs revision for entry cells, because they are not really available if
+        // the item is positioned to ride and entering
         val isAvailable: Boolean
             get() = (!isOccupied && !isBlocked)
 
@@ -1126,18 +1128,19 @@ class Conveyor(
         return sb.toString()
     }
 
-    /**
-     * Based on finding the lead cell, this method finds the cells
-     * contain cells that can move.
-     */
-    private fun findMovableCells(cells: List<Cell>): List<Cell> {
-        val fmc = findLeadingCell(cells)
-        if (fmc == null) {
-            return emptyList()
-        } else {
-            return conveyorCells.subList(cells.first().index, fmc.index + 1)
-        }
-    }
+//    /**
+//     * Based on finding the lead cell, this method finds the cells
+//     * contain cells that can move.
+//     */
+//    private fun findMovableCells(cells: List<Cell>): List<Cell> {
+//        //TODO this method is never called because it does not work
+//        val fmc = findLeadingCell(cells)
+//        if (fmc == null) {
+//            return emptyList()
+//        } else {
+//            return conveyorCells.subList(cells.first().index, fmc.index + 1)
+//        }
+//    }
 
     /**
      *  This method is called after the item moves off the conveyor during the movement through cells.
@@ -1151,7 +1154,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > Request (${request.name}): status = ${request.status}: entity_id = ${request.entity.id} : fully off the conveyor: removing blockage" }
         removeBlockage(exitCell)
         // item completed the exiting process, tell the entity that it can proceed
-        exitingHoldQ.removeAndResume(request.entity)
+        myExitingHoldQ.removeAndResume(request.entity)
         // cause the transition to the complete state from the blocking exit state
         request.exitConveyor()
     }
@@ -1175,7 +1178,7 @@ class Conveyor(
             cancelConveyorMovement()
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination!!.name}) : itemReachedDestination()" }
-        ridingHoldQ.removeAndResume(request.entity)
+        myRidingHoldQ.removeAndResume(request.entity)
         // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
 
@@ -1234,7 +1237,7 @@ class Conveyor(
                         dequeueRequest(request)
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}" }
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
-                        accessingHoldQ.removeAndResume(request.entity)
+                        myAccessingHoldQ.removeAndResume(request.entity)
                     } else {
                         // first request still needs to wait
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} must continue to wait for (${request.numCellsNeeded}) cells at location ${location.name}" }
@@ -1248,46 +1251,46 @@ class Conveyor(
         }
     }
 
-    /**
-     *  Items waiting to access the conveyor are checked to see if they can move into position
-     *  to block an entry cell of the conveyor.
-     */
-    private fun processRequestsWaitingToAccessConveyorOLD() {
-        //TODO Is this where we need to check for all necessary cells based on size
-        //TODO this resumes the entity in hold to access conveyor
-        for ((location, cell) in myEntryCells) {
-            if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
-                val prevCell = cell.previousCell
-                if (enteringPriority[location] == false) {
-                    if (prevCell != null) {
-                        if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)) {
-                            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
-                            continue
-                        }
-                    }
-                }
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked and there was no ride request positioned for entry" }
-                val queue = myAccessQueues[location]!!
-                if (queue.isNotEmpty) {
-                    val request = queue.peekFirst()!!
-                    dequeueRequest(request)
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}" }
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
-                    accessingHoldQ.removeAndResume(request.entity)
-                } else {
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
-                }
-            } else {
-                ProcessModel.logger.trace {
-                    "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests: at location ${location.name}: cell (${cell.cellNumber}) : blocked = ${cell.isBlocked}  : ride request waiting ${
-                        positionedToEnter.containsKey(
-                            cell
-                        )
-                    }"
-                }
-            }
-        }
-    }
+//    /**
+//     *  Items waiting to access the conveyor are checked to see if they can move into position
+//     *  to block an entry cell of the conveyor.
+//     */
+//    private fun processRequestsWaitingToAccessConveyorOLD() {
+//        //TODO Is this where we need to check for all necessary cells based on size
+//        //TODO this resumes the entity in hold to access conveyor
+//        for ((location, cell) in myEntryCells) {
+//            if ((cell.isNotBlocked) && !positionedToEnter.containsKey(cell)) {
+//                val prevCell = cell.previousCell
+//                if (enteringPriority[location] == false) {
+//                    if (prevCell != null) {
+//                        if (prevCell.isOccupied && (prevCell.item!!.status != ItemStatus.EXITING)) {
+//                            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked, but item (${prevCell.item!!.entity.name}) in previous cell (${prevCell.cellNumber}) is continuing" }
+//                            continue
+//                        }
+//                    }
+//                }
+//                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: cell (${cell.cellNumber}) was not blocked and there was no ride request positioned for entry" }
+//                val queue = myAccessQueues[location]!!
+//                if (queue.isNotEmpty) {
+//                    val request = queue.peekFirst()!!
+//                    dequeueRequest(request)
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}" }
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
+//                    accessingHoldQ.removeAndResume(request.entity)
+//                } else {
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
+//                }
+//            } else {
+//                ProcessModel.logger.trace {
+//                    "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests: at location ${location.name}: cell (${cell.cellNumber}) : blocked = ${cell.isBlocked}  : ride request waiting ${
+//                        positionedToEnter.containsKey(
+//                            cell
+//                        )
+//                    }"
+//                }
+//            }
+//        }
+//    }
 
     /**
      *  If there is a traversal event pending, then it is cancelled. This will
@@ -1331,15 +1334,44 @@ class Conveyor(
         // conveyor is occupied and has no blocked cells
         val leadCell = findLeadingCell(conveyorCells)
         if (leadCell != null) {
-            //TODO could try to get trainEndCell w/o entry cell case
-            val trainEndCell = firstOccupiedCellFromStart()!!
-            val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
-            //TODO could check for entry case within the moving cells??
+//            //TODO could try to get trainEndCell w/o entry cell case
+//            val trainEndCell = firstOccupiedCellFromStart()!!
+//            val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
+//            //TODO could check for entry case within the moving cells??
+            val movingCells = findMovableCells(leadCell)
+            val trainEndCell = movingCells.first()
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}):  Non-accumulating: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
             moveItemsForwardOneCell(movingCells)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}):  Non-accumulating: occupied with no blocked cells: no lead cell found!" }
         }
+    }
+
+    private fun findMovableCells(leadCell: Cell) : List<Cell> {
+        // conveyor must have at least one occupied cell, the cell being passed in is the lead cell
+        // of the train of cells and by definition must be occupied
+        require(leadCell.isOccupied) {"The supplied leading cell must be occupied and was not."}
+        // need first occupied cell from the start that can move as part of the train
+        val candidateEndCell = firstOccupiedCellFromStart()!!
+        val possibleTrainCells = conveyorCells.subList(candidateEndCell.index, leadCell.cellNumber)
+        if (candidateEndCell == leadCell){
+            return possibleTrainCells
+        }
+        // there may be entry cells between the candidate cell and the lead cell that form the train
+        // process possible train cells in reverse and stop if there is an entry cell with an entering item
+        for(cell in possibleTrainCells.asReversed()){
+            if (cell.isEntryCell){
+                if (cell.isOccupied){
+                    val item = cell.item!!
+                    if (item.status == ItemStatus.ENTERING){
+                        return conveyorCells.subList(cell.index, leadCell.cellNumber)
+                    }
+                }
+            }
+        }
+        // if we get here there will be no entry cells between the candidate cell and the lead cell
+        // that break the train, we can return the whole train
+        return possibleTrainCells
     }
 
     /**
@@ -1362,14 +1394,14 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): .... completed processing items positioned to ride on the conveyor." }
     }
 
-    /**
-     * Finds the first blocked cell from the supplied cell going
-     * forward in the list. If there are no blocked cells, then
-     * null is returned.
-     */
-    private fun firstBlockedCellForwardFromEntryCell(entryCell: Cell): Cell? {
-        return conveyorCells.subList(entryCell.index + 1, conveyorCells.size).firstOrNull { it.isBlocked }
-    }
+//    /**
+//     * Finds the first blocked cell from the supplied cell going
+//     * forward in the list. If there are no blocked cells, then
+//     * null is returned.
+//     */
+//    private fun firstBlockedCellForwardFromEntryCell(entryCell: Cell): Cell? {
+//        return conveyorCells.subList(entryCell.index + 1, conveyorCells.size).firstOrNull { it.isBlocked }
+//    }
 
     private fun rescheduleConveyorMovement() {
         if (conveyorType == Type.NON_ACCUMULATING) {
@@ -1597,7 +1629,7 @@ class Conveyor(
             priority = entity.priority
         }
 
-        internal var timeStartedTraversal: Double = 0.0
+//        internal var timeStartedTraversal: Double = 0.0
 
         override val conveyor = this@Conveyor
 
@@ -1669,11 +1701,12 @@ class Conveyor(
         override val hasReachedDestination: Boolean
             get() = destination == currentLocation
 
+        @Suppress("unused")
         val isNextCellOccupied: Boolean
             get() {
                 val fc = frontCell
                 return if (fc == null) {
-                    false
+                    false // if the next cell does not exit it cannot be occupied
                 } else {
                     val nc = fc.nextCell
                     nc?.isOccupied ?: false
@@ -1700,64 +1733,64 @@ class Conveyor(
         override val rearCell: Cell?
             get() = if (myCellsOccupied.isNotEmpty()) myCellsOccupied.first() else null
 
-        internal fun moveForwardOneCellPossible() {
-            require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
-            if (frontCell!!.isExitCell) {
-                // item may be exiting or passing through cell
-                if (status == ItemStatus.EXITING) {
-                    // need to move the item forward, through its front cell, which is the exit cell
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location?.name})" }
-                    // item is exiting, move it forward and check if it is off the conveyor
-                    val exitCell = frontCell!! // captures the exit cell, because popping moves the item
-                    popRearCell() // moves item forward, item no longer occupies its rear cell, it now covers its exit cell (or is off conveyor)
-                    if (!occupiesCells) {
-                        // no longer on the conveyor
-                        status = ItemStatus.OFF
-                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has moved off the conveyor" }
-                        conveyor.itemFullyOffConveyor(this, exitCell)
-                    }
-                } else {
-                    // item is not exiting, it must be passing through the exit cell onto the next segment, need to move it forward
-                    // front cell is an exit cell, but item is not exiting, there needs to be a next cell
-                    check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
-                    // there is a next cell, because the item's front cell is an exit cell, the next cell must be an entry cell
-                    require(status == ItemStatus.ON) { "The item is not exiting at an exit cell and there is a next cell. The item must have the ON status" }
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
-                    occupyCell(frontCell!!.nextCell!!) //this moves the item one cell forward
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
-                    // The items' front cell must be an entry cell, an entry cell cannot be a destination
-                    // nothing further to check
-                }
-            } else {
-                // the front cell is not an exit cell, the item must not be exiting
-                require(status != ItemStatus.EXITING) { "CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : The item (${this.name}) cannot exit when its front cell ${frontCell?.cellNumber} is not an exit cell" }
-                // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
-                // in which case there MUST be a next cell
-                check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
-                occupyCell(frontCell!!.nextCell!!) //this moves the item one cell forward
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
-                // item has moved forward, if entering, it may be fully on the conveyor
-                if (status == ItemStatus.ENTERING) {
-                    if (numCellsNeeded == numCellsOccupied) {
-                        status = ItemStatus.ON
-                        positionedToEnter.remove(entryCell)
-                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
-                        // item is fully on the conveyor
-                    }
-                }
-                // item has moved forward, it may have reached its destination
-                if (frontCell!!.isExitCell) {
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: destination = (${destination?.name}): has reached exit cell (${frontCell!!.cellNumber}) at location (${frontCell!!.location?.name})" }
-                    // reached an exit cell
-                    if (destination == frontCell!!.location) {
-                        // reached the intended destination
-                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has reached cell (${frontCell?.cellNumber}) and its destination: (${destination?.name})" }
-                        conveyor.itemReachedDestination(this)
-                    }
-                }
-            }
-        }
+//        internal fun moveForwardOneCellElaboratedVersion() {
+//            require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
+//            if (frontCell!!.isExitCell) {
+//                // item may be exiting or passing through cell
+//                if (status == ItemStatus.EXITING) {
+//                    // need to move the item forward, through its front cell, which is the exit cell
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location?.name})" }
+//                    // item is exiting, move it forward and check if it is off the conveyor
+//                    val exitCell = frontCell!! // captures the exit cell, because popping moves the item
+//                    popRearCell() // moves item forward, item no longer occupies its rear cell, it now covers its exit cell (or is off conveyor)
+//                    if (!occupiesCells) {
+//                        // no longer on the conveyor
+//                        status = ItemStatus.OFF
+//                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has moved off the conveyor" }
+//                        conveyor.itemFullyOffConveyor(this, exitCell)
+//                    }
+//                } else {
+//                    // item is not exiting, it must be passing through the exit cell onto the next segment, need to move it forward
+//                    // front cell is an exit cell, but item is not exiting, there needs to be a next cell
+//                    check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
+//                    // there is a next cell, because the item's front cell is an exit cell, the next cell must be an entry cell
+//                    require(status == ItemStatus.ON) { "The item is not exiting at an exit cell and there is a next cell. The item must have the ON status" }
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
+//                    occupyCell(frontCell!!.nextCell!!) //this moves the item one cell forward
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
+//                    // The items' front cell must be an entry cell, an entry cell cannot be a destination
+//                    // nothing further to check
+//                }
+//            } else {
+//                // the front cell is not an exit cell, the item must not be exiting
+//                require(status != ItemStatus.EXITING) { "CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : The item (${this.name}) cannot exit when its front cell ${frontCell?.cellNumber} is not an exit cell" }
+//                // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
+//                // in which case there MUST be a next cell
+//                check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
+//                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
+//                occupyCell(frontCell!!.nextCell!!) //this moves the item one cell forward
+//                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
+//                // item has moved forward, if entering, it may be fully on the conveyor
+//                if (status == ItemStatus.ENTERING) {
+//                    if (numCellsNeeded == numCellsOccupied) {
+//                        status = ItemStatus.ON
+//                        positionedToEnter.remove(entryCell)
+//                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
+//                        // item is fully on the conveyor
+//                    }
+//                }
+//                // item has moved forward, it may have reached its destination
+//                if (frontCell!!.isExitCell) {
+//                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: destination = (${destination?.name}): has reached exit cell (${frontCell!!.cellNumber}) at location (${frontCell!!.location?.name})" }
+//                    // reached an exit cell
+//                    if (destination == frontCell!!.location) {
+//                        // reached the intended destination
+//                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has reached cell (${frontCell?.cellNumber}) and its destination: (${destination?.name})" }
+//                        conveyor.itemReachedDestination(this)
+//                    }
+//                }
+//            }
+//        }
 
         /**
          *  Causes an item already on the conveyor to move through the cell that it occupies.  This
@@ -1769,7 +1802,6 @@ class Conveyor(
          *  which is called by functions within the endOfCellTraversal() event.
          */
         internal fun moveForwardOneCell() {
-            //TODO maybe the conditions need to be reviewed, could item off the conveyor being missed
             require(frontCell != null) { "The item cannot move forward because it does not occupy any cells" }
             // the front cell cannot be null, safe to use
             // two cases, item is on conveyor or item is exiting the conveyor
@@ -1792,7 +1824,6 @@ class Conveyor(
             // if the front cell is not an exit cell, then it must either be an entry cell or an inner cell
             // in which case there MUST be a next cell
             check(frontCell!!.nextCell != null) { "The item cannot move forward because it has reached the end of the conveyor" }
-            //TODO do we check for occupied next cell here or in call to this function
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: moved from cell (${frontCell?.cellNumber}) to cell (${frontCell?.nextCell?.cellNumber})" }
             occupyCell(frontCell!!.nextCell!!)
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: occupied cells: (${frontCell!!.cellNumber}..${rearCell!!.cellNumber})" }
@@ -1802,8 +1833,7 @@ class Conveyor(
                     positionedToEnter.remove(entryCell)
                     ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is fully on the conveyor" }
                     // item is fully on the conveyor
-                    //TODO if it is fully on the conveyor should the entry cell be blocked?  what about partially on the conveyor??
-                }
+                 }
             }
             // item has moved forward, it may have reached its destination
             if (frontCell!!.isExitCell) {
@@ -1840,7 +1870,7 @@ class Conveyor(
          */
         internal fun enterConveyor() {
             check(status == ItemStatus.OFF) { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: Request status must be OFF to enter the conveyor for the first time" }
-            check(entryCell.isNotOccupied) { "CONVEYOR: entity_id = ${entity.id} : Tried to enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name}) \n ${this@Conveyor.toString()}" }
+            check(entryCell.isNotOccupied) { "CONVEYOR: entity_id = ${entity.id} : Tried to enter the conveyor at cell (${entryCell.cellNumber}) and the cell was occupied by entity (${entryCell.item?.entity?.name}) \n ${this@Conveyor}" }
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: entering the conveyor at cell (${entryCell.cellNumber}) : : cells needed: $numCellsNeeded :" }
             occupyCell(entryCell)
             if (numCellsNeeded == numCellsOccupied) {
@@ -2069,7 +2099,7 @@ class Conveyor(
             // remove the request from the queue and start it processing
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation.name}" }
             dequeueRequest(request)
-            accessingHoldQ.removeAndResume(request.entity)
+            myAccessingHoldQ.removeAndResume(request.entity)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }
         }
@@ -2105,7 +2135,7 @@ class Conveyor(
             // cell traversal is not in progress
             // schedule the need for conveyance at the current time
             schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal NOT in progress : scheduled start of ride for time = ${time}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal NOT in progress : scheduled start of ride for time = $time" }
         }
     }
 
@@ -2173,6 +2203,7 @@ class Conveyor(
             "${this@Conveyor.name}:${this.name}:NumOccupiedCells",
             allowedDomain = Interval(0.0, cells.size.toDouble())
         )
+        @Suppress("unused")
         val numberOfOccupiedCells: TWResponseCIfc
             get() = myNumOccupiedCells
 
@@ -2189,9 +2220,11 @@ class Conveyor(
             myCellUtilization.value = myNumOccupiedCells.withinReplicationStatistic.weightedAverage / cells.size
         }
 
+        @Suppress("unused")
         val isLastSegment: Boolean
             get() = conveyorCells.last() == exitCell
 
+        @Suppress("unused")
         val isFirstSegment: Boolean
             get() = conveyorCells.first() == entryCell
 
@@ -2207,6 +2240,7 @@ class Conveyor(
         val isOccupied: Boolean
             get() = firstOccupiedCell != null
 
+        @Suppress("unused")
         val isNotOccupied: Boolean
             get() = !isOccupied
 
@@ -2238,44 +2272,69 @@ class Conveyor(
 
     }
 
-    private fun accumulatingConveyorMovementViaSegments() {
-        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
+    private fun accumulatingConveyorMovementViaSegments(){
         if (!isOccupied()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}):  Accumulating conveyor: not occupied: nothing to move" }
             return
         }
-        if (hasNoBlockedCells()) {
-            // with no blocked cells, there may be items entering that prevent movement
-            // there must be a lead cell to move if the conveyor has items and there are no blocked cells
-            val leadCell = findLeadingCell(conveyorCells)
-            if (leadCell != null) {
-                // get the cells to move
-                // from the beginning up to and including the lead cell
-                val trainEndCell = firstOccupiedCellFromStart()!!
-                val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
-                moveItemsForwardOneCell(movingCells)
-            }
-        } else {
-            // there are blockages, try to move items that can be moved
-            if (isCircular) {
-                val last = conveyorCells.last()
-                if (last.isOccupied && last.isNotBlocked) {
-                    if (last.item!!.status != ItemStatus.EXITING) {
-                        // continuing around, movement is special
-                        handleAccumulatingCircularConveyorCase()
-                        return
-                    }
+        if (isCircular) {
+            val last = conveyorCells.last()
+            if (last.isOccupied && last.isNotBlocked) {
+                if (last.item!!.status != ItemStatus.EXITING) {
+                    // continuing around, movement is special
+                    handleAccumulatingCircularConveyorCase()
+                    return
                 }
             }
-            // could be circular or not, if circular it does not have an item continuing around
-            // move items by segment
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has blocked cells: moving cells by segments forward" }
-            for (segment in segments.reversed()) {
-                segment.moveCellsForward() //TODO need some output
-            }
+        }
+        // could be circular or not, if circular it does not have an item continuing around
+        // move items by segment
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has blocked cells: moving cells by segments forward" }
+        for (segment in segments.reversed()) {
+            segment.moveCellsForward()
         }
     }
+
+//    private fun accumulatingConveyorMovementViaSegmentsOLD() {
+//        require(conveyorType == Type.ACCUMULATING) { "The conveyor is not type accumulating" }
+//        if (!isOccupied()) {
+//            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}):  Accumulating conveyor: not occupied: nothing to move" }
+//            return
+//        }
+//        //TODO ISSUE: entering item breaks the train even if the conveyor may have no blocked cells
+//        // this means that there will be "many" trains
+//        if (hasNoBlockedCells()) {
+//            // with no blocked cells, there may be items entering that prevent movement
+//            // there must be a lead cell to move if the conveyor has items and there are no blocked cells
+//            val leadCell = findLeadingCell(conveyorCells)
+//            if (leadCell != null) {
+//                // get the cells to move
+//                // from the beginning up to and including the lead cell
+//                val trainEndCell = firstOccupiedCellFromStart()!!
+//                val movingCells = conveyorCells.subList(trainEndCell.index, leadCell.cellNumber)
+//                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has no blocked cells: moving cells within [${trainEndCell.cellNumber}..${leadCell.cellNumber}] forward" }
+//                moveItemsForwardOneCell(movingCells)
+//            }
+//        } else {
+//            // there are blockages, try to move items that can be moved
+//            if (isCircular) {
+//                val last = conveyorCells.last()
+//                if (last.isOccupied && last.isNotBlocked) {
+//                    if (last.item!!.status != ItemStatus.EXITING) {
+//                        // continuing around, movement is special
+//                        handleAccumulatingCircularConveyorCase()
+//                        return
+//                    }
+//                }
+//            }
+//            // could be circular or not, if circular it does not have an item continuing around
+//            // move items by segment
+//            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has blocked cells: moving cells by segments forward" }
+//            for (segment in segments.reversed()) {
+//                segment.moveCellsForward() //TODO need some output
+//            }
+//        }
+//    }
 
     private fun handleAccumulatingCircularConveyorCase() {
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating conveyor: has blocked cells: item in last cell is re-circulating" }

@@ -2203,8 +2203,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
                 // holds the entity until the entry cell is blocked for entry
                 hold(
-                    conveyor.accessingHoldQ,
-                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.accessingHoldQ.name}"
+                    conveyor.myAccessingHoldQ,
+                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.myAccessingHoldQ.name}"
                 )
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
@@ -2246,7 +2246,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // holds here while request rides on the conveyor
                 val timeStarted = time
                 //TODO need to investigate how this gets resumed !!!
-                hold(conveyor.ridingHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.ridingHoldQ.name}")
+                hold(conveyor.myRidingHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}")
                 isMoving = false
                 if (destination is LocationIfc) {
                     currentLocation = destination
@@ -2276,7 +2276,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isMoving = true
                 // hold here while entity exits the conveyor
                 //TODO investigate where this gets resumed
-                hold(conveyor.exitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.exitingHoldQ.name}")
+                hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
                 isMoving = false
                 entity.conveyorRequest = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }

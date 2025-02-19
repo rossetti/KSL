@@ -108,8 +108,8 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         get() = myContractLimit
 
     private val loopConveyor: Conveyor = Conveyor.builder(this, "LoopConveyor")
-        .conveyorType(Conveyor.Type.NON_ACCUMULATING)
-//        .conveyorType(Conveyor.Type.ACCUMULATING)
+//        .conveyorType(Conveyor.Type.NON_ACCUMULATING)
+        .conveyorType(Conveyor.Type.ACCUMULATING)
         .velocity(10.0)
         .cellSize(1)
         .maxCellsAllowed(2)
