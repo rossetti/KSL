@@ -1600,8 +1600,6 @@ class Conveyor(
             priority = entity.priority
         }
 
-//        internal var timeStartedTraversal: Double = 0.0
-
         override val conveyor = this@Conveyor
 
         override var status: ItemStatus = ItemStatus.OFF
@@ -1888,11 +1886,6 @@ class Conveyor(
             { "r=${model.currentReplicationNumber}, $time > Requested number of cells ($numCellsNeeded) cannot ever be filled \n offending request: ${this.asString()}}" }
             // it must wait if any previous cell is not available
             return !requestedCells.allAvailable()
-//            //TODO this is NOT correct for inner entry cells for items that need more than 1 cell
-//
-//            // study this: This appears to be causing requests not to wait when arriving and the entry cell is occupied
-//            // return entryCell.isBlocked || positionedToEnter.containsKey(entryCell)
-//            return entryCell.isUnavailable || positionedToEnter.containsKey(entryCell)
         }
 
     }
