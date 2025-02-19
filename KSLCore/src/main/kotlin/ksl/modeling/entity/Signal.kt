@@ -21,6 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
+import org.jetbrains.kotlinx.dataframe.Predicate
 
 /**
  * The purpose of this class is to hold entities that are waiting for a signal while executing
@@ -49,7 +50,7 @@ class Signal(
      *  available in the Kotlin collection classes to working with the waiting entities,
      *  which may be used to determine which entities to signal.
      */
-    fun holdingQueueAsList() : List<ProcessModel.Entity>{
+    fun holdingQueueAsList(): List<ProcessModel.Entity> {
         return holdQueue.toList()
     }
 
@@ -58,6 +59,28 @@ class Signal(
      */
     internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = ProcessModel.QUEUE_PRIORITY) {
         holdQueue.enqueue(entity, queuePriority)
+    }
+
+    /**
+     *  Signals the entities that match the predicate to resume their processes if they are waiting for the signal.
+     *  @param predicate the list of entities to signal
+     *  @param resumePriority the priority associated with their resumption.
+     */
+    fun signal(predicate: Predicate<ProcessModel.Entity>, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        signal(holdQueue.filter(predicate), resumePriority)
+    }
+
+    /**
+     *  Signals the entities in the list to resume their processes if they are waiting for the signal.
+     *  @param entities the list of entities to signal
+     *  @param resumePriority the priority associated with their resumption.
+     */
+    fun signal(entities: List<ProcessModel.Entity>, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        for (entity in entities) {
+            if (holdQueue.contains(entity)) {
+                signal(entity, resumePriority)
+            }
+        }
     }
 
     /** Use this to signal a specific entity to move in its process.
@@ -90,8 +113,8 @@ class Signal(
      * @param range the range associated with the signal
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
-    fun signal(range: IntRange, resumePriority: Int = ProcessModel.RESUME_PRIORITY){
-        for(i in range){
+    fun signal(range: IntRange, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        for (i in range) {
             signal(i, resumePriority)
         }
     }
