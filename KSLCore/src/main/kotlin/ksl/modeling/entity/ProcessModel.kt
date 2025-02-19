@@ -700,6 +700,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
+        /**
+         *  If an entity is using a conveyor (has requested and received cells) this returns
+         *  the request. If null, then the entity should not be using a conveyor. This is
+         *  set via the requestConveyor() suspending function to the request and to null when
+         *  the entity exits the conveyor.
+         */
         var conveyorRequest: ConveyorRequestIfc? = null
             private set
 
@@ -744,9 +750,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          *  If the entity is executing a process and the process is suspended, then
-         *  the process is scheduled to resume at the current simulation time.
+         *  the process is scheduled to resume at the specified simulation time. This schedules an event
+         *  that eventually resumes the process.
          *
-         *  @param timeUntilResumption the time until the resumption will occur
+         *  @param timeUntilResumption the time until the resumption will occur. The default is 0.0
          *  @param priority the priority parameter can be used to provide an ordering to the
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
@@ -2196,12 +2203,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
                 // holds the entity until the entry cell is blocked for entry
                 hold(
-                    conveyor.conveyorHoldQ,
-                    suspensionName = "$suspensionName:HoldForCells:${conveyor.conveyorHoldQ.name}"
+                    conveyor.myAccessingHoldQ,
+                    suspensionName = "$suspensionName:requestConveyor():HoldForCells:${conveyor.myAccessingHoldQ.name}"
                 )
                 // ensure that the entity remembers that it is now "using" the conveyor
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > REQUEST CONVEYOR : entity_id = ${entity.id} : BLOCKING ENTRY CELL: suspension name = $currentSuspendName" }
                 conveyorRequest.blockEntryLocation()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : REQUEST CONVEYOR : entity_id = ${entity.id} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
@@ -2237,7 +2245,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isMoving = true
                 // holds here while request rides on the conveyor
                 val timeStarted = time
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:RIDE:${conveyor.conveyorHoldQ.name}")
+                //TODO need to investigate how this gets resumed !!!
+                hold(conveyor.myRidingHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}")
                 isMoving = false
                 if (destination is LocationIfc) {
                     currentLocation = destination
@@ -2262,10 +2271,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = conveyorRequest.conveyor
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 // schedules the need to exit the conveyor
+                //TODO investigate this
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 isMoving = true
                 // hold here while entity exits the conveyor
-                hold(conveyor.conveyorHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.conveyorHoldQ.name}")
+                //TODO investigate where this gets resumed
+                hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
                 isMoving = false
                 entity.conveyorRequest = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
@@ -2531,8 +2542,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : suspension name = $currentSuspendName : resuming..." }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})" }
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> before resuming continuation = $continuation" }
+                    logger.trace { "r = ${model.currentReplicationNumber} :       > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : *** before COROUTINE RESUME *** : process = (${this@ProcessCoroutine})" }
+                    logger.trace { "r = ${model.currentReplicationNumber} :       > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> before resuming continuation = $continuation" }
                     continuation?.resume(Unit)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id} : ---> after resuming continuation = $continuation" }
                     //                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ProcessCoroutine.Suspended.resume() : entity_id = ${entity.id}: *** after COROUTINE RESUME ***: continuation = ${continuation}"}
