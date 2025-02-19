@@ -1191,7 +1191,6 @@ class Conveyor(
         }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination!!.name}) : itemReachedDestination()" }
         myRidingHoldQ.removeAndResume(request.entity)
-        // conveyorHoldQ.removeAndResume(request.entity, request.accessResumePriority, false)
     }
 
     /**
@@ -1584,7 +1583,7 @@ class Conveyor(
      *  for any interaction with the conveyor.
      */
     inner class ConveyorRequest(
-        override val entity: ProcessModel.Entity,
+        requestingEntity: ProcessModel.Entity,
         override val numCellsNeeded: Int,
         override val entryLocation: IdentityIfc,
         override val accessResumePriority: Int
@@ -1597,8 +1596,11 @@ class Conveyor(
             }
             require(entryLocations.contains(entryLocation))
             { "The location (${entryLocation.name}) of requested cells is not on conveyor (${this@Conveyor.name})" }
-            priority = entity.priority
+            priority = requestingEntity.priority
         }
+
+        override var entity: ProcessModel.Entity = requestingEntity
+            internal set
 
         override val conveyor = this@Conveyor
 
