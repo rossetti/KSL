@@ -212,7 +212,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
 
         val alwaysTruePredicate: (T : ProcessModel.Entity) -> Boolean = { true }
 
-
+        @Suppress("UNUSED_PARAMETER")
         fun <T : ProcessModel.Entity> alwaysTrueFunction(input: T): Boolean {
             return true
         }
