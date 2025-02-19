@@ -184,12 +184,7 @@ class Conveyor(
         get() = myAccessingHoldQ
 
     init {
-        myAccessingHoldQ.waitTimeStatOption = false
-        myAccessingHoldQ.defaultReportingOption = false
-        myRidingHoldQ.waitTimeStatOption = false
-        myRidingHoldQ.defaultReportingOption = false
-        myExitingHoldQ.waitTimeStatOption = false
-        myExitingHoldQ.defaultReportingOption = false
+        holdQStatisticalReportingOption(false)
     }
 
     private val conveyorSegments: ConveyorSegments = segmentData
@@ -239,19 +234,6 @@ class Conveyor(
 
     val segments: List<CSegment>
 
-    /**
-     *  Turns [on] or off the default reporting for the utilization and time average
-     *  number of busy cells for each segment of the conveyor
-     */
-    @Suppress("unused")
-    fun segmentStatisticalReporting(on: Boolean = true) {
-        for (seg in segments) {
-            seg.myNumOccupiedCells.defaultReportingOption = on
-            seg.cellUtilization.defaultReportingOption = on
-//            seg.myTraversalTime.defaultReportingOption = on
-        }
-    }
-
     init {
         // constructs the cells based on the segment data
         val cells = mutableListOf<Cell>()
@@ -285,6 +267,7 @@ class Conveyor(
             segs.add(CSegment(index + 1, myEntryCells[segment.entryLocation]!!, myExitCells[segment.exitLocation]!!))
         }
         segments = segs.toList()
+        segmentStatisticalReporting(false)
     }
 
     private val myNumOccupiedCells =
@@ -320,6 +303,35 @@ class Conveyor(
      */
     var isStopped: Boolean = false
         private set
+
+    /**
+     *  Controls whether hold queue using within suspending functions
+     *  accessConveyor(), rideConveyor(), exitConveyor() report
+     *  statistics on the summary reports.
+     *  @param option true means reporting occurs
+     */
+    fun holdQStatisticalReportingOption(option: Boolean){
+        myAccessingHoldQ.waitTimeStatOption = option
+        myAccessingHoldQ.defaultReportingOption = option
+        myRidingHoldQ.waitTimeStatOption = option
+        myRidingHoldQ.defaultReportingOption = option
+        myExitingHoldQ.waitTimeStatOption = option
+        myExitingHoldQ.defaultReportingOption = option
+    }
+
+    /**
+     *  Turns on or off the default reporting for the utilization and time average
+     *  number of busy cells for each segment of the conveyor.  By default,
+     *  the reporting for segments is off.
+     *  @param option the option for reporting. True means reporting occurs
+     */
+    @Suppress("unused")
+    fun segmentStatisticalReporting(option: Boolean) {
+        for (seg in segments) {
+            seg.myNumOccupiedCells.defaultReportingOption = option
+            seg.cellUtilization.defaultReportingOption = option
+        }
+    }
 
     /**
      *  Returns the queue that holds requests that are waiting to access the
@@ -782,15 +794,15 @@ class Conveyor(
         for (cSeg in segments) {
             cSeg.replicationEnded()
         }
-        var i = 0
-        KSL.out.println("End of Replication: ${model.currentReplicationNumber}")
-        KSL.out.println("Entities in ridingHoldQ: size = ${myRidingHoldQ.size}")
-        for (entity in myRidingHoldQ) {
-            i++
-            KSL.out.println("$i $entity")
-            KSL.out.println(entity.conveyorRequest?.asString()!!)
-            KSL.out.println()
-        }
+//        var i = 0
+//        KSL.out.println("End of Replication: ${model.currentReplicationNumber}")
+//        KSL.out.println("Entities in ridingHoldQ: size = ${myRidingHoldQ.size}")
+//        for (entity in myRidingHoldQ) {
+//            i++
+//            KSL.out.println("$i $entity")
+//            KSL.out.println(entity.conveyorRequest?.asString()!!)
+//            KSL.out.println()
+//        }
     }
 
     /**
