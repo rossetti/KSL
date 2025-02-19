@@ -328,7 +328,7 @@ class Conveyor(
      *  @param option  true means the results appear, false they do not
      */
     fun statisticalReportingForConveyorAccessQueues(option: Boolean){
-        for((location, queue) in myAccessQueues){
+        for((_, queue) in myAccessQueues){
             queue.defaultReportingOption = option
             queue.waitTimeStatOption = option
         }
