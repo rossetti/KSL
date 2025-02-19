@@ -78,7 +78,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
-    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
+    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 2, testPlan4 to 2)
 
     // define the random variables
     private val tba = ExponentialRV(20.0)
@@ -101,7 +101,6 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         get() = myContractLimit
 
     private val loopConveyor: Conveyor = Conveyor.builder(this, "LoopConveyor")
-//        .conveyorType(Conveyor.Type.NON_ACCUMULATING)
         .conveyorType(Conveyor.Type.ACCUMULATING)
         .velocity(10.0)
         .cellSize(1)
@@ -115,7 +114,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     init {
         loopConveyor.accessQueueAt(myRepair).defaultReportingOption = false
-//        println(loopConveyor)
+        println(loopConveyor)
     }
 
     // define the process
@@ -123,6 +122,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
         // determine the test plan
         val plan: List<TestPlanStep> = planList.randomElement
+        val cellsNeeded = cellSizes[plan]!!
 
         val testAndRepairProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
@@ -131,15 +131,11 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             use(myDiagnostics, delayDuration = diagnosticTime)
             // get the iterator
             val itr = plan.iterator()
-            //var cr = requestConveyor(loopConveyor, myDiagnostics, cellSizes[plan]!!)
             // iterate through the plan
             var entryLocation = myDiagnostics
             while (itr.hasNext()) {
                 val tp = itr.next()
-                val cellsNeeded = cellSizes[plan]!!
-                val cr = requestConveyor(loopConveyor, entryLocation, cellsNeeded)
-                rideConveyor(tp.resource)
-                exitConveyor(cr)
+                convey(loopConveyor, entryLocation, tp.resource, cellsNeeded)
                 use(tp.resource, delayDuration = tp.processTime)
                 entryLocation = tp.resource
             }
