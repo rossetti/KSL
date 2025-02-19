@@ -78,8 +78,6 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
     private val planCDf = doubleArrayOf(0.25, 0.375, 0.75, 1.0)
     private val planList = REmpiricalList<List<TestPlanStep>>(this, sequences, planCDf)
 
-//        private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 1, testPlan4 to 1)
-//    private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 1, testPlan3 to 2, testPlan4 to 2)
     private val cellSizes = mapOf(testPlan1 to 1, testPlan2 to 2, testPlan3 to 2, testPlan4 to 2)
 
     // define the random variables
@@ -87,15 +85,10 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     private val myArrivalGenerator = EntityGenerator(this::Part, tba, tba)
 
-    init {
-        //          myArrivalGenerator.initialMaximumNumberOfEvents = 1
-    }
-
     val generator: EventGeneratorCIfc
         get() = myArrivalGenerator
 
     // define the responses
-    //TODO num in the system should be about 18, why is it reporting at about 99??
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = wip
@@ -122,7 +115,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     init {
         loopConveyor.accessQueueAt(myRepair).defaultReportingOption = false
-        println(loopConveyor)
+//        println(loopConveyor)
     }
 
     // define the process
