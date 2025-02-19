@@ -27,7 +27,6 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
-import ksl.utilities.io.KSL
 
 /**
  *  Returns the total number of available cells within the list.
@@ -184,7 +183,7 @@ class Conveyor(
         get() = myAccessingHoldQ
 
     init {
-        holdQStatisticalReportingOption(false)
+        statisticalReportingForHoldQueues(false)
     }
 
     private val conveyorSegments: ConveyorSegments = segmentData
@@ -267,7 +266,7 @@ class Conveyor(
             segs.add(CSegment(index + 1, myEntryCells[segment.entryLocation]!!, myExitCells[segment.exitLocation]!!))
         }
         segments = segs.toList()
-        segmentStatisticalReporting(false)
+        statsticalReportingForSegmentUtilization(false)
     }
 
     private val myNumOccupiedCells =
@@ -310,7 +309,7 @@ class Conveyor(
      *  statistics on the summary reports.
      *  @param option true means reporting occurs
      */
-    fun holdQStatisticalReportingOption(option: Boolean){
+    fun statisticalReportingForHoldQueues(option: Boolean){
         myAccessingHoldQ.waitTimeStatOption = option
         myAccessingHoldQ.defaultReportingOption = option
         myRidingHoldQ.waitTimeStatOption = option
@@ -320,13 +319,29 @@ class Conveyor(
     }
 
     /**
+     *  Controls whether queues at conveyor entry cells (access points)
+     *  have their statistics appear on summary output.
+     *  The default is to have the results appear. This function turns
+     *  reporting on or off for all access queues.  Individual control
+     *  is available via the accessQueues property.
+     *
+     *  @param option  true means the results appear, false they do not
+     */
+    fun statisticalReportingForConveyorAccessQueues(option: Boolean){
+        for((location, queue) in myAccessQueues){
+            queue.defaultReportingOption = option
+            queue.waitTimeStatOption = option
+        }
+    }
+
+    /**
      *  Turns on or off the default reporting for the utilization and time average
      *  number of busy cells for each segment of the conveyor.  By default,
      *  the reporting for segments is off.
      *  @param option the option for reporting. True means reporting occurs
      */
     @Suppress("unused")
-    fun segmentStatisticalReporting(option: Boolean) {
+    fun statsticalReportingForSegmentUtilization(option: Boolean) {
         for (seg in segments) {
             seg.myNumOccupiedCells.defaultReportingOption = option
             seg.cellUtilization.defaultReportingOption = option
