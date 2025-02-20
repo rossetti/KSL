@@ -22,6 +22,7 @@ import ksl.modeling.entity.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.IdentityIfc
 
 class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null) {
 
@@ -82,6 +83,23 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
             super.handleTerminatedProcess(terminatedProcess)
         }
 
+    }
+
+    internal inner class CTransferEntity(
+        nextConveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
+        suspensionName: String? = null
+    ) : Entity() {
+        lateinit var transferRequest: Conveyor.ConveyorRequest
+        val transferProcess = process(){
+            val r = requestConveyor(nextConveyor,
+                entryLocation, numCellsNeeded, requestPriority,
+                requestResumePriority, suspensionName)
+            transferRequest = r as Conveyor.ConveyorRequest
+        }
     }
 
 
