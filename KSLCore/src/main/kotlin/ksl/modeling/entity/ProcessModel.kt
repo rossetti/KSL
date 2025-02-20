@@ -181,8 +181,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the counter will be reset to allow additional entities to be activated.
          *  @return true if an activation occurred, false if an activation did not occur
          */
-        fun increment() : Boolean {
-            if (turnActivatorOn){
+        fun increment(): Boolean {
+            if (turnActivatorOn) {
                 count++
                 if (count == activationCountLimit) {
                     if (resetCountOption) {
@@ -1717,22 +1717,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override suspend fun <T: BatchingEntity<T>> waitedForBatch(
+            override suspend fun <T : BatchingEntity<T>> waitedForBatch(
                 candidateForBatch: T,
                 batchingQ: BatchQueue<T>,
                 batchName: String,
                 batchSize: Int,
                 predicate: (T) -> Boolean,
                 suspensionName: String?
-            ) : Boolean {
-                require(entity == candidateForBatch){"The candidate for the batch ${candidateForBatch.name} is not the entity ${entity.name}"}
+            ): Boolean {
+                require(entity == candidateForBatch) { "The candidate for the batch ${candidateForBatch.name} is not the entity ${entity.name}" }
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.BATCHING
                 //always enter the queue to get waiting time statistics
-                batchingQ.enqueue(candidateForBatch, priority= entity.priority)
+                batchingQ.enqueue(candidateForBatch, priority = entity.priority)
                 val possibleBatch = batchingQ.selectBatch(batchSize, predicate)
                 // those that wait need to be suspended and will be part of the eventual batch
-                val waited = if (possibleBatch.size < batchSize){
+                val waited = if (possibleBatch.size < batchSize) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForBatch()
                     suspend()
@@ -1743,8 +1743,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // batch size has been met
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t WAIT FOR BATCH: ENTITY: entity_id = ${entity.id}: triggered the batching." }
                     val batch = possibleBatch.take(batchSize).toMutableList()
-                    require(batch.contains(candidateForBatch)) {"The formed batch did not contain the candidate ${candidateForBatch.name}"}
-                    if (!candidateForBatch.batchesIncludeSelf){
+                    require(batch.contains(candidateForBatch)) { "The formed batch did not contain the candidate ${candidateForBatch.name}" }
+                    if (!candidateForBatch.batchesIncludeSelf) {
                         batch.remove(candidateForBatch)
                     }
                     // collect the elements into the batch for the candidate to carry
@@ -1753,8 +1753,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // just remove the candidate (active) entity from the queue, not need to resume
                     batchingQ.remove(candidateForBatch)
                     // now remove and resume the batched entities
-                    for(batchedEntity in batch){
-                        if (batchedEntity != candidateForBatch){
+                    for (batchedEntity in batch) {
+                        if (batchedEntity != candidateForBatch) {
                             batchingQ.removeAndResume(batchedEntity)
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > \t WAIT FOR BATCH: ENTITY: entity_id = ${batchedEntity.id}: in batch $batchName was resumed." }
                         }
@@ -2246,7 +2246,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // holds here while request rides on the conveyor
                 val timeStarted = time
                 //TODO need to investigate how this gets resumed !!!
-                hold(conveyor.myRidingHoldQ, suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}")
+                hold(
+                    conveyor.myRidingHoldQ,
+                    suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}"
+                )
                 isMoving = false
                 if (destination is LocationIfc) {
                     currentLocation = destination
@@ -2271,7 +2274,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = conveyorRequest.conveyor
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 // schedules the need to exit the conveyor
-                //TODO investigate this
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 isMoving = true
                 // hold here while entity exits the conveyor
@@ -2282,6 +2284,50 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+            }
+
+            override suspend fun transferTo(
+                conveyorRequest: ConveyorRequestIfc,
+                nextConveyor: Conveyor,
+                entryLocation: IdentityIfc,
+                exitPriority: Int,
+                requestPriority: Int,
+                requestResumePriority: Int,
+                suspensionName: String?
+            ): ConveyorRequestIfc {
+                require(conveyorRequest.conveyor != nextConveyor) { "The current conveyor cannot be the same as the conveyor being transferred to" }
+                require(nextConveyor.entryLocations.contains(entryLocation)) {
+                    "The location (${entryLocation.name}) " +
+                            "is not an entry location for (${nextConveyor.name})"
+                }
+                require(entity.conveyorRequest != null) { "The entity attempted to transfer without using a conveyor." }
+                require(entity.conveyorRequest == conveyorRequest) { "The transferring entity does not own the supplied conveyor request" }
+                require(conveyorRequest.isBlockingExit)
+                { "The supplied request is not blocking an exit (${conveyorRequest.isBlockingExit}) location" }
+                require(conveyorRequest.destination != null) { "The entity has not reached its destination on its current conveyor." }
+                require(conveyorRequest.destination == entryLocation) { "The exit location of the current conveyor does not correspond to an entry location on the next conveyor" }
+                currentSuspendName = suspensionName
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: TRANSFER : entity_id = ${entity.id} : from conveyor = ${conveyorRequest.conveyor} to conveyor = ${nextConveyor.name} : suspension name = $currentSuspendName" }
+                // create the transfer entity for the transfer process
+                val te = CTransferEntity(
+                    nextConveyor, entryLocation, conveyorRequest.numCellsNeeded,
+                    requestPriority, requestResumePriority, suspensionName
+                )
+                //tell the current entity to wait for the transfer to occur, waitFor activates the transfer process
+                waitFor(te.transferProcess, suspensionName = suspensionName)
+                // the transfer process should be completed, get the request from the transfer entity
+                val tr = te.transferRequest
+                // tell the entity to exit its current conveyor
+                exitConveyor(exitPriority)
+                // update the request so that it uses the original entity, not the transfer entity
+                tr.entity = entity
+                // make the entity use the new request
+                entity.conveyorRequest = tr
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END: TRANSFER CONVEYOR : entity_id = ${entity.id} : conveyor = ${nextConveyor.name} : suspension name = $currentSuspendName" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                // return the new request
+                return tr
             }
 
             /**
@@ -2962,37 +3008,56 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
     }
 
-    open inner class BatchingEntity<T: BatchingEntity<T>>(
+    open inner class BatchingEntity<T : BatchingEntity<T>>(
         val batchesIncludeSelf: Boolean = true,
         aName: String? = null
-    ) : Entity(aName){
-        internal val myBatches : MutableMap<String, MutableList<T>> = mutableMapOf()
+    ) : Entity(aName) {
+        internal val myBatches: MutableMap<String, MutableList<T>> = mutableMapOf()
         val batches: Map<String, List<T>>
             get() = myBatches
 
-        fun clearBatches(){
+        fun clearBatches() {
             myBatches.clear()
         }
 
-        fun clearBatch(batchName: String){
+        fun clearBatch(batchName: String) {
             myBatches.remove(batchName)?.clear()
         }
 
-        operator fun get(name: String) : List<T> {
+        operator fun get(name: String): List<T> {
             return myBatches[name] ?: emptyList()
         }
 
-        operator fun contains(name: String) : Boolean {
+        operator fun contains(name: String): Boolean {
             return myBatches.containsKey(name)
         }
 
-        internal fun addBatch(batchName: String, batch: List<T>){
-            if (batchName !in myBatches){
+        internal fun addBatch(batchName: String, batch: List<T>) {
+            if (batchName !in myBatches) {
                 myBatches[batchName] = mutableListOf()
             }
             myBatches[batchName]!!.addAll(batch)
         }
 
+    }
+
+    internal inner class CTransferEntity(
+        nextConveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        numCellsNeeded: Int = 1,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
+        suspensionName: String? = null
+    ) : Entity() {
+        lateinit var transferRequest: Conveyor.ConveyorRequest
+        val transferProcess = process() {
+            val r = requestConveyor(
+                nextConveyor,
+                entryLocation, numCellsNeeded, requestPriority,
+                requestResumePriority, suspensionName
+            )
+            transferRequest = r as Conveyor.ConveyorRequest
+        }
     }
 
     companion object {

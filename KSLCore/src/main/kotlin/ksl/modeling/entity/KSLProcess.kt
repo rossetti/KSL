@@ -2115,7 +2115,7 @@ interface KSLProcessBuilder {
         exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
         suspensionName: String? = null
     ) {
-        require(entity.conveyorRequest != null) { "The entity attempted to ride without using the conveyor." }
+        require(entity.conveyorRequest != null) { "The entity attempted to exit without using the conveyor." }
         exitConveyor(entity.conveyorRequest!!, exitPriority, suspensionName)
     }
 
@@ -2210,7 +2210,7 @@ interface KSLProcessBuilder {
      * @param numCellsNeeded the number of cells needed (requested)
      * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
-     * the seize resource priority.
+     * the `seize()` function resource priority.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
@@ -2239,4 +2239,77 @@ interface KSLProcessBuilder {
             suspensionName
         )
     }
+
+    /**
+     *  Causes the entity to transfer from one conveyor to another. The entity will suspend while
+     *  accessing the required cells at the next conveyor. Once the desired cells are obtained
+     *  the entity will exit its current conveyor and be positioned to ride on the next conveyor.
+     *  After executing this function, the entity will be blocking the entry cell of the next conveyor
+     *  and must then execute a rideConveyor() function to move on the new conveyor. The transfer
+     *  will include the time needed for the entity to move through the exit cells of the current
+     *  conveyor, any waiting to access the next conveyor, and be positioned to ride on the
+     *  next conveyor.
+     *
+     *  Pre-conditions for this function:
+     *  - the entity must currently be on a different conveyor than the one to which it is transferring
+     *  - the entity must currently be occupying an exit cell of its current conveyor
+     *  - the exit location of the entity's current conveyor must correspond to the entry location for the next conveyor
+     *
+     * @param conveyorRequest the entity's current conveyor request. This is required to exit the current conveyor.
+     *  @param nextConveyor the conveyor to transfer to
+     *  @param entryLocation the entry location on the conveyor to access
+     *  @param requestPriority the priority associated with the conveyor access request
+     *  @param requestResumePriority the priority for resuming after accessing the conveyor
+     *  @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the transfer and contains information about
+     * the origin point, and can be used by the entity to control its movement on the new conveyor.
+     */
+    suspend fun transferTo(
+        conveyorRequest: ConveyorRequestIfc,
+        nextConveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
+        suspensionName: String? = null
+    ) : ConveyorRequestIfc
+
+    /**
+     *  Causes the entity to transfer from its current conveyor to another. The entity will suspend while
+     *  accessing the required cells at the next conveyor. Once the desired cells are obtained
+     *  the entity will exit its current conveyor and be positioned to ride on the next conveyor.
+     *  After executing this function, the entity will be blocking the entry cell of the next conveyor
+     *  and must then execute a rideConveyor() function to move on the new conveyor. The transfer
+     *  will include the time needed for the entity to move through the exit cells of the current
+     *  conveyor, any waiting to access the next conveyor, and be positioned to ride on the
+     *  next conveyor.
+     *
+     *  Pre-conditions for this function:
+     *  - the entity must currently be on a different conveyor than the one to which it is transferring
+     *  - the entity must currently be occupying an exit cell of its current conveyor
+     *  - the exit location of the entity's current conveyor must correspond to the entry location for the next conveyor
+     *
+     *  @param nextConveyor the conveyor to transfer to
+     *  @param entryLocation the entry location on the conveyor to access
+     *  @param requestPriority the priority associated with the conveyor access request
+     *  @param requestResumePriority the priority for resuming after accessing the conveyor
+     *  @param suspensionName the name of the suspension point the entity is experiencing if there
+     *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
+     * @return the returned item encapsulates what happened during the transfer and contains information about
+     * the origin point, and can be used by the entity to control its movement on the new conveyor.
+     */
+    suspend fun transferTo(
+        nextConveyor: Conveyor,
+        entryLocation: IdentityIfc,
+        exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
+        requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
+        requestResumePriority: Int = RESUME_PRIORITY,
+        suspensionName: String? = null
+    ) : ConveyorRequestIfc {
+        require(entity.conveyorRequest != null) { "The entity attempted to exit without using the conveyor." }
+        return transferTo(entity.conveyorRequest!!, nextConveyor,
+            entryLocation, exitPriority, requestPriority, requestResumePriority, suspensionName)
+    }
+
 }

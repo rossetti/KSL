@@ -52,7 +52,7 @@ class WaitForProcessExample(parent: ModelElement) : ProcessModel(parent, null) {
 
         val wfp = process {
             val c = Customer()
-            println("$time > before waitFor simple process for entity: ${this@Customer.name}")
+            println("$time > before   simple process for entity: ${this@Customer.name}")
             waitFor(c.simpleProcess)
             println("$time > after waitFor simple process for entity: ${this@Customer.name}")
         }
