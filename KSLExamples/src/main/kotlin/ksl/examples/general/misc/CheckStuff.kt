@@ -1,5 +1,6 @@
 package ksl.examples.general.misc
 
+import ksl.modeling.entity.Conveyor
 import ksl.utilities.distributions.Weibull
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.StatisticReporter
@@ -10,6 +11,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.sqrt
+import kotlinx.serialization.builtins.DoubleArraySerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
@@ -24,7 +28,24 @@ fun main(){
 //    val lt2 = ShiftedGeometricRV(probOfSuccess = 0.2, streamNum = 1)
 //    simulateDemandDuringLeadTime(1000, lt2)
 
-    testBoxMuller()
+//    testBoxMuller()
+    serializing()
+}
+
+fun serializing(){
+    val array = doubleArrayOf(1.0, 5.0, -3.0)
+
+    val Json = Json { prettyPrint = true }
+    val encoding = Json.encodeToString(DoubleArraySerializer(),  array)
+    println(encoding)
+
+    val ct = Conveyor.Type.ACCUMULATING
+    val ctEncoded = Json.encodeToString(serializer<Conveyor.Type>(), ct)
+    println(ctEncoded)
+
+    val list = listOf(67.0, 33.0, 111.0)
+    val listEncoded = Json.encodeToString(serializer<List<Double>>(),  list)
+    println(listEncoded)
 }
 
 fun testBoxMuller(n: Int = 1000){
