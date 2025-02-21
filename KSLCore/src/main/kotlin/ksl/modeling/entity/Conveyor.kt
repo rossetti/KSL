@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import kotlinx.serialization.Serializable
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
@@ -141,6 +142,7 @@ class Conveyor(
         require(velocity > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
     }
 
+    @Serializable
     enum class Type {
         ACCUMULATING, NON_ACCUMULATING
     }

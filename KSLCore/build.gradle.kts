@@ -54,15 +54,15 @@ dependencies {
 //    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
 
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.7.2")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.8.0")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
-    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.3.3")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.4.1")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel
 //    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.7.3")
 
@@ -70,7 +70,7 @@ dependencies {
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.3.2")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.3.3")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
 //    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
@@ -89,7 +89,7 @@ dependencies {
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
     api("org.hipparchus:hipparchus-stat:3.1")
 
-    implementation("com.google.guava:guava:33.2.1-jre")
+    implementation("com.google.guava:guava:33.3.1-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
