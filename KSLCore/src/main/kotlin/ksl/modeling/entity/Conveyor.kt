@@ -19,6 +19,8 @@
 package ksl.modeling.entity
 
 import kotlinx.serialization.Serializable
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
@@ -131,7 +133,7 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
 class Conveyor(
     parent: ModelElement,
     segmentData: ConveyorSegments,
-    val conveyorType: Type = Type.ACCUMULATING,
+    conveyorType: Type = Type.ACCUMULATING,
     velocity: Double = 1.0,
     val maxEntityCellsAllowed: Int = 1,
     name: String? = null
@@ -147,6 +149,23 @@ class Conveyor(
         ACCUMULATING, NON_ACCUMULATING
     }
 
+    var conveyorType: Type = conveyorType
+        private set(value) {
+            field = value
+        }
+
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
+    var accumulating: Boolean = (conveyorType == Type.ACCUMULATING)
+        set(value) {
+            require(model.isNotRunning) {"The model must not be running when changing the conveyor type"}
+            if (value){
+                conveyorType = Type.ACCUMULATING
+            } else {
+                conveyorType = Type.NON_ACCUMULATING
+            }
+            field = value
+        }
+
     var defaultMovementPriority = KSLEvent.DEFAULT_PRIORITY + 1
 
     /**
@@ -154,6 +173,10 @@ class Conveyor(
      * conveyor.  Changing the initial velocity will change the velocity that is
      * set at the beginning of each replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = 0.0
+    )
     var initialVelocity: Double = velocity
         set(value) {
             require(value > 0.0) { "The initial velocity of the conveyor must be > 0.0" }
@@ -811,15 +834,6 @@ class Conveyor(
         for (cSeg in segments) {
             cSeg.replicationEnded()
         }
-//        var i = 0
-//        KSL.out.println("End of Replication: ${model.currentReplicationNumber}")
-//        KSL.out.println("Entities in ridingHoldQ: size = ${myRidingHoldQ.size}")
-//        for (entity in myRidingHoldQ) {
-//            i++
-//            KSL.out.println("$i $entity")
-//            KSL.out.println(entity.conveyorRequest?.asString()!!)
-//            KSL.out.println()
-//        }
     }
 
     /**
