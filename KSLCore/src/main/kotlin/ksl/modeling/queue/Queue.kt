@@ -17,6 +17,7 @@
  */
 package ksl.modeling.queue
 
+import kotlinx.serialization.Serializable
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -237,6 +238,7 @@ open class Queue<T : ModelElement.QObject>(
     /**
      *  The method of ordering the queue
      */
+    @Serializable
     enum class Discipline {
         /**
          * first-in, first-out
