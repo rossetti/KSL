@@ -41,4 +41,7 @@ fun main() {
     for (i in 1..5) {
         print(String.format("%3d %15f %n", i, n1.value))
     }
+
+    println()
+    println(n1.probabilityPoints)
 }

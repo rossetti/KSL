@@ -17,6 +17,9 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.distributions.ProbPoint
+import ksl.utilities.distributions.cdf
+import ksl.utilities.distributions.values
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
@@ -43,11 +46,27 @@ class DEmpiricalRV(
         require(KSLRandom.isValidCDF(cdf)) { "The supplied cdf was not valid." }
     }
 
-    val values: DoubleArray = values.copyOf()
-        get() = field.copyOf()
+    val probabilityPoints: List<ProbPoint>
+        get() {
+            val list = mutableListOf<ProbPoint>()
+            var cp = 0.0
+            for ((i, v) in myValues.withIndex()) {
+                val pp = ProbPoint(v, myCDF[i] - cp, myCDF[i])
+                cp = myCDF[i]
+                list.add(pp)
+            }
+            return list
+        }
 
-    val cdf: DoubleArray = cdf.copyOf()
-        get() = field.copyOf()
+    private val myValues: DoubleArray = values.copyOf()
+
+    val values: DoubleArray
+        get() = myValues.copyOf()
+
+    private val myCDF: DoubleArray = cdf.copyOf()
+
+    val cdf: DoubleArray
+        get() = myCDF.copyOf()
 
     /**
      * Randomly selects from the array using the supplied cdf
@@ -59,6 +78,18 @@ class DEmpiricalRV(
     constructor(values: DoubleArray, cdf: DoubleArray, streamNum: Int) : this(
         values, cdf, KSLRandom.rnStream(streamNum)
     )
+
+    constructor(
+        probData: List<ProbPoint>,
+        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        name: String? = null
+    ) : this(probData.values(), probData.cdf(), stream, name)
+
+    constructor(
+        probData: List<ProbPoint>,
+        streamNum: Int,
+        name: String? = null
+    ) : this(probData.values(), probData.cdf(), KSLRandom.rnStream(streamNum), name)
 
     /**
      *
@@ -79,22 +110,22 @@ class DEmpiricalRV(
     )
 
     override fun instance(stream: RNStreamIfc): DEmpiricalRV {
-        return DEmpiricalRV(values, cdf, stream)
+        return DEmpiricalRV(myValues, myCDF, stream)
     }
 
     override fun generate(): Double {
-        return KSLRandom.discreteInverseCDF(values, cdf, rnStream)
+        return KSLRandom.discreteInverseCDF(myValues, myCDF, rnStream)
     }
 
     override fun toString(): String {
-        return "DEmpiricalRV(values=${values.contentToString()}, cdf=${cdf.contentToString()})"
+        return "DEmpiricalRV(values=${myValues.contentToString()}, cdf=${myCDF.contentToString()})"
     }
 
     override val parameters: RVParameters
         get() {
             val parameters: RVParameters = DEmpiricalRVParameters()
-            parameters.changeDoubleArrayParameter("values", values)
-            parameters.changeDoubleArrayParameter("cdf", cdf)
+            parameters.changeDoubleArrayParameter("values", myValues)
+            parameters.changeDoubleArrayParameter("cdf", myCDF)
             return parameters
         }
 
