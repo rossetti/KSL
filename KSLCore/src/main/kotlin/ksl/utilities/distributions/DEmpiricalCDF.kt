@@ -17,11 +17,48 @@
  */
 package ksl.utilities.distributions
 
+import kotlinx.serialization.Serializable
 import ksl.utilities.column
-import ksl.utilities.divideConstant
 import ksl.utilities.isAllDifferent
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.*
+
+@Serializable
+data class ProbPoint(
+    val value: Double,
+    val prob: Double,
+    val cumProb: Double
+) {
+    init {
+        require(!(prob < 0.0 || prob > 1.0)) { "Probability must be in interval [0,1]" }
+        require(!(cumProb < 0.0 || cumProb > 1.0)) { "Probability must be in interval [0,1]" }
+    }
+
+    override fun toString(): String {
+        return "ProbPoint(value=$value, prob=$prob, cumProb=$cumProb)${System.lineSeparator()}"
+    }
+}
+
+/**
+ *  Returns the probabilities as an array
+ */
+fun List<ProbPoint>.probabilities() : DoubleArray {
+    return DoubleArray(this.size){ i -> this[i].prob}
+}
+
+/**
+ *  Returns the values as an array
+ */
+fun List<ProbPoint>.values() : DoubleArray {
+    return DoubleArray(this.size){ i -> this[i].value}
+}
+
+/**
+ *  Returns the cumulative distribution probabilities as an array
+ */
+fun List<ProbPoint>.cdf() : DoubleArray {
+    return DoubleArray(this.size){ i -> this[i].cumProb}
+}
 
 /**
  * Provides a representation for a discrete distribution with
@@ -40,10 +77,17 @@ import ksl.utilities.random.rvariable.*
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
     Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
 
+        constructor(
+            data: List<ProbPoint>,
+            name: String? = null
+        ): this(data.probabilities(), data.cdf(), name)
+
     /**
      * Holds the list of probability points
      */
     private val myProbabilityPoints = mutableListOf<ProbPoint>()
+    val probabilityPoints: List<ProbPoint>
+        get() = myProbabilityPoints
 
     init {
         require(values.size == cdf.size) { "The values array was not the same size as the CDF array1" }
@@ -231,21 +275,6 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
             i = i + 2
         }
         return param
-    }
-
-    private inner class ProbPoint(
-        val value: Double,
-        val prob: Double,
-        val cumProb: Double
-    ) {
-        init {
-            require(!(prob < 0.0 || prob > 1.0)) { "Probability must be in interval [0,1]" }
-            require(!(cumProb < 0.0 || cumProb > 1.0)) { "Probability must be in interval [0,1]" }
-        }
-
-        override fun toString(): String {
-            return "ProbPoint(value=$value, prob=$prob, cumProb=$cumProb)${System.lineSeparator()}"
-        }
     }
 
     override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
