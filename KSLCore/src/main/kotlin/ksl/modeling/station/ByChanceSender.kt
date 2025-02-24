@@ -3,8 +3,8 @@ package ksl.modeling.station
 import ksl.simulation.ModelElement
 import ksl.utilities.random.robj.RElementIfc
 
-fun interface SendingActionIfc {
-    fun action(receiver: QObjectReceiverIfc, qObject: ModelElement.QObject)
+fun interface SendingActionIfc<T: ModelElement.QObject<T>> {
+    fun action(receiver: QObjectReceiverIfc<T>, qObject: T)
 }
 
 /**
@@ -13,15 +13,15 @@ fun interface SendingActionIfc {
  *  both a receiver and a sender of QObject instances. Receiving
  *  instances are immediately sent.
  */
-open class ByChanceSender(
-    private val picker: RElementIfc<QObjectReceiverIfc>
-) : QObjectSender(), QObjectReceiverIfc{
+open class ByChanceSender<T: ModelElement.QObject<T>>(
+    private val picker: RElementIfc<QObjectReceiverIfc<T>>
+) : QObjectSender<T>(), QObjectReceiverIfc<T>{
 
-    final override fun receive(arrivingQObject: ModelElement.QObject) {
+    final override fun receive(arrivingQObject: T) {
         send(arrivingQObject)
     }
 
-    final override fun selectNextReceiver(): QObjectReceiverIfc {
+    final override fun selectNextReceiver(): QObjectReceiverIfc<T> {
         return picker.randomElement
     }
 

@@ -1897,7 +1897,7 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         }
     }
 
-    interface QObjectIfc : NameIfc {
+    interface QObjectIfc<T : ModelElement.QObject<T>> : NameIfc {
         /**
          * Gets a uniquely assigned identifier for this QObject. This
          * identifier is assigned when the QObject is created. It may vary if the
@@ -1964,12 +1964,12 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          *  For use within the station package. Tracks the current receiver
          */
-        val currentReceiver: QObjectReceiverIfc?
+        val currentReceiver: QObjectReceiverIfc<T>?
 
         /**
          *  For use within the station package. Tracks the current sender
          */
-        val sender: QObjectSenderIfc?
+        val sender: QObjectSenderIfc<T>?
 
         /**
          *  An object that promises to produce a value. Can be used
@@ -1997,7 +1997,7 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
      *
      * @param aName The name of the QObject
      */
-    open inner class QObject(aName: String? = null) : Comparable<QObject>, QObjectIfc {
+    open inner class QObject<T : ModelElement.QObject<T>>(aName: String? = null) : Comparable<QObject<T>>, QObjectIfc<T> {
         init {
             qObjCounter++
         }
@@ -2106,17 +2106,17 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          *  The receiver that last received the qObject
          */
-        override var currentReceiver: QObjectReceiverIfc? = null
+        override var currentReceiver: QObjectReceiverIfc<T>? = null
 
         /**
          *  Something that knows how to send qObjects to receivers
          */
-        override var sender: QObjectSenderIfc? = null
+        override var sender: QObjectSenderIfc<T>? = null
 
         /**
          *  Facilitates SAM setting with a lambda
          */
-        fun sender(sender: QObjectSenderIfc?){
+        fun sender(sender: QObjectSenderIfc<T>?){
             this.sender = sender
         }
 
@@ -2159,7 +2159,7 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
          * @param priority the priority
          * @param obj an object to attach
          */
-        internal fun <T : QObject> enterQueue(queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
+        internal fun <T : QObject<T>> enterQueue(queue: Queue<T>, time: Double, priority: Int, obj: Any?) {
             check(isNotQueued) { "The QObject, $this, was already queued!" }
             myQueuedState.enter(time)
             this.queue = queue
@@ -2195,7 +2195,7 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
          * @return Returns a negative integer, zero, or a positive integer if this
          * object is less than, equal to, or greater than the specified object.
          */
-        override operator fun compareTo(other: QObject): Int {
+        override operator fun compareTo(other: QObject<T>): Int {
 
             // compare the priorities
             if (priority < other.priority) {

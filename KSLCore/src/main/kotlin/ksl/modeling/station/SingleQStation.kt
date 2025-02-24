@@ -47,13 +47,13 @@ import ksl.utilities.random.RandomIfc
  *  receiver implemented. If no receiver is present, there will be a run-time error.
  *  @param name the name of the station
  */
-open class SingleQStation(
+open class SingleQStation<T : ModelElement.QObject<T>>(
     parent: ModelElement,
     activityTime: RandomIfc,
     resource: SResource? = null,
-    nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
+    nextReceiver: QObjectReceiverIfc<T> = NotImplementedReceiver(),
     name: String? = null
-) : Station(parent, nextReceiver, name = name), SingleQStationCIfc {
+) : Station<T>(parent, nextReceiver, name = name), SingleQStationCIfc<T> {
 
     /**
      * Allows the single queue station to be created with an initial capacity specification
@@ -71,7 +71,7 @@ open class SingleQStation(
         parent: ModelElement,
         activityTime: RandomIfc,
         initialCapacity: Int,
-        nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
+        nextReceiver: QObjectReceiverIfc<T> = NotImplementedReceiver(),
         name: String? = null
     ) : this(parent, activityTime, null, nextReceiver, name) {
         require(initialCapacity > 0) { "initialCapacity must be positive." }
@@ -86,8 +86,8 @@ open class SingleQStation(
     override val activityTimeRV: RandomSourceCIfc
         get() = myActivityTimeRV
 
-    protected val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")
-    override val waitingQ: QueueCIfc<QObject>
+    protected val myWaitingQ: Queue<T> = Queue(this, "${this.name}:Q")
+    override val waitingQ: QueueCIfc<T>
         get() = myWaitingQ
 
     /**
@@ -112,7 +112,7 @@ open class SingleQStation(
      *  Receives the qObject instance for processing. Handle the queuing
      *  if the resource is not available and begins service for the next customer.
      */
-    override fun process(arrivingQObject: QObject) {
+    override fun process(arrivingQObject: T) {
         // enqueue the newly arriving qObject
         myWaitingQ.enqueue(arrivingQObject)
         if (isResourceAvailable) {
@@ -137,7 +137,7 @@ open class SingleQStation(
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected fun delayTime(qObject: QObject): Double {
+    protected fun delayTime(qObject: T): Double {
         return qObject.valueObject?.value ?: myActivityTimeRV.value
     }
 
@@ -145,8 +145,8 @@ open class SingleQStation(
      *  The end of processing event actions. Collect departing statistics and send the qObject
      *  to its next receiver. If the queue is not empty, continue processing the next qObject.
      */
-    private fun endOfProcessing(event: KSLEvent<QObject>) {
-        val leaving: QObject = event.message!!
+    private fun endOfProcessing(event: KSLEvent<T>) {
+        val leaving: T = event.message!!
         myResource.release()
         if (isQueueNotEmpty) { // queue is not empty
             serveNext()
