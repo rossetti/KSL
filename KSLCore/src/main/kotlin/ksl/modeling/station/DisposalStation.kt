@@ -26,7 +26,7 @@ import ksl.simulation.ModelElement
  *  and the total time in the system at this dispose. The optionally supplied
  *  number in the system response will be decremented by 1 if supplied.
  */
-class DisposalStation(
+open class DisposalStation(
     parent: ModelElement,
     private val myNumInSystem: TWResponse? = null,
     name: String? = null
