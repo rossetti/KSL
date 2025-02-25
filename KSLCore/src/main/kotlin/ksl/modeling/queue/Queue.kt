@@ -81,7 +81,7 @@ interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
      *
      * @return unmodifiable view of the underlying list for the Queue
      */
-    val immutableList: List<ModelElement.QObjectIfc>
+    val immutableList: List<T>
 
     /**
      * Adds the supplied listener to this queue
@@ -369,7 +369,7 @@ open class Queue<T : ModelElement.QObject>(
      *
      * @return unmodifiable view of the underlying list for the Queue
      */
-    override val immutableList: List<QObjectIfc>
+    override val immutableList: List<T>
         get() = myList.toList()
 
     /**
