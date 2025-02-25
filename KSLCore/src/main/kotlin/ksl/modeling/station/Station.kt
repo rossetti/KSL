@@ -14,10 +14,10 @@ interface ActivityStationCIfc : StationCIfc {
     val activityTimeRV: RandomSourceCIfc
 }
 
-interface SingleQStationCIfc<T : ModelElement.QObject<T>> : ActivityStationCIfc {
+interface SingleQStationCIfc : ActivityStationCIfc {
     val resource: SResourceCIfc
 
-    val waitingQ: QueueCIfc<T>
+    val waitingQ: QueueCIfc<ModelElement.QObject>
 
     /**
      *  Indicates if the resource has units available.
@@ -35,12 +35,12 @@ interface SingleQStationCIfc<T : ModelElement.QObject<T>> : ActivityStationCIfc 
     val isQueueNotEmpty: Boolean
 }
 
-fun interface EntryActionIfc<T: ModelElement.QObject<T>> {
-    fun onEntry(qObject: T)
+fun interface EntryActionIfc {
+    fun onEntry(qObject: ModelElement.QObject)
 }
 
-fun interface ExitActionIfc<T: ModelElement.QObject<T>> {
-    fun onExit(qObject: T)
+fun interface ExitActionIfc {
+    fun onExit(qObject: ModelElement.QObject)
 }
 
 /**
@@ -48,16 +48,16 @@ fun interface ExitActionIfc<T: ModelElement.QObject<T>> {
  *  process instances of the QObject class, and cause them to
  *  be received by other receivers via appropriate send logic.
  */
-abstract class Station<T : ModelElement.QObject<T>>(
+abstract class Station(
     parent: ModelElement,
-    private var nextReceiver: QObjectReceiverIfc<T> = NotImplementedReceiver(),
+    private var nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
-) : ModelElement(parent, name), QObjectReceiverIfc<T>, StationCIfc {
+) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc {
 
     /**
      *  Sets the receiver of qObject instances from this station
      */
-    fun nextReceiver(receiver: QObjectReceiverIfc<T>) {
+    fun nextReceiver(receiver: QObjectReceiverIfc) {
         nextReceiver = receiver
     }
 
@@ -87,7 +87,7 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *
      * @param completedQObject the completed QObject
      */
-    protected fun sendToNextReceiver(completedQObject: T) {
+    protected fun sendToNextReceiver(completedQObject: QObject) {
         departureCollection(completedQObject)
         exitAction?.onExit(completedQObject)
         onExit(completedQObject)
@@ -108,7 +108,7 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  will use a sender attached to the QObject instance. If a
      *  sender is not attached to the QObject the next receiver is used
      */
-    protected var sender: QObjectSenderIfc<T>? = null
+    protected var sender: QObjectSenderIfc? = null
 
     /**
      *  Can be used to supply a sender that will be used instead of
@@ -116,22 +116,22 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  to the QObject instance and if not attached will send the QObject
      *  to the next receiver.
      */
-    fun sender(sender: QObjectSenderIfc<T>?) {
+    fun sender(sender: QObjectSenderIfc?) {
         this.sender = sender
     }
 
-    protected fun arrivalCollection(arrivingQObject: T) {
+    protected fun arrivalCollection(arrivingQObject: QObject) {
         myNS.increment() // new qObject arrived
         arrivingQObject.stationArriveTime = time
     }
 
-    protected fun departureCollection(completedQObject: T) {
+    protected fun departureCollection(completedQObject: QObject) {
         myNS.decrement() // qObject completed
         myNumProcessed.increment()
         myStationTime.value = (time - completedQObject.stationArriveTime)
     }
 
-    final override fun receive(arrivingQObject: T) {
+    final override fun receive(arrivingQObject: QObject) {
         arrivingQObject.currentReceiver = this
         arrivalCollection(arrivingQObject)
         entryAction?.onEntry(arrivingQObject)
@@ -139,9 +139,9 @@ abstract class Station<T : ModelElement.QObject<T>>(
         process(arrivingQObject)
     }
 
-    protected abstract fun process(arrivingQObject: T)
+    protected abstract fun process(arrivingQObject: QObject)
 
-    protected var entryAction: EntryActionIfc<T>? = null
+    protected var entryAction: EntryActionIfc? = null
 
     /**
      *  Specifies an action to occur when a QObject instance
@@ -149,11 +149,11 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  entering the station. That is, the QObject is considered
      *  within the station.
      */
-    fun entryAction(action: EntryActionIfc<T>?) {
+    fun entryAction(action: EntryActionIfc?) {
         entryAction = action
     }
 
-    protected var exitAction: ExitActionIfc<T>? = null
+    protected var exitAction: ExitActionIfc? = null
 
     /**
      *  Specifies an action to occur when a QObject instance
@@ -161,7 +161,7 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  being sent to the next receiver. That is, the QObject is considered
      *  to have exited the station.
      */
-    fun exitAction(action: ExitActionIfc<T>?) {
+    fun exitAction(action: ExitActionIfc?) {
         exitAction = action
     }
 
@@ -173,7 +173,7 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  function occurs immediately after the entry action but
      *  before any other logic. To be used by subclasses.
      */
-    open fun onEntry(arrivingQObject: T) {
+    open fun onEntry(arrivingQObject: QObject) {
     }
 
     /**
@@ -182,6 +182,6 @@ abstract class Station<T : ModelElement.QObject<T>>(
      *  next receiver. If an exit action is provided, this function
      *  executes immediately after the exit action.
      */
-    open fun onExit(completedQObject: T) {
+    open fun onExit(completedQObject: QObject) {
     }
 }

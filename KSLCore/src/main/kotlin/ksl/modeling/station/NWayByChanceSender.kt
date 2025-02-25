@@ -19,13 +19,12 @@
 package ksl.modeling.station
 
 import ksl.modeling.elements.REmpiricalList
-import ksl.simulation.ModelElement
 
 /**
  *  Allows an REmpiricalList to act as a receiver of qObjects
  *  and to send them to destination receivers according to the
  *  specified probabilities.
  */
-class NWayByChanceSender<T : ModelElement.QObject<T>>(
-    receiverList : REmpiricalList<QObjectReceiverIfc<T>>
-) : ByChanceSender<T>(receiverList)
+class NWayByChanceSender(
+    receiverList : REmpiricalList<QObjectReceiverIfc>
+) : ByChanceSender(receiverList)

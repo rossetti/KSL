@@ -26,11 +26,11 @@ import ksl.simulation.ModelElement
  *  and the total time in the system at this dispose. The optionally supplied
  *  number in the system response will be decremented by 1 if supplied.
  */
-class DisposalStation<T : ModelElement.QObject<T>>(
+class DisposalStation(
     parent: ModelElement,
     private val myNumInSystem: TWResponse? = null,
     name: String? = null
-) : ModelElement(parent, name), QObjectReceiverIfc<T> {
+) : ModelElement(parent, name), QObjectReceiverIfc {
 
     private val myNumDisposed: Counter = Counter(this, "${this.name}:TotalProcessed")
     val numDisposed: CounterCIfc
@@ -39,7 +39,7 @@ class DisposalStation<T : ModelElement.QObject<T>>(
     val totalTime: ResponseCIfc
         get() = mySystemTime
 
-    override fun receive(arrivingQObject: T) {
+    override fun receive(arrivingQObject: ModelElement.QObject) {
         mySystemTime.value = arrivingQObject.currentTime - arrivingQObject.createTime
         myNumDisposed.increment()
         myNumInSystem?.decrement()

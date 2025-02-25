@@ -18,7 +18,6 @@
 
 package ksl.modeling.station
 
-import ksl.simulation.ModelElement
 import ksl.utilities.random.robj.BernoulliPicker
 
 /**
@@ -26,15 +25,15 @@ import ksl.utilities.random.robj.BernoulliPicker
  *  Receives the incoming qObject and sends it two one of
  *  two receivers according to the Bernoulli picking process.
  */
-class TwoWayByChanceSender<T : ModelElement.QObject<T>>(
-    private val bernoulliPicker: BernoulliPicker<QObjectReceiverIfc<T>>
-) : ByChanceSender<T>(bernoulliPicker) {
+class TwoWayByChanceSender(
+    private val bernoulliPicker: BernoulliPicker<QObjectReceiverIfc>
+) : ByChanceSender(bernoulliPicker) {
 
-    fun successOption(receiver: QObjectReceiverIfc<T>){
+    fun successOption(receiver: QObjectReceiverIfc){
         bernoulliPicker.success = receiver
     }
 
-    fun failureOption(receiver: QObjectReceiverIfc<T>){
+    fun failureOption(receiver: QObjectReceiverIfc){
         bernoulliPicker.failure = receiver
     }
 }
