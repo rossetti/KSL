@@ -8,16 +8,16 @@ import ksl.simulation.ModelElement.QObject
  *
  * @author rossetti
  */
-fun interface QObjectReceiverIfc {
-    fun receive(arrivingQObject: ModelElement.QObject)
+fun interface QObjectReceiverIfc<in T: ModelElement.QObject> {
+    fun receive(arrivingQObject: T)
 }
 
-object DoNothingReceiver : QObjectReceiverIfc {
+object DoNothingReceiver : QObjectReceiverIfc<QObject> {
     override fun receive(arrivingQObject: QObject) {
     }
 }
 
-object NotImplementedReceiver : QObjectReceiverIfc {
+object NotImplementedReceiver : QObjectReceiverIfc<QObject> {
     override fun receive(arrivingQObject: QObject) {
         val sb = StringBuilder().apply {
             appendLine("Attempted to send ${arrivingQObject.name} to a not implemented receiver.")

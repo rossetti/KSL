@@ -1964,12 +1964,12 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          *  For use within the station package. Tracks the current receiver
          */
-        val currentReceiver: QObjectReceiverIfc?
+        val currentReceiver: QObjectReceiverIfc<QObject>?
 
         /**
          *  For use within the station package. Tracks the current sender
          */
-        val sender: QObjectSenderIfc?
+        val sender: QObjectSenderIfc<QObject>?
 
         /**
          *  An object that promises to produce a value. Can be used
@@ -2106,17 +2106,17 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         /**
          *  The receiver that last received the qObject
          */
-        override var currentReceiver: QObjectReceiverIfc? = null
+        override var currentReceiver: QObjectReceiverIfc<QObject>? = null
 
         /**
          *  Something that knows how to send qObjects to receivers
          */
-        override var sender: QObjectSenderIfc? = null
+        override var sender: QObjectSenderIfc<QObject>? = null
 
         /**
          *  Facilitates SAM setting with a lambda
          */
-        fun sender(sender: QObjectSenderIfc?){
+        fun sender(sender: QObjectSenderIfc<QObject>?){
             this.sender = sender
         }
 

@@ -43,29 +43,29 @@ import ksl.utilities.random.RandomIfc
  *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
  *  @param name the name of the station
  */
-open class ActivityStation(
+open class ActivityStation<T: ModelElement.QObject>(
     parent: ModelElement,
     activityTime: RandomIfc,
-    nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
+    nextReceiver: QObjectReceiverIfc<T> = NotImplementedReceiver,
     name: String? = null
-) : Station(parent, nextReceiver, name = name), ActivityStationCIfc{
+) : Station<T>(parent, nextReceiver, name = name), ActivityStationCIfc{
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, "${this.name}:ActivityRV")
     override val activityTimeRV: RandomSourceCIfc
         get() = myActivityTimeRV
 
-    override fun process(arrivingQObject: QObject) {
+    override fun process(arrivingQObject: T) {
         schedule(this::endActivityAction, activityTime(arrivingQObject), arrivingQObject)
     }
 
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected fun activityTime(qObject: QObject) : Double {
+    protected fun activityTime(qObject: T) : Double {
         return qObject.valueObject?.value ?: myActivityTimeRV.value
     }
 
-    private fun endActivityAction(event: KSLEvent<QObject>) {
+    private fun endActivityAction(event: KSLEvent<T>) {
         val finishedObject = event.message!!
         sendToNextReceiver(finishedObject)
     }

@@ -8,11 +8,11 @@ import ksl.utilities.random.robj.RElementIfc
  *  context of qObjects a sender should cause a qObject
  *  to be (eventually) received by a receiver.
  */
-fun interface QObjectSenderIfc {
-    fun send(qObject: ModelElement.QObject)
+fun interface QObjectSenderIfc<in T: ModelElement.QObject> {
+    fun send(qObject: T)
 }
 
-abstract class QObjectSender() :  QObjectSenderIfc {
+abstract class QObjectSender<T: ModelElement.QObject>() :  QObjectSenderIfc<T> {
 
     /**
      *  Can be used to supply logic if the iterator does not have
@@ -24,9 +24,9 @@ abstract class QObjectSender() :  QObjectSenderIfc {
         noNextReceiverHandler = fn
     }
 
-    abstract fun selectNextReceiver(): QObjectReceiverIfc?
+    abstract fun selectNextReceiver(): QObjectReceiverIfc<T>?
 
-    final override fun send(qObject: ModelElement.QObject) {
+    final override fun send(qObject: T) {
         val selected = selectNextReceiver()
         if (selected != null) {
             beforeSendingAction?.action(selected, qObject)
@@ -37,15 +37,15 @@ abstract class QObjectSender() :  QObjectSenderIfc {
         }
     }
 
-    private var beforeSendingAction: SendingActionIfc? = null
+    private var beforeSendingAction: SendingActionIfc<T>? = null
 
-    fun beforeSendingAction(action : SendingActionIfc){
+    fun beforeSendingAction(action : SendingActionIfc<T>){
         beforeSendingAction = action
     }
 
-    private var afterSendingAction: SendingActionIfc? = null
+    private var afterSendingAction: SendingActionIfc<T>? = null
 
-    fun afterSendingAction(action : SendingActionIfc){
+    fun afterSendingAction(action : SendingActionIfc<T>){
         afterSendingAction = action
     }
 }
@@ -55,11 +55,11 @@ abstract class QObjectSender() :  QObjectSenderIfc {
  *  to send the qObject to the next receiver. At the end of the iterator
  *  the default behavior is to silently end.
  */
-class ReceiverSequence(
-    private val receiverItr: ListIterator<QObjectReceiverIfc>
-) : QObjectSender() {
+class ReceiverSequence<T: ModelElement.QObject>(
+    private val receiverItr: ListIterator<QObjectReceiverIfc<T>>
+) : QObjectSender<T>() {
 
-    override fun selectNextReceiver(): QObjectReceiverIfc? {
+    override fun selectNextReceiver(): QObjectReceiverIfc<T>? {
         return if (receiverItr.hasNext()){
             receiverItr.next()
         } else {
