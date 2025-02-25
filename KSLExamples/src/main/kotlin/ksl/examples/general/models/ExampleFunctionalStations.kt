@@ -2,14 +2,12 @@ package ksl.examples.general.models
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.station.*
-import ksl.modeling.variable.RandomSourceCIfc
-import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.Response
-import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.robj.BernoulliPicker
+import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.UniformRV
 import kotlin.reflect.KFunction
@@ -71,9 +69,8 @@ class InspectionSystem(
         myNumAdjustments.value = yBox.numAdjustments.toDouble()
     }
 
-    private val myInspectDecide = TwoWayByChanceSender(
-        BernoulliPicker(0.82, myExit, myAdjustmentStation, streamNum = 4)
-    )
+    private val myDecideProbRV = BernoulliVariable(this, 0.82, myExit, myAdjustmentStation, streamNum = 4)
+    private val myInspectDecide = TwoWayByChanceSender(myDecideProbRV)
 
     init {
         myArrivalGenerator.generatorAction { myInspectionStation.receive(YBox()) }

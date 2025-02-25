@@ -19,18 +19,42 @@
 package ksl.modeling.variable
 
 import ksl.modeling.elements.RandomElement
-import ksl.modeling.elements.RandomElementIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.robj.BernoulliPickerIfc
 import ksl.utilities.random.rvariable.BernoulliRV
+import ksl.utilities.random.rvariable.KSLRandom
 
 class BernoulliVariable<T>(
     parent: ModelElement,
     private val bernoulliRV: BernoulliRV,
-    private val success: T,
-    private val failure: T,
+    override val success: T,
+    override val failure: T,
     name: String? = null
-) : RandomElement(parent, bernoulliRV, name) {
+) : RandomElement(parent, bernoulliRV, name), BernoulliPickerIfc<T> {
+
+    init {
+        require(success != failure) {"The success and failure options cannot be the same."}
+    }
+
+    constructor(
+        parent: ModelElement,
+        successProb: Double,
+        success: T,
+        failure: T,
+        stream: RNStreamIfc,
+        name: String? = null
+    ) : this(parent, BernoulliRV(successProb, stream), success, failure, name)
+
+    constructor(
+        parent: ModelElement,
+        successProb: Double,
+        success: T,
+        failure: T,
+        streamNum: Int,
+        name: String? = null
+    ) : this(parent, BernoulliRV(successProb, KSLRandom.rnStream(streamNum)), success, failure, name)
 
     override var initialRandomSource: RandomIfc
         get() = super.initialRandomSource
@@ -39,14 +63,42 @@ class BernoulliVariable<T>(
             super.initialRandomSource = value
         }
 
+    override fun resetStartStream() {
+        bernoulliRV.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        bernoulliRV.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        bernoulliRV.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = bernoulliRV.antithetic
+        set(value) {
+            bernoulliRV.antithetic = value
+        }
+    override var advanceToNextSubStreamOption: Boolean
+        get() = bernoulliRV.advanceToNextSubStreamOption
+        set(value) {
+            bernoulliRV.advanceToNextSubStreamOption = value
+        }
+    override var resetStartStreamOption: Boolean
+        get() = bernoulliRV.resetStartStreamOption
+        set(value) {
+            bernoulliRV.resetStartStreamOption = value
+        }
+
     /** Returns a randomly selected value
      */
-    val randomElement: T
+    override val randomElement: T
         get() = if (bernoulliRV.boolValue) success else failure
 
     /** Returns a randomly selected value
      */
-    fun sample(): T {
+    override fun sample(): T {
         return randomElement
     }
 
@@ -54,7 +106,7 @@ class BernoulliVariable<T>(
      *
      * @return randomly selected elements as a list
      */
-    fun sample(size: Int): List<T> {
+    override fun sample(size: Int): List<T> {
         require(size > 0) { "The size of the sample must be at least 1." }
         val list = mutableListOf<T>()
         for (i in 0 until size) {

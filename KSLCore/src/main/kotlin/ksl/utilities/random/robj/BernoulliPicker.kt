@@ -21,11 +21,16 @@ package ksl.utilities.random.robj
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
+interface BernoulliPickerIfc<T> : RElementIfc<T> {
+    val success: T
+    val failure: T
+}
+
 /**
  *  Allows the picking between two alternatives according to a Bernoulli process.
  *  @param successProbability the probability associated with success
- *  @param success the success choice
- *  @param failure the failure choice
+ *  @param successOption the success choice
+ *  @param failureOption the failure choice
  *  @param stream the associated random number stream
  */
 class BernoulliPicker<T>(
@@ -33,7 +38,7 @@ class BernoulliPicker<T>(
     successOption: T,
     failureOption: T,
     stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RElementIfc<T> {
+) : BernoulliPickerIfc<T> {
 
     init {
         require(successOption != failureOption) {"The success and failure options cannot be the same."}
@@ -46,13 +51,13 @@ class BernoulliPicker<T>(
         streamNum: Int,
     ) : this(successProbability, successOption, failureOption, KSLRandom.rnStream(streamNum))
 
-    var success: T = successOption
+    override var success: T = successOption
         set(value) {
             require(value != failure) {"The success option cannot be equal to the failure option"}
             field = value
         }
 
-    var failure: T = failureOption
+    override var failure: T = failureOption
         set(value) {
             require(value != success) {"The failure option cannot be equal to the success option"}
             field = value
