@@ -97,11 +97,24 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.8"
+version = "R1.1.9"
 
 ## Release Notes
 
-Latest Release R1.1.8
+Latest Release R1.1.9
+- fixed entity size issue for conveyors
+- added ability to transfer from one conveyor to another
+- refactored interfaces in station package
+- added additional constructors to DEmpirical and DEmpiricalRV
+- allow Signal to signal based on a predicate
+- added a BatchQueue to permit entity to wait until a batch is formed
+- added the ability to collect statistics in the form of a time series via the TimeSeriesResponse class
+- revises resource pools and added new functionality for allocating resources from pools
+	- allows movable resources to be in pools
+- corrected home base logic for movable resources
+- fixed time stamp database conversion issue in Simulation_Run table
+
+Release R1.1.8
 - improved suspend/resume coding with new Suspension class
   - deprecated suspend() function in favor of newer process interaction functions
 - Added AdjustedPPCCorrelation and AdjustedQQCorrelation PDF scoring models
