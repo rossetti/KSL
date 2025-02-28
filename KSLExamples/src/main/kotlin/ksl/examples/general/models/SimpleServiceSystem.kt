@@ -29,11 +29,9 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
-class SimpleServiceSystem(
-    parent: ModelElement,
-    numServers: Int = 1,
+class SimpleServiceSystem(parent: ModelElement, numServers: Int = 1,
     ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    sd: RandomIfc = ExponentialRV(0.7, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
     init {
