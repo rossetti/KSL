@@ -215,24 +215,7 @@ class SimulationRunner(
      *  the number of replications, there will be 1 chunk containing all replications
      */
     fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
-        require(numReplications >= 1) { "The number of replications must be >= 1" }
-        // make the range for chunking
-        val r = 1..numReplications
-        val chunks: List<List<Int>> = r.chunked(size)
-        val eList = mutableListOf<ExperimentRunParameters>()
-        for (chunk in chunks) {
-            val s = chunk.first() // starting id of replication in chunk
-            val n = chunk.size // number of replications in the chunk
-            val runParameters = model.extractRunParameters()
-            runParameters.startingRepId = s
-            runParameters.numberOfReplications = n
-            runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
-            runParameters.resetStartStreamOption = true
-            runParameters.numChunks = chunks.size
-            runParameters.runName = IntRange(s, s + n - 1).toString()
-            eList.add(runParameters)
-        }
-        return eList
+        return model.chunkReplications(numReplications, size)
     }
 
     companion object {
