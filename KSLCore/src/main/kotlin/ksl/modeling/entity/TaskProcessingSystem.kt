@@ -25,7 +25,7 @@ import ksl.utilities.statistic.StateAccessorIfc
  *  them to the model element hierarchy. The user is responsible for ensuring the appropriate
  *  life-cycle management of created transient task processors. If the task processing system's
  *  creation methods are used to create transient task processors, then the task processing system
- *  will management the initialization and warmup of its managed task processors. Transient
+ *  will manage the initialization and warmup of its managed task processors. Transient
  *  task processors do not have statistics automatically collected.
  *
  *  A TaskProcessor is a model element that does task processing. It can be configured to
@@ -46,7 +46,7 @@ open class TaskProcessingSystem(
     }
 
     /**
-     *  Basic types of task. WORK is normal work.  REPAIR indicates that the task causes the task
+     *  Basic types of tasks. WORK is normal work.  REPAIR indicates that the task causes the task
      *  processor to experience the in-repair state (i.e. failure). The BREAK type indicates
      *  that the task is associated with an inactive period.
      */
@@ -200,6 +200,7 @@ open class TaskProcessingSystem(
          *   If true, then all state statistics are collected.
          */
         fun configureTransientTaskProcessorPerformance(allPerformance: Boolean = false) {
+            require(model.isNotRunning) {"The model must not be running when configuring task processor performance."}
             for (processor in myProcessors) {
                 if (!myTransientPerformance.containsKey(processor.name)) {
                     myTransientPerformance[processor.name] = TaskProcessorPerformance(
@@ -237,7 +238,7 @@ open class TaskProcessingSystem(
         }
 
         /**
-         *  Selects a processor to receive that next task to be dispatched.
+         *  Selects a processor to receive the next task to be dispatched.
          *  The default is to select the first processor that is idle and is not shutdown.
          *  Idle implies that the processor is not failed (in-repair), busy, or inactive.
          *
