@@ -24,6 +24,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.ConstantRV
 
 /**
  *  Models a simple work station that has a single queue for holding received qObjects
@@ -39,7 +40,7 @@ import ksl.utilities.random.RandomIfc
  *  a processed QObject instance can determine where it goes to next after processing.
  *
  *  @param parent the model element serving as this element's parent
- *  @param activityTime the processing time at the station
+ *  @param activityTime the processing time at the station. The default is a 0.0 delay.
  *  @param resource the resource to use at the station. The default of null will cause
  *  a resource of capacity 1 to be created and used at the station
  *  @param nextReceiver the receiving location that will receive the processed qObjects
@@ -49,7 +50,7 @@ import ksl.utilities.random.RandomIfc
  */
 open class SingleQStation(
     parent: ModelElement,
-    activityTime: RandomIfc,
+    activityTime: RandomIfc = ConstantRV.ZERO,
     resource: SResource? = null,
     nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
@@ -60,7 +61,7 @@ open class SingleQStation(
      * for its resource.
      *
      *  @param parent the model element serving as this element's parent
-     *  @param activityTime the processing time at the station
+     *  @param activityTime the processing time at the station. The default is a 0.0 delay.
      *  @param initialCapacity the initial capacity of the resource at the station.
      *  @param nextReceiver the receiving location that will receive the processed qObjects
      *  once the processing has been completed. A default of NotImplementedReceiver, indicates that there is no
@@ -69,7 +70,7 @@ open class SingleQStation(
      */
     constructor(
         parent: ModelElement,
-        activityTime: RandomIfc,
+        activityTime: RandomIfc = ConstantRV.ZERO,
         initialCapacity: Int,
         nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
         name: String? = null
@@ -77,6 +78,13 @@ open class SingleQStation(
         require(initialCapacity > 0) { "initialCapacity must be positive." }
         myResource.initialCapacity = initialCapacity
     }
+
+    /**
+     *  If true, the instance will attempt to use the QObject that is experiencing
+     *  the activity to determine the activity time by referencing the QObject's
+     *  valueObject. If false (the default), the supplied activity time will be used
+     */
+    var useQObjectForActivityTime: Boolean = false
 
     protected val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
     override val resource: SResourceCIfc
@@ -131,14 +139,17 @@ open class SingleQStation(
         myResource.seize()
         // schedule end of service, if the customer can supply a value,
         // use it otherwise use the processing time RV
-        schedule(this::endOfProcessing, delayTime(nextCustomer), nextCustomer)
+        schedule(this::endOfProcessing, activityTime(nextCustomer), nextCustomer)
     }
 
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected open fun delayTime(qObject: QObject): Double {
-        return qObject.valueObject?.value ?: myActivityTimeRV.value
+    protected open fun activityTime(qObject: QObject) : Double {
+        if (useQObjectForActivityTime) {
+            return qObject.valueObject?.value ?: myActivityTimeRV.value
+        }
+        return myActivityTimeRV.value
     }
 
     /**
