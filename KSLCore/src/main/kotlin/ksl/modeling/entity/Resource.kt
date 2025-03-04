@@ -29,8 +29,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 
 /**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
- *  has an initial capacity that cannot be changed during a replication. This base resource class
- *  can only be busy or idle.
+ *  has an initial capacity that can be changed during a replication.
  *
  *  A resource is busy if at least 1 unit has been allocated. A resource becomes busy when it has allocations. If
  *  a seize-request occurs and the resource has capacity to fill it completely, then the request is allocated
