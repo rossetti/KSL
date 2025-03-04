@@ -137,7 +137,7 @@ open class SingleQStation(
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected fun delayTime(qObject: QObject): Double {
+    protected open fun delayTime(qObject: QObject): Double {
         return qObject.valueObject?.value ?: myActivityTimeRV.value
     }
 
