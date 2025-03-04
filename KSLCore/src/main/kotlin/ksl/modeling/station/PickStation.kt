@@ -2,6 +2,10 @@ package ksl.modeling.station
 
 import ksl.simulation.ModelElement
 
+/**
+ *  Picks the minimum from the list of stations based on the comparator.
+ *  Causes the arriving qObject to be received at the picked station.
+ */
 class PickStationReceiver(
     var stations: List<Station>,
     var comparator: Comparator<Station> = StationWIPComparator()
@@ -12,6 +16,10 @@ class PickStationReceiver(
     }
 }
 
+
+/**
+ *  Picks the minimum from the list of stations based on the comparator.
+ */
 class PickStationSender(
     var stations: List<Station>,
     var comparator: Comparator<Station> = StationWIPComparator()
