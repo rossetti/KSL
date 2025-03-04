@@ -43,6 +43,12 @@ fun interface ExitActionIfc {
     fun onExit(qObject: ModelElement.QObject)
 }
 
+class StationWIPComparator() : Comparator<Station> {
+    override fun compare(r1: Station, r2: Station): Int {
+        return (r1.numAtStation.value.compareTo(r2.numAtStation.value))
+    }
+}
+
 /**
  *  A station is a location that can receive, potentially
  *  process instances of the QObject class, and cause them to
@@ -52,7 +58,7 @@ abstract class Station(
     parent: ModelElement,
     private var nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
-) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc {
+) : ModelElement(parent, name), QObjectReceiverIfc, StationCIfc, Comparable<Station> {
 
     /**
      *  Sets the receiver of qObject instances from this station
@@ -183,5 +189,9 @@ abstract class Station(
      *  executes immediately after the exit action.
      */
     open fun onExit(completedQObject: QObject) {
+    }
+
+    override fun compareTo(other: Station): Int {
+        return (myNS.value.compareTo(other.myNS.value))
     }
 }
