@@ -61,7 +61,7 @@ open class ActivityStation(
     /**
      *  Could be overridden to supply different approach for determining the service delay
      */
-    protected fun activityTime(qObject: QObject) : Double {
+    protected open fun activityTime(qObject: QObject) : Double {
         return qObject.valueObject?.value ?: myActivityTimeRV.value
     }
 
