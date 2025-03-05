@@ -308,7 +308,7 @@ interface KSLProcessBuilder {
      *  BlockingResourceUsage, BlockingResourcePoolUsage, BlockingMovement, etc.
      *
      * @param blockingTask the blocking activity to wait for
-     * @param queue an optional queue to hold the entity while it is blocked for statistica collection purposes.
+     * @param queue an optional queue to hold the entity while it is blocked for statistical collection purposes.
      * @param yieldBeforeWaiting indicates that the process should yield (instantaneously) control back to the
      * event executive prior to starting to wait for the blockage. The default is true. This yield allows blockages that
      * need to occur prior to but at the same time as the beginning of the wait.
