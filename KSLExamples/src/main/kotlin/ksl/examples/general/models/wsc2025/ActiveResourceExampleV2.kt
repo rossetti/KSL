@@ -83,11 +83,13 @@ class MM1ViaActiveResource(
 
             while (model.isRunning) {
                 waitFor(serverWaitingQSignal)
-                customerQSignal.signal(rank = 0)
-                myNumBusy.increment()
-                delay(serviceTime)
-                customerInServiceQ.signal(rank = 0)
-                myNumBusy
+                do {
+                    customerQSignal.signal(rank = 0)
+                    myNumBusy.increment()
+                    delay(serviceTime)
+                    customerInServiceQ.signal(rank = 0)
+                    myNumBusy.decrement()
+                } while(customerQSignal.waitingQ.isNotEmpty)
             }
             // wait for customer's signal
 
@@ -100,3 +102,40 @@ class MM1ViaActiveResource(
     }
 
 }
+
+/*
+Original
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Servers:InstantaneousUtil                                              	           30 	       0.6983 	       0.0023
+Servers:NumBusyUnits                                                   	           30 	       0.6983 	       0.0023
+Servers:ScheduledUtil                                                  	           30 	       0.6983 	       0.0023
+Servers:Q:NumInQ                                                       	           30 	       1.5977 	       0.0369
+Servers:Q:TimeInQ                                                      	           30 	       1.5995 	       0.0355
+Servers:WIP                                                            	           30 	       2.2960 	       0.0387
+MM1:NumInSystem                                                        	           30 	       2.2960 	       0.0387
+MM1:TimeInSystem                                                       	           30 	       2.2986 	       0.0366
+Servers:SeizeCount                                                     	           30 	   14982.0333 	      40.6024
+MM1:NumServed                                                          	           30 	   14981.8333 	      40.6399
+------------------------------------------------------------------------------------------------------------------------
+
+via Signal
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ActiveResource:NumInSystem                                             	           30 	       2.2960 	       0.0387
+ActiveResource:TimeInSystem                                            	           30 	       2.2986 	       0.0366
+NumBusy                                                                	           30 	       0.6983 	       0.0023
+CustomerQ:HoldQ:NumInQ                                                 	           30 	       1.5977 	       0.0369
+CustomerQ:HoldQ:TimeInQ                                                	           30 	       1.5995 	       0.0355
+CustomerInServiceQ:HoldQ:NumInQ                                        	           30 	       0.6983 	       0.0023
+CustomerInServiceQ:HoldQ:TimeInQ                                       	           30 	       0.6991 	       0.0018
+ServerWaitingQ:HoldQ:NumInQ                                            	           30 	       0.3017 	       0.0023
+ServerWaitingQ:HoldQ:TimeInQ                                           	           30 	       1.0010 	       0.0062
+ActiveResource:NumServed                                               	           30 	   14981.8333 	      40.6399
+------------------------------------------------------------------------------------------------------------------------
+
+ */
