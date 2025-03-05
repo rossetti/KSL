@@ -85,11 +85,32 @@ class Signal(
 
     /** Use this to signal a specific entity to move in its process.
      *  The entity removes itself from the waiting condition.
-     *  @param entity the entity to signal
+     *  @param entity the entity to signal. The entity must be waiting for the signal.
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(entity: ProcessModel.Entity, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        require(holdQueue.contains(entity)) { "The entity (${entity.name}) being signaled is not in the holdQueue : ${holdQueue.name}" }
         entity.resumeProcess(0.0, resumePriority)
+    }
+
+    /**
+     *  If the queue is not empty, the first entity in the queue is signaled to proceed.
+     */
+    fun signalFirst(resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        if (holdQueue.isEmpty) {
+            return
+        }
+        signal(holdQueue.first(), resumePriority)
+    }
+
+    /**
+     *  If the queue is not empty, the last entity in the queue is signaled to proceed.
+     */
+    fun signalLast(resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        if (holdQueue.isEmpty) {
+            return
+        }
+        signal(holdQueue.last(), resumePriority)
     }
 
     /** The entity removes itself from the waiting condition.
