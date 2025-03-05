@@ -1,8 +1,6 @@
 package ksl.examples.general.models.wsc2025
 
-import ksl.examples.book.chapter6.DriveThroughPharmacy
-import ksl.modeling.entity.KSLProcess
-import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.*
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -48,22 +46,49 @@ class MM1ViaActiveResource(
     val numCustomersServed: CounterCIfc
         get() = numCustomers
 
+    private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+
+    private val generator = EntityGenerator(::Customer, timeBetweenArrivals, timeBetweenArrivals)
+
+    private val customerQSignal = Signal(this, "CustomerQ")
+    private val customerInServiceQ = Signal(this, "CustomerInServiceQ")
+    private val serverWaitingQSignal = Signal(this, "ServerWaitingQ")
+
+    private lateinit var server: Server
+
+    override fun initialize() {
+        server = Server()
+        activate(server.serverProcess)
+    }
+
     private inner class Customer() : Entity() {
 
-        val customerProcess: KSLProcess = process {
+        val customerProcess: KSLProcess = process(isDefaultProcess = true) {
+            wip.increment()
             // signal server of arrival
-
-            // wait for service to begin
-
-            // wait during service
-
-            // depart
+            serverWaitingQSignal.signal(server)
+            // wait for service activity to occur
+            waitFor(customerQSignal)
+            waitFor(customerInServiceQ)
+            timeInSystem.value = time - createTime
+            wip.decrement()
+            numCustomers.increment()
         }
     }
 
-    private inner class Server() : Entity () {
+    private inner class Server() : Entity() {
+
 
         val serverProcess: KSLProcess = process {
+
+            while (model.isRunning) {
+                waitFor(serverWaitingQSignal)
+                customerQSignal.signal(rank = 0)
+                myNumBusy.increment()
+                delay(serviceTime)
+                customerInServiceQ.signal(rank = 0)
+                myNumBusy
+            }
             // wait for customer's signal
 
             // indicate start of service

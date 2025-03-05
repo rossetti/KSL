@@ -16,9 +16,8 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.examples.general.models
+package ksl.examples.general.models.wsc2025
 
-import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ResourceWithQ
