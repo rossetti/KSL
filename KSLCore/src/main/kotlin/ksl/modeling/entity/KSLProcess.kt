@@ -559,6 +559,7 @@ interface KSLProcessBuilder {
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
+     * @return the items that meet the criteria in a list
      */
     suspend fun <T : ModelElement.QObject> waitForItems(
         blockingQ: BlockingQueue<T>,
@@ -580,6 +581,7 @@ interface KSLProcessBuilder {
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
+     * @return the items that meet the criteria in a list
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
         amount: Int = 1,
@@ -601,6 +603,7 @@ interface KSLProcessBuilder {
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
+     * @return the items that meet the criteria in a list
      */
     suspend fun <T : ModelElement.QObject> waitForAnyItems(
         blockingQ: BlockingQueue<T>,
@@ -620,6 +623,7 @@ interface KSLProcessBuilder {
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
+     * @return the items that meet the criteria in a list
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAny(
         predicate: (T) -> Boolean,

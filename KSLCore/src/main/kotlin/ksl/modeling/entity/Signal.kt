@@ -89,7 +89,10 @@ class Signal(
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(entity: ProcessModel.Entity, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
-        require(holdQueue.contains(entity)) { "The entity (${entity.name}) being signaled is not in the holdQueue : ${holdQueue.name}" }
+        if (!holdQueue.contains(entity)) {
+            return
+        }
+       // require(holdQueue.contains(entity)) { "The entity (${entity.name}) being signaled is not in the holdQueue : ${holdQueue.name}" }
         entity.resumeProcess(0.0, resumePriority)
     }
 
