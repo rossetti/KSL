@@ -519,7 +519,7 @@ interface KSLProcessBuilder {
     suspend fun hold(queue: HoldQueue, priority: Int = QUEUE_PRIORITY, suspensionName: String? = null)
 
     /**
-     *  Causes the entity to be place itself in the hold queue if the entity to sync with is not within
+     *  Causes the entity to place itself in the hold queue if the entity to sync with is not within
      *  the hold queue.  If the entity to sync with is in the hold queue, then the active entity will
      *  cause the held entity to resume at the curren time. This function facilitates a common use case
      *  between entities to allow them to sync in time.
