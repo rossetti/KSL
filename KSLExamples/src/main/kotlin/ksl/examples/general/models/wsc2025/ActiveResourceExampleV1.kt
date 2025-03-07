@@ -6,17 +6,19 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main() {
+    KSL.out.OUTPUT_ON = false
     val m = Model("Active Resource Example")
     val example = MM1ViaActiveResourceOLD(m, name = "ActiveResource")
-//    m.numberOfReplications = 30
-//    m.lengthOfReplication = 20000.0
-//    m.lengthOfReplicationWarmUp = 5000.0
-    m.numberOfReplications = 1
-    m.lengthOfReplication = 200.0 //TODO for some reason they are getting stuck after 2nd customer departs
+    m.numberOfReplications = 30
+    m.lengthOfReplication = 20000.0
+    m.lengthOfReplicationWarmUp = 5000.0
+//    m.numberOfReplications = 1
+//    m.lengthOfReplication = 50.0 //TODO for some reason they are getting stuck after 2nd customer departs
     m.simulate()
     m.print()
 
@@ -63,27 +65,29 @@ class MM1ViaActiveResourceOLD(
 
     private lateinit var server: Server
 
+    var custCount = 0
+
     override fun initialize() {
         server = Server()
         activate(server.serverProcess)
     }
 
-    private inner class Customer() : Entity() {
+    private inner class Customer(name: String? = "C${++custCount}") : Entity(name) {
 
         val customerProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             // signal server of arrival by sending a request for an item
-            val item = QObject()
-//            println("$time > customer = ${this@Customer.name} : ARRIVED : sending item = ${item.name}")
+            val item = QObject(this@Customer.name)
+            KSL.out.println("$time > ARRIVAL : customer = ${this@Customer.name}")
             serverInputQ.send(item)
             // wait for service activity to occur
-//            println("$time > customer = ${this@Customer.name} waiting for service of item = ${item.name}")
+ //           println("$time > customer = ${this@Customer.name} waiting for service of item = ${item.name}")
             val items = waitForItems(serverOutputQ, 1, {it.id == item.id})
-//            println("$time > customer = ${this@Customer.name} received item = ${items.first().name} from server")
+ //           println("$time > customer = ${this@Customer.name} received item = ${items.first().name} from server")
+            KSL.out.println("$time > DEPARTURE : customer = ${this@Customer.name}")
             timeInSystem.value = time - createTime
             wip.decrement()
             numCustomers.increment()
-//            println("$time > customer = ${this@Customer.name} : DEPARTED : system time = ${timeInSystem.value}")
         }
     }
 
@@ -92,17 +96,19 @@ class MM1ViaActiveResourceOLD(
         val serverProcess: KSLProcess = process {
 
             while (model.isRunning) {
-//                println("$time > server = ${this@Server.name} waiting for an item")
+ //               println("$time > server = ${this@Server.name} waiting for an item")
                 val items = waitForItems(serverInputQ, 1)
                 val item = items.first()
-//                println("$time > server = ${this@Server.name} received item = ${item.name} for processing")
+ //               println("$time > server = ${this@Server.name} received item = ${item.name} for processing")
                 myNumBusy.increment()
                 val dt = serviceTime.value
-//                println("$time > server = ${this@Server.name} performing service for item = ${item.name} for $dt time units, end of service will be : ${time + dt}")
+                KSL.out.println("$time > BEGIN SERVICE : customer = ${item.name}")
+ //               println("$time > server = ${this@Server.name} performing service for item = ${item.name} for $dt time units, end of service will be : ${time + dt}")
                 delay(dt)
-//                println("$time > server = ${this@Server.name} completed service of item = ${item.name}")
+                KSL.out.println("$time > END SERVICE : customer = ${item.name}")
+ //               println("$time > server = ${this@Server.name} completed service of item = ${item.name}")
                 myNumBusy.decrement()
-//                println("$time > server = ${this@Server.name} returning item = ${item.name}")
+ //               println("$time > server = ${this@Server.name} returning item = ${item.name}")
                 serverOutputQ.send(item)
             }
             // wait for customer's signal

@@ -354,6 +354,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      */
     internal fun fill(request: AmountRequest): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
+        // filter processes the queue in its current order and maintains that order in the returned list
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
         removeAllFromChannel(requestedItems, channelQ.waitTimeStatOption)
@@ -369,6 +370,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      */
     internal fun fill(request: ChannelRequest): List<T> {
         require(request.canBeFilled) { "The request could not be filled" }
+        // filter processes the queue in its current order and maintains that order in the returned list
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         removeAllFromChannel(list, channelQ.waitTimeStatOption)
         myRequestQ.remove(request)
@@ -380,6 +382,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      *  blocking queue's channel. There must be space for the item in the channel.
      *  Adding an item to the channel triggers the processing of entities that
      *  are waiting to receive items from the channel.
+     *  This function may resume an entity suspended within a waitForItems() function
      */
     internal fun sendToChannel(qObject: T) {
         check(isNotFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }

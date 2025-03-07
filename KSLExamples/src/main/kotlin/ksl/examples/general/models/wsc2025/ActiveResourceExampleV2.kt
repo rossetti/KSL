@@ -138,4 +138,23 @@ ServerWaitingQ:HoldQ:TimeInQ                                           	        
 ActiveResource:NumServed                                               	           30 	   14981.8333 	      40.6399
 ------------------------------------------------------------------------------------------------------------------------
 
+via BlockingQ implementation
+
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ActiveResource:NumInSystem                                             	           30 	       2.2960 	       0.0387
+ActiveResource:TimeInSystem                                            	           30 	       2.2986 	       0.0366
+NumBusy                                                                	           30 	       0.6983 	       0.0023
+ServerInputQ:RequestQ:NumInQ                                           	           30 	       0.3017 	       0.0023
+ServerInputQ:RequestQ:TimeInQ                                          	           30 	       0.3022 	       0.0029
+ServerInputQ:ChannelQ:NumInQ                                           	           30 	       1.5977 	       0.0369
+ServerInputQ:ChannelQ:TimeInQ                                          	           30 	       1.5995 	       0.0355
+ServerOutputQ:RequestQ:NumInQ                                          	           30 	       2.2960 	       0.0387
+ServerOutputQ:RequestQ:TimeInQ                                         	           30 	       2.2986 	       0.0366
+ServerOutputQ:ChannelQ:NumInQ                                          	           30 	       0.0000 	       0.0000
+ServerOutputQ:ChannelQ:TimeInQ                                         	           30 	       0.0000 	       0.0000
+ActiveResource:NumServed                                               	           30 	   14981.8333 	      40.6399
+------------------------------------------------------------------------------------------------------------------------
  */

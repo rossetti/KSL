@@ -1664,6 +1664,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private suspend fun <T : QObject> blockingQWait(
                 blockingQ: BlockingQueue<T>,
+                request: BlockingQueue<T>.AmountRequest
+            ): List<T> {
+                if (request.canNotBeFilled) {
+                    // must wait until it can be filled
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+                    entity.state.blockedReceiving()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+                }
+                // the request should be able to be filled
+                val list = blockingQ.fill(request)// this also removes request from queue
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return list
+            }
+
+            private suspend fun <T : QObject> blockingQWait(
+                blockingQ: BlockingQueue<T>,
                 request: BlockingQueue<T>.ChannelRequest
             ): List<T> {
                 if (request.canNotBeFilled) {
