@@ -257,6 +257,8 @@ class BlockingQueue<T : ModelElement.QObject>(
      */
     var senderSelector: EntitySelectorIfc = DefaultEntitySelector()
 
+    //TODO Why are these inside the BlockingQueue class? Why not defined external to the class?
+
     private inner class DefaultEntitySelector : EntitySelectorIfc {
         override fun selectEntity(queue: Queue<ProcessModel.Entity>): ProcessModel.Entity? {
             return queue.peekNext()
@@ -386,6 +388,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         // check if receivers are waiting, select next request waiting by a receiver
         if (myRequestQ.isNotEmpty) {
             // select the next request to be filled
+            //TODO maybe this should notify any of the requests that can now be filled
             val request = receiverRequestSelector.selectRequest(myRequestQ)
             if (request != null) {
                 if (request.canBeFilled) {
@@ -488,7 +491,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         if (!myChannelQ.contains(c)) {
             throw IllegalStateException("$name : The channel does not contain all the items in the collection")
         }
-        myChannelQ.removeAll(c, waitStats)
+        myChannelQ.removeAll(c, waitStats) //TODO removal of more than 1 may need many senders notified, timing could be an issue
         // actions related to removal of elements, check for waiting senders
         // select next waiting sender
         if (mySenderQ.isNotEmpty) {
