@@ -57,6 +57,10 @@ class MM1ViaActiveResourceOLD(
     private val serverInputQ: BlockingQueue<QObject> = BlockingQueue(this, name = "ServerInputQ")
     private val serverOutputQ: BlockingQueue<QObject> = BlockingQueue(this, name = "ServerOutputQ")
 
+    init {
+        serverOutputQ.receiverRequestSelector = serverOutputQ.FirstFillableRequest()
+    }
+
     private lateinit var server: Server
 
     override fun initialize() {
