@@ -13,7 +13,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 fun main() {
     KSL.out.OUTPUT_ON = false
     val m = Model("Active Resource Example")
-    val example = MM1ViaActiveResourceOLD(m, name = "ActiveResource")
+    val example = MM1ViaActiveResourceViaBQ(m, name = "ActiveResourceViaBQ")
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
@@ -24,7 +24,7 @@ fun main() {
 
 }
 
-class MM1ViaActiveResourceOLD(
+class MM1ViaActiveResourceViaBQ(
     parent: ModelElement,
     numServers: Int = 1,
     ad: RandomIfc = ExponentialRV(1.0, 1),

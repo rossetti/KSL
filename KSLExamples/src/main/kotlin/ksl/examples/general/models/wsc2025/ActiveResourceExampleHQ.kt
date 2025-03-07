@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main() {
     val m = Model("Active Resource Example")
-    val example = MM1ViaActiveResource(m, name = "ActiveResource")
+    val example = MM1ViaActiveResourceViaHQ(m, name = "ActiveResourceViaHQ")
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
@@ -18,7 +18,7 @@ fun main() {
 
 }
 
-class MM1ViaActiveResource(
+class MM1ViaActiveResourceViaHQ(
     parent: ModelElement,
     numServers: Int = 1,
     ad: RandomIfc = ExponentialRV(1.0, 1),
@@ -50,9 +50,9 @@ class MM1ViaActiveResource(
 
     private val generator = EntityGenerator(::Customer, timeBetweenArrivals, timeBetweenArrivals)
 
-    private val customerQSignal = Signal(this, "CustomerQ")
-    private val customerInServiceQ = Signal(this, "CustomerInServiceQ")
-    private val serverWaitingQSignal = Signal(this, "ServerWaitingQ")
+    private val customerWaitingQ = HoldQueue(this, "CustomerWaitingQ")
+    private val customerInServiceQ = HoldQueue(this, "CustomerInServiceQ")
+    private val serverWaitingQ = HoldQueue(this, "ServerWaitingQ")
 
     private lateinit var server: Server
 
@@ -66,10 +66,10 @@ class MM1ViaActiveResource(
         val customerProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             // signal server of arrival
-            serverWaitingQSignal.signal(server)
+            server.callServer()
             // wait for service activity to occur
-            waitFor(customerQSignal)
-            waitFor(customerInServiceQ)
+            hold(customerWaitingQ)
+            hold(customerInServiceQ)
             timeInSystem.value = time - createTime
             wip.decrement()
             numCustomers.increment()
@@ -78,33 +78,33 @@ class MM1ViaActiveResource(
 
     private inner class Server() : Entity() {
 
+        fun callServer() {
+            if (serverWaitingQ.isNotEmpty) {
+                val idleServer = serverWaitingQ.peekNext()!!
+                serverWaitingQ.removeAndResume(idleServer)
+            }
+        }
 
         val serverProcess: KSLProcess = process {
-
             while (model.isRunning) {
-                waitFor(serverWaitingQSignal)
+                hold(serverWaitingQ)
                 do {
-                    customerQSignal.signal(rank = 0)
+                    val nextCustomer = customerWaitingQ.peekNext()!!
+                    customerWaitingQ.removeAndResume(nextCustomer)
                     myNumBusy.increment()
                     delay(serviceTime)
-                    customerInServiceQ.signal(rank = 0)
+                    customerInServiceQ.removeAndResume(nextCustomer)
                     myNumBusy.decrement()
-                } while(customerQSignal.waitingQ.isNotEmpty)
+                } while (customerWaitingQ.isNotEmpty)
             }
-            // wait for customer's signal
-
-            // indicate start of service
-            // delay for service
-            // indicate end of service
-
-            // check for customers
         }
     }
 
 }
 
 /*
-Original
+via seize-delay-release
+-------------------------------
 Half-Width Statistical Summary Report - Confidence Level (95.000)%
 
 Name                                                                   	        Count 	      Average 	   Half-Width
@@ -122,6 +122,7 @@ MM1:NumServed                                                          	        
 ------------------------------------------------------------------------------------------------------------------------
 
 via Signal
+-------------------------------
 Half-Width Statistical Summary Report - Confidence Level (95.000)%
 
 Name                                                                   	        Count 	      Average 	   Half-Width
@@ -138,8 +139,26 @@ ServerWaitingQ:HoldQ:TimeInQ                                           	        
 ActiveResource:NumServed                                               	           30 	   14981.8333 	      40.6399
 ------------------------------------------------------------------------------------------------------------------------
 
-via BlockingQ implementation
+via HoldQueue
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
 
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ActiveResourceHQ:NumInSystem                                           	           30 	       2.2960 	       0.0387
+ActiveResourceHQ:TimeInSystem                                          	           30 	       2.2986 	       0.0366
+NumBusy                                                                	           30 	       0.6983 	       0.0023
+CustomerWaitingQ:NumInQ                                                	           30 	       1.5977 	       0.0369
+CustomerWaitingQ:TimeInQ                                               	           30 	       1.5995 	       0.0355
+CustomerInServiceQ:NumInQ                                              	           30 	       0.6983 	       0.0023
+CustomerInServiceQ:TimeInQ                                             	           30 	       0.6991 	       0.0018
+ServerWaitingQ:NumInQ                                                  	           30 	       0.3017 	       0.0023
+ServerWaitingQ:TimeInQ                                                 	           30 	       1.0010 	       0.0062
+ActiveResourceHQ:NumServed                                             	           30 	   14981.8333 	      40.6399
+------------------------------------------------------------------------------------------------------------------------
+
+via BlockingQ implementation
+-------------------------------
 Half-Width Statistical Summary Report - Confidence Level (95.000)%
 
 Name                                                                   	        Count 	      Average 	   Half-Width
@@ -157,4 +176,4 @@ ServerOutputQ:ChannelQ:NumInQ                                          	        
 ServerOutputQ:ChannelQ:TimeInQ                                         	           30 	       0.0000 	       0.0000
 ActiveResource:NumServed                                               	           30 	   14981.8333 	      40.6399
 ------------------------------------------------------------------------------------------------------------------------
- */
+*/
