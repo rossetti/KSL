@@ -18,8 +18,6 @@ fun main() {
     m.numberOfReplications = 30
     m.lengthOfReplication = 20000.0
     m.lengthOfReplicationWarmUp = 5000.0
-//    m.numberOfReplications = 1
-//    m.lengthOfReplication = 50.0 //TODO for some reason they are getting stuck after 2nd customer departs
     m.simulate()
     m.print()
     val r = m.simulationReporter
@@ -63,31 +61,24 @@ class MM1ViaActiveResourceViaBQ(
     private val serverOutputQ: BlockingQueue<QObject> = BlockingQueue(this, name = "ServerOutputQ")
 
     init {
-        serverOutputQ.receiverRequestSelector = serverOutputQ.FirstFillableRequest()
+     //   serverOutputQ.receiverRequestSelector = serverOutputQ.FirstFillableRequest()
     }
 
     private lateinit var server: Server
-
-    var custCount = 0
 
     override fun initialize() {
         server = Server()
         activate(server.serverProcess)
     }
 
-    private inner class Customer(name: String? = "C${++custCount}") : Entity(name) {
-
+    private inner class Customer() : Entity(name) {
         val customerProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             // signal server of arrival by sending a request for an item
-            val item = QObject(this@Customer.name)
-            KSL.out.println("$time > ARRIVAL : customer = ${this@Customer.name}")
+            val item = QObject()
             serverInputQ.send(item)
             // wait for service activity to occur
- //           println("$time > customer = ${this@Customer.name} waiting for service of item = ${item.name}")
             val items = waitForItems(serverOutputQ, 1, {it.id == item.id})
- //           println("$time > customer = ${this@Customer.name} received item = ${items.first().name} from server")
-            KSL.out.println("$time > DEPARTURE : customer = ${this@Customer.name}")
             timeInSystem.value = time - createTime
             wip.decrement()
             numCustomers.increment()
@@ -95,32 +86,16 @@ class MM1ViaActiveResourceViaBQ(
     }
 
     private inner class Server() : Entity() {
-
+        var isNotShutDown = true
         val serverProcess: KSLProcess = process {
-
-            while (model.isRunning) {
- //               println("$time > server = ${this@Server.name} waiting for an item")
+            while (isNotShutDown) {
                 val items = waitForItems(serverInputQ, 1)
                 val item = items.first()
- //               println("$time > server = ${this@Server.name} received item = ${item.name} for processing")
                 myNumBusy.increment()
-                val dt = serviceTime.value
-                KSL.out.println("$time > BEGIN SERVICE : customer = ${item.name}")
- //               println("$time > server = ${this@Server.name} performing service for item = ${item.name} for $dt time units, end of service will be : ${time + dt}")
-                delay(dt)
-                KSL.out.println("$time > END SERVICE : customer = ${item.name}")
- //               println("$time > server = ${this@Server.name} completed service of item = ${item.name}")
+                delay(serviceTime)
                 myNumBusy.decrement()
- //               println("$time > server = ${this@Server.name} returning item = ${item.name}")
                 serverOutputQ.send(item)
             }
-            // wait for customer's signal
-
-            // indicate start of service
-            // delay for service
-            // indicate end of service
-
-            // check for customers
         }
     }
 
