@@ -4,6 +4,7 @@ import ksl.modeling.entity.*
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
@@ -15,7 +16,9 @@ fun main() {
     m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
     m.print()
-
+    val r = m.simulationReporter
+    val out = m.outputDirectory.createPrintWriter("ActiveResourceViaSignal.md")
+    r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
 class MM1ViaActiveResourceViaSignal(

@@ -26,6 +26,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
@@ -62,13 +63,9 @@ class SimpleServiceSystem(parent: ModelElement, numServers: Int = 1,
         val serviceProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
-            KSL.out.println("$time > ARRIVAL : customer = ${this@Customer.name}")
             val a = seize(servers)
-            KSL.out.println("$time > BEGIN SERVICE : customer = ${this@Customer.name}")
             delay(serviceTime)
-            KSL.out.println("$time > END SERVICE : customer = ${this@Customer.name}")
             release(a)
-            KSL.out.println("$time > DEPARTURE : customer = ${this@Customer.name}")
             timeInSystem.value = time - timeStamp
             wip.decrement()
             numCustomers.increment()
@@ -77,17 +74,15 @@ class SimpleServiceSystem(parent: ModelElement, numServers: Int = 1,
 }
 
 fun main(){
-    KSL.out.OUTPUT_ON = false
     val sim = Model("MM1 Model")
     sim.numberOfReplications = 30
     sim.lengthOfReplication = 20000.0
     sim.lengthOfReplicationWarmUp = 5000.0
-
-//    sim.numberOfReplications = 1
-//    sim.lengthOfReplication = 50.0
-
     SimpleServiceSystem(sim, 1, name = "MM1")
     sim.simulate()
     sim.print()
+    val r = sim.simulationReporter
+    val out = sim.outputDirectory.createPrintWriter("PassiveResourceMM1.md")
+    r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
