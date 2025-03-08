@@ -7,6 +7,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
+import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
@@ -21,7 +22,9 @@ fun main() {
 //    m.lengthOfReplication = 50.0 //TODO for some reason they are getting stuck after 2nd customer departs
     m.simulate()
     m.print()
-
+    val r = m.simulationReporter
+    val out = m.outputDirectory.createPrintWriter("ActiveResourceViaHQ.md")
+    r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
 class MM1ViaActiveResourceViaBQ(

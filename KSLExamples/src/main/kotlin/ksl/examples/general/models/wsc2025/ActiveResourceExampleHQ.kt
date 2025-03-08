@@ -4,6 +4,7 @@ import ksl.modeling.entity.*
 import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 
@@ -15,7 +16,9 @@ fun main() {
     m.lengthOfReplicationWarmUp = 5000.0
     m.simulate()
     m.print()
-
+    val r = m.simulationReporter
+    val out = m.outputDirectory.createPrintWriter("ActiveResourceViaHQ.md")
+    r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 
 class MM1ViaActiveResourceViaHQ(
@@ -49,7 +52,6 @@ class MM1ViaActiveResourceViaHQ(
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
 
     private val generator = EntityGenerator(::Customer, timeBetweenArrivals, timeBetweenArrivals)
-
     private val customerWaitingQ = HoldQueue(this, "CustomerWaitingQ")
     private val customerInServiceQ = HoldQueue(this, "CustomerInServiceQ")
     private val serverWaitingQ = HoldQueue(this, "ServerWaitingQ")
@@ -61,8 +63,11 @@ class MM1ViaActiveResourceViaHQ(
         activate(server.serverProcess)
     }
 
-    private inner class Customer() : Entity() {
+    override fun replicationEnded() {
+        server.isNotShutDown = false
+    }
 
+    private inner class Customer() : Entity() {
         val customerProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             // signal server of arrival
@@ -77,6 +82,7 @@ class MM1ViaActiveResourceViaHQ(
     }
 
     private inner class Server() : Entity() {
+        var isNotShutDown = true
 
         fun callServer() {
             if (serverWaitingQ.isNotEmpty) {
@@ -86,7 +92,7 @@ class MM1ViaActiveResourceViaHQ(
         }
 
         val serverProcess: KSLProcess = process {
-            while (model.isRunning) {
+            while (isNotShutDown) {
                 hold(serverWaitingQ)
                 do {
                     val nextCustomer = customerWaitingQ.peekNext()!!
