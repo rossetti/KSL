@@ -71,6 +71,10 @@ class MM1ViaActiveResourceViaBQ(
         activate(server.serverProcess)
     }
 
+    override fun replicationEnded() {
+        server.isNotShutDown = false
+    }
+
     private inner class Customer() : Entity(name) {
         val customerProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
