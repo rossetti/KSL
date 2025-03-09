@@ -1658,7 +1658,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
+                // this call places the created request in the request queue waiting for items from the blocking queue
                 val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
+                // this call may cause the entity to suspend, the request knows the associated entity
                 return blockingQWait(blockingQ, request)
             }
 
@@ -1674,8 +1676,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
+                // the entity making the request is no longer suspended, it was resumed based on
+                // a call to send an item to the channel (sendToChannel())
                 // the request should be able to be filled
-                val list = blockingQ.fill(request)// this also removes request from queue
+                // this also removes the request from the blocking queue's requestQ of requests waiting for items
+                val list = blockingQ.fill(request)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return list
@@ -1693,8 +1698,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
+                // the entity making the request is no longer suspended, it was resumed based on
+                // a call to send an item to the channel (sendToChannel())
                 // the request should be able to be filled
-                val list = blockingQ.fill(request)// this also removes request from queue
+                // this also removes the request from the blocking queue's requestQ of requests waiting for items
+                val list = blockingQ.fill(request)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return list
