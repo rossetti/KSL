@@ -1673,7 +1673,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 //Note that the in-coming request is already in the blockingQ's requestQ, so the requestQ will NOT be empty!!
                 //TODO this logic allows a newly arriving request to by-pass already waiting requests if it can be filled
-                //This needs to be fixed.
+                // Is this what we want to happen?
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -1830,6 +1830,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.resource = resource
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
+                //TODO: ISSUE this check only considers the amount, it does not consider if an entity is already waiting
+                // if an entity is already waiting, this logic allows the incoming request to "jump" the queue, by default
+                // is this what we want to happen?
                 if (!resource.canAllocate(request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
