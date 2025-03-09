@@ -273,7 +273,9 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
-     * The default is to select the next based on the queue discipline
+     * The default is to select the next based on the queue discipline. This class
+     * can be used to define a default method for selecting the next receiver's request
+     * to receive items from the channel. The default is to use the queue discipline.
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
@@ -354,15 +356,49 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
-     *  Provides a function to create ChannelRequest that does not cause
-     *  the request to be enqueued. Simplifies creation of an inner class.
+     *  Function allows internal enqueueing of created requests for items
+     *  into the request queue (myRequestQ)
      */
-    internal fun createChannelRequest(
+    internal fun enqueueChannelRequest(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         priority: Int
     ) : ChannelRequest {
-        return ChannelRequest(receiver, predicate, priority)
+        val request = ChannelRequest(receiver, predicate, priority)
+        myRequestQ.enqueue(request)
+        return request
+    }
+
+    /**
+     *  Function allows internal enqueueing of created requests for items
+     *  into the request queue (myRequestQ)
+     */
+    internal fun enqueueAmountRequest(
+        receiver: ProcessModel.Entity,
+        predicate: (T) -> Boolean,
+        amount: Int,
+        priority: Int
+    ) : AmountRequest {
+        val request = AmountRequest(receiver, predicate, amount, priority)
+        myRequestQ.enqueue(request)
+        return request
+    }
+
+    /**
+     *  Uses the specified receiverRequestSelector to select the next request
+     *  @return null implies that there is no next request that can be filled by items in the channel
+     */
+    internal fun selectNextRequest() : ChannelRequest? {
+        val nextRequest = receiverRequestSelector.selectRequest(myRequestQ)
+        return if (nextRequest != null){
+            if (nextRequest.canBeFilled){
+                nextRequest
+            } else {
+                null
+            }
+        } else {
+            null
+        }
     }
 
     /**
