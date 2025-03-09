@@ -323,11 +323,13 @@ class BlockingQueue<T : ModelElement.QObject>(
         amount: Int = 1,
         priority: Int
     ): AmountRequest {
+        //TODO the overloading of this function signature to return AmountRequest has already caused issues
         require(amount >= 1) { "The requested amount must be >= 1" }
         val request = AmountRequest(receiver, predicate, amount)
+        //TODO why isn't priority part of the constructor
         request.priority = priority
         // always enqueue to capture wait statistics of those that do not wait
-        myRequestQ.enqueue(request)
+        myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
         return request
     }
 
@@ -340,9 +342,11 @@ class BlockingQueue<T : ModelElement.QObject>(
         predicate: (T) -> Boolean,
         priority: Int
     ): ChannelRequest {
+        //TODO the overloading of this function signature to return ChannelRequest has already caused issues
         val request = ChannelRequest(receiver, predicate)
+        //TODO why isn't priority part of the constructor
         request.priority = priority
-        myRequestQ.enqueue(request)
+        myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
         return request
     }
 
