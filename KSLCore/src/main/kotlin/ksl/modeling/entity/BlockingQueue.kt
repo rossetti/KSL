@@ -202,7 +202,12 @@ class BlockingQueue<T : ModelElement.QObject>(
     open inner class ChannelRequest(
         val receiver: ProcessModel.Entity,
         val predicate: (T) -> Boolean,
+        priority: Int
     ) : QObject() {
+
+        init {
+            this.priority = priority
+        }
 
         open val canBeFilled: Boolean
             get() {
@@ -227,7 +232,8 @@ class BlockingQueue<T : ModelElement.QObject>(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         val amountRequested: Int,
-    ) : ChannelRequest(receiver, predicate) {
+        priority: Int
+    ) : ChannelRequest(receiver, predicate, priority) {
         init {
             require(amountRequested >= 1) { "The amount request $amountRequested must be >= 1" }
         }
@@ -314,6 +320,20 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
+     *  Provides a function to create AmountRequests that does not cause
+     *  the request to be enqueued. Simplifies creation of an inner class.
+     */
+    internal fun createAmountRequest(
+        receiver: ProcessModel.Entity,
+        predicate: (T) -> Boolean,
+        amount: Int = 1,
+        priority: Int
+    ) : AmountRequest {
+        require(amount >= 1) { "The requested amount must be >= 1" }
+        return AmountRequest(receiver, predicate, amount, priority)
+    }
+
+    /**
      * Called from ProcessModel via the entity to enqueue the receiver if it has to wait
      * when trying to receive from the blocking queue
      */
@@ -325,12 +345,24 @@ class BlockingQueue<T : ModelElement.QObject>(
     ): AmountRequest {
         //TODO the overloading of this function signature to return AmountRequest has already caused issues
         require(amount >= 1) { "The requested amount must be >= 1" }
-        val request = AmountRequest(receiver, predicate, amount)
+        val request = AmountRequest(receiver, predicate, amount, priority)
         //TODO why isn't priority part of the constructor
         request.priority = priority
         // always enqueue to capture wait statistics of those that do not wait
         myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
         return request
+    }
+
+    /**
+     *  Provides a function to create ChannelRequest that does not cause
+     *  the request to be enqueued. Simplifies creation of an inner class.
+     */
+    internal fun createChannelRequest(
+        receiver: ProcessModel.Entity,
+        predicate: (T) -> Boolean,
+        priority: Int
+    ) : ChannelRequest {
+        return ChannelRequest(receiver, predicate, priority)
     }
 
     /**
@@ -343,7 +375,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         priority: Int
     ): ChannelRequest {
         //TODO the overloading of this function signature to return ChannelRequest has already caused issues
-        val request = ChannelRequest(receiver, predicate)
+        val request = ChannelRequest(receiver, predicate, priority)
         //TODO why isn't priority part of the constructor
         request.priority = priority
         myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
