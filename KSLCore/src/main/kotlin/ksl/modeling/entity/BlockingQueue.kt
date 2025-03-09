@@ -370,23 +370,6 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
-     * Called from ProcessModel via the entity to enqueue the receiver if it has to wait
-     * when trying to receive from the blocking queue
-     */
-    internal fun requestItems(
-        receiver: ProcessModel.Entity,
-        predicate: (T) -> Boolean,
-        priority: Int
-    ): ChannelRequest {
-        //TODO the overloading of this function signature to return ChannelRequest has already caused issues
-        val request = ChannelRequest(receiver, predicate, priority)
-        //TODO why isn't priority part of the constructor
-        request.priority = priority
-        myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
-        return request
-    }
-
-    /**
      * Called from ProcessModel via the entity to get the items associated with
      * a request to the blocking queue for items.  The request must be able to be
      * filled. The requested items are extracted from the channel and returned
