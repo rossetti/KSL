@@ -21,7 +21,7 @@ fun main() {
     m.simulate()
     m.print()
     val r = m.simulationReporter
-    val out = m.outputDirectory.createPrintWriter("ActiveResourceViaHQ.md")
+    val out = m.outputDirectory.createPrintWriter("ActiveResourceViaBQ.md")
     r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
 }
 

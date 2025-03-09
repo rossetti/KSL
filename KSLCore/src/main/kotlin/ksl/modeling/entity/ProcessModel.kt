@@ -1658,56 +1658,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
-                // this call places the created request in the request queue waiting for items from the blocking queue
-                //TODO the request is automatically being placed in the request queue
-                //TODO this should just create the AmountRequest
-                val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
-                // this call may cause the entity to suspend, the request knows the associated entity
-                //TODO it looks like this function needs refactoring
-                return blockingQWait(blockingQ, request)
-            }
-
-            private suspend fun <T : QObject> blockingQWait(
-                blockingQ: BlockingQueue<T>,
-                request: BlockingQueue<T>.AmountRequest
-            ): List<T> {
-                //Note that the in-coming request is already in the blockingQ's requestQ, so the requestQ will NOT be empty!!
-                //TODO this logic allows a newly arriving request to by-pass already waiting requests if it can be filled
-                // Is this what we want to happen?
-                if (request.canNotBeFilled) {
-                    // must wait until it can be filled
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
-                    entity.state.blockedReceiving()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
-                }
-                // the entity making the request is not suspended, it was resumed based on
-                // a call to send an item to the channel (sendToChannel()) or was never suspended
-                // the request should be able to be filled
-                // this also removes the request from the blocking queue's requestQ of requests waiting for items
-                val list = blockingQ.fill(request)
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
-                return list
-            }
-
-            private suspend fun <T : QObject> blockingQWait(
-                blockingQ: BlockingQueue<T>,
-                request: BlockingQueue<T>.ChannelRequest
-            ): List<T> {
-                if (request.canNotBeFilled) {
-                    // must wait until it can be filled
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
-                    entity.state.blockedReceiving()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
-                }
-                // the entity making the request is not suspended, it was resumed based on
-                // a call to send an item to the channel (sendToChannel()) or was never suspended
-                // the request should be able to be filled
-                // this also removes the request from the blocking queue's requestQ of requests waiting for items
+                // enqueue the amount request so that it is a candidate for selection
+                val request = blockingQ.enqueueAmountRequest(entity,
+                    predicate, amount, blockingPriority)
+                waitForRequestedItems(blockingQ, request)
+                // The entity wanting the items has been resumed because it can be filled or
+                // because its request can be immediately filled. The request should be able to be filled.
+                // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
                 val list = blockingQ.fill(request)
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -1722,12 +1679,34 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ANY_ITEMS
-                //TODO the request is automatically being placed in the request queue
-                //TODO this should just create the ChannelRequest
-                val request = blockingQ.requestItems(entity, predicate, blockingPriority)
-                // this call may cause the entity to suspend, the request knows the associated entity
-                //TODO it looks like this function needs refactoring
-                return blockingQWait(blockingQ, request)
+                // enqueue the channel request so that it is a candidate for selection
+                val request = blockingQ.enqueueChannelRequest(entity,
+                    predicate, blockingPriority)
+                waitForRequestedItems(blockingQ, request)
+                // The entity wanting the items has been resumed because it can be filled or
+                // because its request can be immediately filled. The request should be able to be filled.
+                // This next call also removes the request from the blocking queue's requestQ of requests waiting for items.
+                val list = blockingQ.fill(request)
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return list
+            }
+
+            private suspend fun <T : QObject> waitForRequestedItems(
+                blockingQ: BlockingQueue<T>,
+                request: BlockingQueue<T>.ChannelRequest
+            ) {
+                // The arriving request might not be able to be filled, and might not be the next request selected.
+                val nextRequest = blockingQ.selectNextRequest()
+                if ((nextRequest == null) || (nextRequest != request)) {
+                    // A next request was not found or the incoming request is not the request that was selected.
+                    // The incoming request must wait until it selected to be filled.
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
+                    entity.state.blockedReceiving()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
+                }
             }
 
             override suspend fun <T : QObject> send(
