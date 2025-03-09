@@ -279,7 +279,11 @@ class BlockingQueue<T : ModelElement.QObject>(
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
-            return queue.peekNext()
+            val nextRequest = queue.peekNext() ?: return null
+            if (nextRequest.canNotBeFilled){
+                return null
+            }
+            return nextRequest
         }
     }
 
