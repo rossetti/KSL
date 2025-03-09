@@ -389,19 +389,32 @@ class BlockingQueue<T : ModelElement.QObject>(
         myChannelQ.enqueue(qObject)
         // actions related to putting a new qObject in the channel
         // check if receivers are waiting, select next request waiting by a receiver
-        if (myRequestQ.isNotEmpty) {
-            // select the next request to be filled
-            //TODO maybe this should notify any of the requests that can now be filled
-            //Step 1: select the requests waiting for items from the channel
-            // step 1 should be overridable function or attached rule, by default the function uses the attached rule
-            //Step 2: allocate items from the channel to the selected requests
-            // step 2 should be overridable function or attached rule, by default the function uses the attached rule
-            val request = receiverRequestSelector.selectRequest(myRequestQ)
-            if (request != null) {
-                if (request.canBeFilled) {
-                    val entity = request.receiver
-                    entity.resumeProcess(0.0, requestQResumptionPriority)
-                }
+        if (myRequestQ.isEmpty){
+            return // nothing waiting so nothing to process
+        }
+        // myRequestQ is not empty, check for no decision case
+        if (myRequestQ.size == 1){
+            val request = myRequestQ[0]
+            if (request.canBeFilled){
+                val entity = request.receiver
+                entity.resumeProcess(0.0, requestQResumptionPriority)
+            }
+            return
+        }
+        // there are 2 or more requests waiting that **might** be filled
+        // select the next request to be filled
+        //TODO maybe this should notify any of the requests that can now be filled
+        //Step 1: select the requests waiting for items from the channel
+        // step 1 should be overridable function or attached rule, by default the function uses the attached rule
+        //Step 2: allocate items from the channel to the selected requests
+        // step 2 should be overridable function or attached rule, by default the function uses the attached rule
+        // note that the request is not being removed here, its entity is resumed and it
+        // is the entity that causes the request to be removed
+        val request = receiverRequestSelector.selectRequest(myRequestQ)
+        if (request != null) {
+            if (request.canBeFilled) {
+                val entity = request.receiver
+                entity.resumeProcess(0.0, requestQResumptionPriority)
             }
         }
     }
