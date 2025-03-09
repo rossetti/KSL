@@ -1659,8 +1659,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
                 // this call places the created request in the request queue waiting for items from the blocking queue
+                //TODO the request is automatically being placed in the request queue
+                //TODO this should just create the AmountRequest
                 val request = blockingQ.requestItems(entity, predicate, amount, blockingPriority)
                 // this call may cause the entity to suspend, the request knows the associated entity
+                //TODO it looks like this function needs refactoring
                 return blockingQWait(blockingQ, request)
             }
 
@@ -1668,6 +1671,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 blockingQ: BlockingQueue<T>,
                 request: BlockingQueue<T>.AmountRequest
             ): List<T> {
+                //Note that the in-coming request is already in the blockingQ's requestQ, so the requestQ will NOT be empty!!
+                //TODO this logic allows a newly arriving request to by-pass already waiting requests if it can be filled
+                //This needs to be fixed.
                 if (request.canNotBeFilled) {
                     // must wait until it can be filled
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
@@ -1716,7 +1722,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): List<T> {
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ANY_ITEMS
+                //TODO the request is automatically being placed in the request queue
+                //TODO this should just create the ChannelRequest
                 val request = blockingQ.requestItems(entity, predicate, blockingPriority)
+                // this call may cause the entity to suspend, the request knows the associated entity
+                //TODO it looks like this function needs refactoring
                 return blockingQWait(blockingQ, request)
             }
 
