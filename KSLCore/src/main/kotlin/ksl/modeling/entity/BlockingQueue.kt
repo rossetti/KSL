@@ -326,40 +326,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
-     *  Provides a function to create AmountRequests that does not cause
-     *  the request to be enqueued. Simplifies creation of an inner class.
-     */
-    internal fun createAmountRequest(
-        receiver: ProcessModel.Entity,
-        predicate: (T) -> Boolean,
-        amount: Int = 1,
-        priority: Int
-    ) : AmountRequest {
-        require(amount >= 1) { "The requested amount must be >= 1" }
-        return AmountRequest(receiver, predicate, amount, priority)
-    }
-
-    /**
-     * Called from ProcessModel via the entity to enqueue the receiver if it has to wait
-     * when trying to receive from the blocking queue
-     */
-    internal fun requestItems(
-        receiver: ProcessModel.Entity,
-        predicate: (T) -> Boolean,
-        amount: Int = 1,
-        priority: Int
-    ): AmountRequest {
-        //TODO the overloading of this function signature to return AmountRequest has already caused issues
-        require(amount >= 1) { "The requested amount must be >= 1" }
-        val request = AmountRequest(receiver, predicate, amount, priority)
-        //TODO why isn't priority part of the constructor
-        request.priority = priority
-        // always enqueue to capture wait statistics of those that do not wait
-        myRequestQ.enqueue(request) //TODO enqueueing here causes inflexibility
-        return request
-    }
-
-    /**
+     *  Called from ProcessModel.waitForAnyItems().
      *  Function allows internal enqueueing of created requests for items
      *  into the request queue (myRequestQ)
      */
@@ -374,6 +341,7 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
+     *  Called from ProcessModel.waitForItems().
      *  Function allows internal enqueueing of created requests for items
      *  into the request queue (myRequestQ)
      */
@@ -393,13 +361,9 @@ class BlockingQueue<T : ModelElement.QObject>(
      *  @return null implies that there is no next request that can be filled by items in the channel
      */
     internal fun selectNextRequest() : ChannelRequest? {
-        val nextRequest = receiverRequestSelector.selectRequest(myRequestQ)
-        return if (nextRequest != null){
-            if (nextRequest.canBeFilled){
-                nextRequest
-            } else {
-                null
-            }
+        val nextRequest = receiverRequestSelector.selectRequest(myRequestQ) ?: return null
+        return if (nextRequest.canBeFilled){
+            nextRequest
         } else {
             null
         }
