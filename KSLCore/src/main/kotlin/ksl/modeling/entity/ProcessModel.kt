@@ -1676,8 +1676,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
-                // the entity making the request is no longer suspended, it was resumed based on
-                // a call to send an item to the channel (sendToChannel())
+                // the entity making the request is not suspended, it was resumed based on
+                // a call to send an item to the channel (sendToChannel()) or was never suspended
                 // the request should be able to be filled
                 // this also removes the request from the blocking queue's requestQ of requests waiting for items
                 val list = blockingQ.fill(request)
@@ -1698,8 +1698,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked receiving to ${blockingQ.name} in process, ($this)" }
                 }
-                // the entity making the request is no longer suspended, it was resumed based on
-                // a call to send an item to the channel (sendToChannel())
+                // the entity making the request is not suspended, it was resumed based on
+                // a call to send an item to the channel (sendToChannel()) or was never suspended
                 // the request should be able to be filled
                 // this also removes the request from the blocking queue's requestQ of requests waiting for items
                 val list = blockingQ.fill(request)
