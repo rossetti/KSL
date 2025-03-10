@@ -89,6 +89,18 @@ class RequestQ(
      *  @return the next request to receive an allocation or null if no requests were selected for allocation
      */
     internal fun nextRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
+        if (isEmpty){
+            return null
+        }
+        // no need to select if there is only one waiting
+        if (size == 1){
+            if (amountAvailable >= this[0].amountRequested) {
+                return this[0]
+            } else  {
+                return null
+            }
+        }
+        // only invoke the rule if there are 2 or more requests from which to select
         val list = requestSelectionRule.selectRequests(amountAvailable, this)
         return if (list.isEmpty()) {
             null
