@@ -1839,9 +1839,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resource: Resource,
                 queue: RequestQ
             ) {
+                //TODO: This is where a partial allocation could be handled. The current implementation does not facilitate partial filling
                 if (!resource.canAllocate(request.amountRequested)) {
                     // the resource can't allocate to the request, no need to consider it versus others waiting in the queue
-                    //TODO: This is where a partial allocation could be handled. The current implementation does not facilitate partial filling
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
                     suspend()
@@ -1880,6 +1880,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
+                //TODO: The current implementation does not facilitate partial filling
                 if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     entity.state.waitForResource()
