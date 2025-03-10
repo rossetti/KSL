@@ -361,6 +361,7 @@ class BlockingQueue<T : ModelElement.QObject>(
      *  @return null implies that there is no next request that can be filled by items in the channel
      */
     internal fun selectNextRequest() : ChannelRequest? {
+        //TODO selectNextRequest()
         val nextRequest = receiverRequestSelector.selectRequest(myRequestQ) ?: return null
         return if (nextRequest.canBeFilled){
             nextRequest
@@ -433,7 +434,7 @@ class BlockingQueue<T : ModelElement.QObject>(
         // step 2 should be overridable function or attached rule, by default the function uses the attached rule
         // note that the request is not being removed here, its entity is resumed and it
         // is the entity that causes the request to be removed
-        val request = receiverRequestSelector.selectRequest(myRequestQ)
+        val request = selectNextRequest()
         if (request != null) {
             if (request.canBeFilled) {
                 val entity = request.receiver
