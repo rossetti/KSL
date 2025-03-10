@@ -1809,17 +1809,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.resource = resource
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
-                //TODO: ISSUE this check only considers the amount, it does not consider if an entity is already waiting
-                // if an entity is already waiting, this logic allows the incoming request to "jump" the queue, by default
-                // is this what we want to happen?
-                if (!resource.canAllocate(request.amountRequested)) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                }
-                // entity has been told to resume or resource has amount requested
+                waitForResource(request, resource, queue)
+                // entity has been told to resume or the request was selected for allocation
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.resource != resource) {
@@ -1835,6 +1826,39 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
+            }
+
+            /**
+             *  This function ensures that the incoming request for a resource will follow the queue's discipline and
+             *  request selection rule when it first requests units of the resource. The function causes the
+             *  entity of the request to suspend if the resource does not have a sufficient amount available to
+             *  allocate to the request.
+             */
+            private suspend fun waitForResource(
+                request: Request,
+                resource: Resource,
+                queue: RequestQ
+            ) {
+                if (!resource.canAllocate(request.amountRequested)) {
+                    // the resource can't allocate to the request, no need to consider it versus others waiting in the queue
+                    //TODO: This is where a partial allocation could be handled. The current implementation does not facilitate partial filling
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    entity.state.waitForResource()
+                    suspend()
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                } else {
+                    // can allocate it fully, but is it next
+                    val nextRequest = queue.nextRequest(resource.numAvailableUnits)
+                    // null means that no requests were picked, if it wasn't picked as next by the rule, then the request must wait
+                    if ((nextRequest == null) || nextRequest != request) {
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                        entity.state.waitForResource()
+                        suspend()
+                        entity.state.activate()
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                    }
+                }
             }
 
             override suspend fun seize(
@@ -2264,7 +2288,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isMoving = true
                 // holds here while request rides on the conveyor
                 val timeStarted = time
-                //TODO need to investigate how this gets resumed !!!
                 hold(
                     conveyor.myRidingHoldQ,
                     suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}"
@@ -2296,7 +2319,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 isMoving = true
                 // hold here while entity exits the conveyor
-                //TODO investigate where this gets resumed
                 hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
                 isMoving = false
                 entity.conveyorRequest = null
