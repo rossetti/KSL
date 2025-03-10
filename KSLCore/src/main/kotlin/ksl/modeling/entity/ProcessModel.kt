@@ -1848,7 +1848,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     entity.state.activate()
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 } else {
-                    // can allocate it fully, but is it next
+                    // can allocate it fully, but is it next?  this allows request selection rules to be invoked
                     val nextRequest = queue.nextRequest(resource.numAvailableUnits)
                     // null means that no requests were picked, if it wasn't picked as next by the rule, then the request must wait
                     if ((nextRequest == null) || nextRequest != request) {
