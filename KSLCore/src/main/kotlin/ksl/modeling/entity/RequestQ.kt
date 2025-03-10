@@ -66,8 +66,11 @@ object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
 }
 
 /**
- *  If the user supplies a request selection rule then this will override the default
- *  queue discipline for finding the next request from the queue.
+ *  If the user supplies a request selection rule then the default
+ *  queue discipline will order the requests for finding the next request from the queue based
+ *  on the rule.  The rule may cause the ordering of requests to be presented in a different order
+ *  than strictly implied by the queue discipline.  For example, a later arriving request
+ *  may "jump" forward in the queue if the rule selects it.
  *
  * @param parent containing model element
  * @param name the name of the queue
@@ -80,6 +83,19 @@ class RequestQ(
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
     var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule
+
+    /**
+     *  @param amountAvailable the current amount available to allocate to waiting requests
+     *  @return the next request to receive an allocation or null if no requests were selected for allocation
+     */
+    internal fun nextRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
+        val list = requestSelectionRule.selectRequests(amountAvailable, this)
+        return if (list.isEmpty()) {
+            null
+        } else {
+            list[0]
+        }
+    }
 
     /**
      *  Returns the number of requests targeting the supplied resource
