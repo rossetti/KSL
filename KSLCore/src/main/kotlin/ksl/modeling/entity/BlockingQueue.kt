@@ -263,8 +263,6 @@ class BlockingQueue<T : ModelElement.QObject>(
      */
     var senderSelector: EntitySelectorIfc = DefaultEntitySelector()
 
-    //TODO Why are these inside the BlockingQueue class? Why not defined external to the class?
-
     private inner class DefaultEntitySelector : EntitySelectorIfc {
         override fun selectEntity(queue: Queue<ProcessModel.Entity>): ProcessModel.Entity? {
             return queue.peekNext()
@@ -272,6 +270,8 @@ class BlockingQueue<T : ModelElement.QObject>(
 
     }
 
+    //TODO Why are these inside the BlockingQueue class? Why not defined external to the class?
+    // Because the ChannelRequest has inner class access to the channel queue
     /**
      * The default is to select the next based on the queue discipline. This class
      * can be used to define a default method for selecting the next receiver's request
@@ -357,11 +357,13 @@ class BlockingQueue<T : ModelElement.QObject>(
     }
 
     /**
-     *  Uses the specified receiverRequestSelector to select the next request
+     *  Uses the specified receiverRequestSelector to select the next request.
+     *  Called from Entity's ProcessCoroutine when waiting for requesting items also
+     *  from BlockingQueue.sendToChannel() when items are sent to the channel.
+     *
      *  @return null implies that there is no next request that can be filled by items in the channel
      */
     internal fun selectNextRequest() : ChannelRequest? {
-        //TODO selectNextRequest()
         val nextRequest = receiverRequestSelector.selectRequest(myRequestQ) ?: return null
         return if (nextRequest.canBeFilled){
             nextRequest
