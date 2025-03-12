@@ -770,17 +770,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  enforces that the process coroutine can only be resumed if it has been suspended. This function
          *  allows the entity to immediately resume a suspended process with no simulated time delay. That is, no event is scheduled
          *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
-         *  forces (at least a 0.0) time delay and thus release back to the event loop to cause the process
+         *  forces (at least a 0.0) time delay and thus releases control back to the event loop to cause the process
          *  to be resumed.  An understanding of when a process should be resumed within an event loop is necessary
          *  to effectively use this function.  In some cases, resuming through the event loop will not provide
          *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
          *  when needed in those (rare) cases.
          */
         internal fun immediateResume() {
-            //TODO immediateResume() who calls this?
+            // who calls this?
             // called from 1) HoldQueue.removeAndImmediateResume()
             // 2) private inner class ResumeAction : EventAction<Nothing>
             // what schedules the ResumeAction???: the resumeProcess() function, which is called many places
+            // ResumeAction is the event based resumption, which must eventually directly resume the continuation
             if (myCurrentProcess != null) {
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
