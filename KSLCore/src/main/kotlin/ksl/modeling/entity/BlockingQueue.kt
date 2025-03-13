@@ -542,9 +542,11 @@ class BlockingQueue<T : ModelElement.QObject>(
             throw IllegalStateException("$name : The channel does not contain all the items in the collection")
         }
         for (item in c){
-            myChannelQ.remove(item, waitStats)
+            val removed = myChannelQ.remove(item, waitStats)
             // item was removed, there may be waiting senders for placing items in the channel
-            notifyWaitingSender()
+            if (removed) {
+                notifyWaitingSender()
+            }
         }
     }
 
