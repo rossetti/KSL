@@ -414,6 +414,10 @@ class BlockingQueue<T : ModelElement.QObject>(
         check(isNotFull) { "$name : Attempted to send ${qObject.name} to a full channel queue." }
         myChannelQ.enqueue(qObject)
         // actions related to putting a new qObject in the channel
+        notifyWaitingRequests()
+    }
+
+    private fun notifyWaitingRequests() {
         // check if receivers are waiting, select next request waiting by a receiver
         if (myRequestQ.isEmpty){
             return // nothing waiting so nothing to process
@@ -537,16 +541,19 @@ class BlockingQueue<T : ModelElement.QObject>(
         if (!myChannelQ.contains(c)) {
             throw IllegalStateException("$name : The channel does not contain all the items in the collection")
         }
-        myChannelQ.removeAll(c, waitStats) //TODO removal of more than 1 may need many senders notified, timing could be an issue
-        // actions related to removal of elements, check for waiting senders
-        // select next waiting sender
+        for (item in c){
+            myChannelQ.remove(item, waitStats)
+            // item was removed, there may be waiting senders for placing items in the channel
+            notifyWaitingSender()
+        }
+    }
+
+    private fun notifyWaitingSender() {
         if (mySenderQ.isNotEmpty) {
-            // select the entity waiting to send elements into the channel
+            // select an entity waiting to send elements into the channel
             val entity = senderSelector.selectEntity(mySenderQ)
-            // ask selected entity to review the channel queue and decide what to do
-            if (entity != null) {
-                entity.resumeProcess(0.0, senderQResumptionPriority)
-            }
+            // if there is an entity selected, tell it to resume
+            entity?.resumeProcess(0.0, senderQResumptionPriority)
         }
     }
 }
