@@ -97,11 +97,17 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.1.9"
+version = "R1.2.0"
 
 ## Release Notes
+Latest Release R1.2.0
+- Updated BlockingQueue to enhance notification of waiting senders and receivers
+  - Allows new rules to be used for notification
+  - Corrected call for filling AmountRequests
+- Updated seize() suspending function to allow request selection rules to be invoked upon first seize
+- Improved use of interfaces in station package
 
-Latest Release R1.1.9
+Release R1.1.9
 - fixed entity size issue for conveyors
 - added ability to transfer from one conveyor to another
 - refactored interfaces in station package
