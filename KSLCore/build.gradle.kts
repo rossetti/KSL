@@ -24,7 +24,8 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "1.9.20"
+    //kotlin("jvm") version "1.9.20"
+    kotlin("jvm") version "2.1.10"
     kotlin("plugin.serialization") version "1.9.0"
  //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
     id("org.jetbrains.dokka") version "2.0.0"
@@ -130,7 +131,7 @@ dependencies {
     implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.5")// this vulnerability is not on maven
     // required POI to update their dependencies to remove the vulnerability
 
-    implementation(kotlin("stdlib-jdk8"))
+//    implementation(kotlin("stdlib-jdk8"))
 // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-test
 //    api("org.jetbrains.kotlin:kotlin-test:1.9.24")
 
@@ -140,9 +141,7 @@ dependencies {
 //    useJUnitPlatform()
 //}
 
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "17"
-}
+
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
 // this is good because user can then provide their own logging specification
@@ -156,13 +155,22 @@ tasks.jar {
 //    }
     exclude("logback.xml")
 }
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "17"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "17"
+
+//tasks.withType<KotlinCompile>() {
+//    kotlinOptions.jvmTarget = "17"
+//}
+//
+//val compileKotlin: KotlinCompile by tasks
+//compileKotlin.kotlinOptions {
+//    jvmTarget = "17"
+//}
+//val compileTestKotlin: KotlinCompile by tasks
+//compileTestKotlin.kotlinOptions {
+//    jvmTarget = "17"
+//}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 // these extensions are needed when publishing to maven
