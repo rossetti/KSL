@@ -58,7 +58,7 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.3")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
     api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.8.0")
