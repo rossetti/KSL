@@ -10,8 +10,9 @@ data class ResponseConstraint(
     val violationExponent: Double = 2.0
 ) {
     init {
-        require(violationPenalty >= 0.0) { "violationPenalty must be >= 0.0" }
-        require(violationExponent >= 1.0) { "violationExponent must be >= 1.0" }
+        require(violationPenalty >= 0.0) { "The violationPenalty must be >= 0.0" }
+        require(violationExponent >= 1.0) { "The violationExponent must be >= 1.0" }
+        require(name.isNotBlank()) { "The response name cannot be blank" }
     }
 
     private val inequalityFactor: Double = if (inequalityType == InequalityType.LESS_THAN) 1.0 else -1.0
