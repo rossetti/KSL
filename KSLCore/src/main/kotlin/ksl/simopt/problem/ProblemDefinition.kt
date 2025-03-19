@@ -35,12 +35,33 @@ class ProblemDefinition(
     private val myInputs = mutableMapOf<String, InputDefinition>()
     val inputs: List<InputDefinition>
         get() = myInputs.values.toList()
-    private val myInputConstraints = mutableListOf<InputConstraint>()
-    val inputConstraints: List<InputConstraint>
-        get() = myInputConstraints.toList()
+    private val myLinearConstraints = mutableListOf<LinearConstraint>()
+    val linearConstraints: List<LinearConstraint>
+        get() = myLinearConstraints.toList()
     private val myResponseConstraints = mutableListOf<ResponseConstraint>()
     val responseConstraints: List<ResponseConstraint>
         get() = myResponseConstraints.toList()
+
+    val inputLowerBounds: DoubleArray
+        get() = myInputs.values.map { it.lowerBound }.toDoubleArray()
+
+    val inputUpperBounds: DoubleArray
+        get() = myInputs.values.map { it.upperBound }.toDoubleArray()
+
+    val inputIntervals: List<Interval>
+        get() = myInputs.values.map{it.interval}.toList()
+
+    val inputMidPoints: DoubleArray
+        get() = myInputs.values.map{it.interval.midPoint}.toDoubleArray()
+
+    val inputRanges: DoubleArray
+        get() = myInputs.values.map{it.interval.width}.toDoubleArray()
+
+    val inputGranularities: DoubleArray
+        get() = myInputs.values.map{it.granularity}.toDoubleArray()
+
+    val inputSize: Int
+        get() = myInputs.values.size
 
     var maxSamplesPerMember = 1E5.toInt()
         set(value) {
@@ -63,12 +84,12 @@ class ProblemDefinition(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
         inequalityType: InequalityType = InequalityType.LESS_THAN
-    ): InputConstraint {
+    ): LinearConstraint {
         for ((name, value) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
         }
-        val ic = InputConstraint(equation, rhsValue, inequalityType)
-        myInputConstraints.add(ic)
+        val ic = LinearConstraint(equation, rhsValue, inequalityType)
+        myLinearConstraints.add(ic)
         return ic
     }
 
