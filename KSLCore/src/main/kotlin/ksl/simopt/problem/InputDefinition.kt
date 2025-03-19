@@ -22,11 +22,11 @@ import ksl.utilities.Interval
  *  @param upperBound the upper bound on the range of possible values
  *  @param granularity the acceptable precision for decision-making
  */
-data class InputDefinition(
+class InputDefinition(
     val name: String,
     val lowerBound: Double,
     val upperBound: Double,
-    val granularity: Double = 0.0
+    granularity: Double = 0.0
 ){
     init {
         require(name.isNotBlank()) { "name cannot be blank" }
@@ -42,6 +42,12 @@ data class InputDefinition(
 
     val interval: Interval
          get() = Interval(lowerBound, upperBound)
+
+    var granularity: Double = granularity
+        set(value) {
+            require(value >= 0.0) { "granularity must be >=  0.0" }
+            field = value
+        }
 
     /**
      *
