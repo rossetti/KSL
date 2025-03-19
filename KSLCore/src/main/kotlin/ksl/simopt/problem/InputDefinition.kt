@@ -1,6 +1,7 @@
 package ksl.simopt.problem
 
 import ksl.utilities.Interval
+import ksl.utilities.KSLArrays
 
 /**
  *  Represents the definition of an input variable for a ProblemDefinition.
@@ -56,6 +57,17 @@ class InputDefinition(
      */
     operator fun contains(x: Double): Boolean {
         return x in lowerBound..upperBound
+    }
+
+    /**
+     *  This function does not check if the supplied value is within the specified bounds.
+     *  Thus, the returned value may be infeasible with respect to bounds.
+     *
+     *  @param x the input value to round to the specified granularity
+     *  @return the rounded value
+     */
+    fun roundToGranularity(x: Double): Double {
+        return KSLArrays.mround(x, granularity)
     }
 
 }

@@ -32,9 +32,9 @@ class ProblemDefinition(
         }
     }
 
-    private val myInputs = mutableMapOf<String, InputDefinition>()
+    private val myInputDefinitions = mutableMapOf<String, InputDefinition>()
     val inputs: List<InputDefinition>
-        get() = myInputs.values.toList()
+        get() = myInputDefinitions.values.toList()
     private val myLinearConstraints = mutableListOf<LinearConstraint>()
     val linearConstraints: List<LinearConstraint>
         get() = myLinearConstraints.toList()
@@ -43,25 +43,25 @@ class ProblemDefinition(
         get() = myResponseConstraints.toList()
 
     val inputLowerBounds: DoubleArray
-        get() = myInputs.values.map { it.lowerBound }.toDoubleArray()
+        get() = myInputDefinitions.values.map { it.lowerBound }.toDoubleArray()
 
     val inputUpperBounds: DoubleArray
-        get() = myInputs.values.map { it.upperBound }.toDoubleArray()
+        get() = myInputDefinitions.values.map { it.upperBound }.toDoubleArray()
 
     val inputIntervals: List<Interval>
-        get() = myInputs.values.map{it.interval}.toList()
+        get() = myInputDefinitions.values.map{it.interval}.toList()
 
     val inputMidPoints: DoubleArray
-        get() = myInputs.values.map{it.interval.midPoint}.toDoubleArray()
+        get() = myInputDefinitions.values.map{it.interval.midPoint}.toDoubleArray()
 
     val inputRanges: DoubleArray
-        get() = myInputs.values.map{it.interval.width}.toDoubleArray()
+        get() = myInputDefinitions.values.map{it.interval.width}.toDoubleArray()
 
     val inputGranularities: DoubleArray
-        get() = myInputs.values.map{it.granularity}.toDoubleArray()
+        get() = myInputDefinitions.values.map{it.granularity}.toDoubleArray()
 
     val inputSize: Int
-        get() = myInputs.values.size
+        get() = myInputDefinitions.values.size
 
     var maxSamplesPerMember = 1E5.toInt()
         set(value) {
@@ -72,7 +72,7 @@ class ProblemDefinition(
     fun input(name: String, lowerBound: Double, upperBound: Double, granularity: Double = 0.0): InputDefinition {
         require(name in inputNames) { "The name $name does not exist in the named inputs" }
         val inputData = InputDefinition(name, lowerBound, upperBound, granularity)
-        myInputs[name] = inputData
+        myInputDefinitions[name] = inputData
         return inputData
     }
 
@@ -80,6 +80,15 @@ class ProblemDefinition(
         return input(name, interval.lowerLimit, interval.upperLimit, granularity)
     }
 
+    /**
+     *  Creates an InputConstraint based on the supplied linear equation as specified by the map.
+     *  The names in the map must be valid input names.  If an input name does not exist in the map,
+     *  then the coefficient for that variable is assumed to be 0.0.
+     *  @param equation the pair (name, value) represents the input name and the coefficient value in the linear
+     *  constraint
+     *  @param rhsValue the right-hand side of the constraint
+     *  @param inequalityType the inequality type (less_than or greater_than)
+     */
     fun inputConstraint(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
@@ -111,6 +120,10 @@ class ProblemDefinition(
         return rc
     }
 
+    /**
+     *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
+     *  A*x < b, then this function returns the A matrix.
+     */
     fun linearConstraintMatrix(): Array<DoubleArray> {
         val array = mutableListOf<DoubleArray>()
         for (constraint in myLinearConstraints){
@@ -119,12 +132,52 @@ class ProblemDefinition(
         return array.toTypedArray()
     }
 
+    /**
+     *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
+     *  A*x < b, then this function returns the b vector.
+     */
     fun linearConstraintsRHS() : DoubleArray {
         return myLinearConstraints.map { it.rhsValue }.toDoubleArray()
     }
 
     fun responseConstraintsRHS() : DoubleArray {
+        return myResponseConstraints.map { it.rhsValue }.toDoubleArray()
+    }
+
+    fun responseConstraintsPenalties() : DoubleArray {
         return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
+
+    fun responseConstraintPenalties(penalty: Double)  {
+        myResponseConstraints.forEach { it.violationPenalty = penalty }
+    }
+
+    /** The array x is mutated to hold values that have appropriate granularity based on the
+     *  input definitions.
+     *
+     *  @param x the values of the inputs as an array. Assumes that the values are ordered in the
+     *  same order as the names are defined for the problem
+     */
+    fun roundToGranularity(x: DoubleArray) {
+        require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        for((i, inputDefinition) in myInputDefinitions.values.withIndex()){
+            x[i] = inputDefinition.roundToGranularity(x[i])
+        }
+    }
+
+    /** The map values are mutated to hold values that have appropriate granularity based on the
+     *  input definitions.
+     *
+     *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
+     *  input names.
+     */
+    fun roundToGranularity(map: MutableMap<String, Double>) {
+        require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        for((name, inputDefinition) in myInputDefinitions){
+            require(name in map) {"The input name $name does not exist in the map"}
+            map[name] = inputDefinition.roundToGranularity(map[name]!!)
+        }
+    }
+
 
 }
