@@ -57,7 +57,7 @@ interface ConstraintIfc {
  */
 data class LinearConstraint(
     val equation: Map<String, Double>,
-    override val rhsValue: Double = 0.0,
+    override var rhsValue: Double = 0.0,
     override val inequalityType: InequalityType = InequalityType.LESS_THAN
 ) : ConstraintIfc {
 
