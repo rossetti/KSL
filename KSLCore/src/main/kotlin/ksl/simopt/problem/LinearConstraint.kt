@@ -74,11 +74,11 @@ data class LinearConstraint(
     val names: List<String>
         get() = equation.keys.toList()
 
-//    /**
-//     *  The coefficients associated with each input variable name within the equation.
-//     */
-//    val coefficients: DoubleArray
-//        get() = equation.values.toDoubleArray()
+    /**
+     *  The coefficients associated with each input variable name within the equation.
+     */
+    val coefficients: DoubleArray
+        get() = equation.values.toDoubleArray()
 
     /**
      *  @param name the name of the variable within the linear constraint
@@ -107,24 +107,24 @@ data class LinearConstraint(
         return sum
     }
 
-//    /**
-//     *  Computes the value of the left-hand side of the constraint based on the
-//     *  supplied values for each input variable in the equation. Assumes that the values
-//     *  are ordered in the same order as the input names
-//     *
-//     *  @param values the list containing the input variable value for each input variable name
-//     *  in the order in which the names are in the equation.
-//     *  @return the total value representing the left-hand side of the linear equation
-//     */
-//    fun computeLHS(values: DoubleArray): Double {
-//        require(values.size == equation.size) { "The supplied map does not have the same number of names as the equation." }
-//        var sum = 0.0
-//        val c = coefficients
-//        for ((i, v) in values.withIndex()) {
-//            sum = sum + c[i] * v
-//        }
-//        return sum
-//    }
+    /**
+     *  Computes the value of the left-hand side of the constraint based on the
+     *  supplied values for each input variable in the equation. Assumes that the values
+     *  are ordered in the same order as the input names
+     *
+     *  @param values the list containing the input variable value for each input variable name
+     *  in the order in which the names are in the equation.
+     *  @return the total value representing the left-hand side of the linear equation
+     */
+    fun computeLHS(values: DoubleArray): Double {
+        require(values.size == equation.size) { "The supplied map does not have the same number of names as the equation." }
+        var sum = 0.0
+        val c = coefficients
+        for ((i, v) in values.withIndex()) {
+            sum = sum + c[i] * v
+        }
+        return sum
+    }
 
     /**
      *  Computes the value of the left-hand side of the constraint based on the
@@ -137,17 +137,16 @@ data class LinearConstraint(
         return computeLHS(values) < ltRHSValue
     }
 
-//    /**
-//     *  Computes the value of the left-hand side of the constraint based on the
-//     *  supplied values for each input variable in the equation and checks if the constraint is satisfied.
-//     *
-//     *  @param values the map containing the input variable name and the current value of the input variable as a pair
-//     *  @return true if the constraint is satisfied, false otherwise.
-//     */
-//    fun isSatisfied(values: DoubleArray): Boolean {
-//        return computeLHS(values) < ltRHSValue
-//    }
-//
+    /**
+     *  Computes the value of the left-hand side of the constraint based on the
+     *  supplied values for each input variable in the equation and checks if the constraint is satisfied.
+     *
+     *  @param values the map containing the input variable name and the current value of the input variable as a pair
+     *  @return true if the constraint is satisfied, false otherwise.
+     */
+    fun isSatisfied(values: DoubleArray): Boolean {
+        return computeLHS(values) < ltRHSValue
+    }
 
     /**
      *  Returns the coefficients associated with the left-hand side of the constraint

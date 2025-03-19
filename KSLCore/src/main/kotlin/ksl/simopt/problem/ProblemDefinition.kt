@@ -88,7 +88,11 @@ class ProblemDefinition(
         for ((name, value) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
         }
-        val ic = LinearConstraint(equation, rhsValue, inequalityType)
+        val eqMap = mutableMapOf<String, Double>()
+        for(name: String in inputNames) {
+            eqMap[name] = equation[name]?:0.0
+        }
+        val ic = LinearConstraint(eqMap, rhsValue, inequalityType)
         myLinearConstraints.add(ic)
         return ic
     }
@@ -105,6 +109,22 @@ class ProblemDefinition(
         val rc = ResponseConstraint(name, rhsValue, inequalityType, violationPenalty, violationExponent)
         myResponseConstraints.add(rc)
         return rc
+    }
+
+    fun linearConstraintMatrix(): Array<DoubleArray> {
+        val array = mutableListOf<DoubleArray>()
+        for (constraint in myLinearConstraints){
+            array.add(constraint.coefficients)
+        }
+        return array.toTypedArray()
+    }
+
+    fun linearConstraintsRHS() : DoubleArray {
+        return myLinearConstraints.map { it.rhsValue }.toDoubleArray()
+    }
+
+    fun responseConstraintsRHS() : DoubleArray {
+        return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
 
 }
