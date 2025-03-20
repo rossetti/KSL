@@ -167,7 +167,7 @@ class ProblemDefinition(
         return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
 
-    fun responseConstraintPenalties(penalty: Double)  {
+    fun setResponseConstraintPenalties(penalty: Double)  {
         myResponseConstraints.forEach { it.violationPenalty = penalty }
     }
 
@@ -176,12 +176,14 @@ class ProblemDefinition(
      *
      *  @param x the values of the inputs as an array. Assumes that the values are ordered in the
      *  same order as the names are defined for the problem
+     *  @return the returned array is the same array as the input array but mutated. It is return for convenience.
      */
-    fun roundToGranularity(x: DoubleArray) {
+    fun roundToGranularity(x: DoubleArray) :DoubleArray {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for((i, inputDefinition) in myInputDefinitions.values.withIndex()){
             x[i] = inputDefinition.roundToGranularity(x[i])
         }
+        return x
     }
 
     /** The map values are mutated to hold values that have appropriate granularity based on the
@@ -189,13 +191,54 @@ class ProblemDefinition(
      *
      *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
      *  input names.
+     *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
      */
-    fun roundToGranularity(map: MutableMap<String, Double>) {
+    fun roundToGranularity(map: MutableMap<String, Double>) : MutableMap<String, Double>{
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for((name, inputDefinition) in myInputDefinitions){
             require(name in map) {"The input name $name does not exist in the map"}
             map[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
+        return map
+    }
+
+    /**
+     *  Translates the supplied array to named input pairs (name, value).
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     */
+    fun mapToInputNames(x: DoubleArray) : MutableMap<String, Double>{
+        require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        val map = mutableMapOf<String, Double>()
+        for((i, inputDefinition) in myInputDefinitions.values.withIndex()){
+            map[inputDefinition.name] = x[i]
+        }
+        return map
+    }
+
+    fun isInputFeasible(x: DoubleArray): Boolean {
+        val rdx = roundToGranularity(x)
+        val im = mapToInputNames(rdx)
+        return isInputFeasible(im)
+    }
+
+    fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        val im = roundToGranularity(inputs)
+        // check input limits first
+        for((name, value) in  im){
+            // the name must be in the input definitions by construction
+            if (!myInputDefinitions[name]!!.contains(value)){
+                return false
+            }
+        }
+        // now check the constraints
+        for(ic in myLinearConstraints){
+            if (!ic.isSatisfied(im)){
+                return false
+            }
+        }
+        //TODO eventually check functional constraints
+        return true
     }
 
 
