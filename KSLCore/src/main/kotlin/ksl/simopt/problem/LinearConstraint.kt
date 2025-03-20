@@ -76,6 +76,7 @@ data class LinearConstraint(
 
     /**
      *  The coefficients associated with each input variable name within the equation.
+     *  These are not adjusted for the direction of the inequality.
      */
     val coefficients: DoubleArray
         get() = equation.values.toDoubleArray()
@@ -85,7 +86,7 @@ data class LinearConstraint(
      *  @return the value of the coefficient for the variable or 0.0 if the variable does not
      *  appear in the equation
      */
-    fun coefficient(name: String) : Double {
+    fun coefficient(name: String): Double {
         return equation[name] ?: 0.0
     }
 
@@ -93,18 +94,36 @@ data class LinearConstraint(
      *  Computes the value of the left-hand side of the constraint based on the
      *  supplied values for each input variable in the equation.
      *
-     *  @param values the map containing the input variable name and the current value of the input variable as a pair.
+     *  @param inputs the map containing the input variable name and the current value of the input variable as a pair.
      *  The names must be in the equation.
      *  @return the total value representing the left-hand side of the linear equation
      */
-    override fun computeLHS(values: Map<String, Double>): Double {
-        require(values.size == equation.size) { "The supplied map does not have the same number of names as the equation." }
+    override fun computeLHS(inputs: Map<String, Double>): Double {
+        require(inputs.size == equation.size) { "The supplied map does not have the same number of names as the equation." }
         var sum = 0.0
-        for ((name, value) in values) {
+        for ((name, value) in inputs) {
             require(equation.containsKey(name)) { "The supplied input name ($name) does not exist in the equation)" }
             sum = sum + value * equation[name]!!
         }
-        return sum
+        //coefficients don't have inequality factor applied, need to apply to entire LHS
+        return sum * inequalityFactor
+    }
+
+    /**
+     *  The slack associated with the constraint based on the provided inputs.
+     *  This is the difference between the right-hand side value and the left-hand side value.
+     *  @param inputs the map containing the input variable name and the current value of the input variable as a pair.
+     *  The names must be in the equation.
+     *  @return the difference between the right-hand side value and the left-hand side value.
+     */
+    fun slack(inputs: Map<String, Double>): Double {
+        //TODO I think Andrew is not defining slack correctly
+        return ltRHSValue - computeLHS(inputs)
+    }
+
+    fun violation(inputs: Map<String, Double>): Double {
+        //TODO I think this might be "slack"
+        return -minOf(slack(inputs), 0.0)
     }
 
     /**
@@ -123,18 +142,19 @@ data class LinearConstraint(
         for ((i, v) in values.withIndex()) {
             sum = sum + c[i] * v
         }
-        return sum
+        //coefficients don't have inequality factor applied, need to apply to entire LHS
+        return sum * inequalityFactor
     }
 
     /**
      *  Computes the value of the left-hand side of the constraint based on the
-     *  supplied values for each input variable in the equation and checks if the constraint is satisfied.
+     *  supplied inputs for each input variable in the equation and checks if the constraint is satisfied.
      *
-     *  @param values the map containing the input variable name and the current value of the input variable as a pair
+     *  @param inputs the map containing the input variable name and the current value of the input variable as a pair
      *  @return true if the constraint is satisfied, false otherwise.
      */
-    override fun isSatisfied(values: Map<String, Double>): Boolean {
-        return computeLHS(values) < ltRHSValue
+    override fun isSatisfied(inputs: Map<String, Double>): Boolean {
+        return computeLHS(inputs) < ltRHSValue
     }
 
     /**
@@ -150,7 +170,8 @@ data class LinearConstraint(
 
     /**
      *  Returns the coefficients associated with the left-hand side of the constraint
-     *  based on the supplied input names.
+     *  based on the supplied input names.  The coefficients are not adjusted for the
+     *  direction of the inequality.
      *
      *  @param inputNames the list containing the input variable names. If the name is not
      *  in the equation, then the coefficient is considered 0.0

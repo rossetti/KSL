@@ -247,5 +247,10 @@ class ProblemDefinition(
         return isInputRangeFeasible(im) && isLinearConstraintFeasible(im)
     }
 
+    fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>) : DoubleArray{
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return DoubleArray(myLinearConstraints.size){ myLinearConstraints[it].computeLHS(inputs) }
+    }
+
 
 }
