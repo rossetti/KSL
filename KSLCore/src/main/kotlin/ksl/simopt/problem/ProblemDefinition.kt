@@ -14,7 +14,26 @@ enum class InequalityType {
     GREATER_THAN
 }
 
-
+/**
+ *  This class describes an optimization problem for use within simulation optimization algorithms.
+ *  The general optimization problem is presented as minimizing the expected value of some function H(x), where
+ *  x is some input parameters to the simulation and H(.) is the simulation model response for the objective
+ *  function. The input parameters are assumed to be real-valued specified by a name between a lower and upper bound
+ *  and a granularity. The granularity specifies the acceptable precision of the input. The problem can
+ *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs. In
+ *  addition, a set of probabilistic constraints of the form E[G(x)] < c can be specified, where G(x) is some
+ *  response from the simulation.
+ *
+ *  To use this class, the user first defines the objective function response name, the names of the input variables,
+ *  and the names of the responses to appear in the problem. Then the reference to the class can be used
+ *  to specify inputs and constraints.
+ *
+ *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
+ *  observed simulation values from the simulation
+ *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
+ *  the simulation when executing experiments. Any constraints specified on the input variables must use these names.
+ *  @param responseNames the names of any responses that will appear in response constraints.
+ */
 class ProblemDefinition(
     val objFnResponseName: String,
     val inputNames: Set<String>,
