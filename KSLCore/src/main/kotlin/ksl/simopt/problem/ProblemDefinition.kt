@@ -221,24 +221,30 @@ class ProblemDefinition(
         return isInputFeasible(im)
     }
 
-    fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
-        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
-        val im = roundToGranularity(inputs)
+    private fun isInputRangeFeasible(inputs: Map<String, Double>): Boolean {
         // check input limits first
-        for((name, value) in  im){
+        for((name, value) in  inputs){
             // the name must be in the input definitions by construction
             if (!myInputDefinitions[name]!!.contains(value)){
                 return false
             }
         }
-        // now check the constraints
+        return true
+    }
+
+    private fun isLinearConstraintFeasible(inputs: Map<String, Double>) : Boolean {
         for(ic in myLinearConstraints){
-            if (!ic.isSatisfied(im)){
+            if (!ic.isSatisfied(inputs)){
                 return false
             }
         }
-        //TODO eventually check functional constraints
         return true
+    }
+
+    fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        val im = roundToGranularity(inputs)
+        return isInputRangeFeasible(im) && isLinearConstraintFeasible(im)
     }
 
 
