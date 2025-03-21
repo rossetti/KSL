@@ -35,7 +35,7 @@ fun main(){
 }
 
 fun testMRound(){
-    val x = 3.1459
+    val x = 3.0459
     val g = 0.25
     val r = KSLArrays.mround(x, g)
     println("x=$x g=$g r=$r")
