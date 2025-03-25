@@ -74,6 +74,9 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
     val midPoint: Double
         get() = (upperLimit + lowerLimit) / 2.0
 
+    val isFinite: Boolean
+        get() = lowerLimit.isFinite() && upperLimit.isFinite()
+
     /** Sets the interval
      * Throws IllegalArgumentException if the lower limit is &gt;= upper limit
      *
@@ -102,7 +105,7 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      *  been rounded down (lower limit) and rounded up (upper limit)
      *  to integer valued doubles.
      */
-    fun roundToIntEndPoints() : Interval {
+    fun roundToIntEndPoints(): Interval {
         return Interval(floor(lowerLimit), ceil(upperLimit))
     }
 
