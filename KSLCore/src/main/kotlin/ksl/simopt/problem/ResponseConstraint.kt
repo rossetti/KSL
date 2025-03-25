@@ -37,7 +37,7 @@ class ResponseConstraint(
     }
 
     //TODO need to think about violations and penalties
-    
+
     fun violation(v: Double): Double {
         return maxOf(0.0, -slack(v))
     }
