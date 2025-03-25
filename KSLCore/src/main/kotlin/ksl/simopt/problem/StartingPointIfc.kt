@@ -12,17 +12,3 @@ fun interface StartingPointIfc {
     ): Map<String, Double>
 
 }
-
-class RandomStartingPointGenerator(
-    val rnStream: RNStreamIfc
-) : StartingPointIfc, RNStreamControlIfc by rnStream {
-
-    constructor(streamNum: Int) : this(KSLRandom.rnStream(streamNum))
-
-    override fun startingPoint(
-        problemDefinition: ProblemDefinition,
-        roundToGranularity: Boolean
-    ): Map<String, Double> {
-        return problemDefinition.randomPoint(rnStream, roundToGranularity)
-    }
-}

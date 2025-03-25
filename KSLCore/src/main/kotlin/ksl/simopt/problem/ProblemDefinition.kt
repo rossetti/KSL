@@ -1,6 +1,7 @@
 package ksl.simopt.problem
 
 import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
@@ -39,8 +40,9 @@ enum class InequalityType {
 class ProblemDefinition(
     val objFnResponseName: String,
     val inputNames: Set<String>,
-    val responseNames: Set<String> = emptySet()
-) {
+    val responseNames: Set<String> = emptySet(),
+    val rnStream: RNStreamIfc = KSLRandom.nextRNStream(),
+) : RNStreamControlIfc by rnStream {
 
     init {
         require(objFnResponseName.isNotBlank()) { "The objective function response name cannot be blank" }
@@ -53,6 +55,15 @@ class ProblemDefinition(
         }
         require(!responseNames.contains(objFnResponseName)) { "The objective function response name cannot be within the set of response constraint names." }
     }
+
+    constructor(
+        objFnResponseName: String,
+        inputNames: Set<String>,
+        responseNames: Set<String> = emptySet(),
+        streamNum: Int
+    ) : this(objFnResponseName, inputNames, responseNames, KSLRandom.rnStream(streamNum))
+
+    var startingPointGenerator: StartingPointIfc? = null
 
     private val myInputDefinitions = mutableMapOf<String, InputDefinition>()
     val inputs: List<InputDefinition>
@@ -402,27 +413,13 @@ class ProblemDefinition(
 
     /**
      *  Generates a random point within the ranges defined by the inputs.
-     *  The point will have the appropriate granularity based on the definitions of the inputs.
+     *  The point can have the appropriate granularity based on the definitions of the inputs.
      *
-     *  @param streamNum the random number stream's stream number to use for generation
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @return the randomly generated point.
      */
-    fun randomPoint(streamNum: Int, roundToGranularity: Boolean = true): Map<String, Double> {
-        return randomPoint(KSLRandom.rnStream(streamNum), roundToGranularity)
-    }
-
-    /**
-     *  Generates a random point within the ranges defined by the inputs.
-     *  The point will have the appropriate granularity based on the definitions of the inputs.
-     *
-     *  @param rnStream the random number stream to use for generation
-     *  @param roundToGranularity true indicates that the point should be rounded to
-     *  the appropriate granularity. The default is true.
-     *  @return the randomly generated point.
-     */
-    fun randomPoint(rnStream: RNStreamIfc, roundToGranularity: Boolean = true): Map<String, Double> {
+    fun randomPoint(roundToGranularity: Boolean = true): Map<String, Double> {
         val map = mutableMapOf<String, Double>()
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.randomValue(rnStream, roundToGranularity)
@@ -434,42 +431,35 @@ class ProblemDefinition(
      *  Generates a random point that is feasible with respect to the input ranges,
      *  the linear constraints, and the functional constraints
      *
-     *  @param streamNum the random number stream's stream number to use for generation
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
-     *  @param maxIterations the maximum number of iterations to perform to get a single feasible point
      *  @return the sampled point
      */
-    fun generateInputFeasiblePoint(
-        streamNum: Int,
-        roundToGranularity: Boolean = true,
-    ): Map<String, Double> {
-        return generateInputFeasiblePoint(KSLRandom.rnStream(streamNum), roundToGranularity)
-    }
-
-    /**
-     *  Generates a random point that is feasible with respect to the input ranges,
-     *  the linear constraints, and the functional constraints
-     *
-     *  @param rnStream the random number stream to use for generation
-     *  @param roundToGranularity true indicates that the point should be rounded to
-     *  the appropriate granularity. The default is true.
-     *  @param maxIterations the maximum number of iterations to perform to get a single feasible point
-     *  @return the sampled point
-     */
-    fun generateInputFeasiblePoint(
-        rnStream: RNStreamIfc,
-        roundToGranularity: Boolean = true,
-    ): Map<String, Double> {
+    fun generateInputFeasiblePoint(roundToGranularity: Boolean = true): Map<String, Double> {
         var count = 0
         var inputMap: Map<String, Double>
         do {
             count++
             check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
             // generate the point
-            inputMap = randomPoint(rnStream, roundToGranularity)
+            inputMap = randomPoint(roundToGranularity)
         } while (!isInputFeasible(inputMap))
         return inputMap
+    }
+
+    /**
+     *  Returns a starting point for the problem. If the user specified an instance of
+     *  the [StartingPointIfc] via the [ProblemDefinition.startingPointGenerator] property then
+     *  the supplied generator is used; otherwise, the problem definition attempts
+     *  to randomly generate an input feasible starting point via the [ProblemDefinition.generateInputFeasiblePoint]
+     *  function.
+     *
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the starting point
+     */
+    fun startingPoint(roundToGranularity: Boolean = true) : Map<String, Double> {
+        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasiblePoint(roundToGranularity)
     }
 
     companion object {
