@@ -3,6 +3,8 @@ package ksl.simopt.problem
 import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Represents the definition of an input variable for a ProblemDefinition.
@@ -29,7 +31,7 @@ class InputDefinition(
     val lowerBound: Double,
     val upperBound: Double,
     granularity: Double = 0.0
-){
+) {
     init {
         require(name.isNotBlank()) { "name cannot be blank" }
         require(lowerBound < upperBound) { "lower bound must be less than upper bound" }
@@ -43,7 +45,7 @@ class InputDefinition(
     ) : this(name, interval.lowerLimit, interval.upperLimit, granularity)
 
     val interval: Interval
-         get() = Interval(lowerBound, upperBound)
+        get() = Interval(lowerBound, upperBound)
 
     var granularity: Double = granularity
         set(value) {
@@ -69,6 +71,19 @@ class InputDefinition(
      */
     fun roundToGranularity(x: Double): Double {
         return KSLMath.mround(x, granularity)
+    }
+
+    /**
+     *  Randomly generates a value within the input variable's range with
+     *  the appropriate granularity
+     *  @param rnStream a random number stream
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the generated point
+     */
+    fun randomValue(rnStream: RNStreamIfc, roundToGranularity: Boolean = true): Double {
+        val x = KSLRandom.rUniform(lowerBound, upperBound, rnStream)
+        return if (roundToGranularity) roundToGranularity(x) else x
     }
 
 }

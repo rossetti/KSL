@@ -1,6 +1,8 @@
 package ksl.simopt.problem
 
 import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 
 /**
@@ -61,7 +63,6 @@ class ProblemDefinition(
     private val myResponseConstraints = mutableListOf<ResponseConstraint>()
     val responseConstraints: List<ResponseConstraint>
         get() = myResponseConstraints.toList()
-
     private val myFunctionalConstraints = mutableListOf<FunctionalConstraint>()
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
@@ -87,9 +88,9 @@ class ProblemDefinition(
     val inputSize: Int
         get() = myInputDefinitions.values.size
 
-    var maxSamplesPerMember = 1E5.toInt()
+    var maxIterations = defaultMaximumIterations
         set(value) {
-            require(value > 0) { "The maximum number of samples per member is $value, must be > 0" }
+            require(value > 0) { "The maximum number of samples is $value, must be > 0" }
             field = value
         }
 
@@ -383,10 +384,10 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *  @return true if the inputs are input feasible
      */
-    fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
+    fun isInputFeasible(inputs: Map<String, Double>): Boolean {
         require(inputs.size == myInputDefinitions.size) { "The size of the input map is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
-        val im = roundToGranularity(inputs)
-        return isInputRangeFeasible(im) && isLinearConstraintFeasible(im) && isFunctionalConstraintFeasible(im)
+        return isInputRangeFeasible(inputs) && isLinearConstraintFeasible(inputs)
+                && isFunctionalConstraintFeasible(inputs)
     }
 
     /**
@@ -396,12 +397,91 @@ class ProblemDefinition(
      *  @return true if the inputs are input feasible
      */
     fun isInputFeasible(x: DoubleArray): Boolean {
-        val rdx = roundToGranularity(x)
-        val im = mapToInputNames(rdx)
-        return isInputFeasible(im)
+        return isInputFeasible(mapToInputNames(x))
+    }
+
+    /**
+     *  Generates a random point within the ranges defined by the inputs.
+     *  The point will have the appropriate granularity based on the definitions of the inputs.
+     *
+     *  @param streamNum the random number stream's stream number to use for generation
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the randomly generated point.
+     */
+    fun randomPoint(streamNum: Int, roundToGranularity: Boolean = true): Map<String, Double> {
+        return randomPoint(KSLRandom.rnStream(streamNum), roundToGranularity)
+    }
+
+    /**
+     *  Generates a random point within the ranges defined by the inputs.
+     *  The point will have the appropriate granularity based on the definitions of the inputs.
+     *
+     *  @param rnStream the random number stream to use for generation
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the randomly generated point.
+     */
+    fun randomPoint(rnStream: RNStreamIfc, roundToGranularity: Boolean = true): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        for ((name, iDef) in myInputDefinitions) {
+            map[name] = iDef.randomValue(rnStream, roundToGranularity)
+        }
+        return map
+    }
+
+    /**
+     *  Generates a random point that is feasible with respect to the input ranges,
+     *  the linear constraints, and the functional constraints
+     *
+     *  @param streamNum the random number stream's stream number to use for generation
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param maxIterations the maximum number of iterations to perform to get a single feasible point
+     *  @return the sampled point
+     */
+    fun generateInputFeasiblePoint(
+        streamNum: Int,
+        roundToGranularity: Boolean = true,
+    ): Map<String, Double> {
+        return generateInputFeasiblePoint(KSLRandom.rnStream(streamNum), roundToGranularity)
+    }
+
+    /**
+     *  Generates a random point that is feasible with respect to the input ranges,
+     *  the linear constraints, and the functional constraints
+     *
+     *  @param rnStream the random number stream to use for generation
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param maxIterations the maximum number of iterations to perform to get a single feasible point
+     *  @return the sampled point
+     */
+    fun generateInputFeasiblePoint(
+        rnStream: RNStreamIfc,
+        roundToGranularity: Boolean = true,
+    ): Map<String, Double> {
+        var count = 0
+        var inputMap: Map<String, Double>
+        do {
+            count++
+            check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
+            // generate the point
+            inputMap = randomPoint(rnStream, roundToGranularity)
+        } while (!isInputFeasible(inputMap))
+        return inputMap
     }
 
     companion object {
+
+        /**
+         *  The default maximum number of iterations for when sampling for a feasible input point
+         */
+        var defaultMaximumIterations = 10000
+            set(value) {
+                require(value >= 1) { "The default maximum number of iterations for sampling must be > 0" }
+                field = value
+            }
 
         /** Can be used to validate that the supplied names are valid for a problem definition
          *
