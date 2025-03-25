@@ -26,7 +26,7 @@ class FunctionalConstraint(
      *  @return the total value representing the left-hand side of the constraint
      */
     override fun computeLHS(values: Map<String, Double>): Double {
-        require(validate(values, validNames)) {"The names of the input variables should be valid names for the problem"}
+        require(ProblemDefinition.validate(values, validNames)) {"The names of the input variables should be valid names for the problem"}
         return lhsFunc.lhs(values) * inequalityFactor
     }
 
@@ -39,16 +39,6 @@ class FunctionalConstraint(
      */
     override fun isSatisfied(values: Map<String, Double>): Boolean {
         return computeLHS(values) < ltRHSValue
-    }
-
-    companion object {
-
-        fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
-            for ((name, _) in inputs) {
-                if (!names.contains(name)) return false
-            }
-            return true
-        }
     }
 
 }

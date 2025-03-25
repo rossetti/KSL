@@ -229,13 +229,10 @@ class ProblemDefinition(
         return map
     }
 
-    fun isInputFeasible(x: DoubleArray): Boolean {
-        val rdx = roundToGranularity(x)
-        val im = mapToInputNames(rdx)
-        return isInputFeasible(im)
-    }
-
-    private fun isInputRangeFeasible(inputs: Map<String, Double>): Boolean {
+    fun isInputRangeFeasible(inputs: Map<String, Double>): Boolean {
+        if (!validateNames(inputs)) {
+            return false
+        }
         // check input limits first
         for((name, value) in  inputs){
             // the name must be in the input definitions by construction
@@ -246,7 +243,10 @@ class ProblemDefinition(
         return true
     }
 
-    private fun isLinearConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+    fun isLinearConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+        if (!validateNames(inputs)) {
+            return false
+        }
         for(ic in myLinearConstraints){
             if (!ic.isSatisfied(inputs)){
                 return false
@@ -255,7 +255,10 @@ class ProblemDefinition(
         return true
     }
 
-    private fun isFunctionalConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+    fun isFunctionalConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+        if (!validateNames(inputs)) {
+            return false
+        }
         for(ic in myFunctionalConstraints){
             if (!ic.isSatisfied(inputs)){
                 return false
@@ -264,10 +267,26 @@ class ProblemDefinition(
         return true
     }
 
+    fun validateNames(inputs: Map<String, Double>) : Boolean {
+        return validate(inputs, inputNames)
+    }
+
+    /**
+     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  the defined input parameter ranges, the linear constraints, and the functional constraints.
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *  @return true if the inputs are input feasible
+     */
     fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
         require(inputs.size == myInputDefinitions.size) { "The size of the input map is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val im = roundToGranularity(inputs)
         return isInputRangeFeasible(im) && isLinearConstraintFeasible(im) && isFunctionalConstraintFeasible(im)
+    }
+
+    fun isInputFeasible(x: DoubleArray): Boolean {
+        val rdx = roundToGranularity(x)
+        val im = mapToInputNames(rdx)
+        return isInputFeasible(im)
     }
 
     fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>) : DoubleArray{
@@ -275,5 +294,17 @@ class ProblemDefinition(
         return DoubleArray(myLinearConstraints.size){ myLinearConstraints[it].computeLHS(inputs) }
     }
 
+    companion object {
 
+        /** Can be used to validate that the supplied names are valid for a problem definition
+         *
+         *  @return true if the key names in [inputs] all appear in the set [names]
+         */
+        fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
+            for ((name, _) in inputs) {
+                if (!names.contains(name)) return false
+            }
+            return true
+        }
+    }
 }
