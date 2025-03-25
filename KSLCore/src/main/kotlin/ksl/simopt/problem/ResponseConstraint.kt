@@ -2,6 +2,9 @@ package ksl.simopt.problem
 
 import kotlin.math.pow
 
+
+//TODO need to implement ConstraintIfc
+
 class ResponseConstraint(
     val name: String,
     var rhsValue: Double,

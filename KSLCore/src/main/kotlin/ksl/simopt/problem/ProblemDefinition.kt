@@ -49,6 +49,7 @@ class ProblemDefinition(
         for (name: String in responseNames) {
             require(name.isNotBlank()) { "A response name was blank" }
         }
+        require(!responseNames.contains(objFnResponseName)) { "The objective function response name cannot be within the set of response constraint names." }
     }
 
     private val myInputDefinitions = mutableMapOf<String, InputDefinition>()
@@ -60,6 +61,10 @@ class ProblemDefinition(
     private val myResponseConstraints = mutableListOf<ResponseConstraint>()
     val responseConstraints: List<ResponseConstraint>
         get() = myResponseConstraints.toList()
+
+    private val myFunctionalConstraints = mutableListOf<FunctionalConstraint>()
+    val functionalConstraints: List<FunctionalConstraint>
+        get() = myFunctionalConstraints.toList()
 
     val inputLowerBounds: DoubleArray
         get() = myInputDefinitions.values.map { it.lowerBound }.toDoubleArray()
@@ -132,11 +137,20 @@ class ProblemDefinition(
         violationPenalty: Double = 1000.0,
         violationExponent: Double = 2.0
     ): ResponseConstraint {
-        require(responseNames.isNotEmpty()) { "There were no supplied response names because the set was empty" }
         require(name in responseNames) { "The name $name does not exist in the response names" }
         val rc = ResponseConstraint(name, rhsValue, inequalityType, violationPenalty, violationExponent)
         myResponseConstraints.add(rc)
         return rc
+    }
+
+    fun functionalConstraint(
+        lhsFunc: ConstraintFunctionIfc,
+        rhsValue: Double = 0.0,
+        inequalityType: InequalityType = InequalityType.LESS_THAN
+    ): FunctionalConstraint {
+        val fc = FunctionalConstraint(inputNames, lhsFunc, rhsValue, inequalityType)
+        myFunctionalConstraints.add(fc)
+        return fc
     }
 
     /**
@@ -241,10 +255,19 @@ class ProblemDefinition(
         return true
     }
 
+    private fun isFunctionalConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+        for(ic in myFunctionalConstraints){
+            if (!ic.isSatisfied(inputs)){
+                return false
+            }
+        }
+        return true
+    }
+
     fun isInputFeasible(inputs: MutableMap<String, Double>): Boolean {
-        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        require(inputs.size == myInputDefinitions.size) { "The size of the input map is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val im = roundToGranularity(inputs)
-        return isInputRangeFeasible(im) && isLinearConstraintFeasible(im)
+        return isInputRangeFeasible(im) && isLinearConstraintFeasible(im) && isFunctionalConstraintFeasible(im)
     }
 
     fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>) : DoubleArray{

@@ -4,30 +4,30 @@ fun interface ConstraintFunctionIfc {
 
     fun lhs(inputs: Map<String, Double>): Double
 
-    fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
-        for ((name, _) in inputs) {
-            if (!names.contains(name)) return false
-        }
-        return true
-    }
 }
 
 class FunctionalConstraint(
+    val validNames: Set<String>,
     val lhsFunc: ConstraintFunctionIfc,
     override val rhsValue: Double = 0.0,
     override val inequalityType: InequalityType = InequalityType.LESS_THAN
 ) : ConstraintIfc {
+
+    init {
+        require(validNames.isNotEmpty()){"The set of valid names must not be empty"}
+    }
 
     /**
      *  Computes the value of the left-hand side of the constraint based on the
      *  supplied values for each input variable in the equation.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair.
-     *  The names must be in the equation.
-     *  @return the total value representing the left-hand side of the linear equation
+     *  The names must be valid names for the equation.
+     *  @return the total value representing the left-hand side of the constraint
      */
     override fun computeLHS(values: Map<String, Double>): Double {
-        return lhsFunc.lhs(values)
+        require(validate(values, validNames)) {"The names of the input variables should be valid names for the problem"}
+        return lhsFunc.lhs(values) * inequalityFactor
     }
 
     /**
@@ -39,6 +39,16 @@ class FunctionalConstraint(
      */
     override fun isSatisfied(values: Map<String, Double>): Boolean {
         return computeLHS(values) < ltRHSValue
+    }
+
+    companion object {
+
+        fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
+            for ((name, _) in inputs) {
+                if (!names.contains(name)) return false
+            }
+            return true
+        }
     }
 
 }
