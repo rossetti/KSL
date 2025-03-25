@@ -2,9 +2,6 @@ package ksl.simopt.problem
 
 import kotlin.math.pow
 
-
-//TODO need to implement ConstraintIfc
-
 class ResponseConstraint(
     val name: String,
     var rhsValue: Double,
@@ -39,6 +36,8 @@ class ResponseConstraint(
         return inequalityFactor * (rhsValue - v)
     }
 
+    //TODO need to think about violations and penalties
+    
     fun violation(v: Double): Double {
         return maxOf(0.0, -slack(v))
     }
