@@ -73,16 +73,16 @@ class ProblemDefinition(
         get() = myInputDefinitions.values.map { it.upperBound }.toDoubleArray()
 
     val inputIntervals: List<Interval>
-        get() = myInputDefinitions.values.map{it.interval}.toList()
+        get() = myInputDefinitions.values.map { it.interval }.toList()
 
     val inputMidPoints: DoubleArray
-        get() = myInputDefinitions.values.map{it.interval.midPoint}.toDoubleArray()
+        get() = myInputDefinitions.values.map { it.interval.midPoint }.toDoubleArray()
 
     val inputRanges: DoubleArray
-        get() = myInputDefinitions.values.map{it.interval.width}.toDoubleArray()
+        get() = myInputDefinitions.values.map { it.interval.width }.toDoubleArray()
 
     val inputGranularities: DoubleArray
-        get() = myInputDefinitions.values.map{it.granularity}.toDoubleArray()
+        get() = myInputDefinitions.values.map { it.granularity }.toDoubleArray()
 
     val inputSize: Int
         get() = myInputDefinitions.values.size
@@ -93,19 +93,35 @@ class ProblemDefinition(
             field = value
         }
 
-    fun input(name: String, lowerBound: Double, upperBound: Double, granularity: Double = 0.0): InputDefinition {
+    /**
+     *  Defines an input variable for the problem. The order of specification of the input variables
+     *  defines the order when interpreting an array of inputs.
+     *
+     *  @param name the name of the input variable. Must be in the set of names supplied when the problem was created.
+     *  @param lowerBound the lower bound on the range of the input variable. Must be less than the upper bound.
+     *  Must be finite.
+     *  @param upperBound the upper bound on the range of the input variable. Must be greater than the lower bound.
+     *  Must be finite.
+     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]
+     */
+    fun inputVariable(
+        name: String,
+        lowerBound: Double,
+        upperBound: Double,
+        granularity: Double = 0.0
+    ): InputDefinition {
         require(name in inputNames) { "The name $name does not exist in the named inputs" }
         val inputData = InputDefinition(name, lowerBound, upperBound, granularity)
         myInputDefinitions[name] = inputData
         return inputData
     }
 
-    fun input(name: String, interval: Interval, granularity: Double = 0.0): InputDefinition {
-        return input(name, interval.lowerLimit, interval.upperLimit, granularity)
+    fun inputVariable(name: String, interval: Interval, granularity: Double = 0.0): InputDefinition {
+        return inputVariable(name, interval.lowerLimit, interval.upperLimit, granularity)
     }
 
     /**
-     *  Creates an InputConstraint based on the supplied linear equation as specified by the map.
+     *  Creates an [LinearConstraint] based on the supplied linear equation as specified by the map.
      *  The names in the map must be valid input names.  If an input name does not exist in the map,
      *  then the coefficient for that variable is assumed to be 0.0.
      *  @param equation the pair (name, value) represents the input name and the coefficient value in the linear
@@ -113,23 +129,34 @@ class ProblemDefinition(
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than)
      */
-    fun inputConstraint(
+    fun linearConstraint(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
         inequalityType: InequalityType = InequalityType.LESS_THAN
     ): LinearConstraint {
-        for ((name, value) in equation) {
+        for ((name, _) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
         }
         val eqMap = mutableMapOf<String, Double>()
-        for(name: String in inputNames) {
-            eqMap[name] = equation[name]?:0.0
+        for (name: String in inputNames) {
+            eqMap[name] = equation[name] ?: 0.0
         }
         val ic = LinearConstraint(eqMap, rhsValue, inequalityType)
         myLinearConstraints.add(ic)
         return ic
     }
 
+    /**
+     *  Creates an [ResponseConstraint] based on the supplied response name and right-hand side value.
+
+     *  @param name the name of the response. Must be a pre-defined response name that is associated with
+     *  the problem definition
+     *  @param rhsValue the right-hand side of the constraint
+     *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
+     *  @param violationPenalty the penalty to be applied to a violation of the constraint. The default is 1000.0.
+     *  @param violationExponent the exponent associated with the penalty.
+     *  @return the constructed response constraint
+     */
     fun responseConstraint(
         name: String,
         rhsValue: Double,
@@ -143,6 +170,14 @@ class ProblemDefinition(
         return rc
     }
 
+    /**
+     *  Creates an [FunctionalConstraint] based on the supplied function.
+
+     *  @param lhsFunc the function representing the left-hand side of the constraint
+     *  @param rhsValue the right-hand side of the constraint
+     *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
+     *  @return the constructed functional constraint
+     */
     fun functionalConstraint(
         lhsFunc: ConstraintFunctionIfc,
         rhsValue: Double = 0.0,
@@ -155,11 +190,12 @@ class ProblemDefinition(
 
     /**
      *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
-     *  A*x < b, then this function returns the A matrix.
+     *  A*x < b or A*x > b, then this function returns the A matrix. The coefficients have
+     *  not been adjusted for the direction of the constraints.
      */
     fun linearConstraintMatrix(): Array<DoubleArray> {
         val array = mutableListOf<DoubleArray>()
-        for (constraint in myLinearConstraints){
+        for (constraint in myLinearConstraints) {
             array.add(constraint.coefficients)
         }
         return array.toTypedArray()
@@ -167,21 +203,65 @@ class ProblemDefinition(
 
     /**
      *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
-     *  A*x < b, then this function returns the b vector.
+     *  A*x < b, then this function returns the A matrix. The coefficients have
+     *  been adjusted to ensure a less-than orientation for the constraints.
      */
-    fun linearConstraintsRHS() : DoubleArray {
+    fun linearConstraintAdjustedMatrix(): Array<DoubleArray> {
+        val array = mutableListOf<DoubleArray>()
+        for (constraint in myLinearConstraints) {
+            array.add(constraint.adjustedCoefficients)
+        }
+        return array.toTypedArray()
+    }
+
+    /**
+     *  Returns the adjusted left-hand side values for each constraint. Make the adjustment
+     *  such that the constraint is considered less-than orientation.
+     *
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *  @return the left-hand side values for each constraint.
+     */
+    fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>): DoubleArray {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return DoubleArray(myLinearConstraints.size) { myLinearConstraints[it].computeLHS(inputs) }
+    }
+
+    /**
+     *  Assume we have the constraint, A*x < b or A*x > b, then this function returns the b vector. The values have not
+     *  been adjusted for the direction of the constraint.
+     */
+    fun linearConstraintsRHS(): DoubleArray {
         return myLinearConstraints.map { it.rhsValue }.toDoubleArray()
     }
 
-    fun responseConstraintsRHS() : DoubleArray {
+    /**
+     *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
+     *  A*x < b or A*x > b, then this function returns the b vector. The values have
+     *  been adjusted for the direction of the constraint.
+     */
+    fun linearConstraintsAdjustedRHS(): DoubleArray {
+        return myLinearConstraints.map { it.ltRHSValue }.toDoubleArray()
+    }
+
+    /**
+     *  Returns the unadjusted right-hand side values for the response constraints.
+     */
+    fun responseConstraintsRHS(): DoubleArray {
         return myResponseConstraints.map { it.rhsValue }.toDoubleArray()
     }
 
-    fun responseConstraintsPenalties() : DoubleArray {
+    /**
+     *  Returns the adjusted right-hand side values for the response constraints.
+     */
+    fun responseConstraintsAdjustedRHS(): DoubleArray {
+        return myResponseConstraints.map { it.ltRHSValue }.toDoubleArray()
+    }
+
+    fun responseConstraintsPenalties(): DoubleArray {
         return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
 
-    fun setResponseConstraintPenalties(penalty: Double)  {
+    fun setResponseConstraintPenalties(penalty: Double) {
         myResponseConstraints.forEach { it.violationPenalty = penalty }
     }
 
@@ -192,9 +272,9 @@ class ProblemDefinition(
      *  same order as the names are defined for the problem
      *  @return the returned array is the same array as the input array but mutated. It is return for convenience.
      */
-    fun roundToGranularity(x: DoubleArray) :DoubleArray {
+    fun roundToGranularity(x: DoubleArray): DoubleArray {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
-        for((i, inputDefinition) in myInputDefinitions.values.withIndex()){
+        for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
             x[i] = inputDefinition.roundToGranularity(x[i])
         }
         return x
@@ -207,10 +287,10 @@ class ProblemDefinition(
      *  input names.
      *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
      */
-    fun roundToGranularity(map: MutableMap<String, Double>) : MutableMap<String, Double>{
+    fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
-        for((name, inputDefinition) in myInputDefinitions){
-            require(name in map) {"The input name $name does not exist in the map"}
+        for ((name, inputDefinition) in myInputDefinitions) {
+            require(name in map) { "The input name $name does not exist in the map" }
             map[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
         return map
@@ -220,54 +300,80 @@ class ProblemDefinition(
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
      */
-    fun mapToInputNames(x: DoubleArray) : MutableMap<String, Double>{
+    fun mapToInputNames(x: DoubleArray): MutableMap<String, Double> {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val map = mutableMapOf<String, Double>()
-        for((i, inputDefinition) in myInputDefinitions.values.withIndex()){
+        for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
             map[inputDefinition.name] = x[i]
         }
         return map
     }
 
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within the ranges defined for the variables.
+     *  False will be returned if at least one input variable is not within its defined range.
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *   @return true if the inputs are input feasible
+     */
     fun isInputRangeFeasible(inputs: Map<String, Double>): Boolean {
         if (!validateNames(inputs)) {
             return false
         }
         // check input limits first
-        for((name, value) in  inputs){
+        for ((name, value) in inputs) {
             // the name must be in the input definitions by construction
-            if (!myInputDefinitions[name]!!.contains(value)){
+            if (!myInputDefinitions[name]!!.contains(value)) {
                 return false
             }
         }
         return true
     }
 
-    fun isLinearConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within linear constraints.
+     *  False will be returned if at least one linear constraint is infeasible.
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *   @return true if the inputs are feasible
+     */
+    fun isLinearConstraintFeasible(inputs: Map<String, Double>): Boolean {
         if (!validateNames(inputs)) {
             return false
         }
-        for(ic in myLinearConstraints){
-            if (!ic.isSatisfied(inputs)){
+        for (ic in myLinearConstraints) {
+            if (!ic.isSatisfied(inputs)) {
                 return false
             }
         }
         return true
     }
 
-    fun isFunctionalConstraintFeasible(inputs: Map<String, Double>) : Boolean {
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within functional constraints.
+     *  False will be returned if at least one functional constraint is infeasible.
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *   @return true if the inputs are feasible
+     */
+    fun isFunctionalConstraintFeasible(inputs: Map<String, Double>): Boolean {
         if (!validateNames(inputs)) {
             return false
         }
-        for(ic in myFunctionalConstraints){
-            if (!ic.isSatisfied(inputs)){
+        for (ic in myFunctionalConstraints) {
+            if (!ic.isSatisfied(inputs)) {
                 return false
             }
         }
         return true
     }
 
-    fun validateNames(inputs: Map<String, Double>) : Boolean {
+    /**
+     *  Checks if the names in the map are valid for the problem definition
+     *  @param inputs the input values as a map containing the (name, value) of the inputs
+     *  @return ture if all names are valid
+     */
+    fun validateNames(inputs: Map<String, Double>): Boolean {
         return validate(inputs, inputNames)
     }
 
@@ -283,15 +389,16 @@ class ProblemDefinition(
         return isInputRangeFeasible(im) && isLinearConstraintFeasible(im) && isFunctionalConstraintFeasible(im)
     }
 
+    /**
+     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  the defined input parameter ranges, the linear constraints, and the functional constraints.
+     *  @param x the input values as an array. The order is used to interpret the name.
+     *  @return true if the inputs are input feasible
+     */
     fun isInputFeasible(x: DoubleArray): Boolean {
         val rdx = roundToGranularity(x)
         val im = mapToInputNames(rdx)
         return isInputFeasible(im)
-    }
-
-    fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>) : DoubleArray{
-        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
-        return DoubleArray(myLinearConstraints.size){ myLinearConstraints[it].computeLHS(inputs) }
     }
 
     companion object {

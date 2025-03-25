@@ -286,6 +286,58 @@ object KSLMath {
     }
 
     /**
+     * Contributed by Andrew Gibson
+     * round a scalar double to a multiple of granularity
+     * note that 0 a  granularity value is interpreted as "no rounding"
+     *
+     * Granularity represents the finest division of the measurement scale.
+     * For example, a 12-inch rule that has inches divided into 4 quarters has
+     * a granularity of 1/4 or 0.25. The function rounds the supplied double
+     * to the nearest multiple of the granularity.
+     *
+     * For example,
+     *
+     * mround(3.1459, granularity = 0.25) = 3.25
+     * mround(3.0459, granularity = 0.25) = 3.0
+     *
+     * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
+     * for further information.
+     *
+     * @param x           - input
+     * @param granularity a scalar Double
+     * @return x rounded to granularity
+     */
+    fun mround(x: Double, granularity: Double): Double {
+        // interpret 0 and null  granularity as "no rounding"
+        return if (granularity.compareTo(0.0) < 1) {
+            x
+        } else {
+            /*
+                  Math.round converts to a Long internally and where granularity is tiny compared
+                  to x, x/granularity could cause an overflow and instability in the calculation
+                   e.g. Math.round(1E50 / (1E-50))*1E-50 = 99.223372036854776E-32 !!
+
+                  the biggest Long is Math.pow(2^63) - 1
+                  We certainly don't want to overflow that but 2^63 - 1 has 19 significant figures
+                  (more than a double can represent 2^53 - 1)
+                  we want (x/prec) < (2^63 - 1) to avoid overflow
+                   - work with 2^50 , any rounding beyond that is pointless)
+                   - note that Math.log uses base 10 AND
+                       - log(x, base = 2) = log(x, base = 10)/ log(2, base = 10)
+                       - which lets us derive the formula below
+                  */
+            if (ln(x) - ln(granularity) > 50.0 * ln(2.0)) {
+                // not worth rounding to such a small degree or risking overflow
+                // in conversion to Long
+                x
+            } else {
+                // go ahead and round it !
+                (x / granularity).roundToInt() * granularity
+            }
+        }
+    }
+
+    /**
      * Get the sign of the number based on the equal() method Equal is 0.0,
      * positive is 1.0, negative is -1.0
      *

@@ -1,5 +1,7 @@
 package ksl.simopt.problem
 
+import ksl.utilities.multiplyConstant
+
 
 interface ConstraintIfc {
 
@@ -98,6 +100,13 @@ data class LinearConstraint(
         get() = equation.values.toDoubleArray()
 
     /**
+     *  The coefficients associated with each input variable name within the equation.
+     *  These are adjusted for the direction of the inequality to ensure an A*x < b orientation.
+     */
+    val adjustedCoefficients: DoubleArray
+        get() = equation.values.toDoubleArray().multiplyConstant(inequalityFactor)
+
+    /**
      *  @param name the name of the variable within the linear constraint
      *  @return the value of the coefficient for the variable or 0.0 if the variable does not
      *  appear in the equation
@@ -108,7 +117,8 @@ data class LinearConstraint(
 
     /**
      *  Computes the value of the left-hand side of the constraint based on the
-     *  supplied values for each input variable in the equation.
+     *  supplied values for each input variable in the equation.  The returned value
+     *  has been adjusted to ensure a less-than constraint orientation.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair.
      *  The names must be in the equation.
@@ -128,7 +138,8 @@ data class LinearConstraint(
     /**
      *  Computes the value of the left-hand side of the constraint based on the
      *  supplied values for each input variable in the equation. Assumes that the values
-     *  are ordered in the same order as the input names
+     *  are ordered in the same order as the input names. The returned value
+     *  has been adjusted to ensure a less-than constraint orientation.
      *
      *  @param values the list containing the input variable value for each input variable name
      *  in the order in which the names are in the equation.

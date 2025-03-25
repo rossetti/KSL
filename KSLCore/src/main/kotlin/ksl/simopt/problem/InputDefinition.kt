@@ -2,6 +2,7 @@ package ksl.simopt.problem
 
 import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
+import ksl.utilities.math.KSLMath
 
 /**
  *  Represents the definition of an input variable for a ProblemDefinition.
@@ -67,7 +68,7 @@ class InputDefinition(
      *  @return the rounded value
      */
     fun roundToGranularity(x: Double): Double {
-        return KSLArrays.mround(x, granularity)
+        return KSLMath.mround(x, granularity)
     }
 
 }
