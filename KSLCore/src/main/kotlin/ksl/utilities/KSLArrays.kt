@@ -1999,9 +1999,22 @@ object KSLArrays {
     }
 
     /**
-     * contributed by Andrew Gibson
+     * Contributed by Andrew Gibson
      * round a scalar double to a multiple of granularity
      * note that 0 a  granularity value is interpreted as "no rounding"
+     *
+     * Granularity represents the finest division of the measurement scale.
+     * For example, a 12-inch rule that has inches divided into 4 quarters has
+     * a granularity of 1/4 or 0.25. The function rounds the supplied double
+     * to the nearest multiple of the granularity.
+     *
+     * For example,
+     *
+     * mround(3.1459, granularity = 0.25) = 3.25
+     * mround(3.0459, granularity = 0.25) = 3.0
+     *
+     * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
+     * for further information.
      *
      * @param x           - input
      * @param granularity a scalar Double
@@ -2014,11 +2027,11 @@ object KSLArrays {
         } else {
             /*
                   Math.round converts to a Long internally and where granularity is tiny compared
-                  to x, x/granularity could cause an overlow and instability in the calculation
+                  to x, x/granularity could cause an overflow and instability in the calculation
                    e.g. Math.round(1E50 / (1E-50))*1E-50 = 99.223372036854776E-32 !!
 
                   the biggest Long is Math.pow(2^63) - 1
-                  We certainly don't want to overlflow that but 2^63 - 1 has 19 significant figures
+                  We certainly don't want to overflow that but 2^63 - 1 has 19 significant figures
                   (more than a double can represent 2^53 - 1)
                   we want (x/prec) < (2^63 - 1) to avoid overflow
                    - work with 2^50 , any rounding beyond that is pointless)
@@ -2042,6 +2055,18 @@ object KSLArrays {
      * round a 1D array x to a multiple of a scalar granularity value
      * note that 0 or null granularity values are interpreted as "no rounding"
      *
+     * Granularity represents the finest division of the measurement scale.
+     * For example, a 12-inch rule that has inches divided into 4 quarters has
+     * a granularity of 1/4 or 0.25. The function rounds the supplied double
+     * to the nearest multiple of the granularity.
+     *
+     * For example,
+     *
+     * mround(3.1459, granularity = 0.25) = 3.25
+     * mround(3.0459, granularity = 0.25) = 3.0
+     *
+     * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
+     * for further information.
      * @param x           - input[]
      * @param granularity - Double
      * @return - 1D array the same size as x
