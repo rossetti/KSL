@@ -63,42 +63,95 @@ class ProblemDefinition(
         streamNum: Int
     ) : this(objFnResponseName, inputNames, responseNames, KSLRandom.rnStream(streamNum))
 
+    /**
+     *  Can be supplied to provide a method for specifying a feasible starting point.
+     *  The default is to randomly generate a starting point
+     */
     var startingPointGenerator: StartingPointIfc? = null
 
     private val myInputDefinitions = mutableMapOf<String, InputDefinition>()
-    val inputs: List<InputDefinition>
+
+    /**
+     *  The input definitions for the problem as a list
+     */
+    val inputDefinitions: List<InputDefinition>
         get() = myInputDefinitions.values.toList()
+
     private val myLinearConstraints = mutableListOf<LinearConstraint>()
+
+    /**
+     *  The linear constraints for the problem as a list
+     */
     val linearConstraints: List<LinearConstraint>
         get() = myLinearConstraints.toList()
+
     private val myResponseConstraints = mutableListOf<ResponseConstraint>()
+
+    /**
+     *  The response constraints as a list
+     */
     val responseConstraints: List<ResponseConstraint>
         get() = myResponseConstraints.toList()
+
     private val myFunctionalConstraints = mutableListOf<FunctionalConstraint>()
+
+    /**
+     *  The functional constraints for the problem as a list
+     */
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
 
+    /**
+     * The lower bounds for each input variable
+     */
     val inputLowerBounds: DoubleArray
         get() = myInputDefinitions.values.map { it.lowerBound }.toDoubleArray()
 
+    /**
+     *  The upper bounds for each input variable
+     */
     val inputUpperBounds: DoubleArray
         get() = myInputDefinitions.values.map { it.upperBound }.toDoubleArray()
 
+    /**
+     *  The intervals for each input variable
+     */
     val inputIntervals: List<Interval>
         get() = myInputDefinitions.values.map { it.interval }.toList()
 
+    /**
+     *  The mid-point of each input variable's range
+     */
     val inputMidPoints: DoubleArray
         get() = myInputDefinitions.values.map { it.interval.midPoint }.toDoubleArray()
 
+    /**
+     *  The mid-point of each input variable's range as an input map
+     */
+    val midPoints: MutableMap<String, Double>
+        get() = myInputDefinitions.values.associate { it.midPoint }.toMutableMap()
+
+    /**
+     *  The range (width) of each input variable's interval
+     */
     val inputRanges: DoubleArray
         get() = myInputDefinitions.values.map { it.interval.width }.toDoubleArray()
 
+    /**
+     *  The granularities associated with each input variable as an array
+     */
     val inputGranularities: DoubleArray
         get() = myInputDefinitions.values.map { it.granularity }.toDoubleArray()
 
+    /**
+     *  The number of input variables
+     */
     val inputSize: Int
         get() = myInputDefinitions.values.size
 
+    /**
+     * The maximum number of iterations when sampling for an input feasible point
+     */
     var maxIterations = defaultMaximumIterations
         set(value) {
             require(value > 0) { "The maximum number of samples is $value, must be > 0" }
@@ -114,7 +167,8 @@ class ProblemDefinition(
      *  Must be finite.
      *  @param upperBound the upper bound on the range of the input variable. Must be greater than the lower bound.
      *  Must be finite.
-     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]
+     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
+     *  default is 0.0
      */
     fun inputVariable(
         name: String,
@@ -128,6 +182,15 @@ class ProblemDefinition(
         return inputData
     }
 
+    /**
+     *  Defines an input variable for the problem. The order of specification of the input variables
+     *  defines the order when interpreting an array of inputs.
+     *
+     *  @param name the name of the input variable. Must be in the set of names supplied when the problem was created.
+     *  @param interval the interval containing the variable
+     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
+     *  default is 0.0
+     */
     fun inputVariable(name: String, interval: Interval, granularity: Double = 0.0): InputDefinition {
         return inputVariable(name, interval.lowerLimit, interval.upperLimit, granularity)
     }
@@ -269,10 +332,16 @@ class ProblemDefinition(
         return myResponseConstraints.map { it.ltRHSValue }.toDoubleArray()
     }
 
+    /**
+     *  Returns the penalties for the response constraints.
+     */
     fun responseConstraintsPenalties(): DoubleArray {
         return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
 
+    /**
+     *  Sets the penalties for each response constraint to the supplied value.
+     */
     fun setResponseConstraintPenalties(penalty: Double) {
         myResponseConstraints.forEach { it.violationPenalty = penalty }
     }
@@ -458,8 +527,10 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the starting point
      */
-    fun startingPoint(roundToGranularity: Boolean = true) : Map<String, Double> {
-        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasiblePoint(roundToGranularity)
+    fun startingPoint(roundToGranularity: Boolean = true): Map<String, Double> {
+        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasiblePoint(
+            roundToGranularity
+        )
     }
 
     companion object {

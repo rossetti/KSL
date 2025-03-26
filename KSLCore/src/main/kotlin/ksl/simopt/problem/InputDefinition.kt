@@ -53,6 +53,8 @@ class InputDefinition(
             field = value
         }
 
+    val midPoint: Pair<String, Double> = Pair(name, (lowerBound + upperBound)/2.0)
+
     /**
      *
      * @param x the value to check
