@@ -391,6 +391,17 @@ class ProblemDefinition(
     }
 
     /**
+     *  Translates the supplied array to named input pairs (name, value).
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *
+     *  @return the array as an InputMap
+     */
+    fun toInputMap(x: DoubleArray) : InputMap {
+        val map = mapToInputNames(x)
+        return InputMap(map)
+    }
+
+    /**
      *  Interprets the supplied map as inputs for the problem definition and
      *  returns true if the values are within the ranges defined for the variables.
      *  False will be returned if at least one input variable is not within its defined range.
