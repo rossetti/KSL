@@ -2,7 +2,6 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.ProblemDefinition
-import java.util.function.Consumer
 
 abstract class Evaluator(
     val problemDefinition: ProblemDefinition,
