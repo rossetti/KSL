@@ -3,17 +3,52 @@ package ksl.simopt.evaluator
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.ProblemDefinition
 
-abstract class Evaluator(
+/**
+ *  A functional interface that promises to convert a list of requests for evaluation
+ *  into responses associated with the requests. Used within [Evaluator] to
+ *  communicated with the simulation oracle.
+ */
+fun interface ResponseProviderIfc {
+
+    /**
+     * Promises to convert evaluation requests into responses.
+     *
+     * @param requests - a list of requests to evaluate
+     * @return - a map containing responses for each request evaluated
+     */
+    fun provideResponses(
+        requests: List<EvaluationRequest>
+    ) : Map<EvaluationRequest, ResponseMap>
+
+}
+
+/**
+ *  An evaluator should communicate with the simulation oracle to determine
+ *  solutions for requests for evaluation from solvers.
+ *
+ *  @param problemDefinition the problem that the evaluation of responses will be used on
+ *  @param responseProvider the provider of responses from the simulation oracle
+ *  @param cache a cache that can be used instead of a costly simulation evaluation
+ *  @param replicationBudget the maximum number of direct replications permitted by the evaluator.
+ *  The default is Int.MAX_VALUE. This can be used to control the total number of evaluation.
+ */
+class Evaluator(
     val problemDefinition: ProblemDefinition,
-    val cache: SolutionCacheIfc? = null
+    private val responseProvider: ResponseProviderIfc,
+    val cache: SolutionCacheIfc? = null,
+    replicationBudget: Int = Int.MAX_VALUE
 ) {
+    init {
+        require(replicationBudget >= 1) {"The number of budgeted replications must be >= 1"}
+    }
 
     // the budget (in terms of number of evaluations)
-    var maxReplicationBudget: Int = Int.MAX_VALUE
+    var maxReplicationBudget: Int = replicationBudget
         set(value){
             require(value >= 1) {"The number of budgeted replications must be >= 1"}
             field = value
         }
+
     // the total number of batches evaluated
     var numBatches: Int = 0
         protected set
@@ -39,10 +74,18 @@ abstract class Evaluator(
     var numCachedReplications: Int = 0
         protected set
 
+    /**
+     *  Indicates if the number of replications budgeted has been exceeded or not.
+     */
     val hasRemainingReplications: Boolean
         get() = numDirectReplications < maxReplicationBudget
 
-    fun resetStatistics() {
+    /**
+     *  The evaluator collects some basic counts (statistics) on its evaluations.
+     *  This function resets all counters to 0, perhaps in preparation for another
+     *  evaluation run.
+     */
+    fun resetEvaluationCounts() {
         numBatches = 0
         numRequests = 0
         numReplications = 0
@@ -53,20 +96,12 @@ abstract class Evaluator(
         numCachedReplications = 0
     }
 
-    /**
-     * Required method in Evaluator subclasses to evaluate responses from list of requests.
-     *
-     * @param requests - a list of requests to evaluate
-     * @return - a map containing responses for each request evaluated
-     */
-    protected abstract fun evaluateResponses(requests: List<EvaluationRequest>) : Map<EvaluationRequest, ResponseMap>
-
     fun evaluate(requests: List<EvaluationRequest>) : List<Solution> {
         TODO("Not implemented yet")
     }
 
     /**
-     * Make sure we do NOT evaluate duplicate inputs within the batch
+     * Make sure we do not evaluate duplicate inputs within the batch
      * where multiple requests for the same design vector are made but for different
      * numbers of replications the larger replication number is chosen.
      * @param requests a list of evaluation requests
