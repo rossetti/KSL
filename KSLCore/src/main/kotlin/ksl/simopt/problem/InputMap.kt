@@ -1,6 +1,6 @@
 package ksl.simopt.problem
 
-class InputMap(private val map: MutableMap<String, Double>) : Map<String, Double> by map {
+open class InputMap(private val map: MutableMap<String, Double>) : Map<String, Double> by map {
 
     operator fun set(key: String, value: Double) {
         require(map.containsKey(key)) {"The key ($key) is not in the map!"}
@@ -22,6 +22,6 @@ class InputMap(private val map: MutableMap<String, Double>) : Map<String, Double
 
     val names: List<String> = map.keys.toList()
 
-    val points: DoubleArray
+    val inputValues: DoubleArray
         get() = map.values.toDoubleArray()
 }

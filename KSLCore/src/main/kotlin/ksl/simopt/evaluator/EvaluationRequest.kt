@@ -1,4 +1,6 @@
 package ksl.simopt.evaluator
 
-class EvaluationRequest {
+class EvaluationRequest(
+
+) {
 }
