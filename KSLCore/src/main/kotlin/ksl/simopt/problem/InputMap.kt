@@ -4,7 +4,7 @@ package ksl.simopt.problem
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
  *  This class prevents the keys from changing, but allows the changing of
  *  the data value associated with the keys.
- *  
+ *
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process.
  */

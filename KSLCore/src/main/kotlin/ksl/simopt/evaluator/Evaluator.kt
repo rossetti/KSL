@@ -100,7 +100,7 @@ class Evaluator(
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
         // round the requests to the appropriate granularity for the problem
-        roundRequestToGranularity(requests)
+        roundRequestsToGranularity(requests)
         // filter out the duplicate requests
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
@@ -117,7 +117,7 @@ class Evaluator(
         TODO("Not implemented yet")
     }
 
-    private fun roundRequestToGranularity(requests: List<EvaluationRequest>){
+    private fun roundRequestsToGranularity(requests: List<EvaluationRequest>){
         for(request in requests){
             problemDefinition.roundToGranularity(request.inputMap)
         }
