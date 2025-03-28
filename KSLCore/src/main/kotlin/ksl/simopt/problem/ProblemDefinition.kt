@@ -79,14 +79,14 @@ class ProblemDefinition(
 
     /** Returns a new empty response map to hold the responses associated with the problem
      */
-    fun createResponseMap() : ResponseMap {
-            val names = allResponseNames
-            val map = mutableMapOf<String, MutableList<Double>>()
-            for(name in names){
-                map[name] = mutableListOf()
-            }
-            return ResponseMap(map)
+    fun createResponseMap(): ResponseMap {
+        val names = allResponseNames
+        val map = mutableMapOf<String, MutableList<Double>>()
+        for (name in names) {
+            map[name] = mutableListOf()
         }
+        return ResponseMap(map)
+    }
 
     /**
      *  Can be supplied to provide a method for specifying a feasible starting point.
@@ -420,8 +420,8 @@ class ProblemDefinition(
      *  containing name, value pairs for this problem
      *  @param map the map to wrap. The keys of the
      */
-    fun toInputMap(map:MutableMap<String, Double>): InputMap {
-        require(validateNames(map)) {"The names in the supplied map do not match the required names of the problem"}
+    fun toInputMap(map: MutableMap<String, Double>): InputMap {
+        require(validateNames(map)) { "The names in the supplied map do not match the required names of the problem" }
         return InputMap(map)
     }
 
@@ -584,7 +584,7 @@ class ProblemDefinition(
          *  @return true if the key names in [inputs] all appear in the set [names]
          */
         fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
-            require(inputs.size == names.size) {"The size of the map and set are incompatible."}
+            require(inputs.size == names.size) { "The size of the map and set are incompatible." }
             for ((name, _) in inputs) {
                 if (!names.contains(name)) return false
             }
