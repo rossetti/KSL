@@ -2,8 +2,19 @@ package ksl.simopt.problem
 
 import kotlin.math.pow
 
+/**
+ *  A response constraint represents a general constrain of the form E[G(x)] < c or E[G(x)] > c
+ *  where G(x) is some response from the model that is a function of the model inputs.
+ *
+ *  @param responseName the name of the response in the model
+ *  @param rhsValue the right-hand side value
+ *  @param inequalityType the type of inequality (less-than or greater-than)
+ *  @param violationPenalty the base penalty to apply to violating the constraint. The
+ *  default is 1000.0
+ *  @param violationExponent the exponent used to magnify the penalty. The default is 2.0.
+ */
 class ResponseConstraint(
-    val name: String,
+    val responseName: String,
     var rhsValue: Double,
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     violationPenalty: Double = 1000.0,
@@ -12,7 +23,7 @@ class ResponseConstraint(
     init {
         require(violationPenalty >= 0.0) { "The violationPenalty must be >= 0.0" }
         require(violationExponent >= 1.0) { "The violationExponent must be >= 1.0" }
-        require(name.isNotBlank()) { "The response name cannot be blank" }
+        require(responseName.isNotBlank()) { "The response name cannot be blank" }
     }
 
     var violationPenalty: Double = violationPenalty

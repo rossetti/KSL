@@ -1,5 +1,6 @@
 package ksl.simopt.problem
 
+import ksl.simopt.evaluator.ResponseMap
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -62,6 +63,30 @@ class ProblemDefinition(
         responseNames: Set<String> = emptySet(),
         streamNum: Int
     ) : this(objFnResponseName, inputNames, responseNames, KSLRandom.rnStream(streamNum))
+
+    /**
+     *  Returns a list of the names of all the responses referenced in the problem
+     *  in the order in which they are specified in the problem creation.
+     *  The first name will be the name of the response associated with the objective
+     *  function, then each response name from the provided set of response names.
+     */
+    val allResponseNames: List<String>
+        get() {
+            val list = mutableListOf(objFnResponseName)
+            list.addAll(responseNames)
+            return list
+        }
+
+    /** Returns a new empty response map to hold the responses associated with the problem
+     */
+    fun createResponseMap() : ResponseMap {
+            val names = allResponseNames
+            val map = mutableMapOf<String, MutableList<Double>>()
+            for(name in names){
+                map[name] = mutableListOf()
+            }
+            return ResponseMap(map)
+        }
 
     /**
      *  Can be supplied to provide a method for specifying a feasible starting point.
