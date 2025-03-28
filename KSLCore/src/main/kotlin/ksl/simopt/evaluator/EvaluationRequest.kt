@@ -19,6 +19,19 @@ class EvaluationRequest(
         require(numReps >= 1) {"The number of replications must be >= 1"}
     }
 
+    /**
+     *  Since requests may cover portions of an experiment that has multiple replication,
+     *  the starting replication number may be some number between 1 and the total
+     *  number of replications in the experiment. The chunking process may
+     *  set the starting replication number to the starting replication of the chunk
+     *  of replications.
+     */
+    var startingReplicationNum: Int = 1
+        set(value) {
+            require(value >= 1) {"The starting replication number must be >= 1"}
+            field = value
+        }
+
     var numReplications: Int = numReps
         set(value) {
             require(value >= 1) {"The number of replications must be >= 1"}

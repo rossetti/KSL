@@ -50,22 +50,22 @@ class Evaluator(
         }
 
     // the total number of batches evaluated
-    var numBatches: Int = 0
+    var totalEvaluations: Int = 0
+        protected set
+    // the number of evaluations with a direct component
+    var totalDirectEvaluations = 0
+        protected set
+    // the number of evaluations with a cached component
+    var totalCachedEvaluations = 0
         protected set
     // the total number of evaluations
-    var numRequests: Int = 0
+    var totalRequestsReceived: Int = 0
+        protected set
+    // the number of evaluations that were avoided as duplicates within a batch
+    var totalDuplicateRequestReceived: Int = 0
         protected set
     // the total number of replications
     var numReplications: Int = 0
-        protected set
-    // the number of evaluations that were avoided as duplicates within a batch
-    var numDuplicateRequestsInBatch: Int = 0
-        protected set
-    // the number of evaluations with a direct component
-    var numDirectEvaluations = 0
-        protected set
-    // the number of evaluations with a cached component
-    var numCachedEvaluations = 0
         protected set
     // the number of evaluation replications that did not come from the cache
     var numDirectReplications: Int = 0
@@ -86,18 +86,41 @@ class Evaluator(
      *  evaluation run.
      */
     fun resetEvaluationCounts() {
-        numBatches = 0
-        numRequests = 0
+        totalEvaluations = 0
+        totalDirectEvaluations = 0
+        totalCachedEvaluations = 0
+        totalRequestsReceived = 0
         numReplications = 0
-        numDuplicateRequestsInBatch = 0
-        numDirectEvaluations = 0
-        numCachedEvaluations = 0
+        totalDuplicateRequestReceived = 0
         numDirectReplications = 0
         numCachedReplications = 0
     }
 
     fun evaluate(requests: List<EvaluationRequest>) : List<Solution> {
+        totalEvaluations++
+        totalRequestsReceived = totalRequestsReceived + requests.size
+        // round the requests to the appropriate granularity for the problem
+        roundRequestToGranularity(requests)
+        // filter out the duplicate requests
+        val uniqueRequests = filterToUniqueRequests(requests)
+        totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
+        // check with the cache for solutions
+
+        //TODO
+
+        // evaluate remaining requests
+
+        //TODO
+
+        // package up the solutions
+
         TODO("Not implemented yet")
+    }
+
+    private fun roundRequestToGranularity(requests: List<EvaluationRequest>){
+        for(request in requests){
+            problemDefinition.roundToGranularity(request.inputMap)
+        }
     }
 
     /**
@@ -110,7 +133,7 @@ class Evaluator(
      * @param requests a list of evaluation requests
      * @return a list of evaluation requests that are unique
      */
-    private fun findUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
+    private fun filterToUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
         val uniqueRequests = mutableSetOf<EvaluationRequest>()
         // since requests are the same based on the values of their input maps
         // we need only update the duplicate so that it has the maximum of any duplicate entries

@@ -402,6 +402,20 @@ class ProblemDefinition(
         return InputMap(map)
     }
 
+    /** The map values are mutated to hold values that have appropriate granularity based on the
+     *  input definitions.
+     *
+     *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
+     *  input names.
+     *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
+     */
+    fun roundToGranularity(map: InputMap): InputMap {
+        for ((name, inputDefinition) in myInputDefinitions) {
+            map[name] = inputDefinition.roundToGranularity(map[name]!!)
+        }
+        return map
+    }
+
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
