@@ -110,8 +110,8 @@ class Evaluator(
         // the returned map is either empty or contains solutions associated with some of the requests
         //TODO update the requests based on the replications in the solutions
 
-        //TODO filter requests that no longer need replications
-
+        // filter requests that no longer need replications
+        val requestsToEvaluate = uniqueRequests.filter { it.numReplications > 0 }
         //TODO evaluate remaining requests and update solutions
 
         //TODO update the cache with any new solutions
