@@ -368,36 +368,35 @@ class ProblemDefinition(
      *  input names.
      *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
      */
-    fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
+    fun roundToGranularity(map: MutableMap<String, Double>): InputMap {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for ((name, inputDefinition) in myInputDefinitions) {
             require(name in map) { "The input name $name does not exist in the map" }
             map[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
-        return map
+        return InputMap(map)
     }
 
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
      */
-    fun mapToInputNames(x: DoubleArray): MutableMap<String, Double> {
+    fun toInputMap(x: DoubleArray): InputMap {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val map = mutableMapOf<String, Double>()
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
             map[inputDefinition.name] = x[i]
         }
-        return map
+        return InputMap(map)
     }
 
     /**
-     *  Translates the supplied array to named input pairs (name, value).
-     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
-     *
-     *  @return the array as an InputMap
+     *  Ensures that the supplied map is translated to an appropriate map
+     *  containing name, value pairs for this problem
+     *  @param map the map to wrap. The keys of the
      */
-    fun toInputMap(x: DoubleArray) : InputMap {
-        val map = mapToInputNames(x)
+    fun toInputMap(map:MutableMap<String, Double>): InputMap {
+        require(validateNames(map)) {"The names in the supplied map do not match the required names of the problem"}
         return InputMap(map)
     }
 
@@ -488,7 +487,7 @@ class ProblemDefinition(
      *  @return true if the inputs are input feasible
      */
     fun isInputFeasible(x: DoubleArray): Boolean {
-        return isInputFeasible(mapToInputNames(x))
+        return isInputFeasible(toInputMap(x))
     }
 
     /**
@@ -499,12 +498,12 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the randomly generated point.
      */
-    fun randomPoint(roundToGranularity: Boolean = true): Map<String, Double> {
+    fun randomPoint(roundToGranularity: Boolean = true): InputMap {
         val map = mutableMapOf<String, Double>()
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.randomValue(rnStream, roundToGranularity)
         }
-        return map
+        return InputMap(map)
     }
 
     /**
@@ -515,9 +514,9 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the sampled point
      */
-    fun generateInputFeasiblePoint(roundToGranularity: Boolean = true): Map<String, Double> {
+    fun generateInputFeasiblePoint(roundToGranularity: Boolean = true): InputMap {
         var count = 0
-        var inputMap: Map<String, Double>
+        var inputMap: InputMap
         do {
             count++
             check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
@@ -538,7 +537,7 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the starting point
      */
-    fun startingPoint(roundToGranularity: Boolean = true): Map<String, Double> {
+    fun startingPoint(roundToGranularity: Boolean = true): InputMap {
         return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasiblePoint(
             roundToGranularity
         )
@@ -560,6 +559,7 @@ class ProblemDefinition(
          *  @return true if the key names in [inputs] all appear in the set [names]
          */
         fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
+            require(inputs.size == names.size) {"The size of the map and set are incompatible."}
             for ((name, _) in inputs) {
                 if (!names.contains(name)) return false
             }

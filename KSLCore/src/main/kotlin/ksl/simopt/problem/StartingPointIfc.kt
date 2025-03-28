@@ -5,18 +5,18 @@ fun interface StartingPointIfc {
     fun startingPoint(
         problemDefinition: ProblemDefinition,
         roundToGranularity: Boolean
-    ): Map<String, Double>
+    ): InputMap
 
 }
 
-class FixedStartingPoint(val point: Map<String, Double>) : StartingPointIfc {
+class FixedStartingPoint(val point: MutableMap<String, Double>) : StartingPointIfc {
 
-    override fun startingPoint(problemDefinition: ProblemDefinition, roundToGranularity: Boolean): Map<String, Double> {
+    override fun startingPoint(problemDefinition: ProblemDefinition, roundToGranularity: Boolean): InputMap {
         require(problemDefinition.isInputFeasible(point)) {"The supplied starting point is infeasible for this problem"}
         return if (roundToGranularity){
             problemDefinition.roundToGranularity(point.toMutableMap())
         } else {
-            point
+            InputMap(point)
         }
     }
 
