@@ -2,19 +2,36 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.InputMap
 
+/**
+ *  A request for evaluation by the simulation oracle for the provided input values.
+ *  Note that two requests are considered equal if their input maps are the same.
+ *  Input maps are considered the same if all (name, value) pairs are equivalent.
+ *  The number of replications of the request is not considered in the determination
+ *  of equality.
+ *  @param numReps the number of replications requested for the evaluation
+ *  @param inputMap the inputs to be evaluated
+ */
 class EvaluationRequest(
-    numReplications: Int,
+    numReps: Int,
     val inputMap: InputMap
 ) {
     init {
-        require(numReplications >= 1) {"The number of replications must be >= 1"}
+        require(numReps >= 1) {"The number of replications must be >= 1"}
     }
 
-    var replications: Int = numReplications
+    var numReplications: Int = numReps
         set(value) {
             require(value >= 1) {"The number of replications must be >= 1"}
             field = value
         }
+
+    /**
+     *  Sets the number of requested replications to the maximum of the supplied
+     *  [numReps] or the current setting for the number of requested replications.
+     */
+    fun maxOfReplication(numReps: Int){
+        numReplications = maxOf(numReplications, numReps)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

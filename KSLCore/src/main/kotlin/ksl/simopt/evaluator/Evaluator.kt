@@ -101,14 +101,27 @@ class Evaluator(
     }
 
     /**
-     * Make sure we do not evaluate duplicate inputs within the batch
-     * where multiple requests for the same design vector are made but for different
-     * numbers of replications the larger replication number is chosen.
+     *  The list of requests may come from different solvers. The requests may have the
+     *  same design point (inputs). If so, we need to remove any requests for
+     *  the same inputs, and keep the duplicate that has the maximum number of replications.
+     *  This ensures that the evaluation covers any request with fewer replications and
+     *  does not repeat expensive simulation evaluations on the same input values.
+     *
      * @param requests a list of evaluation requests
      * @return a list of evaluation requests that are unique
      */
     private fun findUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
-        TODO("Not implemented yet")
+        val uniqueRequests = mutableSetOf<EvaluationRequest>()
+        // since requests are the same based on the values of their input maps
+        // we need only update the duplicate so that it has the maximum of any duplicate entries
+        for (req in requests) {
+            if (uniqueRequests.contains(req)){
+                req.maxOfReplication(req.numReplications)
+            } else {
+                uniqueRequests.add(req)
+            }
+        }
+        return uniqueRequests.toList()
     }
 
     /**

@@ -418,7 +418,8 @@ class ProblemDefinition(
     /**
      *  Ensures that the supplied map is translated to an appropriate map
      *  containing name, value pairs for this problem
-     *  @param map the map to wrap. The keys of the
+     *  @param map the map to wrap. The keys of the supplied map must be valid
+     *  names for the problem.
      */
     fun toInputMap(map: MutableMap<String, Double>): InputMap {
         require(validateNames(map)) { "The names in the supplied map do not match the required names of the problem" }
