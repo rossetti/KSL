@@ -24,7 +24,7 @@ class ResponseMap(
     }
 
     /**
-     *  Appends the data associated with the responses map into
+     *  Appends the data associated with the [responses] map into
      *  the response map. The supplied map of response data must include
      *  the names associated with this response map. The data from
      *  the arrays are appended to the data already within the response map.
