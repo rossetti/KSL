@@ -1,12 +1,17 @@
 package ksl.simopt.cache
 
+import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import java.util.function.BiConsumer
 
 //TODO needs revision
 
-interface SolutionCacheIfc : MutableMap<InputMap, Solution>
+interface SolutionCacheIfc : MutableMap<InputMap, Solution> {
+
+    fun retrieveSolutions(requests: List<EvaluationRequest>): MutableMap<InputMap, Solution>
+
+}
 
 //interface SolutionCacheIfc {
 //    operator fun get(key: InputMap): Solution?

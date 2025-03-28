@@ -105,9 +105,9 @@ class Evaluator(
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
         // check with the cache for solutions
-
-        //TODO
-
+        if (!cache.isNullOrEmpty()){
+            //TODO
+        }
         // evaluate remaining requests
 
         //TODO
