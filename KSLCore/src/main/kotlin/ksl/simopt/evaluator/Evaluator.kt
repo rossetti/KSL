@@ -187,3 +187,7 @@ class Evaluator(
         TODO("Not implemented yet")
     }
 }
+
+fun List<EvaluationRequest>.totalReplications() : Int {
+    return sumOf { it.numReplications }
+}
