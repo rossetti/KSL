@@ -112,7 +112,9 @@ class Evaluator(
 
         //TODO filter requests that no longer need replications
 
-        //TODO evaluate remaining requests
+        //TODO evaluate remaining requests and update solutions
+
+        //TODO update the cache with any new solutions
 
         //TODO package up the solutions
 
