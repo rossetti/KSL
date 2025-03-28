@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SolutionCacheIfc
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
 /**
@@ -105,14 +106,15 @@ class Evaluator(
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
         // check with the cache for solutions
-        if (!cache.isNullOrEmpty()){
-            //TODO
-        }
-        // evaluate remaining requests
+        val solutionMap = cache?.retrieveSolutions(requests) ?: emptyMap()
+        // the returned map is either empty or contains solutions associated with some of the requests
+        //TODO update the requests based on the replications in the solutions
 
-        //TODO
+        //TODO filter requests that no longer need replications
 
-        // package up the solutions
+        //TODO evaluate remaining requests
+
+        //TODO package up the solutions
 
         TODO("Not implemented yet")
     }
