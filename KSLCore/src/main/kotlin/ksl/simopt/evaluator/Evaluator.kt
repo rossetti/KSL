@@ -19,7 +19,7 @@ fun interface ResponseProviderIfc {
      */
     fun provideResponses(
         requests: List<EvaluationRequest>
-    ) : Map<EvaluationRequest, ResponseMap>
+    ): Map<EvaluationRequest, ResponseMap>
 
 }
 
@@ -40,39 +40,46 @@ class Evaluator(
     replicationBudget: Int = Int.MAX_VALUE
 ) {
     init {
-        require(replicationBudget >= 1) {"The number of budgeted replications must be >= 1"}
+        require(replicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
     }
 
     // the budget (in terms of number of evaluations)
     var maxReplicationBudget: Int = replicationBudget
-        set(value){
-            require(value >= 1) {"The number of budgeted replications must be >= 1"}
+        set(value) {
+            require(value >= 1) { "The number of budgeted replications must be >= 1" }
             field = value
         }
 
     // the total number of batches evaluated
     var totalEvaluations: Int = 0
         protected set
+
     // the number of evaluations with a direct component
     var totalDirectEvaluations = 0
         protected set
+
     // the number of evaluations with a cached component
     var totalCachedEvaluations = 0
         protected set
+
     // the total number of evaluations
     var totalRequestsReceived: Int = 0
         protected set
+
     // the number of evaluations that were avoided as duplicates within a batch
     var totalDuplicateRequestReceived: Int = 0
         protected set
+
     // the total number of replications
     var numReplications: Int = 0
         protected set
+
     // the number of evaluation replications that did not come from the cache
     var numDirectReplications: Int = 0
         protected set
+
     // the number of evaluations replications that came from the cache
-    var numCachedReplications: Int = 0
+    var totalCachedReplications: Int = 0
         protected set
 
     /**
@@ -94,10 +101,10 @@ class Evaluator(
         numReplications = 0
         totalDuplicateRequestReceived = 0
         numDirectReplications = 0
-        numCachedReplications = 0
+        totalCachedReplications = 0
     }
 
-    fun evaluate(requests: List<EvaluationRequest>) : List<Solution> {
+    fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
         // round the requests to the appropriate granularity for the problem
@@ -106,23 +113,53 @@ class Evaluator(
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
         // check with the cache for solutions
-        val solutionMap = cache?.retrieveSolutions(requests) ?: emptyMap()
+        val solutionMap = cache?.retrieveSolutions(requests) ?: mutableMapOf()
         // the returned map is either empty or contains solutions associated with some of the requests
-        //TODO update the requests based on the replications in the solutions
-
+        // update the requests based on the replications in the solutions
+        updateRequestReplicationData(solutionMap, uniqueRequests)
         // filter requests that no longer need replications
         val requestsToEvaluate = uniqueRequests.filter { it.numReplications > 0 }
-        //TODO evaluate remaining requests and update solutions
-
-        //TODO update the cache with any new solutions
+        // evaluate remaining requests and update solutions
+        if (requestsToEvaluate.isNotEmpty()) {
+            val solutions = evaluateWithNoCache(requestsToEvaluate)
+            for ((request, solution) in solutions) {
+                if (solutionMap.containsKey(request.inputMap)) {
+                    //TODO merge the solution with the existing solution
+                } else {
+                    solutionMap[request.inputMap] = solution
+                }
+            }
+            //TODO update the cache with any new solutions
+        }
 
         //TODO package up the solutions
 
+        //TODO why not return a Map<EvaluationRequest, Solution> or Map<InputMap, Solution>
+        // why return List<Solution>
         TODO("Not implemented yet")
     }
 
-    private fun roundRequestsToGranularity(requests: List<EvaluationRequest>){
-        for(request in requests){
+    private fun updateRequestReplicationData(
+        solutionMap: MutableMap<InputMap, Solution>,
+        uniqueRequests: List<EvaluationRequest>
+    ) {
+        if (solutionMap.isNotEmpty()) {
+            return
+        }
+        for (request in uniqueRequests) {
+            val sol = solutionMap[request.inputMap]
+            if (sol != null) {
+                val n = sol.numReplications
+                totalCachedEvaluations++
+                totalCachedReplications = totalCachedReplications + n
+                request.startingReplicationNum = n //why?
+                request.numReplications = request.numReplications - n
+            }
+        }
+    }
+
+    private fun roundRequestsToGranularity(requests: List<EvaluationRequest>) {
+        for (request in requests) {
             problemDefinition.roundToGranularity(request.inputMap)
         }
     }
@@ -142,7 +179,7 @@ class Evaluator(
         // since requests are the same based on the values of their input maps
         // we need only update the duplicate so that it has the maximum of any duplicate entries
         for (req in requests) {
-            if (uniqueRequests.contains(req)){
+            if (uniqueRequests.contains(req)) {
                 req.maxOfReplication(req.numReplications)
             } else {
                 uniqueRequests.add(req)
@@ -188,6 +225,6 @@ class Evaluator(
     }
 }
 
-fun List<EvaluationRequest>.totalReplications() : Int {
+fun List<EvaluationRequest>.totalReplications(): Int {
     return sumOf { it.numReplications }
 }

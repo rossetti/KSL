@@ -17,4 +17,5 @@ data class Solution(
         //TODO perhaps just provide a Comparator based on the objective function
     }
 
+    //TODO merging should create a new solution instance
 }

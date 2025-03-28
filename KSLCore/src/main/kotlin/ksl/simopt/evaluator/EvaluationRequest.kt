@@ -34,8 +34,7 @@ class EvaluationRequest(
 
     var numReplications: Int = numReps
         set(value) {
-            require(value >= 1) {"The number of replications must be >= 1"}
-            field = value
+            field = maxOf(value, 0)
         }
 
     /**
