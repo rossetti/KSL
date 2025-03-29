@@ -61,5 +61,4 @@ class EvaluationRequest(
     val inputValues: DoubleArray
         get() = inputMap.inputValues
 
-
 }

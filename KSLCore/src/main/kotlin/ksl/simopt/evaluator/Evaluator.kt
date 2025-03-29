@@ -5,25 +5,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
 /**
- *  A functional interface that promises to convert a list of requests for evaluation
- *  into responses associated with the requests. Used within [Evaluator] to
- *  communicated with the simulation oracle.
- */
-fun interface ResponseProviderIfc {
-
-    /**
-     * Promises to convert evaluation requests into responses.
-     *
-     * @param requests - a list of requests to evaluate
-     * @return - a map containing responses for each request evaluated
-     */
-    fun provideResponses(
-        requests: List<EvaluationRequest>
-    ): Map<EvaluationRequest, ResponseMap>
-
-}
-
-/**
  *  An evaluator should communicate with the simulation oracle to determine
  *  solutions for requests for evaluation from solvers.
  *
@@ -121,7 +102,7 @@ class Evaluator(
         val requestsToEvaluate = uniqueRequests.filter { it.numReplications > 0 }
         // evaluate remaining requests and update solutions
         if (requestsToEvaluate.isNotEmpty()) {
-            val solutions = evaluateWithNoCache(requestsToEvaluate)
+            val solutions = evaluateViaSimulation(requestsToEvaluate)
             for ((request, newSolution) in solutions) {
                 if (solutionMap.containsKey(request.inputMap)) {
                     // merge the solution with the cached solution
@@ -203,13 +184,18 @@ class Evaluator(
     }
 
     /**
-     * Evaluate directly (without accessing the cache).
+     * Evaluate directly via the simulation oracle (without accessing the cache).
      *
-     * @param requests  list of requests (design vector input and replications)
+     * @param requests  list of requests (design vector input and number of desired replications)
      * @return a map of evaluation requests with their accompanying solution
      */
-    private fun evaluateWithNoCache(requests: List<EvaluationRequest>): Map<EvaluationRequest, Solution> {
-
+    private fun evaluateViaSimulation(
+        requests: List<EvaluationRequest>
+    ): Map<EvaluationRequest, Solution> {
+        require(requests.isNotEmpty()) {"Cannot evaluate a list of empty requests!"}
+        totalDirectEvaluations = totalDirectEvaluations + requests.size
+        numDirectReplications = numDirectReplications + requests.totalReplications()
+        val responses = responseProvider.provideResponses(requests)
 
         TODO("Not implemented yet")
     }
