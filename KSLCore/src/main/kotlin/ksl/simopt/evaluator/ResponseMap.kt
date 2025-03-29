@@ -3,6 +3,9 @@ package ksl.simopt.evaluator
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.statistic.Statistic
 
+//TODO why is this holding (String, List<Double>)
+// It should just hold (String, EstimatedResponse) pairs
+
 /**
  *  A response map holds replication data from evaluations of the simulation
  *  oracle. The key to the map is the response name which should match a named

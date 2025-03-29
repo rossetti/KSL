@@ -122,13 +122,13 @@ class Evaluator(
         TODO("Not implemented yet")
     }
 
-    private fun mergeSolutions(first: Solution, second : Solution): Solution {
-        require(first.inputMap.equals(second.inputMap)) {"The inputs must be the same in order to merge the solutions"}
-        require(first.responseEstimates.size == second.responseEstimates.size) {"Cannot merge solutions with different response sizes"}
+    private fun mergeSolutions(first: Solution, second: Solution): Solution {
+        require(first.inputMap.equals(second.inputMap)) { "The inputs must be the same in order to merge the solutions" }
+        require(first.responseEstimates.size == second.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
         val numReps = first.numReplications + second.numReplications
         val objFunc = first.estimatedObjFnc.merge(second.estimatedObjFnc)
         val mergedResponseEstimates = mutableListOf<EstimatedResponse>()
-        for((i, e) in first.responseEstimates.withIndex()){
+        for ((i, e) in first.responseEstimates.withIndex()) {
             mergedResponseEstimates.add(e.merge(second.responseEstimates[i]))
         }
         TODO()
@@ -192,16 +192,41 @@ class Evaluator(
     private fun evaluateViaSimulation(
         requests: List<EvaluationRequest>
     ): Map<EvaluationRequest, Solution> {
-        require(requests.isNotEmpty()) {"Cannot evaluate a list of empty requests!"}
+        require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
         totalDirectEvaluations = totalDirectEvaluations + requests.size
         numDirectReplications = numDirectReplications + requests.totalReplications()
         // create the cases to run
         val cases = requests.associateWith { problemDefinition.createResponseMap() }
         // run the scenarios
         simulationProvider.runSimulations(cases)
-        //TODO need to translate to solutions
+        return createSolutions(cases)
+    }
 
-        TODO("Not implemented yet")
+    private fun createSolutions(
+        cases: Map<EvaluationRequest, ResponseMap>
+    ): Map<EvaluationRequest, Solution> {
+        val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
+        for ((request, responseMap) in cases) {
+            val objFnName = problemDefinition.objFnResponseName
+            val estimates = responseMap.estimatedResponses
+            val estimatedObjFnc = estimates[objFnName]!!
+            val responseEstimates = mutableListOf<EstimatedResponse>()
+            for ((name, _) in estimates) {
+                if (name != objFnName) {
+                    responseEstimates.add(estimates[name]!!)
+                }
+            }
+            val responsePenalties = problemDefinition.responseConstraintPenalties(responseMap)
+            val solution = Solution(
+                request.inputMap,
+                request.numReplications,
+                estimatedObjFnc,
+                responseEstimates,
+                responsePenalties
+            )
+            solutions[request] = solution
+        }
+        return solutions
     }
 
     /**
