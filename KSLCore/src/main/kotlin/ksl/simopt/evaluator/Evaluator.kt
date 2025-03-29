@@ -122,11 +122,13 @@ class Evaluator(
         // evaluate remaining requests and update solutions
         if (requestsToEvaluate.isNotEmpty()) {
             val solutions = evaluateWithNoCache(requestsToEvaluate)
-            for ((request, solution) in solutions) {
+            for ((request, newSolution) in solutions) {
                 if (solutionMap.containsKey(request.inputMap)) {
-                    //TODO merge the solution with the existing solution
+                    // merge the solution with the cached solution
+                    val cachedSolution = solutionMap[request.inputMap]!!
+                    solutionMap[request.inputMap] = mergeSolutions(cachedSolution, newSolution)
                 } else {
-                    solutionMap[request.inputMap] = solution
+                    solutionMap[request.inputMap] = newSolution
                 }
             }
             //TODO update the cache with any new solutions
@@ -137,6 +139,18 @@ class Evaluator(
         //TODO why not return a Map<EvaluationRequest, Solution> or Map<InputMap, Solution>
         // why return List<Solution>
         TODO("Not implemented yet")
+    }
+
+    private fun mergeSolutions(first: Solution, second : Solution): Solution {
+        require(first.inputMap.equals(second.inputMap)) {"The inputs must be the same in order to merge the solutions"}
+        require(first.responseEstimates.size == second.responseEstimates.size) {"Cannot merge solutions with different response sizes"}
+        val numReps = first.numReplications + second.numReplications
+        val objFunc = first.estimatedObjFnc.merge(second.estimatedObjFnc)
+        val mergedResponseEstimates = mutableListOf<EstimatedResponse>()
+        for((i, e) in first.responseEstimates.withIndex()){
+            mergedResponseEstimates.add(e.merge(second.responseEstimates[i]))
+        }
+        TODO()
     }
 
     private fun updateRequestReplicationData(

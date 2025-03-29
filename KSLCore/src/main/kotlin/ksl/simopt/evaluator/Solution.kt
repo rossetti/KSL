@@ -16,6 +16,4 @@ data class Solution(
         TODO("Not yet implemented")
         //TODO perhaps just provide a Comparator based on the objective function
     }
-
-    //TODO merging should create a new solution instance
 }
