@@ -15,15 +15,24 @@ data class ResponseMap(
 ) : Map<String, List<Double>> by map {
 
     val statistics: Map<String, Statistic>
-
-    init {
-        val statMap = mutableMapOf<String, Statistic>()
-        for((name, data) in map) {
-            statMap[name] = Statistic(name, data.toDoubleArray())
+        get() {
+            val statMap = mutableMapOf<String, Statistic>()
+            for((name, data) in map) {
+                statMap[name] = Statistic(name, data.toDoubleArray())
+            }
+            return statMap
         }
-        statistics = statMap
-    }
-    
+
+    val estimatedResponses: Map<String, EstimatedResponse>
+        get() {
+            val statMap = mutableMapOf<String, EstimatedResponse>()
+            for((name, data) in map) {
+                val stat = Statistic(name, data.toDoubleArray())
+                statMap[name] = EstimatedResponse(name, stat.average, stat.variance, stat.count)
+            }
+            return statMap
+        }
+
     /**
      *  Replaces the list for the specified key with the supplied list.
      *  The key must already exist in the response map.
