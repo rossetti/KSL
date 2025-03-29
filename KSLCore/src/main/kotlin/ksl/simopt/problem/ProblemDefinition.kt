@@ -85,7 +85,7 @@ class ProblemDefinition(
         for (name in names) {
             map[name] = mutableListOf()
         }
-        return ResponseMap(map)
+        return ResponseMap(this, map)
     }
 
     /**
@@ -360,15 +360,32 @@ class ProblemDefinition(
     /**
      *  Returns the penalties for the response constraints.
      */
-    fun responseConstraintsPenalties(): DoubleArray {
+    fun responseConstraintsViolationPenalties(): DoubleArray {
         return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
     }
 
     /**
      *  Sets the penalties for each response constraint to the supplied value.
      */
-    fun setResponseConstraintPenalties(penalty: Double) {
+    fun setResponseConstraintViolationPenalties(penalty: Double) {
         myResponseConstraints.forEach { it.violationPenalty = penalty }
+    }
+
+    /**
+     *  The penalties associated with the response constraints for the
+     *  provided values within the response map.
+     *  @param responseMap the map of responses filled with data for this problem.
+     *  Must have been created by this problem.
+     *  @return a list of the penalties, one for each response constraint in the problem
+     */
+    fun responseConstraintPenalties(responseMap: ResponseMap): List<Double> {
+        require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
+        val list = mutableListOf<Double>()
+        val averages = responseMap.statistics.mapValues { it.value.average }
+        for (rc in myResponseConstraints) {
+            list.add(rc.penalty(averages[rc.responseName]!!))
+        }
+        return list
     }
 
     /** The array x is mutated to hold values that have appropriate granularity based on the

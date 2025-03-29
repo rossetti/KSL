@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.statistic.Statistic
 
 /**
@@ -10,7 +11,8 @@ import ksl.utilities.statistic.Statistic
  *  each replication.
  *  @param map the map containing the output values for each response
  */
-data class ResponseMap(
+class ResponseMap(
+    internal val problemDefinition: ProblemDefinition,
     private val map: MutableMap<String, MutableList<Double>>
 ) : Map<String, List<Double>> by map {
 
