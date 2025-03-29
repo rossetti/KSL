@@ -1,5 +1,7 @@
 package ksl.simopt.evaluator
 
+import ksl.utilities.statistic.Statistic
+
 /**
  *  A response map holds replication data from evaluations of the simulation
  *  oracle. The key to the map is the response name which should match a named
@@ -12,6 +14,16 @@ data class ResponseMap(
     private val map: MutableMap<String, MutableList<Double>>
 ) : Map<String, List<Double>> by map {
 
+    val statistics: Map<String, Statistic>
+
+    init {
+        val statMap = mutableMapOf<String, Statistic>()
+        for((name, data) in map) {
+            statMap[name] = Statistic(name, data.toDoubleArray())
+        }
+        statistics = statMap
+    }
+    
     /**
      *  Replaces the list for the specified key with the supplied list.
      *  The key must already exist in the response map.
