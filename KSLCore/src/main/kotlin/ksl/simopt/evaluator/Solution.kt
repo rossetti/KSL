@@ -9,7 +9,7 @@ data class Solution(
     val responseEstimates: List<EstimatedResponse>,
     val responsePenalties: List<Double>
 ) : Comparable<Solution> {
-    
+
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
         require(numReplications >= 1) { "The number of replications must be >= 1" }

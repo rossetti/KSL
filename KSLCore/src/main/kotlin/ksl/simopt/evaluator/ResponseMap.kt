@@ -1,6 +1,14 @@
 package ksl.simopt.evaluator
 
-class ResponseMap(
+/**
+ *  A response map holds replication data from evaluations of the simulation
+ *  oracle. The key to the map is the response name which should match a named
+ *  response within the simulation model and within the problem definition.
+ *  The associated list of doubles is the within replication average for
+ *  each replication.
+ *  @param map the map containing the output values for each response
+ */
+data class ResponseMap(
     private val map: MutableMap<String, MutableList<Double>>
 ) : Map<String, List<Double>> by map {
 
