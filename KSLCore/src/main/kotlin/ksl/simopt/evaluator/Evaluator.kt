@@ -9,14 +9,14 @@ import ksl.simopt.problem.ProblemDefinition
  *  solutions for requests for evaluation from solvers.
  *
  *  @param problemDefinition the problem that the evaluation of responses will be used on
- *  @param responseProvider the provider of responses from the simulation oracle
+ *  @param simulationProvider the provider of responses from the simulation oracle
  *  @param cache a cache that can be used instead of a costly simulation evaluation
  *  @param replicationBudget the maximum number of direct replications permitted by the evaluator.
  *  The default is Int.MAX_VALUE. This can be used to control the total number of evaluation.
  */
 class Evaluator(
     val problemDefinition: ProblemDefinition,
-    private val responseProvider: ResponseProviderIfc,
+    private val simulationProvider: SimulationProviderIfc,
     val cache: SolutionCacheIfc? = null,
     replicationBudget: Int = Int.MAX_VALUE
 ) {
@@ -195,7 +195,10 @@ class Evaluator(
         require(requests.isNotEmpty()) {"Cannot evaluate a list of empty requests!"}
         totalDirectEvaluations = totalDirectEvaluations + requests.size
         numDirectReplications = numDirectReplications + requests.totalReplications()
-        val responses = responseProvider.provideResponses(requests)
+        // create the cases to run
+        val cases = requests.associateWith { problemDefinition.createResponseMap() }
+        // run the scenarios
+        simulationProvider.runSimulations(cases)
 
         TODO("Not implemented yet")
     }
