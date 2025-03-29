@@ -199,6 +199,7 @@ class Evaluator(
         val cases = requests.associateWith { problemDefinition.createResponseMap() }
         // run the scenarios
         simulationProvider.runSimulations(cases)
+        //TODO need to translate to solutions
 
         TODO("Not implemented yet")
     }
