@@ -11,63 +11,90 @@ import ksl.simopt.problem.ProblemDefinition
  *  @param problemDefinition the problem that the evaluation of responses will be used on
  *  @param simulationProvider the provider of responses from the simulation oracle
  *  @param cache a cache that can be used instead of a costly simulation evaluation
- *  @param replicationBudget the maximum number of direct replications permitted by the evaluator.
+ *  @param oracleReplicationBudget the maximum number of direct replications permitted by the evaluator.
  *  The default is Int.MAX_VALUE. This can be used to control the total number of evaluation.
  */
 class Evaluator(
     val problemDefinition: ProblemDefinition,
     private val simulationProvider: SimulationProviderIfc,
     val cache: SolutionCacheIfc? = null,
-    replicationBudget: Int = Int.MAX_VALUE
+    oracleReplicationBudget: Int = Int.MAX_VALUE
 ) {
     init {
-        require(replicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
+        require(oracleReplicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
     }
 
-    // the budget (in terms of number of evaluations)
-    var maxReplicationBudget: Int = replicationBudget
+    /**
+     *   The maximum budget (in terms of number of replications) within the evaluations
+     *   performed by the simulation oracle.
+     */
+    var maxOracleReplicationBudget: Int = oracleReplicationBudget
         set(value) {
             require(value >= 1) { "The number of budgeted replications must be >= 1" }
             field = value
         }
 
-    // the total number of batches evaluated
+    /**
+     *  The total number of evaluations performed. An evaluation may have many replications.
+     */
     var totalEvaluations: Int = 0
         protected set
 
-    // the number of evaluations with a direct component
-    var totalDirectEvaluations = 0
+    /**
+     *  The total number of evaluations performed via the simulation oracle.
+     */
+    var totalOracleEvaluations = 0
         protected set
 
-    // the number of evaluations with a cached component
+    /**
+     *  The total number of evaluations performed via the cache.
+     */
     var totalCachedEvaluations = 0
         protected set
 
-    // the total number of evaluations
+    /**
+     *  The total number of evaluation requests that were received.
+     */
     var totalRequestsReceived: Int = 0
         protected set
 
-    // the number of evaluations that were avoided as duplicates within a batch
+    /**
+     *  The total number of evaluation requests received that were duplicates in
+     *  terms of inputs.
+     */
     var totalDuplicateRequestReceived: Int = 0
         protected set
 
-    // the total number of replications
-    var numReplications: Int = 0
+    /**
+     *  The total number of replications requested across all evaluation requests.
+     */
+    var totalReplications: Int = 0
         protected set
 
-    // the number of evaluation replications that did not come from the cache
-    var numDirectReplications: Int = 0
+    /**
+     *  The total number of replications performed by the simulation oracle.
+     */
+    var totalOracleReplications: Int = 0
         protected set
 
-    // the number of evaluations replications that came from the cache
+    /**
+     *  The total number of replications satisfied by the cache.
+     */
     var totalCachedReplications: Int = 0
         protected set
 
     /**
      *  Indicates if the number of replications budgeted has been exceeded or not.
      */
-    val hasRemainingReplications: Boolean
-        get() = numDirectReplications < maxReplicationBudget
+    val hasRemainingOracleReplications: Boolean
+        get() = totalOracleReplications < maxOracleReplicationBudget
+
+    /**
+     *  The total number of remaining replications that can be performed by
+     *  the simulation oracle.
+     */
+    val remainingOracleReplications: Int
+        get() = maxOracleReplicationBudget - totalOracleReplications
 
     /**
      *  The evaluator collects some basic counts (statistics) on its evaluations.
@@ -76,12 +103,12 @@ class Evaluator(
      */
     fun resetEvaluationCounts() {
         totalEvaluations = 0
-        totalDirectEvaluations = 0
+        totalOracleEvaluations = 0
         totalCachedEvaluations = 0
         totalRequestsReceived = 0
-        numReplications = 0
+        totalReplications = 0
         totalDuplicateRequestReceived = 0
-        numDirectReplications = 0
+        totalOracleReplications = 0
         totalCachedReplications = 0
     }
 
@@ -172,8 +199,8 @@ class Evaluator(
         requests: List<EvaluationRequest>
     ): Map<EvaluationRequest, Solution> {
         require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
-        totalDirectEvaluations = totalDirectEvaluations + requests.size
-        numDirectReplications = numDirectReplications + requests.totalReplications()
+        totalOracleEvaluations = totalOracleEvaluations + requests.size
+        totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // create the cases to run
         val cases = requests.associateWith { problemDefinition.createResponseMap() }
         // run the scenarios
