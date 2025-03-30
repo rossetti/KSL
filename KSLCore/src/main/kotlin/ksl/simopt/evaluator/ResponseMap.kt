@@ -64,7 +64,9 @@ class ResponseMap(
 
     /**
      *  Converts the response map to an instance of a Solution based
-     *  on the supplied evaluation request
+     *  on the supplied evaluation request. The function [hasRequestedReplications]
+     *  must return true for the requested number of replications for a solution
+     *  to be constructed.
      */
     fun toSolution(
         request: EvaluationRequest,
