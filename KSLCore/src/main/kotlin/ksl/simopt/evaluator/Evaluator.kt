@@ -194,6 +194,13 @@ class Evaluator(
         }
     }
 
+    /**
+     *  A helper function to round the inputs associated with each request to the
+     *  necessary granularity associated with the problem. The input map
+     *  associated with the evaluation request will be mutated to the correct granularity.
+     *  This is important because the values of the inputs determine if new evaluations
+     *  are necessary. We simulate at the required granularity.
+     */
     private fun roundRequestsToGranularity(requests: List<EvaluationRequest>) {
         for (request in requests) {
             problemDefinition.roundToGranularity(request.inputMap)
@@ -261,6 +268,10 @@ class Evaluator(
     }
 }
 
+/**
+ *  A simple extension function to compute the total number of replications within a set
+ *  of evaluation requests.
+ */
 fun List<EvaluationRequest>.totalReplications(): Int {
     return sumOf { it.numReplications }
 }
