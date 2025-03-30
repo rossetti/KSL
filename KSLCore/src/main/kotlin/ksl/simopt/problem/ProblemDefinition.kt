@@ -77,15 +77,14 @@ class ProblemDefinition(
             return list
         }
 
+    fun isValidResponse(name: String): Boolean {
+        return ((name == objFnResponseName) || responseNames.contains(name))
+    }
+
     /** Returns a new empty response map to hold the responses associated with the problem
      */
     fun createResponseMap(): ResponseMap {
-        val names = allResponseNames
-        val map = mutableMapOf<String, MutableList<Double>>()
-        for (name in names) {
-            map[name] = mutableListOf()
-        }
-        return ResponseMap(this, map)
+        return ResponseMap(this)
     }
 
     /**
@@ -381,9 +380,28 @@ class ProblemDefinition(
     fun responseConstraintPenalties(responseMap: ResponseMap): List<Double> {
         require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
         val list = mutableListOf<Double>()
-        val averages = responseMap.statistics.mapValues { it.value.average }
+        val averages = responseMap.mapValues { it.value.average }
         for (rc in myResponseConstraints) {
             list.add(rc.penalty(averages[rc.responseName]!!))
+        }
+        return list
+    }
+
+    //TODO might not be necessary
+    
+    /**
+     *  The penalties associated with the response constraints for the
+     *  provided values within the response map.
+     *  @param averages the map of responses filled with data for this problem.
+     *  Must have been created by this problem.
+     *  @return a list of the penalties, one for each response constraint in the problem
+     */
+    fun responseConstraintPenalties(averages: Map<String, Double>): List<Double> {
+        val list = mutableListOf<Double>()
+        for (rc in myResponseConstraints) {
+            require(averages.containsKey(rc.responseName)) { "The name ${rc.responseName} was not found in the supplied averages" }
+            val average = averages[rc.responseName]!!
+            list.add(rc.penalty(average))
         }
         return list
     }

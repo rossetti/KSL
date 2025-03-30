@@ -1,10 +1,6 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.problem.ProblemDefinition
-import ksl.utilities.statistic.Statistic
-
-//TODO why is this holding (String, List<Double>)
-// It should just hold (String, EstimatedResponse) pairs
 
 /**
  *  A response map holds replication data from evaluations of the simulation
@@ -16,30 +12,23 @@ import ksl.utilities.statistic.Statistic
  */
 class ResponseMap(
     val problemDefinition: ProblemDefinition,
-    private val map: MutableMap<String, MutableList<Double>>
-) : Map<String, List<Double>> by map {
-
-    val statistics: Map<String, Statistic>
-        get() {
-            val statMap = mutableMapOf<String, Statistic>()
-            for((name, data) in map) {
-                statMap[name] = Statistic(name, data.toDoubleArray())
-            }
-            return statMap
-        }
-
-    val estimatedResponses: Map<String, EstimatedResponse>
-        get() {
-            val statMap = mutableMapOf<String, EstimatedResponse>()
-            for((name, data) in map) {
-                val stat = Statistic(name, data.toDoubleArray())
-                statMap[name] = EstimatedResponse(name, stat.average, stat.variance, stat.count)
-            }
-            return statMap
-        }
+    private val map: MutableMap<String, EstimatedResponse> = mutableMapOf()
+) : Map<String, EstimatedResponse> by map {
 
     val responseConstraintPenalties: List<Double>
         get() = problemDefinition.responseConstraintPenalties(this)
+
+    val averages: Map<String, Double>
+        get() = map.mapValues { it.value.average }
+
+    val variances: Map<String, Double>
+        get() = map.mapValues { it.value.variance }
+
+    val counts: Map<String, Double>
+        get() = map.mapValues { it.value.count }
+
+    val stdDeviations: Map<String, Double>
+        get() = map.mapValues { it.value.standardDeviation }
 
     /**
      *  Converts the response map to an instance of a Solution based
@@ -49,15 +38,14 @@ class ResponseMap(
         request: EvaluationRequest,
     ) : Solution {
         val objFnName = problemDefinition.objFnResponseName
-        val estimates = estimatedResponses
-        val estimatedObjFnc = estimates[objFnName]!!
+        val estimatedObjFnc = map[objFnName]!!
         require(request.numReplications == estimatedObjFnc.count.toInt()){
             "The requested number of replications does not match the number of replications in the response."
         }
         val responseEstimates = mutableListOf<EstimatedResponse>()
-        for ((name, _) in estimates) {
+        for ((name, _) in map) {
             if (name != objFnName) {
-                val estimate = estimates[name]!!
+                val estimate = map[name]!!
                 require(request.numReplications == estimate.count.toInt()){
                     "The requested number of replications does not match the number of replications in the response."
                 }
@@ -76,34 +64,31 @@ class ResponseMap(
     }
 
     /**
-     *  Replaces the list for the specified key with the supplied list.
-     *  The key must already exist in the response map.
+     *  Adds the supplied estimated response. If the estimated
+     *  response is not currently in the response map, then it is added.
+     *  If it is already in the response map, the old value is replaced
+     *  with the supplied value.
+     *  @param estimate the estimated response to add. The name
+     *  of the response must be valid for the associated problem.
      */
-    operator fun set(key: String, list : MutableList<Double>) {
-        require(map.containsKey(key)) {"The key ($key) is not in the map!"}
-        map[key] = list
+    fun add(estimate : EstimatedResponse) {
+        require(problemDefinition.isValidResponse(estimate.name))
+        map[estimate.name] = estimate
     }
 
-//    /**
-//     *  Appends the elements in the supplied list to the list associated
-//     *  with the supplied key within the response map. The supplied key
-//     *  must already exist in the response map.
-//     */
-//    fun append(key: String, list: List<Double>){
-//        require(map.containsKey(key)) {"The key ($key) is not in the map!"}
-//        map[key]!!.addAll(list)
-//    }
-//
-//    /**
-//     *  Appends the data associated with the [responses] map into
-//     *  the response map. The supplied map of response data must include
-//     *  the names associated with this response map. The data from
-//     *  the arrays are appended to the data already within the response map.
-//     */
-//    fun appendAll(responses: Map<String, DoubleArray>){
-//        for((name, _) in map){
-//            require(responses.containsKey(name)) {"The response $name was not in the supplied map of responses"}
-//            append(name, responses[name]!!.asList())
-//        }
-//    }
+    /**
+     *  Adds or merges the supplied estimated response
+     *  @param estimate the estimated response to add. The name
+     *  of the response must be valid for the associated problem.
+     */
+    fun merge(estimate : EstimatedResponse) {
+        require(problemDefinition.isValidResponse(estimate.name))
+        if (map.containsKey(estimate.name)){
+            val current = map[estimate.name]!!
+            map[estimate.name] = current.merge(estimate)
+        } else {
+            map[estimate.name] = estimate
+        }
+    }
+
 }
