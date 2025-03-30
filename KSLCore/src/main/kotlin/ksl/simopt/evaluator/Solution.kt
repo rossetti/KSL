@@ -14,6 +14,18 @@ data class Solution(
     val problemDefinition: ProblemDefinition
         get() = inputMap.problemDefinition
 
+    /**
+     *  Converts the solution to an instance of a ResponseMap
+     */
+    fun toResponseMap(): ResponseMap {
+        val responseMap = problemDefinition.createResponseMap()
+        responseMap.add(estimatedObjFnc)
+        for(estimate in responseEstimates){
+            responseMap.add(estimate)
+        }
+        return responseMap
+    }
+
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
         require(numReplications >= 1) { "The number of replications must be >= 1" }

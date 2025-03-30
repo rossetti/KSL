@@ -128,18 +128,13 @@ class Evaluator(
         // We assume that the two solutions are from independent replications
         // We now have more replications in the sample
         val numReps = first.numReplications + second.numReplications
-        // the objective function responses can be merged/combined
-        val objFunc = first.estimatedObjFnc.merge(second.estimatedObjFnc)
-        // the responses
-        val mergedResponseEstimates = mutableListOf<EstimatedResponse>()
-        for ((i, e) in first.responseEstimates.withIndex()) {
-            mergedResponseEstimates.add(e.merge(second.responseEstimates[i]))
-        }
-        val pd = first.problemDefinition
-
-        val responsePenalities = mutableListOf<Double>()
-
-        TODO()
+        // convert and merge as response maps
+        val r1 = first.toResponseMap()
+        val r2 = second.toResponseMap()
+        // merge them
+        r1.mergeAll(r2)
+        // now return as merged solution
+        return r1.toSolution(first.inputMap, numReps)
     }
 
     private fun updateRequestReplicationData(
@@ -221,7 +216,7 @@ class Evaluator(
         ): Map<EvaluationRequest, Solution> {
             val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
             for ((request, responseMap) in cases) {
-                solutions[request] = responseMap.toSolution(request)
+                solutions[request] = responseMap.toSolution(request.inputMap, request.numReplications)
             }
             return solutions
         }

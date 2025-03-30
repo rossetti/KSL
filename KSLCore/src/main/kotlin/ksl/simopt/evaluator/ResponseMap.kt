@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
 /**
@@ -69,9 +70,10 @@ class ResponseMap(
      *  to be constructed.
      */
     fun toSolution(
-        request: EvaluationRequest,
+        inputMap: InputMap,
+        numReplications: Int
     ) : Solution {
-        require(hasRequestedReplications(request.numReplications)){"The response map is missing requested responses for the associated problem."}
+        require(hasRequestedReplications(numReplications)){"The response map is missing requested responses for the associated problem."}
         val objFnName = problemDefinition.objFnResponseName
         val estimatedObjFnc = map[objFnName]!!
         val responseEstimates = mutableListOf<EstimatedResponse>()
@@ -83,8 +85,8 @@ class ResponseMap(
         }
         val responsePenalties = problemDefinition.responseConstraintPenalties(this)
         val solution = Solution(
-            request.inputMap,
-            request.numReplications,
+            inputMap,
+            numReplications,
             estimatedObjFnc,
             responseEstimates,
             responsePenalties
@@ -117,6 +119,18 @@ class ResponseMap(
             map[estimate.name] = current.merge(estimate)
         } else {
             map[estimate.name] = estimate
+        }
+    }
+
+    /**
+     *  Adds or merges the supplied estimated responses within the response map
+     *  into the response map
+     *  @param responseMap the estimated responses to add. The names
+     *  of the responses must be valid for the associated problem.
+     */
+    fun mergeAll(responseMap: ResponseMap){
+        for(estimate in responseMap.values){
+            merge(estimate)
         }
     }
 
