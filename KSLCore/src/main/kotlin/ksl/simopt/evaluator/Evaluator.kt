@@ -232,32 +232,6 @@ class Evaluator(
         }
         return solutions
     }
-
-    /**
-     * Match solutions to raw responses by key, parse and merge
-     * @param requests - evaluation requests
-     * @param rawResponses - a map of raw responses (Key, Value) pairs to decode, keycode
-     * is the hashcode of the solution that was evaluated.
-     * @return - solution and responses matched and parsed
-     */
-    private fun parseResponses(
-        requests: List<EvaluationRequest>,
-        rawResponses: Map<EvaluationRequest, ResponseMap>
-    ): Map<EvaluationRequest, Solution> {
-        TODO("Not implemented yet")
-    }
-
-    /**
-     * Parse an input vector and ResponseMap into a Solution
-     * throwing an error if the objective function or a required response
-     * is NOT found
-     * @param request a request for evaluation
-     * @param responseMap - a map of raw responses (the key is a hashcode of the input/inputs)
-     * @return a parsed response as a solution
-     */
-    private fun parseResponse(request: EvaluationRequest, responseMap: ResponseMap): Solution {
-        TODO("Not implemented yet")
-    }
 }
 
 fun List<EvaluationRequest>.totalReplications(): Int {
