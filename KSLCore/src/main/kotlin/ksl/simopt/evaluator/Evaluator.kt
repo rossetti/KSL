@@ -132,7 +132,7 @@ class Evaluator(
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
         // check with the cache for solutions
-        val solutionMap = cache?.retrieveSolutions(requests) ?: mutableMapOf()
+        val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
         // the returned map is either empty or contains solutions associated with some of the requests
         // update the requests based on the replications in the solutions
         updateRequestReplicationData(solutionMap, uniqueRequests)
@@ -164,6 +164,13 @@ class Evaluator(
         return solutions
     }
 
+    /**
+     *  Because some replications can be satisfied by the cache,
+     *  this function updates the request's original amount requested
+     *  so that the simulation oracle does not need to run those replications.
+     *  @param solutionMap the solutions obtained from the cache
+     *  @param uniqueRequests the requests that
+     */
     private fun updateRequestReplicationData(
         solutionMap: MutableMap<InputMap, Solution>,
         uniqueRequests: List<EvaluationRequest>
