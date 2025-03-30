@@ -55,7 +55,7 @@ class ResponseMap(
         if (!hasAllResponses()){
             return false
         }
-        for((name, estimate) in map){
+        for(estimate in map.values){
             if (estimate.count.toInt() < numReplications) {
                 return false
             }
