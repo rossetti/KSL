@@ -135,6 +135,10 @@ class Evaluator(
         for ((i, e) in first.responseEstimates.withIndex()) {
             mergedResponseEstimates.add(e.merge(second.responseEstimates[i]))
         }
+        val pd = first.problemDefinition
+
+        val responsePenalities = mutableListOf<Double>()
+
         TODO()
     }
 

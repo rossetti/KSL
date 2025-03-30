@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.ProblemDefinition
 
 data class Solution(
     val inputMap: InputMap,
@@ -9,6 +10,9 @@ data class Solution(
     val responseEstimates: List<EstimatedResponse>,
     val responsePenalties: List<Double>
 ) : Comparable<Solution> {
+
+    val problemDefinition: ProblemDefinition
+        get() = inputMap.problemDefinition
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
