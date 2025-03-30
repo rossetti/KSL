@@ -46,25 +46,36 @@ class ResponseMap(
     }
 
     /**
+     *  Checks if all the responses and a sufficient number of replications
+     *  are available in the response map.  Once this is true,
+     *  the response map can be converted into a solution.
+     */
+    fun hasRequestedReplications(numReplications: Int) : Boolean {
+        if (!hasAllResponses()){
+            return false
+        }
+        for((name, estimate) in map){
+            if (estimate.count.toInt() < numReplications) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
      *  Converts the response map to an instance of a Solution based
      *  on the supplied evaluation request
      */
     fun toSolution(
         request: EvaluationRequest,
     ) : Solution {
-        require(hasAllResponses()){"The response map is missing required response for the associated problem."}
+        require(hasRequestedReplications(request.numReplications)){"The response map is missing requested responses for the associated problem."}
         val objFnName = problemDefinition.objFnResponseName
         val estimatedObjFnc = map[objFnName]!!
-        require(estimatedObjFnc.count.toInt() >= request.numReplications){
-            "The number of replications in the response must be >= the number of replications requested (${request.numReplications}"
-        }
         val responseEstimates = mutableListOf<EstimatedResponse>()
         for ((name, _) in map) {
             if (name != objFnName) {
                 val estimate = map[name]!!
-                require(estimate.count.toInt() >= request.numReplications){
-                    "The number of replications in the response must be >= the number of replications requested (${request.numReplications}"
-                }
                 responseEstimates.add(estimate)
             }
         }
