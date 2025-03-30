@@ -388,7 +388,7 @@ class ProblemDefinition(
     }
 
     //TODO might not be necessary
-    
+
     /**
      *  The penalties associated with the response constraints for the
      *  provided values within the response map.
