@@ -87,7 +87,12 @@ class Evaluator(
 
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
-     *  solution cache (if present) or via evaluations by the simulation oracle.  The res
+     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
+     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
+     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
+     *  solutions that result due to the processing will be entered into the cache (according
+     *  to the rules governing the cache).
+     *
      *  @param requests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
