@@ -16,7 +16,7 @@ class FixedStartingPoint(val point: MutableMap<String, Double>) : StartingPointI
         return if (roundToGranularity){
             problemDefinition.roundToGranularity(point.toMutableMap())
         } else {
-            InputMap(point)
+            InputMap(problemDefinition, point)
         }
     }
 

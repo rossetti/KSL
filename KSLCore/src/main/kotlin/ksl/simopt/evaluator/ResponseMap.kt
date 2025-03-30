@@ -38,6 +38,36 @@ class ResponseMap(
             return statMap
         }
 
+    val responseConstraintPenalties: List<Double>
+        get() = problemDefinition.responseConstraintPenalties(this)
+
+    /**
+     *  Converts the response map to an instance of a Solution based
+     *  on the supplied evaluation request
+     */
+    fun toSolution(
+        request: EvaluationRequest,
+    ) : Solution {
+        val objFnName = problemDefinition.objFnResponseName
+        val estimates = estimatedResponses
+        val estimatedObjFnc = estimates[objFnName]!!
+        val responseEstimates = mutableListOf<EstimatedResponse>()
+        for ((name, _) in estimates) {
+            if (name != objFnName) {
+                responseEstimates.add(estimates[name]!!)
+            }
+        }
+        val responsePenalties = responseConstraintPenalties
+        val solution = Solution(
+            request.inputMap,
+            request.numReplications,
+            estimatedObjFnc,
+            responseEstimates,
+            responsePenalties
+        )
+        return solution
+    }
+
     /**
      *  Replaces the list for the specified key with the supplied list.
      *  The key must already exist in the response map.
@@ -64,7 +94,7 @@ class ResponseMap(
      *  the arrays are appended to the data already within the response map.
      */
     fun appendAll(responses: Map<String, DoubleArray>){
-        for((name, data) in map){
+        for((name, _) in map){
             require(responses.containsKey(name)) {"The response $name was not in the supplied map of responses"}
             append(name, responses[name]!!.asList())
         }

@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.ProblemDefinition
 
 /**
  *  A request for evaluation by the simulation oracle for the provided input values.
@@ -13,10 +14,10 @@ import ksl.simopt.problem.InputMap
  */
 class EvaluationRequest(
     numReps: Int,
-    val inputMap: InputMap
+    val inputMap: InputMap,
 ) {
     init {
-        require(numReps >= 1) {"The number of replications must be >= 1"}
+        require(numReps >= 1) { "The number of replications must be >= 1" }
     }
 
     /**
@@ -28,7 +29,7 @@ class EvaluationRequest(
      */
     var startingReplicationNum: Int = 1
         set(value) {
-            require(value >= 1) {"The starting replication number must be >= 1"}
+            require(value >= 1) { "The starting replication number must be >= 1" }
             field = value
         }
 
@@ -41,7 +42,7 @@ class EvaluationRequest(
      *  Sets the number of requested replications to the maximum of the supplied
      *  [numReps] or the current setting for the number of requested replications.
      */
-    fun maxOfReplication(numReps: Int){
+    fun maxOfReplication(numReps: Int) {
         numReplications = maxOf(numReplications, numReps)
     }
 

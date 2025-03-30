@@ -123,10 +123,14 @@ class Evaluator(
     }
 
     private fun mergeSolutions(first: Solution, second: Solution): Solution {
-        require(first.inputMap.equals(second.inputMap)) { "The inputs must be the same in order to merge the solutions" }
+        require(first.inputMap == second.inputMap) { "The inputs must be the same in order to merge the solutions" }
         require(first.responseEstimates.size == second.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
+        // We assume that the two solutions are from independent replications
+        // We now have more replications in the sample
         val numReps = first.numReplications + second.numReplications
+        // the objective function responses can be merged/combined
         val objFunc = first.estimatedObjFnc.merge(second.estimatedObjFnc)
+        // the responses
         val mergedResponseEstimates = mutableListOf<EstimatedResponse>()
         for ((i, e) in first.responseEstimates.withIndex()) {
             mergedResponseEstimates.add(e.merge(second.responseEstimates[i]))
@@ -160,30 +164,6 @@ class Evaluator(
     }
 
     /**
-     *  The list of requests may come from different solvers. The requests may have the
-     *  same design point (inputs). If so, we need to remove any requests for
-     *  the same inputs, and keep the duplicate that has the maximum number of replications.
-     *  This ensures that the evaluation covers any request with fewer replications and
-     *  does not repeat expensive simulation evaluations on the same input values.
-     *
-     * @param requests a list of evaluation requests
-     * @return a list of evaluation requests that are unique
-     */
-    private fun filterToUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
-        val uniqueRequests = mutableSetOf<EvaluationRequest>()
-        // since requests are the same based on the values of their input maps
-        // we need only update the duplicate so that it has the maximum of any duplicate entries
-        for (req in requests) {
-            if (uniqueRequests.contains(req)) {
-                req.maxOfReplication(req.numReplications)
-            } else {
-                uniqueRequests.add(req)
-            }
-        }
-        return uniqueRequests.toList()
-    }
-
-    /**
      * Evaluate directly via the simulation oracle (without accessing the cache).
      *
      * @param requests  list of requests (design vector input and number of desired replications)
@@ -202,35 +182,45 @@ class Evaluator(
         return createSolutions(cases)
     }
 
-    /**
-     *  Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
-     *  pair by using the problem definition associated with the evaluator.
-     */
-    fun createSolutions(
-        cases: Map<EvaluationRequest, ResponseMap>
-    ): Map<EvaluationRequest, Solution> {
-        val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
-        for ((request, responseMap) in cases) {
-            val objFnName = problemDefinition.objFnResponseName
-            val estimates = responseMap.estimatedResponses
-            val estimatedObjFnc = estimates[objFnName]!!
-            val responseEstimates = mutableListOf<EstimatedResponse>()
-            for ((name, _) in estimates) {
-                if (name != objFnName) {
-                    responseEstimates.add(estimates[name]!!)
+    companion object {
+
+        /**
+         *  The list of requests may come from different solvers. The requests may have the
+         *  same design point (inputs). If so, we need to remove any requests for
+         *  the same inputs, and keep the duplicate that has the maximum number of replications.
+         *  This ensures that the evaluation covers any request with fewer replications and
+         *  does not repeat expensive simulation evaluations on the same input values.
+         *
+         * @param requests a list of evaluation requests
+         * @return a list of evaluation requests that are unique
+         */
+        fun filterToUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
+            val uniqueRequests = mutableSetOf<EvaluationRequest>()
+            // since requests are the same based on the values of their input maps
+            // we need only update the duplicate so that it has the maximum of any duplicate entries
+            for (req in requests) {
+                if (uniqueRequests.contains(req)) {
+                    req.maxOfReplication(req.numReplications)
+                } else {
+                    uniqueRequests.add(req)
                 }
             }
-            val responsePenalties = problemDefinition.responseConstraintPenalties(responseMap)
-            val solution = Solution(
-                request.inputMap,
-                request.numReplications,
-                estimatedObjFnc,
-                responseEstimates,
-                responsePenalties
-            )
-            solutions[request] = solution
+            return uniqueRequests.toList()
         }
-        return solutions
+
+        /**
+         *  Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
+         *  pair by using the problem definition associated with the evaluator.
+         */
+        fun createSolutions(
+            cases: Map<EvaluationRequest, ResponseMap>
+        ): Map<EvaluationRequest, Solution> {
+            val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
+            for ((request, responseMap) in cases) {
+                solutions[request] = responseMap.toSolution(request)
+            }
+            return solutions
+        }
     }
 }
 

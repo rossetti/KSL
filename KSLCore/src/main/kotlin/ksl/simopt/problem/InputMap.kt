@@ -8,7 +8,10 @@ package ksl.simopt.problem
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process.
  */
-open class InputMap(private val map: MutableMap<String, Double>) : Map<String, Double> by map {
+open class InputMap(
+    val problemDefinition: ProblemDefinition,
+    private val map: MutableMap<String, Double>
+) : Map<String, Double> by map {
 
     operator fun set(key: String, value: Double) {
         require(map.containsKey(key)) {"The key ($key) is not in the map!"}

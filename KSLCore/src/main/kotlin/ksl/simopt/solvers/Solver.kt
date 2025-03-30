@@ -1,9 +1,12 @@
 package ksl.simopt.solvers
 
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.ProblemDefinition
 
 //TODO needs a lot more work
-abstract class Solver {
+abstract class Solver(
+    val problemDefinition: ProblemDefinition
+){
 
     abstract fun instance(): Solver
 

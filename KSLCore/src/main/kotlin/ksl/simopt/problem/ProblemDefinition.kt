@@ -416,7 +416,7 @@ class ProblemDefinition(
             require(name in map) { "The input name $name does not exist in the map" }
             map[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
-        return InputMap(map)
+        return InputMap(this, map)
     }
 
     /** The map values are mutated to hold values that have appropriate granularity based on the
@@ -443,7 +443,7 @@ class ProblemDefinition(
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
             map[inputDefinition.name] = x[i]
         }
-        return InputMap(map)
+        return InputMap(this, map)
     }
 
     /**
@@ -454,7 +454,7 @@ class ProblemDefinition(
      */
     fun toInputMap(map: MutableMap<String, Double>): InputMap {
         require(validateNames(map)) { "The names in the supplied map do not match the required names of the problem" }
-        return InputMap(map)
+        return InputMap(this, map)
     }
 
     /**
@@ -560,7 +560,7 @@ class ProblemDefinition(
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.randomValue(rnStream, roundToGranularity)
         }
-        return InputMap(map)
+        return InputMap(this, map)
     }
 
     /**
