@@ -107,7 +107,7 @@ class Evaluator(
                 if (solutionMap.containsKey(request.inputMap)) {
                     // merge the solution with the cached solution
                     val cachedSolution = solutionMap[request.inputMap]!!
-                    solutionMap[request.inputMap] = mergeSolutions(cachedSolution, newSolution)
+                    solutionMap[request.inputMap] = cachedSolution.merge(newSolution)
                 } else {
                     solutionMap[request.inputMap] = newSolution
                 }
@@ -120,21 +120,6 @@ class Evaluator(
         //TODO why not return a Map<EvaluationRequest, Solution> or Map<InputMap, Solution>
         // why return List<Solution>
         TODO("Not implemented yet")
-    }
-
-    private fun mergeSolutions(first: Solution, second: Solution): Solution {
-        require(first.inputMap == second.inputMap) { "The inputs must be the same in order to merge the solutions" }
-        require(first.responseEstimates.size == second.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
-        // We assume that the two solutions are from independent replications
-        // We now have more replications in the sample
-        val numReps = first.numReplications + second.numReplications
-        // convert and merge as response maps
-        val r1 = first.toResponseMap()
-        val r2 = second.toResponseMap()
-        // merge them
-        r1.mergeAll(r2)
-        // now return as merged solution
-        return r1.toSolution(first.inputMap, numReps)
     }
 
     private fun updateRequestReplicationData(
