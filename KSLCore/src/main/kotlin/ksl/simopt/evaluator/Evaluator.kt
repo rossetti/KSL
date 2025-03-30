@@ -12,7 +12,8 @@ import ksl.simopt.problem.ProblemDefinition
  *  @param simulationProvider the provider of responses from the simulation oracle
  *  @param cache a cache that can be used instead of a costly simulation evaluation
  *  @param oracleReplicationBudget the maximum number of direct replications permitted by the evaluator.
- *  The default is Int.MAX_VALUE. This can be used to control the total number of evaluation.
+ *  The default is Int.MAX_VALUE. This can be used to control the total number of replications executed
+ *  by the simulation oracle.
  */
 class Evaluator(
     val problemDefinition: ProblemDefinition,
