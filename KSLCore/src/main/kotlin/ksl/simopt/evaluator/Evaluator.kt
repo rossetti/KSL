@@ -202,7 +202,11 @@ class Evaluator(
         return createSolutions(cases)
     }
 
-    private fun createSolutions(
+    /**
+     *  Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
+     *  pair by using the problem definition associated with the evaluator.
+     */
+    fun createSolutions(
         cases: Map<EvaluationRequest, ResponseMap>
     ): Map<EvaluationRequest, Solution> {
         val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
