@@ -15,9 +15,6 @@ class ResponseMap(
     private val map: MutableMap<String, EstimatedResponse> = mutableMapOf()
 ) : Map<String, EstimatedResponse> by map {
 
-    val responseConstraintPenalties: List<Double>
-        get() = problemDefinition.responseConstraintPenalties(this)
-
     val averages: Map<String, Double>
         get() = map.mapValues { it.value.average }
 
@@ -31,28 +28,47 @@ class ResponseMap(
         get() = map.mapValues { it.value.standardDeviation }
 
     /**
+     *  Checks if all responses associated with the problem are currently
+     *  in the map. True if all responses needed for the problem are in the map.
+     *  False if at least one required response is missing from the map.
+     */
+    fun hasAllResponses() : Boolean {
+        if (map.isEmpty()){
+            return false
+        }
+        val responseNames = problemDefinition.allResponseNames
+        for(name in responseNames){
+            if (!map.containsKey(name)){
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
      *  Converts the response map to an instance of a Solution based
      *  on the supplied evaluation request
      */
     fun toSolution(
         request: EvaluationRequest,
     ) : Solution {
+        require(hasAllResponses()){"The response map is missing required response for the associated problem."}
         val objFnName = problemDefinition.objFnResponseName
         val estimatedObjFnc = map[objFnName]!!
-        require(request.numReplications == estimatedObjFnc.count.toInt()){
-            "The requested number of replications does not match the number of replications in the response."
+        require(estimatedObjFnc.count.toInt() >= request.numReplications){
+            "The number of replications in the response must be >= the number of replications requested (${request.numReplications}"
         }
         val responseEstimates = mutableListOf<EstimatedResponse>()
         for ((name, _) in map) {
             if (name != objFnName) {
                 val estimate = map[name]!!
-                require(request.numReplications == estimate.count.toInt()){
-                    "The requested number of replications does not match the number of replications in the response."
+                require(estimate.count.toInt() >= request.numReplications){
+                    "The number of replications in the response must be >= the number of replications requested (${request.numReplications}"
                 }
                 responseEstimates.add(estimate)
             }
         }
-        val responsePenalties = responseConstraintPenalties
+        val responsePenalties = problemDefinition.responseConstraintPenalties(this)
         val solution = Solution(
             request.inputMap,
             request.numReplications,
