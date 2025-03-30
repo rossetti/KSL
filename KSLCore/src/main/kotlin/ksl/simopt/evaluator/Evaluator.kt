@@ -137,10 +137,12 @@ class Evaluator(
         // update the requests based on the replications in the solutions
         updateRequestReplicationData(solutionMap, uniqueRequests)
         // filter requests that no longer need replications
-        val requestsToEvaluate = uniqueRequests.filter { it.numReplications > 0 }
+        val requestsToSimulate = uniqueRequests.filter { it.numReplications > 0 }
         // evaluate remaining requests and update solutions
-        if (requestsToEvaluate.isNotEmpty()) {
-            val solutions = evaluateViaSimulation(requestsToEvaluate)
+        if (requestsToSimulate.isNotEmpty()) {
+            val solutions = evaluateViaSimulation(requestsToSimulate)
+            // since some requests could have needed additional replications, we may need to merge solutions
+            // from the cache with solutions performed by the oracle
             for ((request, newSolution) in solutions) {
                 if (solutionMap.containsKey(request.inputMap)) {
                     // merge the solution with the cached solution
@@ -150,13 +152,15 @@ class Evaluator(
                     solutionMap[request.inputMap] = newSolution
                 }
             }
-            // update the cache with any new solutions
+            // update the cache with any new solutions after possible merging
             if (cache != null){
                 for((inputMap, solution) in solutionMap){
                     cache[inputMap] = solution
                 }
             }
         }
+        // package the solutions up for each request in the order that was requested
+        // handle duplicate input requests by grabbing from the solution map based on the input of the request
         val solutions = mutableListOf<Solution>()
         for(request in requests){
             solutions.add(solutionMap[request.inputMap]!!)
