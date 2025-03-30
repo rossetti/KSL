@@ -85,6 +85,12 @@ class Evaluator(
         totalCachedReplications = 0
     }
 
+    /**
+     *  Processes the supplied requests for solutions. The solutions may come from an associated
+     *  solution cache (if present) or via evaluations by the simulation oracle.  The res
+     *  @param requests a list of evaluation requests
+     *  @return a list containing a solution for each request
+     */
     fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
@@ -112,14 +118,18 @@ class Evaluator(
                     solutionMap[request.inputMap] = newSolution
                 }
             }
-            //TODO update the cache with any new solutions
+            // update the cache with any new solutions
+            if (cache != null){
+                for((inputMap, solution) in solutionMap){
+                    cache[inputMap] = solution
+                }
+            }
         }
-
-        //TODO package up the solutions
-
-        //TODO why not return a Map<EvaluationRequest, Solution> or Map<InputMap, Solution>
-        // why return List<Solution>
-        TODO("Not implemented yet")
+        val solutions = mutableListOf<Solution>()
+        for(request in requests){
+            solutions.add(solutionMap[request.inputMap]!!)
+        }
+        return solutions
     }
 
     private fun updateRequestReplicationData(
