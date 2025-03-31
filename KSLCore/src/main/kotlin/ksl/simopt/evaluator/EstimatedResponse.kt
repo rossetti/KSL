@@ -11,10 +11,9 @@ data class EstimatedResponse(
 ) {
     init {
         require(name.isNotBlank()) { "The name of the response cannot be blank" }
-        require(!average.isNaN()) { "The average was not a number." }
-        require(!variance.isNaN()) { "The variance was not a number." }
-        require(!count.isNaN()) { "The count was not a number." }
-        require(variance >= 0.0) { "The variance must be >= 0.0" }
+        require(!average.isNaN() || average.isFinite()) { "The average was not a number or was infinite." }
+        require(!count.isNaN() || count.isFinite()) { "The count was not a number or was infinite." }
+        require((variance >= 0.0) || variance.isNaN()) { "The variance must be >= 0.0 or NaN" }
         require(count >= 1) { "The count must be >= 1" }
     }
 
@@ -45,8 +44,33 @@ data class EstimatedResponse(
         require(this.name == e.name) { "The names of the responses to merge must be the same" }
         val n = count + e.count
         val avg = ((average * count) + (e.average * e.count)) / n
-        val v = variance + e.variance
+        val v = pooledVariance(e)
         return EstimatedResponse(this.name, avg, v, n)
+    }
+
+    /**
+     *  Computes the pooled variance when combining samples from the same population.
+     *  The pooling process assumes a weighted average of the variances. In the case
+     *  where each estimate only has count equal to 1, the variance is computed from the two data points.
+     *  In the cases where the pooled sample will have 3 elements, the variance associated with the sample
+     *  size of 2 is used. In the cases where both samples have 2 or more elements, a weighted
+     *  pooled variance is computed.
+     */
+    private fun pooledVariance(e: EstimatedResponse): Double {
+        if ((count == 1.0) && (e.count == 1.0)) {
+            // we have a sample of size 2 now, just average them
+            val avg = (average + e.average)/2.0
+            val v = (average - avg)*(average - avg) + (e.average - avg)*(e.average - avg)
+            return v
+        } else if (count == 1.0 && e.count == 2.0) {
+            return e.variance
+        } else if ((count == 2.0) && (e.count == 1.0)) {
+            return variance
+        } else {
+            val n = count + e.count
+            val v = (count - 1.0)*variance + (e.count - 1.0)*e.variance
+            return v/(n - 2.0)
+        }
     }
 
     fun instance(): EstimatedResponse {
