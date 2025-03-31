@@ -3,6 +3,10 @@ package ksl.simopt.evaluator
 import ksl.utilities.statistics
 import kotlin.math.sqrt
 
+/**
+ *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1)
+ *  the variance will be undefined (Double.NaN).
+ */
 data class EstimatedResponse(
     val name: String,
     val average: Double,
