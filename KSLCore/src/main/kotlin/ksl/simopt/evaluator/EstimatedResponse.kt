@@ -6,6 +6,11 @@ import kotlin.math.sqrt
 /**
  *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1)
  *  the variance will be undefined (Double.NaN).
+ *
+ *  @param name the name of the response that was estimated
+ *  @param average the sample average of the sample
+ *  @param variance the sample variance of the sample
+ *  @param count the number of observations in the sample
  */
 data class EstimatedResponse(
     val name: String,
