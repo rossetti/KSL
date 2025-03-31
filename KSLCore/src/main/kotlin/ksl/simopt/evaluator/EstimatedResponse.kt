@@ -1,6 +1,8 @@
 package ksl.simopt.evaluator
 
 import kotlinx.serialization.Serializable
+import ksl.utilities.distributions.StudentT
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistics
 import kotlin.math.sqrt
 
@@ -45,6 +47,27 @@ data class EstimatedResponse(
 
     val standardError: Double
         get() = standardDeviation / sqrt(count)
+
+    /**
+     * Gets the confidence interval half-width. Simply the standard error
+     * times the confidence coefficient as determined by an appropriate sampling
+     * distribution
+     *
+     * @param level the confidence level
+     * @return A double representing the half-width or Double.NaN if &lt; 1
+     * observation
+     */
+    fun halfWidth(level: Double = DEFAULT_CONFIDENCE_LEVEL): Double{
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        if (count <= 1.0) {
+            return Double.NaN
+        }
+        val dof = count - 1.0
+        val alpha = 1.0 - level
+        val p = 1.0 - alpha / 2.0
+        val t = StudentT.invCDF(dof, p)
+        return t * standardError
+    }
 
     /**
      * Combine this estimate with another independent estimate
