@@ -31,7 +31,8 @@ data class EstimatedResponse(
     }
 
     constructor(name: String, data: DoubleArray) : this(
-        name, data.statistics().average, data.statistics().variance, data.statistics().count)
+        name, data.statistics().average, data.statistics().variance, data.statistics().count
+    )
 
     constructor(name: String, data: List<Double>) : this(name, data.toDoubleArray())
 
@@ -56,7 +57,7 @@ data class EstimatedResponse(
      * @return A double representing the half-width or Double.NaN if &lt; 1
      * observation
      */
-    fun halfWidth(level: Double = DEFAULT_CONFIDENCE_LEVEL): Double{
+    fun halfWidth(level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
         if (count <= 1.0) {
             return Double.NaN
@@ -92,8 +93,8 @@ data class EstimatedResponse(
     private fun pooledVariance(e: EstimatedResponse): Double {
         if ((count == 1.0) && (e.count == 1.0)) {
             // we have a sample of size 2 now, just average them
-            val avg = (average + e.average)/2.0
-            val v = (average - avg)*(average - avg) + (e.average - avg)*(e.average - avg)
+            val avg = (average + e.average) / 2.0
+            val v = (average - avg) * (average - avg) + (e.average - avg) * (e.average - avg)
             return v
         } else if (count == 1.0 && e.count == 2.0) {
             return e.variance
@@ -102,8 +103,8 @@ data class EstimatedResponse(
         } else {
             // both counts must be > 2
             val n = count + e.count
-            val v = (count - 1.0)*variance + (e.count - 1.0)*e.variance
-            return v/(n - 2.0)
+            val v = (count - 1.0) * variance + (e.count - 1.0) * e.variance
+            return v / (n - 2.0)
         }
     }
 
