@@ -14,7 +14,7 @@ fun interface SimulationProviderIfc {
 
     //TODO generalize cases to a data class that has information that will allow validation
     // of the requests prior to processing them
-    
+
     /**
      *  Promises to convert evaluation requests into responses.
      *  The values in the response map will be updated by the simulation.
