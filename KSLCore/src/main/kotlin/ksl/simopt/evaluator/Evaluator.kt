@@ -174,7 +174,7 @@ class Evaluator(
      *  this function updates the request's original amount requested
      *  so that the simulation oracle does not need to run those replications.
      *  @param solutionMap the solutions obtained from the cache
-     *  @param uniqueRequests the requests that
+     *  @param uniqueRequests the requests that need evaluation
      */
     private fun updateRequestReplicationData(
         solutionMap: MutableMap<InputMap, Solution>,
@@ -189,7 +189,7 @@ class Evaluator(
                 val n = sol.numReplications
                 totalCachedEvaluations++
                 totalCachedReplications = totalCachedReplications + n
-                request.startingReplicationNum = n //why?
+                request.startingReplicationNum = n //TODO why?
                 request.numReplications = request.numReplications - n
             }
         }
