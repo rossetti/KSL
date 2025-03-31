@@ -4,6 +4,23 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
 /**
+ *  Specifies how the request's replications should be handled by
+ *  the evaluator in terms of utilizing an existing solution cache.
+ *
+ *  REPLACE - The replications associated with the request should all be evaluated
+ *  without the cache and the resulting solutions should replace any existing solutions in the cache.
+ *  MERGE - The replications associated with the request should all be evaluated
+ *  without the cache and the resulting solutions should be merged with any existing solutions in the cache.
+ *  USE_CACHE - The replications can be filled from existing solutions in the cache. Any new replications
+ *  caused by the request should be merged with any existing solutions in the cache.
+ */
+enum class CacheRequestType {
+    REPLACE,
+    MERGE,
+    USE_CACHE
+}
+
+/**
  *  A request for evaluation by the simulation oracle for the provided input values.
  *  Note that two requests are considered equal if their input maps are the same.
  *  Input maps are considered the same if all (name, value) pairs are equivalent.
@@ -15,6 +32,7 @@ import ksl.simopt.problem.ProblemDefinition
 class EvaluationRequest(
     numReps: Int,
     val inputMap: InputMap,
+    val requestType: CacheRequestType = CacheRequestType.USE_CACHE
 ) {
     init {
         require(numReps >= 1) { "The number of replications must be >= 1" }
@@ -46,18 +64,7 @@ class EvaluationRequest(
         numReplications = maxOf(numReplications, numReps)
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
 
-        other as EvaluationRequest
-
-        return inputMap == other.inputMap
-    }
-
-    override fun hashCode(): Int {
-        return inputMap.hashCode()
-    }
 
     val inputValues: DoubleArray
         get() = inputMap.inputValues
