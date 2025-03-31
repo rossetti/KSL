@@ -67,6 +67,7 @@ data class EstimatedResponse(
         } else if ((count == 2.0) && (e.count == 1.0)) {
             return variance
         } else {
+            // both counts must be > 2
             val n = count + e.count
             val v = (count - 1.0)*variance + (e.count - 1.0)*e.variance
             return v/(n - 2.0)
