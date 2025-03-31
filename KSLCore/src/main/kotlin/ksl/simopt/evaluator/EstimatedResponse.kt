@@ -50,8 +50,7 @@ data class EstimatedResponse(
 
     /**
      * Gets the confidence interval half-width. Simply the standard error
-     * times the confidence coefficient as determined by an appropriate sampling
-     * distribution
+     * times the confidence coefficient based on a StudentT distribution approximation.
      *
      * @param level the confidence level
      * @return A double representing the half-width or Double.NaN if &lt; 1
