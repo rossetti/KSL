@@ -141,16 +141,17 @@ class Evaluator(
         val requestsToSimulate = uniqueRequests.filter { it.numReplications > 0 }
         // evaluate remaining requests and update solutions
         if (requestsToSimulate.isNotEmpty()) {
-            val solutions = evaluateViaSimulation(requestsToSimulate)
+            //TODO since Solution contains InputMap, the association with EvaluationRequest may not be needed
+            val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
             // since some requests could have needed additional replications, we may need to merge solutions
             // from the cache with solutions performed by the oracle
-            for ((request, newSolution) in solutions) {
+            for ((request, simulatedSolution) in simulatedSolutions) {
                 if (solutionMap.containsKey(request.inputMap)) {
                     // merge the solution with the cached solution
                     val cachedSolution = solutionMap[request.inputMap]!!
-                    solutionMap[request.inputMap] = cachedSolution.merge(newSolution)
+                    solutionMap[request.inputMap] = cachedSolution.merge(simulatedSolution)
                 } else {
-                    solutionMap[request.inputMap] = newSolution
+                    solutionMap[request.inputMap] = simulatedSolution
                 }
             }
             // update the cache with any new solutions after possible merging
