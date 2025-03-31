@@ -3,22 +3,6 @@ package ksl.simopt.evaluator
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
-/**
- *  Specifies how the request's replications should be handled by
- *  the evaluator in terms of utilizing an existing solution cache.
- *
- *  REPLACE - The replications associated with the request should all be evaluated
- *  without the cache and the resulting solutions should replace any existing solutions in the cache.
- *  MERGE - The replications associated with the request should all be evaluated
- *  without the cache and the resulting solutions should be merged with any existing solutions in the cache.
- *  USE_CACHE - The replications can be filled from existing solutions in the cache. Any new replications
- *  caused by the request should be merged with any existing solutions in the cache.
- */
-enum class CacheRequestType {
-    REPLACE,
-    MERGE,
-    USE_CACHE
-}
 
 /**
  *  A request for evaluation by the simulation oracle for the provided input values.
@@ -32,7 +16,6 @@ enum class CacheRequestType {
 class EvaluationRequest(
     numReps: Int,
     val inputMap: InputMap,
-    val requestType: CacheRequestType = CacheRequestType.USE_CACHE
 ) {
     init {
         require(numReps >= 1) { "The number of replications must be >= 1" }
