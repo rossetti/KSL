@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import kotlinx.serialization.Serializable
 import ksl.utilities.statistics
 import kotlin.math.sqrt
 
@@ -12,6 +13,7 @@ import kotlin.math.sqrt
  *  @param variance the sample variance of the sample
  *  @param count the number of observations in the sample
  */
+@Serializable
 data class EstimatedResponse(
     val name: String,
     val average: Double,
