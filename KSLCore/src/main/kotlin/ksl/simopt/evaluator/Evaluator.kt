@@ -222,7 +222,7 @@ class Evaluator(
         totalOracleEvaluations = totalOracleEvaluations + requests.size
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // create the cases to run
-        val cases = requests.associateWith { problemDefinition.createResponseMap() }
+        val cases = requests.associateWith { problemDefinition.emptyResponseMap() }
         // run the scenarios
         simulationProvider.runSimulations(cases)
         return createSolutions(cases)

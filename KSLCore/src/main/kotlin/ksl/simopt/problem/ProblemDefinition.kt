@@ -83,7 +83,7 @@ class ProblemDefinition(
 
     /** Returns a new empty response map to hold the responses associated with the problem
      */
-    fun createResponseMap(): ResponseMap {
+    fun emptyResponseMap(): ResponseMap {
         return ResponseMap(this)
     }
 

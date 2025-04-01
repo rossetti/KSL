@@ -23,7 +23,7 @@ data class Solution(
      *  Converts the solution to an instance of a ResponseMap
      */
     fun toResponseMap(): ResponseMap {
-        val responseMap = problemDefinition.createResponseMap()
+        val responseMap = problemDefinition.emptyResponseMap()
         responseMap.add(estimatedObjFnc)
         for(estimate in responseEstimates){
             responseMap.add(estimate)
