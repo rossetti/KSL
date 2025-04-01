@@ -14,21 +14,27 @@ class SimulationProvider(
     private val mySimulationRunner = SimulationRunner(model)
 
     override fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap> {
-
+        val results = mutableMapOf<EvaluationRequest, ResponseMap>()
         for (request in evaluationRequests) {
-            //TODO validate the inputs from the request as valid for the model
-
-            //TODO assign the inputs to the model's inputs
-
-            //TODO setup the experiment to run
-
-            //TODO run the simulation and capture the simulation run
-
-            //TODO extract the desired responses from the simulation responses
-
-            //TODO fill the response map
+            //run the simulation and capture the simulation run
+            val simulationRun = mySimulationRunner.simulate(request.inputMap, model.extractRunParameters())
+            // extract the replication data for each simulation response
+            val replicationData = simulationRun.results
+            // make an empty response map to hold the estimated responses
+            val responseMap = request.inputMap.problemDefinition.emptyResponseMap()
+            // fill the response map
+            for((name, _) in responseMap){
+                require(replicationData.containsKey(name)){"The simulation responses did not contain the name $name"}
+                // get the data from the simulation
+                val data = replicationData[name]!!
+                // compute the estimates from the replication data
+                val estimatedResponse = EstimatedResponse(name, data)
+                // place the estimate in the response map
+                responseMap.add(estimatedResponse)
+            }
+            results[request] = responseMap
         }
-        TODO("Not yet implemented")
+        return results
     }
 
 }
