@@ -7,7 +7,7 @@ import ksl.simulation.Model
  *  This simulation provider will execute evaluation requests on the same model
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
- *  
+ *
  *  @param model the model to execute. The model's run parameters should be specified prior to running the simulations
  */
 class SimulationProvider(
@@ -27,7 +27,7 @@ class SimulationProvider(
             val responseMap = request.inputMap.problemDefinition.emptyResponseMap()
             // fill the response map
             for((name, _) in responseMap){
-                require(replicationData.containsKey(name)){"The simulation responses did not contain the name $name"}
+                require(replicationData.containsKey(name)){"The simulation responses did not contain the requested response name $name"}
                 // get the data from the simulation
                 val data = replicationData[name]!!
                 // compute the estimates from the replication data
@@ -35,6 +35,7 @@ class SimulationProvider(
                 // place the estimate in the response map
                 responseMap.add(estimatedResponse)
             }
+            // capture the responses for each request
             results[request] = responseMap
         }
         return results
