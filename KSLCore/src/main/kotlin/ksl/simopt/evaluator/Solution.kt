@@ -19,6 +19,28 @@ data class Solution(
     val problemDefinition: ProblemDefinition
         get() = inputMap.problemDefinition
 
+
+    val averages: Map<String, Double>
+        get() = responseEstimates.associate { Pair(it.name, it.average) }
+
+    val variances: Map<String, Double>
+        get() = responseEstimates.associate { Pair(it.name, it.variance) }
+
+    val counts: Map<String, Double>
+        get() = responseEstimates.associate { Pair(it.name, it.count) }
+
+    val stdDeviations: Map<String, Double>
+        get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
+
+    val totalResponsePenalty: Double
+        get() = if (responsePenalties.isNotEmpty()) responsePenalties.sum() else 0.0
+
+    val hasResponsePenalty: Boolean
+        get() = totalResponsePenalty > 0
+
+    val penalizedObjFunc: Double
+        get() = estimatedObjFnc.average + totalResponsePenalty
+
     /**
      *  Converts the solution to an instance of a ResponseMap
      */
