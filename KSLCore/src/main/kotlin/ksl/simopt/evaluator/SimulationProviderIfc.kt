@@ -12,15 +12,12 @@ package ksl.simopt.evaluator
  */
 fun interface SimulationProviderIfc {
 
-    //TODO generalize cases to a data class that has information that will allow validation
-    // of the requests prior to processing them
-
     /**
      *  Promises to convert evaluation requests into responses.
-     *  The values in the response map will be updated by the simulation.
      *
-     * @param cases a map of (input, output) pairs for evaluation
+     * @param evaluationRequests a list of evaluations
+     * @return a map of the pair of evaluation requests and the responses from the simulation
      */
-    fun runSimulations(cases: Map<EvaluationRequest, ResponseMap>)
+    fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap>
 
 }

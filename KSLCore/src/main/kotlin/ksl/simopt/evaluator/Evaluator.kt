@@ -221,10 +221,8 @@ class Evaluator(
         require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
         totalOracleEvaluations = totalOracleEvaluations + requests.size
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
-        // create the cases to run
-        val cases = requests.associateWith { problemDefinition.emptyResponseMap() }
-        // run the scenarios
-        simulationProvider.runSimulations(cases)
+        // run the evaluations
+        val cases = simulationProvider.runSimulations(requests)
         return createSolutions(cases)
     }
 

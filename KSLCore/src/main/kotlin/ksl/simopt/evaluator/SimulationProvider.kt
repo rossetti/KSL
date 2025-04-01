@@ -13,9 +13,9 @@ class SimulationProvider(
 
     private val mySimulationRunner = SimulationRunner(model)
 
-    override fun runSimulations(cases: Map<EvaluationRequest, ResponseMap>) {
+    override fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap> {
 
-        for ((request, responseMap) in cases){
+        for (request in evaluationRequests) {
             //TODO validate the inputs from the request as valid for the model
 
             //TODO assign the inputs to the model's inputs
