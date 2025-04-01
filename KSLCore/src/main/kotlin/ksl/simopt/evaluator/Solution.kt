@@ -73,8 +73,14 @@ data class Solution(
         return r1.toSolution(inputMap, numReps)
     }
 
+    val objFuncComparator
+        get() = compareBy<Solution> {it.estimatedObjFnc.average}
+
+    val penalizedObjFuncComparator
+        get() = compareBy<Solution> {it.penalizedObjFunc}
+
     override fun compareTo(other: Solution): Int {
-        TODO("Not yet implemented")
-        //TODO perhaps just provide a Comparator based on the objective function
+        return penalizedObjFunc.compareTo(other.penalizedObjFunc)
     }
+
 }
