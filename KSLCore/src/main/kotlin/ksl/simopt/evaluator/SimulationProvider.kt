@@ -5,7 +5,10 @@ import ksl.simulation.Model
 
 /**
  *  This simulation provider will execute evaluation requests on the same model
- *  and collect the desired responses.
+ *  and collect the desired responses.  This provider runs the model's replications
+ *  locally and sequentially in the same execution thread as the requests.
+ *  
+ *  @param model the model to execute. The model's run parameters should be specified prior to running the simulations
  */
 class SimulationProvider(
     private val model: Model
