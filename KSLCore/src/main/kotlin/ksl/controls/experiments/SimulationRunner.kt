@@ -21,7 +21,6 @@ package ksl.controls.experiments
 import ksl.controls.Controls
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
-import ksl.simulation.Experiment
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.maps.KSLMaps
