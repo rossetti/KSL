@@ -18,11 +18,10 @@
 
 package ksl.modeling.spatial
 
-import com.google.common.collect.BiMap
-import com.google.common.collect.HashBasedTable
-import com.google.common.collect.HashBiMap
-import com.google.common.collect.Table
 import ksl.utilities.KSLArrays
+import ksl.utilities.maps.MutableBiMap
+import ksl.utilities.maps.Table
+import ksl.utilities.maps.mutableBiMapOf
 
 data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Double) {
     init {
@@ -40,8 +39,8 @@ class DistancesModel() : SpatialModel() {
             require(value >= 0.0) { "The default distance to/from same location must be >= 0.0" }
             field = value
         }
-    private val distances: Table<LocationIfc, LocationIfc, Double> = HashBasedTable.create()
-    private val myLocations: BiMap<String, LocationIfc> = HashBiMap.create()
+    private val distances: Table<LocationIfc, LocationIfc, Double> = Table()
+    private val myLocations: MutableBiMap<String, LocationIfc> = mutableBiMapOf()
 
     override var defaultLocation: LocationIfc = Location("defaultLocation")
 

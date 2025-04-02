@@ -17,7 +17,6 @@
  */
 package ksl.utilities.distributions.fitting
 
-import com.google.common.collect.HashBiMap
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
@@ -28,6 +27,8 @@ import ksl.utilities.io.plotting.BoxPlot
 import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.toStatDataFrame
+import ksl.utilities.maps.MutableBiMap
+import ksl.utilities.maps.mutableBiMapOf
 import ksl.utilities.moda.*
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.robj.DPopulation
@@ -1266,14 +1267,14 @@ class PDFModeler(
             stream: RNStreamIfc = KSLRandom.nextRNStream()
         ): IntegerFrequency {
             val cdfFreq = IntegerFrequency(name = "Distribution Frequency")
-            val estMap = HashBiMap.create<RVParametersTypeIfc, Int>()
+            val estMap : MutableBiMap<RVParametersTypeIfc, Int> = mutableBiMapOf()
             var cnt = 1
             for (estimator in estimators) {
                 estMap[estimator.rvType] = cnt
                 cnt = cnt + 1
             }
             val cellLabels = mutableMapOf<Int, String>()
-            val invMap = estMap.inverse()
+            val invMap = estMap.inverse
             for ((i, rv) in invMap) {
                 cellLabels[i] = rv.toString()
             }

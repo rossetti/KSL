@@ -89,7 +89,7 @@ dependencies {
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
     api("org.hipparchus:hipparchus-stat:3.1")
 
-    implementation("com.google.guava:guava:33.3.1-jre")
+//    implementation("com.google.guava:guava:33.3.1-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")

@@ -22,8 +22,9 @@ import ksl.utilities.io.CSVRowIterator
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
-import ksl.utilities.maps.HashBiMap
+import ksl.utilities.maps.BiMap
 import ksl.utilities.maps.MutableBiMap
+import ksl.utilities.maps.mutableBiMapOf
 import org.apache.commons.csv.CSVRecord
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException
@@ -65,9 +66,9 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
 //TODO use a builder pattern to define and add the columns
 
     protected val myColumnTypes: Map<String, DataType> = columns.toMap()
-    protected var myNameAndIndex: MutableBiMap<String, Int> = HashBiMap()
-    protected var myNumericIndices: MutableBiMap<Int, Int> = HashBiMap()
-    protected var myTextIndices: MutableBiMap<Int, Int> = HashBiMap()
+    protected var myNameAndIndex: MutableBiMap<String, Int> = mutableBiMapOf()
+    protected var myNumericIndices: MutableBiMap<Int, Int> = mutableBiMapOf()
+    protected var myTextIndices: MutableBiMap<Int, Int> = mutableBiMapOf()
     protected val myColumnNames: MutableList<String> = mutableListOf()
     protected var myDataTypes: MutableList<DataType> = mutableListOf()
 

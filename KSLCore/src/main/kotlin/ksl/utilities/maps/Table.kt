@@ -54,6 +54,20 @@ class Table<R, C, V> {
         return data.values.flatMap { it.values }
     }
 
+    fun rowMap(): Map<R, Map<C, V>> {
+        return data.mapValues { it.value }
+    }
+
+    fun columnMap(): Map<C, Map<R, V>> {
+        val result = mutableMapOf<C, MutableMap<R, V>>()
+        for ((rowKey, columnMap) in data) {
+            for ((columnKey, value) in columnMap) {
+                result.computeIfAbsent(columnKey) { mutableMapOf() }[rowKey] = value
+            }
+        }
+        return result
+    }
+
     fun clear() {
         data.clear()
     }

@@ -1,11 +1,10 @@
 package ksl.modeling.variable
 
-import com.google.common.collect.HashBasedTable
-import com.google.common.collect.Table
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.maps.Table
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.WeightedStatisticIfc
@@ -377,7 +376,7 @@ class TimeSeriesResponse(
         if (myAcrossRepResponseStatsTable == null) {
             return emptyMap()
         }
-        return myAcrossRepResponseStatsTable!!.row(response)
+        return  myAcrossRepResponseStatsTable!!.row(response) ?: emptyMap()
     }
 
     override fun allAcrossReplicationStatisticsByPeriodAsList(confidenceLevel: Double): List<TimeSeriesPeriodStatisticData> {
@@ -453,7 +452,7 @@ class TimeSeriesResponse(
         if (myAcrossRepResponseStatsTable == null) {
             return emptyMap()
         }
-        return myAcrossRepCounterStatsTable!!.row(counter)
+        return myAcrossRepCounterStatsTable!!.row(counter) ?: emptyMap()
     }
 
     /**
@@ -542,12 +541,12 @@ class TimeSeriesResponse(
         if (acrossRepStatisticsOption) {
             // true, means turn on. so if not already created we need to create them
             if (myAcrossRepResponseStatsTable == null) {
-                myAcrossRepResponseStatsTable = HashBasedTable.create()
+                myAcrossRepResponseStatsTable = Table()
             } else {
                 myAcrossRepResponseStatsTable!!.clear()
             }
             if (myAcrossRepCounterStatsTable == null) {
-                myAcrossRepCounterStatsTable = HashBasedTable.create()
+                myAcrossRepCounterStatsTable = Table()
             } else {
                 myAcrossRepCounterStatsTable!!.clear()
             }

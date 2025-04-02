@@ -18,6 +18,7 @@
 
 package ksl.utilities.maps
 
+
 interface BiMap<K : Any, V : Any> : Map<K, V> {
     override val values: Set<V>
     val inverse: BiMap<V, K>
@@ -196,7 +197,24 @@ abstract class AbstractBiMap<K : Any, V : Any> protected constructor(
     }
 }
 
+/**
+ * Returns a new mutable bimap with the specified contents, given as a list of pairs
+ * where the first value is the key and the second is the value.
+ *
+ * If multiple pairs have the same key or the same value, the resulting bimap will contain
+ * the last of those pairs.
+ *
+ * Entries of the bimap are iterated in the order they were specified.
+ *
+ * @param pairs the specified contents for the returned bimap
+ * @return a new mutable bimap
+ */
+fun <K:Any, V:Any> mutableBiMapOf(vararg pairs: Pair<K, V>): MutableBiMap<K, V> = HashBiMap.create(pairs.toMap())
+
 class HashBiMap<K : Any, V : Any>(capacity: Int = 16) : AbstractBiMap<K, V>(LinkedHashMap(capacity), LinkedHashMap(capacity)) {
+
+    constructor(): this(0)
+
     companion object {
         fun <K : Any, V : Any> create(map: Map<K, V>): HashBiMap<K, V> {
             val bimap = HashBiMap<K, V>()
@@ -205,71 +223,3 @@ class HashBiMap<K : Any, V : Any>(capacity: Int = 16) : AbstractBiMap<K, V>(Link
         }
     }
 }
-
-/*
-/**
-
-This BiMap class provides the core functionalities of Guava's BiMap, including:
-
-    Storing key-value pairs with unique values.
-    Retrieving values by key.
-    Retrieving keys by value (inverse view).
-    Forcibly putting a key-value pair, removing any existing entry with either the same key or value.
-    Removing entries by key.
-    Checking for the presence of keys and values.
-    Getting the size of the map.
-    Clearing the map.
-
-This implementation throws an IllegalArgumentException if you attempt to put a value that
-already exists in the map, ensuring the uniqueness of values, unless forcePut is used.
- */
-
-class BiMap<K, V> {
-    private val map: MutableMap<K, V> = mutableMapOf()
-    private val inverseMap: MutableMap<V, K> = mutableMapOf()
-
-    fun put(key: K, value: V) {
-        if (map.containsKey(key)) {
-            inverseMap.remove(map[key])
-        }
-        if (inverseMap.containsKey(value)) {
-            throw IllegalArgumentException("Value already present in the map")
-        }
-        map[key] = value
-        inverseMap[value] = key
-    }
-
-    fun forcePut(key: K, value: V) {
-         if (map.containsKey(key)) {
-            inverseMap.remove(map[key])
-        }
-        if (inverseMap.containsKey(value)) {
-            map.remove(inverseMap[value])
-            inverseMap.remove(value)
-        }
-        map[key] = value
-        inverseMap[value] = key
-    }
-
-    fun get(key: K): V? = map[key]
-
-    fun inverse(): Map<V, K> = inverseMap
-
-    fun remove(key: K): V? {
-        val value = map.remove(key)
-        value?.let { inverseMap.remove(it) }
-        return value
-    }
-
-    fun containsKey(key: K): Boolean = map.containsKey(key)
-
-    fun containsValue(value: V): Boolean = inverseMap.containsKey(value)
-
-    val size: Int get() = map.size
-
-    fun clear() {
-        map.clear()
-        inverseMap.clear()
-    }
-}
- */

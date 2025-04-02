@@ -1,21 +1,17 @@
 package ksl.utilities.moda
 
-import com.google.common.collect.HashBasedTable
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.distributions.fitting.PDFModeler
-import ksl.utilities.io.KSL
-import ksl.utilities.io.dbutil.Database
-import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
+import ksl.utilities.maps.Table
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.impl.asList
-import java.nio.file.Path
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -222,7 +218,7 @@ abstract class MODAModel(
     fun metricRankByAlternative(
         rankingMethod: Statistic.Companion.Ranking = defaultRankingMethod
     ): Map<String, Map<MetricIfc, Double>> {
-        val table = HashBasedTable.create<String, MetricIfc, Double>()
+        val table = Table<String, MetricIfc, Double>()
         val ranksByMetric = ranksByMetric(rankingMethod)
         val alternatives = alternatives
         for ((metric, ranks) in ranksByMetric) {
