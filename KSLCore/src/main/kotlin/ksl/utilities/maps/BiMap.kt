@@ -18,22 +18,6 @@
 
 package ksl.utilities.maps
 
-/*
- * Copyright 2016 Michael Rozumyanskiy
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 interface BiMap<K : Any, V : Any> : Map<K, V> {
     override val values: Set<V>
     val inverse: BiMap<V, K>
@@ -221,3 +205,71 @@ class HashBiMap<K : Any, V : Any>(capacity: Int = 16) : AbstractBiMap<K, V>(Link
         }
     }
 }
+
+/*
+/**
+
+This BiMap class provides the core functionalities of Guava's BiMap, including:
+
+    Storing key-value pairs with unique values.
+    Retrieving values by key.
+    Retrieving keys by value (inverse view).
+    Forcibly putting a key-value pair, removing any existing entry with either the same key or value.
+    Removing entries by key.
+    Checking for the presence of keys and values.
+    Getting the size of the map.
+    Clearing the map.
+
+This implementation throws an IllegalArgumentException if you attempt to put a value that
+already exists in the map, ensuring the uniqueness of values, unless forcePut is used.
+ */
+
+class BiMap<K, V> {
+    private val map: MutableMap<K, V> = mutableMapOf()
+    private val inverseMap: MutableMap<V, K> = mutableMapOf()
+
+    fun put(key: K, value: V) {
+        if (map.containsKey(key)) {
+            inverseMap.remove(map[key])
+        }
+        if (inverseMap.containsKey(value)) {
+            throw IllegalArgumentException("Value already present in the map")
+        }
+        map[key] = value
+        inverseMap[value] = key
+    }
+
+    fun forcePut(key: K, value: V) {
+         if (map.containsKey(key)) {
+            inverseMap.remove(map[key])
+        }
+        if (inverseMap.containsKey(value)) {
+            map.remove(inverseMap[value])
+            inverseMap.remove(value)
+        }
+        map[key] = value
+        inverseMap[value] = key
+    }
+
+    fun get(key: K): V? = map[key]
+
+    fun inverse(): Map<V, K> = inverseMap
+
+    fun remove(key: K): V? {
+        val value = map.remove(key)
+        value?.let { inverseMap.remove(it) }
+        return value
+    }
+
+    fun containsKey(key: K): Boolean = map.containsKey(key)
+
+    fun containsValue(value: V): Boolean = inverseMap.containsKey(value)
+
+    val size: Int get() = map.size
+
+    fun clear() {
+        map.clear()
+        inverseMap.clear()
+    }
+}
+ */

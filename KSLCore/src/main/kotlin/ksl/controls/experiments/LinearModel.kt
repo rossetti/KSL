@@ -1,7 +1,7 @@
 package ksl.controls.experiments
 
-import com.google.common.collect.Sets
 import ksl.controls.experiments.LinearModel.Companion.allTerms
+import ksl.utilities.maps.powerSet
 
 /**
  *  This class provides the ability to specify a linear model (for use in regression and
@@ -225,7 +225,7 @@ class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
          */
         fun allTerms(set: Set<String>): List<List<String>> {
             val m = mutableListOf<List<String>>()
-            val ps: MutableSet<MutableSet<String>> = Sets.powerSet(set)
+            val ps = set.powerSet()
             for (s in ps) {
                 if (s.isNotEmpty()) {
                     m.add(s.toList())
@@ -251,7 +251,7 @@ fun main() {
     m2.specify(list)
     println(m2.toString())
     println()
-    val ps: MutableSet<MutableSet<String>> = Sets.powerSet(factors)
+    val ps = factors.powerSet()
     for (s in ps) {
         println(s)
     }
