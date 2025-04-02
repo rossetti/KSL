@@ -63,36 +63,38 @@ class ResponseMap(
         return true
     }
 
-    /**
-     *  Converts the response map to an instance of a Solution based
-     *  on the supplied evaluation request. The function [hasRequestedReplications]
-     *  must return true for the requested number of replications for a solution
-     *  to be constructed.
-     */
-    fun toSolution(
-        inputMap: InputMap,
-        numReplications: Int
-    ) : Solution {
-        require(hasRequestedReplications(numReplications)){"The response map is missing requested responses for the associated problem."}
-        val objFnName = problemDefinition.objFnResponseName
-        val estimatedObjFnc = map[objFnName]!!
-        val responseEstimates = mutableListOf<EstimatedResponse>()
-        for ((name, _) in map) {
-            if (name != objFnName) {
-                val estimate = map[name]!!
-                responseEstimates.add(estimate)
-            }
-        }
-        val responsePenalties = problemDefinition.responseConstraintPenalties(this)
-        val solution = Solution(
-            inputMap,
-            numReplications,
-            estimatedObjFnc,
-            responseEstimates,
-            responsePenalties
-        )
-        return solution
-    }
+//    /**
+//     *  Converts the response map to an instance of a Solution based
+//     *  on the supplied evaluation request. The function [hasRequestedReplications]
+//     *  must return true for the requested number of replications for a solution
+//     *  to be constructed.
+//     *  @param inputMap the inputs to be associated with the solution
+//     *  @param numReplications the number of replications
+//     */
+//    fun toSolution(
+//        inputMap: InputMap,
+//        numReplications: Int,
+//    ) : Solution {
+//        require(hasRequestedReplications(numReplications)){"The response map is missing requested responses for the associated problem."}
+//        val objFnName = problemDefinition.objFnResponseName
+//        val estimatedObjFnc = map[objFnName]!!
+//        val responseEstimates = mutableListOf<EstimatedResponse>()
+//        for ((name, _) in map) {
+//            if (name != objFnName) {
+//                val estimate = map[name]!!
+//                responseEstimates.add(estimate)
+//            }
+//        }
+//        val responsePenalties = problemDefinition.responseConstraintPenalties(this, iterationCounter)
+//        val solution = Solution(
+//            inputMap,
+//            numReplications,
+//            estimatedObjFnc,
+//            responseEstimates,
+//            responsePenalties
+//        )
+//        return solution
+//    }
 
     /**
      *  Adds the supplied estimated response. If the estimated

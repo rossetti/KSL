@@ -149,7 +149,7 @@ class Evaluator(
                 if (solutionMap.containsKey(request.inputMap)) {
                     // merge the solution with the cached solution
                     val cachedSolution = solutionMap[request.inputMap]!!
-                    solutionMap[request.inputMap] = cachedSolution.merge(simulatedSolution)
+                    solutionMap[request.inputMap] = mergeSolution(request,cachedSolution, simulatedSolution)
                 } else {
                     solutionMap[request.inputMap] = simulatedSolution
                 }
@@ -223,7 +223,66 @@ class Evaluator(
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         val cases = simulationProvider.runSimulations(requests)
-        return createSolutions(cases)
+        val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
+        // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
+        for ((request, responseMap) in cases) {
+            solutions[request] = createSolution(request, responseMap)
+        }
+        return solutions
+    }
+
+    /**
+     *  Converts the response map to an instance of a Solution based
+     *  on the supplied evaluation request.
+     *
+     *  @param request the associated request
+     *  @param responseMap the response map to convert
+     */
+    private fun createSolution(
+        request: EvaluationRequest,
+        responseMap: ResponseMap,
+    ): Solution {
+        val objFnName = problemDefinition.objFnResponseName
+        val estimatedObjFnc = responseMap[objFnName]!!
+        val responseEstimates = mutableListOf<EstimatedResponse>()
+        for ((name, _) in responseMap) {
+            if (name != objFnName) {
+                val estimate = responseMap[name]!!
+                responseEstimates.add(estimate)
+            }
+        }
+        val responsePenalties = problemDefinition.responseConstraintPenalties(responseMap, totalEvaluations.toDouble())
+        val solution = Solution(
+            request.inputMap,
+            request.numReplications,
+            estimatedObjFnc,
+            responseEstimates,
+            responsePenalties
+        )
+        return solution
+    }
+
+    /**
+     *  Merges the current solution with the provided solution to
+     *  produce a new combined (merged) solution. The existing solution
+     *  and the supplied solution are not changed during the merging process.
+     */
+    private fun mergeSolution(
+        request: EvaluationRequest,
+        firstSolution: Solution,
+        secondSolution: Solution,
+    ): Solution {
+        require(firstSolution.inputMap == secondSolution.inputMap) { "The inputs must be the same in order to merge the solutions" }
+        require(firstSolution.responseEstimates.size == secondSolution.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
+        // We assume that the two solutions are from independent replications
+        // We now have more replications in the sample
+        val numReps = firstSolution.numReplications + secondSolution.numReplications
+        // convert and merge as response maps
+        val r1 = firstSolution.toResponseMap()
+        val r2 = secondSolution.toResponseMap()
+        // merge them
+        r1.mergeAll(r2)
+        return createSolution(request, r1)
     }
 
     companion object {
@@ -252,19 +311,6 @@ class Evaluator(
             return uniqueRequests.toList()
         }
 
-        /**
-         *  Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
-         *  pair by using the problem definition associated with the evaluator.
-         */
-        fun createSolutions(
-            cases: Map<EvaluationRequest, ResponseMap>
-        ): Map<EvaluationRequest, Solution> {
-            val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
-            for ((request, responseMap) in cases) {
-                solutions[request] = responseMap.toSolution(request.inputMap, request.numReplications)
-            }
-            return solutions
-        }
     }
 }
 

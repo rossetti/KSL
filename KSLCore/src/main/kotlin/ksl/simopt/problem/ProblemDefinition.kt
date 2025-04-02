@@ -260,11 +260,10 @@ class ProblemDefinition(
         name: String,
         rhsValue: Double,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
-        violationPenalty: Double = 1000.0,
-        violationExponent: Double = 2.0
+        penaltyFunction: PenaltyFunctionIfc
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
-        val rc = ResponseConstraint(name, rhsValue, inequalityType, violationPenalty, violationExponent)
+        val rc = ResponseConstraint(name, rhsValue, inequalityType, penaltyFunction)
         myResponseConstraints.add(rc)
         return rc
     }
@@ -356,33 +355,24 @@ class ProblemDefinition(
         return myResponseConstraints.map { it.ltRHSValue }.toDoubleArray()
     }
 
-    /**
-     *  Returns the penalties for the response constraints.
-     */
-    fun responseConstraintsViolationPenalties(): DoubleArray {
-        return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
-    }
-
-    /**
-     *  Sets the penalties for each response constraint to the supplied value.
-     */
-    fun setResponseConstraintViolationPenalties(penalty: Double) {
-        myResponseConstraints.forEach { it.violationPenalty = penalty }
-    }
 
     /**
      *  The penalties associated with the response constraints for the
      *  provided values within the response map.
      *  @param responseMap the map of responses filled with data for this problem.
      *  Must have been created by this problem.
+     *  @param iterationCounter the number of solver iterations that produced the averages
      *  @return a list of the penalties, one for each response constraint in the problem
      */
-    fun responseConstraintPenalties(responseMap: ResponseMap): List<Double> {
+    fun responseConstraintPenalties(
+        responseMap: ResponseMap,
+        iterationCounter: Double
+    ): List<Double> {
         require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
         val list = mutableListOf<Double>()
         val averages = responseMap.mapValues { it.value.average }
         for (rc in myResponseConstraints) {
-            list.add(rc.penalty(averages[rc.responseName]!!))
+            list.add(rc.penalty(averages[rc.responseName]!!, iterationCounter))
         }
         return list
     }
@@ -394,14 +384,18 @@ class ProblemDefinition(
      *  provided values within the response map.
      *  @param averages the map of responses filled with data for this problem.
      *  Must have been created by this problem.
+     *  @param iterationCounter the number of solver iterations that produced the averages
      *  @return a list of the penalties, one for each response constraint in the problem
      */
-    fun responseConstraintPenalties(averages: Map<String, Double>): List<Double> {
+    fun responseConstraintPenalties(
+        averages: Map<String, Double>,
+        iterationCounter: Double
+    ): List<Double> {
         val list = mutableListOf<Double>()
         for (rc in myResponseConstraints) {
             require(averages.containsKey(rc.responseName)) { "The name ${rc.responseName} was not found in the supplied averages" }
             val average = averages[rc.responseName]!!
-            list.add(rc.penalty(average))
+            list.add(rc.penalty(average, iterationCounter))
         }
         return list
     }
