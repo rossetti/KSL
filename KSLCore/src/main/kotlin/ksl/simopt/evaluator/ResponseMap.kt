@@ -83,7 +83,7 @@ class ResponseMap(
                 responseEstimates.add(estimate)
             }
         }
-        val responsePenalties = problemDefinition.responseConstraintPenalties(this)
+        val responsePenalties = problemDefinition.responseConstraintViolations(this)
         val solution = Solution(
             inputMap,
             numReplications,

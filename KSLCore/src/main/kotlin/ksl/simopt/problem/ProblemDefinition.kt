@@ -252,19 +252,15 @@ class ProblemDefinition(
      *  the problem definition
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
-     *  @param violationPenalty the penalty to be applied to a violation of the constraint. The default is 1000.0.
-     *  @param violationExponent the exponent associated with the penalty.
      *  @return the constructed response constraint
      */
     fun responseConstraint(
         name: String,
         rhsValue: Double,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
-        violationPenalty: Double = 1000.0,
-        violationExponent: Double = 2.0
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
-        val rc = ResponseConstraint(name, rhsValue, inequalityType, violationPenalty, violationExponent)
+        val rc = ResponseConstraint(name, rhsValue, inequalityType)
         myResponseConstraints.add(rc)
         return rc
     }
@@ -357,51 +353,31 @@ class ProblemDefinition(
     }
 
     /**
-     *  Returns the penalties for the response constraints.
-     */
-    fun responseConstraintsViolationPenalties(): DoubleArray {
-        return myResponseConstraints.map { it.violationPenalty }.toDoubleArray()
-    }
-
-    /**
-     *  Sets the penalties for each response constraint to the supplied value.
-     */
-    fun setResponseConstraintViolationPenalties(penalty: Double) {
-        myResponseConstraints.forEach { it.violationPenalty = penalty }
-    }
-
-    /**
-     *  The penalties associated with the response constraints for the
+     *  The violations associated with the response constraints for the
      *  provided values within the response map.
      *  @param responseMap the map of responses filled with data for this problem.
      *  Must have been created by this problem.
-     *  @return a list of the penalties, one for each response constraint in the problem
+     *  @return a list of the violations, one for each response constraint in the problem
      */
-    fun responseConstraintPenalties(responseMap: ResponseMap): List<Double> {
+    fun responseConstraintViolations(responseMap: ResponseMap): List<Double> {
         require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
-        val list = mutableListOf<Double>()
         val averages = responseMap.mapValues { it.value.average }
-        for (rc in myResponseConstraints) {
-            list.add(rc.penalty(averages[rc.responseName]!!))
-        }
-        return list
+        return responseConstraintViolations(averages)
     }
 
-    //TODO might not be necessary
-
     /**
-     *  The penalties associated with the response constraints for the
+     *  The violations associated with the response constraints for the
      *  provided values within the response map.
      *  @param averages the map of responses filled with data for this problem.
      *  Must have been created by this problem.
-     *  @return a list of the penalties, one for each response constraint in the problem
+     *  @return a list of the violations, one for each response constraint in the problem
      */
-    fun responseConstraintPenalties(averages: Map<String, Double>): List<Double> {
+    fun responseConstraintViolations(averages: Map<String, Double>): List<Double> {
         val list = mutableListOf<Double>()
         for (rc in myResponseConstraints) {
             require(averages.containsKey(rc.responseName)) { "The name ${rc.responseName} was not found in the supplied averages" }
             val average = averages[rc.responseName]!!
-            list.add(rc.penalty(average))
+            list.add(rc.violation(average))
         }
         return list
     }

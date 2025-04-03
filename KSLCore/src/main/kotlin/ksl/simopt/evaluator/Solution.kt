@@ -8,12 +8,14 @@ data class Solution(
     val numReplications: Int,
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
-    val responsePenalties: List<Double>
+    val responseViolations: List<Double>,
+    val iterationNumber: Int
 ) : Comparable<Solution> {
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
         require(numReplications >= 1) { "The number of replications must be >= 1" }
+        require(iterationNumber >= 1) { "The iteration number that caused this solution >= 1" }
     }
 
     val problemDefinition: ProblemDefinition
@@ -32,14 +34,16 @@ data class Solution(
     val stdDeviations: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
 
-    val totalResponsePenalty: Double
-        get() = if (responsePenalties.isNotEmpty()) responsePenalties.sum() else 0.0
+    //TODO are these necessary/useful?
+
+    val totalResponseViolation: Double
+        get() = if (responseViolations.isNotEmpty()) responseViolations.sum() else 0.0
 
     val hasResponsePenalty: Boolean
-        get() = totalResponsePenalty > 0
+        get() = totalResponseViolation > 0
 
     val penalizedObjFunc: Double
-        get() = estimatedObjFnc.average + totalResponsePenalty
+        get() = estimatedObjFnc.average + totalResponseViolation
 
     /**
      *  Converts the solution to an instance of a ResponseMap
