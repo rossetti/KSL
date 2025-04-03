@@ -38,7 +38,7 @@ data class Solution(
     val totalResponseViolation: Double
         get() = if (responseViolations.isNotEmpty()) responseViolations.sum() else 0.0
 
-    val hasResponsePenalty: Boolean
+    val hasResponseViolations: Boolean
         get() = totalResponseViolation > 0
 
     val penalizedObjFunc: Double
@@ -55,26 +55,6 @@ data class Solution(
         }
         return responseMap
     }
-
-//    /**
-//     *  Merges the current solution with the provided solution to
-//     *  produce a new combined (merged) solution. The existing solution
-//     *  and the supplied solution are not changed during the merging process.
-//     */
-//    fun merge(solution: Solution): Solution {
-//        require(inputMap == solution.inputMap) { "The inputs must be the same in order to merge the solutions" }
-//        require(responseEstimates.size == solution.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
-//        // We assume that the two solutions are from independent replications
-//        // We now have more replications in the sample
-//        val numReps = numReplications + solution.numReplications
-//        // convert and merge as response maps
-//        val r1 = toResponseMap()
-//        val r2 = solution.toResponseMap()
-//        // merge them
-//        r1.mergeAll(r2)
-//        // now return as merged solution
-//        return r1.toSolution(inputMap, numReps)
-//    }
 
     val objFuncComparator
         get() = compareBy<Solution> {it.estimatedObjFnc.average}
