@@ -251,13 +251,11 @@ class Evaluator(
                 responseEstimates.add(estimate)
             }
         }
-        val responseViolations = problemDefinition.responseConstraintViolations(responseMap)
         val solution = Solution(
             request.inputMap,
             request.numReplications,
             estimatedObjFnc,
             responseEstimates,
-            responseViolations,
             totalEvaluations
         )
         return solution
@@ -276,8 +274,6 @@ class Evaluator(
         require(firstSolution.inputMap == secondSolution.inputMap) { "The inputs must be the same in order to merge the solutions" }
         require(firstSolution.responseEstimates.size == secondSolution.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
         // We assume that the two solutions are from independent replications
-        // We now have more replications in the sample
-        val numReps = firstSolution.numReplications + secondSolution.numReplications
         // convert and merge as response maps
         val r1 = firstSolution.toResponseMap()
         val r2 = secondSolution.toResponseMap()

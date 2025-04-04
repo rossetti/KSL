@@ -3,12 +3,15 @@ package ksl.simopt.evaluator
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
+/**
+ *  A solution represents the evaluated inputs for on a problem definition.
+ *  @param inputMap the inputs (name,value) pairs
+ */
 data class Solution(
     val inputMap: InputMap,
     val numReplications: Int,
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
-    val responseViolations: List<Double>,
     val iterationNumber: Int
 ) : Comparable<Solution> {
 
@@ -32,6 +35,9 @@ data class Solution(
 
     val stdDeviations: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
+
+    val responseViolations: List<Double>
+        get() = problemDefinition.responseConstraintViolations(averages)
 
     //TODO are these necessary/useful?
 
@@ -64,6 +70,14 @@ data class Solution(
 
     override fun compareTo(other: Solution): Int {
         return penalizedObjFunc.compareTo(other.penalizedObjFunc)
+    }
+
+    fun isLinearConstraintFeasible(): Boolean {
+        return problemDefinition.isLinearConstraintFeasible(inputMap)
+    }
+
+    fun isFunctionalConstraintFeasible(): Boolean {
+        return problemDefinition.isFunctionalConstraintFeasible(inputMap)
     }
 
 }

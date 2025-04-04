@@ -480,6 +480,9 @@ class ProblemDefinition(
      *   @return true if the inputs are feasible
      */
     fun isLinearConstraintFeasible(inputs: Map<String, Double>): Boolean {
+        if (myLinearConstraints.isEmpty()){
+            return true
+        }
         if (!validateNames(inputs)) {
             return false
         }
@@ -499,6 +502,9 @@ class ProblemDefinition(
      *   @return true if the inputs are feasible
      */
     fun isFunctionalConstraintFeasible(inputs: Map<String, Double>): Boolean {
+        if (myFunctionalConstraints.isEmpty()){
+            return true
+        }
         if (!validateNames(inputs)) {
             return false
         }
