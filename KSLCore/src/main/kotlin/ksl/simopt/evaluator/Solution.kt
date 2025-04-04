@@ -80,6 +80,14 @@ data class Solution(
     }
 
     /**
+     *  Returns true if the solution does not violate the specified
+     *  ranges for each input variable.
+     */
+    fun isInputRangeFeasible(): Boolean {
+        return problemDefinition.isInputRangeFeasible(inputMap)
+    }
+
+    /**
      *  Converts the solution to an instance of a ResponseMap
      */
     fun toResponseMap(): ResponseMap {
