@@ -2,7 +2,7 @@ package ksl.simopt.problem
 
 fun interface ConstraintFunctionIfc {
 
-    fun lhs(inputs: InputMap): Double
+    fun lhs(inputs: Map<String, Double>): Double
 
 }
 
@@ -25,7 +25,7 @@ class FunctionalConstraint(
      *  The names must be valid names for the equation.
      *  @return the total value representing the left-hand side of the constraint
      */
-    override fun computeLHS(values: InputMap): Double {
+    override fun computeLHS(values: Map<String, Double>): Double {
         require(ProblemDefinition.validate(values, validNames)) {"The names of the input variables should be valid names for the problem"}
         return lhsFunc.lhs(values) * inequalityFactor
     }
@@ -37,7 +37,7 @@ class FunctionalConstraint(
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
      *  @return true if the constraint is satisfied, false otherwise.
      */
-    override fun isSatisfied(values: InputMap): Boolean {
+    override fun isSatisfied(values: Map<String, Double>): Boolean {
         return computeLHS(values) < ltRHSValue
     }
 

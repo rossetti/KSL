@@ -37,7 +37,7 @@ interface ConstraintIfc {
      *  The names must be in the equation.
      *  @return the total value representing the left-hand side of the linear equation
      */
-    fun computeLHS(values: InputMap): Double
+    fun computeLHS(values: Map<String, Double>): Double
 
     /**
      *  Computes the value of the left-hand side of the constraint based on the
@@ -46,7 +46,7 @@ interface ConstraintIfc {
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
      *  @return true if the constraint is satisfied, false otherwise.
      */
-    fun isSatisfied(values: InputMap): Boolean
+    fun isSatisfied(values: Map<String, Double>): Boolean
 
     /**
      *  The slack associated with the constraint based on the provided inputs.
@@ -55,12 +55,12 @@ interface ConstraintIfc {
      *  The names must be in the equation.
      *  @return the difference between the right-hand side value and the left-hand side value.
      */
-    fun slack(inputs: InputMap): Double {
+    fun slack(inputs: Map<String, Double>): Double {
         return ltRHSValue - computeLHS(inputs)
     }
 
     //TODO is this correct?
-    fun violation(inputs: InputMap): Double {
+    fun violation(inputs: Map<String, Double>): Double {
         return -minOf(slack(inputs), 0.0)
     }
 
@@ -125,7 +125,7 @@ data class LinearConstraint(
      *  The names must be in the equation.
      *  @return the total value representing the left-hand side of the linear equation
      */
-    override fun computeLHS(values: InputMap): Double {
+    override fun computeLHS(values: Map<String, Double>): Double {
         require(values.size == equation.size) { "The supplied map does not have the same number of names as the equation." }
         var sum = 0.0
         for ((name, value) in values) {
@@ -164,7 +164,7 @@ data class LinearConstraint(
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
      *  @return true if the constraint is satisfied, false otherwise.
      */
-    override fun isSatisfied(values: InputMap): Boolean {
+    override fun isSatisfied(values: Map<String, Double>): Boolean {
         return computeLHS(values) < ltRHSValue
     }
 

@@ -316,7 +316,7 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *  @return the left-hand side values for each constraint.
      */
-    fun linearConstraintsLHSValues(inputs: InputMap): DoubleArray {
+    fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>): DoubleArray {
         require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         return DoubleArray(myLinearConstraints.size) { myLinearConstraints[it].computeLHS(inputs) }
     }
@@ -479,7 +479,7 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *   @return true if the inputs are feasible
      */
-    fun isLinearConstraintFeasible(inputs: InputMap): Boolean {
+    fun isLinearConstraintFeasible(inputs: Map<String, Double>): Boolean {
         if (!validateNames(inputs)) {
             return false
         }
@@ -498,7 +498,7 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *   @return true if the inputs are feasible
      */
-    fun isFunctionalConstraintFeasible(inputs: InputMap): Boolean {
+    fun isFunctionalConstraintFeasible(inputs: Map<String, Double>): Boolean {
         if (!validateNames(inputs)) {
             return false
         }
@@ -525,7 +525,7 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *  @return true if the inputs are input feasible
      */
-    fun isInputFeasible(inputs: InputMap): Boolean {
+    fun isInputFeasible(inputs: Map<String, Double>): Boolean {
         require(inputs.size == myInputDefinitions.size) { "The size of the input map is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         return isInputRangeFeasible(inputs) && isLinearConstraintFeasible(inputs)
                 && isFunctionalConstraintFeasible(inputs)
