@@ -106,11 +106,37 @@ data class Solution(
         get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
     /**
-     * Uses the supplied penalty function to compute the penalty associated with the
-     * response constraints based on their response violations.
+     *  Allows comparison of solutions by the estimated objective function
      */
-    fun responseConstraintPenalty(penaltyFunction: PenaltyFunctionIfc): Double {
-        return penaltyFunction.penalty(iterationNumber) * responseViolations.sum()
-    }
+    val penalizedObjFuncComparator
+        get() = compareBy<Solution> { it.penalizedObjFncValue}
+
+    /**
+     *  The user may supply a penalty function to use when computing
+     *  the response constraint violation penalty.
+     */
+    var penaltyFunction: PenaltyFunctionIfc? = null
+
+    /**
+     *  The total penalty associated with violating the response constraints
+     */
+    val responseConstraintViolationPenalty: Double
+        get() = responseViolations.sum() * penaltyValue
+
+    val penaltyValue: Double
+        get() {
+            return if (penaltyFunction != null) {
+                minOf(penaltyFunction!!.penalty(iterationNumber), Double.MAX_VALUE)
+            } else {
+                minOf(NaivePenaltyFunction.defaultPenaltyFunction.penalty(iterationNumber), Double.MAX_VALUE)
+            }
+        }
+
+    val estimatedObjFncValue: Double
+        get() = estimatedObjFnc.average
+
+    val penalizedObjFncValue: Double
+        get() = estimatedObjFncValue + responseConstraintViolationPenalty
+
 }
 
