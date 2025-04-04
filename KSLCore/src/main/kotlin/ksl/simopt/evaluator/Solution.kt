@@ -113,7 +113,8 @@ data class Solution(
 
     /**
      *  The user may supply a penalty function to use when computing
-     *  the response constraint violation penalty.
+     *  the response constraint violation penalty; otherwise the default
+     *  penalty function is used.
      */
     var penaltyFunction: PenaltyFunctionIfc? = null
 
@@ -121,9 +122,12 @@ data class Solution(
      *  The total penalty associated with violating the response constraints
      */
     val responseConstraintViolationPenalty: Double
-        get() = responseViolations.sum() * penaltyValue
+        get() = responseViolations.sum() * penaltyFunctionValue
 
-    val penaltyValue: Double
+    /**
+     *  The current value of the penalty function
+     */
+    val penaltyFunctionValue: Double
         get() {
             return if (penaltyFunction != null) {
                 minOf(penaltyFunction!!.penalty(iterationNumber), Double.MAX_VALUE)
@@ -132,9 +136,16 @@ data class Solution(
             }
         }
 
+    /**
+     *  The estimated (average) value of the objective function
+     */
     val estimatedObjFncValue: Double
         get() = estimatedObjFnc.average
 
+    /**
+     *  The penalized objective function.  That is, the estimated objective function plus
+     *  the total penalty associated with violating the response constraints.
+     */
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
