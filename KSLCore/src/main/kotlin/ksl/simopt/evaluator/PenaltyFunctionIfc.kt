@@ -32,6 +32,6 @@ class NaivePenaltyFunction(
 
     companion object {
 
-        val defaultPenaltyFunction = NaivePenaltyFunction()
+        var defaultPenaltyFunction = NaivePenaltyFunction()
     }
 }
