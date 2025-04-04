@@ -21,7 +21,7 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
-) : Comparable<Solution> {
+) {
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
@@ -32,31 +32,52 @@ data class Solution(
     val problemDefinition: ProblemDefinition
         get() = inputMap.problemDefinition
 
+    /**
+     *  The response estimate averages
+     */
     val averages: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.average) }
 
+    /**
+     *  The variance of the estimated responses
+     */
     val variances: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.variance) }
 
+    /**
+     *  The number of times that the response has been sampled. The sample
+     *  size of the response estimates.
+     */
     val counts: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.count) }
 
+    /**
+     *  The standard deviations of the estimated responses
+     */
     val stdDeviations: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
 
+    /**
+     *  The violation amount for each response constraint
+     */
     val responseViolations: List<Double>
         get() = problemDefinition.responseConstraintViolations(averages)
 
-    //TODO are these necessary/useful?
+    /**
+     *  Returns true if the solution does not violate the specified
+     *  linear constraints.
+     */
+    fun isLinearConstraintFeasible(): Boolean {
+        return problemDefinition.isLinearConstraintFeasible(inputMap)
+    }
 
-    val totalResponseViolation: Double
-        get() = if (responseViolations.isNotEmpty()) responseViolations.sum() else 0.0
-
-    val hasResponseViolations: Boolean
-        get() = totalResponseViolation > 0
-
-    val penalizedObjFunc: Double
-        get() = estimatedObjFnc.average + totalResponseViolation
+    /**
+     *  Returns true if the solution does not violate the specified
+     *  functional constraints.
+     */
+    fun isFunctionalConstraintFeasible(): Boolean {
+        return problemDefinition.isFunctionalConstraintFeasible(inputMap)
+    }
 
     /**
      *  Converts the solution to an instance of a ResponseMap
@@ -64,28 +85,17 @@ data class Solution(
     fun toResponseMap(): ResponseMap {
         val responseMap = problemDefinition.emptyResponseMap()
         responseMap.add(estimatedObjFnc)
-        for(estimate in responseEstimates){
+        for (estimate in responseEstimates) {
             responseMap.add(estimate)
         }
         return responseMap
     }
 
+    /**
+     *  Allows comparison of solutions by the estimated objective function
+     */
     val objFuncComparator
-        get() = compareBy<Solution> {it.estimatedObjFnc.average}
+        get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
-    val penalizedObjFuncComparator
-        get() = compareBy<Solution> {it.penalizedObjFunc}
-
-    override fun compareTo(other: Solution): Int {
-        return penalizedObjFunc.compareTo(other.penalizedObjFunc)
-    }
-
-    fun isLinearConstraintFeasible(): Boolean {
-        return problemDefinition.isLinearConstraintFeasible(inputMap)
-    }
-
-    fun isFunctionalConstraintFeasible(): Boolean {
-        return problemDefinition.isFunctionalConstraintFeasible(inputMap)
-    }
 
 }
