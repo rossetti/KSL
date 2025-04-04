@@ -105,13 +105,12 @@ data class Solution(
     val objFuncComparator
         get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
-
-    fun computeConstraintPenalty(penaltyFunction: PenaltyFunctionIfc): Double {
-        return penaltyFunction.penalty(iterationNumber)*responseViolations.sum()
+    /**
+     * Uses the supplied penalty function to compute the penalty associated with the
+     * response constraints based on their response violations.
+     */
+    fun responseConstraintPenalty(penaltyFunction: PenaltyFunctionIfc): Double {
+        return penaltyFunction.penalty(iterationNumber) * responseViolations.sum()
     }
 }
 
-fun interface PenaltyFunctionIfc {
-
-    fun penalty(iterationCounter: Int): Double
-}
