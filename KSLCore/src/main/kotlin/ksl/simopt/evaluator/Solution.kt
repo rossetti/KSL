@@ -106,4 +106,12 @@ data class Solution(
         get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
 
+    fun computeConstraintPenalty(penaltyFunction: PenaltyFunctionIfc): Double {
+        return penaltyFunction.penalty(iterationNumber)*responseViolations.sum()
+    }
+}
+
+fun interface PenaltyFunctionIfc {
+
+    fun penalty(iterationCounter: Int): Double
 }
