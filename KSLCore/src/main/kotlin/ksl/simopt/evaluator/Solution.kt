@@ -5,7 +5,15 @@ import ksl.simopt.problem.ProblemDefinition
 
 /**
  *  A solution represents the evaluated inputs for on a problem definition.
- *  @param inputMap the inputs (name,value) pairs
+ *  @param inputMap the inputs (name,value) pairs associated with the solution
+ *  @param numReplications the number of replications associated with the request
+ *  that caused the creation of the solution. Since a solution can have multiple
+ *  requests for evaluation, this will generally be different from the sample size (count)
+ *  associated with the estimate.
+ *  @param estimatedObjFnc the estimated objective function from the simulation oracle
+ *  @param responseEstimates the estimates of the responses associated with the response constraints
+ *  @param iterationNumber the iteration number of the solver request. That is, the number of times that
+ *  the simulation oracle has been asked to evaluate (any) input.
  */
 data class Solution(
     val inputMap: InputMap,
