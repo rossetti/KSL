@@ -11,7 +11,7 @@ import ksl.simulation.Model
  *  @param model the model to execute. The model's run parameters should be specified prior to running the simulations
  */
 class SimulationProvider(
-    private val model: Model
+    val model: Model
 ) : SimulationProviderIfc {
 
     private val mySimulationRunner = SimulationRunner(model)
