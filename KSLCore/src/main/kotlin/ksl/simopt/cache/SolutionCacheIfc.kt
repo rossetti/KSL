@@ -60,6 +60,9 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
 class MemorySolutionCache(
     val capacity: Int = Integer.MAX_VALUE
 ) : SolutionCacheIfc {
+    init {
+        require(capacity >= 1) {"The cache's capacity must be >= 1"}
+    }
 
     private val map: MutableMap<InputMap, Solution> = mutableMapOf()
 
@@ -104,6 +107,9 @@ class MemorySolutionCache(
     }
 
     private fun findEvictionCandidate(): InputMap {
+        if (size == 1) {
+            return keys.toList().first()
+        }
         for ((inputMap, solution) in map) {
             // remove the first deterministically infeasible solution and return it
             if (!solution.isInputRangeFeasible() || !solution.isLinearConstraintFeasible() ||
@@ -124,8 +130,17 @@ class MemorySolutionCache(
         }
         // if here then solutions were deterministically feasible, with non-problematic objective function values
         // find the oldest, largest solution to evict
-        TODO("Not yet implemented")
-
+        var largestSolValue = Double.MAX_VALUE
+        var candidate: InputMap? = null
+        for((inputMap, solution) in map) {
+            val possibleMax = solution.penalizedObjFncValue
+            if (possibleMax < largestSolValue){
+                candidate = inputMap
+                largestSolValue = possibleMax
+            }
+        }
+        // this should be safe because there must be more than 2 items, and they must be less than MAX_VALUE.
+        return candidate!!
     }
 
 
