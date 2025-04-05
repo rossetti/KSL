@@ -106,6 +106,12 @@ class MemorySolutionCache(
         return map.put(inputMap, solution)
     }
 
+    /**
+     *  By default, the eviction candidate will be the first deterministically infeasible solution,
+     *  or the first solution with an infinite (or NaN) penalized objective function, or
+     *  the first solution with an infinite (or NaN) objective function or the first solution (oldest) with the
+     *  maximum penalized objective function.
+     */
     private fun findEvictionCandidate(): InputMap {
         if (size == 1) {
             return keys.toList().first()
