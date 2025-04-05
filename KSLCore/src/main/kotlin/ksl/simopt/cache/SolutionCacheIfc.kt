@@ -104,7 +104,10 @@ class MemorySolutionCache(
     }
 
     private fun findEvictionCandidate(): InputMap {
-
+//        var c = entries.firstOrNull {!it.isInputRangeFeasible()}
+//        if (c != null){
+//            return c
+//        }
         TODO("Not yet implemented")
 
     }
