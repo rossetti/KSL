@@ -95,19 +95,30 @@ class MemorySolutionCache(
     }
 
     override fun put(inputMap: InputMap, solution: Solution): Solution? {
-        if (size == capacity){
+        if (size == capacity) {
             val itemToEvict = evictionRule?.findEvictionCandidate(this) ?: findEvictionCandidate()
             remove(itemToEvict)
         }
-        require(size < capacity) {"The eviction of members did not work. No capacity for item in the cache."}
+        require(size < capacity) { "The eviction of members did not work. No capacity for item in the cache." }
         return map.put(inputMap, solution)
     }
 
     private fun findEvictionCandidate(): InputMap {
-//        var c = entries.firstOrNull {!it.isInputRangeFeasible()}
-//        if (c != null){
-//            return c
-//        }
+        // find the first deterministically infeasible solution and return it
+        for ((inputMap, solution) in map) {
+            // remove the first infeasible
+            if (!solution.isInputRangeFeasible() || !solution.isLinearConstraintFeasible() ||
+                !solution.isFunctionalConstraintFeasible()
+            ) {
+                return inputMap
+            }
+            // or remove the first infinite or bad solution
+            if (solution.penalizedObjFncValue.isNaN() || solution.penalizedObjFncValue.isInfinite()
+                || solution.penalizedObjFncValue == Double.MAX_VALUE){
+                return inputMap
+            }
+        }
+        // if here then solutions were deterministically feasible
         TODO("Not yet implemented")
 
     }
