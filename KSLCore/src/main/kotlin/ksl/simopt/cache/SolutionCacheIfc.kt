@@ -104,21 +104,26 @@ class MemorySolutionCache(
     }
 
     private fun findEvictionCandidate(): InputMap {
-        // find the first deterministically infeasible solution and return it
         for ((inputMap, solution) in map) {
-            // remove the first infeasible
+            // remove the first deterministically infeasible solution and return it
             if (!solution.isInputRangeFeasible() || !solution.isLinearConstraintFeasible() ||
                 !solution.isFunctionalConstraintFeasible()
             ) {
                 return inputMap
             }
-            // or remove the first infinite or bad solution
+            // or remove the first infinite or bad constrained solution
             if (solution.penalizedObjFncValue.isNaN() || solution.penalizedObjFncValue.isInfinite()
                 || solution.penalizedObjFncValue == Double.MAX_VALUE){
                 return inputMap
             }
+            // or remove the first infinite or bad unconstrained solution
+            if (solution.estimatedObjFncValue.isNaN() || solution.estimatedObjFncValue.isInfinite()
+                || solution.estimatedObjFncValue == Double.MAX_VALUE){
+                return inputMap
+            }
         }
-        // if here then solutions were deterministically feasible
+        // if here then solutions were deterministically feasible, with non-problematic objective function values
+        // find the oldest, largest solution
         TODO("Not yet implemented")
 
     }
