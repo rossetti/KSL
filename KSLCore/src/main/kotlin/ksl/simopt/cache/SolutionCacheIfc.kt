@@ -123,7 +123,7 @@ class MemorySolutionCache(
             }
         }
         // if here then solutions were deterministically feasible, with non-problematic objective function values
-        // find the oldest, largest solution
+        // find the oldest, largest solution to evict
         TODO("Not yet implemented")
 
     }
