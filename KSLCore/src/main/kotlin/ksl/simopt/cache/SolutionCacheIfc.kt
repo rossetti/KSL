@@ -6,44 +6,54 @@ import ksl.simopt.problem.InputMap
 import java.util.function.BiConsumer
 
 //TODO needs revision
+fun interface EvictionRuleIfc {
+
+    fun findEvictionCandidates(solutionCache: SolutionCacheIfc): List<InputMap>
+}
 
 interface SolutionCacheIfc : Map<InputMap, Solution> {
 
-    fun put(key: InputMap, value: Solution): Solution?
+    var evictionRule: EvictionRuleIfc?
+
+    fun put(key: InputMap, solution: Solution): Solution?
 
     fun remove(key: InputMap): Solution?
 
-    fun put(request: EvaluationRequest, value: Solution) : Solution? {
-        return put(request.inputMap, value)
+    fun put(request: EvaluationRequest, solution: Solution): Solution? {
+        return put(request.inputMap, solution)
     }
 
-    fun putAll(from: Map<out InputMap, Solution>){
-        for((input, solution) in from) {
+    fun putAll(from: Map<out InputMap, Solution>) {
+        for ((input, solution) in from) {
             put(input, solution)
         }
     }
 
-    fun putAll(from: Map<out EvaluationRequest, Solution>){
-        for((input, solution) in from) {
+    fun putAll(from: Map<out EvaluationRequest, Solution>) {
+        for ((input, solution) in from) {
             put(input, solution)
         }
     }
 
-    fun clear(){
-        for (key in keys){
+    fun clear() {
+        for (key in keys) {
             remove(key)
         }
     }
 
     fun retrieveSolutions(requests: List<EvaluationRequest>): MutableMap<InputMap, Solution> {
         val mm = mutableMapOf<InputMap, Solution>()
-        for(request in requests){
+        for (request in requests) {
             val solution = get(request.inputMap)
             if (solution != null) {
                 mm[request.inputMap] = solution
             }
         }
         return mm
+    }
+
+    operator fun set(inputMap: InputMap, solution: Solution) {
+        put(inputMap, solution)
     }
 
 }
@@ -53,6 +63,8 @@ class MemorySolutionCache(
 ) : SolutionCacheIfc {
 
     private val map: MutableMap<InputMap, Solution> = mutableMapOf()
+
+    override var evictionRule: EvictionRuleIfc? = null
 
     override val entries: Set<Map.Entry<InputMap, Solution>>
         get() = map.entries
@@ -79,12 +91,24 @@ class MemorySolutionCache(
         return map.isEmpty()
     }
 
-    override fun put(key: InputMap, value: Solution): Solution? {
+    override fun remove(key: InputMap): Solution? {
+        return map.remove(key)
+    }
+
+    override fun put(key: InputMap, solution: Solution): Solution? {
         TODO("Not yet implemented")
     }
 
-    override fun remove(key: InputMap): Solution? {
-        TODO("Not yet implemented")
+    private fun evictMembers() {
+        val es = evictionRule?.findEvictionCandidates(this) ?: findEvictionCandidates()
+        require(es.isNotEmpty()) { "The capacity was reached but there were no candidates found for eviction" }
     }
+
+    private fun findEvictionCandidates(): List<InputMap> {
+        val ms = mutableListOf<InputMap>()
+        TODO("Not yet implemented")
+        return ms
+    }
+
 
 }
