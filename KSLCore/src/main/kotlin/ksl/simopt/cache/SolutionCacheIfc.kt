@@ -112,7 +112,7 @@ class MemorySolutionCache(
      *  the first solution with an infinite (or NaN) objective function or the first solution (oldest) with the
      *  maximum penalized objective function.
      */
-    private fun findEvictionCandidate(): InputMap {
+    fun findEvictionCandidate(): InputMap {
         if (size == 1) {
             return keys.toList().first()
         }
