@@ -3,21 +3,20 @@ package ksl.simopt.cache
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
-import java.util.function.BiConsumer
 
 //TODO needs revision
 fun interface EvictionRuleIfc {
 
-    fun findEvictionCandidates(solutionCache: SolutionCacheIfc): List<InputMap>
+    fun findEvictionCandidate(solutionCache: SolutionCacheIfc): InputMap
 }
 
 interface SolutionCacheIfc : Map<InputMap, Solution> {
 
     var evictionRule: EvictionRuleIfc?
 
-    fun put(key: InputMap, solution: Solution): Solution?
+    fun put(inputMap: InputMap, solution: Solution): Solution?
 
-    fun remove(key: InputMap): Solution?
+    fun remove(inputMap: InputMap): Solution?
 
     fun put(request: EvaluationRequest, solution: Solution): Solution? {
         return put(request.inputMap, solution)
@@ -91,23 +90,23 @@ class MemorySolutionCache(
         return map.isEmpty()
     }
 
-    override fun remove(key: InputMap): Solution? {
-        return map.remove(key)
+    override fun remove(inputMap: InputMap): Solution? {
+        return map.remove(inputMap)
     }
 
-    override fun put(key: InputMap, solution: Solution): Solution? {
+    override fun put(inputMap: InputMap, solution: Solution): Solution? {
+        if (size == capacity){
+            val itemToEvict = evictionRule?.findEvictionCandidate(this) ?: findEvictionCandidate()
+            remove(itemToEvict)
+        }
+        require(size < capacity) {"The eviction of members did not work. No capacity for item in the cache."}
+        return map.put(inputMap, solution)
+    }
+
+    private fun findEvictionCandidate(): InputMap {
+
         TODO("Not yet implemented")
-    }
 
-    private fun evictMembers() {
-        val es = evictionRule?.findEvictionCandidates(this) ?: findEvictionCandidates()
-        require(es.isNotEmpty()) { "The capacity was reached but there were no candidates found for eviction" }
-    }
-
-    private fun findEvictionCandidates(): List<InputMap> {
-        val ms = mutableListOf<InputMap>()
-        TODO("Not yet implemented")
-        return ms
     }
 
 
