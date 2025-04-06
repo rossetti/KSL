@@ -2,6 +2,15 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.random.rvariable.toDouble
+
+data class SolutionData(
+    val id: Int,
+    val dataType: String,
+    val subType: String?,
+    val dataName: String,
+    val dataValue: Double
+)
 
 /**
  *  A solution represents the evaluated inputs for on a problem definition.
@@ -22,6 +31,7 @@ data class Solution(
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
 ) {
+    val id = solutionCounter++
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
@@ -149,5 +159,33 @@ data class Solution(
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
+    fun toSolutionData(): List<SolutionData>{
+        val list = mutableListOf<SolutionData>()
+        for((inputName, value) in inputMap){
+            list.add(SolutionData(id, "input", null,inputName, value))
+        }
+        list.add(SolutionData(id, "solution", null,"numReplications", numReplications.toDouble()))
+        list.add(SolutionData(id, "solution", null, "iterationNumber", iterationNumber.toDouble()))
+        list.add(SolutionData(id, "solution", null, "isInputRangeFeasible", isInputRangeFeasible().toDouble()))
+        list.add(SolutionData(id, "solution", null, "isLinearConstraintFeasible", isLinearConstraintFeasible().toDouble()))
+        list.add(SolutionData(id, "solution", null, "isFunctionalConstraintFeasible", isFunctionalConstraintFeasible().toDouble()))
+        list.add(SolutionData(id, "solution", null, "responseConstraintViolationPenalty", responseConstraintViolationPenalty))
+        list.add(SolutionData(id, "solution", null, "penalizedObjFncValue", penalizedObjFncValue))
+        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "count", estimatedObjFnc.count))
+        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "average", estimatedObjFnc.average))
+        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "variance", estimatedObjFnc.variance))
+        for(estimate in responseEstimates){
+            list.add(SolutionData(id, "responseEstimate", estimate.name, "count", estimate.count))
+            list.add(SolutionData(id, "responseEstimate", estimate.name, "average", estimate.average))
+            list.add(SolutionData(id, "responseEstimate", estimate.name, "variance", estimate.variance))
+        }
+
+        return list
+    }
+
+    companion object {
+        var solutionCounter = 0
+            private set
+    }
 }
 
