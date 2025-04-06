@@ -5,6 +5,14 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rvariable.toDouble
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
+/**
+ *  A class to assist with capturing data from a solution.
+ *  @param id the identifier of the solution
+ *  @param dataType the type of data in ("solution", "objectiveFunction", "responseEstimate", "input")
+ *  @param subType a string to assist with identifying the data type
+ *  @param dataName a string representing the name of the data
+ *  @param dataValue the value associated with the named data
+ */
 data class SolutionData(
     val id: Int,
     val dataType: String,
@@ -160,6 +168,10 @@ data class Solution(
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
+    /**
+     *  Converts the data in the solution to a list containing the data associated
+     *  with the solution.
+     */
     fun toSolutionData(): List<SolutionData> {
         val list = mutableListOf<SolutionData>()
         for ((inputName, value) in inputMap) {
