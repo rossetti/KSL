@@ -58,6 +58,17 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
 
 }
 
+/**
+ *  A memory based cache to hold solutions.  A simplified cache to avoid including
+ *  more advanced caches in the dependency tree. This cache holds solutions
+ *  in a map based on (InputMap, Solution) pairs.  The cache is capacity
+ *  constrained to the specified capacity.  The user can supply an eviction rule that
+ *  will identify a solution to evict when the capacity is reached. If no eviction
+ *  rule is supplied, then by default the algorithm removes the first solution that
+ *  is deterministically infeasible, infinite, or undefined in some manner. Then, it will
+ *  identify the oldest solution with the largest penalized objective function for removal.
+ *  @param capacity the maximum permitted size of the cache
+ */
 class MemorySolutionCache(
     val capacity: Int = defaultCacheSize
 ) : SolutionCacheIfc {
