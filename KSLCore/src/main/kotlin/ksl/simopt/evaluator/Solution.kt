@@ -3,6 +3,7 @@ package ksl.simopt.evaluator
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rvariable.toDouble
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 data class SolutionData(
     val id: Int,
@@ -119,7 +120,7 @@ data class Solution(
      *  Allows comparison of solutions by the estimated objective function
      */
     val penalizedObjFuncComparator
-        get() = compareBy<Solution> { it.penalizedObjFncValue}
+        get() = compareBy<Solution> { it.penalizedObjFncValue }
 
     /**
      *  The user may supply a penalty function to use when computing
@@ -159,30 +160,58 @@ data class Solution(
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
-    fun toSolutionData(): List<SolutionData>{
+    fun toSolutionData(): List<SolutionData> {
         val list = mutableListOf<SolutionData>()
-        for((inputName, value) in inputMap){
-            list.add(SolutionData(id, "input", null,inputName, value))
+        for ((inputName, value) in inputMap) {
+            list.add(SolutionData(id, "input", null, inputName, value))
         }
-        list.add(SolutionData(id, "solution", null,"numReplications", numReplications.toDouble()))
+        list.add(SolutionData(id, "solution", null, "numReplications", numReplications.toDouble()))
         list.add(SolutionData(id, "solution", null, "iterationNumber", iterationNumber.toDouble()))
         list.add(SolutionData(id, "solution", null, "isInputRangeFeasible", isInputRangeFeasible().toDouble()))
-        list.add(SolutionData(id, "solution", null, "isLinearConstraintFeasible", isLinearConstraintFeasible().toDouble()))
-        list.add(SolutionData(id, "solution", null, "isFunctionalConstraintFeasible", isFunctionalConstraintFeasible().toDouble()))
-        list.add(SolutionData(id, "solution", null, "responseConstraintViolationPenalty", responseConstraintViolationPenalty))
+        list.add(
+            SolutionData(
+                id,
+                "solution",
+                null,
+                "isLinearConstraintFeasible",
+                isLinearConstraintFeasible().toDouble()
+            )
+        )
+        list.add(
+            SolutionData(
+                id,
+                "solution",
+                null,
+                "isFunctionalConstraintFeasible",
+                isFunctionalConstraintFeasible().toDouble()
+            )
+        )
+        list.add(
+            SolutionData(
+                id,
+                "solution",
+                null,
+                "responseConstraintViolationPenalty",
+                responseConstraintViolationPenalty
+            )
+        )
         list.add(SolutionData(id, "solution", null, "penalizedObjFncValue", penalizedObjFncValue))
-        for((name, value) in responseViolations){
+        for ((name, value) in responseViolations) {
             list.add(SolutionData(id, "solution", "constraintViolation", name, value))
         }
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "count", estimatedObjFnc.count))
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "average", estimatedObjFnc.average))
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "variance", estimatedObjFnc.variance))
-        for(estimate in responseEstimates){
+        for (estimate in responseEstimates) {
             list.add(SolutionData(id, "responseEstimate", estimate.name, "count", estimate.count))
             list.add(SolutionData(id, "responseEstimate", estimate.name, "average", estimate.average))
             list.add(SolutionData(id, "responseEstimate", estimate.name, "variance", estimate.variance))
         }
         return list
+    }
+
+    override fun toString(): String {
+        return toSolutionData().toDataFrame().toString()
     }
 
     companion object {

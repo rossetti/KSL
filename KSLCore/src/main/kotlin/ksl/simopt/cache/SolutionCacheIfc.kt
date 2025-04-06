@@ -2,6 +2,7 @@ package ksl.simopt.cache
 
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionData
 import ksl.simopt.problem.InputMap
 
 //TODO needs revision
@@ -58,10 +59,10 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
 }
 
 class MemorySolutionCache(
-    val capacity: Int = Integer.MAX_VALUE
+    val capacity: Int = defaultCacheSize
 ) : SolutionCacheIfc {
     init {
-        require(capacity >= 1) {"The cache's capacity must be >= 1"}
+        require(capacity >= 2) {"The cache's capacity must be >= 2"}
     }
 
     private val map: MutableMap<InputMap, Solution> = mutableMapOf()
@@ -149,5 +150,27 @@ class MemorySolutionCache(
         return candidate!!
     }
 
+    /**
+     *  Converts the data in the cache to a list containing instances
+     *   of the SolutionData
+     */
+    fun toSolutionData() : List<SolutionData> {
+        val list = mutableListOf<SolutionData>()
+        for(solution in map.values){
+            list.addAll(toSolutionData())
+        }
+        return list
+    }
+
+    companion object {
+        /**
+         *  The default size for caches. By default, 1000.
+         */
+        var defaultCacheSize = 1000
+            set(value) {
+                require(value >= 2) {"The minimum cache size is 2"}
+                field = value
+            }
+    }
 
 }
