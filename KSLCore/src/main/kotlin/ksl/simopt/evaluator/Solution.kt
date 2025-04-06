@@ -70,7 +70,7 @@ data class Solution(
     /**
      *  The violation amount for each response constraint
      */
-    val responseViolations: List<Double>
+    val responseViolations: Map<String, Double>
         get() = problemDefinition.responseConstraintViolations(averages)
 
     /**
@@ -132,7 +132,7 @@ data class Solution(
      *  The total penalty associated with violating the response constraints
      */
     val responseConstraintViolationPenalty: Double
-        get() = responseViolations.sum() * penaltyFunctionValue
+        get() = responseViolations.values.sum() * penaltyFunctionValue
 
     /**
      *  The current value of the penalty function
@@ -171,6 +171,9 @@ data class Solution(
         list.add(SolutionData(id, "solution", null, "isFunctionalConstraintFeasible", isFunctionalConstraintFeasible().toDouble()))
         list.add(SolutionData(id, "solution", null, "responseConstraintViolationPenalty", responseConstraintViolationPenalty))
         list.add(SolutionData(id, "solution", null, "penalizedObjFncValue", penalizedObjFncValue))
+        for((name, value) in responseViolations){
+            list.add(SolutionData(id, "solution", "constraintViolation", name, value))
+        }
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "count", estimatedObjFnc.count))
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "average", estimatedObjFnc.average))
         list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "variance", estimatedObjFnc.variance))
@@ -179,7 +182,6 @@ data class Solution(
             list.add(SolutionData(id, "responseEstimate", estimate.name, "average", estimate.average))
             list.add(SolutionData(id, "responseEstimate", estimate.name, "variance", estimate.variance))
         }
-
         return list
     }
 

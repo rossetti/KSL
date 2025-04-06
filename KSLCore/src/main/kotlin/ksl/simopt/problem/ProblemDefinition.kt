@@ -359,7 +359,7 @@ class ProblemDefinition(
      *  Must have been created by this problem.
      *  @return a list of the violations, one for each response constraint in the problem
      */
-    fun responseConstraintViolations(responseMap: ResponseMap): List<Double> {
+    fun responseConstraintViolations(responseMap: ResponseMap): Map<String, Double> {
         require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
         val averages = responseMap.mapValues { it.value.average }
         return responseConstraintViolations(averages)
@@ -370,16 +370,17 @@ class ProblemDefinition(
      *  provided values within the response map.
      *  @param averages the map of responses filled with data for this problem.
      *  Must have been created by this problem.
-     *  @return a list of the violations, one for each response constraint in the problem
+     *  @return a map of the violations, one for each response constraint in the problem. The
+     *  returned map has the response name associated with the contraint and the value of the violation
      */
-    fun responseConstraintViolations(averages: Map<String, Double>): List<Double> {
-        val list = mutableListOf<Double>()
+    fun responseConstraintViolations(averages: Map<String, Double>): Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
         for (rc in myResponseConstraints) {
             require(averages.containsKey(rc.responseName)) { "The name ${rc.responseName} was not found in the supplied averages" }
             val average = averages[rc.responseName]!!
-            list.add(rc.violation(average))
+            map[rc.responseName] = rc.violation(average)
         }
-        return list
+        return map
     }
 
     /** The array x is mutated to hold values that have appropriate granularity based on the

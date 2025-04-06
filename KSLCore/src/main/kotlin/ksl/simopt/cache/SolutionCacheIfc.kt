@@ -28,7 +28,7 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
         }
     }
 
-    fun putAll(from: Map<out EvaluationRequest, Solution>) {
+    fun putAllRequests(from: Map<out EvaluationRequest, Solution>) {
         for ((input, solution) in from) {
             put(input, solution)
         }
