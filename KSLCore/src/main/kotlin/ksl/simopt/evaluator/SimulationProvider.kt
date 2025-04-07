@@ -14,11 +14,25 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  locally and sequentially in the same execution thread as the requests.
  *
  *  @param model the model to execute. The model's run parameters should be specified prior to running the simulations
+ *  The experiment names and number of replications will be changed as the model is executed.
+ *  @param useDb if true a database to capture simulation output is configured. The default is false.
+ *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
+ *  relevant if useDb is true. The default is false. Data will not be cleared if multiple simulations of the
+ *  same model are executed within the same execution frame. An error is issued if the experiment name has not changed.
+ *  The experiment names are automatically created based on the execution counter. This allows for every response and
+ *  input execution to be captured in the database. In the context of simulation optimization, you may only want the
+ *  last provided execution. In that case, set the clear option to true. Then, the database will be cleared prior
+ *  to each execution, leaving only the last execution in the database.
+ *  @param saveSimulationRuns indicates if the SimulationRun instances created by running the model will be saved. The
+ *  default is false.  Since the provider may execute thousands of simulations and simulation runs have substantial
+ *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
+ *  access to all inputs and output responses from every execution.
  */
 class SimulationProvider(
     val model: Model,
+    var saveSimulationRuns: Boolean = false,
     useDb: Boolean = false,
-    val saveSimulationRuns: Boolean = false,
+    clearDataBeforeExperimentOption: Boolean = false,
 ) : SimulationProviderIfc {
 
     private val mySimulationRunner = SimulationRunner(model)
@@ -30,10 +44,20 @@ class SimulationProvider(
     private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
 
     /**
-     *  Use to hold executed simulation runs, 1 for each simulation executed
+     *  Use to hold executed simulation runs, 1 for each simulation executed.
+     *  The key is based on the problem definition name.
+     *
+     *  "ProblemDefinition.name_E_k", where k is the current value of the execution counter.
      */
     private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
+    val simulationRuns: Map<String,SimulationRun>
+        get() = mySimulationRuns
 
+    /**
+     *  The KSLDatabase used to capture model execution results. The name of the experiments
+     *  are based on the name of the associated ProblemDefinition, as
+     *  "ProblemDefinition.name_E_k", where k is the current value of the execution counter.
+     */
     var kslDb: KSLDatabase? = null
         private set
 
@@ -46,36 +70,81 @@ class SimulationProvider(
     var dbObserver: KSLDatabaseObserver? = null
         private set
 
+    /**
+     *  Used to count the number of times that the simulation model is executed. Each execution can
+     *  be considered a different experiment
+     */
+    var executionCounter = 0
+        private set
+
     init {
         if (useDb) {
             kslDb = KSLDatabase("${model.simulationName}.db".replace(" ", "_"), model.outputDirectory.dbDir)
-            dbObserver = KSLDatabaseObserver(model, kslDb!!, true)
+            dbObserver = KSLDatabaseObserver(model, kslDb!!, clearDataBeforeExperimentOption)
         }
+    }
+
+    /**
+     *  Causes the execution counter to be reset to 0. Care must be taken if a database is used to
+     *  collect simulation results. The names of the experiments are based on the value of the counter. An
+     *  error will occur if multiple experiments have the same name in the database. You will likely want
+     *  to export and clear the data from the database prior running additional simulations.
+     */
+    fun resetExecutionCounter() {
+        executionCounter = 0
+    }
+
+    /**
+     *  Causes any previous simulation runs associated with the execution of the model to be cleared.
+     */
+    fun clearSimulationRuns() {
+        mySimulationRuns.clear()
     }
 
     override fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap> {
         val results = mutableMapOf<EvaluationRequest, ResponseMap>()
         for (request in evaluationRequests) {
-            //run the simulation and capture the simulation run
+            executionCounter++
+            // update experiment name
+            model.experimentName = request.inputMap.problemDefinition.name + "_Exp_$executionCounter"
+            model.numberOfReplications = request.numReplications
+            //run the simulation
+            Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
             val simulationRun = mySimulationRunner.simulate(request.inputMap, model.extractRunParameters())
-            // extract the replication data for each simulation response
-            val replicationData = simulationRun.results
-            // make an empty response map to hold the estimated responses
-            val responseMap = request.inputMap.problemDefinition.emptyResponseMap()
-            // fill the response map
-            for((name, _) in responseMap){
-                require(replicationData.containsKey(name)){"The simulation responses did not contain the requested response name $name"}
-                // get the data from the simulation
-                val data = replicationData[name]!!
-                // compute the estimates from the replication data
-                val estimatedResponse = EstimatedResponse(name, data)
-                // place the estimate in the response map
-                responseMap.add(estimatedResponse)
+            Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
+            // capture the simulation results
+            captureResults(request, results, simulationRun)
+            // add SimulationRun to simulation run list
+            if (saveSimulationRuns) {
+                mySimulationRuns[model.experimentName] = simulationRun
             }
-            // capture the responses for each request
-            results[request] = responseMap
+            // reset the model run parameters back to their original values
+            model.changeRunParameters(myOriginalExpRunParams)
         }
         return results
+    }
+
+    private fun captureResults(
+        request: EvaluationRequest,
+        results: MutableMap<EvaluationRequest, ResponseMap>,
+        simulationRun: SimulationRun
+    ) {
+        // extract the replication data for each simulation response
+        val replicationData = simulationRun.results
+        // make an empty response map to hold the estimated responses
+        val responseMap = request.inputMap.problemDefinition.emptyResponseMap()
+        // fill the response map
+        for((name, _) in responseMap){
+            require(replicationData.containsKey(name)){"The simulation responses did not contain the requested response name $name"}
+            // get the data from the simulation
+            val data = replicationData[name]!!
+            // compute the estimates from the replication data
+            val estimatedResponse = EstimatedResponse(name, data)
+            // place the estimate in the response map
+            responseMap.add(estimatedResponse)
+        }
+        // capture the responses for each request
+        results[request] = responseMap
     }
 
 }

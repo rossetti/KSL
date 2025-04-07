@@ -1,6 +1,8 @@
 package ksl.simopt.problem
 
 import ksl.simopt.evaluator.ResponseMap
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -32,6 +34,7 @@ enum class InequalityType {
  *  and the names of the responses to appear in the problem. Then the reference to the class can be used
  *  to specify inputs and constraints.
  *
+ * @param problemName the name of the problem
  *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
  *  observed simulation values from the simulation
  *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
@@ -39,11 +42,12 @@ enum class InequalityType {
  *  @param responseNames the names of any responses that will appear in response constraints.
  */
 class ProblemDefinition(
+    problemName: String? = null,
     val objFnResponseName: String,
     val inputNames: Set<String>,
     val responseNames: Set<String> = emptySet(),
     val rnStream: RNStreamIfc = KSLRandom.nextRNStream(),
-) : RNStreamControlIfc by rnStream {
+) : RNStreamControlIfc by rnStream, IdentityIfc by Identity(problemName) {
 
     init {
         require(objFnResponseName.isNotBlank()) { "The objective function response name cannot be blank" }
@@ -58,11 +62,12 @@ class ProblemDefinition(
     }
 
     constructor(
+        problemName: String? = null,
         objFnResponseName: String,
         inputNames: Set<String>,
         responseNames: Set<String> = emptySet(),
         streamNum: Int
-    ) : this(objFnResponseName, inputNames, responseNames, KSLRandom.rnStream(streamNum))
+    ) : this(problemName, objFnResponseName, inputNames, responseNames,  KSLRandom.rnStream(streamNum))
 
     /**
      *  Returns a list of the names of all the responses referenced in the problem
