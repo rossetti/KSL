@@ -141,7 +141,10 @@ data class Solution(
      *  The total penalty associated with violating the response constraints
      */
     val responseConstraintViolationPenalty: Double
-        get() = responseViolations.values.sum() * penaltyFunctionValue
+        get() {
+            val p = responseViolations.values.sum() * penaltyFunctionValue
+            return if (p.isNaN()) Double.MAX_VALUE else p
+        }
 
     /**
      *  The current value of the penalty function
@@ -159,7 +162,7 @@ data class Solution(
      *  The estimated (average) value of the objective function
      */
     val estimatedObjFncValue: Double
-        get() = estimatedObjFnc.average
+        get() = if (estimatedObjFnc.average.isNaN()) Double.MAX_VALUE else estimatedObjFnc.average
 
     /**
      *  The penalized objective function.  That is, the estimated objective function plus
