@@ -39,7 +39,7 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
-) {
+) : Comparable<Solution>{
     val id = solutionCounter++
 
     init {
@@ -104,6 +104,15 @@ data class Solution(
      */
     fun isInputRangeFeasible(): Boolean {
         return problemDefinition.isInputRangeFeasible(inputMap)
+    }
+
+    /**
+     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  the defined input parameter ranges, the linear constraints, and the functional constraints.
+     *  @return true if the inputs are input feasible
+     */
+    fun isInputFeasible(): Boolean {
+        return problemDefinition.isInputFeasible(inputMap)
     }
 
     /**
@@ -223,6 +232,10 @@ data class Solution(
             list.add(SolutionData(id, "responseEstimate", estimate.name, "variance", estimate.variance))
         }
         return list
+    }
+
+    override fun compareTo(other: Solution): Int {
+        return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
     }
 
     override fun toString(): String {
