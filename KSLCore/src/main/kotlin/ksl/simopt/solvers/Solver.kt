@@ -5,7 +5,8 @@ import ksl.simopt.problem.ProblemDefinition
 
 //TODO needs a lot more work
 abstract class Solver(
-    val problemDefinition: ProblemDefinition
+    val problemDefinition: ProblemDefinition,
+    val solverRunner: SolverRunner
 ){
 
     abstract fun instance(): Solver
