@@ -64,8 +64,6 @@ class SimulationProvider(
     /**
      *  The database observer of the model. Can be used to stop observing, etc.
      *  The observer is created to clear data before experiments.
-     *  Assumes that if the user is re-running the design that existing data for the experiment
-     *  should be deleted.
      */
     var dbObserver: KSLDatabaseObserver? = null
         private set
