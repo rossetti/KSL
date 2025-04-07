@@ -47,7 +47,7 @@ class SimulationProvider(
      *  Use to hold executed simulation runs, 1 for each simulation executed.
      *  The key is based on the problem definition name.
      *
-     *  "ProblemDefinition.name_E_k", where k is the current value of the execution counter.
+     *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
     private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
     val simulationRuns: Map<String,SimulationRun>
@@ -56,7 +56,7 @@ class SimulationProvider(
     /**
      *  The KSLDatabase used to capture model execution results. The name of the experiments
      *  are based on the name of the associated ProblemDefinition, as
-     *  "ProblemDefinition.name_E_k", where k is the current value of the execution counter.
+     *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
     var kslDb: KSLDatabase? = null
         private set
