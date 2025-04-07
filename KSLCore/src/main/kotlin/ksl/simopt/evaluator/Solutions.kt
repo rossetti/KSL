@@ -38,4 +38,6 @@ class Solutions {
     fun size(): Int {
         return mySolutions.size
     }
+
+    //TODO need to implement screenToBest function
 }
