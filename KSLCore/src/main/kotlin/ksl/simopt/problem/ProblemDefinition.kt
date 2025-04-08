@@ -39,13 +39,18 @@ enum class InequalityType {
  *  observed simulation values from the simulation
  *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
  *  the simulation when executing experiments. Any constraints specified on the input variables must use these names.
- *  @param responseNames the names of any responses that will appear in response constraints.
+ *  @param responseNames the names of any responses that will appear in response constraints. The default is empty.
+ *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
+ *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
+ *  between solutions are considered practically insignificant. The default is zero.
+ *  @param rnStream the stream to use when generating random points within the input range space.
  */
 class ProblemDefinition(
     problemName: String? = null,
     val objFnResponseName: String,
     val inputNames: Set<String>,
     val responseNames: Set<String> = emptySet(),
+    val indifferenceZoneParameter: Double = 0.0,
     val rnStream: RNStreamIfc = KSLRandom.nextRNStream(),
 ) : RNStreamControlIfc by rnStream, IdentityIfc by Identity(problemName) {
 
@@ -61,13 +66,39 @@ class ProblemDefinition(
         require(!responseNames.contains(objFnResponseName)) { "The objective function response name cannot be within the set of response constraint names." }
     }
 
+    /**
+     *  This class describes an optimization problem for use within simulation optimization algorithms.
+     *  The general optimization problem is presented as minimizing the expected value of some function H(x), where
+     *  x is some input parameters to the simulation and H(.) is the simulation model response for the objective
+     *  function. The input parameters are assumed to be real-valued specified by a name between a lower and upper bound
+     *  and a granularity. The granularity specifies the acceptable precision of the input. The problem can
+     *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs. In
+     *  addition, a set of probabilistic constraints of the form E[G(x)] < c can be specified, where G(x) is some
+     *  response from the simulation.
+     *
+     *  To use this class, the user first defines the objective function response name, the names of the input variables,
+     *  and the names of the responses to appear in the problem. Then the reference to the class can be used
+     *  to specify inputs and constraints.
+     *
+     * @param problemName the name of the problem
+     *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
+     *  observed simulation values from the simulation
+     *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
+     *  the simulation when executing experiments. Any constraints specified on the input variables must use these names.
+     *  @param responseNames the names of any responses that will appear in response constraints. The default is empty.
+     *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
+     *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
+     *  between solutions are considered practically insignificant. The default is zero.
+     *  @param streamNum the stream number to use when generating random points within the input range space.
+     */
     constructor(
         problemName: String? = null,
         objFnResponseName: String,
         inputNames: Set<String>,
         responseNames: Set<String> = emptySet(),
+        indifferenceZoneParameter: Double = 0.0,
         streamNum: Int
-    ) : this(problemName, objFnResponseName, inputNames, responseNames,  KSLRandom.rnStream(streamNum))
+    ) : this(problemName, objFnResponseName, inputNames, responseNames,  indifferenceZoneParameter, KSLRandom.rnStream(streamNum))
 
     /**
      *  Returns a list of the names of all the responses referenced in the problem
