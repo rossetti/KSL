@@ -1,5 +1,7 @@
 package ksl.simopt.problem
 
+import ksl.utilities.Interval
+
 /**
  *  A response constraint represents a general constrain of the form E[G(x)] < c or E[G(x)] > c
  *  where G(x) is some response from the model that is a function of the model inputs.
@@ -21,9 +23,17 @@ class ResponseConstraint(
 ) {
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
+        require(target >= 0.0) { "The target must be >= 0.0." }
+        require(tolerance >= 0.0) { "The tolerance must be >= 0.0." }
     }
 
     private val inequalityFactor: Double = if (inequalityType == InequalityType.LESS_THAN) 1.0 else -1.0
+
+    val targetInterval: Interval
+        get() = Interval(rhsValue - target, rhsValue + target)
+
+    val toleranceInterval: Interval
+        get() = Interval(rhsValue - tolerance, rhsValue + tolerance)
 
     val ltRHSValue: Double
         get() = inequalityFactor * rhsValue
