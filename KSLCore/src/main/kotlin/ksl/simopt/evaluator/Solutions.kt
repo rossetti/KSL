@@ -10,9 +10,17 @@ class Solutions {
 
     private val mySolutions = PriorityQueue<Solution>()
 
+    /**
+     *  A list of solutions ordered by penalized
+     *  objective function
+     */
     val orderedSolutions: List<Solution>
         get() = mySolutions.toList().sorted()
 
+    /**
+     *  A list of solutions that are input feasible ordered by penalized
+     *  objective function
+     */
     val orderedFeasibleSolutions: List<Solution>
         get() = mySolutions.toList().filter { it.isInputFeasible() }.sorted()
 
