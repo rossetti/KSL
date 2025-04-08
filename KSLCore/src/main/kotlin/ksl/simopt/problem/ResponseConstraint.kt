@@ -50,6 +50,16 @@ class ResponseConstraint(
     }
 
     /**
+     *  The difference between the response and the right-hand side of the constraint adjusted to ensure
+     *  a less-than interpretation. If R(x) is the estimated response value, then for a less-than
+     *  constraint, where E[R(x)] < b, then the difference is R(x) - b.  This difference is useful
+     *  when constructing confidence intervals.
+     */
+    fun difference(responseValue: Double): Double {
+        return inequalityFactor * (responseValue - rhsValue)
+    }
+
+    /**
      *  The violation is maxOf(0, R(x) - b). This quantity is often used in penalty function calculations.
      *  @param responseValue The value of the response to be evaluated for the constraint.
      */
