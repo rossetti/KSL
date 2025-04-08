@@ -70,6 +70,23 @@ data class EstimatedResponse(
     }
 
     /**
+     *  Computes the pair-wise screening width assuming that the estimates are independent. This width is
+     *  used to specify screening intervals within screening procedures.
+     *  
+     *  Based on:
+     *   Boesel, Justin, Barry L. Nelson, and Seong-Hee Kim. 2003. “Using Ranking and Selection to ‘Clean Up’ after
+     *   Simulation Optimization.” Operations Research 51 (5): 814–25. https://doi.org/10.1287/opre.51.5.814.16751.
+     *
+     * @param estimate the estimate to pair with
+     * @param level the confidence level for the Student-T distribution computation of the half-width
+     */
+    fun screeningWidth(estimate: EstimatedResponse, level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
+        val hw1 = halfWidth(level)
+        val hw2 = estimate.halfWidth(level)
+        return sqrt(hw1*hw1 + hw2*hw2)
+    }
+
+    /**
      * Combine this estimate with another independent estimate
      * @param e the estimate to merge with this estimate
      * @return the merged estimate
