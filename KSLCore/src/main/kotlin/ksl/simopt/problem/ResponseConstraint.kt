@@ -6,11 +6,17 @@ package ksl.simopt.problem
  *
  *  @param responseName the name of the response in the model
  *  @param rhsValue the right-hand side value
+ *  @param target the constraint's target. A parameter often used by solver methods that behaves
+ *  as a cut-off point between desirable and unacceptable systems
+ *  @param tolerance the constraint's tolerance. A parameter often used by solver methods that
+ *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
  *  @param inequalityType the type of inequality (less-than or greater-than)
  */
 class ResponseConstraint(
     val responseName: String,
     var rhsValue: Double,
+    val target: Double = 0.0,
+    val tolerance: Double = 0.0,
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
 ) {
     init {
