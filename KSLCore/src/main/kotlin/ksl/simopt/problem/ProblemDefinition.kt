@@ -257,15 +257,21 @@ class ProblemDefinition(
      *  the problem definition
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
+     *  @param target the constraint's target. A parameter often used by solver methods that behaves
+     *  as a cut-off point between desirable and unacceptable systems
+     *  @param tolerance the constraint's tolerance. A parameter often used by solver methods that
+     *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
      *  @return the constructed response constraint
      */
     fun responseConstraint(
         name: String,
         rhsValue: Double,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
+        target: Double = 0.0,
+        tolerance: Double = 0.0
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
-        val rc = ResponseConstraint(name, rhsValue, inequalityType)
+        val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance)
         myResponseConstraints.add(rc)
         return rc
     }
