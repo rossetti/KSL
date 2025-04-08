@@ -2,6 +2,7 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.toDouble
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
@@ -39,7 +40,7 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
-) : Comparable<Solution>{
+) : Comparable<Solution> {
     val id = solutionCounter++
 
     init {
@@ -179,6 +180,36 @@ data class Solution(
      */
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
+
+    /**
+     *  Computes a one-sided upper confidence interval for each response constraint to test
+     *  if the interval contains zero. If the upper limit of the interval is less than 0.0, then we can be confident
+     *  that response constraint is feasible. The individual confidence interval upper limits
+     *  are based on a one-sided confidence interval on the mean response assuming normality.
+     *  The upper limit is computed as (x_bar - b + t(alpha, n-1)*s/sqrt(n)) assuming a less-than constraint.
+     *
+     *  @param overallCILevel the overall confidence across all response constraints.
+     */
+    fun responseConstraintOneSidedIntervals(overallCILevel: Double = 0.99): List<Interval> {
+        require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
+        val intervals = mutableListOf<Interval>()
+        val alpha = 1.0 - overallCILevel
+        val avgs = averages
+        val k = problemDefinition.responseConstraints.size
+        val level = 1.0 - (alpha / k)
+        // need to multiple level by two because half-width assumes two-sided c.i.
+        val hwWidths = responseEstimates.associate { Pair(it.name, it.halfWidth(2.0 * level)) }
+        for (rc in problemDefinition.responseConstraints) {
+            if (avgs.containsKey(rc.responseName)) {
+                val avg = avgs[rc.responseName]!!
+                val d = rc.difference(avg)
+                val hw = hwWidths[rc.responseName]!!
+                val ul = d + hw
+                intervals.add(Interval(Double.NEGATIVE_INFINITY, ul))
+            }
+        }
+        return intervals
+    }
 
     /**
      *  Converts the data in the solution to a list containing the data associated
