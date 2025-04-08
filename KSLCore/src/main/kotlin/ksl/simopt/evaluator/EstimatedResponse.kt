@@ -71,8 +71,9 @@ data class EstimatedResponse(
 
     /**
      *  Computes the pair-wise screening width assuming that the estimates are independent. This width is
-     *  used to specify screening intervals within screening procedures.
-     *  
+     *  used to specify screening intervals within screening procedures. This quantity is the square root
+     *  of the squared half-widths of the estimates.
+     *
      *  Based on:
      *   Boesel, Justin, Barry L. Nelson, and Seong-Hee Kim. 2003. “Using Ranking and Selection to ‘Clean Up’ after
      *   Simulation Optimization.” Operations Research 51 (5): 814–25. https://doi.org/10.1287/opre.51.5.814.16751.
