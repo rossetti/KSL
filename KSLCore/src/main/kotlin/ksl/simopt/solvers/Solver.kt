@@ -64,7 +64,8 @@ abstract class Solver(
 
     protected abstract fun hasMoreIterations(): Boolean
 
-    private inner class SolverIterativeProcess : IterativeProcess<Nothing>("${name}:SolverIterativeProcess") {
+    private inner class SolverIterativeProcess : IterativeProcess<SolverIterativeProcess>("${name}:SolverIterativeProcess") {
+        //TODO add some logging
 
         override fun initializeIterations() {
             super.initializeIterations()
@@ -76,11 +77,14 @@ abstract class Solver(
             return hasMoreIterations()
         }
 
-        override fun nextStep(): Nothing? {
-            TODO("Not yet implemented")
+        override fun nextStep(): SolverIterativeProcess? {
+            return if (!hasNextStep()) {
+                null
+            } else this
         }
 
         override fun runStep() {
+            myCurrentStep = nextStep()
             runIteration()
             iterationCounter++
         }

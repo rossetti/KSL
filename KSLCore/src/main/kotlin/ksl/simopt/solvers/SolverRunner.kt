@@ -55,39 +55,50 @@ class SolverRunner(
         mySolverIterativeProcess.end()
     }
 
-    private fun initializeSolvers(){
-        for(solver in solvers) {
-            TODO("Not yet implemented")
-           // solver.initialize()
-        }
-    }
-
-    private fun afterRunning() {
+    private fun initializeIterations(){
         TODO("Not yet implemented")
     }
 
-    private inner class SolverRunnerIterativeProcess : IterativeProcess<Nothing>("SolverRunnerIterativeProcess") {
+    private fun runIteration(){
+        TODO("Not yet implemented")
+    }
 
+    private fun afterIterations(){
+        TODO("Not yet implemented")
+    }
+
+    private fun hasMoreIterations(): Boolean{
+        TODO("Not yet implemented")
+    }
+
+    private inner class SolverRunnerIterativeProcess : IterativeProcess<SolverRunnerIterativeProcess>("SolverRunnerIterativeProcess") {
+        //TODO add some logging
+        
         override fun initializeIterations() {
             super.initializeIterations()
-            initializeSolvers()
+            iterationCounter = 0
+            this@SolverRunner.initializeIterations()
         }
 
         override fun hasNextStep(): Boolean {
-            TODO("Not yet implemented")
+            return hasMoreIterations()
         }
 
-        override fun nextStep(): Nothing? {
-            TODO("Not yet implemented")
+        override fun nextStep(): SolverRunnerIterativeProcess? {
+            return if (!hasNextStep()) {
+                null
+            } else this
         }
 
         override fun runStep() {
-            TODO("Not yet implemented")
+            myCurrentStep = nextStep()
+            runIteration()
+            iterationCounter++
         }
 
         override fun endIterations() {
+            afterIterations()
             super.endIterations()
-            afterRunning()
         }
 
     }
