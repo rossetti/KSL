@@ -16,14 +16,14 @@ class Solutions() {
 
     /**
      *  A list of solutions ordered by penalized
-     *  objective function
+     *  objective function. The solutions may or may not be feasible.
      */
     val orderedSolutions: List<Solution>
         get() = mySolutions.toList().sorted()
 
     /**
      *  A list of solutions that are input feasible ordered by penalized
-     *  objective function
+     *  objective function.
      */
     val orderedFeasibleSolutions: List<Solution>
         get() = mySolutions.toList().filter { it.isInputFeasible() }.sorted()
@@ -45,10 +45,18 @@ class Solutions() {
         mySolutions.add(solution)
     }
 
+    /**
+     *  Removes and returns the solution with the lowest penalized objective function value.
+     *  The solution may or may not be feasible.
+     */
     fun removeBest(): Solution? {
         return mySolutions.poll()
     }
 
+    /**
+     *  The solution with the lowest penalized objective function value.
+     *  The solution may or may not be feasible.
+     */
     fun peekBest(): Solution? {
         return mySolutions.peek()
     }
