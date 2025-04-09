@@ -23,8 +23,8 @@ fun interface FeasibilityCheckerIfc {
 }
 
 /**
- *  A response constraint represents a general constrain of the form E[G(x)] < c or E[G(x)] > c
- *  where G(x) is some response from the model that is a function of the model inputs.
+ *  A response constraint represents a general constrain of the form E[R(x)] < b or E[R(x)] > b
+ *  where R(x) is some response from the model that is a function of the model inputs.
  *
  *  @param responseName the name of the response in the model
  *  @param rhsValue the right-hand side value
