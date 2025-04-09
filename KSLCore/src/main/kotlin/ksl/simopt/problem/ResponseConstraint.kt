@@ -4,6 +4,24 @@ import ksl.simopt.evaluator.EstimatedResponse
 import ksl.utilities.Interval
 import ksl.utilities.distributions.StudentT
 
+fun interface FeasibilityCheckerIfc {
+
+    /**
+     *  Returns true if the implied test of feasibility indicates that the constraint is satisfied.
+     *
+     *  @param responseConstraint the response constraint to test
+     *  @param estimatedResponse the supplied response. It must have the same name as the response associated with
+     * the constraint and the number of observations (count) must be greater than or equal to 2.
+     *  @param confidenceLevel the confidence level for computing the upper limit of the confidence interval
+     *  @return true if the test for feasibility passes otherwise false
+     */
+    fun isFeasible(
+        responseConstraint: ResponseConstraint,
+        estimatedResponse: EstimatedResponse,
+        confidenceLevel: Double
+    ): Boolean
+}
+
 /**
  *  A response constraint represents a general constrain of the form E[G(x)] < c or E[G(x)] > c
  *  where G(x) is some response from the model that is a function of the model inputs.
@@ -28,6 +46,11 @@ class ResponseConstraint(
         require(target >= 0.0) { "The target must be >= 0.0." }
         require(tolerance >= 0.0) { "The tolerance must be >= 0.0." }
     }
+
+    /**
+     *  If supplied will be used to estimate if the constraint is satisfied.
+     */
+    var feasibilityChecker: FeasibilityCheckerIfc? = null
 
     private val inequalityFactor: Double = if (inequalityType == InequalityType.LESS_THAN) 1.0 else -1.0
 
@@ -67,6 +90,26 @@ class ResponseConstraint(
      */
     fun violation(responseValue: Double): Double {
         return maxOf(0.0, -slack(responseValue))
+    }
+
+    /**
+     *  Returns true if the implied test of feasibility indicates that the constraint is satisfied. If the
+     *  user supplied a FeasibilityCheckerIfc instance for the property feasibilityChecker, it is used to
+     *  check for feasibility; otherwise, the function uses the function oneSidedUpperResponseInterval()
+     *  to construct a one-sided upper confidence interval for the constraint and uses the interval to check for
+     *  feasibility.
+     *
+     *  @param estimatedResponse the supplied response. It must have the same name as the response associated with
+     * the constraint and the number of observations (count) must be greater than or equal to 2.
+     *  @param confidenceLevel the confidence level for computing the upper limit of the confidence interval
+     *  @return true if the test for feasibility passes otherwise false
+     */
+    fun testFeasibility(
+        estimatedResponse: EstimatedResponse,
+        confidenceLevel: Double
+    ) : Boolean {
+        return feasibilityChecker?.isFeasible(this, estimatedResponse,
+            confidenceLevel) ?: (oneSidedUpperResponseInterval(estimatedResponse, confidenceLevel).upperLimit <= 0.0)
     }
 
     /**
