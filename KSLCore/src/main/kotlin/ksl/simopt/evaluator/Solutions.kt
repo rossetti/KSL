@@ -24,6 +24,15 @@ class Solutions {
     val orderedFeasibleSolutions: List<Solution>
         get() = mySolutions.toList().filter { it.isInputFeasible() }.sorted()
 
+    /**
+     *  A list of solutions ordered by penalized objective function that are input
+     *  feasible and have tested as response constraint feasible.
+     *  @param overallCILevel the overall confidence across all response constraints used in the testing.
+     */
+    fun orderedResponseFeasibleSolutions(overallCILevel: Double = 0.99): List<Solution> {
+        return orderedFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
+    }
+
     fun add(solution: Solution) {
         mySolutions.add(solution)
     }
