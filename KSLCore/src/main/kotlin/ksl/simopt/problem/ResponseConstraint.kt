@@ -36,7 +36,7 @@ fun interface FeasibilityCheckerIfc {
  */
 class ResponseConstraint(
     val responseName: String,
-    var rhsValue: Double,
+    val rhsValue: Double,
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
     val tolerance: Double = 0.0
