@@ -108,7 +108,7 @@ data class EstimatedResponse(
      *  size of 2 is used. In the cases where both samples have 2 or more elements, a weighted
      *  pooled variance is computed.
      */
-    private fun pooledVariance(e: EstimatedResponse): Double {
+     fun pooledVariance(e: EstimatedResponse): Double {
         if ((count == 1.0) && (e.count == 1.0)) {
             // we have a sample of size 2 now, just average them
             val avg = (average + e.average) / 2.0
