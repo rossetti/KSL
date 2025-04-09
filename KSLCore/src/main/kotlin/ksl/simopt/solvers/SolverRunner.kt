@@ -7,12 +7,20 @@ import ksl.simulation.IterativeProcess
 
 class SolverRunner(
     maximumIterations: Int,
-    private val evaluator: Evaluator,
-    val solvers: Set<Solver>
+    private val evaluator: Evaluator
 ) {
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
-        require(solvers.isNotEmpty()) { "solvers must have at least one solver" }
+    }
+
+    private val mySolvers = mutableSetOf<Solver>()
+
+    constructor(
+        maximumIterations: Int,
+        evaluator: Evaluator,
+        solvers: Collection<Solver>
+    ) : this(maximumIterations, evaluator) {
+        mySolvers.addAll(solvers)
     }
 
     private val mySolverIterativeProcess = SolverRunnerIterativeProcess()
@@ -29,7 +37,16 @@ class SolverRunner(
     val problemDefinition: ProblemDefinition
         get() = evaluator.problemDefinition
 
-    //TODO
+    fun addSolver(solver: Solver) {
+        mySolvers.add(solver)
+        //TODO when setting the solver we need to make it know the runner
+        // how to not lose its evaluator
+    }
+
+    fun removeSolver(solver: Solver) : Boolean {
+        //TODO when removing the solver we need to make it forget the runner
+        return mySolvers.remove(solver)
+    }
 
     fun initialize() {
         mySolverIterativeProcess.initialize()

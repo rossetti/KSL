@@ -10,7 +10,7 @@ import ksl.utilities.IdentityIfc
 //TODO needs a lot more work
 abstract class Solver(
     maximumIterations: Int,
-    private val evaluator: Evaluator,
+    evaluator: Evaluator,
     name: String? = null
 ): IdentityIfc by Identity(name) {
 
@@ -19,6 +19,10 @@ abstract class Solver(
     }
 
     private val mySolverIterativeProcess = SolverIterativeProcess()
+
+    internal var myEvaluator: Evaluator = evaluator
+
+    internal val myOriginalEvaluator = evaluator
 
     var maximumIterations = maximumIterations
         set(value) {
@@ -30,7 +34,7 @@ abstract class Solver(
         private set
 
     val problemDefinition: ProblemDefinition
-        get() = evaluator.problemDefinition
+        get() = myEvaluator.problemDefinition
 
     fun initialize() {
         mySolverIterativeProcess.initialize()
@@ -58,11 +62,11 @@ abstract class Solver(
 
     protected abstract fun initializeIterations()
 
+    protected abstract fun hasMoreIterations(): Boolean
+
     protected abstract fun runIteration()
 
     protected abstract fun afterIterations()
-
-    protected abstract fun hasMoreIterations(): Boolean
 
     private inner class SolverIterativeProcess : IterativeProcess<SolverIterativeProcess>("${name}:SolverIterativeProcess") {
         //TODO add some logging

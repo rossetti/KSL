@@ -4,6 +4,21 @@ import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
+interface EvaluatorIfc {
+    /**
+     *  Processes the supplied requests for solutions. The solutions may come from an associated
+     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
+     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
+     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
+     *  solutions that result due to the processing will be entered into the cache (according
+     *  to the rules governing the cache).
+     *
+     *  @param requests a list of evaluation requests
+     *  @return a list containing a solution for each request
+     */
+    fun evaluate(requests: List<EvaluationRequest>): List<Solution>
+}
+
 /**
  *  An evaluator should communicate with the simulation oracle to determine
  *  solutions for requests for evaluation from solvers.
@@ -20,7 +35,7 @@ class Evaluator(
     private val simulationProvider: SimulationProviderIfc,
     val cache: SolutionCacheIfc? = null,
     oracleReplicationBudget: Int = Int.MAX_VALUE
-) {
+) : EvaluatorIfc {
     init {
         require(oracleReplicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
     }
@@ -124,7 +139,7 @@ class Evaluator(
      *  @param requests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
+    override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
         // round the requests to the appropriate granularity for the problem
