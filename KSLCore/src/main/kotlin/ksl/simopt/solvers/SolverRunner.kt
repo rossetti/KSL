@@ -30,19 +30,19 @@ class SolverRunner(
 
     //TODO
 
-    private fun initialize(){
-
+    private fun initializeSolvers(){
+        TODO("Not yet implemented")
     }
 
     private fun afterRunning() {
-
+        TODO("Not yet implemented")
     }
 
     private inner class SolverIterativeProcess : IterativeProcess<Nothing>("SolverRunner") {
 
         override fun initializeIterations() {
             super.initializeIterations()
-            initialize()
+            initializeSolvers()
         }
 
         override fun hasNextStep(): Boolean {
