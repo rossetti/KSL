@@ -4,21 +4,6 @@ import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 
-interface EvaluatorIfc {
-    /**
-     *  Processes the supplied requests for solutions. The solutions may come from an associated
-     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
-     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
-     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
-     *  solutions that result due to the processing will be entered into the cache (according
-     *  to the rules governing the cache).
-     *
-     *  @param requests a list of evaluation requests
-     *  @return a list containing a solution for each request
-     */
-    fun evaluate(requests: List<EvaluationRequest>): List<Solution>
-}
-
 /**
  *  An evaluator should communicate with the simulation oracle to determine
  *  solutions for requests for evaluation from solvers.
@@ -31,9 +16,9 @@ interface EvaluatorIfc {
  *  by the simulation oracle.
  */
 class Evaluator(
-    val problemDefinition: ProblemDefinition,
+    override val problemDefinition: ProblemDefinition,
     private val simulationProvider: SimulationProviderIfc,
-    val cache: SolutionCacheIfc? = null,
+    override val cache: SolutionCacheIfc? = null,
     oracleReplicationBudget: Int = Int.MAX_VALUE
 ) : EvaluatorIfc {
     init {
@@ -44,7 +29,7 @@ class Evaluator(
      *   The maximum budget (in terms of number of replications) within the evaluations
      *   performed by the simulation oracle.
      */
-    var maxOracleReplicationBudget: Int = oracleReplicationBudget
+    override var maxOracleReplicationBudget: Int = oracleReplicationBudget
         set(value) {
             require(value >= 1) { "The number of budgeted replications must be >= 1" }
             field = value
@@ -53,63 +38,63 @@ class Evaluator(
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
      */
-    var totalEvaluations: Int = 0
-        protected set
+    override var totalEvaluations: Int = 0
+        private set
 
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    var totalOracleEvaluations = 0
-        protected set
+    override var totalOracleEvaluations = 0
+        private set
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    var totalCachedEvaluations = 0
-        protected set
+    override var totalCachedEvaluations = 0
+        private set
 
     /**
      *  The total number of evaluation requests that were received.
      */
-    var totalRequestsReceived: Int = 0
-        protected set
+    override var totalRequestsReceived: Int = 0
+        private set
 
     /**
      *  The total number of evaluation requests received that were duplicates in
      *  terms of inputs.
      */
-    var totalDuplicateRequestReceived: Int = 0
-        protected set
+    override var totalDuplicateRequestReceived: Int = 0
+        private set
 
     /**
      *  The total number of replications requested across all evaluation requests.
      */
-    var totalReplications: Int = 0
-        protected set
+    override var totalReplications: Int = 0
+        private set
 
     /**
      *  The total number of replications performed by the simulation oracle.
      */
-    var totalOracleReplications: Int = 0
-        protected set
+    override var totalOracleReplications: Int = 0
+        private set
 
     /**
      *  The total number of replications satisfied by the cache.
      */
-    var totalCachedReplications: Int = 0
-        protected set
+    override var totalCachedReplications: Int = 0
+        private set
 
     /**
      *  Indicates if the number of replications budgeted has been exceeded or not.
      */
-    val hasRemainingOracleReplications: Boolean
+    override val hasRemainingOracleReplications: Boolean
         get() = totalOracleReplications < maxOracleReplicationBudget
 
     /**
      *  The total number of remaining replications that can be performed by
      *  the simulation oracle.
      */
-    val remainingOracleReplications: Int
+    override val remainingOracleReplications: Int
         get() = maxOracleReplicationBudget - totalOracleReplications
 
     /**
@@ -117,7 +102,7 @@ class Evaluator(
      *  This function resets all counters to 0, perhaps in preparation for another
      *  evaluation run.
      */
-    fun resetEvaluationCounts() {
+    override fun resetEvaluationCounts() {
         totalEvaluations = 0
         totalOracleEvaluations = 0
         totalCachedEvaluations = 0

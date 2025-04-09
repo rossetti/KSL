@@ -1,6 +1,8 @@
 package ksl.simopt.solvers
 
+import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
+import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
@@ -20,10 +22,13 @@ class SolverRunner(
         evaluator: Evaluator,
         solvers: Collection<Solver>
     ) : this(maximumIterations, evaluator) {
-        mySolvers.addAll(solvers)
+        for (solver in solvers) {
+            addSolver(solver)
+        }
     }
 
     private val mySolverIterativeProcess = SolverRunnerIterativeProcess()
+    private val myEvaluationInterceptor = EvaluationInterceptor()
 
     var maximumIterations = maximumIterations
         set(value) {
@@ -39,6 +44,7 @@ class SolverRunner(
 
     fun addSolver(solver: Solver) {
         mySolvers.add(solver)
+        solver.myEvaluator = myEvaluationInterceptor
         //TODO when setting the solver we need to make it know the runner
         // how to not lose its evaluator
     }
@@ -88,6 +94,10 @@ class SolverRunner(
         TODO("Not yet implemented")
     }
 
+    private fun handleInterceptedRequestsFromSolvers(requests: List<EvaluationRequest>): List<Solution> {
+        TODO("Not yet implemented")
+    }
+
     private inner class SolverRunnerIterativeProcess : IterativeProcess<SolverRunnerIterativeProcess>("SolverRunnerIterativeProcess") {
         //TODO add some logging
 
@@ -118,5 +128,12 @@ class SolverRunner(
             super.endIterations()
         }
 
+    }
+
+    private inner class EvaluationInterceptor(): EvaluatorIfc by evaluator {
+
+        override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
+            return handleInterceptedRequestsFromSolvers(requests)
+        }
     }
 }
