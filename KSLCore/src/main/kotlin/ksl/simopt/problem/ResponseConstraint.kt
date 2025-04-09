@@ -1,6 +1,8 @@
 package ksl.simopt.problem
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.utilities.Interval
+import ksl.utilities.distributions.StudentT
 
 /**
  *  A response constraint represents a general constrain of the form E[G(x)] < c or E[G(x)] > c
@@ -65,6 +67,39 @@ class ResponseConstraint(
      */
     fun violation(responseValue: Double): Double {
         return maxOf(0.0, -slack(responseValue))
+    }
+
+    /**
+     *  Computes a one-sided upper confidence interval for the response constraint to test
+     *  if the interval contains zero. The interval is based on the estimated difference between the value
+     *  of the response and the right-hand side constraint value. If the constraint has form E[R(x)] < b,
+     *  then if E[R(x)] - b < 0, the constraint is satisfied.  If R is an estimated value of E[R(x)], then
+     *  the difference estimate is D = R - b.  The computed confidence interval is a one-sided upper
+     *  confidence interval on the difference. If the interval contains 0, then we do not have
+     *  enough evidence to conclude that the constraint is satisfied.
+     *
+     *  If the upper limit of the interval is less than 0.0, then we can be confident
+     *  that response constraint maybe feasible. The construction of the interval assumes that the supplied
+     *  response is normally distributed.
+     *
+     * @param estimatedResponse the supplied response. It must have the same name as the response associated with
+     * the constraint and the number of observations (count) must be greater than or equal to 2.
+     *  @param confidenceLevel the confidence level for computing the upper limit of the confidence interval
+     *  @return the construction interval. By construction, the lower limit will be negative infinity.
+     */
+    fun oneSidedUpperResponseInterval(
+        estimatedResponse: EstimatedResponse,
+        confidenceLevel: Double
+    ): Interval {
+        require(estimatedResponse.name == responseName) { "The supplied response name was not the same as $responseName" }
+        require(!(confidenceLevel <= 0.0 || confidenceLevel >= 1.0)) { "Confidence Level must be (0,1)" }
+        require(estimatedResponse.count >= 2) { "The estimated response count must be at least 2" }
+        val d = difference(estimatedResponse.average)
+        val dof = estimatedResponse.count - 1.0
+        val t = StudentT.invCDF(dof, confidenceLevel)
+        val c = t * estimatedResponse.standardError
+        val ul = d + c
+        return Interval(Double.NEGATIVE_INFINITY, ul)
     }
 
 }
