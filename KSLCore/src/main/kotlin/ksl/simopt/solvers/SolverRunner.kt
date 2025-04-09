@@ -8,13 +8,14 @@ import ksl.simulation.IterativeProcess
 class SolverRunner(
     maximumIterations: Int,
     private val evaluator: Evaluator,
-    val solvers: List<Solver>
+    val solvers: Set<Solver>
 ) {
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
+        require(solvers.isNotEmpty()) { "solvers must have at least one solver" }
     }
 
-    private val mySolverIterativeProcess = SolverIterativeProcess()
+    private val mySolverIterativeProcess = SolverRunnerIterativeProcess()
 
     var maximumIterations = maximumIterations
         set(value) {
@@ -30,15 +31,41 @@ class SolverRunner(
 
     //TODO
 
+    fun initialize() {
+        mySolverIterativeProcess.initialize()
+    }
+
+    fun hasNextIteration(): Boolean {
+        return mySolverIterativeProcess.hasNextStep()
+    }
+
+    fun runNextIteration(){
+        mySolverIterativeProcess.runNext()
+    }
+
+    fun runAllIterations(){
+        mySolverIterativeProcess.run()
+    }
+
+    fun stopIterations(){
+        mySolverIterativeProcess.stop()
+    }
+
+    fun endIterations(){
+        mySolverIterativeProcess.end()
+    }
+
     private fun initializeSolvers(){
-        TODO("Not yet implemented")
+        for(solver in solvers) {
+            solver.initialize()
+        }
     }
 
     private fun afterRunning() {
         TODO("Not yet implemented")
     }
 
-    private inner class SolverIterativeProcess : IterativeProcess<Nothing>("SolverRunner") {
+    private inner class SolverRunnerIterativeProcess : IterativeProcess<Nothing>("SolverRunnerIterativeProcess") {
 
         override fun initializeIterations() {
             super.initializeIterations()
