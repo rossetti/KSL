@@ -1,6 +1,7 @@
 package ksl.simopt.solvers
 
 import ksl.simopt.evaluator.Evaluator
+import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
@@ -10,7 +11,7 @@ import ksl.utilities.IdentityIfc
 //TODO needs a lot more work
 abstract class Solver(
     maximumIterations: Int,
-    evaluator: Evaluator,
+    evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name) {
 
@@ -20,7 +21,7 @@ abstract class Solver(
 
     private val mySolverIterativeProcess = SolverIterativeProcess()
 
-    internal var myEvaluator: Evaluator = evaluator
+    internal var myEvaluator: EvaluatorIfc = evaluator
 
     internal val myOriginalEvaluator = evaluator
 
