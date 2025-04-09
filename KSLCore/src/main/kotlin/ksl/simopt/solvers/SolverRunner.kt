@@ -73,7 +73,7 @@ class SolverRunner(
 
     private inner class SolverRunnerIterativeProcess : IterativeProcess<SolverRunnerIterativeProcess>("SolverRunnerIterativeProcess") {
         //TODO add some logging
-        
+
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
