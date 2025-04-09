@@ -3,6 +3,7 @@ package ksl.simopt.cache
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.SolutionData
+import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 
 //TODO needs revision
@@ -56,6 +57,12 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
         put(inputMap, solution)
     }
 
+    /**
+     *  Retrieves the solution in the cache as a group of solutions
+     *  @return the group of solutions
+     */
+    fun solutions() : Solutions
+
 }
 
 /**
@@ -107,6 +114,10 @@ class MemorySolutionCache(
 
     override fun remove(inputMap: InputMap): Solution? {
         return map.remove(inputMap)
+    }
+
+    override fun solutions(): Solutions {
+        return Solutions(map.values.toList())
     }
 
     override fun put(inputMap: InputMap, solution: Solution): Solution? {

@@ -6,7 +6,11 @@ import java.util.PriorityQueue
  * Class to support a group of solutions (each containing inputs, responses, objective fns, penalties)
  *
  */
-class Solutions {
+class Solutions() {
+
+    constructor(solutions: List<Solution>): this(){
+        addAll(solutions)
+    }
 
     private val mySolutions = PriorityQueue<Solution>()
 
@@ -31,6 +35,10 @@ class Solutions {
      */
     fun orderedResponseFeasibleSolutions(overallCILevel: Double = 0.99): List<Solution> {
         return orderedFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
+    }
+
+    fun addAll(solutions: List<Solution>) {
+        mySolutions.addAll(solutions.toMutableList())
     }
 
     fun add(solution: Solution) {
