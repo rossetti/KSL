@@ -6,9 +6,24 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
 
 class SolverRunner(
+    maximumIterations: Int,
     private val evaluator: Evaluator,
     val solvers: List<Solver>
 ) {
+    init {
+        require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
+    }
+
+    var maximumIterations = maximumIterations
+        set(value) {
+            require(value > 0) { "maximum number of iterations must be > 0" }
+            field = value
+        }
+
+    var iterationCounter = 0
+        private set
+
+
     //TODO
 
     private val myBestObjByIteration = mutableListOf<Double>()
@@ -21,12 +36,12 @@ class SolverRunner(
         TODO("Not implemented yet!")
     }
 
-    private inner class SolverProcess(name: String?) : IterativeProcess<SolverProcess> (name) {
+    private object SolverProcess : IterativeProcess<Nothing>("SolverRunner") {
         override fun hasNextStep(): Boolean {
             TODO("Not yet implemented")
         }
 
-        override fun nextStep(): SolverProcess? {
+        override fun nextStep(): Nothing? {
             TODO("Not yet implemented")
         }
 
