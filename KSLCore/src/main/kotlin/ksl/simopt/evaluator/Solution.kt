@@ -52,6 +52,9 @@ data class Solution(
     val problemDefinition: ProblemDefinition
         get() = inputMap.problemDefinition
 
+    val responseEstimatesMap: Map<String, EstimatedResponse>
+        get() = responseEstimates.associateBy { it.name }
+
     /**
      *  The response estimate averages
      */
@@ -182,11 +185,35 @@ data class Solution(
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
     /**
+     *  Tests if each response constraint is feasible.  If all test feasible, then the
+     *  solution is considered response feasible.
+     *
+     *  @param overallCILevel the overall confidence across all response constraints.
+     */
+    fun isResponseConstraintFeasible(overallCILevel: Double = 0.99): Boolean {
+        require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
+        val alpha = 1.0 - overallCILevel
+        val responses = responseEstimatesMap
+        val k = problemDefinition.responseConstraints.size
+        val level = 1.0 - (alpha / k)
+        for (rc in problemDefinition.responseConstraints){
+            if (responses.containsKey(rc.responseName)) {
+                val estimatedResponse = responses[rc.responseName]!!
+                if (!rc.testFeasibility(estimatedResponse, level)){
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    /**
      *  Computes a one-sided upper confidence interval for each response constraint to test
      *  if the interval contains zero. If the upper limit of the interval is less than 0.0, then we can be confident
      *  that response constraint is feasible. The individual confidence interval upper limits
      *  are based on a one-sided confidence interval on the mean response assuming normality.
-     *  The upper limit is computed as (x_bar - b + t(alpha, n-1)*s/sqrt(n)) assuming a less-than constraint.
+     *  The upper limit is computed as (x_bar - b + t(level, n-1)*s/sqrt(n)) assuming a less-than constraint.
+     *  The individual confidence interval levels are adjusted to meet the overall level of confidence.
      *
      *  @param overallCILevel the overall confidence across all response constraints.
      */
@@ -194,18 +221,13 @@ data class Solution(
         require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
         val intervals = mutableListOf<Interval>()
         val alpha = 1.0 - overallCILevel
-        val avgs = averages
+        val responses = responseEstimatesMap
         val k = problemDefinition.responseConstraints.size
         val level = 1.0 - (alpha / k)
-        // need to multiple level by two because half-width assumes two-sided c.i.
-        val hwWidths = responseEstimates.associate { Pair(it.name, it.halfWidth(2.0 * level)) }
         for (rc in problemDefinition.responseConstraints) {
-            if (avgs.containsKey(rc.responseName)) {
-                val avg = avgs[rc.responseName]!!
-                val d = rc.difference(avg)
-                val hw = hwWidths[rc.responseName]!!
-                val ul = d + hw
-                intervals.add(Interval(Double.NEGATIVE_INFINITY, ul))
+            if (responses.containsKey(rc.responseName)) {
+                val estimatedResponse = responses[rc.responseName]!!
+                intervals.add(rc.oneSidedUpperResponseInterval(estimatedResponse, level))
             }
         }
         return intervals
