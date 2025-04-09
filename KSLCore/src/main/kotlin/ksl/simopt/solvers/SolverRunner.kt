@@ -14,6 +14,8 @@ class SolverRunner(
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
     }
 
+    private val mySolverIterativeProcess = SolverIterativeProcess()
+
     var maximumIterations = maximumIterations
         set(value) {
             require(value > 0) { "maximum number of iterations must be > 0" }
@@ -28,7 +30,21 @@ class SolverRunner(
 
     //TODO
 
-    private object SolverProcess : IterativeProcess<Nothing>("SolverRunner") {
+    private fun initialize(){
+
+    }
+
+    private fun afterRunning() {
+
+    }
+
+    private inner class SolverIterativeProcess : IterativeProcess<Nothing>("SolverRunner") {
+
+        override fun initializeIterations() {
+            super.initializeIterations()
+            initialize()
+        }
+
         override fun hasNextStep(): Boolean {
             TODO("Not yet implemented")
         }
@@ -39,6 +55,11 @@ class SolverRunner(
 
         override fun runStep() {
             TODO("Not yet implemented")
+        }
+
+        override fun endIterations() {
+            super.endIterations()
+            afterRunning()
         }
 
     }
