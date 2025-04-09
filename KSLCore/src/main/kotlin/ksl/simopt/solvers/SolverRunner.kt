@@ -23,18 +23,10 @@ class SolverRunner(
     var iterationCounter = 0
         private set
 
-
-    //TODO
-
-    private val myBestObjByIteration = mutableListOf<Double>()
-    private val mySolverStatus = mutableListOf<String>()
-
     val problemDefinition: ProblemDefinition
         get() = evaluator.problemDefinition
 
-    fun bestSolution(): Solution {
-        TODO("Not implemented yet!")
-    }
+    //TODO
 
     private object SolverProcess : IterativeProcess<Nothing>("SolverRunner") {
         override fun hasNextStep(): Boolean {
