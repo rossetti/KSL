@@ -108,9 +108,15 @@ open class SolverRunner(
         for (solver in myRunnableSolvers) {
             solver.runNextIteration()
         }
-        //TODO what else?
         // check if solver is done if so remove from runnable solvers
         // cause completed solvers to end their iterations
+        for(solver in mySolvers){
+            if (!solver.hasNextIteration()){
+                myRunnableSolvers.remove(solver)
+                solver.endIterations()
+            }
+        }
+        //TODO what else?
     }
 
     /**
@@ -129,7 +135,7 @@ open class SolverRunner(
      *  have more iterations to run.
      */
     private fun hasMoreIterations(): Boolean {
-        TODO("Not yet implemented")
+        return !(myRunnableSolvers.isEmpty() || iterationCounter >= maximumIterations)
     }
 
     /**
