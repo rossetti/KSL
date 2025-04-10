@@ -1,5 +1,6 @@
 package ksl.simopt.solvers
 
+import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
@@ -11,23 +12,31 @@ import ksl.utilities.IdentityIfc
 //TODO needs a lot more work
 abstract class Solver(
     maximumIterations: Int,
+    numReplicationsPerEvaluation: Int,
     evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name) {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
+        require(numReplicationsPerEvaluation > 0) { "The number of replications requested for each evaluation must be > 0" }
     }
 
     private val mySolverIterativeProcess = SolverIterativeProcess()
 
-    internal var myEvaluator: EvaluatorIfc = evaluator
+    internal var mySolverRunner: SolverRunner? = null
 
-    internal val myOriginalEvaluator = evaluator
+    private var myEvaluator: EvaluatorIfc = evaluator
 
     var maximumIterations = maximumIterations
         set(value) {
             require(value > 0) { "maximum number of iterations must be > 0" }
+            field = value
+        }
+
+    var numReplicationsPerEvaluation = numReplicationsPerEvaluation
+        set(value) {
+            require(value > 0) { "The number of replications requested for each evaluation must be > 0" }
             field = value
         }
 
@@ -91,12 +100,17 @@ abstract class Solver(
      */
     protected abstract fun afterIterations()
 
+    protected fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
+       return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
+    }
+
     private inner class SolverIterativeProcess : IterativeProcess<SolverIterativeProcess>("${name}:SolverIterativeProcess") {
         //TODO add some logging
 
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
+            mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             this@Solver.initializeIterations()
         }
 

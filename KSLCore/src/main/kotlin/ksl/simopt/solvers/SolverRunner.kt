@@ -32,7 +32,6 @@ open class SolverRunner(
     }
 
     private val mySolverIterativeProcess = SolverRunnerIterativeProcess()
-    private val myEvaluationInterceptor = EvaluationInterceptor()
 
     /**
      *  Represents the maximum number of iterations that the solver will
@@ -53,11 +52,11 @@ open class SolverRunner(
 
     fun addSolver(solver: Solver) {
         mySolvers.add(solver)
-        solver.myEvaluator = myEvaluationInterceptor
+        solver.mySolverRunner = this
     }
 
     fun removeSolver(solver: Solver): Boolean {
-        solver.myEvaluator = solver.myOriginalEvaluator
+        solver.mySolverRunner = null
         return mySolvers.remove(solver)
     }
 
@@ -90,6 +89,7 @@ open class SolverRunner(
      *  to be initialized.
      */
     private fun initializeIterations() {
+        resetEvaluator()
         maximumIterations = mySolvers.maxOf { it.maximumIterations }
         // setup to run all the solvers
         myRunnableSolvers.clear()
@@ -143,9 +143,13 @@ open class SolverRunner(
      *  so that the solver runner has an opportunity to process them before forwarding them
      *  to the attached evaluator.
      */
-    protected open fun handleInterceptedRequestsFromSolvers(requests: List<EvaluationRequest>): List<Solution> {
+    internal fun receiveEvaluationRequests(solver: Solver, requests: List<EvaluationRequest>) : List<Solution> {
         // requests may come from solvers because of initialization or because of an iteration
         TODO("Not yet implemented")
+    }
+
+    internal fun resetEvaluator(){
+        evaluator.resetEvaluationCounts()
     }
 
     private inner class SolverRunnerIterativeProcess :
@@ -181,14 +185,4 @@ open class SolverRunner(
 
     }
 
-    /**
-     *  The purpose of this class is to intercept any requests sent by solvers for evaluation
-     *  so that the solver runner has an opportunity to process them before forwarding them
-     *  to the attached evaluator.
-     */
-    private inner class EvaluationInterceptor() : EvaluatorIfc by evaluator {
-        override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
-            return handleInterceptedRequestsFromSolvers(requests)
-        }
-    }
 }
