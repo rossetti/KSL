@@ -15,7 +15,16 @@ open class SolverRunner(
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
     }
 
+    /**
+     *  Contains the solvers that are managed.
+     */
     private val mySolvers = mutableSetOf<Solver>()
+
+    /**
+     *  As solvers run, they may complete their iterations.
+     *  This set holds those solvers that need to continue running iterations.
+     */
+    private val myRunnableSolvers = mutableListOf<Solver>()
 
     constructor(
         maximumIterations: Int,
@@ -76,18 +85,48 @@ open class SolverRunner(
         mySolverIterativeProcess.end()
     }
 
+    /**
+     *  This function should cause any managed solvers
+     *  to be initialized.
+     */
     private fun initializeIterations(){
-        TODO("Not yet implemented")
+        // setup to run all the solvers
+        myRunnableSolvers.clear()
+        myRunnableSolvers.addAll(mySolvers)
+        for (solver in myRunnableSolvers) {
+            solver.initialize()
+        }
+        //TODO what else?
     }
 
+    /**
+     *  This function should cause any managed solvers
+     *  to run their individual iterations of their algorithms.
+     */
     private fun runIteration(){
-        TODO("Not yet implemented")
+        for (solver in myRunnableSolvers) {
+            solver.runNextIteration()
+        }
+        //TODO what else?
+        // check if solver is done if so remove from runnable solvers
+        // cause completed solvers to end their iterations
     }
 
+    /**
+     *  This function should cause any managed solvers
+     *  to clean-up after running their iterations.
+     */
     private fun afterIterations(){
-        TODO("Not yet implemented")
+        for (solver in myRunnableSolvers) {
+            solver.endIterations()
+        }
+        //TODO what else?
     }
 
+    /**
+     *  This function should determine if any managed solvers
+     *  have more iterations to run.
+     */
     private fun hasMoreIterations(): Boolean{
         TODO("Not yet implemented")
     }
