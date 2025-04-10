@@ -100,6 +100,12 @@ abstract class Solver(
      */
     protected abstract fun afterIterations()
 
+    /**
+     *  Subclasses should implement this function to prepare requests for
+     *  evaluation by the simulation oracle as part of running the iteration.
+     */
+    protected abstract fun prepareEvaluationRequests() : List<EvaluationRequest>
+
     protected fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
