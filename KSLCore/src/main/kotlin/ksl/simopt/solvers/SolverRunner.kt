@@ -8,12 +8,8 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
 
 open class SolverRunner(
-    maximumIterations: Int,
     private val evaluator: Evaluator
 ) {
-    init {
-        require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
-    }
 
     /**
      *  Contains the solvers that are managed.
@@ -27,10 +23,9 @@ open class SolverRunner(
     private val myRunnableSolvers = mutableListOf<Solver>()
 
     constructor(
-        maximumIterations: Int,
         evaluator: Evaluator,
         solvers: Collection<Solver>
-    ) : this(maximumIterations, evaluator) {
+    ) : this(evaluator) {
         for (solver in solvers) {
             addSolver(solver)
         }
@@ -39,8 +34,13 @@ open class SolverRunner(
     private val mySolverIterativeProcess = SolverRunnerIterativeProcess()
     private val myEvaluationInterceptor = EvaluationInterceptor()
 
-    var maximumIterations = maximumIterations
-        set(value) {
+    /**
+     *  Represents the maximum number of iterations that the solver will
+     *  perform. This is determined as the maximum of the maximum number
+     *  of iterations across all managed solvers.
+     */
+    var maximumIterations = 0
+        private set(value) {
             require(value > 0) { "maximum number of iterations must be > 0" }
             field = value
         }
@@ -56,7 +56,7 @@ open class SolverRunner(
         solver.myEvaluator = myEvaluationInterceptor
     }
 
-    fun removeSolver(solver: Solver) : Boolean {
+    fun removeSolver(solver: Solver): Boolean {
         solver.myEvaluator = solver.myOriginalEvaluator
         return mySolvers.remove(solver)
     }
@@ -69,19 +69,19 @@ open class SolverRunner(
         return mySolverIterativeProcess.hasNextStep()
     }
 
-    fun runNextIteration(){
+    fun runNextIteration() {
         mySolverIterativeProcess.runNext()
     }
 
-    fun runAllIterations(){
+    fun runAllIterations() {
         mySolverIterativeProcess.run()
     }
 
-    fun stopIterations(){
+    fun stopIterations() {
         mySolverIterativeProcess.stop()
     }
 
-    fun endIterations(){
+    fun endIterations() {
         mySolverIterativeProcess.end()
     }
 
@@ -89,7 +89,8 @@ open class SolverRunner(
      *  This function should cause any managed solvers
      *  to be initialized.
      */
-    private fun initializeIterations(){
+    private fun initializeIterations() {
+        maximumIterations = mySolvers.maxOf { it.maximumIterations }
         // setup to run all the solvers
         myRunnableSolvers.clear()
         myRunnableSolvers.addAll(mySolvers)
@@ -103,7 +104,7 @@ open class SolverRunner(
      *  This function should cause any managed solvers
      *  to run their individual iterations of their algorithms.
      */
-    private fun runIteration(){
+    private fun runIteration() {
         for (solver in myRunnableSolvers) {
             solver.runNextIteration()
         }
@@ -116,7 +117,7 @@ open class SolverRunner(
      *  This function should cause any managed solvers
      *  to clean-up after running their iterations.
      */
-    private fun afterIterations(){
+    private fun afterIterations() {
         for (solver in myRunnableSolvers) {
             solver.endIterations()
         }
@@ -127,7 +128,7 @@ open class SolverRunner(
      *  This function should determine if any managed solvers
      *  have more iterations to run.
      */
-    private fun hasMoreIterations(): Boolean{
+    private fun hasMoreIterations(): Boolean {
         TODO("Not yet implemented")
     }
 
@@ -137,10 +138,12 @@ open class SolverRunner(
      *  to the attached evaluator.
      */
     protected open fun handleInterceptedRequestsFromSolvers(requests: List<EvaluationRequest>): List<Solution> {
+        // requests may come from solvers because of initialization or because of an iteration
         TODO("Not yet implemented")
     }
 
-    private inner class SolverRunnerIterativeProcess : IterativeProcess<SolverRunnerIterativeProcess>("SolverRunnerIterativeProcess") {
+    private inner class SolverRunnerIterativeProcess :
+        IterativeProcess<SolverRunnerIterativeProcess>("SolverRunnerIterativeProcess") {
         //TODO add some logging
 
         override fun initializeIterations() {
@@ -177,7 +180,7 @@ open class SolverRunner(
      *  so that the solver runner has an opportunity to process them before forwarding them
      *  to the attached evaluator.
      */
-    private inner class EvaluationInterceptor(): EvaluatorIfc by evaluator {
+    private inner class EvaluationInterceptor() : EvaluatorIfc by evaluator {
         override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
             return handleInterceptedRequestsFromSolvers(requests)
         }
