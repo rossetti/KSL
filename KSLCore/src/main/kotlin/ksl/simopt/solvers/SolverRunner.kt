@@ -7,7 +7,7 @@ import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
 
-class SolverRunner(
+open class SolverRunner(
     maximumIterations: Int,
     private val evaluator: Evaluator
 ) {
@@ -45,12 +45,10 @@ class SolverRunner(
     fun addSolver(solver: Solver) {
         mySolvers.add(solver)
         solver.myEvaluator = myEvaluationInterceptor
-        //TODO when setting the solver we need to make it know the runner
-        // how to not lose its evaluator
     }
 
     fun removeSolver(solver: Solver) : Boolean {
-        //TODO when removing the solver we need to make it forget the runner
+        solver.myEvaluator = solver.myOriginalEvaluator
         return mySolvers.remove(solver)
     }
 
@@ -94,7 +92,12 @@ class SolverRunner(
         TODO("Not yet implemented")
     }
 
-    private fun handleInterceptedRequestsFromSolvers(requests: List<EvaluationRequest>): List<Solution> {
+    /**
+     *  The purpose of this function is to intercept any requests sent by solvers for evaluation
+     *  so that the solver runner has an opportunity to process them before forwarding them
+     *  to the attached evaluator.
+     */
+    protected open fun handleInterceptedRequestsFromSolvers(requests: List<EvaluationRequest>): List<Solution> {
         TODO("Not yet implemented")
     }
 
@@ -130,8 +133,12 @@ class SolverRunner(
 
     }
 
+    /**
+     *  The purpose of this class is to intercept any requests sent by solvers for evaluation
+     *  so that the solver runner has an opportunity to process them before forwarding them
+     *  to the attached evaluator.
+     */
     private inner class EvaluationInterceptor(): EvaluatorIfc by evaluator {
-
         override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
             return handleInterceptedRequestsFromSolvers(requests)
         }
