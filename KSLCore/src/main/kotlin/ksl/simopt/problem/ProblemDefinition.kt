@@ -638,6 +638,8 @@ class ProblemDefinition(
     /**
      *  Randomly generates a new value for the named input variable and returns the updated
      *  input map. The input should be feasible with respect to linear or functional constraints.
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxIterations]
+     *  then an IllegalStateException will occur.
      *
      *  @param name the name of the input variable to randomize. Must be a valid name for
      *  the input map and thus for the problem.
@@ -665,7 +667,9 @@ class ProblemDefinition(
 
     /**
      *  Generates a random point that is feasible with respect to the input ranges,
-     *  the linear constraints, and the functional constraints
+     *  the linear constraints, and the functional constraints.
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxIterations]
+     *  then an IllegalStateException will occur.
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
