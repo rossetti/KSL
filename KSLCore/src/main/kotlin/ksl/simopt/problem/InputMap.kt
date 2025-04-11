@@ -20,7 +20,8 @@ class InputMap(
 
     /**
      *  Randomly generates a new value for the named input variable and returns the updated
-     *  input map.
+     *  input map.  Randomization is uniformly distributed over the range of the
+     *  input variable with no memory of its current value.
      *
      *  @param name the name of the input variable to randomize. Must be a valid name for
      *  the input map and thus for the problem.
