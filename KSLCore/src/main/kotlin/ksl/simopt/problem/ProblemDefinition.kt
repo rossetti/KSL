@@ -615,7 +615,7 @@ class ProblemDefinition(
 
     /**
      *  Randomly generates a new value for the named input variable and returns the updated
-     *  input map.
+     *  input map. The input map may not be feasible with respect to linear or functional constraints.
      *
      *  @param name the name of the input variable to randomize. Must be a valid name for
      *  the input map and thus for the problem.
