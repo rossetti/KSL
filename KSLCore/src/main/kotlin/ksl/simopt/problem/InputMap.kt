@@ -18,6 +18,20 @@ class InputMap(
         map[key] = value
     }
 
+    /**
+     *  Randomly generates a new value for the named input variable and returns the updated
+     *  input map.
+     *
+     *  @param name the name of the input variable to randomize. Must be a valid name for
+     *  the input map and thus for the problem.
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the randomly generated point.
+     */
+    fun randomizeInputVariable(name:String, roundToGranularity: Boolean = true) {
+        problemDefinition.randomizeInputValue(name, this, roundToGranularity)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
