@@ -8,7 +8,7 @@ package ksl.simopt.problem
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process.
  */
-open class InputMap(
+class InputMap(
     val problemDefinition: ProblemDefinition,
     private val map: MutableMap<String, Double>
 ) : Map<String, Double> by map {

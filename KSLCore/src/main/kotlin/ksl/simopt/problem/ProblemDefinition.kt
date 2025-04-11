@@ -198,7 +198,7 @@ class ProblemDefinition(
         get() = myInputDefinitions.values.map { it.interval.width }.toDoubleArray()
 
     /**
-     *  The granularities associated with each input variable as an array
+     *  The granularity associated with each input variable as an array
      */
     val inputGranularities: DoubleArray
         get() = myInputDefinitions.values.map { it.granularity }.toDoubleArray()
@@ -598,7 +598,7 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the randomly generated point.
      */
-    fun randomPoint(roundToGranularity: Boolean = true): InputMap {
+    fun generateRandomInputValues(roundToGranularity: Boolean = true): InputMap {
         val map = mutableMapOf<String, Double>()
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.randomValue(rnStream, roundToGranularity)
@@ -614,14 +614,14 @@ class ProblemDefinition(
      *  the appropriate granularity. The default is true.
      *  @return the sampled point
      */
-    fun generateInputFeasiblePoint(roundToGranularity: Boolean = true): InputMap {
+    fun generateInputFeasibleValues(roundToGranularity: Boolean = true): InputMap {
         var count = 0
         var inputMap: InputMap
         do {
             count++
             check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
             // generate the point
-            inputMap = randomPoint(roundToGranularity)
+            inputMap = generateRandomInputValues(roundToGranularity)
         } while (!isInputFeasible(inputMap))
         return inputMap
     }
@@ -630,7 +630,7 @@ class ProblemDefinition(
      *  Returns a starting point for the problem. If the user specified an instance of
      *  the [StartingPointIfc] via the [ProblemDefinition.startingPointGenerator] property then
      *  the supplied generator is used; otherwise, the problem definition attempts
-     *  to randomly generate an input feasible starting point via the [ProblemDefinition.generateInputFeasiblePoint]
+     *  to randomly generate an input feasible starting point via the [ProblemDefinition.generateInputFeasibleValues]
      *  function.
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
@@ -638,7 +638,7 @@ class ProblemDefinition(
      *  @return the starting point
      */
     fun startingPoint(roundToGranularity: Boolean = true): InputMap {
-        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasiblePoint(
+        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasibleValues(
             roundToGranularity
         )
     }
