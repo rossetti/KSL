@@ -26,10 +26,13 @@ class InputMap(
      *  the input map and thus for the problem.
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
-     *  @return the randomly generated point.
+     *  @return the replaced value from the map
      */
-    fun randomizeInputVariable(name:String, roundToGranularity: Boolean = true) {
+    fun randomizeInputVariable(name:String, roundToGranularity: Boolean = true) : Double {
+        require(containsKey(name)) { "The input map does not contain the variable: $name" }
+        val current = map[name]!!
         problemDefinition.randomizeInputValue(name, this, roundToGranularity)
+        return current
     }
 
     override fun equals(other: Any?): Boolean {
