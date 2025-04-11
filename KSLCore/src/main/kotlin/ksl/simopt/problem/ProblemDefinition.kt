@@ -636,6 +636,34 @@ class ProblemDefinition(
     }
 
     /**
+     *  Randomly generates a new value for the named input variable and returns the updated
+     *  input map. The input map may not be feasible with respect to linear or functional constraints.
+     *
+     *  @param name the name of the input variable to randomize. Must be a valid name for
+     *  the input map and thus for the problem.
+     *  @param inputMap the input map for which the named variable will be changed
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @return the randomly generated point.
+     */
+    fun randomizeInputFeasibleValue(
+        name: String,
+        inputMap: InputMap,
+        roundToGranularity: Boolean  = true
+    ): InputMap {
+        require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
+        var count = 0
+        do {
+            count++
+            check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
+            // generate the point
+            val iDefinition = myInputDefinitions[name]!!
+            inputMap[name] = iDefinition.randomValue(rnStream, roundToGranularity)
+        } while (!isInputFeasible(inputMap))
+        return inputMap
+    }
+
+    /**
      *  Generates a random point that is feasible with respect to the input ranges,
      *  the linear constraints, and the functional constraints
      *
