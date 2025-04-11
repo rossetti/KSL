@@ -7,22 +7,6 @@ import ksl.utilities.random.rvariable.toDouble
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 /**
- *  A class to assist with capturing data from a solution.
- *  @param id the identifier of the solution
- *  @param dataType the type of data in ("solution", "objectiveFunction", "responseEstimate", "input")
- *  @param subType a string to assist with identifying the data type
- *  @param dataName a string representing the name of the data
- *  @param dataValue the value associated with the named data
- */
-data class SolutionData(
-    val id: Int,
-    val dataType: String,
-    val subType: String?,
-    val dataName: String,
-    val dataValue: Double
-)
-
-/**
  *  A solution represents the evaluated inputs for on a problem definition.
  *  @param inputMap the inputs (name,value) pairs associated with the solution
  *  @param numReplications the number of replications associated with the request
