@@ -98,7 +98,14 @@ class ProblemDefinition(
         responseNames: Set<String> = emptySet(),
         indifferenceZoneParameter: Double = 0.0,
         streamNum: Int
-    ) : this(problemName, objFnResponseName, inputNames, responseNames,  indifferenceZoneParameter, KSLRandom.rnStream(streamNum))
+    ) : this(
+        problemName,
+        objFnResponseName,
+        inputNames,
+        responseNames,
+        indifferenceZoneParameter,
+        KSLRandom.rnStream(streamNum)
+    )
 
     /**
      *  Returns a list of the names of all the responses referenced in the problem
@@ -523,7 +530,7 @@ class ProblemDefinition(
      *   @return true if the inputs are feasible
      */
     fun isLinearConstraintFeasible(inputs: Map<String, Double>): Boolean {
-        if (myLinearConstraints.isEmpty()){
+        if (myLinearConstraints.isEmpty()) {
             return true
         }
         if (!validateNames(inputs)) {
@@ -545,7 +552,7 @@ class ProblemDefinition(
      *   @return true if the inputs are feasible
      */
     fun isFunctionalConstraintFeasible(inputs: Map<String, Double>): Boolean {
-        if (myFunctionalConstraints.isEmpty()){
+        if (myFunctionalConstraints.isEmpty()) {
             return true
         }
         if (!validateNames(inputs)) {
@@ -618,11 +625,11 @@ class ProblemDefinition(
      *  @return the randomly generated point.
      */
     fun randomizeInputValue(
-        name:String,
+        name: String,
         inputMap: InputMap,
         roundToGranularity: Boolean
-    ) : InputMap {
-        require(inputMap.containsKey(name)){"The supplied input map does not contain the variable: $name"}
+    ): InputMap {
+        require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         val iDefinition = myInputDefinitions[name]!!
         inputMap[name] = iDefinition.randomValue(rnStream, roundToGranularity)
         return inputMap
