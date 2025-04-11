@@ -627,7 +627,7 @@ class ProblemDefinition(
     fun randomizeInputValue(
         name: String,
         inputMap: InputMap,
-        roundToGranularity: Boolean
+        roundToGranularity: Boolean  = true
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         val iDefinition = myInputDefinitions[name]!!
