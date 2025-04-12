@@ -53,6 +53,8 @@ class SimulationProvider(
     val simulationRuns: Map<String,SimulationRun>
         get() = mySimulationRuns
 
+    //TODO could add ExperimentDataCollector as an option
+    
     /**
      *  The KSLDatabase used to capture model execution results. The name of the experiments
      *  are based on the name of the associated ProblemDefinition, as
