@@ -12,14 +12,13 @@ import ksl.utilities.IdentityIfc
 //TODO needs a lot more work
 abstract class Solver(
     maximumIterations: Int,
-    numReplicationsPerEvaluation: Int,
+    replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name) {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
-        require(numReplicationsPerEvaluation > 0) { "The number of replications requested for each evaluation must be > 0" }
     }
 
     private val mySolverIterativeProcess = SolverIterativeProcess()
@@ -31,12 +30,6 @@ abstract class Solver(
     var maximumIterations = maximumIterations
         set(value) {
             require(value > 0) { "maximum number of iterations must be > 0" }
-            field = value
-        }
-
-    var numReplicationsPerEvaluation = numReplicationsPerEvaluation
-        set(value) {
-            require(value > 0) { "The number of replications requested for each evaluation must be > 0" }
             field = value
         }
 
