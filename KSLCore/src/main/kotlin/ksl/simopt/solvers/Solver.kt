@@ -40,6 +40,8 @@ abstract class Solver(
     val problemDefinition: ProblemDefinition
         get() = myEvaluator.problemDefinition
 
+    private var myCurrentSolution: Solution? = null
+
     fun initialize() {
         myOuterIterativeProcess.initialize()
     }
