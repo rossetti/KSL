@@ -219,7 +219,7 @@ class ProblemDefinition(
     /**
      * The maximum number of iterations when sampling for an input feasible point
      */
-    var maxIterations = defaultMaximumIterations
+    var maxFeasibleSamplingIterations = defaultMaximumFeasibleSamplingIterations
         set(value) {
             require(value > 0) { "The maximum number of samples is $value, must be > 0" }
             field = value
@@ -638,7 +638,7 @@ class ProblemDefinition(
     /**
      *  Randomly generates a new value for the named input variable and returns the updated
      *  input map. The input should be feasible with respect to linear or functional constraints.
-     *  If the number of sampling iterations needed to get a feasible point exceeds [maxIterations]
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
      *  then an IllegalStateException will occur.
      *
      *  @param name the name of the input variable to randomize. Must be a valid name for
@@ -657,7 +657,7 @@ class ProblemDefinition(
         var count = 0
         do {
             count++
-            check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
             // generate the point
             val iDefinition = myInputDefinitions[name]!!
             inputMap[name] = iDefinition.randomValue(rnStream, roundToGranularity)
@@ -668,7 +668,7 @@ class ProblemDefinition(
     /**
      *  Generates a random point that is feasible with respect to the input ranges,
      *  the linear constraints, and the functional constraints.
-     *  If the number of sampling iterations needed to get a feasible point exceeds [maxIterations]
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
      *  then an IllegalStateException will occur.
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
@@ -680,7 +680,7 @@ class ProblemDefinition(
         var inputMap: InputMap
         do {
             count++
-            check(count <= maxIterations) { "The number of iterations exceeded the limit $maxIterations when sampling for an input feasible point" }
+            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
             // generate the point
             inputMap = generateRandomInputValues(roundToGranularity)
         } while (!isInputFeasible(inputMap))
@@ -709,7 +709,7 @@ class ProblemDefinition(
         /**
          *  The default maximum number of iterations for when sampling for a feasible input point
          */
-        var defaultMaximumIterations = 10000
+        var defaultMaximumFeasibleSamplingIterations = 10000
             set(value) {
                 require(value >= 1) { "The default maximum number of iterations for sampling must be > 0" }
                 field = value
