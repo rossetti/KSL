@@ -56,18 +56,33 @@ abstract class Solver(
 
     protected var currentSolution: Solution? = null
 
+    /**
+     *  Causes the solver to be initialized. It will then
+     *  be in a state that allows for the running of the iterations.
+     */
     fun initialize() {
         myOuterIterativeProcess.initialize()
     }
 
+    /**
+     *  Checks if the iterative process has additional iterations to execute
+     */
     fun hasNextIteration(): Boolean {
         return myOuterIterativeProcess.hasNextStep()
     }
 
+    /**
+     *  Runs the next iteration. Only valid if the solver has been
+     *  initialized and there are additional iterations to run.
+     */
     fun runNextIteration(){
         myOuterIterativeProcess.runNext()
     }
 
+    /**
+     *   Cause the solver to run all iterations until its stopping
+     *   criteria is met or the maximum number of iterations has been reached.
+     */
     fun runAllIterations(){
         myOuterIterativeProcess.run()
     }
@@ -118,9 +133,9 @@ abstract class Solver(
      *  implementation of stopping criteria.
      */
     protected open fun hasMoreOuterIterations(): Boolean{
+        //TODO need to check this, maybe stopping criteria can be used instead
         return (outerIterationCounter < maximumOuterIterations) || !myOuterIterativeProcess.isDone
     }
-
 
     /**
      *  This function is called before the inner iterations are
@@ -133,7 +148,7 @@ abstract class Solver(
     /**
      *  This function is called after the inner iterations are
      *  initialized, executed, and ended and before returning
-     *  to the outer loop
+     *  to the outer loop of iterations
      */
     protected open fun afterInnerIterations(){
 
@@ -141,28 +156,36 @@ abstract class Solver(
 
     /**
      *  Subclasses should implement this function to clean up after
-     *  running iterations.  This may include such concepts as selecting
+     *  running all iterations.  This may include such concepts as selecting
      *  the best once all iterations have completed.
      */
-    protected abstract fun outerIterationsEnded()
+    protected open fun outerIterationsEnded(){
+
+    }
 
     /**
      *  Subclasses should implement this function to prepare the solver
      *  prior to running the first inner iteration.
      */
-    protected abstract fun initializeInnerIterations()
+    protected open fun initializeInnerIterations(){
+
+    }
 
     /**
      *  Subclasses should implement this function to determine if the solver
      *  should continue running inner iterations.
      */
-    protected abstract fun hasMoreInnerIterations(): Boolean
+    protected open fun hasMoreInnerIterations(): Boolean {
+        TODO("Not implemented yet. ")
+    }
 
     /**
      *  Subclasses should implement this function to specify the logic
      *  associated with the inner iterations.
      */
-    protected abstract fun innerIteration()
+    protected open fun innerIteration(){
+
+    }
 
     /**
      *  Subclasses should implement this function to clean up after
