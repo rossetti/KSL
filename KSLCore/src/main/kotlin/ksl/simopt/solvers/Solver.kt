@@ -80,6 +80,16 @@ abstract class Solver(
         myOuterIterativeProcess.end()
     }
 
+    /**
+     * Recognizing the need to be able to compare solutions that may have sampling error
+     * the user can override this function to provide more extensive comparison or supply
+     * an instance of the CompareSolutionsIfc interface via the solutionComparer property
+     * Returns -1 if first is less than second solution, 0 if the solutions are to be considered
+     * equivalent, and 1 if the first is larger than the second solution.
+     *
+     * @param first the first solution within the comparison
+     * @param second the second solution within the comparison
+     */
     override fun compare(first: Solution, second: Solution) : Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
