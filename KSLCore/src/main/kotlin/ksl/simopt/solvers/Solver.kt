@@ -80,7 +80,9 @@ abstract class Solver(
         myOuterIterativeProcess.end()
     }
 
-    abstract override fun compare(first: Solution, second: Solution) : Int
+    override fun compare(first: Solution, second: Solution) : Int {
+        return solutionComparer?.compare(first, second) ?: first.compareTo(second)
+    }
 
     /**
      *  Subclasses should implement this function to prepare the solver
