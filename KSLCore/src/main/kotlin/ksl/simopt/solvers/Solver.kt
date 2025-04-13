@@ -72,8 +72,11 @@ abstract class Solver(
         myOuterIterativeProcess.run()
     }
 
-    fun stopIterations(){
-        myOuterIterativeProcess.stop()
+    fun stopIterations(msg: String? = null){
+        if (myInnerIterativeProcess.isRunning){
+            myInnerIterativeProcess.stop(msg)
+        }
+        myOuterIterativeProcess.stop(msg)
     }
 
     fun endIterations(msg: String? = null){
@@ -204,6 +207,10 @@ abstract class Solver(
         }
 
         override fun endIterations() {
+            if (myInnerIterativeProcess.isRunning){
+                logger.info { "Stopping the inner iterations of $name's because the main iterations have been ended." }
+                myInnerIterativeProcess.stop("Stopping the inner iterations because the outer iterations have been ended.")
+            }
             logger.info { "Cleaning up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
             outerIterationsEnded()
             logger.info { "Cleaned up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
