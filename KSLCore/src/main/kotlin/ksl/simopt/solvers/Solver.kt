@@ -134,7 +134,7 @@ abstract class Solver(
      */
     protected open fun hasMoreOuterIterations(): Boolean{
         //TODO need to check this, maybe stopping criteria can be used instead
-        return (outerIterationCounter < maximumOuterIterations) || !myOuterIterativeProcess.isDone
+        return (outerIterationCounter < maximumOuterIterations)
     }
 
     /**
