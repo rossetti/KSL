@@ -1,6 +1,7 @@
 package ksl.simopt.solvers
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.simopt.evaluator.CompareSolutionsIfc
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
@@ -16,7 +17,7 @@ abstract class Solver(
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
     name: String? = null
-): IdentityIfc by Identity(name) {
+): IdentityIfc by Identity(name), CompareSolutionsIfc {
 
     init {
         require(maximumOuterIterations > 0) { "maximum number of outer iterations must be > 0" }
@@ -29,6 +30,8 @@ abstract class Solver(
     internal var mySolverRunner: SolverRunner? = null
 
     private var myEvaluator: EvaluatorIfc = evaluator
+
+    var solutionComparer: CompareSolutionsIfc? = null
 
     var maximumOuterIterations = maximumOuterIterations
         set(value) {
@@ -76,6 +79,8 @@ abstract class Solver(
     fun endIterations(){
         myOuterIterativeProcess.end()
     }
+
+    abstract override fun compare(first: Solution, second: Solution) : Int
 
     /**
      *  Subclasses should implement this function to prepare the solver
