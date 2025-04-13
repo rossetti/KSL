@@ -76,8 +76,8 @@ abstract class Solver(
         myOuterIterativeProcess.stop()
     }
 
-    fun endIterations(){
-        myOuterIterativeProcess.end()
+    fun endIterations(msg: String? = null){
+        myOuterIterativeProcess.end(msg)
     }
 
     /**
