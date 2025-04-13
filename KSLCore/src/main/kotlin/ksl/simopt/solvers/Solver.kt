@@ -72,13 +72,22 @@ abstract class Solver(
         myOuterIterativeProcess.run()
     }
 
+    /**
+     *  Causes a graceful stopping of the iterative processes of the solver.
+     *  The inner process will complete its current iteration and then
+     *  no more out iterations will start.
+     */
     fun stopIterations(msg: String? = null){
-        if (myInnerIterativeProcess.isRunning){
-            myInnerIterativeProcess.stop(msg)
-        }
+        myInnerIterativeProcess.stop(msg)
         myOuterIterativeProcess.stop(msg)
     }
 
+    /**
+     *  Note that the iterations can only be ended before running all iterations or
+     *  before running the next iteration. Use stopIterations() to cause a graceful
+     *  completion of inner and outer iterations.
+     *  @param msg a message to capture for why the iterations were ended
+     */
     fun endIterations(msg: String? = null){
         myOuterIterativeProcess.end(msg)
     }
