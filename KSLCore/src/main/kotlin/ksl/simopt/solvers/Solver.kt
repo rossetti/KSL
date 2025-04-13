@@ -105,27 +105,16 @@ abstract class Solver(
      *  should continue running iterations. This will likely include some
      *  implementation of stopping criteria.
      */
-    protected abstract fun hasMoreOuterIterations(): Boolean
-
-    /**
-     *  Subclasses should implement this function to run a single
-     *  iteration of the solver. In general, an iteration may have many
-     *  sub-steps, but for the purposes of the framework an iteration
-     *  of the solver performs some sampling via the evaluator and
-     *  evaluates the quality of the solutions with the identification of
-     *  the current best.
-     */
-    private fun runOuterIteration(){
-        beforeInnerIterations()
-        myInnerIterativeProcess.run()
-        afterInnerIterations()
+    protected open fun hasMoreOuterIterations(): Boolean{
+        return (outerIterationCounter < maximumOuterIterations) || !myOuterIterativeProcess.isDone
     }
+
 
     /**
      *  This function is called before the inner iterations are
      *  initialized and executed.
      */
-    protected fun beforeInnerIterations(){
+    protected open fun beforeInnerIterations(){
 
     }
 
@@ -134,7 +123,7 @@ abstract class Solver(
      *  initialized, executed, and ended and before returning
      *  to the outer loop
      */
-    protected fun afterInnerIterations(){
+    protected open fun afterInnerIterations(){
 
     }
 
@@ -143,7 +132,7 @@ abstract class Solver(
      *  running iterations.  This may include such concepts as selecting
      *  the best once all iterations have completed.
      */
-    protected abstract fun afterOuterIterations()
+    protected abstract fun outerIterationsEnded()
 
     /**
      *  Subclasses should implement this function to prepare the solver
@@ -153,27 +142,23 @@ abstract class Solver(
 
     /**
      *  Subclasses should implement this function to determine if the solver
-     *  should continue running iterations. This will likely include some
-     *  implementation of stopping criteria.
+     *  should continue running inner iterations.
      */
     protected abstract fun hasMoreInnerIterations(): Boolean
 
     /**
-     *  Subclasses should implement this function to run a single
-     *  iteration of the solver. In general, an iteration may have many
-     *  sub-steps, but for the purposes of the framework an iteration
-     *  of the solver performs some sampling via the evaluator and
-     *  evaluates the quality of the solutions with the identification of
-     *  the current best.
+     *  Subclasses should implement this function to specify the logic
+     *  associated with the inner iterations.
      */
-    protected abstract fun runInnerIteration()
+    protected abstract fun innerIteration()
 
     /**
      *  Subclasses should implement this function to clean up after
-     *  running iterations.  This may include such concepts as selecting
-     *  the best once all iterations have completed.
+     *  the inner iterations have ended.
      */
-    protected abstract fun endInnerIterations()
+    protected open fun innerIterationsEnded() {
+
+    }
 
     /**
      *  Subclasses should implement this function to prepare requests for
@@ -211,14 +196,16 @@ abstract class Solver(
         override fun runStep() {
             myCurrentStep = nextStep()
             logger.info { "Running: iteration = $outerIterationCounter of solver $name's main iteration loop" }
-            runOuterIteration()
+            beforeInnerIterations()
+            myInnerIterativeProcess.run()
+            afterInnerIterations()
             logger.info { "Completed: iteration = $outerIterationCounter of $maximumOuterIterations iterations of solver $name's main iteration loop" }
             outerIterationCounter++
         }
 
         override fun endIterations() {
             logger.info { "Cleaning up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
-            afterOuterIterations()
+            outerIterationsEnded()
             logger.info { "Cleaned up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name's main iteration loop" }
@@ -249,14 +236,14 @@ abstract class Solver(
         override fun runStep() {
             myCurrentStep = nextStep()
             logger.info { "Running: inner iteration = $innerIterationCounter of solver $name's inner iteration loop" }
-            runInnerIteration()
+            innerIteration()
             logger.info { "Completed: inner iteration = $innerIterationCounter of $maximumInnerIterations iterations of solver $name's main iteration loop" }
             innerIterationCounter++
         }
 
         override fun endIterations() {
             logger.info { "Cleaning up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
-            endInnerIterations()
+            innerIterationsEnded()
             logger.info { "Cleaned up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name's inner iteration loop" }
