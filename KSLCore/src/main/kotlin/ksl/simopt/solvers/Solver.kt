@@ -14,7 +14,7 @@ import ksl.utilities.IdentityIfc
 abstract class Solver(
     maximumOuterIterations: Int,
     maximumInnerIterations: Int,
-    replicationsPerEvaluation: ReplicationPerEvaluationIfc,
+    var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name), CompareSolutionsIfc {
@@ -24,8 +24,8 @@ abstract class Solver(
         require(maximumInnerIterations > 0) { "maximum number of inner iterations must be > 0" }
     }
 
-    private val myOuterIterativeProcess = OuterIterativeProcess()
-    private val myInnerIterativeProcess = InnerIterativeProcess()
+    protected val myOuterIterativeProcess = OuterIterativeProcess()
+    protected val myInnerIterativeProcess = InnerIterativeProcess()
 
     internal var mySolverRunner: SolverRunner? = null
 
@@ -115,7 +115,11 @@ abstract class Solver(
      *  evaluates the quality of the solutions with the identification of
      *  the current best.
      */
-    protected abstract fun runOuterIteration()
+    protected fun runOuterIteration(){
+        // before inner iteration
+        myInnerIterativeProcess.run()
+        // after inner iteration
+    }
 
     /**
      *  Subclasses should implement this function to clean up after
@@ -164,13 +168,13 @@ abstract class Solver(
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
 
-    private inner class OuterIterativeProcess : IterativeProcess<OuterIterativeProcess>("${name}:SolverOuterIterativeProcess") {
+    protected inner class OuterIterativeProcess : IterativeProcess<OuterIterativeProcess>("${name}:SolverOuterIterativeProcess") {
         //TODO add some logging
 
         override fun initializeIterations() {
             super.initializeIterations()
             outerIterationCounter = 0
-            logger.info { "Resetting solver $name's evaluation counters" }
+            logger.info { "Resetting solver $name's evaluation counters in solver $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.info { "Initializing solver $name's outer iteration loop" }
             this@Solver.initializeOuterIterations()
@@ -205,7 +209,7 @@ abstract class Solver(
 
     }
 
-    private inner class InnerIterativeProcess : IterativeProcess<InnerIterativeProcess>("${name}:SolverInnerIterativeProcess") {
+    protected inner class InnerIterativeProcess : IterativeProcess<InnerIterativeProcess>("${name}:SolverInnerIterativeProcess") {
 
         override fun initializeIterations() {
             super.initializeIterations()
