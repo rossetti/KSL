@@ -232,6 +232,23 @@
         </encoder>
     </appender>
 
+    <appender name="KSL_SOLVER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/solver.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/controlsFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <logger name="ksl.utilities.io.dbutil.DatabaseIfc" level="INFO" additivity="false">
         <appender-ref ref="KSLDB" />
     </logger>
@@ -270,6 +287,10 @@
 
     <logger name="ksl.controls.Controls" level="INFO" additivity="false">
         <appender-ref ref="KSL_CONTROLS" />
+    </logger>
+
+    <logger name="ksl.simopt.solvers.Solver" level="INFO" additivity="false">
+        <appender-ref ref="KSL_SOLVER" />
     </logger>
 
 <!--    <logger name="org.jooq" level="WARN" additivity="false">

@@ -1,5 +1,6 @@
 package ksl.simopt.solvers
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
@@ -139,6 +140,7 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
+            logger.info { "Resetting the solver's evaluation counters" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             this@Solver.initializeOuterIterations()
         }
@@ -190,5 +192,9 @@ abstract class Solver(
             TODO("Not yet implemented")
         }
 
+    }
+
+    companion object {
+        private val logger = KotlinLogging.logger {}
     }
 }
