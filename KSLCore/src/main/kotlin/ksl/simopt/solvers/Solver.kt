@@ -115,10 +115,27 @@ abstract class Solver(
      *  evaluates the quality of the solutions with the identification of
      *  the current best.
      */
-    protected fun runOuterIteration(){
-        // before inner iteration
+    private fun runOuterIteration(){
+        beforeInnerIterations()
         myInnerIterativeProcess.run()
-        // after inner iteration
+        afterInnerIterations()
+    }
+
+    /**
+     *  This function is called before the inner iterations are
+     *  initialized and executed.
+     */
+    protected fun beforeInnerIterations(){
+
+    }
+
+    /**
+     *  This function is called after the inner iterations are
+     *  initialized, executed, and ended and before returning
+     *  to the outer loop
+     */
+    protected fun afterInnerIterations(){
+
     }
 
     /**
@@ -156,7 +173,7 @@ abstract class Solver(
      *  running iterations.  This may include such concepts as selecting
      *  the best once all iterations have completed.
      */
-    protected abstract fun afterInnerIterations()
+    protected abstract fun endInnerIterations()
 
     /**
      *  Subclasses should implement this function to prepare requests for
@@ -239,7 +256,7 @@ abstract class Solver(
 
         override fun endIterations() {
             logger.info { "Cleaning up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
-            afterInnerIterations()
+            endInnerIterations()
             logger.info { "Cleaned up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name's inner iteration loop" }
