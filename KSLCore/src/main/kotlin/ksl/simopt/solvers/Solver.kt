@@ -11,14 +11,16 @@ import ksl.utilities.IdentityIfc
 
 //TODO needs a lot more work
 abstract class Solver(
-    maximumIterations: Int,
+    maximumOuterIterations: Int,
+    maximumInnerIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name) {
 
     init {
-        require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
+        require(maximumOuterIterations > 0) { "maximum number of outer iterations must be > 0" }
+        require(maximumInnerIterations > 0) { "maximum number of inner iterations must be > 0" }
     }
 
     private val myOuterIterativeProcess = OuterIterativeProcess()
@@ -28,13 +30,22 @@ abstract class Solver(
 
     private var myEvaluator: EvaluatorIfc = evaluator
 
-    var maximumIterations = maximumIterations
+    var maximumOuterIterations = maximumOuterIterations
         set(value) {
-            require(value > 0) { "maximum number of iterations must be > 0" }
+            require(value > 0) { "maximum number of outer iterations must be > 0" }
+            field = value
+        }
+
+    var maximumInnerIterations = maximumInnerIterations
+        set(value) {
+            require(value > 0) { "maximum number of inner iterations must be > 0" }
             field = value
         }
 
     var outerIterationCounter = 0
+        private set
+
+    var innerIterationCounter = 0
         private set
 
     val problemDefinition: ProblemDefinition
@@ -163,14 +174,14 @@ abstract class Solver(
             myCurrentStep = nextStep()
             logger.info { "Running: iteration = $outerIterationCounter of solver $name's main iteration loop" }
             runOuterIteration()
-            logger.info { "Completed: iteration = $outerIterationCounter of $maximumIterations iterations of solver $name's main iteration loop" }
+            logger.info { "Completed: iteration = $outerIterationCounter of $maximumOuterIterations iterations of solver $name's main iteration loop" }
             outerIterationCounter++
         }
 
         override fun endIterations() {
-            logger.info { "Cleaning up after: iteration = $outerIterationCounter of $maximumIterations" }
+            logger.info { "Cleaning up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
             afterOuterIterations()
-            logger.info { "Cleaned up after: iteration = $outerIterationCounter of $maximumIterations" }
+            logger.info { "Cleaned up after: iteration = $outerIterationCounter of $maximumOuterIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name's main iteration loop" }
         }
@@ -181,7 +192,10 @@ abstract class Solver(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            TODO("Not yet implemented")
+            innerIterationCounter = 0
+            logger.info { "Initializing solver $name's inner iteration loop" }
+            this@Solver.initializeInnerIterations()
+            logger.info { "Initialized solver $name's inner iteration loop" }
         }
 
         override fun hasNextStep(): Boolean {
@@ -195,12 +209,19 @@ abstract class Solver(
         }
 
         override fun runStep() {
-            TODO("Not yet implemented")
+            myCurrentStep = nextStep()
+            logger.info { "Running: inner iteration = $innerIterationCounter of solver $name's inner iteration loop" }
+            runInnerIteration()
+            logger.info { "Completed: inner iteration = $innerIterationCounter of $maximumInnerIterations iterations of solver $name's main iteration loop" }
+            innerIterationCounter++
         }
 
         override fun endIterations() {
+            logger.info { "Cleaning up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
+            afterInnerIterations()
+            logger.info { "Cleaned up after: inner iteration = $innerIterationCounter of $maximumInnerIterations" }
             super.endIterations()
-            TODO("Not yet implemented")
+            logger.info { "Ended: solver $name's inner iteration loop" }
         }
 
     }

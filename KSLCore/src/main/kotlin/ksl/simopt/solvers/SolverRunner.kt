@@ -2,7 +2,6 @@ package ksl.simopt.solvers
 
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
-import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
@@ -90,7 +89,7 @@ open class SolverRunner(
      */
     private fun initializeIterations() {
         resetEvaluator()
-        maximumIterations = mySolvers.maxOf { it.maximumIterations }
+        maximumIterations = mySolvers.maxOf { it.maximumOuterIterations }
         // setup to run all the solvers
         myRunnableSolvers.clear()
         myRunnableSolvers.addAll(mySolvers)
