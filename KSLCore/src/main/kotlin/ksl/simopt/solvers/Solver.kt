@@ -34,7 +34,7 @@ abstract class Solver(
             field = value
         }
 
-    var iterationCounter = 0
+    var outerIterationCounter = 0
         private set
 
     val problemDefinition: ProblemDefinition
@@ -139,10 +139,12 @@ abstract class Solver(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            iterationCounter = 0
-            logger.info { "Resetting the solver's evaluation counters" }
+            outerIterationCounter = 0
+            logger.info { "Resetting solver $name's evaluation counters" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
+            logger.info { "Initializing solver $name's outer iteration loop" }
             this@Solver.initializeOuterIterations()
+            logger.info { "Initialized solver $name's outer iteration loop" }
         }
 
         override fun hasNextStep(): Boolean {
@@ -157,13 +159,18 @@ abstract class Solver(
 
         override fun runStep() {
             myCurrentStep = nextStep()
+            logger.info { "Running: iteration = $outerIterationCounter of solver $name's main iteration loop" }
             runOuterIteration()
-            iterationCounter++
+            logger.info { "Completed: iteration = $outerIterationCounter of $maximumIterations iterations of solver $name's main iteration loop" }
+            outerIterationCounter++
         }
 
         override fun endIterations() {
+            logger.info { "Cleaning up after: iteration = $outerIterationCounter of $maximumIterations" }
             afterOuterIterations()
+            logger.info { "Cleaned up after: iteration = $outerIterationCounter of $maximumIterations" }
             super.endIterations()
+            logger.info { "Ended: solver $name's main iteration loop" }
         }
 
     }
@@ -176,11 +183,13 @@ abstract class Solver(
         }
 
         override fun hasNextStep(): Boolean {
-            TODO("Not yet implemented")
+            return hasMoreInnerIterations()
         }
 
         override fun nextStep(): InnerIterativeProcess? {
-            TODO("Not yet implemented")
+            return if (!hasNextStep()) {
+                null
+            } else this
         }
 
         override fun runStep() {
