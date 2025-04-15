@@ -20,24 +20,11 @@ package ksl.simulation
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
-/**
- *
- * @author rossetti
- */
-interface IterativeProcessIfc {
-
-    enum class EndingStatus(val msg: String) {
-        NO_STEPS_EXECUTED("No steps to run."),
-        COMPLETED_ALL_STEPS("Completed all steps."),
-        EXCEEDED_EXECUTION_TIME("Exceeded its maximum execution time."),
-        MET_STOPPING_CONDITION("Stopped based on a condition."),
-        UNFINISHED("The process is not finished")
-    }
-
+interface IterativeProcessStatusIfc {
     /**
      *  Indicates the status of the iterative process
      */
-    val endingStatus: EndingStatus
+    val endingStatus: IterativeProcessIfc.EndingStatus
 
     /**
      * A flag to indicate whether the iterative process is done A iterative
@@ -59,7 +46,6 @@ interface IterativeProcessIfc {
      * getMaximumAllowedExecutionTime()
      */
     val isExecutionTimeExceeded: Boolean
-        get() = endingStatus == EndingStatus.EXCEEDED_EXECUTION_TIME
 
     /**
      * Returns system time in nanoseconds that the iterative process started
@@ -75,7 +61,6 @@ interface IterativeProcessIfc {
      * @return a Duration representing the elapsed time
      */
     val elapsedExecutionTime: Duration
-        get() = endExecutionTime - beginExecutionTime
 
     /**
      * Returns system time in nanoseconds that the iterative process ended
@@ -142,14 +127,12 @@ interface IterativeProcessIfc {
      * if the iterative process ended because it ran all of its steps, true if all completed
      */
     val allStepsCompleted: Boolean
-        get() = endingStatus == EndingStatus.COMPLETED_ALL_STEPS
 
     /**
      * The iterative process may end by a variety of means, this method checks
      * if the iterative process ended because it was stopped, true if it was stopped via stop()
      */
     val stoppedByCondition: Boolean
-        get() = endingStatus == EndingStatus.MET_STOPPING_CONDITION
 
     /**
      * The iterative process may end by a variety of means, this method checks
@@ -160,6 +143,93 @@ interface IterativeProcessIfc {
      * @return true if the process is not finished
      */
     val isUnfinished: Boolean
+
+    /**
+     * A string message for why stop() was called.
+     *
+     * @return the message
+     */
+    val stoppingMessage: String?
+
+    /**
+     * Returns the stopping flag
+     *
+     * @return true if the process has been told to stop via stop()
+     */
+    val stopping: Boolean
+
+    /**
+     * Indicates that the iterative process is currently running an individual
+     * step
+     *
+     * @return true if the step is in progress
+     */
+    val isRunningStep: Boolean
+
+    /**
+     * Indicates that the iterative process ended because of no steps
+     *
+     */
+    val noStepsExecuted: Boolean
+}
+
+/**
+ *
+ * @author rossetti
+ */
+interface IterativeProcessIfc : IterativeProcessStatusIfc {
+
+    enum class EndingStatus(val msg: String) {
+        NO_STEPS_EXECUTED("No steps to run."),
+        COMPLETED_ALL_STEPS("Completed all steps."),
+        EXCEEDED_EXECUTION_TIME("Exceeded its maximum execution time."),
+        MET_STOPPING_CONDITION("Stopped based on a condition."),
+        UNFINISHED("The process is not finished")
+    }
+
+    /**
+     * Returns if the elapsed execution time exceeds the maximum time allowed.
+     * Only true if the maximum was set and elapsed time is greater than or
+     * equal to getMaximumAllowedExecutionTime()
+     *
+     * @return true if the execution time exceeds
+     * getMaximumAllowedExecutionTime()
+     */
+    override val isExecutionTimeExceeded: Boolean
+        get() = endingStatus == EndingStatus.EXCEEDED_EXECUTION_TIME
+
+    /**
+     * Gets the clock time as a Duration since the iterative process was
+     * initialized
+     *
+     * @return a Duration representing the elapsed time
+     */
+    override val elapsedExecutionTime: Duration
+        get() = endExecutionTime - beginExecutionTime
+
+    /**
+     * The iterative process may end by a variety of means, this  checks
+     * if the iterative process ended because it ran all of its steps, true if all completed
+     */
+    override val allStepsCompleted: Boolean
+        get() = endingStatus == EndingStatus.COMPLETED_ALL_STEPS
+
+    /**
+     * The iterative process may end by a variety of means, this method checks
+     * if the iterative process ended because it was stopped, true if it was stopped via stop()
+     */
+    override val stoppedByCondition: Boolean
+        get() = endingStatus == EndingStatus.MET_STOPPING_CONDITION
+
+    /**
+     * The iterative process may end by a variety of means, this method checks
+     * if the iterative process ended but was unfinished, not all steps
+     * completed
+     *
+     *
+     * @return true if the process is not finished
+     */
+    override val isUnfinished: Boolean
         get() = endingStatus == EndingStatus.UNFINISHED
 
     /**
@@ -199,22 +269,8 @@ interface IterativeProcessIfc {
     fun end(msg: String? = null)
 
     /**
-     * A string message for why stop() was called.
-     *
-     * @return the message
-     */
-    val stoppingMessage: String?
-
-    /**
-     * Returns the stopping flag
-     *
-     * @return true if the process has been told to stop via stop()
-     */
-    val stopping: Boolean
-
-    /**
-     * This sets a flag to indicate to the process that is should stop after the
-     * next step is completed. This is different than end(). Calling end()
+     * This sets a flag to indicate to the process that it should stop after the
+     * next step is completed. This is different from end(). Calling end()
      * immediately places the process in the End state. The process needs to be
      * in a valid state before end() can be used. Calling stop tells the process
      * to eventually get into the end state. stop() can be used to arbitrarily
@@ -225,18 +281,10 @@ interface IterativeProcessIfc {
     fun stop(msg: String? = null)
 
     /**
-     * Indicates that the iterative process is currently running an individual
-     * step
-     *
-     * @return true if the step is in progress
-     */
-    val isRunningStep: Boolean
-
-    /**
      * Indicates that the iterative process ended because of no steps
      *
      */
-    val noStepsExecuted: Boolean
+    override val noStepsExecuted: Boolean
         get() = endingStatus == EndingStatus.NO_STEPS_EXECUTED
 
 }
