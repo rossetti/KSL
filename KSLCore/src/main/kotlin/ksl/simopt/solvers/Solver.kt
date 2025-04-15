@@ -262,6 +262,7 @@ abstract class Solver(
      *  should continue running inner iterations.
      */
     protected open fun hasMoreInnerIterations(): Boolean {
+        //TODO need to check this, maybe stopping criteria can be used instead
         return (innerIterationCounter < maximumInnerIterations)
     }
 
