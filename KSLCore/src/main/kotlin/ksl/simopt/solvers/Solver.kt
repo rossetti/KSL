@@ -315,7 +315,11 @@ abstract class Solver(
         }
 
         override fun hasNextStep(): Boolean {
-            return hasMoreIterations()
+            return (outerIterationCounter < maximumOuterIterations)
+        }
+
+        override fun checkStoppingCondition() {
+            TODO("Not implemented yet")
         }
 
         override fun nextStep(): OuterIterativeProcess? {
@@ -359,7 +363,11 @@ abstract class Solver(
         }
 
         override fun hasNextStep(): Boolean {
-            return hasMoreInnerIterations()
+            return (innerIterationCounter < maximumInnerIterations)
+        }
+
+        override fun checkStoppingCondition() {
+            TODO("Not implemented yet")
         }
 
         override fun nextStep(): InnerIterativeProcess? {
