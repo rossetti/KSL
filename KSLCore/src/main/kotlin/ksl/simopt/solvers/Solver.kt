@@ -73,8 +73,9 @@ abstract class Solver(
     /**
      *  The evaluator used by the solver.
      */
-    private var myEvaluator: EvaluatorIfc = evaluator
-
+    protected var myEvaluator: EvaluatorIfc = evaluator
+        private set
+    
     /**
      *  The user can supply a comparator for comparing whether one
      *  solution is smaller, equal to, or larger than another solution.
