@@ -13,11 +13,11 @@ import ksl.utilities.IdentityIfc
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
- *  In this implementation, the algorithm is conceptualized as having two "loops", an outer loop
+ *  In this abstract base class, the algorithm is conceptualized as having two "loops", an outer loop
  *  and an inner loop. The outer loop is the main loop that ultimately determines the convergence
  *  and recommended solution.  While some algorithms do not utilize an inner loop, in general, the
  *  inner loop is used to control localized search for solutions.  If there is no "inner loop" then
- *  the structure of this abstract template allows multiple approaches to not executing an inner loop.
+ *  the structure of this abstract template allows multiple approaches to not execute an inner loop.
  *  In addition, if an algorithm has additional iterative loops, these can be embedded within the inner
  *  loop via the subclassing process.
  *
@@ -27,7 +27,7 @@ import ksl.utilities.IdentityIfc
  *  supplied evaluator promises to execute requests for evaluations of the simulation model at
  *  particular design points (as determined by the algorithm). In addition, because of the stochastic
  *  nature of the evaluation, the solver may request one or more replications for its evaluation requests.
- *  The number of replications may dynamically change and thus the use needs to supply a function to
+ *  The number of replications may dynamically change and thus the user needs to supply a function to
  *  determine the number of replications per evaluation.  Within the framework of the hooks for subclasses
  *  the user could specify more complex procedures for determining the number of replications per
  *  evaluation.
@@ -138,8 +138,7 @@ abstract class Solver(
 
 
     /**
-     *  The current (or last) solution that was accepted as a possible
-     *  solution to recommend for the solver. It is the responsibility
+     *  The initial starting solution for the algorithm. It is the responsibility
      *  of the subclass to initialize the initial solution.
      */
     protected lateinit var initialSolution: Solution
@@ -153,7 +152,10 @@ abstract class Solver(
     }
 
     /**
-     *  Checks if the iterative process has additional iterations to execute
+     *  Checks if the iterative process has additional iterations to execute.
+     *  This does not check other stopping criteria related to solution
+     *  quality or convergence. This is about how many iterations have been
+     *  executed from the maximum specified.
      */
     fun hasNextIteration(): Boolean {
         return myOuterIterativeProcess.hasNextStep()
@@ -168,7 +170,7 @@ abstract class Solver(
     }
 
     /**
-     *   Cause the solver to run all iterations until its stopping
+     *   Causes the solver to run all iterations until its stopping
      *   criteria is met or the maximum number of iterations has been reached.
      */
     fun runAllIterations(){
@@ -179,6 +181,7 @@ abstract class Solver(
      *  Causes a graceful stopping of the iterative processes of the solver.
      *  The inner process will complete its current iteration and then
      *  no more outer iterations will start.
+     *  @param msg a message can be captured concerning why the stoppage occurred.
      */
     fun stopIterations(msg: String? = null){
         myInnerIterativeProcess.stop(msg)
@@ -212,7 +215,7 @@ abstract class Solver(
     /**
      *  The current (or last) solution that was accepted as a possible
      *  solution to recommend for the solver. It is the responsibility
-     *  of the subclass to determine the current solution
+     *  of the subclass to determine the current (best) solution.
      */
     abstract fun currentSolution(): Solution
 
