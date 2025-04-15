@@ -197,14 +197,14 @@ abstract class Solver(
      *  Subclasses should implement this function to prepare the solver
      *  prior to running the first iteration.
      */
-    protected abstract fun initializeOuterIterations()
+    protected abstract fun initializeIterations()
 
     /**
      *  Subclasses should implement this function to determine if the solver
      *  should continue running iterations. This will likely include some
      *  implementation of stopping criteria.
      */
-    protected open fun hasMoreOuterIterations(): Boolean{
+    protected open fun hasMoreIterations(): Boolean{
         //TODO need to check this, maybe stopping criteria can be used instead
         return (outerIterationCounter < maximumOuterIterations)
     }
@@ -248,7 +248,7 @@ abstract class Solver(
      *  should continue running inner iterations.
      */
     protected open fun hasMoreInnerIterations(): Boolean {
-        TODO("Not implemented yet. ")
+        return (innerIterationCounter < maximumInnerIterations)
     }
 
     /**
@@ -286,12 +286,12 @@ abstract class Solver(
             logger.info { "Resetting solver $name's evaluation counters in solver $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.info { "Initializing solver $name's outer iteration loop" }
-            this@Solver.initializeOuterIterations()
+            this@Solver.initializeIterations()
             logger.info { "Initialized solver $name's outer iteration loop" }
         }
 
         override fun hasNextStep(): Boolean {
-            return hasMoreOuterIterations()
+            return hasMoreIterations()
         }
 
         override fun nextStep(): OuterIterativeProcess? {
