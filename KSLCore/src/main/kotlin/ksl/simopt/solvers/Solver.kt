@@ -136,11 +136,13 @@ abstract class Solver(
     val problemDefinition: ProblemDefinition
         get() = myEvaluator.problemDefinition
 
+
     /**
      *  The current (or last) solution that was accepted as a possible
-     *  solution to recommend for the solver.
+     *  solution to recommend for the solver. It is the responsibility
+     *  of the subclass to initialize the initial solution.
      */
-    protected var currentSolution: Solution? = null
+    protected lateinit var initialSolution: Solution
 
     /**
      *  Causes the solver to be initialized. It will then
@@ -206,6 +208,13 @@ abstract class Solver(
     override fun compare(first: Solution, second: Solution) : Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
+
+    /**
+     *  The current (or last) solution that was accepted as a possible
+     *  solution to recommend for the solver. It is the responsibility
+     *  of the subclass to determine the current solution
+     */
+    abstract fun currentSolution(): Solution
 
     /**
      *  Subclasses should implement this function to prepare the solver
