@@ -52,36 +52,80 @@ abstract class Solver(
         require(maximumInnerIterations > 0) { "maximum number of inner iterations must be > 0" }
     }
 
+    /**
+     *  The outer iterative process. See [ksl.simulation.IterativeProcess] for
+     *  the iterative process pattern.
+     */
     protected val myOuterIterativeProcess = OuterIterativeProcess()
+
+    /**
+     *  The inner iterative process. See [ksl.simulation.IterativeProcess] for
+     *  the iterative process pattern.
+     */
     protected val myInnerIterativeProcess = InnerIterativeProcess()
 
+    /**
+     *  A solver may be controlled by a solver runner with other solvers.
+     *  This provides an internal reference to solver runner
+     */
     internal var mySolverRunner: SolverRunner? = null
 
+    /**
+     *  The evaluator used by the solver.
+     */
     private var myEvaluator: EvaluatorIfc = evaluator
 
+    /**
+     *  The user can supply a comparator for comparing whether one
+     *  solution is smaller, equal to, or larger than another solution.
+     *  If supplied, this function will be used instead of the compare
+     *  function. The user can supply this function or override the
+     *  compare function to specialize how solutions are compared.
+     */
     var solutionComparer: CompareSolutionsIfc? = null
 
+    /**
+     *  The maximum number of iterations permitted for the outer loop. This must be
+     *  greater than 0.
+     */
     var maximumOuterIterations = maximumOuterIterations
         set(value) {
             require(value > 0) { "maximum number of outer iterations must be > 0" }
             field = value
         }
 
+    /**
+     *  The maximum number of iterations permitted for the inner loop. This must be
+     *  greater than 0.
+     */
     var maximumInnerIterations = maximumInnerIterations
         set(value) {
             require(value > 0) { "maximum number of inner iterations must be > 0" }
             field = value
         }
 
+    /**
+     *  Returns how many iterations of the outer loop have been executed.
+     */
     var outerIterationCounter = 0
         private set
 
+    /**
+     *  Returns how many iterations of the inner loop have been executed.
+     */
     var innerIterationCounter = 0
         private set
 
+    /**
+     *  A convenience property to access the problem being solved
+     */
     val problemDefinition: ProblemDefinition
         get() = myEvaluator.problemDefinition
 
+    /**
+     *  The current (or last) solution that was accepted as a possible
+     *  solution to recommend for the solver.
+     */
     protected var currentSolution: Solution? = null
 
     /**
