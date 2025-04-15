@@ -10,7 +10,35 @@ import ksl.simulation.IterativeProcess
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 
-//TODO needs a lot more work
+/**
+ *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
+ *  In this implementation, the algorithm is conceptualized as having two "loops", an outer loop
+ *  and an inner loop. The outer loop is the main loop that ultimately determines the convergence
+ *  and recommended solution.  While some algorithms do not utilize an inner loop, in general, the
+ *  inner loop is used to control localized search for solutions.  If there is no "inner loop" then
+ *  the structure of this abstract template allows multiple approaches to not executing an inner loop.
+ *  In addition, if an algorithm has additional iterative loops, these can be embedded within the inner
+ *  loop via the subclassing process.
+ *
+ *  Specialized implementations may have specific methods for determining stopping criteria; however,
+ *  to avoid the execution of a large number of iterations, the iterative processes have a maximum
+ *  number of iterations associated with them.  Within the context of simulation optimization, the
+ *  supplied evaluator promises to execute requests for evaluations of the simulation model at
+ *  particular design points (as determined by the algorithm). In addition, because of the stochastic
+ *  nature of the evaluation, the solver may request one or more replications for its evaluation requests.
+ *  The number of replications may dynamically change and thus the use needs to supply a function to
+ *  determine the number of replications per evaluation.  Within the framework of the hooks for subclasses
+ *  the user could specify more complex procedures for determining the number of replications per
+ *  evaluation.
+ *
+ *  @param maximumOuterIterations the maximum number of iterations permitted for the outer loop. This must be
+ *  greater than 0.
+ *  @param maximumInnerIterations the maximum number of iterations permitted for the outer loop. This must be
+ *  *  greater than 0.
+ *  @param replicationsPerEvaluation the function controlling how many replications are requested for each evaluation
+ *  @param evaluator the reference to the evaluator for evaluating responses from the model
+ *  @param name a name to help with identifying the solver when multiple solvers are used on a problem
+ */
 abstract class Solver(
     maximumOuterIterations: Int,
     maximumInnerIterations: Int,
