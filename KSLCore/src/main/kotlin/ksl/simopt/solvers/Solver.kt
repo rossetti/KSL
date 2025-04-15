@@ -7,6 +7,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
+import ksl.simulation.IterativeProcessStatusIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 
@@ -56,13 +57,25 @@ abstract class Solver(
      *  The outer iterative process. See [ksl.simulation.IterativeProcess] for
      *  the iterative process pattern.
      */
-    protected val myOuterIterativeProcess = OuterIterativeProcess()
+    private val myOuterIterativeProcess = OuterIterativeProcess()
+
+    /**
+     *  Allow the status of the outer iterative process to be accessible
+     */
+    val outerIterativeProcess: IterativeProcessStatusIfc
+        get() = myOuterIterativeProcess
 
     /**
      *  The inner iterative process. See [ksl.simulation.IterativeProcess] for
      *  the iterative process pattern.
      */
-    protected val myInnerIterativeProcess = InnerIterativeProcess()
+    private val myInnerIterativeProcess = InnerIterativeProcess()
+
+    /**
+     *  Allow the status of the inner iterative process to be accessible
+     */
+    val innerIterativeProcess: IterativeProcessStatusIfc
+        get() = myInnerIterativeProcess
 
     /**
      *  A solver may be controlled by a solver runner with other solvers.
