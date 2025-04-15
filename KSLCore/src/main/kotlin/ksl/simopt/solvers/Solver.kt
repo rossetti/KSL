@@ -176,7 +176,7 @@ abstract class Solver(
     /**
      *  Causes a graceful stopping of the iterative processes of the solver.
      *  The inner process will complete its current iteration and then
-     *  no more out iterations will start.
+     *  no more outer iterations will start.
      */
     fun stopIterations(msg: String? = null){
         myInnerIterativeProcess.stop(msg)
@@ -196,7 +196,7 @@ abstract class Solver(
     /**
      * Recognizing the need to be able to compare solutions that may have sampling error
      * the user can override this function to provide more extensive comparison or supply
-     * an instance of the CompareSolutionsIfc interface via the solutionComparer property
+     * an instance of the [CompareSolutionsIfc] interface via the [solutionComparer] property
      * Returns -1 if first is less than second solution, 0 if the solutions are to be considered
      * equivalent, and 1 if the first is larger than the second solution.
      *
