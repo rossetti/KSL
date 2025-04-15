@@ -227,10 +227,8 @@ abstract class Solver(
      *  should continue running iterations. This will likely include some
      *  implementation of stopping criteria.
      */
-    protected open fun hasMoreIterations(): Boolean{
-        //TODO need to check this, maybe stopping criteria can be used instead
-        return (outerIterationCounter < maximumOuterIterations)
-    }
+    protected abstract fun isStoppingCriteriaSatisfied(): Boolean
+
 
     /**
      *  This function is called before the inner iterations are
@@ -268,12 +266,10 @@ abstract class Solver(
 
     /**
      *  Subclasses should implement this function to determine if the solver
-     *  should continue running inner iterations.
+     *  should continue running inner iterations. This will likely include some
+     *  implementation of stopping criteria.
      */
-    protected open fun hasMoreInnerIterations(): Boolean {
-        //TODO need to check this, maybe stopping criteria can be used instead
-        return (innerIterationCounter < maximumInnerIterations)
-    }
+    protected abstract fun isInnerStoppingCriteriaSatisfied(): Boolean
 
     /**
      *  Subclasses should implement this function to specify the logic
@@ -319,7 +315,9 @@ abstract class Solver(
         }
 
         override fun checkStoppingCondition() {
-            TODO("Not implemented yet")
+            if (isStoppingCriteriaSatisfied()) {
+                stop()
+            }
         }
 
         override fun nextStep(): OuterIterativeProcess? {
@@ -367,7 +365,9 @@ abstract class Solver(
         }
 
         override fun checkStoppingCondition() {
-            TODO("Not implemented yet")
+            if (isInnerStoppingCriteriaSatisfied()) {
+                stop()
+            }
         }
 
         override fun nextStep(): InnerIterativeProcess? {
