@@ -112,6 +112,14 @@ abstract class Solver(
     protected lateinit var initialSolution: Solution
 
     /**
+     *  The current (or last) solution that was accepted as a possible
+     *  solution to recommend for the solver. It is the responsibility
+     *  of the subclass to determine the current (best) solution.
+     */
+    lateinit var currentSolution: Solution
+        protected set
+
+    /**
      *  Causes the solver to be initialized. It will then
      *  be in a state that allows for the running of the iterations.
      */
@@ -178,13 +186,6 @@ abstract class Solver(
     override fun compare(first: Solution, second: Solution) : Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
-
-    /**
-     *  The current (or last) solution that was accepted as a possible
-     *  solution to recommend for the solver. It is the responsibility
-     *  of the subclass to determine the current (best) solution.
-     */
-    abstract fun currentSolution(): Solution
 
     /**
      *  Subclasses should implement this function to prepare the solver
