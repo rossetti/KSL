@@ -46,7 +46,6 @@ enum class InequalityType {
  *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
  *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
  *  between solutions are considered practically insignificant. The default is zero.
- *  @param rnStream the stream to use when generating random points within the input range space.
  */
 class ProblemDefinition(
     problemName: String? = null,
@@ -54,8 +53,7 @@ class ProblemDefinition(
     val inputNames: Set<String>,
     val responseNames: Set<String> = emptySet(),
     val indifferenceZoneParameter: Double = 0.0,
-    val rnStream: RNStreamIfc = KSLRandom.nextRNStream(),
-) : RNStreamControlIfc by rnStream, IdentityIfc by Identity(problemName) {
+) : IdentityIfc by Identity(problemName) {
 
     init {
         require(objFnResponseName.isNotBlank()) { "The objective function response name cannot be blank" }
@@ -68,50 +66,6 @@ class ProblemDefinition(
         }
         require(!responseNames.contains(objFnResponseName)) { "The objective function response name cannot be within the set of response constraint names." }
     }
-
-    /**
-     *  This class describes an optimization problem for use within simulation optimization algorithms.
-     *  The general optimization problem is presented as minimizing the expected value of some function H(x), where
-     *  x is some input parameters to the simulation and H(.) is the simulation model response for the objective
-     *  function. The input parameters are assumed to be real-valued specified by a name between a lower and upper bound
-     *  and a granularity. The granularity specifies the acceptable precision of the input. The problem can
-     *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs.
-     *  The problem can also have a set of functional constraints.  A functional constraint is a deterministic
-     *  function of the inputs that is bounded by a constraints. This permits non-linear deterministic
-     *  functional forms for the problem. In addition, a set of probabilistic constraints of the form E[G(x)] < c
-     *  can be specified, where G(x) is some response from the simulation.
-     *
-     *  To use this class, the user first defines the objective function response name, the names of the input variables,
-     *  and the names of the responses to appear in the problem. Then the reference to the class can be used
-     *  to specify inputs and constraints.
-     *
-     *  @param problemName the name of the problem for labeling and identification purposes. If no name is supplied,
-     *  then a unique name is constructed.
-     *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
-     *  observed simulation values from the simulation
-     *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
-     *  the simulation when executing experiments. Any constraints specified on the input variables must use these names.
-     *  @param responseNames the names of any responses that will appear in response constraints. The default is empty.
-     *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
-     *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
-     *  between solutions are considered practically insignificant. The default is zero.
-     *  @param streamNum the stream number to use when generating random points within the input range space.
-     */
-    constructor(
-        problemName: String? = null,
-        objFnResponseName: String,
-        inputNames: Set<String>,
-        responseNames: Set<String> = emptySet(),
-        indifferenceZoneParameter: Double = 0.0,
-        streamNum: Int
-    ) : this(
-        problemName,
-        objFnResponseName,
-        inputNames,
-        responseNames,
-        indifferenceZoneParameter,
-        KSLRandom.rnStream(streamNum)
-    )
 
     /**
      *  Returns a list of the names of all the responses referenced in the problem
@@ -609,12 +563,36 @@ class ProblemDefinition(
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
      *  @return the randomly generated point.
      */
-    fun generateRandomInputValues(roundToGranularity: Boolean = true): InputMap {
+    fun generateRandomInputValues(
+        roundToGranularity: Boolean = true,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): InputMap {
         val map = mutableMapOf<String, Double>()
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.randomValue(rnStream, roundToGranularity)
+        }
+        return InputMap(this, map)
+    }
+
+    /**
+     *  Generates a random point within the ranges defined by the inputs.
+     *  The point can have the appropriate granularity based on the definitions of the inputs.
+     *
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  @return the randomly generated point.
+     */
+    fun generateRandomInputValues(
+        roundToGranularity: Boolean = true,
+        rnStreamNum: Int = KSLRandom.defaultStreamNumber
+    ): InputMap {
+        val map = mutableMapOf<String, Double>()
+        for ((name, iDef) in myInputDefinitions) {
+            map[name] = iDef.randomValue(KSLRandom.rnStream(rnStreamNum), roundToGranularity)
         }
         return InputMap(this, map)
     }
@@ -628,16 +606,42 @@ class ProblemDefinition(
      *  @param inputMap the input map for which the named variable will be changed
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
      *  @return the randomly generated point.
      */
     fun randomizeInputValue(
         name: String,
         inputMap: InputMap,
-        roundToGranularity: Boolean = true
+        roundToGranularity: Boolean = true,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         val iDefinition = myInputDefinitions[name]!!
         inputMap[name] = iDefinition.randomValue(rnStream, roundToGranularity)
+        return inputMap
+    }
+
+    /**
+     *  Randomly generates a new value for the named input variable and returns the updated
+     *  input map. The input map may not be feasible with respect to linear or functional constraints.
+     *
+     *  @param name the name of the input variable to randomize. Must be a valid name for
+     *  the input map and thus for the problem.
+     *  @param inputMap the input map for which the named variable will be changed
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  @return the randomly generated point.
+     */
+    fun randomizeInputValue(
+        name: String,
+        inputMap: InputMap,
+        roundToGranularity: Boolean = true,
+        rnStreamNum: Int = KSLRandom.defaultStreamNumber
+    ): InputMap {
+        require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
+        val iDefinition = myInputDefinitions[name]!!
+        inputMap[name] = iDefinition.randomValue(KSLRandom.rnStream(rnStreamNum), roundToGranularity)
         return inputMap
     }
 
@@ -652,12 +656,14 @@ class ProblemDefinition(
      *  @param inputMap the input map for which the named variable will be changed
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
      *  @return the randomly generated point.
      */
     fun randomizeInputFeasibleValue(
         name: String,
         inputMap: InputMap,
-        roundToGranularity: Boolean = true
+        roundToGranularity: Boolean = true,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         var count = 0
@@ -672,6 +678,38 @@ class ProblemDefinition(
     }
 
     /**
+     *  Randomly generates a new value for the named input variable and returns the updated
+     *  input map. The input should be feasible with respect to linear or functional constraints.
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
+     *  then an IllegalStateException will occur.
+     *
+     *  @param name the name of the input variable to randomize. Must be a valid name for
+     *  the input map and thus for the problem.
+     *  @param inputMap the input map for which the named variable will be changed
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  @return the randomly generated point.
+     */
+    fun randomizeInputFeasibleValue(
+        name: String,
+        inputMap: InputMap,
+        roundToGranularity: Boolean = true,
+        rnStreamNum: Int = KSLRandom.defaultStreamNumber
+    ): InputMap {
+        require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
+        var count = 0
+        do {
+            count++
+            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            // generate the point
+            val iDefinition = myInputDefinitions[name]!!
+            inputMap[name] = iDefinition.randomValue(KSLRandom.rnStream(rnStreamNum), roundToGranularity)
+        } while (!isInputFeasible(inputMap))
+        return inputMap
+    }
+
+    /**
      *  Generates a random point that is feasible with respect to the input ranges,
      *  the linear constraints, and the functional constraints.
      *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
@@ -679,16 +717,46 @@ class ProblemDefinition(
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
      *  @return the sampled point
      */
-    fun generateInputFeasibleValues(roundToGranularity: Boolean = true): InputMap {
+    fun generateInputFeasibleValues(
+        roundToGranularity: Boolean = true,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): InputMap {
         var count = 0
         var inputMap: InputMap
         do {
             count++
             check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
             // generate the point
-            inputMap = generateRandomInputValues(roundToGranularity)
+            inputMap = generateRandomInputValues(roundToGranularity, rnStream)
+        } while (!isInputFeasible(inputMap))
+        return inputMap
+    }
+
+    /**
+     *  Generates a random point that is feasible with respect to the input ranges,
+     *  the linear constraints, and the functional constraints.
+     *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
+     *  then an IllegalStateException will occur.
+     *
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  @return the sampled point
+     */
+    fun generateInputFeasibleValues(
+        roundToGranularity: Boolean = true,
+        rnStreamNum: Int = KSLRandom.defaultStreamNumber
+    ): InputMap {
+        var count = 0
+        var inputMap: InputMap
+        do {
+            count++
+            check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
+            // generate the point
+            inputMap = generateRandomInputValues(roundToGranularity, KSLRandom.rnStream(rnStreamNum))
         } while (!isInputFeasible(inputMap))
         return inputMap
     }
@@ -702,12 +770,35 @@ class ProblemDefinition(
      *
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
      *  @return the starting point
      */
-    fun startingPoint(roundToGranularity: Boolean = true): InputMap {
-        return startingPointGenerator?.startingPoint(this, roundToGranularity) ?: generateInputFeasibleValues(
-            roundToGranularity
-        )
+    fun startingPoint(
+        roundToGranularity: Boolean = true,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): InputMap {
+        return startingPointGenerator?.startingPoint(this, roundToGranularity)
+            ?: generateInputFeasibleValues(roundToGranularity, rnStream)
+    }
+
+    /**
+     *  Returns a starting point for the problem. If the user specified an instance of
+     *  the [StartingPointIfc] via the [ProblemDefinition.startingPointGenerator] property then
+     *  the supplied generator is used; otherwise, the problem definition attempts
+     *  to randomly generate an input feasible starting point via the [ProblemDefinition.generateInputFeasibleValues]
+     *  function.
+     *
+     *  @param roundToGranularity true indicates that the point should be rounded to
+     *  the appropriate granularity. The default is true.
+     *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  @return the starting point
+     */
+    fun startingPoint(
+        roundToGranularity: Boolean = true,
+        rnStreamNum: Int = KSLRandom.defaultStreamNumber
+    ): InputMap {
+        return startingPointGenerator?.startingPoint(this, roundToGranularity)
+            ?: generateInputFeasibleValues(roundToGranularity, KSLRandom.rnStream(rnStreamNum))
     }
 
     companion object {
