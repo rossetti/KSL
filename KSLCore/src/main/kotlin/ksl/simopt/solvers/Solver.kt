@@ -50,6 +50,38 @@ abstract class Solver(
     }
 
     /**
+     *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
+     *  In this abstract base class, the algorithm is conceptualized as having a main iterative loop.
+     *  The loop is the main loop that ultimately determines the convergence of the algorithm
+     *  and recommended solution.  Some algorithms have "inner" loops". In general,
+     *  inner loops are used to control localized search for solutions.  If an algorithm has additional inner loops,
+     *  these can be embedded within the main loop via the subclassing process.
+     *
+     *  Specialized implementations may have specific methods for determining stopping criteria; however,
+     *  to avoid the execution of a large number of iterations, the iterative process has a specified maximum
+     *  number of iterations.
+     *
+     *  Within the context of simulation optimization, the supplied evaluator promises to execute requests
+     *  for evaluations of the simulation model at particular design points (as determined by the algorithm).
+     *  In addition, because of the stochastic nature of the evaluation, the solver may request one or more replications
+     *  for its evaluation requests. The number of replications may dynamically change and thus the user needs to
+     *  supply a function to determine the number of replications per evaluation.  Within the framework of the
+     *  hooks for subclasses the user could specify more complex procedures for determining the number of replications per
+     *  evaluation.
+     *
+     *  @param maximumIterations the maximum number of iterations permitted for the main loop. This must be
+     *  greater than 0.
+     *  @param replicationsPerEvaluation a fixed number of replications for each evaluation
+     *  @param name a name to help with identifying the solver when multiple solvers are used on a problem
+     */
+    constructor(
+        evaluator: EvaluatorIfc,
+        maximumIterations: Int,
+        replicationsPerEvaluation: Int,
+        name: String? = null
+    ) : this(evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
+
+    /**
      *  The outer iterative process. See [ksl.simulation.IterativeProcess] for
      *  the iterative process pattern.
      */
