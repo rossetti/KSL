@@ -564,6 +564,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the randomly generated point.
      */
     fun generateRandomInputValues(
@@ -584,6 +585,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  By default, this uses the default stream number [KSLRandom.defaultStreamNumber]
      *  @return the randomly generated point.
      */
     fun generateRandomInputValues(
@@ -607,6 +609,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the randomly generated point.
      */
     fun randomizeInputValue(
@@ -631,6 +634,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  By default, this uses the default stream number [KSLRandom.defaultStreamNumber]
      *  @return the randomly generated point.
      */
     fun randomizeInputValue(
@@ -657,6 +661,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the randomly generated point.
      */
     fun randomizeInputFeasibleValue(
@@ -689,6 +694,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  By default, this uses the default stream number [KSLRandom.defaultStreamNumber]
      *  @return the randomly generated point.
      */
     fun randomizeInputFeasibleValue(
@@ -718,6 +724,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the sampled point
      */
     fun generateInputFeasibleValues(
@@ -744,6 +751,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  By default, this uses the default stream number [KSLRandom.defaultStreamNumber]
      *  @return the sampled point
      */
     fun generateInputFeasibleValues(
@@ -771,6 +779,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the starting point
      */
     fun startingPoint(
@@ -791,6 +800,7 @@ class ProblemDefinition(
      *  @param roundToGranularity true indicates that the point should be rounded to
      *  the appropriate granularity. The default is true.
      *  @param rnStreamNum the stream number to use when generating random points within the input range space.
+     *  By default, this uses the default stream number [KSLRandom.defaultStreamNumber]
      *  @return the starting point
      */
     fun startingPoint(
