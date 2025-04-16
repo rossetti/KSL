@@ -39,14 +39,14 @@ import ksl.utilities.IdentityIfc
  *  @param name a name to help with identifying the solver when multiple solvers are used on a problem
  */
 abstract class Solver(
+    evaluator: EvaluatorIfc,
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
-    evaluator: EvaluatorIfc,
     name: String? = null
 ): IdentityIfc by Identity(name), CompareSolutionsIfc {
 
     init {
-        require(maximumIterations > 0) { "maximum number of outer iterations must be > 0" }
+        require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
     }
 
     /**
