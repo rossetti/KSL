@@ -5,12 +5,15 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 
 class RestartingStochasticHillClimber(
     maximumIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
+    var rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
     name: String? = null
 ) : Solver(maximumIterations, replicationsPerEvaluation, evaluator, name) {
 

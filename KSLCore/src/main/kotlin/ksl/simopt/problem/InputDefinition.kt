@@ -80,15 +80,11 @@ class InputDefinition(
      *  the appropriate granularity
      *  @param rnStream a random number stream. By default, this uses
      *  the default random number stream [KSLRandom.defaultRNStream]
-     *  @param roundToGranularity true indicates that the point should be rounded to
-     *  the appropriate granularity. The default is true.
      *  @return the generated point
      */
-    fun randomValue(
-        rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
-        roundToGranularity: Boolean = true): Double {
+    fun randomValue(rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): Double {
         val x = KSLRandom.rUniform(lowerBound, upperBound, rnStream)
-        return if (roundToGranularity) roundToGranularity(x) else x
+        return roundToGranularity(x)
     }
 
 }
