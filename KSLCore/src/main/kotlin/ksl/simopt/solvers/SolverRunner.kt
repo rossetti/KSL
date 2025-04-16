@@ -89,7 +89,7 @@ open class SolverRunner(
      */
     private fun initializeIterations() {
         resetEvaluator()
-        maximumIterations = mySolvers.maxOf { it.maximumOuterIterations }
+        maximumIterations = mySolvers.maxOf { it.maximumNumberIterations }
         // setup to run all the solvers
         myRunnableSolvers.clear()
         myRunnableSolvers.addAll(mySolvers)
@@ -110,6 +110,7 @@ open class SolverRunner(
         // check if solver is done if so remove from runnable solvers
         // cause completed solvers to end their iterations
         for(solver in mySolvers){
+            //TODO this needs to also check if the solver is DONE/STOPPED
             if (!solver.hasNextIteration()){
                 myRunnableSolvers.remove(solver)
                 solver.endIterations()
