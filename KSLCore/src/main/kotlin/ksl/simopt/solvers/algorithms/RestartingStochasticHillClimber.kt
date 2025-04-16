@@ -13,9 +13,12 @@ class RestartingStochasticHillClimber(
     maximumIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     evaluator: EvaluatorIfc,
-    var rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+    val rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
     name: String? = null
-) : Solver(maximumIterations, replicationsPerEvaluation, evaluator, name) {
+) : Solver(maximumIterations, replicationsPerEvaluation, evaluator, name), RNStreamIfc by rnStream {
+
+    override val id: Int
+        get() = super.id
 
     override fun currentSolution(): Solution {
         TODO("Not yet implemented")
@@ -36,4 +39,6 @@ class RestartingStochasticHillClimber(
     override fun prepareEvaluationRequests(): List<EvaluationRequest> {
         TODO("Not yet implemented")
     }
+
+
 }
