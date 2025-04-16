@@ -4,7 +4,8 @@ import java.util.PriorityQueue
 
 /**
  * Class to support a group of solutions (each containing inputs, responses, objective fns, penalties)
- *
+ * The solutions are naturally ordered by comparison of Solution instances based on
+ * their penalized objective functions (without regard to sampling error).
  */
 class Solutions() {
 
@@ -25,7 +26,7 @@ class Solutions() {
      *  A list of solutions that are input feasible ordered by penalized
      *  objective function.
      */
-    val orderedFeasibleSolutions: List<Solution>
+    val orderedInputFeasibleSolutions: List<Solution>
         get() = mySolutions.toList().filter { it.isInputFeasible() }.sorted()
 
     /**
@@ -34,7 +35,7 @@ class Solutions() {
      *  @param overallCILevel the overall confidence across all response constraints used in the testing.
      */
     fun orderedResponseFeasibleSolutions(overallCILevel: Double = 0.99): List<Solution> {
-        return orderedFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
+        return orderedInputFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
     }
 
     fun addAll(solutions: List<Solution>) {
