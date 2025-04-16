@@ -10,7 +10,8 @@ fun interface NeighborhoodIfc {
 
     /**
      *  Defines a search neighborhood for the provided input
-     *  with respect to the problem.
+     *  with respect to the problem. The function should guarantee that
+     *  the returned set is not empty.
      *
      *  @param inputMap the location of the current point in the search space
      *  relative to which the neighborhood should be formed
