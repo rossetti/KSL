@@ -75,15 +75,18 @@ class ProblemDefinition(
      *  x is some input parameters to the simulation and H(.) is the simulation model response for the objective
      *  function. The input parameters are assumed to be real-valued specified by a name between a lower and upper bound
      *  and a granularity. The granularity specifies the acceptable precision of the input. The problem can
-     *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs. In
-     *  addition, a set of probabilistic constraints of the form E[G(x)] < c can be specified, where G(x) is some
-     *  response from the simulation.
+     *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs.
+     *  The problem can also have a set of functional constraints.  A functional constraint is a deterministic
+     *  function of the inputs that is bounded by a constraints. This permits non-linear deterministic
+     *  functional forms for the problem. In addition, a set of probabilistic constraints of the form E[G(x)] < c
+     *  can be specified, where G(x) is some response from the simulation.
      *
      *  To use this class, the user first defines the objective function response name, the names of the input variables,
      *  and the names of the responses to appear in the problem. Then the reference to the class can be used
      *  to specify inputs and constraints.
      *
-     * @param problemName the name of the problem
+     *  @param problemName the name of the problem for labeling and identification purposes. If no name is supplied,
+     *  then a unique name is constructed.
      *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
      *  observed simulation values from the simulation
      *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
