@@ -243,9 +243,10 @@ abstract class Solver(
         return requestEvaluations(requests)
     }
 
-    protected fun requestEvaluation(input: InputMap): List<Solution> {
+    protected fun requestEvaluation(input: InputMap): Solution {
         val requests = prepareEvaluationRequests(setOf(input))
-        return requestEvaluations(requests)
+        val solutions = requestEvaluations(requests)
+        return solutions.first()
     }
 
     /**

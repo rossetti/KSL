@@ -24,7 +24,7 @@ class RestartingStochasticHillClimber(
 
     override fun initializeIterations() {
         val initialPoint = problemDefinition.startingPoint(rnStream)
-        val requests = requestEvaluation(initialPoint)
+        initialSolution = requestEvaluation(initialPoint)
         TODO("Not yet implemented")
     }
 
