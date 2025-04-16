@@ -1,5 +1,8 @@
 package ksl.simopt.problem
 
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
+
 /**
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
  *  This class prevents the keys from changing, but allows the changing of
@@ -25,14 +28,17 @@ class InputMap(
      *
      *  @param name the name of the input variable to randomize. Must be a valid name for
      *  the input map and thus for the problem.
-     *  @param roundToGranularity true indicates that the point should be rounded to
-     *  the appropriate granularity. The default is true.
+     *  @param rnStream the stream to use when generating random points within the input range space.
+     *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the replaced value from the map
      */
-    fun randomizeInputVariable(name:String, roundToGranularity: Boolean = true) : Double {
+    fun randomizeInputVariable(
+        name:String,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ) : Double {
         require(containsKey(name)) { "The input map does not contain the variable: $name" }
         val current = map[name]!!
-        problemDefinition.randomizeInputValue(name, this, roundToGranularity)
+        problemDefinition.randomizeInputValue(name, this, rnStream)
         return current
     }
 

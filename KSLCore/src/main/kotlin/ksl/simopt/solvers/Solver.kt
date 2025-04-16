@@ -5,6 +5,7 @@ import ksl.simopt.evaluator.CompareSolutionsIfc
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
@@ -238,10 +239,29 @@ abstract class Solver(
     }
 
     /**
-     *  Subclasses should implement this function to prepare requests for
-     *  evaluation by the simulation oracle as part of running the iteration.
+     *  Uses the supplied [replicationsPerEvaluation] property to prepare the
+     *  inputs as evaluation requests.
+     *  @param inputs the input (point) values to prepare
+     *  @return the prepared requests
      */
-    protected abstract fun prepareEvaluationRequests() : List<EvaluationRequest>
+    protected fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
+        val list = mutableListOf<EvaluationRequest>()
+        for(input in inputs){
+            val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+            list.add(EvaluationRequest(numReps, input))
+        }
+        return list
+    }
+
+    /**
+     *  Uses the supplied [replicationsPerEvaluation] property to prepare the
+     *  input as evaluation requests.
+     *  @param input the input (point) values to prepare
+     *  @return the prepared requests
+     */
+    protected fun prepareEvaluationRequest(inputMap: InputMap) : List<EvaluationRequest>{
+        return prepareEvaluationRequests(setOf(inputMap))
+    }
 
     protected fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)

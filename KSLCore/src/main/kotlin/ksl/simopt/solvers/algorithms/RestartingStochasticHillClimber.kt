@@ -5,6 +5,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
+import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
@@ -15,16 +16,14 @@ class RestartingStochasticHillClimber(
     evaluator: EvaluatorIfc,
     val rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
     name: String? = null
-) : Solver(maximumIterations, replicationsPerEvaluation, evaluator, name), RNStreamIfc by rnStream {
-
-    override val id: Int
-        get() = super.id
+) : Solver(maximumIterations, replicationsPerEvaluation, evaluator, name), RNStreamControlIfc by rnStream {
 
     override fun currentSolution(): Solution {
         TODO("Not yet implemented")
     }
 
     override fun initializeIterations() {
+        val initialPoint = problemDefinition.startingPoint(rnStream)
         TODO("Not yet implemented")
     }
 
@@ -33,10 +32,6 @@ class RestartingStochasticHillClimber(
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun prepareEvaluationRequests(): List<EvaluationRequest> {
         TODO("Not yet implemented")
     }
 
