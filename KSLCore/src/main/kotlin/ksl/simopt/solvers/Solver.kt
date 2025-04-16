@@ -238,13 +238,23 @@ abstract class Solver(
 
     }
 
+    protected fun requestEvaluations(inputs: Set<InputMap>): List<Solution> {
+        val requests = prepareEvaluationRequests(inputs)
+        return requestEvaluations(requests)
+    }
+
+    protected fun requestEvaluation(input: InputMap): List<Solution> {
+        val requests = prepareEvaluationRequests(setOf(input))
+        return requestEvaluations(requests)
+    }
+
     /**
      *  Uses the supplied [replicationsPerEvaluation] property to prepare the
      *  inputs as evaluation requests.
      *  @param inputs the input (point) values to prepare
      *  @return the prepared requests
      */
-    protected fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
+    private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
         val list = mutableListOf<EvaluationRequest>()
         for(input in inputs){
             val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
@@ -253,17 +263,8 @@ abstract class Solver(
         return list
     }
 
-    /**
-     *  Uses the supplied [replicationsPerEvaluation] property to prepare the
-     *  input as evaluation requests.
-     *  @param input the input (point) values to prepare
-     *  @return the prepared requests
-     */
-    protected fun prepareEvaluationRequest(inputMap: InputMap) : List<EvaluationRequest>{
-        return prepareEvaluationRequests(setOf(inputMap))
-    }
-
-    protected fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
+    private fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
+        //TODO this is a long running call, consider coroutines to support this
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
 
