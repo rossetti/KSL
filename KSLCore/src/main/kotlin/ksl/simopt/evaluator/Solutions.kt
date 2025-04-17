@@ -14,7 +14,10 @@ class Solutions() : SolutionsIfc {
     }
 
     private val mySolutions = PriorityQueue<Solution>()
-
+    private val myEnteredSolutions = mutableListOf<Solution>()
+    val solutionSequence: Sequence<Solution>
+         get() = myEnteredSolutions.asSequence()
+    
     /**
      *  A list of solutions ordered by penalized
      *  objective function. The solutions may or may not be feasible.
@@ -31,10 +34,12 @@ class Solutions() : SolutionsIfc {
 
     fun addAll(solutions: List<Solution>) {
         mySolutions.addAll(solutions.toMutableList())
+        myEnteredSolutions.addAll(solutions)
     }
 
     fun add(solution: Solution) {
         mySolutions.add(solution)
+        myEnteredSolutions.add(solution)
     }
 
     /**
@@ -42,7 +47,9 @@ class Solutions() : SolutionsIfc {
      *  The solution may or may not be feasible.
      */
     fun removeBest(): Solution? {
-        return mySolutions.poll()
+        val best = mySolutions.poll()
+        myEnteredSolutions.remove(best)
+        return best
     }
 
     /**
@@ -58,6 +65,7 @@ class Solutions() : SolutionsIfc {
 
     fun clear() {
         mySolutions.clear()
+        myEnteredSolutions.clear()
     }
 
     override val size: Int
