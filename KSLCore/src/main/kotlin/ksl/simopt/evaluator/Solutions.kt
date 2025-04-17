@@ -7,7 +7,7 @@ import java.util.PriorityQueue
  * The solutions are naturally ordered by comparison of Solution instances based on
  * their penalized objective functions (without regard to sampling error).
  */
-class Solutions() {
+class Solutions() : SolutionsIfc {
 
     constructor(solutions: List<Solution>): this(){
         addAll(solutions)
@@ -19,24 +19,15 @@ class Solutions() {
      *  A list of solutions ordered by penalized
      *  objective function. The solutions may or may not be feasible.
      */
-    val orderedSolutions: List<Solution>
+    override val orderedSolutions: List<Solution>
         get() = mySolutions.toList().sorted()
 
     /**
      *  A list of solutions that are input feasible ordered by penalized
      *  objective function.
      */
-    val orderedInputFeasibleSolutions: List<Solution>
+    override val orderedInputFeasibleSolutions: List<Solution>
         get() = mySolutions.toList().filter { it.isInputFeasible() }.sorted()
-
-    /**
-     *  A list of solutions ordered by penalized objective function that are input
-     *  feasible and have tested as response constraint feasible.
-     *  @param overallCILevel the overall confidence across all response constraints used in the testing.
-     */
-    fun orderedResponseFeasibleSolutions(overallCILevel: Double = 0.99): List<Solution> {
-        return orderedInputFeasibleSolutions.filter { !it.isResponseConstraintFeasible(overallCILevel) }
-    }
 
     fun addAll(solutions: List<Solution>) {
         mySolutions.addAll(solutions.toMutableList())
@@ -58,20 +49,19 @@ class Solutions() {
      *  The solution with the lowest penalized objective function value.
      *  The solution may or may not be feasible.
      */
-    fun peekBest(): Solution? {
+    override fun peekBest(): Solution? {
         return mySolutions.peek()
     }
 
-    val isEmpty: Boolean
+    override val isEmpty: Boolean
         get() = mySolutions.isEmpty()
 
     fun clear() {
         mySolutions.clear()
     }
 
-    fun size(): Int {
-        return mySolutions.size
-    }
+    override val size: Int
+        get() = mySolutions.size
 
     //TODO need to implement screenToBest function
 }
