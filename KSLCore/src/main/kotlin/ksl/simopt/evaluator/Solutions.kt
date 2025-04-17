@@ -15,9 +15,14 @@ class Solutions() : SolutionsIfc {
 
     private val mySolutions = PriorityQueue<Solution>()
     private val myEnteredSolutions = mutableListOf<Solution>()
-    val solutionSequence: Sequence<Solution>
-         get() = myEnteredSolutions.asSequence()
-    
+
+    /**
+     *  A time-ordered list of the solution, where 0 is the first
+     *  solution every added, 1 is the next, etc.
+     */
+    val enteredSolutions: List<Solution>
+         get() = myEnteredSolutions
+
     /**
      *  A list of solutions ordered by penalized
      *  objective function. The solutions may or may not be feasible.
