@@ -9,6 +9,11 @@ import java.util.PriorityQueue
  */
 class Solutions() : SolutionsIfc {
 
+    //TODO
+    // add capacity constraint, with eviction of oldest element
+    // add functions should return evicted items
+    // add remove() and contains()
+    // consider linked list for holding sequence of entry
     constructor(solutions: List<Solution>): this(){
         addAll(solutions)
     }
@@ -18,7 +23,7 @@ class Solutions() : SolutionsIfc {
 
     /**
      *  A time-ordered list of the solution, where 0 is the first
-     *  solution every added, 1 is the next, etc.
+     *  solution added, 1 is the next, etc.
      */
     val enteredSolutions: List<Solution>
          get() = myEnteredSolutions
