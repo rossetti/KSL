@@ -1,10 +1,7 @@
 package ksl.simopt.solvers
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import ksl.simopt.evaluator.CompareSolutionsIfc
-import ksl.simopt.evaluator.EvaluationRequest
-import ksl.simopt.evaluator.EvaluatorIfc
-import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
@@ -105,6 +102,20 @@ abstract class Solver(
     protected var myEvaluator: EvaluatorIfc = evaluator
         private set
 
+    /**
+     *  Permits capture of evaluated solutions locally by the solver.
+     *  Not all solvers retain past solutions. Also, in general,
+     *  the evaluator will have access to a cache of solutions.
+     */
+    protected val mySolutions: Solutions = Solutions()
+
+    /**
+     *  A read-only view of the solutions evaluated by the solver.
+     *  Not all solvers retain past solutions. Also, in general,
+     *  the evaluator will have access to a cache of solutions.
+     */
+    val solutions: SolutionsIfc
+        get() = mySolutions
 
     /**
      *  The user can supply a comparator for comparing whether one
