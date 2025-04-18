@@ -6,7 +6,11 @@ import ksl.utilities.random.rvariable.KSLRandom
 /**
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
  *  This class prevents the keys from changing, but allows the changing of
- *  the data value associated with the keys.
+ *  the data value associated with the keys resulting in a new instance. Thus,
+ *  the underlying map cannot be changed.  This prevents an input map that
+ *  is associated with a solution from being changed. InputMap instances
+ *  are the keys for solution caches. Thus, we cannot change the key of
+ *  the solution cache.
  *
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process.
@@ -16,14 +20,9 @@ class InputMap(
     private val map: MutableMap<String, Double>
 ) : Map<String, Double> by map {
 
-//    operator fun set(key: String, value: Double) {
-//        require(map.containsKey(key)) {"The key ($key) is not in the map!"}
-//        map[key] = value
-//    }
-
     /**
      *  Creates a new instance of an InputMap that is a copy of the current
-     *  instance but with value associated with the specified [inputName] changed to the provided [value]
+     *  instance but with the value associated with the specified [inputName] changed to the provided [value]
      *  @param inputName the input name to change. Must be contained in the InputMap
      *  @param value the new value to assign
      *  @return the newly created instance
