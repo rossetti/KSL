@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import ksl.simopt.problem.InputDefinition
 import ksl.utilities.Interval
+import ksl.utilities.linspace
 import ksl.utilities.math.KSLMath
 
 fun main(){
@@ -43,30 +44,20 @@ fun testMRound(){
     println("x=$x g=$g r=$r")
 
     println()
-    val id = InputDefinition("test", Interval(1.0, 10.0), 0.2)
+    val interval = Interval(1.0, 10.0)
+    val id = InputDefinition("test", interval, 0.2)
     for (i in 1..10){
         println("value = ${id.randomValue()}")
     }
     println()
-    val s = linspace(0.0, 10.0, 21, true)
-    println(s.toList())
-}
+    val pts = id.points()
+    println("pts = $pts")
 
-fun linspace(start: Double, stop: Double, num: Int = 50, endpoint: Boolean = true): List<Double> {
-    val n = num.coerceAtLeast(1)
-    if (n == 1) {
-        return listOf(stop)
-    }
-    val list = mutableListOf<Double>()
-    val step = if (endpoint) {
-        (stop - start) / (n - 1)
-    } else {
-        (stop - start) / n
-    }
-    for (i in 0 until n) {
-        list.add(start + step * i)
-    }
-    return list
+    println()
+    val z = 7.4 + id.granularity
+    println("z = $z")
+    val d = 7.4 + 0.2
+    println("d = $d")
 }
 
 fun serializing(){

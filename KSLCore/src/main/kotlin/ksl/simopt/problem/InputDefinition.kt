@@ -87,6 +87,28 @@ class InputDefinition(
         return roundToGranularity(x)
     }
 
+    /**
+     *  Requires granularity to be greater than 0.0 or an IllegalArgumentException will be thrown.
+     *  If granularity is 0.0, then the set of points is infinite.
+     *
+     *  Returns a list of points starting at the lower bound stepping by the
+     *  granularity to the upper bound. This is the set of possible points
+     *  for the defined interval based on the granularity.
+     *
+     *  @return the list of points
+     */
+    fun granularPoints() : List<Double>{
+        require(granularity > 0.0) { "granularity must be > 0.0" }
+        val list = mutableListOf<Double>()
+        var x = lowerBound
+        do {
+            val y  = roundToGranularity(x)
+            list.add(y)
+            x = y + granularity
+        } while (x <= upperBound)
+        return list
+    }
+
     override fun toString(): String {
         return "InputDefinition(name='$name', interval=$interval, granularity=$granularity)"
     }

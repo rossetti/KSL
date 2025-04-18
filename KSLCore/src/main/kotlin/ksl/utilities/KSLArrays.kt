@@ -3801,28 +3801,6 @@ fun linspace(range: IntRange, num: Int = 50, endpoint: Boolean = true): List<Dou
 /**
  *  A simple implementation of linspace() found in python
  *  Returns evenly spaced values within a given interval start, stop
- *  @param num the number of points in the interval. Defaults to 50
- *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
- *  @return a list of the values
- */
-fun Interval.linspace(num: Int = 50, endpoint: Boolean = true): List<Double> {
-    return linspace(this.lowerLimit, this.upperLimit, num, endpoint)
-}
-
-/**
- *  A simple implementation of linspace() found in python
- *  Returns evenly spaced values within a given interval start, stop
- *  @param num the number of points in the interval. Defaults to 50
- *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
- *  @return a list of the values
- */
-fun IntRange.linspace(num: Int = 50, endpoint: Boolean = true): List<Double> {
-    return linspace(this, num, endpoint)
-}
-
-/**
- *  A simple implementation of linspace() found in python
- *  Returns evenly spaced values within a given interval start, stop
  *  @param start the starting value. Must be less than stop
  *  @param stop the stopping value. Must be greater than start
  *  @param num the number of points in the interval. Defaults to 50
