@@ -110,6 +110,12 @@ abstract class Solver(
     protected val mySolutions: Solutions = Solutions()
 
     /**
+     *  If true, updates to the current solution will be captured
+     *  automatically to memory. The default is false.
+     */
+    var saveSolutions: Boolean = false
+
+    /**
      *  A read-only view of the solutions evaluated by the solver.
      *  Not all solvers retain past solutions. Also, in general,
      *  the evaluator will have access to a cache of solutions.
@@ -160,8 +166,13 @@ abstract class Solver(
      *  solution to recommend for the solver. It is the responsibility
      *  of the subclass to determine the current (best) solution.
      */
-    lateinit var currentSolution: Solution
-        protected set
+    var currentSolution: Solution = problemDefinition.infeasibleSolution()
+        protected set(value) {
+            field = value
+            if (saveSolutions){
+                mySolutions.add(value)
+            }
+        }
 
     /**
      *  Causes the solver to be initialized. It will then

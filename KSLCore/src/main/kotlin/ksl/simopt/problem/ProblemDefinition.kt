@@ -1,6 +1,8 @@
 package ksl.simopt.problem
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.ResponseMap
+import ksl.simopt.evaluator.Solution
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
@@ -666,6 +668,26 @@ class ProblemDefinition(
         rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
     ): InputMap {
         return startingPointGenerator?.startingPoint(this) ?: generateInputFeasibleValues(rnStream)
+    }
+
+    /**
+     *  Creates an infeasible and bad solution. This is useful when initializing solvers.
+     *  @return the unbelievably bad solution
+     */
+    fun infeasibleSolution(): Solution {
+        val map = mutableMapOf<String, Double>()
+        for ((name, iDef) in myInputDefinitions) {
+            map[name] = iDef.lowerBound - Int.MAX_VALUE
+        }
+        val inputMap = InputMap(this, map)
+        val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.MAX_VALUE, 1.0)
+        val list = mutableListOf<EstimatedResponse>()
+        for (rc in responseConstraints) {
+            val rValue = rc.ltRHSValue + Int.MAX_VALUE
+            val er = EstimatedResponse(rc.responseName, rValue, Double.MAX_VALUE, 1.0)
+            list.add(er)
+        }
+        return Solution(inputMap, 1, objFunc, list, 1)
     }
 
     companion object {
