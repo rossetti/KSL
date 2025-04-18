@@ -1,6 +1,8 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.problem.InputMap
+import ksl.simopt.solvers.GenerateNeighborIfc
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamControlIfc
@@ -8,13 +10,15 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 
-class StochasticHillClimber(
+open class StochasticHillClimber(
     evaluator: EvaluatorIfc,
     maxIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     val rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
     name: String? = null
 ) : Solver(evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc by rnStream {
+
+    var neighborGenerator: GenerateNeighborIfc? = null
 
     override fun initializeIterations() {
         val initialPoint = problemDefinition.startingPoint(rnStream)
@@ -25,11 +29,16 @@ class StochasticHillClimber(
     override fun mainIteration() {
         // generate a random neighbor of the current solution
         val currentPoint = currentSolution.inputMap
-        val nextPoint = currentPoint.randomizeInputVariable(rnStream)
+        val nextPoint = generateNeighbor(currentPoint)
         // evaluate the solution
         val nextSolution = requestEvaluation(nextPoint)
         // if new solution is better (smaller) update the current solution
 
+    }
+
+    protected fun generateNeighbor(currentPoint: InputMap) : InputMap {
+        return neighborGenerator?.generateNeighbor(currentPoint, this)
+            ?: currentPoint.randomizeInputVariable(rnStream)
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
