@@ -23,11 +23,11 @@ class StochasticHillClimber(
     }
 
     override fun mainIteration() {
-
         // generate a random neighbor of the current solution
-
+        val currentPoint = currentSolution.inputMap
+        val nextPoint = currentPoint.randomizeInputVariable(rnStream)
         // evaluate the solution
-
+        val nextSolution = requestEvaluation(nextPoint)
         // if new solution is better (smaller) update the current solution
 
     }
