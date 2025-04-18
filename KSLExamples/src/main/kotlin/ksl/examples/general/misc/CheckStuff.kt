@@ -14,7 +14,8 @@ import kotlin.math.sqrt
 import kotlinx.serialization.builtins.DoubleArraySerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
-import ksl.utilities.KSLArrays
+import ksl.simopt.problem.InputDefinition
+import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 
 fun main(){
@@ -38,8 +39,34 @@ fun main(){
 fun testMRound(){
     val x = 3.0459
     val g = 0.25
-    val r = KSLMath.mround(x, g)
+    val r = KSLMath.mround(x, 1.0)
     println("x=$x g=$g r=$r")
+
+    println()
+    val id = InputDefinition("test", Interval(1.0, 10.0), 0.2)
+    for (i in 1..10){
+        println("value = ${id.randomValue()}")
+    }
+    println()
+    val s = linspace(0.0, 10.0, 21, true)
+    println(s.toList())
+}
+
+fun linspace(start: Double, stop: Double, num: Int = 50, endpoint: Boolean = true): List<Double> {
+    val n = num.coerceAtLeast(1)
+    if (n == 1) {
+        return listOf(stop)
+    }
+    val list = mutableListOf<Double>()
+    val step = if (endpoint) {
+        (stop - start) / (n - 1)
+    } else {
+        (stop - start) / n
+    }
+    for (i in 0 until n) {
+        list.add(start + step * i)
+    }
+    return list
 }
 
 fun serializing(){

@@ -87,4 +87,9 @@ class InputDefinition(
         return roundToGranularity(x)
     }
 
+    override fun toString(): String {
+        return "InputDefinition(name='$name', interval=$interval, granularity=$granularity)"
+    }
+
+
 }
