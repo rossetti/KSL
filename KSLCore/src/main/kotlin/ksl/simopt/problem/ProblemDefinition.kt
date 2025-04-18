@@ -10,6 +10,7 @@ import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
+import org.jetbrains.letsPlot.core.spec.asMutable
 
 
 /**
@@ -476,13 +477,14 @@ class ProblemDefinition(
      *
      *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
      *  input names.
-     *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
+     *   @return the returned map is a new InputMap based on the supplied InputMap
      */
     fun roundToGranularity(map: InputMap): InputMap {
+        val nm = HashMap<String, Double> (map)
         for ((name, inputDefinition) in myInputDefinitions) {
-            map[name] = inputDefinition.roundToGranularity(map[name]!!)
+            nm[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
-        return map
+        return InputMap(this, nm)
     }
 
     /**
@@ -627,22 +629,22 @@ class ProblemDefinition(
      *  Randomly generates a new value for the named input variable and returns the updated
      *  input map. The input map may not be feasible with respect to linear or functional constraints.
      *
-     *  @param name the name of the input variable to randomize. Must be a valid name for
-     *  the input map and thus for the problem.
      *  @param inputMap the input map for which the named variable will be changed
      *  @param rnStream the stream to use when generating random points within the input range space.
      *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
+     *  @param name the name of the input variable to randomize. Must be a valid name for
+     *  the input map and thus for the problem. The default is a randomly selected name
+     *  from the problem using the supplied random number stream.
      *  @return the randomly generated point.
      */
     fun randomizeInputValue(
-        name: String,
         inputMap: InputMap,
-        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+        name: String = randomInputName(rnStream),
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         val iDefinition = myInputDefinitions[name]!!
-        inputMap[name] = iDefinition.randomValue(rnStream)
-        return inputMap
+        return inputMap.copy(name, iDefinition.randomValue(rnStream))
     }
 
     /**
@@ -659,20 +661,21 @@ class ProblemDefinition(
      *  @return the randomly generated point.
      */
     fun randomizeInputFeasibleValue(
-        name: String,
         inputMap: InputMap,
-        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+        name: String = randomInputName(rnStream)
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         var count = 0
+        val nm = HashMap<String, Double>(inputMap)
         do {
             count++
             check(count <= maxFeasibleSamplingIterations) { "The number of iterations exceeded the limit $maxFeasibleSamplingIterations when sampling for an input feasible point" }
             // generate the point
             val iDefinition = myInputDefinitions[name]!!
-            inputMap[name] = iDefinition.randomValue(rnStream)
-        } while (!isInputFeasible(inputMap))
-        return inputMap
+            nm[name] = iDefinition.randomValue(rnStream)
+        } while (!isInputFeasible(nm))
+        return InputMap(this, nm)
     }
 
     /**
