@@ -1,6 +1,6 @@
 package ksl.simopt.evaluator
 
-interface SolutionsIfc {
+interface SolutionsIfc : List<Solution> {
 
     /**
      *  A list of solutions ordered by penalized
@@ -28,9 +28,5 @@ interface SolutionsIfc {
      *  The solution may or may not be feasible.
      */
     fun peekBest(): Solution?
-
-    val isEmpty: Boolean
-
-    val size: Int
 
 }
