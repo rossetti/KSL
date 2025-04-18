@@ -18,6 +18,13 @@ class Solutions(val capacity: Int = defaultCapacity) : SolutionsIfc {
     private val mySolutions = PriorityQueue<Solution>()
     private val myEnteredSolutions = ArrayDeque<Solution>()
 
+    /**
+     *  Adds all the solutions to the sequence of solutions. If the capacity
+     *  is met, then the oldest (first) item is evicted and returned. Each
+     *  evicted item is returned in the order of eviction.
+     *  @param solutions the solutions to add
+     *  @return a list of possibly evicted items
+     */
     fun addAll(solutions: List<Solution>): List<Solution> {
         val list = mutableListOf<Solution>()
         for (solution in solutions) {
@@ -58,13 +65,16 @@ class Solutions(val capacity: Int = defaultCapacity) : SolutionsIfc {
         mySolutions.remove(solution)
     }
 
+    /**
+     *  Clears all solutions
+     */
     fun clear() {
         mySolutions.clear()
         myEnteredSolutions.clear()
     }
 
     /**
-     *  A time-ordered list of the solution, where 0 is the first
+     *  A time-ordered list of the solution, where 0 is the first (oldest)
      *  solution added, 1 is the next, etc.
      */
     val enteredSolutions: List<Solution>
