@@ -9,6 +9,7 @@ import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.randomlySelect
 
 
 /**
@@ -52,22 +53,52 @@ enum class InequalityType {
 class ProblemDefinition(
     problemName: String? = null,
     val objFnResponseName: String,
-    val inputNames: Set<String>,
-    val responseNames: Set<String> = emptySet(),
-    val indifferenceZoneParameter: Double = 0.0,
+    inputNames: List<String>,
+    responseNames: List<String> = emptyList(),
+    indifferenceZoneParameter: Double = 0.0,
 ) : IdentityIfc by Identity(problemName) {
 
+    /**
+     *  The names of the input parameters over which the problem is
+     *  being optimized, i.e. the decision variable names.
+     *  These need to correspond to simulation model inputs. This
+     *  list cannot be empty.
+     */
+    val inputNames: List<String>
+
+    /**
+     *  The names of the responses over which the problem is
+     *  being optimized. These are the simulation response names.
+     *  This list may be empty.
+     */
+    val responseNames: List<String>
+
     init {
+        require(indifferenceZoneParameter >= 0.0) { "The indifference zone parameter must be >= 0.0" }
         require(objFnResponseName.isNotBlank()) { "The objective function response name cannot be blank" }
         require(inputNames.isNotEmpty()) { "The set of input names cannot be empty" }
         for (name: String in inputNames) {
             require(name.isNotBlank()) { "An input name was blank" }
         }
+        this.inputNames = inputNames.distinct()
         for (name: String in responseNames) {
             require(name.isNotBlank()) { "A response name was blank" }
         }
+        this.responseNames = responseNames.distinct()
         require(!responseNames.contains(objFnResponseName)) { "The objective function response name cannot be within the set of response constraint names." }
     }
+
+    /**
+     *  A parameter that represents the smallest actual difference that is important
+     *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
+     *  between solutions are considered practically insignificant. The default is zero.
+     *  Must be greater than or equal to zero.
+     */
+    var indifferenceZoneParameter: Double = indifferenceZoneParameter
+        set(value) {
+            require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            field = value
+        }
 
     /**
      *  Returns a list of the names of all the responses referenced in the problem
@@ -81,16 +112,6 @@ class ProblemDefinition(
             list.addAll(responseNames)
             return list
         }
-
-    fun isValidResponse(name: String): Boolean {
-        return ((name == objFnResponseName) || responseNames.contains(name))
-    }
-
-    /** Returns a new empty response map to hold the responses associated with the problem
-     */
-    fun emptyResponseMap(): ResponseMap {
-        return ResponseMap(this)
-    }
 
     /**
      *  Can be supplied to provide a method for specifying a feasible starting point.
@@ -186,6 +207,31 @@ class ProblemDefinition(
             require(value > 0) { "The maximum number of samples is $value, must be > 0" }
             field = value
         }
+
+    /** Returns true if the name is a valid response name or the name
+     *  associated with the objective function.
+     *
+     *  @param name the name to check
+     */
+    fun isValidResponse(name: String): Boolean {
+        return ((name == objFnResponseName) || responseNames.contains(name))
+    }
+
+    /** Returns a new empty response map to hold the responses associated with the problem
+     */
+    fun emptyResponseMap(): ResponseMap {
+        return ResponseMap(this)
+    }
+
+    /**
+     *  Randomly selects from the list of valid input names with equal likelihood.
+     *
+     *  @param rnStream the random number stream to use for randomness
+     *  @return the randomly selected name
+     */
+    fun randomInputName(rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): String {
+        return inputNames.randomlySelect(rnStream)
+    }
 
     /**
      *  Defines an input variable for the problem. The order of specification of the input variables
@@ -705,7 +751,7 @@ class ProblemDefinition(
          *
          *  @return true if the key names in [inputs] all appear in the set [names]
          */
-        fun validate(inputs: Map<String, Double>, names: Set<String>): Boolean {
+        fun validate(inputs: Map<String, Double>, names: List<String>): Boolean {
             require(inputs.size == names.size) { "The size of the map and set are incompatible." }
             for ((name, _) in inputs) {
                 if (!names.contains(name)) return false

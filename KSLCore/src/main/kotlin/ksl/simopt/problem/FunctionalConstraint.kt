@@ -7,14 +7,20 @@ fun interface ConstraintFunctionIfc {
 }
 
 class FunctionalConstraint(
-    val validNames: Set<String>,
+    validNames: List<String>,
     val lhsFunc: ConstraintFunctionIfc,
     override val rhsValue: Double = 0.0,
     override val inequalityType: InequalityType = InequalityType.LESS_THAN
 ) : ConstraintIfc {
 
+    val validNames: List<String>
+
     init {
-        require(validNames.isNotEmpty()){"The set of valid names must not be empty"}
+        require(validNames.isNotEmpty()){"The list of valid names must not be empty"}
+        for (name: String in validNames) {
+            require(name.isNotBlank()) { "The name was blank" }
+        }
+        this.validNames = validNames.distinct()
     }
 
     /**
