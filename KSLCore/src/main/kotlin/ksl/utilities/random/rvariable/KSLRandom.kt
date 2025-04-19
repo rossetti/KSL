@@ -20,13 +20,11 @@ package ksl.utilities.random.rvariable
 //TODO extension functions for array and collection work
 //TODO change argument checks to require()
 
-import ksl.utilities.countLessThan
 import ksl.utilities.distributions.*
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.sample
 import kotlin.math.*
 
 /**
@@ -231,7 +229,7 @@ object KSLRandom {
      * @param pSuccess   the probability of success
      * @param rSuccesses number of trials until rth success
      * @param streamNum  the stream number from the stream provider to use
-     * @return the random value
+     * @return the random value on range 1, 2, 3, ...
      */
     fun rNegBinomial(pSuccess: Double, rSuccesses: Double, streamNum: Int): Int {
         return rNegBinomial(pSuccess, rSuccesses, rnStream(streamNum))
@@ -241,7 +239,7 @@ object KSLRandom {
      * @param pSuccess   the probability of success
      * @param rSuccesses number of trials until rth success
      * @param stream        the random number stream
-     * @return the random value
+     * @return the random value on range 1, 2, 3
      */
     fun rNegBinomial(
         pSuccess: Double,
@@ -564,16 +562,16 @@ object KSLRandom {
     /**
      * @param location the location a real number
      * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param stream   the RNStreamIfc, must not be null
      * @return the generated value
      */
     fun rLogistic(
         location: Double,
         scale: Double,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
         require(scale > 0) { "Scale parameter must be > 0" }
-        val u = rng.randU01()
+        val u = stream.randU01()
         val c = u / (1.0 - u)
         return location + scale*ln(c)
     }
@@ -670,20 +668,20 @@ object KSLRandom {
     /**
      * @param shape the shape, must be greater than 0.0
      * @param scale the scale, must be greater than 0.0
-     * @param rng   the RNStreamIfc, must not null
+     * @param stream   the RNStreamIfc, must not null
      * @param type, must be appropriate algorithm type, if null then inverse transform is the default
      * @return the generated value
      */
     fun rGamma(
         shape: Double,
         scale: Double,
-        rng: RNStreamIfc = defaultRNStream(),
+        stream: RNStreamIfc = defaultRNStream(),
         type: AlgoType = AlgoType.Inverse
     ): Double {
         return if (type == AlgoType.AcceptanceRejection) {
-            rARGamma(shape, scale, rng)
+            rARGamma(shape, scale, stream)
         } else {
-            rInvGamma(shape, scale, rng)
+            rInvGamma(shape, scale, stream)
         }
     }
 
@@ -815,14 +813,14 @@ object KSLRandom {
 
     /**
      * @param dof degrees of freedom, must be greater than 0
-     * @param rng the RNStreamIfc, must not be null
+     * @param stream the RNStreamIfc, must not be null
      * @return the random value
      */
-    fun rChiSquared(dof: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+    fun rChiSquared(dof: Double, stream: RNStreamIfc = defaultRNStream()): Double {
         if (dof <= 0) {
             throw IllegalArgumentException("The degrees of freedom should be > 0")
         }
-        return Gamma.invChiSquareDistribution(rng.randU01(), dof)
+        return Gamma.invChiSquareDistribution(stream.randU01(), dof)
     }
 
     /**
@@ -838,18 +836,18 @@ object KSLRandom {
     /**
      * @param shape the shape, must be greater than 0
      * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param stream   the RNStreamIfc, must not be null
      * @return the generated value
      */
     fun rPearsonType5(
         shape: Double,
         scale: Double,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ): Double {
         checkShapeAndScale(shape, scale)
         val GShape = shape
         val GScale = 1.0 / scale
-        val y = rGamma(GShape, GScale, rng)
+        val y = rGamma(GShape, GScale, stream)
         return 1.0 / y
     }
 
@@ -870,11 +868,11 @@ object KSLRandom {
      *
      * @param alpha  alpha (first shape) parameter
      * @param beta  beta (second shape) parameter
-     * @param rng    the RNStreamIfc
+     * @param stream    the RNStreamIfc
      * @return the random value
      */
-    fun rBeta(alpha: Double, beta: Double, rng: RNStreamIfc = defaultRNStream()): Double {
-        return Beta.stdBetaInvCDF(rng.randU01(), alpha, beta);
+    fun rBeta(alpha: Double, beta: Double, stream: RNStreamIfc = defaultRNStream()): Double {
+        return Beta.stdBetaInvCDF(stream.randU01(), alpha, beta);
     }
 
     /**
@@ -901,12 +899,12 @@ object KSLRandom {
      * @param beta  beta (second shape) parameter
      * @param minimum the minimum of the range, must be less than maximum
      * @param maximum the maximum of the range
-     * @param rng     the RNStreamIfc
+     * @param stream     the RNStreamIfc
      * @return the random value
      */
     fun rBetaG(
         alpha: Double, beta: Double,
-        minimum: Double, maximum: Double, rng: RNStreamIfc = defaultRNStream()
+        minimum: Double, maximum: Double, stream: RNStreamIfc = defaultRNStream()
     ): Double {
         if (minimum >= maximum) {
             throw IllegalArgumentException(
@@ -914,7 +912,7 @@ object KSLRandom {
                         + "limit. lower limit = " + minimum + " upper limit = " + maximum)
             )
         }
-        val x = rBeta(alpha, beta, rng)
+        val x = rBeta(alpha, beta, stream)
         return minimum + (maximum - minimum) * x
     }
 
@@ -940,17 +938,17 @@ object KSLRandom {
      * @param alpha1 alpha1 parameter
      * @param alpha2 alpha2 parameter
      * @param beta   the beta parameter, must be greater than 0
-     * @param rng    the RNStreamIfc, must not be null
+     * @param stream    the RNStreamIfc, must not be null
      * @return the random value
      */
     fun rPearsonType6(
         alpha1: Double, alpha2: Double,
-        beta: Double, rng: RNStreamIfc = defaultRNStream()
+        beta: Double, stream: RNStreamIfc = defaultRNStream()
     ): Double {
         if (beta <= 0.0) {
             throw IllegalArgumentException("The scale parameter must be > 0.0")
         }
-        val fib = rBeta(alpha1, alpha2, rng)
+        val fib = rBeta(alpha1, alpha2, stream)
         return (beta * fib) / (1.0 - fib)
     }
 
@@ -971,14 +969,14 @@ object KSLRandom {
      *
      * @param location  mean or location parameter
      * @param scale scale parameter, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param stream   the RNStreamIfc, must not be null
      * @return the random value
      */
-    fun rLaplace(location: Double, scale: Double, rng: RNStreamIfc = defaultRNStream()): Double {
+    fun rLaplace(location: Double, scale: Double, stream: RNStreamIfc = defaultRNStream()): Double {
         if (scale <= 0.0) {
             throw IllegalArgumentException("The scale parameter must be > 0.0")
         }
-        val p = rng.randU01()
+        val p = stream.randU01()
         val u = p - 0.5
         return location - scale * sign(u) * ln(1.0 - 2.0 * abs(u))
     }
@@ -1375,19 +1373,19 @@ object KSLRandom {
      *
      * @param x          the array
      * @param sampleSize the size to generate
-     * @param rng        the source of randomness
+     * @param stream        the source of randomness
      */
     fun sampleWithoutReplacement(
         x: DoubleArray,
         sampleSize: Int,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
-            val i = rng.randInt(j, x.size - 1)
+            val i = stream.randInt(j, x.size - 1)
             val temp = x[j]
             x[j] = x[i]
             x[i] = temp
@@ -1409,11 +1407,11 @@ object KSLRandom {
      * number generator, the array is changed.
      *
      * @param x   the array
-     * @param rng the source of randomness
+     * @param stream the source of randomness
      */
-    fun permute(x: IntArray, rng: RNStreamIfc = defaultRNStream()) {
+    fun permute(x: IntArray, stream: RNStreamIfc = defaultRNStream()) {
         require(x.isNotEmpty()) {"Cannot permute an empty array!"}
-        sampleWithoutReplacement(x, x.size, rng)
+        sampleWithoutReplacement(x, x.size, stream)
     }
 
     /**
@@ -1434,19 +1432,19 @@ object KSLRandom {
      *
      * @param x          the array
      * @param sampleSize the size to generate
-     * @param rng        the source of randomness
+     * @param stream        the source of randomness
      */
     fun sampleWithoutReplacement(
         x: IntArray,
         sampleSize: Int,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
-            val i = rng.randInt(j, x.size - 1)
+            val i = stream.randInt(j, x.size - 1)
             val temp = x[j]
             x[j] = x[i]
             x[i] = temp
@@ -1493,19 +1491,19 @@ object KSLRandom {
      *
      * @param x          the array
      * @param sampleSize the size to generate
-     * @param rng        the source of randomness
+     * @param stream        the source of randomness
      */
     fun sampleWithoutReplacement(
         x: BooleanArray,
         sampleSize: Int,
-        rng: RNStreamIfc = defaultRNStream()
+        stream: RNStreamIfc = defaultRNStream()
     ) {
         require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
         for (j in 0 until sampleSize) {
-            val i = rng.randInt(j, x.size - 1)
+            val i = stream.randInt(j, x.size - 1)
             val temp = x[j]
             x[j] = x[i]
             x[i] = temp
