@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
@@ -24,7 +25,8 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
-) : Comparable<Solution> {
+) : Comparable<Solution>, FeasibilityIfc by inputMap {
+
     val id = solutionCounter++
 
     init {
@@ -69,39 +71,6 @@ data class Solution(
      */
     val responseViolations: Map<String, Double>
         get() = problemDefinition.responseConstraintViolations(averages)
-
-    /**
-     *  Returns true if the solution does not violate the specified
-     *  linear constraints.
-     */
-    fun isLinearConstraintFeasible(): Boolean {
-        return problemDefinition.isLinearConstraintFeasible(inputMap)
-    }
-
-    /**
-     *  Returns true if the solution does not violate the specified
-     *  functional constraints.
-     */
-    fun isFunctionalConstraintFeasible(): Boolean {
-        return problemDefinition.isFunctionalConstraintFeasible(inputMap)
-    }
-
-    /**
-     *  Returns true if the solution does not violate the specified
-     *  ranges for each input variable.
-     */
-    fun isInputRangeFeasible(): Boolean {
-        return problemDefinition.isInputRangeFeasible(inputMap)
-    }
-
-    /**
-     *  The supplied input is considered input feasible if it is feasible with respect to
-     *  the defined input parameter ranges, the linear constraints, and the functional constraints.
-     *  @return true if the inputs are input feasible
-     */
-    fun isInputFeasible(): Boolean {
-        return problemDefinition.isInputFeasible(inputMap)
-    }
 
     /**
      *  Converts the solution to an instance of a ResponseMap

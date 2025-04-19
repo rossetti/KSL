@@ -3,6 +3,39 @@ package ksl.simopt.problem
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
+interface FeasibilityIfc {
+    /**
+     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  the defined input parameter ranges, the linear constraints, and the functional constraints.
+     *  @return true if the inputs are input feasible
+     */
+    fun isInputFeasible(): Boolean
+
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within the ranges defined for the variables.
+     *  False will be returned if at least one input variable is not within its defined range.
+     *   @return true if the inputs are input feasible
+     */
+    fun isInputRangeFeasible(): Boolean
+
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within linear constraints.
+     *  False will be returned if at least one linear constraint is infeasible.
+     *   @return true if the inputs are feasible
+     */
+    fun isLinearConstraintFeasible(): Boolean
+
+    /**
+     *  Interprets the supplied map as inputs for the problem definition and
+     *  returns true if the values are within functional constraints.
+     *  False will be returned if at least one functional constraint is infeasible.
+     *   @return true if the inputs are feasible
+     */
+    fun isFunctionalConstraintFeasible(): Boolean
+}
+
 /**
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
  *  This class prevents the keys from changing, but allows the changing of
@@ -18,7 +51,7 @@ import ksl.utilities.random.rvariable.KSLRandom
 class InputMap(
     val problemDefinition: ProblemDefinition,
     private val map: MutableMap<String, Double>
-) : Map<String, Double> by map {
+) : Map<String, Double> by map, FeasibilityIfc {
 
     /**
      *  A copy of the input map as a mutable map
@@ -117,7 +150,7 @@ class InputMap(
      *  the defined input parameter ranges, the linear constraints, and the functional constraints.
      *  @return true if the inputs are input feasible
      */
-    fun isInputFeasible(): Boolean{
+    override fun isInputFeasible(): Boolean{
         return problemDefinition.isInputFeasible(this)
     }
 
@@ -127,7 +160,7 @@ class InputMap(
      *  False will be returned if at least one input variable is not within its defined range.
      *   @return true if the inputs are input feasible
      */
-    fun isInputRangeFeasible(): Boolean {
+    override fun isInputRangeFeasible(): Boolean {
         return problemDefinition.isInputRangeFeasible(this)
     }
 
@@ -137,7 +170,7 @@ class InputMap(
      *  False will be returned if at least one linear constraint is infeasible.
      *   @return true if the inputs are feasible
      */
-    fun isLinearConstraintFeasible(): Boolean {
+    override fun isLinearConstraintFeasible(): Boolean {
         return problemDefinition.isLinearConstraintFeasible(this)
     }
 
@@ -147,7 +180,7 @@ class InputMap(
      *  False will be returned if at least one functional constraint is infeasible.
      *   @return true if the inputs are feasible
      */
-    fun isFunctionalConstraintFeasible(): Boolean {
+    override fun isFunctionalConstraintFeasible(): Boolean {
         return problemDefinition.isFunctionalConstraintFeasible(this)
     }
 
