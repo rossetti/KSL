@@ -54,10 +54,26 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
     }
 
     /**
+     *  Returns a randomly generated sign -1 or +1
+     *  @param pSuccess the probability of getting + 1. The default is 0.5.
+     */
+    fun rSign(pSuccess: Double = 0.5): Double {
+        return if (rBernoulli(pSuccess) < 1) -1.0 else 1.0
+    }
+
+    /**
+     * Returns a randomly generated sign -1, 0, +1
+     * all equally likely.
+     */
+    fun rSignWithZero() : Double {
+        return randInt(-1, 1).toDouble()
+    }
+
+    /**
      * @param pSuccess the probability of success, must be in (0,1)
      * @return the random value
      */
-    fun rBernoulli(pSuccess: Double): Double {
+    fun rBernoulli(pSuccess: Double = 0.5): Double {
         return KSLRandom.rBernoulli(pSuccess, this)
     }
 
@@ -65,7 +81,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param pSuccess the probability of success, must be in (0,1)
      * @return the random value as a Boolean value
      */
-    fun rBernoulliBoolean(pSuccess: Double): Boolean {
+    fun rBernoulliBoolean(pSuccess: Double = 0.5): Boolean {
         return KSLRandom.rBernoulliBoolean(pSuccess, this)
     }
 
@@ -189,7 +205,8 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param max    the max
      * @return the generated value
      */
-    fun rJohnsonB(alpha1: Double, alpha2: Double, min: Double, max: Double
+    fun rJohnsonB(
+        alpha1: Double, alpha2: Double, min: Double, max: Double
     ): Double {
         return KSLRandom.rJohnsonB(alpha1, alpha2, min, max, this)
     }
@@ -199,7 +216,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
-    fun rLogistic(location: Double, scale: Double, ): Double {
+    fun rLogistic(location: Double, scale: Double): Double {
         return KSLRandom.rLogistic(location, scale, this)
     }
 
@@ -208,7 +225,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
-    fun rLogLogistic(shape: Double, scale: Double, ): Double {
+    fun rLogLogistic(shape: Double, scale: Double): Double {
         return KSLRandom.rLogLogistic(shape, scale, this)
     }
 
@@ -218,7 +235,8 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param max  the max
      * @return the random value
      */
-    fun rTriangular(min: Double, mode: Double, max: Double
+    fun rTriangular(
+        min: Double, mode: Double, max: Double
     ): Double {
         return KSLRandom.rTriangular(min, mode, max, this)
     }
@@ -229,7 +247,8 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param type, must be appropriate algorithm type, if null then inverse transform is the default
      * @return the generated value
      */
-    fun rGamma(shape: Double, scale: Double, type: AlgoType = AlgoType.Inverse
+    fun rGamma(
+        shape: Double, scale: Double, type: AlgoType = AlgoType.Inverse
     ): Double {
         return KSLRandom.rGamma(shape, scale, this, type)
     }
@@ -247,7 +266,8 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
-    fun rPearsonType5(shape: Double, scale: Double,
+    fun rPearsonType5(
+        shape: Double, scale: Double,
     ): Double {
         return KSLRandom.rPearsonType5(shape, scale, this)
     }
@@ -327,7 +347,8 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * array
      * @return the randomly selected value
      */
-    fun randomlySelect(array: DoubleArray, cdf: DoubleArray,
+    fun randomlySelect(
+        array: DoubleArray, cdf: DoubleArray,
     ): Double {
         return KSLRandom.randomlySelect(array, cdf, this)
     }
@@ -350,7 +371,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param cdf   the cumulative probability associated with each element of array
      * @return the randomly selected value
      */
-    fun randomlySelect(array: IntArray, cdf: DoubleArray, ): Int {
+    fun randomlySelect(array: IntArray, cdf: DoubleArray): Int {
         return KSLRandom.randomlySelect(array, cdf, this)
     }
 
@@ -370,7 +391,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
-    fun sampleWithoutReplacement(x: DoubleArray, sampleSize: Int, ) {
+    fun sampleWithoutReplacement(x: DoubleArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
 
@@ -390,7 +411,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
-    fun sampleWithoutReplacement(x: IntArray, sampleSize: Int, ) {
+    fun sampleWithoutReplacement(x: IntArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
 
@@ -410,7 +431,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
-    fun sampleWithoutReplacement(x: BooleanArray, sampleSize: Int, ) {
+    fun sampleWithoutReplacement(x: BooleanArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
 
@@ -432,7 +453,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
-    fun <T> sampleWithoutReplacement(x: Array<T>, sampleSize: Int, ) {
+    fun <T> sampleWithoutReplacement(x: Array<T>, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
 
