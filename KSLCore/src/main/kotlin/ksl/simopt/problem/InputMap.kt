@@ -23,18 +23,41 @@ class InputMap(
     /**
      *  A copy of the input map as a mutable map
      */
-    fun asMutableMap() : MutableMap<String, Double>{
+    fun asMutableMap(): MutableMap<String, Double> {
         return HashMap(map)
     }
 
-    fun perturbedBy(stepSize: Double, rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),): InputMap {
-        require(stepSize > 0.0) {"The step size must be > 0.0"}
+    /**
+     *  Perturbs the current input values by the supplied step size.  Each input
+     *  is randomly increased or decreased by the step size. If the perturbation
+     *  will cause the value to be outsize of the defined input range, then the closest
+     *  bound is used as the value. If the step size is less than the granularity
+     *  for the granularity is used as the step size.  The return InputMap should be
+     *  input feasible, but may not be feasible with respect to linear or functional
+     *  constraints.
+     *  
+     *  @param stepSize the amount of the perturbation. Must be greater than 0.0
+     *  @param rnStream the stream to use in randomly choosing the direction of the step
+     *  @return a new InputMap based on the current input map
+     */
+    fun perturbedBy(stepSize: Double, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): InputMap {
+        require(stepSize > 0.0) { "The step size must be > 0.0" }
         val cm = HashMap(map)
-//        val idf = problemDefinition.inputDefinitions
-//        for((name, value) in cm) {
-//            val g = problemDefinition.
-//        }
-        TODO()
+        val idf = problemDefinition.inputDefinitions
+        for ((name, value) in cm) {
+            val iDefn = idf[name]!!
+            val granularity = iDefn.granularity
+            val step = rnStream.rSign() * maxOf(stepSize, granularity)
+            val perturbedValue = value + step
+            cm[name] = if (perturbedValue < iDefn.lowerBound) {
+                iDefn.lowerBound
+            } else if (perturbedValue > iDefn.upperBound){
+                iDefn.upperBound
+            } else {
+                perturbedValue
+            }
+        }
+        return InputMap(problemDefinition, cm)
     }
 
     /**
@@ -44,8 +67,8 @@ class InputMap(
      *  @param value the new value to assign
      *  @return the newly created instance
      */
-    fun copy(inputName: String, value: Double) : InputMap {
-        require(map.containsKey(inputName)) {"The key ($inputName) is not in the map!"}
+    fun copy(inputName: String, value: Double): InputMap {
+        require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
         val cm = HashMap(map)
         cm[inputName] = value
         return InputMap(problemDefinition, cm)
@@ -65,8 +88,8 @@ class InputMap(
      */
     fun randomizeInputVariable(
         rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
-        name:String = problemDefinition.randomInputName(rnStream),
-    ) : InputMap {
+        name: String = problemDefinition.randomInputName(rnStream),
+    ): InputMap {
         require(containsKey(name)) { "The input map does not contain the variable: $name" }
         return problemDefinition.randomizeInputValue(this, rnStream, name)
     }
