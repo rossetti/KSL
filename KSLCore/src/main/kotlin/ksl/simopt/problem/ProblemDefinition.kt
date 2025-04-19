@@ -6,11 +6,9 @@ import ksl.simopt.evaluator.Solution
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
-import org.jetbrains.letsPlot.core.spec.asMutable
 
 
 /**
@@ -123,9 +121,16 @@ class ProblemDefinition(
     private val myInputDefinitions = mutableMapOf<String, InputDefinition>()
 
     /**
+     *  The input definitions as a list. The key is the name of the
+     *  input parameter and the value is the input definition.
+     */
+    val inputDefinitions: Map<String, InputDefinition>
+        get() = myInputDefinitions
+
+    /**
      *  The input definitions for the problem as a list
      */
-    val inputDefinitions: List<InputDefinition>
+    val inputDefinitionList: List<InputDefinition>
         get() = myInputDefinitions.values.toList()
 
     private val myLinearConstraints = mutableListOf<LinearConstraint>()

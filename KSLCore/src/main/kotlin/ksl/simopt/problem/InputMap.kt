@@ -21,6 +21,23 @@ class InputMap(
 ) : Map<String, Double> by map {
 
     /**
+     *  A copy of the input map as a mutable map
+     */
+    fun asMutableMap() : MutableMap<String, Double>{
+        return HashMap(map)
+    }
+
+    fun perturbedBy(stepSize: Double, rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),): InputMap {
+        require(stepSize > 0.0) {"The step size must be > 0.0"}
+        val cm = HashMap(map)
+//        val idf = problemDefinition.inputDefinitions
+//        for((name, value) in cm) {
+//            val g = problemDefinition.
+//        }
+        TODO()
+    }
+
+    /**
      *  Creates a new instance of an InputMap that is a copy of the current
      *  instance but with the value associated with the specified [inputName] changed to the provided [value]
      *  @param inputName the input name to change. Must be contained in the InputMap
