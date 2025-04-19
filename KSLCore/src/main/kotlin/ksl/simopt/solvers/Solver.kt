@@ -116,6 +116,12 @@ abstract class Solver(
     var saveSolutions: Boolean = false
 
     /**
+     *  Indicates whether the solver allows infeasible requests
+     *  to be sent to the evaluator. The default is false.
+     */
+    var allowInfeasibleRequests: Boolean = false
+
+    /**
      *  A read-only view of the solutions evaluated by the solver.
      *  Not all solvers retain past solutions. Also, in general,
      *  the evaluator will have access to a cache of solutions.
@@ -314,7 +320,9 @@ abstract class Solver(
     private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
         val list = mutableListOf<EvaluationRequest>()
         for(input in inputs){
-            require(input.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
+            if (!allowInfeasibleRequests){
+                require(input.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
+            }
             val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
             list.add(EvaluationRequest(numReps, input))
         }
