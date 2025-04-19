@@ -183,6 +183,5 @@ class InputMap(
     override fun isFunctionalConstraintFeasible(): Boolean {
         return problemDefinition.isFunctionalConstraintFeasible(this)
     }
-
-
+    
 }
