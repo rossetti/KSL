@@ -12,17 +12,6 @@ import ksl.utilities.random.rvariable.randomlySelect
 
 
 /**
- * enum to codify < and > in constraints for user convenience in problem definition.
- * (Internally all input and response constraints are implemented as <)
- * We could instead adopt one version (typically < in the literature)
- * and force the user to modify their coefficients.
- */
-enum class InequalityType {
-    LESS_THAN,
-    GREATER_THAN
-}
-
-/**
  *  This class describes an optimization problem for use within simulation optimization algorithms.
  *  The general optimization problem is presented as minimizing the expected value of some function H(x), where
  *  x is some input parameters to the simulation and H(.) is the simulation model response for the objective
