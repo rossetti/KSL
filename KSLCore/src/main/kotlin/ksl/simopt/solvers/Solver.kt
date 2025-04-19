@@ -307,6 +307,7 @@ abstract class Solver(
         currentPoint: InputMap,
         rnStream: RNStreamIfc
     ) : InputMap {
+        //TODO make this trial based
         return neighborGenerator?.generateNeighbor(currentPoint, this)
             ?: currentPoint.randomizeInputVariable(rnStream)
     }
