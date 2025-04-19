@@ -166,7 +166,7 @@ abstract class Solver(
      *  solution to recommend for the solver. It is the responsibility
      *  of the subclass to determine the current (best) solution.
      */
-    var currentSolution: Solution = problemDefinition.infeasibleSolution()
+    var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
             field = value
             if (saveSolutions){
@@ -314,6 +314,7 @@ abstract class Solver(
     private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
         val list = mutableListOf<EvaluationRequest>()
         for(input in inputs){
+            require(input.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
             val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
             list.add(EvaluationRequest(numReps, input))
         }

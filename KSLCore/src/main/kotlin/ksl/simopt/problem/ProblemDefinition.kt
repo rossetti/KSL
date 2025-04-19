@@ -725,10 +725,12 @@ class ProblemDefinition(
     }
 
     /**
-     *  Creates an infeasible and bad solution. This is useful when initializing solvers.
+     *  Creates an infeasible and bad solution. This is useful when initializing solvers
+     *  or when rejecting requests.
+     *
      *  @return the unbelievably bad solution
      */
-    fun infeasibleSolution(): Solution {
+    fun badSolution(): Solution {
         val map = mutableMapOf<String, Double>()
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.lowerBound - Int.MAX_VALUE
