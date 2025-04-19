@@ -35,7 +35,7 @@ class InputMap(
      *  for the granularity is used as the step size.  The return InputMap should be
      *  input feasible, but may not be feasible with respect to linear or functional
      *  constraints.
-     *  
+     *
      *  @param stepSize the amount of the perturbation. Must be greater than 0.0
      *  @param rnStream the stream to use in randomly choosing the direction of the step
      *  @return a new InputMap based on the current input map
