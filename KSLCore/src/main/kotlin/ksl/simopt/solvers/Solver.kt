@@ -8,6 +8,7 @@ import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -137,6 +138,8 @@ abstract class Solver(
      *  compare function to specialize how solutions are compared.
      */
     var solutionComparer: CompareSolutionsIfc? = null
+
+    var neighborGenerator: GenerateNeighborIfc? = null
 
     /**
      *  The maximum number of iterations permitted for the main loop. This must be
@@ -298,6 +301,14 @@ abstract class Solver(
      */
     protected open fun mainIterationsEnded(){
 
+    }
+
+    protected open fun generateNeighbor(
+        currentPoint: InputMap,
+        rnStream: RNStreamIfc
+    ) : InputMap {
+        return neighborGenerator?.generateNeighbor(currentPoint, this)
+            ?: currentPoint.randomizeInputVariable(rnStream)
     }
 
     protected fun requestEvaluations(inputs: Set<InputMap>): List<Solution> {

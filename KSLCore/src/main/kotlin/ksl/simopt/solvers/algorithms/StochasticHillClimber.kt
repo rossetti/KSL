@@ -18,8 +18,6 @@ open class StochasticHillClimber(
     name: String? = null
 ) : Solver(evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc by rnStream {
 
-    var neighborGenerator: GenerateNeighborIfc? = null
-
     override fun initializeIterations() {
         val initialPoint = problemDefinition.startingPoint(rnStream)
         initialSolution = requestEvaluation(initialPoint)
@@ -29,16 +27,11 @@ open class StochasticHillClimber(
     override fun mainIteration() {
         // generate a random neighbor of the current solution
         val currentPoint = currentSolution.inputMap
-        val nextPoint = generateNeighbor(currentPoint)
+        val nextPoint = generateNeighbor(currentPoint, rnStream)
         // evaluate the solution
         val nextSolution = requestEvaluation(nextPoint)
         // if new solution is better (smaller) update the current solution
 
-    }
-
-    protected fun generateNeighbor(currentPoint: InputMap) : InputMap {
-        return neighborGenerator?.generateNeighbor(currentPoint, this)
-            ?: currentPoint.randomizeInputVariable(rnStream)
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
