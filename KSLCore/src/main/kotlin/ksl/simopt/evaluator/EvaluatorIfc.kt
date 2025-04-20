@@ -4,7 +4,15 @@ import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.ProblemDefinition
 
 interface EvaluatorIfc {
+
+    /**
+     *  The problem definition associated with the evaluation process
+     */
     val problemDefinition: ProblemDefinition
+
+    /**
+     *  A possible cache to hold evaluated solutions
+     */
     val cache: SolutionCacheIfc?
 
     /**
@@ -78,7 +86,8 @@ interface EvaluatorIfc {
      *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
      *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
      *  solutions that result due to the processing will be entered into the cache (according
-     *  to the rules governing the cache).
+     *  to the rules governing the cache).  Any incoming requests that have input range
+     *  infeasible input settings will be rejected from the evaluation process.
      *
      *  @param requests a list of evaluation requests
      *  @return a list containing a solution for each request
