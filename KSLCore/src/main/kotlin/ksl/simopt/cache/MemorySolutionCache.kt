@@ -65,10 +65,10 @@ class MemorySolutionCache(
     }
 
     override fun put(inputMap: InputMap, solution: Solution): Solution? {
+        require(inputMap == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
         if(!inputMap.isInputFeasible()){
             return null
         }
-        //TODO should we check if the inputMap is the same input map of the solution?
         if (size == capacity) {
             val itemToEvict = evictionRule?.findEvictionCandidate(this) ?: findEvictionCandidate()
             remove(itemToEvict)
