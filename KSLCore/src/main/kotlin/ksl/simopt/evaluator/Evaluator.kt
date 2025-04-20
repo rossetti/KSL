@@ -114,6 +114,17 @@ class Evaluator(
     }
 
     /**
+     *  The purpose of this function is to remove and handle any incoming requests that
+     *  are input range infeasible prior to possible evaluation by the simulation oracle.
+     *  The assumption is that an input range infeasible request will cause a failed evaluation
+     *  and there is no need to start a possibly long-running process if there is no need.
+     *  However, the solver that made the request needs to be informed.
+     */
+    private fun filterInputRangeInfeasibleRequests(requests: List<EvaluationRequest>) : List<EvaluationRequest> {
+        TODO("Not implemented yet")
+    }
+
+    /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
      *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
@@ -121,10 +132,11 @@ class Evaluator(
      *  solutions that result due to the processing will be entered into the cache (according
      *  to the rules governing the cache).
      *
-     *  @param requests a list of evaluation requests
+     *  @param rawRequests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    override fun evaluate(requests: List<EvaluationRequest>): List<Solution> {
+    override fun evaluate(rawRequests: List<EvaluationRequest>): List<Solution> {
+        val requests = filterInputRangeInfeasibleRequests(rawRequests)
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
         // round the requests to the appropriate granularity for the problem

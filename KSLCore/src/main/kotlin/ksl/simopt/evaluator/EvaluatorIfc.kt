@@ -89,8 +89,8 @@ interface EvaluatorIfc {
      *  to the rules governing the cache).  Any incoming requests that have input range
      *  infeasible input settings will be rejected from the evaluation process.
      *
-     *  @param requests a list of evaluation requests
+     *  @param rawRequests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    fun evaluate(requests: List<EvaluationRequest>): List<Solution>
+    fun evaluate(rawRequests: List<EvaluationRequest>): List<Solution>
 }
