@@ -127,7 +127,7 @@ class Evaluator(
     }
 
     /**
-     *  The purpose of this function is to handle any screen input infeasible requests from
+     *  The purpose of this function is to handle any screened input infeasible requests from
      *  solvers that will not be evaluated by the simulation oracle.
      */
     protected fun handleInputRangeInfeasibleRequests(infeasibleRequests: List<EvaluationRequest>) {
