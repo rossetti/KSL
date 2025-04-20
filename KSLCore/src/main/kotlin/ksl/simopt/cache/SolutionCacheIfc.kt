@@ -5,38 +5,82 @@ import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 
+/**
+ *  A solution cache should be designed to efficiently look up a solution
+ *  based on a given set of input settings.
+ */
 interface SolutionCacheIfc : Map<InputMap, Solution> {
 
+    /**
+     *   If true input infeasible solutions are allowed to be
+     *   saved in the cache. If false, input infeasible solutions should not
+     *   be saved in the cache. Implementors are free to decide how to
+     *   handle what to do with unsaved input infeasible solutions.
+     *   The default is false (do not allow input infeasible solutions to be saved)
+     */
     var allowInfeasibleSolutions: Boolean
 
+    /**
+     *  The maximum permitted size of the cache
+     */
+    val capacity: Int
+
+    /**
+     *  A rule to govern which solution should be evicted when the cache capacity is met.
+     */
     var evictionRule: EvictionRuleIfc?
 
+    /**
+     *  Places the solution into the cache. It is important that implementors
+     *  handle the insertion of infeasible inputs and ensure that the input
+     *  map is associated with the solution
+     */
     fun put(inputMap: InputMap, solution: Solution): Solution?
 
+    /**
+     *  Looks up and removes the solution associated with the supplied input map.
+     *  Null is returned if there is no associated solution. It is important
+     *  that implementor handle the reduced size relative to the cache.
+     */
     fun remove(inputMap: InputMap): Solution?
 
+    /**
+     *  Places the input map associated with the request into the cache
+     */
     fun put(request: EvaluationRequest, solution: Solution): Solution? {
         return put(request.inputMap, solution)
     }
 
+    /**
+     *  Places all input-solution pairs into the cache
+     */
     fun putAll(from: Map<out InputMap, Solution>) {
         for ((input, solution) in from) {
             put(input, solution)
         }
     }
 
+    /**
+     *  Places all input-solution pairs into the cache
+     */
     fun putAllRequests(from: Map<out EvaluationRequest, Solution>) {
         for ((input, solution) in from) {
             put(input, solution)
         }
     }
 
+    /**
+     *  Removes all items from the cache
+     */
     fun clear() {
         for (key in keys) {
             remove(key)
         }
     }
 
+    /**
+     *  Retrieves the solutions associated with the requests
+     */
     fun retrieveSolutions(requests: List<EvaluationRequest>): MutableMap<InputMap, Solution> {
         val mm = mutableMapOf<InputMap, Solution>()
         for (request in requests) {
@@ -48,6 +92,9 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
         return mm
     }
 
+    /**
+     *  Allows use of bracket operator for setting values
+     */
     operator fun set(inputMap: InputMap, solution: Solution) {
         put(inputMap, solution)
     }
@@ -57,6 +104,5 @@ interface SolutionCacheIfc : Map<InputMap, Solution> {
      *  @return the group of solutions
      */
     fun solutions() : Solutions
-
 }
 

@@ -20,7 +20,7 @@ import ksl.simopt.problem.InputMap
  *  The default is false (do not allow input infeasible solutions to be saved)
  */
 class MemorySolutionCache(
-    val capacity: Int = defaultCacheSize,
+    override val capacity: Int = defaultCacheSize,
     override var allowInfeasibleSolutions: Boolean = false
 ) : SolutionCacheIfc {
     init {
