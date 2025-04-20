@@ -114,13 +114,26 @@ class Evaluator(
     }
 
     /**
-     *  The purpose of this function is to remove and handle any incoming requests that
+     *  The purpose of this function is to remove any incoming requests that
      *  are input range infeasible prior to possible evaluation by the simulation oracle.
      *  The assumption is that an input range infeasible request will cause a failed evaluation
      *  and there is no need to start a possibly long-running process if there is no need.
      *  However, the solver that made the request needs to be informed.
      */
-    private fun filterInputRangeInfeasibleRequests(requests: List<EvaluationRequest>) : List<EvaluationRequest> {
+    private fun filterInputRangeInfeasibleRequests(rawRequests: List<EvaluationRequest>) : List<EvaluationRequest> {
+        val (feasible, infeasible) = rawRequests.partition { it.isInputRangeFeasible() }
+        handleInputRangeInfeasibleRequests(infeasible)
+        return feasible
+    }
+
+    /**
+     *  The purpose of this function is to handle any screen input infeasible requests from
+     *  solvers that will not be evaluated by the simulation oracle.
+     */
+    protected fun handleInputRangeInfeasibleRequests(infeasibleRequests: List<EvaluationRequest>) {
+        //TODO the problem is that there is no way to call back to the solver with the bad "solutions"
+        // seems like List<EvaluationRequest> should be encapsulated into a single object with the callback available
+        // also seems like List<Solution> should be encapsulated into a single object, perhaps the result
         TODO("Not implemented yet")
     }
 
