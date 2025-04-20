@@ -7,6 +7,8 @@ import ksl.simopt.problem.InputMap
 
 interface SolutionCacheIfc : Map<InputMap, Solution> {
 
+    var allowInfeasibleSolutions: Boolean
+
     var evictionRule: EvictionRuleIfc?
 
     fun put(inputMap: InputMap, solution: Solution): Solution?

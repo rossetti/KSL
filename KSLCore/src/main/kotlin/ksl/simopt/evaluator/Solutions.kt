@@ -6,10 +6,17 @@ import java.util.PriorityQueue
  * Class to support a group of solutions (each containing inputs, responses, objective fns, penalties)
  * The solutions are naturally ordered by comparison of Solution instances based on
  * their penalized objective functions (without regard to sampling error).
+ *
  * @param capacity the capacity for the solutions. Constrains the total number of solutions in-memory.
  * The default capacity is 100. Oldest solutions are evicted first.
+ *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
+ *  saved. If false, input infeasible solutions are silently ignored.
+ *  The default is false (do not allow input infeasible solutions to be saved)
  */
-class Solutions(val capacity: Int = defaultCapacity) : SolutionsIfc {
+class Solutions(
+    val capacity: Int = defaultCapacity,
+    var allowInfeasibleSolutions: Boolean = false
+) : SolutionsIfc {
 
     constructor(solutions: List<Solution>, capacity: Int = defaultCapacity) : this(capacity) {
         addAll(solutions)
@@ -43,6 +50,9 @@ class Solutions(val capacity: Int = defaultCapacity) : SolutionsIfc {
      *  @return a possibly evicted item
      */
     fun add(solution: Solution): Solution? {
+        if(!solution.isInputFeasible()){
+            return null
+        }
         val removed = if (myEnteredSolutions.size == capacity) {
             // insert will cause capacity violation, remove oldest
             val first = myEnteredSolutions.removeFirst()

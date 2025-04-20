@@ -15,9 +15,13 @@ import ksl.simopt.problem.InputMap
  *  is deterministically infeasible, infinite, or undefined in some manner. Then, it will
  *  identify the oldest solution with the largest penalized objective function for removal.
  *  @param capacity the maximum permitted size of the cache
+ *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
+ *  saved in the cache. If false, input infeasible solutions are silently ignored.
+ *  The default is false (do not allow input infeasible solutions to be saved)
  */
 class MemorySolutionCache(
-    val capacity: Int = defaultCacheSize
+    val capacity: Int = defaultCacheSize,
+    override var allowInfeasibleSolutions: Boolean = false
 ) : SolutionCacheIfc {
     init {
         require(capacity >= 2) {"The cache's capacity must be >= 2"}
@@ -61,6 +65,10 @@ class MemorySolutionCache(
     }
 
     override fun put(inputMap: InputMap, solution: Solution): Solution? {
+        if(!inputMap.isInputFeasible()){
+            return null
+        }
+        //TODO should we check if the inputMap is the same input map of the solution?
         if (size == capacity) {
             val itemToEvict = evictionRule?.findEvictionCandidate(this) ?: findEvictionCandidate()
             remove(itemToEvict)
