@@ -152,8 +152,6 @@ class Evaluator(
         val requests = filterInputRangeInfeasibleRequests(rawRequests)
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + requests.size
-        // round the requests to the appropriate granularity for the problem
-        roundRequestsToGranularity(requests)
         // filter out the duplicate requests
         val uniqueRequests = filterToUniqueRequests(requests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
@@ -218,20 +216,6 @@ class Evaluator(
                 request.startingReplicationNum = n //TODO why?
                 request.numReplications = request.numReplications - n
             }
-        }
-    }
-
-    /**
-     *  A helper function to round the inputs associated with each request to the
-     *  necessary granularity associated with the problem. The input map
-     *  associated with the evaluation request will be mutated to the correct granularity.
-     *  This is important because the values of the inputs determine if new evaluations
-     *  are necessary. We simulate at the required granularity.
-     */
-    private fun roundRequestsToGranularity(requests: List<EvaluationRequest>) {
-        //TODO why is this needed
-        for (request in requests) {
-            problemDefinition.roundToGranularity(request.inputMap)
         }
     }
 
