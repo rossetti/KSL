@@ -50,7 +50,7 @@ fun testMRound(){
         println("value = ${id.randomValue()}")
     }
     println()
-    val pts = id.points()
+    val pts = id.granularPoints()
     println("pts = $pts")
 
     println()
