@@ -586,10 +586,20 @@ class ProblemDefinition(
      */
     fun validate(inputs: Map<String, Double>): Boolean {
         for ((name, value) in inputs) {
-            val inputDefinition = myInputDefinitions[name] ?: return false
-            if (!inputDefinition.contains(value)) return false
+            if(!validateInputVariable(name, value)) {return false}
         }
         return true
+    }
+
+    /**
+     *  Checks if the supplied value is a valid input value for the supplied input name.
+     *  @param inputName the name of the input. The name must be in the input map.
+     *  @param value the value associated with the input name
+     *  @return true if the name and value are valid, false otherwise
+     */
+    fun validateInputVariable(inputName: String, value: Double) : Boolean {
+        if (!myInputDefinitions.containsKey(inputName)) { return false }
+        return myInputDefinitions[inputName]!!.contains(value)
     }
 
     /**
