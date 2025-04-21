@@ -474,7 +474,7 @@ class ProblemDefinition(
      *   @return the returned map is a new InputMap based on the supplied InputMap
      */
     fun roundToGranularity(map: InputMap): InputMap {
-        val nm = HashMap<String, Double> (map)
+        val nm = HashMap<String, Double>(map)
         for ((name, inputDefinition) in myInputDefinitions) {
             nm[name] = inputDefinition.roundToGranularity(map[name]!!)
         }
@@ -489,6 +489,7 @@ class ProblemDefinition(
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val map = mutableMapOf<String, Double>()
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
+            require(inputDefinition.contains(x[i])) {"The value ${x[i]} is out of the range, ${inputDefinition.interval}, for ${inputDefinition.name}" }
             map[inputDefinition.name] = x[i]
         }
         return InputMap(this, map)
@@ -501,7 +502,6 @@ class ProblemDefinition(
      *  names for the problem.
      */
     fun toInputMap(map: MutableMap<String, Double>): InputMap {
-        require(validateNames(map)) { "The names in the supplied map do not match the required names of the problem" }
         return InputMap(this, map)
     }
 
@@ -577,6 +577,19 @@ class ProblemDefinition(
      */
     fun validateNames(inputs: Map<String, Double>): Boolean {
         return validate(inputs, inputNames)
+    }
+
+    /**
+     *  Checks if the supplied map has valid names and valid values (input range feasible)
+     *  @param inputs the map to check
+     *  @return false if a name or value is invalid in the map
+     */
+    fun validate(inputs: Map<String, Double>): Boolean {
+        for ((name, value) in inputs) {
+            val inputDefinition = myInputDefinitions[name] ?: return false
+            if (!inputDefinition.contains(value)) return false
+        }
+        return true
     }
 
     /**

@@ -10,15 +10,22 @@ import ksl.utilities.random.rvariable.KSLRandom
  *  the underlying map cannot be changed.  This prevents an input map that
  *  is associated with a solution from being changed. InputMap instances
  *  are the keys for solution caches. Thus, we cannot change the key of
- *  the solution cache.
+ *  the solution cache. An input map that is infeasible with respect to
+ *  the input variable ranges cannot be constructed.
  *
  * @param map the map containing the (name, value) pairs associated with inputs
- * for the evaluation process.
+ * for the evaluation process. These names and values must be valid with respect
+ * to the problem. The name must be a valid name for the problem and the value
+ * must be within the input variable's defined range of possible values.
  */
 class InputMap(
     val problemDefinition: ProblemDefinition,
     private val map: MutableMap<String, Double>
 ) : Map<String, Double> by map, FeasibilityIfc {
+
+    init {
+        require(problemDefinition.validate(map)) {"The supplied map has invalid names or values for the problem definition."}
+    }
 
     /**
      *  A copy of the input map as a mutable map
