@@ -229,6 +229,7 @@ class Evaluator(
      *  are necessary. We simulate at the required granularity.
      */
     private fun roundRequestsToGranularity(requests: List<EvaluationRequest>) {
+        //TODO why is this needed
         for (request in requests) {
             problemDefinition.roundToGranularity(request.inputMap)
         }

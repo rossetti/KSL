@@ -450,20 +450,27 @@ class ProblemDefinition(
         return x
     }
 
-    /** The map values are mutated to hold values that have appropriate granularity based on the
+    /** The map values are mutated to hold values that have appropriate granularity and range based on the
      *  input definitions.
      *
      *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
      *  input names.
      *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
      */
-    fun roundToGranularity(map: MutableMap<String, Double>): InputMap {
+    fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for ((name, inputDefinition) in myInputDefinitions) {
             require(name in map) { "The input name $name does not exist in the map" }
-            map[name] = inputDefinition.roundToGranularity(map[name]!!)
+            val value = map[name]!!
+            map[name] = if (value < inputDefinition.lowerBound){
+                inputDefinition.lowerBound
+            } else if (value > inputDefinition.upperBound){
+                inputDefinition.upperBound
+            } else {
+                inputDefinition.roundToGranularity(value)
+            }
         }
-        return InputMap(this, map)
+        return map
     }
 
     /** The map values are mutated to hold values that have appropriate granularity based on the
@@ -474,6 +481,7 @@ class ProblemDefinition(
      *   @return the returned map is a new InputMap based on the supplied InputMap
      */
     fun roundToGranularity(map: InputMap): InputMap {
+        //TODO why is this needed
         val nm = HashMap<String, Double>(map)
         for ((name, inputDefinition) in myInputDefinitions) {
             nm[name] = inputDefinition.roundToGranularity(map[name]!!)
@@ -484,13 +492,21 @@ class ProblemDefinition(
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *  If the supplied value is outside the range of the name variable it is adjusted to the closest
+     *  boundary. In addition, the granularity of the input variable is applied.
+     *  @param x the supplied array.
      */
     fun toInputMap(x: DoubleArray): InputMap {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val map = mutableMapOf<String, Double>()
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
-            require(inputDefinition.contains(x[i])) {"The value ${x[i]} is out of the range, ${inputDefinition.interval}, for ${inputDefinition.name}" }
-            map[inputDefinition.name] = x[i]
+            map[inputDefinition.name] = if (x[i] < inputDefinition.lowerBound){
+                inputDefinition.lowerBound
+            } else if (x[i] > inputDefinition.upperBound){
+                inputDefinition.upperBound
+            } else {
+                inputDefinition.roundToGranularity(x[i])
+            }
         }
         return InputMap(this, map)
     }
@@ -747,6 +763,7 @@ class ProblemDefinition(
         for ((name, iDef) in myInputDefinitions) {
             map[name] = iDef.lowerBound - Int.MAX_VALUE
         }
+        //TODO this will not be allowed
         val inputMap = InputMap(this, map)
         val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.MAX_VALUE, 1.0)
         val list = mutableListOf<EstimatedResponse>()
