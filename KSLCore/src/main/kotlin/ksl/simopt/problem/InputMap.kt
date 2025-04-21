@@ -76,9 +76,7 @@ class InputMap(
      *  @return true if the value is valid, false otherwise
      */
     fun validateInputVariable(inputName: String, value: Double) : Boolean {
-        require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
-        val iDefn =problemDefinition.inputDefinitions[inputName]!!
-        return iDefn.contains(value)
+        return problemDefinition.validateInputVariable(inputName, value)
     }
 
     /**

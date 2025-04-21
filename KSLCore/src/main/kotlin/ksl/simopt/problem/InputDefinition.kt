@@ -83,7 +83,7 @@ class InputDefinition(
      *  @return the generated point
      */
     fun randomValue(rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): Double {
-        val x = KSLRandom.rUniform(lowerBound, upperBound, rnStream)
+        val x = rnStream.rUniform(lowerBound, upperBound)
         return roundToGranularity(x)
     }
 
