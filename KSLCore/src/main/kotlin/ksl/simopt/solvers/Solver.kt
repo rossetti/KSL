@@ -118,9 +118,9 @@ abstract class Solver(
 
     /**
      *  Indicates whether the solver allows infeasible requests
-     *  to be sent to the evaluator. The default is false.
+     *  to be sent to the evaluator. The default is true.
      */
-    var allowInfeasibleRequests: Boolean = false
+    var allowInfeasibleRequests: Boolean = true
 
     /**
      *  A read-only view of the solutions evaluated by the solver.
