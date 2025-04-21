@@ -68,7 +68,7 @@ class InputMap(
      *  @param value the value to be assigned to the input
      *  @return true if the value is valid, false otherwise
      */
-    fun validateInput(inputName: String, value: Double) : Boolean {
+    fun validateInputVariable(inputName: String, value: Double) : Boolean {
         require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
         val iDefn =problemDefinition.inputDefinitions[inputName]!!
         return iDefn.contains(value)
@@ -82,9 +82,9 @@ class InputMap(
      *  named input
      *  @return the newly created instance
      */
-    fun copy(inputName: String, value: Double): InputMap {
+    fun changeInputVariable(inputName: String, value: Double): InputMap {
         require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
-        require(validateInput(inputName, value)) {"The supplied value ($value) is not in the defined input range ${problemDefinition.inputDefinitions[inputName]!!.interval}"}
+        require(validateInputVariable(inputName, value)) {"The supplied value ($value) is not in the defined input range ${problemDefinition.inputDefinitions[inputName]!!.interval}"}
         val cm = HashMap(map)
         cm[inputName] = value
         return InputMap(problemDefinition, cm)

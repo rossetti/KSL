@@ -638,7 +638,7 @@ class ProblemDefinition(
     ): InputMap {
         require(inputMap.containsKey(name)) { "The supplied input map does not contain the variable: $name" }
         val iDefinition = myInputDefinitions[name]!!
-        return inputMap.copy(name, iDefinition.randomValue(rnStream))
+        return inputMap.changeInputVariable(name, iDefinition.randomValue(rnStream))
     }
 
     /**
