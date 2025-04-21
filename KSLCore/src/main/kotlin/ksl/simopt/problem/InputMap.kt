@@ -29,11 +29,13 @@ class InputMap(
 
     /**
      *  Perturbs the current input values by the supplied step size.  Each input
-     *  is randomly increased or decreased by the step size. If the perturbation
-     *  will cause the value to be outsize of the defined input range, then the closest
+     *  is randomly increased or decreased by the step size. The likelihood of increasing
+     *  or decreasing the value is equally likely.
+     *
+     *  If the perturbation will cause the value to be outside the defined input range, then the closest
      *  bound is used as the value. If the step size is less than the granularity
-     *  for the granularity is used as the step size.  The return InputMap should be
-     *  input feasible, but may not be feasible with respect to linear or functional
+     *  for the input, then the granularity is used as the step size.  The returned InputMap should be
+     *  input range feasible, but may not be feasible with respect to linear or functional
      *  constraints.
      *
      *  @param stepSize the amount of the perturbation. Must be greater than 0.0
@@ -61,14 +63,28 @@ class InputMap(
     }
 
     /**
+     *  Checks if the supplied value is a valid input value for the supplied input name.
+     *  @param inputName the name of the input. The name must be in the input map.
+     *  @param value the value to be assigned to the input
+     *  @return true if the value is valid, false otherwise
+     */
+    fun validate(inputName: String, value: Double) : Boolean {
+        require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
+        val iDefn =problemDefinition.inputDefinitions[inputName]!!
+        return iDefn.contains(value)
+    }
+
+    /**
      *  Creates a new instance of an InputMap that is a copy of the current
      *  instance but with the value associated with the specified [inputName] changed to the provided [value]
      *  @param inputName the input name to change. Must be contained in the InputMap
-     *  @param value the new value to assign
+     *  @param value the new value to assign. The supplied value must be in the valid input range for the
+     *  named input
      *  @return the newly created instance
      */
     fun copy(inputName: String, value: Double): InputMap {
         require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
+        require(validate(inputName, value)) {"The supplied value ($value) is not in the defined input range ${problemDefinition.inputDefinitions[inputName]!!.interval}"}
         val cm = HashMap(map)
         cm[inputName] = value
         return InputMap(problemDefinition, cm)
