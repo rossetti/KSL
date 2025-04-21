@@ -455,7 +455,7 @@ class ProblemDefinition(
      *
      *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
      *  input names.
-     *   @return the returned map is the same map as the input map but mutated. It is return for convenience.
+     *  @return the returned map is the same map as the input map but mutated. It is return for convenience.
      */
     fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
@@ -473,20 +473,42 @@ class ProblemDefinition(
         return map
     }
 
-    /** The map values are mutated to hold values that have appropriate granularity based on the
-     *  input definitions.
+    /**
+     *  Ensures that the supplied map is translated to an appropriate map
+     *  containing name, value pairs for this problem. The resulting InputMap
+     *  will have valid names and values that are input range feasible. The
+     *  values will be rounded to the appropriate granularity for the named
+     *  input variable.
      *
-     *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
-     *  input names.
-     *   @return the returned map is a new InputMap based on the supplied InputMap
+     *  @param map the map to wrap. The keys of the supplied map must be valid
+     *  names for the problem.
      */
-    fun roundToGranularity(map: InputMap): InputMap {
-        //TODO why is this needed
-        val nm = HashMap<String, Double>(map)
-        for ((name, inputDefinition) in myInputDefinitions) {
-            nm[name] = inputDefinition.roundToGranularity(map[name]!!)
-        }
-        return InputMap(this, nm)
+    fun toInputMap(map: MutableMap<String, Double>): InputMap {
+        return InputMap(this, roundToGranularity(map))
+    }
+
+//    /** The map values are mutated to hold values that have appropriate granularity based on the
+//     *  input definitions.
+//     *
+//     *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
+//     *  input names.
+//     *   @return the returned map is a new InputMap based on the supplied InputMap
+//     */
+//    fun roundToGranularity(map: InputMap): InputMap {
+//        //TODO why is this needed
+//        val nm = HashMap<String, Double>(map)
+//        for ((name, inputDefinition) in myInputDefinitions) {
+//            nm[name] = inputDefinition.roundToGranularity(map[name]!!)
+//        }
+//        return InputMap(this, nm)
+//    }
+
+    /**
+     *  Creates an input map that is centered at the mid-points of
+     *  all the input variables
+     */
+    fun midPoints() : InputMap {
+        return toInputMap(midPoints)
     }
 
     /**
@@ -508,16 +530,6 @@ class ProblemDefinition(
                 inputDefinition.roundToGranularity(x[i])
             }
         }
-        return InputMap(this, map)
-    }
-
-    /**
-     *  Ensures that the supplied map is translated to an appropriate map
-     *  containing name, value pairs for this problem
-     *  @param map the map to wrap. The keys of the supplied map must be valid
-     *  names for the problem.
-     */
-    fun toInputMap(map: MutableMap<String, Double>): InputMap {
         return InputMap(this, map)
     }
 
@@ -642,7 +654,7 @@ class ProblemDefinition(
 
     /**
      *  Generates a random point within the ranges defined by the inputs.
-     *  The point can have the appropriate granularity based on the definitions of the inputs.
+     *  The point will have the appropriate granularity based on the definitions of the inputs.
      *
      *  @param rnStream the stream to use when generating random points within the input range space.
      *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
@@ -659,7 +671,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  Randomly generates a new value for the named input variable and returns the updated
+     *  Randomly generates a new value for the named input variable and returns a new
      *  input map. The input map may not be feasible with respect to linear or functional constraints.
      *
      *  @param inputMap the input map for which the named variable will be changed
@@ -681,7 +693,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  Randomly generates a new value for the named input variable and returns the updated
+     *  Randomly generates a new value for the named input variable and a new
      *  input map. The input should be feasible with respect to linear or functional constraints.
      *  If the number of sampling iterations needed to get a feasible point exceeds [maxFeasibleSamplingIterations]
      *  then an IllegalStateException will occur.
@@ -759,12 +771,8 @@ class ProblemDefinition(
      *  @return the unbelievably bad solution
      */
     fun badSolution(): Solution {
-        val map = mutableMapOf<String, Double>()
-        for ((name, iDef) in myInputDefinitions) {
-            map[name] = iDef.lowerBound - Int.MAX_VALUE
-        }
-        //TODO this will not be allowed
-        val inputMap = InputMap(this, map)
+        val inputMap = midPoints()
+        inputMap.makeInfeasible()
         val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.MAX_VALUE, 1.0)
         val list = mutableListOf<EstimatedResponse>()
         for (rc in responseConstraints) {

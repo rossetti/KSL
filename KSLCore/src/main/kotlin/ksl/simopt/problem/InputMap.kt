@@ -5,26 +5,35 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
- *  This class prevents the keys from changing, but allows the changing of
- *  the data value associated with the keys resulting in a new instance. Thus,
- *  the underlying map cannot be changed.  This prevents an input map that
+ *  This class prevents the keys and values from changing.  This prevents an input map that
  *  is associated with a solution from being changed. InputMap instances
  *  are the keys for solution caches. Thus, we cannot change the key of
  *  the solution cache. An input map that is infeasible with respect to
- *  the input variable ranges cannot be constructed.
+ *  the input variable ranges cannot be constructed by the user.
  *
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process. These names and values must be valid with respect
  * to the problem. The name must be a valid name for the problem and the value
  * must be within the input variable's defined range of possible values.
  */
-class InputMap(
+class InputMap internal constructor(
     val problemDefinition: ProblemDefinition,
     private val map: MutableMap<String, Double>
 ) : Map<String, Double> by map, FeasibilityIfc {
 
     init {
         require(problemDefinition.validate(map)) {"The supplied map has invalid names or values for the problem definition."}
+    }
+
+    /**
+     *  Internally permits the creation of an input map that is infeasible
+     *  with respect to input ranges. Used to create a bad solution
+     */
+    internal fun makeInfeasible() {
+        val inputDefinitions = problemDefinition.inputDefinitions
+        for ((name, iDef) in inputDefinitions) {
+            map[name] = iDef.lowerBound - Int.MAX_VALUE
+        }
     }
 
     /**
