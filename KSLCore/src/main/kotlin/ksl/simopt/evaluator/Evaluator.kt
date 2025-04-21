@@ -112,31 +112,7 @@ class Evaluator(
         totalOracleReplications = 0
         totalCachedReplications = 0
     }
-
-    /**
-     *  The purpose of this function is to remove any incoming requests that
-     *  are input range infeasible prior to possible evaluation by the simulation oracle.
-     *  The assumption is that an input range infeasible request will cause a failed evaluation
-     *  and there is no need to start a possibly long-running process if there is no need.
-     *  However, the solver that made the request needs to be informed.
-     */
-    private fun filterInputRangeInfeasibleRequests(rawRequests: List<EvaluationRequest>) : List<EvaluationRequest> {
-        val (feasible, infeasible) = rawRequests.partition { it.isInputRangeFeasible() }
-        handleInputRangeInfeasibleRequests(infeasible)
-        return feasible
-    }
-
-    /**
-     *  The purpose of this function is to handle any screened input infeasible requests from
-     *  solvers that will not be evaluated by the simulation oracle.
-     */
-    protected fun handleInputRangeInfeasibleRequests(infeasibleRequests: List<EvaluationRequest>) {
-        //TODO the problem is that there is no way to call back to the solver with the bad "solutions"
-        // seems like List<EvaluationRequest> should be encapsulated into a single object with the callback available
-        // also seems like List<Solution> should be encapsulated into a single object, perhaps the result
-        TODO("Not implemented yet")
-    }
-
+    
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
@@ -149,12 +125,11 @@ class Evaluator(
      *  @return a list containing a solution for each request
      */
     override fun evaluate(rawRequests: List<EvaluationRequest>): List<Solution> {
-        val requests = filterInputRangeInfeasibleRequests(rawRequests)
         totalEvaluations++
-        totalRequestsReceived = totalRequestsReceived + requests.size
+        totalRequestsReceived = totalRequestsReceived + rawRequests.size
         // filter out the duplicate requests
-        val uniqueRequests = filterToUniqueRequests(requests)
-        totalDuplicateRequestReceived = totalDuplicateRequestReceived + (requests.size - uniqueRequests.size)
+        val uniqueRequests = filterToUniqueRequests(rawRequests)
+        totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
         // check with the cache for solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
         // the returned map is either empty or contains solutions associated with some of the requests
@@ -187,7 +162,7 @@ class Evaluator(
         // package the solutions up for each request in the order that was requested
         // handle duplicate input requests by grabbing from the solution map based on the input of the request
         val solutions = mutableListOf<Solution>()
-        for(request in requests){
+        for(request in rawRequests){
             solutions.add(solutionMap[request.inputMap]!!)
         }
         return solutions
