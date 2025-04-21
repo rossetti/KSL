@@ -121,7 +121,7 @@ class InputMap internal constructor(
         name: String = problemDefinition.randomInputName(rnStream),
     ): InputMap {
         require(containsKey(name)) { "The input map does not contain the variable: $name" }
-        return problemDefinition.randomizeInputValue(this, rnStream, name)
+        return problemDefinition.randomizeInputValue(asMutableMap(), rnStream, name)
     }
 
     override fun equals(other: Any?): Boolean {
