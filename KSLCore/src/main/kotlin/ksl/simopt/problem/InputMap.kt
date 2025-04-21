@@ -101,7 +101,7 @@ class InputMap internal constructor(
         require(validateInputVariable(inputName, value)) {"The supplied value ($value) is not in the defined input range ${problemDefinition.inputDefinitions[inputName]!!.interval}"}
         val cm = HashMap(map)
         cm[inputName] = value
-        return InputMap(problemDefinition, cm)
+        return problemDefinition.toInputMap(cm)
     }
 
     /**

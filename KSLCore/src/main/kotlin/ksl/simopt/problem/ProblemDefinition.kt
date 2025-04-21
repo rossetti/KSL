@@ -487,22 +487,6 @@ class ProblemDefinition(
         return InputMap(this, roundToGranularity(map))
     }
 
-//    /** The map values are mutated to hold values that have appropriate granularity based on the
-//     *  input definitions.
-//     *
-//     *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
-//     *  input names.
-//     *   @return the returned map is a new InputMap based on the supplied InputMap
-//     */
-//    fun roundToGranularity(map: InputMap): InputMap {
-//        //TODO why is this needed
-//        val nm = HashMap<String, Double>(map)
-//        for ((name, inputDefinition) in myInputDefinitions) {
-//            nm[name] = inputDefinition.roundToGranularity(map[name]!!)
-//        }
-//        return InputMap(this, nm)
-//    }
-
     /**
      *  Creates an input map that is centered at the mid-points of
      *  all the input variables
