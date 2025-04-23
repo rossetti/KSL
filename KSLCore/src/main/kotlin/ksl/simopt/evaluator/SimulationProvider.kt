@@ -35,6 +35,8 @@ class SimulationProvider(
     clearDataBeforeExperimentOption: Boolean = false,
 ) : SimulationProviderIfc {
 
+    //TODO add constructor that has ()-> Model
+    
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
