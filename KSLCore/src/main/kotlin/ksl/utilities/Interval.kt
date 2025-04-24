@@ -163,6 +163,17 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
         return Histogram.createBreakPoints(lowerLimit, upperLimit, numSteps)
     }
 
+    /**
+     *  A simple implementation of linspace() found in python
+     *  Returns evenly spaced values within a given interval start, stop
+     *  @param num the number of points in the interval. Defaults to 50
+     *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+     *  @return a list of the values
+     */
+    fun linspace(num: Int = 50, endpoint: Boolean = true): List<Double> {
+        return linspace(this.lowerLimit, this.upperLimit, num, endpoint)
+    }
+
 }
 
 fun ClosedFloatingPointRange<Double>.asInterval(): Interval {
