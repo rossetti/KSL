@@ -15,6 +15,7 @@ import kotlinx.serialization.builtins.DoubleArraySerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import ksl.utilities.KSLArrays
+import ksl.utilities.math.KSLMath
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
@@ -37,7 +38,7 @@ fun main(){
 fun testMRound(){
     val x = 3.0459
     val g = 0.25
-    val r = KSLArrays.mround(x, g)
+    val r = KSLMath.mround(x, g)
     println("x=$x g=$g r=$r")
 }
 
