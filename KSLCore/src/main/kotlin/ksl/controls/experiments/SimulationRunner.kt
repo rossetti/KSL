@@ -21,7 +21,6 @@ package ksl.controls.experiments
 import ksl.controls.Controls
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
-import ksl.simulation.Experiment
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.maps.KSLMaps
@@ -76,27 +75,6 @@ import java.io.StringWriter
 class SimulationRunner(
     private val model: Model
 ) {
-
-    /**
-     *  The model will be run with the provided [inputs] based on the current run parameters
-     *  (model.extractRunParameters()) associated with the model.
-     *
-     *  The inputs can represent both control (key, value) pairs and random variable parameter
-     *  (key, value) pairs to be applied to the experiment.  The inputs may be empty.
-     *
-     *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
-     *  associated with the simulation run.
-     */
-    fun simulate(//TODO why does this method exist?
-        inputs: Map<String, Double> = mapOf(),
-        experiment: Experiment? = null
-    ) : SimulationRun {
-        if (experiment == null) {
-            return simulate(inputs, model.extractRunParameters())
-        } else {
-            return simulate(inputs, experiment.extractRunParameters())
-        }
-    }
 
     /**
      *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
