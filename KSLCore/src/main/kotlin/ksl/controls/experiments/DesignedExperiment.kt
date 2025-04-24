@@ -398,8 +398,8 @@ class DesignedExperiment(
      *  Simulates the specified design point from the factorial design for the
      *  specified number of replications.  The specified number of replications
      *  will override whatever is specified in the model's specified number of replications.
-     *  Also, the model experiment's name is automatically to use the supplied [baseExperimentName]
-     *  with the design point identity concatenated to ensure that is experiment has
+     *  Also, the model experiment's name is automatically set to use the supplied [baseExperimentName]
+     *  with the design point identity concatenated to ensure that the experiment has
      *  a unique name when capturing the data within a database.
      *
      *  @param designPoint the design point to simulate
