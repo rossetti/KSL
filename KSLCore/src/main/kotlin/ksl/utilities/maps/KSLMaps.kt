@@ -150,6 +150,22 @@ object KSLMaps {
         return format.encodeToString(map)
     }
 
+    fun <K, V : Comparable<V>> sortMapByValue(map: Map<K, V>): Map<K, V> {
+        return map.entries.sortedBy { it.value }.associate { it.toPair() }
+    }
+
+    fun <K, V : Comparable<V>> sortMapByValueDescending(map: Map<K, V>): Map<K, V> {
+        return map.entries.sortedByDescending { it.value }.associate { it.toPair() }
+    }
+
+}
+
+fun <K, V : Comparable<V>> Map<K,V>.sortMapByValue(): Map<K, V> {
+    return KSLMaps.sortMapByValue(this)
+}
+
+fun <K, V : Comparable<V>> Map<K,V>.sortMapByValueDescending(): Map<K, V> {
+    return KSLMaps.sortMapByValueDescending(this)
 }
 
 /**
