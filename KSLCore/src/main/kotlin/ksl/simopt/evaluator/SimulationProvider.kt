@@ -36,7 +36,7 @@ class SimulationProvider(
 ) : SimulationProviderIfc {
 
     //TODO add constructor that has ()-> Model
-    
+
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
