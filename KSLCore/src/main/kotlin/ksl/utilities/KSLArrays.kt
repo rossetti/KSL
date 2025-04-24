@@ -1992,61 +1992,9 @@ object KSLArrays {
             require(x.size == granularity.size) { "x array and granularity array have different lengths" }
             val res = DoubleArray(x.size)
             for (i in x.indices) {
-                res[i] = mround(x[i], granularity[i])
+                res[i] = KSLMath.mround(x[i], granularity[i])
             }
             res
-        }
-    }
-
-    /**
-     * Contributed by Andrew Gibson
-     * round a scalar double to a multiple of granularity
-     * note that 0 a  granularity value is interpreted as "no rounding"
-     *
-     * Granularity represents the finest division of the measurement scale.
-     * For example, a 12-inch rule that has inches divided into 4 quarters has
-     * a granularity of 1/4 or 0.25. The function rounds the supplied double
-     * to the nearest multiple of the granularity.
-     *
-     * For example,
-     *
-     * mround(3.1459, granularity = 0.25) = 3.25
-     * mround(3.0459, granularity = 0.25) = 3.0
-     *
-     * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
-     * for further information.
-     *
-     * @param x           - input
-     * @param granularity a scalar Double
-     * @return x rounded to granularity
-     */
-    fun mround(x: Double, granularity: Double): Double {
-        // interpret 0 and null  granularity as "no rounding"
-        return if (granularity.compareTo(0.0) < 1) {
-            x
-        } else {
-            /*
-                  Math.round converts to a Long internally and where granularity is tiny compared
-                  to x, x/granularity could cause an overflow and instability in the calculation
-                   e.g. Math.round(1E50 / (1E-50))*1E-50 = 99.223372036854776E-32 !!
-
-                  the biggest Long is Math.pow(2^63) - 1
-                  We certainly don't want to overflow that but 2^63 - 1 has 19 significant figures
-                  (more than a double can represent 2^53 - 1)
-                  we want (x/prec) < (2^63 - 1) to avoid overflow
-                   - work with 2^50 , any rounding beyond that is pointless)
-                   - note that Math.log uses base 10 AND
-                       - log(x, base = 2) = log(x, base = 10)/ log(2, base = 10)
-                       - which lets us derive the formula below
-                  */
-            if (ln(x) - ln(granularity) > 50.0 * ln(2.0)) {
-                // not worth rounding to such a small degree or risking overflow
-                // in conversion to Long
-                x
-            } else {
-                // go ahead and round it !
-                (x / granularity).roundToInt() * granularity
-            }
         }
     }
 
@@ -3822,4 +3770,61 @@ fun List<Double>.indexOfMin(): Int {
         }
     }
     return index
+}
+
+/**
+ *  A simple implementation of linspace() found in python
+ *  Returns evenly spaced values within a given interval start, stop
+ *  @param start the starting value. Must be less than stop
+ *  @param stop the stopping value. Must be greater than start
+ *  @param num the number of points in the interval. Defaults to 50
+ *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+ *  @return a list of the values
+ */
+fun linspace(start: Int, stop: Int, num: Int = 50, endpoint: Boolean = true): List<Double> {
+    return linspace(start.toDouble(), stop.toDouble(), num, endpoint)
+}
+
+/**
+ *  A simple implementation of linspace() found in python
+ *  Returns evenly spaced values within a given interval start, stop
+ *  @param start the starting value. Must be less than stop
+ *  @param stop the stopping value. Must be greater than start
+ *  @param num the number of points in the interval. Defaults to 50
+ *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+ *  @return a list of the values
+ */
+fun linspace(range: IntRange, num: Int = 50, endpoint: Boolean = true): List<Double> {
+    return linspace(range.first, range.last, num, endpoint)
+}
+
+/**
+ *  A simple implementation of linspace() found in python
+ *  Returns evenly spaced values within a given interval start, stop
+ *  @param start the starting value. Must be less than stop
+ *  @param stop the stopping value. Must be greater than start
+ *  @param num the number of points in the interval. Defaults to 50
+ *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+ *  @return a list of the values
+ */
+fun linspace(start: Double, stop: Double, num: Int = 50, endpoint: Boolean = true): List<Double> {
+    require(start.isFinite()) { "start must be finite" }
+    require(stop.isFinite()) { "stop must be finite" }
+    require(!start.isNaN()) { "start must be not be NaN" }
+    require(!stop.isNaN()) { "stop must be not be NaN" }
+    require(start < stop) {"The starting value ($start) must be less that the stop value ($stop)."}
+    val n = num.coerceAtLeast(1)
+    if (n == 1) {
+        return listOf(start)
+    }
+    val list = mutableListOf<Double>()
+    val step = if (endpoint) {
+        (stop - start) / (n - 1)
+    } else {
+        (stop - start) / n
+    }
+    for (i in 0 until n) {
+        list.add(start + step * i)
+    }
+    return list
 }
