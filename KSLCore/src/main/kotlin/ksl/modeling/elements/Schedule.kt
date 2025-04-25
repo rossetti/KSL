@@ -42,6 +42,32 @@ data class ScheduleItemData(
         require(duration > 0.0) { "The duration must be > 0.0" }
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
     }
+
+    companion object {
+
+        /**
+         *  @param duration the duration of each item
+         *  @param numItems the number of consecutive items
+         *  @param prefix the prefix for naming the items, by default "Item:"
+         *  @param startTime the start time of the first item, zero by default
+         *  @return the list of items
+         */
+        fun createConsecutiveScheduleItems(
+            duration: Double,
+            numItems:Int = 1,
+            startTime: Double = 0.0,
+            prefix: String = "Item:"
+        ): List<ScheduleItemData> {
+            require(prefix.isNotBlank()) { "The prefix cannot be blank" }
+            val list = mutableListOf<ScheduleItemData>()
+            var start = startTime
+            for (i in 1..numItems) {
+                list.add(ScheduleItemData("${prefix}i", start, duration))
+                start = start + duration
+            }
+            return list
+        }
+    }
 }
 
 @Serializable
