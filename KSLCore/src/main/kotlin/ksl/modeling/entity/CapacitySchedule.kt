@@ -282,7 +282,7 @@ class CapacitySchedule(
 
     private val myItems: MutableList<CapacityItem> = mutableListOf()
 
-    val items: List<CapacityItemData>
+    override val items: List<CapacityItemData>
         get() = myItems.map { it.toCapacityItemData() }
 
     private val myChangeListeners: MutableList<CapacityChangeListenerIfc> = mutableListOf()
