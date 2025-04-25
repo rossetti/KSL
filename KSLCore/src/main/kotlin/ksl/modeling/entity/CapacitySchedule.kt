@@ -17,6 +17,7 @@
  */
 package ksl.modeling.entity
 
+import kotlinx.serialization.Serializable
 import ksl.modeling.entity.CapacitySchedule.CapacityItem
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -37,6 +38,7 @@ interface CapacityChangeListenerIfc {
  * @param duration the duration of the change
  * @param priority the priority of the change
  */
+@Serializable
 data class CapacityItemData(
     val capacity: Int,
     val duration: Double,
@@ -47,6 +49,14 @@ data class CapacityItemData(
         require(capacity >= 0) { "The capacity must be >= 0" }
     }
 }
+
+@Serializable
+data class CapacityScheduleData(
+    var isScheduleRepeatable: Boolean,
+    var isAutoStartFlag: Boolean,
+    var initialStartTime: Double,
+    val capacityItems: List<CapacityItemData>
+)
 
 interface CapacityScheduleCIfc {
 
