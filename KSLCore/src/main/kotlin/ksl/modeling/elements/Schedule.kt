@@ -164,8 +164,6 @@ interface ScheduleCIfc {
      */
     fun clearSchedule()
 
-
-    fun asString(): String
 }
 
 /** A Schedule represents a known set of events that can occur according to a pattern.
@@ -470,7 +468,7 @@ class Schedule(
         return asString()
     }
 
-    override fun asString(): String {
+    fun asString(): String {
         val sb = StringBuilder()
         sb.appendLine("Schedule: $name")
         sb.appendLine("Initial Start Time = $initialStartTime")
