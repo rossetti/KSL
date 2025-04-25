@@ -26,8 +26,6 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.ToJSONIfc
 
 //TODO: Get rid of generic message, just make it an Any
-//TODO: require unique name for each scheduled item, or construct it from id
-//TODO: assign id based on order added to list of items in the schedule
 //TODO: provide ability to easily create non-overlapping sequence of durations
 
 
@@ -238,15 +236,20 @@ class Schedule(
      */
     fun <T> addItem(item: ScheduleItem<T>) {
         require(item.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
+        require(!myItemNames.contains(item.name)) {"The supplied item name is already on the schedule."}
 
         // nothing in the list, just add to beginning
         if (myItems.isEmpty()) {
             myItems.add(item)
+            myItemNames.add(item.name)
+            return
         }
         // might as well check for worse case, if larger than the largest
         // then put it at the end and return
         if (item.compareTo(myItems[myItems.size - 1]) >= 0) {
             myItems.add(item)
+            myItemNames.add(item.name)
+            return
         }
 
         // now iterate through the list
@@ -256,6 +259,7 @@ class Schedule(
                 // next() move the iterator forward, if it is < what was returned by next(), then it
                 // must be inserted at the previous index
                 myItems.add(i.previousIndex(), item)
+                myItemNames.add(item.name)
                 break
             }
         }
@@ -319,11 +323,11 @@ class Schedule(
         sb.appendLine("Start event priority = $startEventPriority")
         sb.appendLine("Item Start event priority = $itemStartEventPriority")
         sb.appendLine("Items:")
-        sb.appendLine("-----------------------------------------------------------------------------")
+        sb.appendLine("-------------------------------------------------------------------------------")
         for (i in myItems) {
             sb.appendLine(i)
         }
-        sb.appendLine("-----------------------------------------------------------------------------")
+        sb.appendLine("-------------------------------------------------------------------------------")
         return sb.toString()
     }
 
@@ -476,14 +480,12 @@ class Schedule(
         Comparable<ScheduleItem<*>> {
         init {
             require(name.isNotBlank()) {"The name must not be blank." }
-            require(!myItemNames.contains(name)) {"The supplied item name is already on the schedule."}
             require(startTime >= 0.0) { "The start time must be >= 0.0" }
             require(duration > 0.0) { "The duration must be > 0.0" }
             idCounter += 1
         }
 
-        var id: Int = idCounter
-            private set
+        val id: Int = idCounter
 
         val schedule: Schedule = this@Schedule
         internal var myStartEvent: KSLEvent<ScheduleItem<*>>? = null
