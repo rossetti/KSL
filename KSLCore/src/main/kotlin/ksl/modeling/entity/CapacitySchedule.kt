@@ -62,6 +62,10 @@ data class CapacityScheduleData(
 ) : ToJSONIfc {
     init {
         require(initialStartTime >= 0) { "The initial start time must be >= 0" }
+        for(item in capacityItems) {
+            require(item.duration > 0.0) { "The duration must be > 0.0" }
+            require(item.capacity >= 0) { "The capacity must be >= 0" }
+        }
     }
 
     override fun toJson(): String {
@@ -376,9 +380,16 @@ class CapacitySchedule(
     }
 
     /**
-     * Adds an item to the schedule
+     * Adds an item to the schedule. Each item is added
+     * consecutively to the schedule in the order added. The start
+     * time of the 2nd capacity change is the ending time of the first
+     * capacity change and so on.
+     * 
+     * The total length of the schedule is the sum of all the durations
+     * added.
+     *
      * @param duration the duration of the item
-     * @param capacity a message or datum to attach to the item
+     * @param capacity the capacity for the duration
      * @return the created CapacityItem
      * */
     override fun addItem(
