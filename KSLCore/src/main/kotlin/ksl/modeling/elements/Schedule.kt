@@ -25,7 +25,6 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.ToJSONIfc
 
-//TODO: Get rid of generic message, just make it an Any
 //TODO: provide ability to easily create non-overlapping sequence of durations
 
 
@@ -35,10 +34,11 @@ data class ScheduleItemData(
     var startTime: Double = 0.0,
     var duration: Double,
     var priority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
-    var message: String? = null
+    var message: String? = null,
+    var datum: Double? = null
 ) {
     init {
-        require(name.isNotBlank()) {"The name cannot be blank" }
+        require(name.isNotBlank()) { "The name cannot be blank" }
         require(duration > 0.0) { "The duration must be > 0.0" }
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
     }
@@ -63,6 +63,144 @@ data class ScheduleData(
         val format = Json { prettyPrint = true }
         return format.encodeToString(this)
     }
+}
+
+interface ScheduleCIfc {
+    /**
+     * Indicates whether the schedule should be started automatically upon initialization, default is true
+     */
+    val isAutoStartFlag: Boolean
+
+    /**
+     * The time from the beginning of the replication to the time that the schedule is to start
+     */
+    val initialStartTime: Double
+
+    /**
+     * Represents the total length of time of the schedule.
+     * The total of the durations added to the schedule cannot exceed this
+     * amount.
+     * After this time has elapsed the entire schedule can repeat if the
+     * schedule repeat flag is true. The default is infinite.
+     */
+    val scheduleLength: Double
+
+    /**
+     * The schedule repeat flag controls whether
+     * the entire schedule will repeat after its entire duration
+     * has elapsed. The default is to repeat the schedule. The
+     * use of this flag only makes sense if a finite schedule length is
+     * specified
+     *
+     */
+    val isScheduleRepeatable: Boolean
+
+    /**
+     *
+     * the priority associated with the item's start event
+     */
+    val itemStartEventPriority: Int
+
+    /**
+     *
+     * the priority associated with the schedule's start event
+     */
+    val startEventPriority: Int
+
+    /**
+     * The same listener cannot be added more than once. Listeners are
+     * notified of schedule changes in the sequence by which they were added.
+     *
+     * @param listener the listener to add to the schedule
+     */
+    fun addScheduleChangeListener(listener: ScheduleChangeListenerIfc)
+
+    /**
+     *
+     * @param listener the listener to delete from the schedule
+     */
+    fun deleteScheduleChangeListener(listener: ScheduleChangeListenerIfc)
+
+    /**
+     * Deletes all listeners
+     */
+    fun deleteScheduleChangeListeners()
+
+    /**
+     *
+     * @param listener the listener to check
+     * @return true if the listener is already added
+     */
+    operator fun contains(listener: ScheduleChangeListenerIfc): Boolean
+
+    /**
+     *
+     * @return the number of listeners
+     */
+    fun countScheduleChangeListeners(): Int
+
+    /** Adds all the items to the schedule.
+     *
+     *  @param items the items to add
+     */
+    fun addItems(items: List<Schedule.ScheduleItem>)
+
+    /**
+     *  Adds the item to the schedule
+     *  @param item the item to add. The item's end time must be less than or equal to
+     *  the schedule's initial start time plus the schedule length
+     */
+    fun addItem(item: Schedule.ScheduleItem)
+
+    /**
+     * Adds an item to the schedule
+     *
+     * @param startTime the time past the start of the schedule to start the
+     * item
+     * @param duration the duration of the item
+     * @param name the unique name of the item on the schedule
+     * @param priority the priority, (among items) if items start at the same
+     * time
+     * @param message a message to attach to the item
+     * @param datum a datum to attach to the item
+     * @return the created ScheduleItem
+     * */
+    fun addItem(
+        startTime: Double = 0.0,
+        duration: Double,
+        name: String = "Item:${idCounter + 1}",
+        priority: Int = itemStartEventPriority,
+        message: String? = null,
+        datum: Double? = null
+    ): Schedule.ScheduleItem
+
+    /**
+     *  Adds the item to the schedule
+     *  @param item the item to add. The item's end time must be less than or equal to
+     *  the schedule's initial start time plus the schedule length
+     */
+    fun addItem(scheduleItemData: ScheduleItemData): Schedule.ScheduleItem
+
+    /** Adds all the items to the schedule.
+     *
+     *  @param items the items to add
+     */
+    fun addItems(items: List<ScheduleItemData>)
+
+    /** Removes the item from the schedule. If the item is null or not on this
+     * schedule nothing happens.
+     *
+     * @param item the item to remove
+     */
+    fun removeItem(item: Schedule.ScheduleItem?)
+
+    /**
+     * Removes all schedule items from the schedule
+     */
+    fun clearSchedule()
+
+    
+    fun asString(): String
 }
 
 /** A Schedule represents a known set of events that can occur according to a pattern.
@@ -107,7 +245,7 @@ class Schedule(
     startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
     itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), ScheduleCIfc {
 
     init {
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
@@ -118,8 +256,10 @@ class Schedule(
         parent: ModelElement,
         scheduleData: ScheduleData,
         name: String? = null
-    ): this(parent, scheduleData.startTime, scheduleData.length, scheduleData.autoStartOption,
-        scheduleData.repeatable, scheduleData.startPriority, scheduleData.itemPriority, name){
+    ) : this(
+        parent, scheduleData.startTime, scheduleData.length, scheduleData.autoStartOption,
+        scheduleData.repeatable, scheduleData.startPriority, scheduleData.itemPriority, name
+    ) {
         addItems(scheduleData.items)
     }
 
@@ -128,12 +268,12 @@ class Schedule(
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    val isAutoStartFlag: Boolean = autoStartOption
+    override val isAutoStartFlag: Boolean = autoStartOption
 
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    val initialStartTime: Double = startTime
+    override val initialStartTime: Double = startTime
 
     /**
      * Represents the total length of time of the schedule.
@@ -142,7 +282,7 @@ class Schedule(
      * After this time has elapsed the entire schedule can repeat if the
      * schedule repeat flag is true. The default is infinite.
      */
-    val scheduleLength: Double = length
+    override val scheduleLength: Double = length
 
     /**
      * The time that the schedule started for its current cycle
@@ -159,19 +299,19 @@ class Schedule(
      * specified
      *
      */
-    val isScheduleRepeatable: Boolean = repeatable
+    override val isScheduleRepeatable: Boolean = repeatable
 
     /**
      *
      * the priority associated with the item's start event
      */
-    val itemStartEventPriority: Int = itemPriority
+    override val itemStartEventPriority: Int = itemPriority
 
     /**
      *
      * the priority associated with the schedule's start event
      */
-    val startEventPriority: Int = startPriority
+    override val startEventPriority: Int = startPriority
 
     private val myItems: MutableList<ScheduleItem> = mutableListOf()
     private val myItemNames = mutableSetOf<String>()
@@ -193,7 +333,7 @@ class Schedule(
      *
      * @param listener the listener to add to the schedule
      */
-    fun addScheduleChangeListener(listener: ScheduleChangeListenerIfc) {
+    override fun addScheduleChangeListener(listener: ScheduleChangeListenerIfc) {
         require(!myChangeListeners.contains(listener)) { "The supplied listener is already attached" }
         myChangeListeners.add(listener)
     }
@@ -202,14 +342,14 @@ class Schedule(
      *
      * @param listener the listener to delete from the schedule
      */
-    fun deleteScheduleChangeListener(listener: ScheduleChangeListenerIfc) {
+    override fun deleteScheduleChangeListener(listener: ScheduleChangeListenerIfc) {
         myChangeListeners.remove(listener)
     }
 
     /**
      * Deletes all listeners
      */
-    fun deleteScheduleChangeListeners() {
+    override fun deleteScheduleChangeListeners() {
         myChangeListeners.clear()
     }
 
@@ -218,7 +358,7 @@ class Schedule(
      * @param listener the listener to check
      * @return true if the listener is already added
      */
-    operator fun contains(listener: ScheduleChangeListenerIfc): Boolean {
+    override operator fun contains(listener: ScheduleChangeListenerIfc): Boolean {
         return myChangeListeners.contains(listener)
     }
 
@@ -226,7 +366,7 @@ class Schedule(
      *
      * @return the number of listeners
      */
-    fun countScheduleChangeListeners(): Int {
+    override fun countScheduleChangeListeners(): Int {
         return myChangeListeners.size
     }
 
@@ -234,7 +374,7 @@ class Schedule(
      *
      *  @param items the items to add
      */
-    fun addItems(items: List<ScheduleItem>) {
+    override fun addItems(items: List<ScheduleItem>) {
         for (item in items) {
             addItem(item)
         }
@@ -245,9 +385,9 @@ class Schedule(
      *  @param item the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
-    fun addItem(item: ScheduleItem) {
+    override fun addItem(item: ScheduleItem) {
         require(item.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
-        require(!myItemNames.contains(item.name)) {"The supplied item name is already on the schedule."}
+        require(!myItemNames.contains(item.name)) { "The supplied item name is already on the schedule." }
 
         // nothing in the list, just add to beginning
         if (myItems.isEmpty()) {
@@ -285,17 +425,19 @@ class Schedule(
      * @param name the unique name of the item on the schedule
      * @param priority the priority, (among items) if items start at the same
      * time
-     * @param datum a message or datum to attach to the item
+     * @param message a message to attach to the item
+     * @param datum a datum to attach to the item
      * @return the created ScheduleItem
      * */
-    fun addItem(
-        startTime: Double = 0.0,
+    override fun addItem(
+        startTime: Double,
         duration: Double,
-        name: String = "Item:${idCounter + 1}",
-        priority: Int = itemStartEventPriority,
-        datum: String? = null
+        name: String,
+        priority: Int,
+        message: String?,
+        datum: Double?
     ): ScheduleItem {
-        val aItem: ScheduleItem = ScheduleItem(name, startTime, duration, priority, datum)
+        val aItem: ScheduleItem = ScheduleItem(name, startTime, duration, priority, message, datum)
         addItem(aItem)
         return aItem
     }
@@ -305,16 +447,18 @@ class Schedule(
      *  @param item the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
-    fun addItem(scheduleItemData: ScheduleItemData): ScheduleItem {
-        return addItem(scheduleItemData.startTime, scheduleItemData.duration, scheduleItemData.name,
-            scheduleItemData.priority, scheduleItemData.message)
+    override fun addItem(scheduleItemData: ScheduleItemData): ScheduleItem {
+        return addItem(
+            scheduleItemData.startTime, scheduleItemData.duration, scheduleItemData.name,
+            scheduleItemData.priority, scheduleItemData.message, scheduleItemData.datum
+        )
     }
 
     /** Adds all the items to the schedule.
      *
      *  @param items the items to add
      */
-    fun addItems(items: List<ScheduleItemData>) {
+    override fun addItems(items: List<ScheduleItemData>) {
         for (item in items) {
             addItem(item)
         }
@@ -325,7 +469,7 @@ class Schedule(
      *
      * @param item the item to remove
      */
-    fun removeItem(item: ScheduleItem?) {
+    override fun removeItem(item: ScheduleItem?) {
         if (item == null) {
             return
         }
@@ -336,7 +480,7 @@ class Schedule(
     /**
      * Removes all schedule items from the schedule
      */
-    fun clearSchedule() {
+    override fun clearSchedule() {
         myItems.clear()
         myItemNames.clear()
     }
@@ -345,7 +489,7 @@ class Schedule(
         return asString()
     }
 
-    fun asString(): String {
+    override fun asString(): String {
         val sb = StringBuilder()
         sb.appendLine("Schedule: $name")
         sb.appendLine("Initial Start Time = $initialStartTime")
@@ -507,11 +651,12 @@ class Schedule(
         val startTime: Double,
         val duration: Double,
         val priority: Int,
-        val message: String? = null
+        val message: String? = null,
+        val datum: Double? = null
     ) :
         Comparable<ScheduleItem> {
         init {
-            require(name.isNotBlank()) {"The name must not be blank." }
+            require(name.isNotBlank()) { "The name must not be blank." }
             require(startTime >= 0.0) { "The start time must be >= 0.0" }
             require(duration > 0.0) { "The duration must be > 0.0" }
             idCounter += 1
@@ -528,23 +673,19 @@ class Schedule(
 
         override fun toString(): String {
             val sb = StringBuilder()
-            sb.append("ID = ")
-            sb.append(id)
-            sb.append(" | name = ")
-            sb.append(name)
-            sb.append(" | Priority = ")
-            sb.append(priority)
-            sb.append(" | Start time = ")
-            sb.append(startTime)
-            sb.append(" | Duration = ")
-            sb.append(duration)
+            sb.append("ID = $id")
+            sb.append(" | name = $name")
+            sb.append(" | Priority = $priority")
+            sb.append(" | Start time = $startTime")
+            sb.append(" | Duration = $duration")
             if (myStartEvent != null) {
-                sb.append(" | Start event priority = ")
-                sb.append(myStartEvent?.priority)
+                sb.append(" | Start event priority = ${myStartEvent?.priority}")
             }
             if (myEndEvent != null) {
-                sb.append(" | End event priority = ")
-                sb.append(myEndEvent?.priority)
+                sb.append(" | End event priority = ${myEndEvent?.priority}")
+            }
+            if (datum != null) {
+                sb.append(" | datum = $datum")
             }
             return sb.toString()
         }
@@ -610,9 +751,9 @@ class Schedule(
 fun main() {
     val m = Model()
     val s = Schedule(m, startTime = 0.0, length = 480.0)
-    s.addItem(60.0 * 2.0, 15.0, datum = "break1")
-    s.addItem((60.0 * 4.0), 30.0, datum = "lunch")
-    s.addItem((60.0 * 6.0), 15.0, datum = "break2")
+    s.addItem(60.0 * 2.0, 15.0, message = "break1")
+    s.addItem((60.0 * 4.0), 30.0, message = "lunch")
+    s.addItem((60.0 * 6.0), 15.0, message = "break2")
     s.addScheduleChangeListener(ScheduleListener())
 
     println(s)
