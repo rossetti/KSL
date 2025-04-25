@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.ToJSONIfc
 import ksl.utilities.statistic.Statistic
 
 /**
@@ -46,7 +47,7 @@ class SimulationRun private constructor(
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
     var results: Map<String, DoubleArray> = mapOf()
-) {
+) : ToJSONIfc {
     constructor(
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
@@ -103,7 +104,7 @@ class SimulationRun private constructor(
         return sb.toString()
     }
 
-    fun toJson(): String{
+    override fun toJson(): String {
         val format = Json { prettyPrint = true }
         return format.encodeToString(this)
     }

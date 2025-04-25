@@ -18,10 +18,13 @@
 package ksl.modeling.entity
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ksl.modeling.entity.CapacitySchedule.CapacityItem
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.ToJSONIfc
 
 interface CapacityChangeListenerIfc {
     fun scheduleStarted(schedule: CapacitySchedule)
@@ -56,7 +59,12 @@ data class CapacityScheduleData(
     var isScheduleRepeatable: Boolean = false,
     var isAutoStartFlag: Boolean = true,
     val capacityItems: List<CapacityItemData>
-)
+) : ToJSONIfc {
+    override fun toJson(): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(this)
+    }
+}
 
 interface CapacityScheduleCIfc {
 

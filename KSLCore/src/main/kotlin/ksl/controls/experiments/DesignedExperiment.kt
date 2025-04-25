@@ -109,22 +109,6 @@ class DesignedExperiment(
         design: TwoLevelFactorialDesign
     ) : this(name, modelCreator(), factorSettings, design)
 
-    /**
-     *
-     *  @param name the name of the experiment for saving simulation results
-     *  @param modelCreator A function designed to create the model
-     *  @param twoLevelSettings A mapping between each factor and a string
-     *  representing the name of the control or parameter to associate with the factor.
-     *  @param design The design that will be simulated. The factors specified in the design must
-     *  be contained in the factor settings.
-     */
-    constructor(
-        name: String,
-        modelCreator: () -> Model,
-        twoLevelSettings: Map<TwoLevelFactor, String>,
-        design: TwoLevelFactorialDesign
-    ) : this(name, modelCreator(), twoLevelFactorSetting(twoLevelSettings), design)
-
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
