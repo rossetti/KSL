@@ -43,9 +43,9 @@ interface CapacityChangeListenerIfc {
  */
 @Serializable
 data class CapacityItemData(
-    val capacity: Int,
-    val duration: Double,
-    val priority: Int = KSLEvent.DEFAULT_PRIORITY
+    var capacity: Int,
+    var duration: Double,
+    var priority: Int = KSLEvent.DEFAULT_PRIORITY
 ) {
     init {
         require(duration > 0.0) { "The start time must be >= 0.0" }
@@ -91,6 +91,11 @@ interface CapacityScheduleCIfc {
     var initialStartTime: Double
 
     /**
+     *  The capacity schedule item data as a list
+     */
+    val items: List<CapacityItemData>
+
+    /**
      * The same listener cannot be added more than once. Listeners are
      * notified of schedule changes in the sequence by which they were added.
      *
@@ -125,21 +130,21 @@ interface CapacityScheduleCIfc {
         capacity: Int,
         duration: Double,
         itemPriority: Int = eventPriority
-    ) : CapacityItem
+    ): CapacityItem
 
     /**
      *  Allow the creation of capacity schedule items via a data class
      */
-    fun addItemData(itemData: CapacityItemData) : CapacityItem {
+    fun addItemData(itemData: CapacityItemData): CapacityItem {
         return addItem(itemData.capacity, itemData.duration, itemData.priority)
     }
 
     /**
      *  Allow the creation of capacity schedule items via a data class
      */
-    fun addItemData(itemDataList: List<CapacityItemData>) : List<CapacityItem> {
+    fun addItemData(itemDataList: List<CapacityItemData>): List<CapacityItem> {
         val list = mutableListOf<CapacityItem>()
-        for(item in itemDataList){
+        for (item in itemDataList) {
             list.add(addItemData(item))
         }
         return list
@@ -161,6 +166,19 @@ interface CapacityScheduleCIfc {
         initialStartTime = settings.initialStartTime
         clearSchedule()
         addItemData(settings.capacityItems)
+    }
+
+    /**
+     *  The data associated with the capacity schedule
+     *  @return the capacity schedule data
+     */
+    fun capacityScheduleData(): CapacityScheduleData {
+        return CapacityScheduleData(
+            initialStartTime = initialStartTime,
+            isScheduleRepeatable = isScheduleRepeatable,
+            isAutoStartFlag = isAutoStartFlag,
+            items
+        )
     }
 }
 
@@ -208,7 +226,7 @@ class CapacitySchedule(
 ) : ModelElement(parent, name), CapacityScheduleCIfc {
 
     init {
-        require(startTime >= 0.0) {"The initial start time must be >= 0.0"}
+        require(startTime >= 0.0) { "The initial start time must be >= 0.0" }
     }
 
     /**
@@ -221,7 +239,7 @@ class CapacitySchedule(
      */
     override var isScheduleRepeatable: Boolean = repeatable
         set(value) {
-            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
             field = value
         }
 
@@ -232,7 +250,7 @@ class CapacitySchedule(
      */
     override var isAutoStartFlag: Boolean = autoStartOption
         set(value) {
-            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
             field = value
         }
 
@@ -241,8 +259,8 @@ class CapacitySchedule(
      */
     override var initialStartTime: Double = startTime
         set(value) {
-            require(value >= 0.0) {"The initial start time must be >= 0.0"}
-            require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+            require(value >= 0.0) { "The initial start time must be >= 0.0" }
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
             field = value
         }
 
@@ -263,14 +281,16 @@ class CapacitySchedule(
         private set
 
     private val myItems: MutableList<CapacityItem> = mutableListOf()
-    val items: List<CapacityItem>
-        get() = myItems
+
+    val items: List<CapacityItemData>
+        get() = myItems.map { it.toCapacityItemData() }
 
     private val myChangeListeners: MutableList<CapacityChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
 
     private var myEndEventPriority = Int.MIN_VALUE
     private var myStartEventPriority = Int.MAX_VALUE
+
     /**
      * If scheduled to start, this cancels the start of the schedule.
      */
@@ -333,10 +353,10 @@ class CapacitySchedule(
         capacity: Int,
         duration: Double,
         itemPriority: Int
-    ) : CapacityItem {
-        require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
-        require(scheduleLength.isFinite()) {"Cannot add items once the schedule length becomes infinite!"}
-        if (myItems.isEmpty()){
+    ): CapacityItem {
+        require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+        require(scheduleLength.isFinite()) { "Cannot add items once the schedule length becomes infinite!" }
+        if (myItems.isEmpty()) {
             // first item being added, end event priority must be < first item's priority
             myEndEventPriority = itemPriority - 5
             // start event priority must be > end event priority
@@ -353,7 +373,7 @@ class CapacitySchedule(
      * Removes all capacity items from the schedule
      */
     override fun clearSchedule() {
-        require(model.isNotRunning) {"The model must not be running when configuring the schedule"}
+        require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
         myItems.clear()
     }
 
@@ -424,11 +444,11 @@ class CapacitySchedule(
         // logic for what to do when schedule is started
         notifyChangeListenersScheduleStarted()
         // schedule the first item if there is one
-        for(item in myItems){
+        for (item in myItems) {
             item.startEvent = schedule(this::startItem, item.startTime, item, item.priority)
         }
         // if the length of the schedule is finite, schedule the end event
-        if (scheduleLength.isFinite() && (scheduleLength != 0.0)){
+        if (scheduleLength.isFinite() && (scheduleLength != 0.0)) {
             // priority for end the schedule must be lower than the start of the schedule to ensure it goes first
             schedule(this::endSchedule, scheduleLength, priority = myEndEventPriority)
         }
@@ -454,7 +474,7 @@ class CapacitySchedule(
      * @param capacity the value of the capacity to be specified at the start time
      * @param duration the duration of the change
      * @param priority the priority of the change
-    */
+     */
     inner class CapacityItem(
         val capacity: Int = 0,
         val duration: Double,
@@ -474,12 +494,16 @@ class CapacitySchedule(
         var startTime: Double = 0.0
             internal set
 
-        fun cancelStart(){
+        fun cancelStart() {
             startEvent?.cancel = true
         }
 
         override fun toString(): String {
             return ("ID = $id | name = $name | start time = $startTime | duration = $duration | priority $priority")
+        }
+
+        fun toCapacityItemData(): CapacityItemData {
+            return CapacityItemData(capacity, duration, priority)
         }
     }
 }
