@@ -171,6 +171,46 @@ class Schedule(
         return myChangeListeners.size
     }
 
+    /** Adds all the items to the schedule.
+     * 
+     *  @param items the items to add
+     */
+    fun <T> addItems(items: List<ScheduleItem<T>>) {
+        for (item in items) {
+            addItem(item)
+        }
+    }
+
+    /**
+     *  Adds the item to the schedule
+     *  @param item the item to add. The item's end time must be less than or equal to
+     *  the schedule's initial start time plus the schedule length
+     */
+    fun <T> addItem(item: ScheduleItem<T>) {
+        require(item.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
+
+        // nothing in the list, just add to beginning
+        if (myItems.isEmpty()) {
+            myItems.add(item)
+        }
+        // might as well check for worse case, if larger than the largest
+        // then put it at the end and return
+        if (item.compareTo(myItems[myItems.size - 1]) >= 0) {
+            myItems.add(item)
+        }
+
+        // now iterate through the list
+        val i: ListIterator<ScheduleItem<*>> = myItems.listIterator()
+        while (i.hasNext()) {
+            if (item.compareTo(i.next()) < 0) {
+                // next() move the iterator forward, if it is < what was returned by next(), then it
+                // must be inserted at the previous index
+                myItems.add(i.previousIndex(), item)
+                break
+            }
+        }
+    }
+
     /**
      * Adds an item to the schedule
      *
@@ -190,30 +230,7 @@ class Schedule(
         datum: T? = null
     ): ScheduleItem<T> {
         val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, datum)
-        require(aItem.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
-
-        // nothing in the list, just add to beginning
-        if (myItems.isEmpty()) {
-            myItems.add(aItem)
-            return aItem
-        }
-        // might as well check for worse case, if larger than the largest
-        // then put it at the end and return
-        if (aItem.compareTo(myItems[myItems.size - 1]) >= 0) {
-            myItems.add(aItem)
-            return aItem
-        }
-
-        // now iterate through the list
-        val i: ListIterator<ScheduleItem<*>> = myItems.listIterator()
-        while (i.hasNext()) {
-            if (aItem.compareTo(i.next()) < 0) {
-                // next() move the iterator forward, if it is < what was returned by next(), then it
-                // must be inserted at the previous index
-                myItems.add(i.previousIndex(), aItem)
-                break
-            }
-        }
+        addItem(aItem)
         return aItem
     }
 
