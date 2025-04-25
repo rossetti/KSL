@@ -240,6 +240,24 @@ class CapacitySchedule(
     }
 
     /**
+     *  Creates a CapacitySchedule based on capacity schedule data
+     * @param parent the parent model element holding the schedule
+     * @param capacityScheduleData the schedule data
+     * @param eventPriority the default priority of the events used to start each item on the schedule
+     * @param name an optional name for the schedule
+     * @author rossetti
+     */
+    constructor(
+        parent: ModelElement,
+        capacityScheduleData: CapacityScheduleData,
+        eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        name: String? = null
+    ) : this(parent, capacityScheduleData.initialStartTime, capacityScheduleData.isAutoStartFlag,
+        capacityScheduleData.isScheduleRepeatable, eventPriority, name) {
+        addItemData(capacityScheduleData.capacityItems)
+    }
+
+    /**
      * The schedule repeat flag controls whether
      * the entire schedule will repeat after its entire duration
      * has elapsed. The default is to repeat the schedule. The
