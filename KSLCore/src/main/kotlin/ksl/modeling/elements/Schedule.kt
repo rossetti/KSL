@@ -114,7 +114,7 @@ class Schedule(
         require(length > 0.0) { "The length must be > 0" }
     }
 
-    private var idCounter: Long = 0
+    private var idCounter: Int = 0
 
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
@@ -165,6 +165,7 @@ class Schedule(
     val startEventPriority: Int = startPriority
 
     private val myItems: MutableList<ScheduleItem<*>> = mutableListOf()
+    private val myItemNames = mutableSetOf<String>()
     private val myChangeListeners: MutableList<ScheduleChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
 
@@ -267,6 +268,7 @@ class Schedule(
      * @param startTime the time past the start of the schedule to start the
      * item
      * @param duration the duration of the item
+     * @param name the unique name of the item on the schedule
      * @param priority the priority, (among items) if items start at the same
      * time
      * @param datum a message or datum to attach to the item
@@ -275,10 +277,11 @@ class Schedule(
     fun <T> addItem(
         startTime: Double = 0.0,
         duration: Double,
+        name: String = "Item:${idCounter + 1}",
         priority: Int = itemStartEventPriority,
         datum: T? = null
     ): ScheduleItem<T> {
-        val aItem: ScheduleItem<T> = ScheduleItem(startTime, duration, priority, datum)
+        val aItem: ScheduleItem<T> = ScheduleItem(name, startTime, duration, priority, datum)
         addItem(aItem)
         return aItem
     }
@@ -308,30 +311,19 @@ class Schedule(
 
     fun asString(): String {
         val sb = StringBuilder()
-        sb.append("Schedule: ")
-        sb.append(name)
-        sb.append(System.lineSeparator())
-        sb.append("Initial Start Time = ").append(initialStartTime)
-        sb.append(System.lineSeparator())
-        sb.append("Length = ").append(scheduleLength)
-        sb.append(System.lineSeparator())
-        sb.append("Auto start = ").append(isAutoStartFlag)
-        sb.append(System.lineSeparator())
-        sb.append("Repeats = ").append(isScheduleRepeatable)
-        sb.append(System.lineSeparator())
-        sb.append("Start event priority = ").append(startEventPriority)
-        sb.append(System.lineSeparator())
-        sb.append("Item Start event priority = ").append(itemStartEventPriority)
-        sb.append(System.lineSeparator())
-        sb.append("Items:")
-        sb.append(System.lineSeparator())
-        sb.append("-----------------------------------------------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine("Schedule: $name")
+        sb.appendLine("Initial Start Time = $initialStartTime")
+        sb.appendLine("Length = $scheduleLength")
+        sb.appendLine("Auto start = $isAutoStartFlag")
+        sb.appendLine("Repeats = $isScheduleRepeatable")
+        sb.appendLine("Start event priority = $startEventPriority")
+        sb.appendLine("Item Start event priority = $itemStartEventPriority")
+        sb.appendLine("Items:")
+        sb.appendLine("-----------------------------------------------------------------------------")
         for (i in myItems) {
-            sb.append(i).append(System.lineSeparator())
+            sb.appendLine(i)
         }
-        sb.append("-----------------------------------------------------------------------------")
-        sb.append(System.lineSeparator())
+        sb.appendLine("-----------------------------------------------------------------------------")
         return sb.toString()
     }
 
@@ -475,6 +467,7 @@ class Schedule(
      * @param <T> a general message or other object that can be associated with the ScheduleItem
     </T> */
     open inner class ScheduleItem<T>(
+        val name: String = "Item:${idCounter + 1}",
         val startTime: Double,
         val duration: Double,
         val priority: Int,
@@ -482,13 +475,16 @@ class Schedule(
     ) :
         Comparable<ScheduleItem<*>> {
         init {
+            require(name.isNotBlank()) {"The name must not be blank." }
+            require(!myItemNames.contains(name)) {"The supplied item name is already on the schedule."}
             require(startTime >= 0.0) { "The start time must be >= 0.0" }
             require(duration > 0.0) { "The duration must be > 0.0" }
             idCounter += 1
         }
 
-        val id: Long = idCounter
-        var name: String = "Item:$id"
+        var id: Int = idCounter
+            private set
+
         val schedule: Schedule = this@Schedule
         internal var myStartEvent: KSLEvent<ScheduleItem<*>>? = null
         internal var myEndEvent: KSLEvent<ScheduleItem<*>>? = null
