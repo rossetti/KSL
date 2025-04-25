@@ -22,8 +22,8 @@ package ksl.modeling.elements
  * @author rossetti
  */
 interface ScheduleChangeListenerIfc {
-    fun scheduleStarted(schedule: Schedule)
-    fun scheduleEnded(schedule: Schedule)
+    fun scheduleStarted(schedule: Schedule){}
+    fun scheduleEnded(schedule: Schedule){}
     fun scheduleItemStarted(item: Schedule.ScheduleItem<*>)
-    fun scheduleItemEnded(item: Schedule.ScheduleItem<*>)
+    fun scheduleItemEnded(item: Schedule.ScheduleItem<*>){}
 }
