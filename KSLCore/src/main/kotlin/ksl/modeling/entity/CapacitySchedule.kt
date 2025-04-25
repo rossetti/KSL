@@ -141,6 +141,19 @@ interface CapacityScheduleCIfc {
      * Removes all capacity items from the schedule
      */
     fun clearSchedule()
+
+    /**
+     *  Clears the current settings of the schedule and
+     *  reconfigures the settings based on the provided capacity schedule data
+     *  @param settings the new settings to apply to the schedule
+     */
+    fun reconfigureSchedule(settings: CapacityScheduleData) {
+        isAutoStartFlag = settings.isAutoStartFlag
+        isScheduleRepeatable = settings.isScheduleRepeatable
+        initialStartTime = settings.initialStartTime
+        clearSchedule()
+        addItemData(settings.capacityItems)
+    }
 }
 
 /** A CapacitySchedule represents a known set of capacity specifications that last for a duration of time.
