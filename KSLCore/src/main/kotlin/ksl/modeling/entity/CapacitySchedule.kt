@@ -129,9 +129,16 @@ interface CapacityScheduleCIfc {
     fun countScheduleChangeListeners(): Int
 
     /**
-     * Adds an item to the schedule
+     * Adds an item to the schedule. Each item is added
+     * consecutively to the schedule in the order added. The start
+     * time of the 2nd capacity change is the ending time of the first
+     * capacity change and so on.
+     *
+     * The total length of the schedule is the sum of all the durations
+     * added.
+     *
      * @param duration the duration of the item
-     * @param capacity a message or datum to attach to the item
+     * @param capacity the capacity for the duration
      * @return the created CapacityItem
      * */
     fun addItem(
@@ -384,7 +391,7 @@ class CapacitySchedule(
      * consecutively to the schedule in the order added. The start
      * time of the 2nd capacity change is the ending time of the first
      * capacity change and so on.
-     * 
+     *
      * The total length of the schedule is the sum of all the durations
      * added.
      *
