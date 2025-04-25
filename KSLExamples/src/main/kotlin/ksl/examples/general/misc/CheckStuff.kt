@@ -12,8 +12,11 @@ import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.sqrt
 import kotlinx.serialization.builtins.DoubleArraySerializer
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import ksl.modeling.entity.CapacityItemData
+import ksl.modeling.entity.CapacityScheduleData
 import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
 
@@ -31,8 +34,8 @@ fun main(){
 //    simulateDemandDuringLeadTime(1000, lt2)
 
 //    testBoxMuller()
-//    serializing()
-    testMRound()
+      serializing()
+//    testMRound()
 }
 
 fun testMRound(){
@@ -56,6 +59,18 @@ fun serializing(){
     val list = listOf(67.0, 33.0, 111.0)
     val listEncoded = Json.encodeToString(serializer<List<Double>>(),  list)
     println(listEncoded)
+
+    val i1 = CapacityItemData(2, 30.0)
+    val i2 = CapacityItemData(1, 60.0)
+    val i3 = CapacityItemData(3, 90.0)
+    val list1 = listOf(i1, i2, i3)
+    val cd = CapacityScheduleData(capacityItems = list1)
+
+    println(cd)
+    println()
+    println(Json.encodeToString(cd))
+    println()
+    println(cd.toJson())
 }
 
 fun testBoxMuller(n: Int = 1000){
