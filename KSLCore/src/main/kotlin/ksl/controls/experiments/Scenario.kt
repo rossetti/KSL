@@ -53,6 +53,22 @@ class Scenario(
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
 ) : Identity(name), ExperimentIfc by model {
 
+    /**
+     *  Uses the supplied model creation function to creat the model. The specification
+     *  of model run parameters relies on the created model to correctly specify its
+     *  running parameter.
+     *
+     *  @param modelCreator a function that will create the model (supply and instance of the model)
+     *  @param name The name of the scenario. It should be unique within the context of a
+     *  set of scenario being executed by a ScenarioRunner.
+     *  @param inputs The map of inputs (based on control names) to apply to the model.
+     */
+    constructor(
+        modelCreator: () -> Model,
+        name: String,
+        inputs: Map<String, Double> = emptyMap(),
+    ): this(modelCreator(), name, inputs)
+
     private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
 
