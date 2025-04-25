@@ -24,6 +24,7 @@ import ksl.observers.SimulationTimer
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
 import ksl.utilities.maps.KSLMaps
+import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.toPrimitives
 import java.io.PrintWriter
@@ -75,6 +76,11 @@ import java.io.StringWriter
 class SimulationRunner(
     private val model: Model
 ) {
+
+    /**
+     *  @param modelCreator a function that will create the model that will be executed
+     */
+    constructor(modelCreator: () -> Model) : this(modelCreator())
 
     /**
      *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
