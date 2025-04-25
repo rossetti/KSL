@@ -139,41 +139,6 @@ interface ScheduleCIfc {
      */
     fun countScheduleChangeListeners(): Int
 
-    /** Adds all the items to the schedule.
-     *
-     *  @param items the items to add
-     */
-    fun addItems(items: List<Schedule.ScheduleItem>)
-
-    /**
-     *  Adds the item to the schedule
-     *  @param item the item to add. The item's end time must be less than or equal to
-     *  the schedule's initial start time plus the schedule length
-     */
-    fun addItem(item: Schedule.ScheduleItem)
-
-    /**
-     * Adds an item to the schedule
-     *
-     * @param startTime the time past the start of the schedule to start the
-     * item
-     * @param duration the duration of the item
-     * @param name the unique name of the item on the schedule
-     * @param priority the priority, (among items) if items start at the same
-     * time
-     * @param message a message to attach to the item
-     * @param datum a datum to attach to the item
-     * @return the created ScheduleItem
-     * */
-    fun addItem(
-        startTime: Double = 0.0,
-        duration: Double,
-        name: String = "Item:${idCounter + 1}",
-        priority: Int = itemStartEventPriority,
-        message: String? = null,
-        datum: Double? = null
-    ): Schedule.ScheduleItem
-
     /**
      *  Adds the item to the schedule
      *  @param item the item to add. The item's end time must be less than or equal to
@@ -199,7 +164,7 @@ interface ScheduleCIfc {
      */
     fun clearSchedule()
 
-    
+
     fun asString(): String
 }
 
@@ -268,7 +233,11 @@ class Schedule(
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    override val isAutoStartFlag: Boolean = autoStartOption
+    override var isAutoStartFlag: Boolean = autoStartOption
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            field = value
+        }
 
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
@@ -299,7 +268,11 @@ class Schedule(
      * specified
      *
      */
-    override val isScheduleRepeatable: Boolean = repeatable
+    override var isScheduleRepeatable: Boolean = repeatable
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            field = value
+        }
 
     /**
      *
@@ -370,22 +343,12 @@ class Schedule(
         return myChangeListeners.size
     }
 
-    /** Adds all the items to the schedule.
-     *
-     *  @param items the items to add
-     */
-    override fun addItems(items: List<ScheduleItem>) {
-        for (item in items) {
-            addItem(item)
-        }
-    }
-
     /**
      *  Adds the item to the schedule
      *  @param item the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
-    override fun addItem(item: ScheduleItem) {
+    private fun addItem(item: ScheduleItem) {
         require(item.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
         require(!myItemNames.contains(item.name)) { "The supplied item name is already on the schedule." }
 
@@ -429,13 +392,13 @@ class Schedule(
      * @param datum a datum to attach to the item
      * @return the created ScheduleItem
      * */
-    override fun addItem(
+    fun addItem(
         startTime: Double,
         duration: Double,
-        name: String,
-        priority: Int,
-        message: String?,
-        datum: Double?
+        name: String = "Item:${idCounter}",
+        priority: Int = itemStartEventPriority,
+        message: String? = null,
+        datum: Double? = null
     ): ScheduleItem {
         val aItem: ScheduleItem = ScheduleItem(name, startTime, duration, priority, message, datum)
         addItem(aItem)
@@ -444,7 +407,7 @@ class Schedule(
 
     /**
      *  Adds the item to the schedule
-     *  @param item the item to add. The item's end time must be less than or equal to
+     *  @param scheduleItemData the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
     override fun addItem(scheduleItemData: ScheduleItemData): ScheduleItem {
@@ -650,7 +613,7 @@ class Schedule(
         val name: String = "Item:${idCounter + 1}",
         val startTime: Double,
         val duration: Double,
-        val priority: Int,
+        val priority: Int = itemStartEventPriority,
         val message: String? = null,
         val datum: Double? = null
     ) :
@@ -751,9 +714,9 @@ class Schedule(
 fun main() {
     val m = Model()
     val s = Schedule(m, startTime = 0.0, length = 480.0)
-    s.addItem(60.0 * 2.0, 15.0, message = "break1")
-    s.addItem((60.0 * 4.0), 30.0, message = "lunch")
-    s.addItem((60.0 * 6.0), 15.0, message = "break2")
+    s.addItem(startTime = 60.0 * 2.0, 15.0, message = "break1")
+    s.addItem(startTime = (60.0 * 4.0), 30.0, message = "lunch")
+    s.addItem(startTime = (60.0 * 6.0), 15.0, message = "break2")
     s.addScheduleChangeListener(ScheduleListener())
 
     println(s)
