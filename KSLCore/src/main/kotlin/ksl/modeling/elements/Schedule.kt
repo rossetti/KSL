@@ -87,6 +87,8 @@ data class ScheduleData(
         require(initialStartTime >= 0.0) { "The start time must be >= 0.0" }
         require(scheduleLength > 0.0) { "The length must be > 0" }
         for(item in scheduleItemDataList) {
+            require(item.duration > 0.0) { "Item = ${item.name} : The duration must be > 0.0" }
+            require(item.startTime >= 0.0) { "Item = ${item.name} : The start time must be >= 0.0" }
             require(item.endTime <= initialStartTime + scheduleLength) { "Item = ${item.name} : The item's end time is past the schedule's end." }
         }
     }
@@ -202,10 +204,10 @@ interface ScheduleCIfc {
     fun clearSchedule()
 
     /**
-     *  The data associated with the capacity schedule
-     *  @return the capacity schedule data
+     *  The data associated with the schedule
+     *  @return the schedule data
      */
-    var capacityScheduleData: ScheduleData
+    var scheduleData: ScheduleData
         get() = ScheduleData(
             initialStartTime = initialStartTime,
             scheduleLength = scheduleLength,
@@ -217,7 +219,7 @@ interface ScheduleCIfc {
         )
         /**
          *  Clears the current settings of the schedule and
-         *  reconfigures the schedule's settings based on the provided capacity schedule data
+         *  reconfigures the schedule's settings based on the provided schedule data
          *  @param settings the new settings to apply to the schedule
          */
         set(settings) {
@@ -240,7 +242,7 @@ interface ScheduleCIfc {
         // decode from the string
         val settings = Json.decodeFromString<ScheduleData>(json)
         // apply the settings
-        capacityScheduleData = settings
+        scheduleData = settings
     }
 }
 
