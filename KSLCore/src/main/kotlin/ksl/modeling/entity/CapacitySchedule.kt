@@ -147,7 +147,7 @@ interface CapacityScheduleCIfc {
      *  reconfigures the settings based on the provided capacity schedule data
      *  @param settings the new settings to apply to the schedule
      */
-    fun reconfigureSchedule(settings: CapacityScheduleData) {
+    fun configureSchedule(settings: CapacityScheduleData) {
         isAutoStartFlag = settings.isAutoStartFlag
         isScheduleRepeatable = settings.isScheduleRepeatable
         initialStartTime = settings.initialStartTime
