@@ -70,7 +70,13 @@ fun serializing(){
     println()
     println(Json.encodeToString(cd))
     println()
+    println("Coded to JSON")
     println(cd.toJson())
+
+    val decoded = Json.decodeFromString<CapacityScheduleData>(cd.toJson())
+    println()
+    println("Decoded")
+    println(decoded)
 }
 
 fun testBoxMuller(n: Int = 1000){
