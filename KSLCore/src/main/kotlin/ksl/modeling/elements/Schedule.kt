@@ -69,12 +69,12 @@ interface ScheduleCIfc {
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
-    val isAutoStartFlag: Boolean
+    var isAutoStartFlag: Boolean
 
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    val initialStartTime: Double
+    var initialStartTime: Double
 
     /**
      * Represents the total length of time of the schedule.
@@ -83,7 +83,7 @@ interface ScheduleCIfc {
      * After this time has elapsed the entire schedule can repeat if the
      * schedule repeat flag is true. The default is infinite.
      */
-    val scheduleLength: Double
+    var scheduleLength: Double
 
     /**
      * The schedule repeat flag controls whether
@@ -93,19 +93,19 @@ interface ScheduleCIfc {
      * specified
      *
      */
-    val isScheduleRepeatable: Boolean
+    var isScheduleRepeatable: Boolean
 
     /**
      *
      * the priority associated with the item's start event
      */
-    val itemStartEventPriority: Int
+    var itemStartEventPriority: Int
 
     /**
      *
      * the priority associated with the schedule's start event
      */
-    val startEventPriority: Int
+    var startEventPriority: Int
 
     /**
      * The same listener cannot be added more than once. Listeners are
@@ -242,7 +242,12 @@ class Schedule(
     /**
      * The time from the beginning of the replication to the time that the schedule is to start
      */
-    override val initialStartTime: Double = startTime
+    override var initialStartTime: Double = startTime
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            require(value >= 0.0) { "The initial start time must be greater than or equal to zero" }
+            field = value
+        }
 
     /**
      * Represents the total length of time of the schedule.
@@ -251,7 +256,12 @@ class Schedule(
      * After this time has elapsed the entire schedule can repeat if the
      * schedule repeat flag is true. The default is infinite.
      */
-    override val scheduleLength: Double = length
+    override var scheduleLength: Double = length
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            require(value > 0) { "The schedule length must be greater than zero" }
+            field = value
+        }
 
     /**
      * The time that the schedule started for its current cycle
@@ -278,13 +288,21 @@ class Schedule(
      *
      * the priority associated with the item's start event
      */
-    override val itemStartEventPriority: Int = itemPriority
+    override var itemStartEventPriority: Int = itemPriority
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            field = value
+        }
 
     /**
      *
      * the priority associated with the schedule's start event
      */
-    override val startEventPriority: Int = startPriority
+    override var startEventPriority: Int = startPriority
+        set(value) {
+            require(model.isNotRunning) { "The model must not be running when configuring the schedule" }
+            field = value
+        }
 
     private val myItems: MutableList<ScheduleItem> = mutableListOf()
     private val myItemNames = mutableSetOf<String>()
