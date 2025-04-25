@@ -52,9 +52,9 @@ data class CapacityItemData(
 
 @Serializable
 data class CapacityScheduleData(
-    var isScheduleRepeatable: Boolean,
-    var isAutoStartFlag: Boolean,
-    var initialStartTime: Double,
+    var initialStartTime: Double = 0.0,
+    var isScheduleRepeatable: Boolean = false,
+    var isAutoStartFlag: Boolean = true,
     val capacityItems: List<CapacityItemData>
 )
 
