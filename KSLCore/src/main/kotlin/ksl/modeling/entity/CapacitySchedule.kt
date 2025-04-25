@@ -48,7 +48,7 @@ data class CapacityItemData(
     var priority: Int = KSLEvent.DEFAULT_PRIORITY
 ) {
     init {
-        require(duration > 0.0) { "The start time must be >= 0.0" }
+        require(duration > 0.0) { "The duration must be > 0.0" }
         require(capacity >= 0) { "The capacity must be >= 0" }
     }
 }
@@ -60,6 +60,10 @@ data class CapacityScheduleData(
     var isAutoStartFlag: Boolean = true,
     val capacityItems: List<CapacityItemData>
 ) : ToJSONIfc {
+    init {
+        require(initialStartTime >= 0) { "The initial start time must be >= 0" }
+    }
+
     override fun toJson(): String {
         val format = Json { prettyPrint = true }
         return format.encodeToString(this)

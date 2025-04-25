@@ -17,9 +17,47 @@
  */
 package ksl.modeling.elements
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.ToJSONIfc
+
+@Serializable
+data class ScheduleItemData<T>(
+    var startTime: Double = 0.0,
+    var duration: Double,
+    var priority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
+    var message: T? = null
+) {
+    init {
+        require(duration > 0.0) { "The duration must be > 0.0" }
+        require(startTime >= 0.0) { "The start time must be >= 0.0" }
+    }
+}
+
+@Serializable
+data class ScheduleData<T>(
+    var startTime: Double = 0.0,
+    var length: Double = Double.POSITIVE_INFINITY,
+    var autoStartOption: Boolean = true,
+    var repeatable: Boolean = true,
+    var startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
+    var itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
+    val items: List<ScheduleItemData<T>>
+) : ToJSONIfc {
+    init {
+        require(startTime >= 0.0) { "The start time must be >= 0.0" }
+        require(length > 0.0) { "The length must be > 0" }
+    }
+
+    override fun toJson(): String {
+        val format = Json { prettyPrint = true }
+        return format.encodeToString(this)
+    }
+}
 
 /** A Schedule represents a known set of events that can occur according to a pattern.
  * A schedule contains one or more instances of ScheduleItem.  A ScheduleItem represents an item on a
@@ -64,6 +102,11 @@ class Schedule(
     itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    init {
+        require(startTime >= 0.0) { "The start time must be >= 0.0" }
+        require(length > 0.0) { "The length must be > 0" }
+    }
 
     private var idCounter: Long = 0
 
