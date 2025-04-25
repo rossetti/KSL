@@ -46,17 +46,17 @@ data class ScheduleItemData(
 
 @Serializable
 data class ScheduleData(
-    var startTime: Double = 0.0,
-    var length: Double = Double.POSITIVE_INFINITY,
-    var autoStartOption: Boolean = true,
-    var repeatable: Boolean = true,
-    var startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
-    var itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
-    val items: List<ScheduleItemData>
+    var initialStartTime: Double = 0.0,
+    var scheduleLength: Double = Double.POSITIVE_INFINITY,
+    var isAutoStartFlag: Boolean = true,
+    var isScheduleRepeatable: Boolean = true,
+    var startEventPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
+    var itemStartEventPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
+    val scheduleItemDataList: List<ScheduleItemData>
 ) : ToJSONIfc {
     init {
-        require(startTime >= 0.0) { "The start time must be >= 0.0" }
-        require(length > 0.0) { "The length must be > 0" }
+        require(initialStartTime >= 0.0) { "The start time must be >= 0.0" }
+        require(scheduleLength > 0.0) { "The length must be > 0" }
     }
 
     override fun toJson(): String {
@@ -106,6 +106,11 @@ interface ScheduleCIfc {
      * the priority associated with the schedule's start event
      */
     var startEventPriority: Int
+
+    /**
+     *  The schedule item data as a list
+     */
+    val scheduleItemDataList: List<ScheduleItemData>
 
     /**
      * The same listener cannot be added more than once. Listeners are
@@ -164,6 +169,47 @@ interface ScheduleCIfc {
      */
     fun clearSchedule()
 
+    /**
+     *  The data associated with the capacity schedule
+     *  @return the capacity schedule data
+     */
+    var capacityScheduleData: ScheduleData
+        get() = ScheduleData(
+            initialStartTime = initialStartTime,
+            scheduleLength = scheduleLength,
+            isAutoStartFlag = isAutoStartFlag,
+            isScheduleRepeatable = isScheduleRepeatable,
+            startEventPriority = startEventPriority,
+            itemStartEventPriority = itemStartEventPriority,
+            scheduleItemDataList
+        )
+        /**
+         *  Clears the current settings of the schedule and
+         *  reconfigures the schedule's settings based on the provided capacity schedule data
+         *  @param settings the new settings to apply to the schedule
+         */
+        set(settings) {
+            isAutoStartFlag = settings.isAutoStartFlag
+            isScheduleRepeatable = settings.isScheduleRepeatable
+            initialStartTime = settings.initialStartTime
+            scheduleLength = settings.scheduleLength
+            startEventPriority = settings.startEventPriority
+            itemStartEventPriority = settings.itemStartEventPriority
+            clearSchedule()
+            addItems(settings.scheduleItemDataList)
+        }
+
+    /**
+     *  Uses the supplied JSON string to configure the schedule via ScheduleData
+     *
+     *  @param json a valid JSON encoded string representing ScheduleData
+     */
+    fun configureFromJson(json: String) {
+        // decode from the string
+        val settings = Json.decodeFromString<ScheduleData>(json)
+        // apply the settings
+        capacityScheduleData = settings
+    }
 }
 
 /** A Schedule represents a known set of events that can occur according to a pattern.
@@ -220,10 +266,10 @@ class Schedule(
         scheduleData: ScheduleData,
         name: String? = null
     ) : this(
-        parent, scheduleData.startTime, scheduleData.length, scheduleData.autoStartOption,
-        scheduleData.repeatable, scheduleData.startPriority, scheduleData.itemPriority, name
+        parent, scheduleData.initialStartTime, scheduleData.scheduleLength, scheduleData.isAutoStartFlag,
+        scheduleData.isScheduleRepeatable, scheduleData.startEventPriority, scheduleData.itemStartEventPriority, name
     ) {
-        addItems(scheduleData.items)
+        addItems(scheduleData.scheduleItemDataList)
     }
 
     private var idCounter: Int = 0
@@ -303,6 +349,9 @@ class Schedule(
         }
 
     private val myItems: MutableList<ScheduleItem> = mutableListOf()
+    override val scheduleItemDataList: List<ScheduleItemData>
+        get() = myItems.map { it.toScheduleItemData() }
+
     private val myItemNames = mutableSetOf<String>()
     private val myChangeListeners: MutableList<ScheduleChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
@@ -649,6 +698,17 @@ class Schedule(
 
         val endTime: Double
             get() = startTime + duration
+
+        fun toScheduleItemData(): ScheduleItemData {
+            return ScheduleItemData(
+                name = this.name,
+                startTime = this.startTime,
+                duration = this.duration,
+                priority = this.priority,
+                message = this.message,
+                datum = this.datum
+            )
+        }
 
         override fun toString(): String {
             val sb = StringBuilder()
