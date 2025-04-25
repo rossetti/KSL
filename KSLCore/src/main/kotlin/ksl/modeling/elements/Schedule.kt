@@ -30,27 +30,29 @@ import ksl.utilities.io.ToJSONIfc
 
 
 @Serializable
-data class ScheduleItemData<T>(
+data class ScheduleItemData(
+    val name: String,
     var startTime: Double = 0.0,
     var duration: Double,
     var priority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
-    var message: T? = null
+    var message: String? = null
 ) {
     init {
+        require(name.isNotBlank()) {"The name cannot be blank" }
         require(duration > 0.0) { "The duration must be > 0.0" }
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
     }
 }
 
 @Serializable
-data class ScheduleData<T>(
+data class ScheduleData(
     var startTime: Double = 0.0,
     var length: Double = Double.POSITIVE_INFINITY,
     var autoStartOption: Boolean = true,
     var repeatable: Boolean = true,
     var startPriority: Int = KSLEvent.DEFAULT_PRIORITY - 5,
     var itemPriority: Int = KSLEvent.DEFAULT_PRIORITY - 4,
-    val items: List<ScheduleItemData<T>>
+    val items: List<ScheduleItemData>
 ) : ToJSONIfc {
     init {
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
@@ -112,6 +114,15 @@ class Schedule(
         require(length > 0.0) { "The length must be > 0" }
     }
 
+    constructor(
+        parent: ModelElement,
+        scheduleData: ScheduleData,
+        name: String? = null
+    ): this(parent, scheduleData.startTime, scheduleData.length, scheduleData.autoStartOption,
+        scheduleData.repeatable, scheduleData.startPriority, scheduleData.itemPriority, name){
+        addItems(scheduleData.items)
+    }
+
     private var idCounter: Int = 0
 
     /**
@@ -162,7 +173,7 @@ class Schedule(
      */
     val startEventPriority: Int = startPriority
 
-    private val myItems: MutableList<ScheduleItem<*>> = mutableListOf()
+    private val myItems: MutableList<ScheduleItem> = mutableListOf()
     private val myItemNames = mutableSetOf<String>()
     private val myChangeListeners: MutableList<ScheduleChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
@@ -223,7 +234,7 @@ class Schedule(
      *
      *  @param items the items to add
      */
-    fun <T> addItems(items: List<ScheduleItem<T>>) {
+    fun addItems(items: List<ScheduleItem>) {
         for (item in items) {
             addItem(item)
         }
@@ -234,7 +245,7 @@ class Schedule(
      *  @param item the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
-    fun <T> addItem(item: ScheduleItem<T>) {
+    fun addItem(item: ScheduleItem) {
         require(item.endTime <= initialStartTime + scheduleLength) { "The item's end time is past the schedule's end." }
         require(!myItemNames.contains(item.name)) {"The supplied item name is already on the schedule."}
 
@@ -253,7 +264,7 @@ class Schedule(
         }
 
         // now iterate through the list
-        val i: ListIterator<ScheduleItem<*>> = myItems.listIterator()
+        val i: ListIterator<ScheduleItem> = myItems.listIterator()
         while (i.hasNext()) {
             if (item.compareTo(i.next()) < 0) {
                 // next() move the iterator forward, if it is < what was returned by next(), then it
@@ -268,7 +279,6 @@ class Schedule(
     /**
      * Adds an item to the schedule
      *
-     * @param <T> the type of the message
      * @param startTime the time past the start of the schedule to start the
      * item
      * @param duration the duration of the item
@@ -277,17 +287,37 @@ class Schedule(
      * time
      * @param datum a message or datum to attach to the item
      * @return the created ScheduleItem
-    </T> */
-    fun <T> addItem(
+     * */
+    fun addItem(
         startTime: Double = 0.0,
         duration: Double,
         name: String = "Item:${idCounter + 1}",
         priority: Int = itemStartEventPriority,
-        datum: T? = null
-    ): ScheduleItem<T> {
-        val aItem: ScheduleItem<T> = ScheduleItem(name, startTime, duration, priority, datum)
+        datum: String? = null
+    ): ScheduleItem {
+        val aItem: ScheduleItem = ScheduleItem(name, startTime, duration, priority, datum)
         addItem(aItem)
         return aItem
+    }
+
+    /**
+     *  Adds the item to the schedule
+     *  @param item the item to add. The item's end time must be less than or equal to
+     *  the schedule's initial start time plus the schedule length
+     */
+    fun addItem(scheduleItemData: ScheduleItemData): ScheduleItem {
+        return addItem(scheduleItemData.startTime, scheduleItemData.duration, scheduleItemData.name,
+            scheduleItemData.priority, scheduleItemData.message)
+    }
+
+    /** Adds all the items to the schedule.
+     *
+     *  @param items the items to add
+     */
+    fun addItems(items: List<ScheduleItemData>) {
+        for (item in items) {
+            addItem(item)
+        }
     }
 
     /** Removes the item from the schedule. If the item is null or not on this
@@ -295,11 +325,12 @@ class Schedule(
      *
      * @param item the item to remove
      */
-    fun removeItem(item: ScheduleItem<*>?) {
+    fun removeItem(item: ScheduleItem?) {
         if (item == null) {
             return
         }
         myItems.remove(item)
+        myItemNames.remove(item.name)
     }
 
     /**
@@ -307,6 +338,7 @@ class Schedule(
      */
     fun clearSchedule() {
         myItems.clear()
+        myItemNames.clear()
     }
 
     override fun toString(): String {
@@ -343,13 +375,13 @@ class Schedule(
         }
     }
 
-    private fun notifyScheduleChangeListenersScheduleItemEnded(item: ScheduleItem<*>) {
+    private fun notifyScheduleChangeListenersScheduleItemEnded(item: ScheduleItem) {
         for (listener in myChangeListeners) {
             listener.scheduleItemEnded(item)
         }
     }
 
-    private fun notifyScheduleChangeListenersScheduleItemStarted(item: ScheduleItem<*>) {
+    private fun notifyScheduleChangeListenersScheduleItemStarted(item: ScheduleItem) {
         for (listener in myChangeListeners) {
             listener.scheduleItemStarted(item)
         }
@@ -404,14 +436,14 @@ class Schedule(
         }
     }
 
-    private fun startItem(event: KSLEvent<ScheduleItem<*>>) {
-        val item = event.message as ScheduleItem<*>
+    private fun startItem(event: KSLEvent<ScheduleItem>) {
+        val item = event.message as ScheduleItem
         notifyScheduleChangeListenersScheduleItemStarted(item)
         scheduleItemEnd(item)
     }
 
-    private fun endItem(event: KSLEvent<ScheduleItem<*>>) {
-        val item = event.message as ScheduleItem<*>
+    private fun endItem(event: KSLEvent<ScheduleItem>) {
+        val item = event.message as ScheduleItem
         notifyScheduleChangeListenersScheduleItemEnded(item)
     }
 
@@ -428,7 +460,7 @@ class Schedule(
         schedule(this::endSchedule, scheduleLength, priority = priority)
     }
 
-    private fun scheduleItemStart(item: ScheduleItem<*>) {
+    private fun scheduleItemStart(item: ScheduleItem) {
         // if the item's start time is 0.0 relative to the start of 
         // the schedule its priority must be after the start of schedule
         var priority = item.priority
@@ -438,12 +470,12 @@ class Schedule(
                 priority = startEventPriority + 1
             }
         }
-        val e: KSLEvent<ScheduleItem<*>> = schedule(this::startItem, item.startTime, item, priority)
+        val e: KSLEvent<ScheduleItem> = schedule(this::startItem, item.startTime, item, priority)
         //e.setMessage(item);
         item.myStartEvent = e
     }
 
-    private fun scheduleItemEnd(item: ScheduleItem<*>) {
+    private fun scheduleItemEnd(item: ScheduleItem) {
         // if the item's end time is at the same time as the end of the
         // schedule then it's priority needs to be before the priority
         // of the end of the schedule
@@ -459,7 +491,7 @@ class Schedule(
             }
             priority = endPriority - 1
         }
-        val event: KSLEvent<ScheduleItem<*>> = schedule(this::endItem, item.duration, item, priority - 1)
+        val event: KSLEvent<ScheduleItem> = schedule(this::endItem, item.duration, item, priority - 1)
         //event.setMessage(item);
         item.myEndEvent = event
     }
@@ -470,14 +502,14 @@ class Schedule(
      *
      * @param <T> a general message or other object that can be associated with the ScheduleItem
     </T> */
-    open inner class ScheduleItem<T>(
+    open inner class ScheduleItem(
         val name: String = "Item:${idCounter + 1}",
         val startTime: Double,
         val duration: Double,
         val priority: Int,
-        val message: T? = null
+        val message: String? = null
     ) :
-        Comparable<ScheduleItem<*>> {
+        Comparable<ScheduleItem> {
         init {
             require(name.isNotBlank()) {"The name must not be blank." }
             require(startTime >= 0.0) { "The start time must be >= 0.0" }
@@ -488,8 +520,8 @@ class Schedule(
         val id: Int = idCounter
 
         val schedule: Schedule = this@Schedule
-        internal var myStartEvent: KSLEvent<ScheduleItem<*>>? = null
-        internal var myEndEvent: KSLEvent<ScheduleItem<*>>? = null
+        internal var myStartEvent: KSLEvent<ScheduleItem>? = null
+        internal var myEndEvent: KSLEvent<ScheduleItem>? = null
 
         val endTime: Double
             get() = startTime + duration
@@ -537,7 +569,7 @@ class Schedule(
          * @return Returns a negative integer, zero, or a positive integer if
          * this object is less than, equal to, or greater than the specified object.
          */
-        override operator fun compareTo(other: ScheduleItem<*>): Int {
+        override operator fun compareTo(other: ScheduleItem): Int {
 
             // compare time first
             if (startTime < other.startTime) {
@@ -601,11 +633,11 @@ class ScheduleListener() : ScheduleChangeListenerIfc {
         println("time = ${schedule.time} Schedule Ended")
     }
 
-    override fun scheduleItemStarted(item: Schedule.ScheduleItem<*>) {
+    override fun scheduleItemStarted(item: Schedule.ScheduleItem) {
         println("time = ${item.schedule.time} scheduled item ${item.name} started with message ${item.message}")
     }
 
-    override fun scheduleItemEnded(item: Schedule.ScheduleItem<*>) {
+    override fun scheduleItemEnded(item: Schedule.ScheduleItem) {
         println("time = ${item.schedule.time} scheduled item ${item.name} ended with message ${item.message}")
     }
 
