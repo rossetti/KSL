@@ -172,7 +172,7 @@ class Schedule(
     }
 
     /** Adds all the items to the schedule.
-     * 
+     *
      *  @param items the items to add
      */
     fun <T> addItems(items: List<ScheduleItem<T>>) {
