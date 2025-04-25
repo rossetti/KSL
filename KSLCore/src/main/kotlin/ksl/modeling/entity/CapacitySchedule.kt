@@ -178,6 +178,18 @@ interface CapacityScheduleCIfc {
             clearSchedule()
             addItemData(settings.capacityItems)
         }
+
+    /**
+     *  Uses the supplied JSON string to configure the schedule via CapacityScheduleData
+     *
+     *  @param json a valid JSON encoded string representing CapacityScheduleData
+     */
+    fun configureFromJson(json: String) {
+        // decode from the string
+        val settings = Json.decodeFromString<CapacityScheduleData>(json)
+        // apply the settings
+        capacityScheduleData = settings
+    }
 }
 
 /** A CapacitySchedule represents a known set of capacity specifications that last for a duration of time.
