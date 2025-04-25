@@ -25,6 +25,12 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.ToJSONIfc
 
+//TODO: Get rid of generic message, just make it an Any
+//TODO: require unique name for each scheduled item, or construct it from id
+//TODO: assign id based on order added to list of items in the schedule
+//TODO: provide ability to easily create non-overlapping sequence of durations
+
+
 @Serializable
 data class ScheduleItemData<T>(
     var startTime: Double = 0.0,
