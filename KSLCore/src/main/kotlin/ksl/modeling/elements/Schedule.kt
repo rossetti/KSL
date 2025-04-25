@@ -43,6 +43,9 @@ data class ScheduleItemData(
         require(startTime >= 0.0) { "The start time must be >= 0.0" }
     }
 
+    val endTime: Double
+        get() = startTime + duration
+
     companion object {
 
         /**
@@ -83,6 +86,9 @@ data class ScheduleData(
     init {
         require(initialStartTime >= 0.0) { "The start time must be >= 0.0" }
         require(scheduleLength > 0.0) { "The length must be > 0" }
+        for(item in scheduleItemDataList) {
+            require(item.endTime <= initialStartTime + scheduleLength) { "Item = ${item.name} : The item's end time is past the schedule's end." }
+        }
     }
 
     override fun toJson(): String {
