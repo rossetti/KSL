@@ -22,12 +22,63 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Table
+import kotlinx.serialization.Serializable
 import ksl.utilities.KSLArrays
 
-data class DistanceData(val fromLoc: String, val toLoc: String, val distance: Double) {
+@Serializable
+data class DistanceData(
+    val fromLoc: String,
+    val toLoc: String,
+    val distance: Double
+) {
     init {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
     }
+}
+
+interface DistancesCIfc {
+
+    /**
+     * The locations that have been added to the model.
+     */
+    val locations: Set<LocationIfc>
+
+    /**
+     *  The names of the locations.
+     */
+    val locationNames: Set<String>
+
+    /**
+     *  @return true if the [name] of the location has been previously added as part of a distance.
+     */
+    fun containsName(name: String): Boolean
+
+    /**
+     *  @return the location associated with the supplied [name]. Null if the name is not
+     *  associated with a location in the model
+     */
+    fun location(name: String): LocationIfc?
+
+    fun clearDistances()
+
+    fun addDistance(distanceData: DistanceData) : Pair<LocationIfc, LocationIfc>
+
+    fun addDistances(distances: List<DistanceData>) : Map<LocationIfc, LocationIfc>{
+        val map = mutableMapOf<LocationIfc, LocationIfc>()
+        for (d in distances) {
+            val (f, t) = addDistance(d)
+            map[f] = t
+        }
+        return map
+    }
+
+    /**
+     * Changes a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
+     * must be greater than or equal to 0.0. The pair must already be part of the model.
+     */
+    fun changeDistance(fromLocation: LocationIfc, toLocation: LocationIfc, distance: Double)
+
+
 }
 
 class DistancesModel() : SpatialModel() {
