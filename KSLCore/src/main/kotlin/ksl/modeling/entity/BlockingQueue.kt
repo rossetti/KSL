@@ -18,6 +18,8 @@
 
 package ksl.modeling.entity
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.KSLEvent
@@ -49,12 +51,27 @@ fun interface EntitySelectorIfc {
  */
 class BlockingQueue<T : ModelElement.QObject>(
     parent: ModelElement,
-    val capacity: Int = Int.MAX_VALUE,
+    capacity: Int = Int.MAX_VALUE,
     name: String? = null
 ) : ModelElement(parent, name) {
     init {
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
+
+    /**
+     *  The default size for the queue for each replication. This
+     *  property cannot be changed during a replication.
+     */
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var capacity: Int  = capacity
+        set(value) {
+            require(value >= 1) { "The size of the blocking queue must be >= 1" }
+            require(model.isNotRunning) {"The model cannot be running when changing the capacity of the blocking queue"}
+            field = value
+        }
 
     var requestQResumptionPriority: Int = ProcessModel.RESUME_PRIORITY
     var senderQResumptionPriority: Int = requestQResumptionPriority - 1 // sender has more priority
