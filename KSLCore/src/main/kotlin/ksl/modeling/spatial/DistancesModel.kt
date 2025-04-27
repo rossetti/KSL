@@ -23,6 +23,7 @@ import com.google.common.collect.HashBasedTable
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Table
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.JsonSettingsIfc
@@ -105,34 +106,28 @@ interface DistancesCIfc : JsonSettingsIfc {
      *  @return the schedule data
      */
     var distancesData: DistancesData
-        get() = TODO()
-        /**
-         *  Clears the current settings of the schedule and
-         *  reconfigures the schedule's settings based on the provided schedule data
-         *  @param settings the new settings to apply to the schedule
-         */
-        set(settings) {
-            clearDistances()
-            addDistances(distancesData)
-        }
 
     /**
-     *  Uses the supplied JSON string to configure the schedule via CapacityScheduleData
+     *  Uses the supplied JSON string to configure the distances via DistancesData
      *
-     *  @param json a valid JSON encoded string representing CapacityScheduleData
+     *  @param json a valid JSON encoded string representing DistancesData
      */
     override fun configureFromJson(json: String) {
         // decode from the string
         val settings = Json.decodeFromString<DistancesData>(json)
         // apply the settings
-        TODO()
+        distancesData = settings
     }
 
     /**
      *  Converts the configuration settings to JSON
      */
     override fun settingsToJson() : String {
-        return TODO()
+        val format = Json {
+            prettyPrint = true
+            encodeDefaults = true
+        }
+        return format.encodeToString(distancesData)
     }
 }
 
