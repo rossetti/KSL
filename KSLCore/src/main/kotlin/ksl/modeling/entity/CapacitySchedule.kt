@@ -103,6 +103,14 @@ interface CapacityScheduleCIfc : JsonSettingsIfc {
     var initialStartTime: Double
 
     /**
+     *  Checks if there are no items on the schedule
+     */
+    val isEmpty: Boolean
+
+    val isNotEmpty: Boolean
+        get() = !isEmpty
+    
+    /**
      *  The capacity schedule item data as a list
      */
     val items: List<CapacityItemData>
@@ -337,6 +345,12 @@ class CapacitySchedule(
         private set
 
     private val myItems: MutableList<CapacityItem> = mutableListOf()
+
+    /**
+     *  Checks if there are no items on the schedule
+     */
+    override val isEmpty: Boolean
+        get() = myItems.isEmpty()
 
     override val items: List<CapacityItemData>
         get() = myItems.map { it.toCapacityItemData() }
