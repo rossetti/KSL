@@ -30,9 +30,9 @@ import ksl.utilities.io.JsonSettingsIfc
 
 @Serializable
 data class DistanceData(
-    val fromLoc: String,
-    val toLoc: String,
-    val distance: Double
+    var fromLoc: String,
+    var toLoc: String,
+    var distance: Double
 ) {
     init {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
@@ -99,6 +99,12 @@ interface DistancesCIfc : JsonSettingsIfc {
      * Changes a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
      * must be greater than or equal to 0.0. The pair must already be part of the model.
      */
+    fun changeDistance(fromLocation: String, toLocation: String, distance: Double)
+
+    /**
+     * Changes a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
+     * must be greater than or equal to 0.0. The pair must already be part of the model.
+     */
     fun changeDistance(fromLocation: LocationIfc, toLocation: LocationIfc, distance: Double)
 
     /**
@@ -131,7 +137,7 @@ interface DistancesCIfc : JsonSettingsIfc {
     }
 }
 
-class DistancesModel() : SpatialModel() {
+class DistancesModel() : SpatialModel(), DistancesCIfc {
 
     /**
      * The default distance from a location to itself, must be greater than or equal to 0.0
@@ -149,13 +155,13 @@ class DistancesModel() : SpatialModel() {
     /**
      * The locations that have been added to the model.
      */
-    val locations: Set<LocationIfc>
+    override val locations: Set<LocationIfc>
         get() = myLocationsAsBiMap.values
 
     /**
      *  The names of the locations.
      */
-    val locationNames: Set<String>
+    override val locationNames: Set<String>
         get() = myLocationsAsBiMap.keys
 
     /**
@@ -188,20 +194,6 @@ class DistancesModel() : SpatialModel() {
     }
 
     /**
-     *  Adds a list of [distanceData] to the model.
-     *  @return a map containing the pairs of locations created by the names
-     *  of the distances in the list
-     */
-    fun addDistances(distanceData: List<DistanceData>): Map<LocationIfc, LocationIfc> {
-        val map = mutableMapOf<LocationIfc, LocationIfc>()
-        for (d in distanceData) {
-            val (f, t) = addDistance(d.fromLoc, d.toLoc, d.distance)
-            map[f] = t
-        }
-        return map
-    }
-
-    /**
      * Assumes that [matrix] is square and contains the from-to distances. Any values on
      * the diagonal are ignored. No values can be 0.0
      *  @return a map containing the pairs of locations created. Each location is named Loc_k, where
@@ -224,7 +216,7 @@ class DistancesModel() : SpatialModel() {
     /**
      *  @return true if the [name] of the location has been previously added as part of a distance.
      */
-    fun containsName(name: String): Boolean {
+    override fun containsName(name: String): Boolean {
         return myLocationsAsBiMap.containsKey(name)
     }
 
@@ -232,7 +224,7 @@ class DistancesModel() : SpatialModel() {
      *  @return the location associated with the supplied [name]. Null if the name is not
      *  associated with a location in the model
      */
-    fun location(name: String): LocationIfc? {
+    override fun location(name: String): LocationIfc? {
         return myLocationsAsBiMap[name]
     }
 
@@ -262,7 +254,20 @@ class DistancesModel() : SpatialModel() {
      * Changes a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
      * must be greater than or equal to 0.0. The pair must already be part of the model.
      */
-    fun changeDistance(fromLocation: LocationIfc, toLocation: LocationIfc, distance: Double) {
+    override fun changeDistance(fromLocation: String, toLocation: String, distance: Double) {
+        require(distance >= 0.0) { "The distance must be >= 0.0" }
+        val f = location(fromLocation)
+        require(f != null) {"The location $fromLocation is not a valid location name"}
+        val t = location(toLocation)
+        require(t != null) {"The location $toLocation is not a valid location name"}
+        changeDistance(f, t, distance)
+    }
+
+    /**
+     * Changes a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
+     * must be greater than or equal to 0.0. The pair must already be part of the model.
+     */
+    override fun changeDistance(fromLocation: LocationIfc, toLocation: LocationIfc, distance: Double) {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
@@ -273,6 +278,29 @@ class DistancesModel() : SpatialModel() {
             )
         ) { "The pair (${fromLocation.name}, ${toLocation.name}) is not in the model" }
         myDistanceTable.put(fromLocation, toLocation, distance)
+    }
+
+    override var distancesData: DistancesData
+        get() {
+            val list = mutableListOf<DistanceData>()
+            for (cell in myDistanceTable.cellSet()){
+                val dd = DistanceData(cell.rowKey.name, cell.columnKey.name, cell.value)
+                list.add(dd)
+            }
+            return list
+        }
+        set(settings) {
+            clearDistances()
+            addDistances(settings)
+        }
+
+    override fun clearDistances() {
+        myDistanceTable.clear()
+        myLocationsAsBiMap.clear()
+    }
+
+    override fun addDistance(distanceData: DistanceData): Pair<LocationIfc, LocationIfc> {
+        return addDistance(distanceData.fromLoc, distanceData.toLoc, distanceData.distance)
     }
 
     override fun distance(fromLocation: LocationIfc, toLocation: LocationIfc): Double {
