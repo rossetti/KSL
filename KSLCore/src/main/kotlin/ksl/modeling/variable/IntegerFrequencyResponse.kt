@@ -1,5 +1,7 @@
 package ksl.modeling.variable
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.IntegerFrequency
@@ -78,6 +80,7 @@ class IntegerFrequencyResponse(
     override val frequencyResponse: IntegerFrequencyIfc
         get() = myIntegerFrequency
 
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var collectionOn = true
 
     var value: Int = 0

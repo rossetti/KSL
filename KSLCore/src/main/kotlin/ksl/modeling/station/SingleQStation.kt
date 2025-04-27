@@ -18,6 +18,8 @@
 
 package ksl.modeling.station
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -84,13 +86,14 @@ open class SingleQStation(
      *  the activity to determine the activity time by referencing the QObject's
      *  valueObject. If false (the default), the supplied activity time will be used
      */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
     var useQObjectForActivityTime: Boolean = false
 
     protected val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
     override val resource: SResourceCIfc
         get() = myResource
 
-    protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime)
+    protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, name = "${this.name}:ActivityRV")
     override val activityTimeRV: RandomSourceCIfc
         get() = myActivityTimeRV
 
