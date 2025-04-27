@@ -122,6 +122,14 @@ interface DistancesCIfc : JsonSettingsIfc<DistancesData> {
     var distancesData: DistancesData
 
     /**
+     *  Returns the current settings in the form of the data type that
+     *  can be serialized.
+     */
+    override fun currentSettings(): DistancesData {
+        return distancesData
+    }
+
+    /**
      *  Uses the supplied JSON string to configure the distances via DistancesData
      *
      *  @param json a valid JSON encoded string representing DistancesData
