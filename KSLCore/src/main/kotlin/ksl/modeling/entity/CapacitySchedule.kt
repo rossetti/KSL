@@ -109,7 +109,7 @@ interface CapacityScheduleCIfc : JsonSettingsIfc {
 
     val isNotEmpty: Boolean
         get() = !isEmpty
-    
+
     /**
      *  The capacity schedule item data as a list
      */
