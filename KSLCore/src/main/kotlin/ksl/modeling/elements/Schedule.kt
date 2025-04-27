@@ -26,9 +26,6 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
-//TODO: provide ability to easily create non-overlapping sequence of durations
-
-
 @Serializable
 data class ScheduleItemData(
     val name: String,
