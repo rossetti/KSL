@@ -57,6 +57,14 @@ interface DistancesCIfc : JsonSettingsIfc {
     val locationNames: Set<String>
 
     /**
+     *  Checks if there are no items on the schedule
+     */
+    val isEmpty: Boolean
+
+    val isNotEmpty: Boolean
+        get() = !isEmpty
+
+    /**
      *  @return true if the [name] of the location has been previously added as part of a distance.
      */
     fun containsName(name: String): Boolean
@@ -151,6 +159,12 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     private val myLocationsAsBiMap: BiMap<String, LocationIfc> = HashBiMap.create()
 
     override var defaultLocation: LocationIfc = Location("defaultLocation")
+
+    /**
+     *  Checks if there are no items on the schedule
+     */
+    override val isEmpty: Boolean
+        get() = myDistanceTable.isEmpty()
 
     /**
      * The locations that have been added to the model.
