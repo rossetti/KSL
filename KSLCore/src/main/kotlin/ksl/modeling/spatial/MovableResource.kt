@@ -69,7 +69,7 @@ open class MovableResource(
 
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
 
-    protected val myVelocity = RandomVariable(this, defaultVelocity)
+    protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
     override val velocityRV: RandomSourceCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
