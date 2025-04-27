@@ -78,7 +78,7 @@ data class CapacityScheduleData(
     }
 }
 
-interface CapacityScheduleCIfc : JsonSettingsIfc {
+interface CapacityScheduleCIfc : JsonSettingsIfc<CapacityScheduleData> {
 
     val eventPriority: Int
 
@@ -211,17 +211,18 @@ interface CapacityScheduleCIfc : JsonSettingsIfc {
      *
      *  @param json a valid JSON encoded string representing CapacityScheduleData
      */
-    override fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String): CapacityScheduleData {
         // decode from the string
         val settings = Json.decodeFromString<CapacityScheduleData>(json)
         // apply the settings
         capacityScheduleData = settings
+        return settings
     }
 
     /**
      *  Converts the configuration settings to JSON
      */
-    override fun settingsToJson() : String {
+    override fun settingsToJson(): String {
         return capacityScheduleData.toJson()
     }
 }
