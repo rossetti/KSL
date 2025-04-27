@@ -147,6 +147,14 @@ interface ScheduleCIfc : JsonSettingsIfc {
     var startEventPriority: Int
 
     /**
+     *  Checks if there are no items on the schedule
+     */
+    val isEmpty: Boolean
+
+    val isNotEmpty: Boolean
+        get() = !isEmpty
+
+    /**
      *  The schedule item data as a list
      */
     val scheduleItemDataList: List<ScheduleItemData>
@@ -401,6 +409,12 @@ class Schedule(
     private val myItemNames = mutableSetOf<String>()
     private val myChangeListeners: MutableList<ScheduleChangeListenerIfc> = mutableListOf()
     private var myStartScheduleEvent: KSLEvent<Nothing>? = null
+
+    /**
+     *  Checks if there are no items on the schedule
+     */
+    override val isEmpty: Boolean
+        get() = myItems.isEmpty()
 
     /**
      * If scheduled to start, this cancels the start of the schedule.
