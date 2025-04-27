@@ -17,6 +17,7 @@
  */
 package ksl.modeling.entity
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -78,7 +79,7 @@ data class CapacityScheduleData(
     }
 }
 
-interface CapacityScheduleCIfc : JsonSettingsIfc {
+interface CapacityScheduleCIfc : JsonSettingsIfc<CapacityScheduleData> {
 
     val eventPriority: Int
 
@@ -206,16 +207,20 @@ interface CapacityScheduleCIfc : JsonSettingsIfc {
             addItemData(settings.capacityItems)
         }
 
+    override val serializer: KSerializer<CapacityScheduleData>
+        get() = CapacityScheduleData.serializer()
+
     /**
      *  Uses the supplied JSON string to configure the schedule via CapacityScheduleData
      *
      *  @param json a valid JSON encoded string representing CapacityScheduleData
      */
-    override fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String) : CapacityScheduleData {
         // decode from the string
         val settings = Json.decodeFromString<CapacityScheduleData>(json)
         // apply the settings
         capacityScheduleData = settings
+        return settings
     }
 
     /**

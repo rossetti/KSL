@@ -17,6 +17,7 @@
  */
 package ksl.modeling.elements
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -55,12 +56,12 @@ data class ScheduleItemData(
          */
         fun createConsecutiveScheduleItems(
             duration: Double,
-            numItems:Int,
+            numItems: Int,
             startTime: Double = 0.0,
             prefix: String = "Item:"
         ): List<ScheduleItemData> {
             require(prefix.isNotBlank()) { "The prefix cannot be blank" }
-            require(numItems > 0) {"The number of consecutive schedule items must be >= 1"}
+            require(numItems > 0) { "The number of consecutive schedule items must be >= 1" }
             val list = mutableListOf<ScheduleItemData>()
             var start = startTime
             for (i in 1..numItems) {
@@ -85,7 +86,7 @@ data class ScheduleData(
     init {
         require(initialStartTime >= 0.0) { "The start time must be >= 0.0" }
         require(scheduleLength > 0.0) { "The length must be > 0" }
-        for(item in scheduleItemDataList) {
+        for (item in scheduleItemDataList) {
             require(item.duration > 0.0) { "Item = ${item.name} : The duration must be > 0.0" }
             require(item.startTime >= 0.0) { "Item = ${item.name} : The start time must be >= 0.0" }
             require(item.endTime <= initialStartTime + scheduleLength) { "Item = ${item.name} : The item's end time is past the schedule's end." }
@@ -101,7 +102,7 @@ data class ScheduleData(
     }
 }
 
-interface ScheduleCIfc : JsonSettingsIfc {
+interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
@@ -243,22 +244,26 @@ interface ScheduleCIfc : JsonSettingsIfc {
             addItems(settings.scheduleItemDataList)
         }
 
+    override val serializer: KSerializer<ScheduleData>
+        get() = ScheduleData.serializer()
+
     /**
      *  Uses the supplied JSON string to configure the schedule via ScheduleData
      *
      *  @param json a valid JSON encoded string representing ScheduleData
      */
-    override fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String): ScheduleData {
         // decode from the string
         val settings = Json.decodeFromString<ScheduleData>(json)
         // apply the settings
         scheduleData = settings
+        return settings
     }
 
     /**
      *  Converts the configuration settings to JSON
      */
-    override fun settingsToJson() : String {
+    override fun settingsToJson(): String {
         return scheduleData.toJson()
     }
 }
