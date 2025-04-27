@@ -44,7 +44,7 @@ typealias DistancesData = List<DistanceData>
 /**
  *  A controlled interface for referencing distance models
  */
-interface DistancesCIfc : JsonSettingsIfc {
+interface DistancesCIfc : JsonSettingsIfc<DistancesData> {
 
     /**
      * The locations that have been added to the model.
@@ -86,7 +86,7 @@ interface DistancesCIfc : JsonSettingsIfc {
      *  @param distanceData the distance data to add
      *  @return returns the origin and destination as a pair of locations (origin, destination)
      */
-    fun addDistance(distanceData: DistanceData) : Pair<LocationIfc, LocationIfc>
+    fun addDistance(distanceData: DistanceData): Pair<LocationIfc, LocationIfc>
 
     /**
      *  Adds the distance data to the distances model.
@@ -94,7 +94,7 @@ interface DistancesCIfc : JsonSettingsIfc {
      *  @param distances the distance data to add
      *  @return returns a map of the origin and destination as a pair of locations (origin, destination)
      */
-    fun addDistances(distances: List<DistanceData>) : Map<LocationIfc, LocationIfc>{
+    fun addDistances(distances: List<DistanceData>): Map<LocationIfc, LocationIfc> {
         val map = mutableMapOf<LocationIfc, LocationIfc>()
         for (d in distances) {
             val (f, t) = addDistance(d)
@@ -126,17 +126,18 @@ interface DistancesCIfc : JsonSettingsIfc {
      *
      *  @param json a valid JSON encoded string representing DistancesData
      */
-    override fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String): DistancesData {
         // decode from the string
         val settings = Json.decodeFromString<DistancesData>(json)
         // apply the settings
         distancesData = settings
+        return settings
     }
 
     /**
      *  Converts the configuration settings to JSON
      */
-    override fun settingsToJson() : String {
+    override fun settingsToJson(): String {
         val format = Json {
             prettyPrint = true
             encodeDefaults = true
@@ -214,11 +215,11 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
      *  k is the index of the location in the array
      */
     fun addDistances(matrix: Array<DoubleArray>): Map<LocationIfc, LocationIfc> {
-        require(KSLArrays.isSquare(matrix)){"The supplied distance matrix was not square"}
+        require(KSLArrays.isSquare(matrix)) { "The supplied distance matrix was not square" }
         val map = mutableMapOf<LocationIfc, LocationIfc>()
-        for(i in matrix.indices){
-            for (j in matrix[i].indices){
-                if (i != j){
+        for (i in matrix.indices) {
+            for (j in matrix[i].indices) {
+                if (i != j) {
                     val (f, t) = addDistance("Loc_$i", "Loc_$j", matrix[i][j])
                     map[f] = t
                 }
@@ -271,9 +272,9 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     override fun changeDistance(fromLocation: String, toLocation: String, distance: Double) {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
         val f = location(fromLocation)
-        require(f != null) {"The location $fromLocation is not a valid location name"}
+        require(f != null) { "The location $fromLocation is not a valid location name" }
         val t = location(toLocation)
-        require(t != null) {"The location $toLocation is not a valid location name"}
+        require(t != null) { "The location $toLocation is not a valid location name" }
         changeDistance(f, t, distance)
     }
 
@@ -297,7 +298,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     override var distancesData: DistancesData
         get() {
             val list = mutableListOf<DistanceData>()
-            for (cell in myDistanceTable.cellSet()){
+            for (cell in myDistanceTable.cellSet()) {
                 val dd = DistanceData(cell.rowKey.name, cell.columnKey.name, cell.value)
                 list.add(dd)
             }
@@ -350,7 +351,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Distances")
-        for(x in myDistanceTable.cellSet()){
+        for (x in myDistanceTable.cellSet()) {
             sb.appendLine("From: ${x.rowKey.name}  ---> To: ${x.columnKey.name}  d = ${x.value}")
         }
         return sb.toString()
