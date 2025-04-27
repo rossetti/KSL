@@ -274,6 +274,8 @@ open class Queue<T : ModelElement.QObject>(
     override val timeInQ : ResponseCIfc
         get() = myTimeInQ
 
+    //TODO can a control be made for the initial discipline using an Int?
+
     /**
      *  The initial queue discipline. The initial discipline indicates
      *  the queue distribution that will be used at the beginning of each
