@@ -7,6 +7,12 @@ package ksl.utilities.io
 interface JsonSettingsIfc<out T> {
 
     /**
+     *  Returns the current settings in the form of the data type that
+     *  can be serialized.
+     */
+    fun currentSettings() : T
+
+    /**
      *  Uses the supplied JSON string to configure the schedule via CapacityScheduleData
      *
      *  @param json a valid JSON encoded string representing CapacityScheduleData

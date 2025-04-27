@@ -244,6 +244,14 @@ interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
         }
 
     /**
+     *  Returns the current settings in the form of the data type that
+     *  can be serialized.
+     */
+    override fun currentSettings(): ScheduleData {
+        return scheduleData
+    }
+
+    /**
      *  Uses the supplied JSON string to configure the schedule via ScheduleData
      *
      *  @param json a valid JSON encoded string representing ScheduleData
