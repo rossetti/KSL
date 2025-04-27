@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
 //TODO: provide ability to easily create non-overlapping sequence of durations
@@ -57,11 +58,12 @@ data class ScheduleItemData(
          */
         fun createConsecutiveScheduleItems(
             duration: Double,
-            numItems:Int = 1,
+            numItems:Int,
             startTime: Double = 0.0,
             prefix: String = "Item:"
         ): List<ScheduleItemData> {
             require(prefix.isNotBlank()) { "The prefix cannot be blank" }
+            require(numItems > 0) {"The number of consecutive schedule items must be >= 1"}
             val list = mutableListOf<ScheduleItemData>()
             var start = startTime
             for (i in 1..numItems) {
@@ -94,12 +96,15 @@ data class ScheduleData(
     }
 
     override fun toJson(): String {
-        val format = Json { prettyPrint = true }
+        val format = Json {
+            prettyPrint = true
+            encodeDefaults = true
+        }
         return format.encodeToString(this)
     }
 }
 
-interface ScheduleCIfc {
+interface ScheduleCIfc : JsonSettingsIfc {
     /**
      * Indicates whether the schedule should be started automatically upon initialization, default is true
      */
@@ -238,11 +243,18 @@ interface ScheduleCIfc {
      *
      *  @param json a valid JSON encoded string representing ScheduleData
      */
-    fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String) {
         // decode from the string
         val settings = Json.decodeFromString<ScheduleData>(json)
         // apply the settings
         scheduleData = settings
+    }
+
+    /**
+     *  Converts the configuration settings to JSON
+     */
+    override fun settingsToJson() : String {
+        return scheduleData.toJson()
     }
 }
 

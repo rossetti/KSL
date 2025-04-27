@@ -24,6 +24,7 @@ import ksl.modeling.entity.CapacitySchedule.CapacityItem
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
 interface CapacityChangeListenerIfc {
@@ -62,19 +63,22 @@ data class CapacityScheduleData(
 ) : ToJSONIfc {
     init {
         require(initialStartTime >= 0) { "The initial start time must be >= 0" }
-        for(item in capacityItems) {
+        for (item in capacityItems) {
             require(item.duration > 0.0) { "The duration must be > 0.0" }
             require(item.capacity >= 0) { "The capacity must be >= 0" }
         }
     }
 
     override fun toJson(): String {
-        val format = Json { prettyPrint = true }
+        val format = Json {
+            prettyPrint = true
+            encodeDefaults = true
+        }
         return format.encodeToString(this)
     }
 }
 
-interface CapacityScheduleCIfc {
+interface CapacityScheduleCIfc : JsonSettingsIfc {
 
     val eventPriority: Int
 
@@ -199,11 +203,18 @@ interface CapacityScheduleCIfc {
      *
      *  @param json a valid JSON encoded string representing CapacityScheduleData
      */
-    fun configureFromJson(json: String) {
+    override fun configureFromJson(json: String) {
         // decode from the string
         val settings = Json.decodeFromString<CapacityScheduleData>(json)
         // apply the settings
         capacityScheduleData = settings
+    }
+
+    /**
+     *  Converts the configuration settings to JSON
+     */
+    override fun settingsToJson() : String {
+        return capacityScheduleData.toJson()
     }
 }
 
@@ -267,8 +278,10 @@ class CapacitySchedule(
         capacityScheduleData: CapacityScheduleData,
         eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
         name: String? = null
-    ) : this(parent, capacityScheduleData.initialStartTime, capacityScheduleData.isAutoStartFlag,
-        capacityScheduleData.isScheduleRepeatable, eventPriority, name) {
+    ) : this(
+        parent, capacityScheduleData.initialStartTime, capacityScheduleData.isAutoStartFlag,
+        capacityScheduleData.isScheduleRepeatable, eventPriority, name
+    ) {
         addItemData(capacityScheduleData.capacityItems)
     }
 
