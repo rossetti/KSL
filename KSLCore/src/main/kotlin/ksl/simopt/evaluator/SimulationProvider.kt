@@ -13,8 +13,8 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
- *  @param model the model to execute. The model's run parameters should be specified prior to running the simulations
- *  The experiment names and number of replications will be changed as the model is executed.
+ *  @param modelCreator a function that promises to create the model that will be executed. The model that is created
+ *  is assumed to be configured to run.
  *  @param useDb if true a database to capture simulation output is configured. The default is false.
  *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
  *  relevant if useDb is true. The default is false. Data will not be cleared if multiple simulations of the
@@ -29,13 +29,13 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  access to all inputs and output responses from every execution.
  */
 class SimulationProvider(
-    val model: Model,
+    modelCreator: () -> Model,
     var saveSimulationRuns: Boolean = false,
     useDb: Boolean = false,
     clearDataBeforeExperimentOption: Boolean = false,
 ) : SimulationProviderIfc {
 
-    //TODO add constructor that has ()-> Model
+    val model: Model = modelCreator()
 
     private val mySimulationRunner = SimulationRunner(model)
 
