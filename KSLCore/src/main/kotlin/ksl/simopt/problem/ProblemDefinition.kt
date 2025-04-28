@@ -29,9 +29,9 @@ import ksl.utilities.random.rvariable.randomlySelect
  *
  *  @param problemName the name of the problem for labeling and identification purposes. If no name is supplied,
  *  then a unique name is constructed.
- *  @param modelName the name of the model that this problem definition is associated with. The name should
+ *  @param modelIdentifier the identifier of the model that this problem definition is associated with. The identifier should
  *  correspond to an actual model name registered with a simulation provider.  The input names and response
- *  names should be valid for the named model.
+ *  names should be valid for the identified model.
  *  @param objFnResponseName the name of the response within the simulation model. This name is used to extract the
  *  observed simulation values from the simulation
  *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
@@ -43,7 +43,7 @@ import ksl.utilities.random.rvariable.randomlySelect
  */
 class ProblemDefinition(
     problemName: String? = null,
-    val modelName: String,
+    val modelIdentifier: String,
     val objFnResponseName: String,
     inputNames: List<String>,
     responseNames: List<String> = emptyList(),
