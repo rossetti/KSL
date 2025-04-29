@@ -1,5 +1,7 @@
 package ksl.simopt.evaluator
 
+import kotlinx.serialization.Serializable
+
 /**
  *  A class to assist with capturing data from a solution.
  *  @param id the identifier of the solution
@@ -8,6 +10,7 @@ package ksl.simopt.evaluator
  *  @param dataName a string representing the name of the data
  *  @param dataValue the value associated with the named data
  */
+@Serializable
 data class SolutionData(
     val id: Int,
     val dataType: String,
