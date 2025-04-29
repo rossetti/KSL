@@ -65,4 +65,15 @@ class EvaluationRequest(
     val inputValues: DoubleArray
         get() = inputMap.inputValues
 
+    /**
+     *  Converts the EvaluationRequest to a form suitable for
+     *  serialization, transport, and use by simulation oracles.
+     */
+    fun toInputData(): InputData {
+        return InputData(
+            inputMap.problemDefinition.modelIdentifier,
+            numReplications,
+            inputMap
+        )
+    }
 }
