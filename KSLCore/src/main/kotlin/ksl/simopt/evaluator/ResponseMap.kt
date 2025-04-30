@@ -103,15 +103,4 @@ class ResponseMap(
         }
     }
 
-    /**
-     *  Converts the ResponseMap to a form suitable for
-     *  serialization, transport, and use by simulation oracles.
-     */
-    fun toResponseData(): ResponseData {
-        return ResponseData(
-            problemDefinition.modelIdentifier,
-            map
-        )
-    }
-
 }
