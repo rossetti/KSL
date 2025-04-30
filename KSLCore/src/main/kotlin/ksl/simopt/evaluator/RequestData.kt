@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import kotlinx.serialization.Serializable
+import ksl.controls.experiments.ExperimentRunParameters
 
 
 /**
@@ -15,8 +16,9 @@ import kotlinx.serialization.Serializable
 data class RequestData(
     val modelIdentifier: String,
     val numReplications: Int,
-    val inputs: Map<String, Double>,
-    val responseNames: Set<String> = emptySet()
+    val inputs: Map<String, Double> = emptyMap(),
+    val responseNames: Set<String> = emptySet(),
+    val experimentRunParameters: ExperimentRunParameters? = null
 ) {
     init {
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
