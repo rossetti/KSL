@@ -40,6 +40,7 @@ import ksl.utilities.statistic.Statistic
 class SimulationRun private constructor(
     val id: String,
     var name: String,
+    val modelIdentifier: String,
     val experimentRunParameters: ExperimentRunParameters,
     var runErrorMsg: String = "",
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
@@ -48,6 +49,7 @@ class SimulationRun private constructor(
     var results: Map<String, DoubleArray> = mapOf()
 ) {
     constructor(
+        modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
@@ -55,6 +57,7 @@ class SimulationRun private constructor(
     ) : this(
         id = runId ?: KSL.randomUUIDString(),
         name = runName ?: (experimentRunParameters.experimentName),
+        modelIdentifier = modelIdentifier,
         experimentRunParameters = experimentRunParameters,
         inputs = inputs
     )
@@ -78,6 +81,7 @@ class SimulationRun private constructor(
         val sb = StringBuilder()
         sb.appendLine("id = $id")
         sb.appendLine("name = $name")
+        sb.appendLine("modelIdentifier = $modelIdentifier")
         sb.appendLine(experimentRunParameters)
         sb.appendLine("functionError $runErrorMsg")
         sb.appendLine("beginExecutionTime = $beginExecutionTime")

@@ -88,7 +88,7 @@ class SimulationRunner(
         inputs: Map<String, Double> = mapOf(),
         experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ): SimulationRun {
-        val simulationRun = SimulationRun(experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(model.name, experimentRunParameters, inputs)
         simulate(simulationRun)
         return simulationRun
     }

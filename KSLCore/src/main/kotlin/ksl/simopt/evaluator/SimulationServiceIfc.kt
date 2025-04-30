@@ -9,7 +9,7 @@ package ksl.simopt.evaluator
  *  represents the desired responses from the simulation. It should
  *  contain the replication averages for each desired response.
  */
-fun interface SimulationServiceIfc {
+interface SimulationServiceIfc {
 
     fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseData>
 
