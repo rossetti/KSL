@@ -103,16 +103,17 @@ class SimulationProvider(
         mySimulationRuns.clear()
     }
 
-    override fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap> {
-        val results = mutableMapOf<EvaluationRequest, ResponseMap>()
+    override fun runSimulations(evaluationRequests: List<RequestData>): Map<RequestData, ResponseMap> {
+        val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in evaluationRequests) {
             executionCounter++
             // update experiment name
-            model.experimentName = request.inputMap.problemDefinition.name + "_Exp_$executionCounter"
+            model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
             model.numberOfReplications = request.numReplications
             //run the simulation
             Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
-            val simulationRun = mySimulationRunner.simulate(request.inputMap, model.extractRunParameters())
+            //TODO use other information from RequestData
+            val simulationRun = mySimulationRunner.simulate(request.inputs, model.extractRunParameters())
             Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
             // capture the simulation results
             captureResults(request, results, simulationRun)
@@ -127,16 +128,18 @@ class SimulationProvider(
     }
 
     private fun captureResults(
-        request: EvaluationRequest,
-        results: MutableMap<EvaluationRequest, ResponseMap>,
+        request: RequestData,
+        results: MutableMap<RequestData, ResponseMap>,
         simulationRun: SimulationRun
     ) {
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // make an empty response map to hold the estimated responses
-        val responseMap = request.inputMap.problemDefinition.emptyResponseMap()
+        val responseNames = request.responseNames
+        //TODO if response names is empty this will not work!!!!
+        val responseMap = ResponseMap(responseNames)
         // fill the response map
-        for((name, _) in responseMap){
+        for(name in responseNames) {
             require(replicationData.containsKey(name)){"The simulation responses did not contain the requested response name $name"}
             // get the data from the simulation
             val data = replicationData[name]!!

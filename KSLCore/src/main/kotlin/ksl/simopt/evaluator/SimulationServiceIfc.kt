@@ -1,5 +1,7 @@
 package ksl.simopt.evaluator
 
+import ksl.controls.experiments.SimulationRun
+
 
 /**
  *  A functional interface that promises to run simulations on
@@ -11,6 +13,8 @@ package ksl.simopt.evaluator
  */
 interface SimulationServiceIfc {
 
-    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseData>
+    fun runSimulations(requests: List<RequestData>): List<SimulationRun>
+
+
 
 }

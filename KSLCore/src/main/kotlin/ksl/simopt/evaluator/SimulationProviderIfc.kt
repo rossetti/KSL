@@ -15,9 +15,9 @@ fun interface SimulationProviderIfc {
     /**
      *  Promises to convert evaluation requests into responses.
      *
-     * @param evaluationRequests a list of evaluations
+     * @param requests a list of evaluations
      * @return a map of the pair of evaluation requests and the responses from the simulation
      */
-    fun runSimulations(evaluationRequests: List<EvaluationRequest>): Map<EvaluationRequest, ResponseMap>
+    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
 
 }

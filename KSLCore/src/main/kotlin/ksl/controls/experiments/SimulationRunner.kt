@@ -81,14 +81,22 @@ class SimulationRunner(
      *  can represent both control (key, value) pairs and random variable parameter
      *  (key, value) pairs to be applied to the experiment.  The inputs may be empty.
      *
+     * @param inputs the input pairs for configuring the model
+     * @param experimentRunParameters the run parameters for the model. If null (the default), then
+     * the model supplies its own run parameters. That is, the run parameters will be extracted
+     * from the current settings of the model.
      *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
      *  associated with the simulation run.
      */
     fun simulate(
         inputs: Map<String, Double> = mapOf(),
-        experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
+        experimentRunParameters: ExperimentRunParameters? = null
     ): SimulationRun {
-        val simulationRun = SimulationRun(model.name, experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(
+            model.name,
+            experimentRunParameters ?: model.extractRunParameters(),
+            inputs
+        )
         simulate(simulationRun)
         return simulationRun
     }

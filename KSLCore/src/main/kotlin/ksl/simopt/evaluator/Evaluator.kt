@@ -201,7 +201,7 @@ class Evaluator(
      * @return a map of evaluation requests with their accompanying solution
      */
     private fun evaluateViaSimulation(
-        requests: List<EvaluationRequest>
+        requests: List<RequestData>
     ): Map<EvaluationRequest, Solution> {
         require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
         totalOracleEvaluations = totalOracleEvaluations + requests.size
@@ -211,7 +211,10 @@ class Evaluator(
         val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, responseMap) in cases) {
-            solutions[request] = createSolution(request, responseMap)
+            //TODO why do we need EvaluationRequest?
+            val inputs = InputMap(problemDefinition, request.inputs.toMutableMap())
+            val evaluationRequest = EvaluationRequest(request.numReplications, inputs)
+            solutions[evaluationRequest] = createSolution(evaluationRequest, responseMap)
         }
         return solutions
     }
@@ -300,6 +303,6 @@ class Evaluator(
  *  A simple extension function to compute the total number of replications within a set
  *  of evaluation requests.
  */
-fun List<EvaluationRequest>.totalReplications(): Int {
+fun List<RequestData>.totalReplications(): Int {
     return sumOf { it.numReplications }
 }
