@@ -11,4 +11,8 @@ data class ResponseData(
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
         require(responses.isNotEmpty()) { "Responses must not be empty" }
     }
+
+    fun toResponseMap(): ResponseMap {
+        return ResponseMap(responses.keys, responses.toMutableMap())
+    }
 }
