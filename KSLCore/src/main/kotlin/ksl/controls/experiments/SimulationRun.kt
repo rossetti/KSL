@@ -62,6 +62,12 @@ class SimulationRun private constructor(
         inputs = inputs
     )
 
+    val responseNames: Set<String>
+        get() = results.keys
+    
+    val inputNames: Set<String>
+        get() = inputs.keys
+
     /** Use primarily for printing out run results
      *
      * @return a StatisticReporter with the summary statistics of the run
@@ -69,7 +75,7 @@ class SimulationRun private constructor(
     fun statisticalReporter(): StatisticReporter {
         val r = StatisticReporter()
         for ((key, value) in results.entries) {
-            if ((key == "repNumbers") || (key == "repTimings")){
+            if ((key == "repNumbers") || (key == "repTimings")) {
                 continue
             }
             r.addStatistic(Statistic(key, value))
@@ -87,27 +93,27 @@ class SimulationRun private constructor(
         sb.appendLine("beginExecutionTime = $beginExecutionTime")
         sb.appendLine("endExecutionTime = $endExecutionTime")
         sb.appendLine("Inputs:")
-        if (inputs.isEmpty()){
+        if (inputs.isEmpty()) {
             sb.appendLine("\t {empty}")
         } else {
-            for((key, value) in inputs){
+            for ((key, value) in inputs) {
                 sb.appendLine("key = $key")
                 sb.appendLine("value = $value")
             }
         }
         sb.appendLine("Results:")
-        if (results.isEmpty()){
+        if (results.isEmpty()) {
             sb.appendLine("\t {empty}")
         } else {
-            for((key, value) in results){
+            for ((key, value) in results) {
                 sb.appendLine("key = $key")
-                sb.appendLine("value = ${value.joinToString(prefix = "[", postfix = "]", separator = ","  )}")
+                sb.appendLine("value = ${value.joinToString(prefix = "[", postfix = "]", separator = ",")}")
             }
         }
         return sb.toString()
     }
 
-    fun toJson(): String{
+    fun toJson(): String {
         val format = Json { prettyPrint = true }
         return format.encodeToString(this)
     }

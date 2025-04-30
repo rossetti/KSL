@@ -1,6 +1,5 @@
 package ksl.simopt.evaluator
 
-import ksl.controls.experiments.DesignPoint
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
@@ -52,7 +51,7 @@ class SimulationProvider(
      *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
     private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
-    val simulationRuns: Map<String,SimulationRun>
+    val simulationRuns: Map<String, SimulationRun>
         get() = mySimulationRuns
 
     //TODO could add ExperimentDataCollector as an option
@@ -103,18 +102,17 @@ class SimulationProvider(
         mySimulationRuns.clear()
     }
 
-    override fun runSimulations(evaluationRequests: List<RequestData>): Map<RequestData, ResponseMap> {
+    override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
         val results = mutableMapOf<RequestData, ResponseMap>()
-        for (request in evaluationRequests) {
+        for (request in requests) {
             executionCounter++
-            if (request.experimentRunParameters == null){
-                // update experiment name on the model
-                model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-                model.numberOfReplications = request.numReplications
-            } else {
+            // update experiment name on the model and number of replications
+            model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
+            model.numberOfReplications = request.numReplications
+            if (request.experimentRunParameters != null) {
                 // update the name and the number of replications on the supplied parameters
-                request.experimentRunParameters.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-                request.experimentRunParameters.numberOfReplications = request.numReplications
+                request.experimentRunParameters.experimentName = model.experimentName
+                request.experimentRunParameters.numberOfReplications = model.numberOfReplications
             }
             Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
             //run the simulation
@@ -144,8 +142,8 @@ class SimulationProvider(
         //TODO if response names is empty this will not work!!!!
         val responseMap = ResponseMap(responseNames)
         // fill the response map
-        for(name in responseNames) {
-            require(replicationData.containsKey(name)){"The simulation responses did not contain the requested response name $name"}
+        for (name in responseNames) {
+            require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
             // get the data from the simulation
             val data = replicationData[name]!!
             // compute the estimates from the replication data
