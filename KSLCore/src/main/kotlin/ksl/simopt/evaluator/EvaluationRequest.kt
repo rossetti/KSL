@@ -16,7 +16,7 @@ import ksl.simopt.problem.InputMap
 class EvaluationRequest(
     numReps: Int,
     val inputMap: InputMap,
-) : FeasibilityIfc by inputMap {
+) {
 
     init {
         require(numReps >= 1) { "The number of replications must be >= 1" }
