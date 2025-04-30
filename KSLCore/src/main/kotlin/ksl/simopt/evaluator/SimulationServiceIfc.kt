@@ -11,6 +11,6 @@ package ksl.simopt.evaluator
  */
 fun interface SimulationServiceIfc {
 
-    fun runSimulations(evaluationRequests: List<InputData>): Map<EvaluationRequest, ResponseData>
+    fun runSimulations(requests: List<RequestData>): Map<EvaluationRequest, ResponseData>
 
 }

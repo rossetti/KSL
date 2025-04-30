@@ -2,7 +2,6 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
-import ksl.simopt.problem.ProblemDefinition
 
 
 /**
@@ -65,15 +64,4 @@ class EvaluationRequest(
     val inputValues: DoubleArray
         get() = inputMap.inputValues
 
-    /**
-     *  Converts the EvaluationRequest to a form suitable for
-     *  serialization, transport, and use by simulation oracles.
-     */
-    fun toInputData(): InputData {
-        return InputData(
-            inputMap.problemDefinition.modelIdentifier,
-            numReplications,
-            inputMap
-        )
-    }
 }

@@ -1,6 +1,5 @@
 package ksl.simopt.problem
 
-import ksl.simopt.evaluator.InputData
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
