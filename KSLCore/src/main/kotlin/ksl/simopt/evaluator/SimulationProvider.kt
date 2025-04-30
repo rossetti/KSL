@@ -107,13 +107,18 @@ class SimulationProvider(
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in evaluationRequests) {
             executionCounter++
-            // update experiment name
-            model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-            model.numberOfReplications = request.numReplications
-            //run the simulation
+            if (request.experimentRunParameters == null){
+                // update experiment name on the model
+                model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
+                model.numberOfReplications = request.numReplications
+            } else {
+                // update the name and the number of replications on the supplied parameters
+                request.experimentRunParameters.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
+                request.experimentRunParameters.numberOfReplications = request.numReplications
+            }
             Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
-            //TODO use other information from RequestData
-            val simulationRun = mySimulationRunner.simulate(request.inputs, model.extractRunParameters())
+            //run the simulation
+            val simulationRun = mySimulationRunner.simulate(request.inputs, request.experimentRunParameters)
             Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
             // capture the simulation results
             captureResults(request, results, simulationRun)
