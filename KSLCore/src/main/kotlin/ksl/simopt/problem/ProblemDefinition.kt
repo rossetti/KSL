@@ -219,7 +219,7 @@ class ProblemDefinition(
     /** Returns a new empty response map to hold the responses associated with the problem
      */
     fun emptyResponseMap(): ResponseMap {
-        return ResponseMap(this)
+        return ResponseMap(allResponseNames.toSet())
     }
 
     /**
@@ -416,7 +416,10 @@ class ProblemDefinition(
      *  @return a list of the violations, one for each response constraint in the problem
      */
     fun responseConstraintViolations(responseMap: ResponseMap): Map<String, Double> {
-        require(responseMap.problemDefinition == this) { "The response map did not originate from this problem" }
+        val names = allResponseNames
+        for(name in responseMap.keys) {
+            require(name in names) { "The name $name does not exist in the response names" }
+        }
         val averages = responseMap.mapValues { it.value.average }
         return responseConstraintViolations(averages)
     }

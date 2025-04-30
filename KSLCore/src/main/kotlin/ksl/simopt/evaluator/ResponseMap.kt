@@ -12,9 +12,16 @@ import ksl.simopt.problem.ProblemDefinition
  *  @param map the map containing the output values for each response
  */
 class ResponseMap(
-    val problemDefinition: ProblemDefinition,
+    val responseNames: Set<String>,
     private val map: MutableMap<String, EstimatedResponse> = mutableMapOf()
 ) : Map<String, EstimatedResponse> by map {
+
+    init {
+        require(responseNames.isNotEmpty()) { "Response names cannot be empty" }
+        for(name in map.keys) {
+            require(responseNames.contains(name)) {"There is no response named $name"}
+        }
+    }
 
     val averages: Map<String, Double>
         get() = map.mapValues { it.value.average }
@@ -37,7 +44,6 @@ class ResponseMap(
         if (map.isEmpty()){
             return false
         }
-        val responseNames = problemDefinition.allResponseNames
         for(name in responseNames){
             if (!map.containsKey(name)){
                 return false
@@ -72,7 +78,7 @@ class ResponseMap(
      *  of the response must be valid for the associated problem.
      */
     fun add(estimate : EstimatedResponse) {
-        require(problemDefinition.isValidResponse(estimate.name))
+        require(responseNames.contains(estimate.name)){"The estimate name ${estimate.name} is not a valid response name."}
         map[estimate.name] = estimate
     }
 
@@ -82,7 +88,7 @@ class ResponseMap(
      *  of the response must be valid for the associated problem.
      */
     fun merge(estimate : EstimatedResponse) {
-        require(problemDefinition.isValidResponse(estimate.name))
+        require(responseNames.contains(estimate.name)){"The estimate name ${estimate.name} is not a valid response name."}
         if (map.containsKey(estimate.name)){
             val current = map[estimate.name]!!
             map[estimate.name] = current.merge(estimate)
