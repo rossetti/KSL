@@ -64,7 +64,7 @@ class SimulationRun private constructor(
 
     val responseNames: Set<String>
         get() = results.keys
-    
+
     val inputNames: Set<String>
         get() = inputs.keys
 
