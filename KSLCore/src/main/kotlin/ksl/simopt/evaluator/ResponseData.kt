@@ -9,5 +9,6 @@ data class ResponseData(
 ) {
     init {
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
+        require(responses.isNotEmpty()) { "Responses must not be empty" }
     }
 }
