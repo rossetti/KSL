@@ -101,6 +101,42 @@ class RVParameterSetter(private val model: Model) {
     }
 
     /**
+     *   Constructs a map of maps that contains the model elements that have random variables
+     *   and the parameters associated with the random variables.  The outer map is keyed
+     *   by the model element name that contains the random variables.  The inner map
+     *   holds the pairs (random variable name, RVParameters). That is, the inner map
+     *   is keyed by the name of the random variable, with the associated datum as
+     *   an instance of RVParameters.  From the RVParameters instance clients can inspect and set
+     *   the parameters of the random variable. The inner map will hold only those
+     *   random variables that are parameterized, i.e. ParameterizedRV descended.
+     */
+    fun rvParametersByElementName() : Map<String, Map<String, RVParameters>> {
+        val rvList: List<RandomVariable> = model.randomVariables()
+        val mapByParent = mutableMapOf<String, MutableMap<String, RVParameters>>()
+        for (rv in rvList) {
+            val rs: RandomIfc = rv.initialRandomSource
+            if (rs is ParameterizedRV) {
+                val pn  = rv.parentName
+                if (pn == null){
+                    // this must be Model
+                    if (!mapByParent.containsKey("MainModel")){
+                        mapByParent["MainModel"] = mutableMapOf<String, RVParameters>()
+                    }
+                    mapByParent["MainModel"]!![rv.name] = rs.parameters
+                } else {
+                    // the parent has a random variable and it is parameterized
+                    if (!mapByParent.containsKey(pn)){
+                        mapByParent[pn] = mutableMapOf<String, RVParameters>()
+                    }
+                    // it must now be there
+                    mapByParent[pn]!![rv.name] = rs.parameters
+                }
+            }
+        }
+        return mapByParent
+    }
+
+    /**
      * @return the extracted parameters
      */
     private fun extractParameters() : Pair<Map<String, RVParameters>, List<RVParameterData>> {
