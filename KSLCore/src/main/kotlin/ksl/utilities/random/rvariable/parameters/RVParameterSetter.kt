@@ -18,6 +18,7 @@
 
 package ksl.utilities.random.rvariable.parameters
 
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.modeling.variable.RandomVariable
@@ -33,6 +34,7 @@ import java.lang.StringBuilder
  *  variable's parameters. Used primarily to store the data within
  *  the KSL database.
  */
+@Serializable
 data class RVParameterData(
     val clazzName: String,
     val elementId: Int,

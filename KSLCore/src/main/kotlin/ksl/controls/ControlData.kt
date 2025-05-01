@@ -1,5 +1,7 @@
 package ksl.controls
 
+import kotlinx.serialization.Serializable
+
 /**
  *  A data class for transferring the data associated with a control.
  *  @param controlType the type of control (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN)
@@ -14,6 +16,7 @@ package ksl.controls
  *  @param comment The comment string that was supplied in the control annotation.
  *  @param modelName The name of the model that holds the element associated with the control.
  */
+@Serializable
 data class ControlData(
     val controlType: ControlType,
     val value: Double,

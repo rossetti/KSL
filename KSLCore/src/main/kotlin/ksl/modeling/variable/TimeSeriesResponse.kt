@@ -2,6 +2,7 @@ package ksl.modeling.variable
 
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Table
+import kotlinx.serialization.Serializable
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
@@ -29,6 +30,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  *  the average of the response over the indicated period. For Counter instances
  *  the value property represents the total count during the indicated period.
  */
+@Serializable
 data class TimeSeriesPeriodData(
     val elementId: Int,
     val responseName: String,
@@ -55,6 +57,7 @@ data class TimeSeriesPeriodData(
 /**
  *  Holds the statistics by period across the simulation replications.
  */
+@Serializable
 data class TimeSeriesPeriodStatisticData(
     val responseName: String,
     val period: Int,
