@@ -187,7 +187,9 @@ class Controls(aModel: Model) {
 
     /**
      *  Returns a map containing the model element name having controls along
-     *  with a list of those controls for the model element.
+     *  with a list of those controls for the model element. The model element
+     *  name is the key to the returned map. The values are a list of the controls
+     *  associated with the model element.
      */
     fun controlsByModelElement(): Map<String, List<ControlIfc>>{
         val map = mutableMapOf<String, MutableList<ControlIfc>>()
@@ -196,6 +198,24 @@ class Controls(aModel: Model) {
                 map[control.elementName] = mutableListOf<ControlIfc>()
             }
             map[control.elementName]!!.add(control)
+        }
+        return map
+    }
+
+    /**
+     *  Returns a map containing the type of model element having controls along
+     *  with a list of those controls for that type of model element. The type of the model element
+     *  is the key to the returned map. The values are a list of the controls
+     *  associated with the type of model element. Recall that the element type
+     *  is the simple class name associated with the model element. For example ResourceWithQ
+     */
+    fun controlsByElementType(): Map<String, List<ControlIfc>>{
+        val map = mutableMapOf<String, MutableList<ControlIfc>>()
+        for ((_, control) in myControls) {
+            if (!map.containsKey(control.elementType)){
+                map[control.elementType] = mutableListOf<ControlIfc>()
+            }
+            map[control.elementType]!!.add(control)
         }
         return map
     }
