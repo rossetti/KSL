@@ -234,8 +234,8 @@ class Controls(aModel: Model) {
      */
     fun controlTypes(): Set<ControlType> {
         val set = mutableSetOf<ControlType>()
-        for ((_, value) in myControls) {
-            set.add(value.type)
+        for ((_, control) in myControls) {
+            set.add(control.type)
         }
         return set
     }
