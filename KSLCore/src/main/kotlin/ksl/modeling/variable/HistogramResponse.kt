@@ -24,7 +24,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.HistogramIfc
 
-interface HistogramResponseCIfc : IdentityIfc {
+interface HistogramResponseCIfc : IdentityIfc, ParentNameIfc {
     val histogram: HistogramIfc
     val response: ResponseCIfc
 }
