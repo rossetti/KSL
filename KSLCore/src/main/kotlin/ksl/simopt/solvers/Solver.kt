@@ -343,6 +343,7 @@ abstract class Solver(
 
     private fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
+        //TODO get rid of mySolverRunner
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
 
