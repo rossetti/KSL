@@ -19,7 +19,6 @@
 package ksl.controls
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import ksl.controls.experiments.Factor
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -29,94 +28,6 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
-
-/**
- *   A control represents an element within a model that can be changed by the user.
- *   Every control has a type (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN).
- *   The value of the control can be set by the user.  If the supplied value is
- *   not within the allowed range of the control, the value will be limited to
- *   within the range.  If the user assigns the value of the control to less
- *   than the lower bound, then the value is set to the lower bound. If the user
- *   assigns the value greater than the upper bound, then the value is set
- *   at the upper bound. For example, suppose the lower bound of the control is 1.0
- *   and the upper bound is 10.0.  Setting the control value to 0.0, will set the
- *   control to 1.0. Setting the control value to 12.0, will set the control
- *   to 10.0. Thus, out of range values are not permitted and corrected (silently).
- *   The limitToRange() function can be used to inspect the value that will result
- *   if the control is set to the supplied value.
- */
-interface ControlIfc {
-    val type: ControlType
-    var value: Double
-    val keyName: String
-    val lowerBound: Double
-    val upperBound: Double
-    val elementName: String
-    val elementId: Int
-    val elementType: String
-    val propertyName: String
-    val comment: String
-    val modelName: String
-
-    /**
-     *  Checks if the supplied value is within [lowerBound, upperBound]
-     */
-    fun withinRange(value: Double): Boolean = value in lowerBound..upperBound
-
-    /**
-     * Ensures that the supplied double is within the bounds
-     * associated with the control. This function does
-     * not change the state of the control.
-     *
-     * @param value the value to limit
-     * @return the limited value for future use
-     */
-    fun limitToRange(value: Double): Double {
-        if (value <= lowerBound) {
-            return lowerBound
-        } else if (value >= upperBound) {
-            return upperBound
-        }
-        return value
-    }
-
-    /**
-     *  Returns an array that has been mapped to legal values
-     *  for the control
-     */
-    fun limitToRange(values: DoubleArray): DoubleArray {
-        return values.map { value -> limitToRange(value) }.toDoubleArray()
-    }
-
-//    /**
-//     *  Creates a factor having the levels for this control
-//     */
-//    fun factor(levels: DoubleArray) : Factor {
-//        return Factor.create(this, levels)
-//    }
-//
-//    /**
-//     *  Creates a two level factor for this control
-//     */
-//    fun factor(low: Double, high: Double) : Factor {
-//        return Factor.create(this, low, high)
-//    }
-}
-
-/**
- *  A data class for transferring the data associated with a control.
- */
-data class ControlData(
-    val key: String,
-    val value: Double,
-    val lowerBound: Double,
-    val upperBound: Double,
-    val comment: String,
-    val controlType: ControlType,
-    val elementType: String,
-    val elementName: String,
-    val modelName: String
-)
 
 /**
  *  This class holds the controls associated with an instance of a model.
@@ -141,6 +52,9 @@ data class ControlData(
  */
 class Controls(aModel: Model) {
 
+    /**
+     *  The key is Control.keyName
+     */
     private val myControls = mutableMapOf<String, ControlIfc>()
 
     private val model = aModel
@@ -272,6 +186,21 @@ class Controls(aModel: Model) {
     }
 
     /**
+     *  Returns a map containing the model element name having controls along
+     *  with a list of those controls for the model element.
+     */
+    fun controlsByModelElement(): Map<String, List<ControlIfc>>{
+        val map = mutableMapOf<String, MutableList<ControlIfc>>()
+        for ((_, control) in myControls) {
+            if (!map.containsKey(control.elementName)){
+                map[control.elementName] = mutableListOf<ControlIfc>()
+            }
+            map[control.elementName]!!.add(control)
+        }
+        return map
+    }
+
+    /**
      * Gets a control of the supplied key name or null
      *
      * @param controlKey the key for the control, must not be null
@@ -357,14 +286,16 @@ class Controls(aModel: Model) {
         for ((_, control) in myControls) {
             with(control) {
                 val cd = ControlData(
-                    keyName,
+                    type,
                     value,
+                    keyName,
                     lowerBound,
                     upperBound,
-                    comment,
-                    type,
-                    elementType,
                     elementName,
+                    elementId,
+                    elementType,
+                    propertyName,
+                    comment,
                     modelName
                 )
                 list.add(cd)
