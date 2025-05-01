@@ -64,12 +64,16 @@ interface RangeIfc {
     val domain: Interval
 }
 
+interface ParentNameIfc {
+    val parentName: String?
+}
+
 interface ResponseIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,
-    DefaultReportingOptionIfc, RangeIfc
+    DefaultReportingOptionIfc, RangeIfc, ParentNameIfc
 
 interface TimeWeightedIfc : ResponseIfc, WeightIfc, VariableIfc
 
 interface CounterIfc : ResponseIfc, InitialValueIfc, AcrossReplicationStatisticIfc
 
 interface VariableIfc : IdentityIfc, ValueIfc, PreviousValueIfc, TimeOfChangeIfc, PreviousTimeOfChangeIfc,
-    InitialValueIfc, RangeIfc
+    InitialValueIfc, RangeIfc, ParentNameIfc

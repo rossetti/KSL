@@ -40,7 +40,7 @@ private var elementCounter: Int = 0
  */
 private var qObjCounter: Long = 0
 
-abstract class ModelElement internal constructor(name: String? = null) : IdentityIfc {
+abstract class ModelElement internal constructor(name: String? = null) : IdentityIfc, ParentNameIfc {
     //TODO spatial model stuff
     //TODO change parent model element method, was in JSL, can/should it be in KSL
 
@@ -208,6 +208,9 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
      */
     protected val parent
         get() = myParentModelElement
+
+    override val parentName: String?
+        get() = parent?.name
 
     /**
      * the model that contains this element
