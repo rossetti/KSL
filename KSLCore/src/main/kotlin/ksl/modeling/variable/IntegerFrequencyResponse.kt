@@ -7,7 +7,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.IntegerFrequencyIfc
 
-interface FrequencyResponseCIfc : IdentityIfc {
+interface FrequencyResponseCIfc : IdentityIfc, ParentNameIfc {
     val frequencyResponse: IntegerFrequencyIfc
 }
 
