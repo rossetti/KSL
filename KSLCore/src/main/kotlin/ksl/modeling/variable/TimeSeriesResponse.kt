@@ -85,7 +85,7 @@ data class TimeSeriesPeriodStatisticData(
 /**
  *  A limiting view of a TimeSeriesResponse via an interface.
  */
-interface TimeSeriesResponseCIfc {
+interface TimeSeriesResponseCIfc : ParentNameIfc {
 
     /**
      *  The default time that the first period will start. By default, it is zero.
