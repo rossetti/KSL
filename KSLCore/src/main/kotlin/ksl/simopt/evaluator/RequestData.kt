@@ -77,5 +77,12 @@ data class RequestData(
         return result
     }
 
+    /**
+     *  The values of the input parameters as an array. The order
+     *  of the array is based on the order of the input variables
+     *  in the map of input variables.
+     */
+    val inputValues: DoubleArray
+        get() = inputs.values.toDoubleArray()
 
 }
