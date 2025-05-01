@@ -1,5 +1,6 @@
 package ksl.simopt.cache
 
+import ksl.simopt.evaluator.RequestData
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.SolutionData
 import ksl.simopt.evaluator.Solutions
@@ -27,20 +28,20 @@ class MemorySolutionCache(
         require(capacity >= 2) {"The cache's capacity must be >= 2"}
     }
 
-    private val map: MutableMap<InputMap, Solution> = mutableMapOf()
+    private val map: MutableMap<RequestData, Solution> = mutableMapOf()
 
     override var evictionRule: EvictionRuleIfc? = null
 
-    override val entries: Set<Map.Entry<InputMap, Solution>>
+    override val entries: Set<Map.Entry<RequestData, Solution>>
         get() = map.entries
-    override val keys: Set<InputMap>
+    override val keys: Set<RequestData>
         get() = map.keys
     override val size: Int
         get() = map.size
     override val values: Collection<Solution>
         get() = map.values
 
-    override fun containsKey(key: InputMap): Boolean {
+    override fun containsKey(key: RequestData): Boolean {
         return map.containsKey(key)
     }
 
@@ -48,7 +49,7 @@ class MemorySolutionCache(
         return map.containsValue(value)
     }
 
-    override fun get(key: InputMap): Solution? {
+    override fun get(key: RequestData): Solution? {
         return map[key]
     }
 
@@ -56,17 +57,18 @@ class MemorySolutionCache(
         return map.isEmpty()
     }
 
-    override fun remove(inputMap: InputMap): Solution? {
-        return map.remove(inputMap)
+    override fun remove(requestData: RequestData): Solution? {
+        return map.remove(requestData)
     }
 
     override fun solutions(): Solutions {
         return Solutions(map.values.toList())
     }
 
-    override fun put(inputMap: InputMap, solution: Solution): Solution? {
-        require(inputMap == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
-        if(!inputMap.isInputFeasible()){
+    override fun put(requestData: RequestData, solution: Solution): Solution? {
+        require(requestData.inputs == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
+        //TODO this may be too quiet
+        if(!solution.isInputFeasible()){
             return null
         }
         if (size == capacity) {
@@ -74,7 +76,7 @@ class MemorySolutionCache(
             remove(itemToEvict)
         }
         require(size < capacity) { "The eviction of members did not work. No capacity for item in the cache." }
-        return map.put(inputMap, solution)
+        return map.put(requestData, solution)
     }
 
     /**
@@ -83,32 +85,32 @@ class MemorySolutionCache(
      *  the first solution with an infinite (or NaN) objective function or the first solution (oldest) with the
      *  maximum penalized objective function.
      */
-    fun findEvictionCandidate(): InputMap {
+    fun findEvictionCandidate(): RequestData {
         if (size == 1) {
             return keys.toList().first()
         }
-        for ((inputMap, solution) in map) {
+        for ((requestData, solution) in map) {
             // remove the first deterministically infeasible solution and return it
             if (!solution.isInputRangeFeasible() || !solution.isLinearConstraintFeasible() ||
                 !solution.isFunctionalConstraintFeasible()
             ) {
-                return inputMap
+                return requestData
             }
             // or remove the first infinite or bad constrained solution
             if (solution.penalizedObjFncValue.isNaN() || solution.penalizedObjFncValue.isInfinite()
                 || solution.penalizedObjFncValue == Double.MAX_VALUE){
-                return inputMap
+                return requestData
             }
             // or remove the first infinite or bad unconstrained solution
             if (solution.estimatedObjFncValue.isNaN() || solution.estimatedObjFncValue.isInfinite()
                 || solution.estimatedObjFncValue == Double.MAX_VALUE){
-                return inputMap
+                return requestData
             }
         }
         // if here then solutions were deterministically feasible, with non-problematic objective function values
         // find the oldest, largest solution to evict
         var largestSolValue = Double.MAX_VALUE
-        var candidate: InputMap? = null
+        var candidate: RequestData? = null
         for((inputMap, solution) in map) {
             val possibleMax = solution.penalizedObjFncValue
             if (possibleMax < largestSolValue){

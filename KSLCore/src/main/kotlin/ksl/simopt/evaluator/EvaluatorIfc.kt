@@ -87,10 +87,25 @@ interface EvaluatorIfc {
      *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
      *  solutions that result due to the processing will be entered into the cache (according
      *  to the rules governing the cache).  Any incoming requests that have input range
-     *  infeasible input settings will be rejected from the evaluation process.
+     *  infeasible input settings will not be evaluated and will result in solutions that
+     *  are bad and infeasible.
      *
      *  @param rawRequests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    fun evaluate(rawRequests: List<EvaluationRequest>): List<Solution>
+    fun evaluate(rawRequests: List<RequestData>): List<Solution>
+
+    /**
+     *  Processes the supplied request for a solution. The solution may come from an associated
+     *  solution cache (if present) or via an evaluation by the simulation oracle.
+     *  A solution that results due to the processing will be entered into the cache (according
+     *  to the rules governing the cache).  If the request is input range
+     *  infeasible then a bad and infeasible solution will be returned.
+     *
+     *  @param request a request needing evaluation
+     *  @return the solution associated with the request
+     */
+    fun evaluate(request: RequestData): Solution {
+        return evaluate(listOf(request)).first()
+    }
 }

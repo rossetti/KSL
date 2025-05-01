@@ -118,9 +118,11 @@ abstract class Solver(
 
     /**
      *  Indicates whether the solver allows infeasible requests
-     *  to be sent to the evaluator. The default is true.
+     *  to be sent to the evaluator. The default is false. That is,
+     *  the solver is allowed to send problem infeasible requests for
+     *  evaluation by the evaluator.
      */
-    var allowInfeasibleRequests: Boolean = true
+    var ensureProblemFeasibleRequests: Boolean = false
 
     /**
      *  A read-only view of the solutions evaluated by the solver.
@@ -307,9 +309,41 @@ abstract class Solver(
         currentPoint: InputMap,
         rnStream: RNStreamIfc
     ) : InputMap {
-        //TODO make this trial based
-        return neighborGenerator?.generateNeighbor(currentPoint, this)
-            ?: currentPoint.randomizeInputVariable(rnStream)
+
+        if (neighborGenerator != null){
+            return neighborGenerator!!.generateNeighbor(currentPoint, this, ensureProblemFeasibleRequests)
+        } else {
+            //TODO make this trial based
+            return currentPoint.randomizeInputVariable(rnStream)
+        }
+    }
+
+    /**
+     *  Creates a request for evaluation from the input map. The number of replications
+     *  for the request will be based on the property [replicationsPerEvaluation] for the
+     *  solver. The resulting request will be input range feasible, but may be infeasible
+     *  with respect to the problem. If the user does not allow infeasible requests by
+     *  setting the [ensureProblemFeasibleRequests] to false, then this function will throw
+     *  an exception if the supplied input is infeasible with respect to the deterministic
+     *  constraints of the problem.
+     *
+     *  @param inputMap the input variables and their values for the request
+     *  @return the instance of RequestData that can be sent for evaluation
+     */
+    protected fun createRequest(inputMap: InputMap): RequestData {
+        if (ensureProblemFeasibleRequests){
+            require(inputMap.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
+        }
+        // the input map will be range feasible, but may not be problem feasible
+        val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+        // since input map is immutable so is the RequestData instance
+        return RequestData(
+            problemDefinition.modelIdentifier,
+            numReps,
+            inputMap,
+            problemDefinition.allResponseNames.toSet(),
+            experimentRunParameters = null
+        )
     }
 
     protected fun requestEvaluations(inputs: Set<InputMap>): List<Solution> {
@@ -329,19 +363,15 @@ abstract class Solver(
      *  @param inputs the input (point) values to prepare
      *  @return the prepared requests
      */
-    private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<EvaluationRequest>{
-        val list = mutableListOf<EvaluationRequest>()
+    private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<RequestData>{
+        val list = mutableListOf<RequestData>()
         for(input in inputs){
-            if (!allowInfeasibleRequests){
-                require(input.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
-            }
-            val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
-            list.add(EvaluationRequest(numReps, input))
+            list.add(createRequest(input))
         }
         return list
     }
 
-    private fun requestEvaluations(requests: List<EvaluationRequest>) : List<Solution> {
+    private fun requestEvaluations(requests: List<RequestData>) : List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
         //TODO get rid of mySolverRunner
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)

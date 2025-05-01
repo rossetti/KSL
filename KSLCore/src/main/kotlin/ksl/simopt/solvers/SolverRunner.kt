@@ -2,6 +2,7 @@ package ksl.simopt.solvers
 
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
+import ksl.simopt.evaluator.RequestData
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.IterativeProcess
@@ -143,7 +144,7 @@ open class SolverRunner(
      *  so that the solver runner has an opportunity to process them before forwarding them
      *  to the attached evaluator.
      */
-    internal fun receiveEvaluationRequests(solver: Solver, requests: List<EvaluationRequest>) : List<Solution> {
+    internal fun receiveEvaluationRequests(solver: Solver, requests: List<RequestData>) : List<Solution> {
         // requests may come from solvers because of initialization or because of an iteration
         TODO("Not yet implemented")
     }

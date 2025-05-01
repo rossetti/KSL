@@ -16,8 +16,10 @@ fun interface GenerateNeighborIfc {
      *
      *   @param inputMap the input to serve as the basis for determining a neighbor
      *   @param solver the solver requiring the generated neighbor
+     *   @param ensureFeasibility indicates if the generation method should ensure the problem
+     *   feasibility of the returned value
      *   @return a neighbor to the supplied input
      */
-    fun generateNeighbor(inputMap: InputMap, solver: Solver) : InputMap
+    fun generateNeighbor(inputMap: InputMap, solver: Solver, ensureFeasibility: Boolean) : InputMap
 
 }

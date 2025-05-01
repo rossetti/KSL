@@ -13,7 +13,7 @@ import ksl.simopt.problem.InputMap
  *  @param numReps the number of replications requested for the evaluation
  *  @param inputMap the inputs to be evaluated
  */
-class EvaluationRequest(
+class EvaluationRequestBuggers(
     numReps: Int,
     val inputMap: InputMap,
 ) : FeasibilityIfc by inputMap {
@@ -52,7 +52,7 @@ class EvaluationRequest(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as EvaluationRequest
+        other as EvaluationRequestBuggers
 
         return inputMap == other.inputMap
     }

@@ -31,7 +31,7 @@ open class StochasticHillClimber(
         // evaluate the solution
         val nextSolution = requestEvaluation(nextPoint)
         // if new solution is better (smaller) update the current solution
-
+        TODO()
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
