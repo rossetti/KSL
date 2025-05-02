@@ -417,6 +417,13 @@ abstract class Solver(
             return (iterationCounter < maximumNumberIterations)
         }
 
+        /**
+         *  This function is called after each iteration (step) is completed.
+         *  The number of iterations is automatically checked. This function allows
+         *  for the inclusion of additional stopping criteria through the implementation
+         *  of the isStoppingCriteriaSatisfied() function, which subclasses can
+         *  provide.
+         */
         override fun checkStoppingCondition() {
             if (isStoppingCriteriaSatisfied()) {
                 stop()
