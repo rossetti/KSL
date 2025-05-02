@@ -26,7 +26,7 @@ open class StochasticHillClimber(
         rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
         name: String? = null
     ) : this(evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), rnStream, name)
-    
+
 
     override fun initializeIterations() {
         val initialPoint = problemDefinition.startingPoint(rnStream)
@@ -41,6 +41,9 @@ open class StochasticHillClimber(
         // evaluate the solution
         val nextSolution = requestEvaluation(nextPoint)
         // if new solution is better (smaller) update the current solution
+        if (compare(nextSolution, currentSolution) < 0){
+            currentSolution = nextSolution
+        }
         TODO()
     }
 

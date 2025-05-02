@@ -248,6 +248,8 @@ abstract class Solver(
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
+     * @return -1 if first is less than second solution, 0 if the solutions are to be considered
+     *   equivalent, and 1 if the first is larger than the second solution.
      */
     override fun compare(first: Solution, second: Solution) : Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
