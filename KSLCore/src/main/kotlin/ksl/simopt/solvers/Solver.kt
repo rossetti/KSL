@@ -182,7 +182,7 @@ abstract class Solver(
     /**
      *  The current (or last) solution that was accepted as a possible
      *  solution to recommend for the solver. It is the responsibility
-     *  of the subclass to determine the current (best) solution.
+     *  of the subclass to determine the current solution.
      */
     var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
@@ -192,6 +192,15 @@ abstract class Solver(
             }
             //TODO consider emitting solutions
         }
+
+    /**
+     *  The best solution found so far in the search. Some algorithms may allow
+     *  the current solution to vary from the best solution due to randomness
+     *  or other search needs (e.g. explore bad areas with the hope of getting better).
+     *  The algorithm should ensure the updating of the best solution found
+     *  across any iteration.
+     */
+    var bestSolution: Solution? = null
 
     /**
      *  Causes the solver to be initialized. It will then
