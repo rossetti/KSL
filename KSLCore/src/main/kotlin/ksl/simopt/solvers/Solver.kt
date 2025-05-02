@@ -190,6 +190,11 @@ abstract class Solver(
             if (saveSolutions){
                 mySolutions.add(value)
             }
+            // if the new current solution is better than all previous solutions
+            // capture the best solution
+            if (compare(currentSolution, bestSolution) < 0){
+                bestSolution = currentSolution
+            }
             //TODO consider emitting solutions
         }
 
