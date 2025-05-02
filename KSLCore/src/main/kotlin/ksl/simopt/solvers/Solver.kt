@@ -297,7 +297,7 @@ abstract class Solver(
      *  implementation of stopping criteria.
      */
     protected abstract fun isStoppingCriteriaSatisfied(): Boolean
-
+    //TODO can this be made into a supplied functional?
 
     /**
      *  This function is called before the function mainIteration() executes.
