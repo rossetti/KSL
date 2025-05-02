@@ -124,7 +124,7 @@ class Evaluator(
      *  @param rawRequests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    override fun evaluate(rawRequests: List<EvaluationRequest>): List<Solution> {
+    override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
         // filter out the duplicate requests
@@ -144,12 +144,12 @@ class Evaluator(
             // since some requests could have needed additional replications, we may need to merge solutions
             // from the cache with solutions performed by the oracle
             for ((request, simulatedSolution) in simulatedSolutions) {
-                if (solutionMap.containsKey(request.inputMap)) {
+                if (solutionMap.containsKey(request)) {
                     // merge the solution with the cached solution
-                    val cachedSolution = solutionMap[request.inputMap]!!
-                    solutionMap[request.inputMap] = mergeSolution(request, cachedSolution, simulatedSolution)
+                    val cachedSolution = solutionMap[request]!!
+                    solutionMap[request] = mergeSolution(request, cachedSolution, simulatedSolution)
                 } else {
-                    solutionMap[request.inputMap] = simulatedSolution
+                    solutionMap[request] = simulatedSolution
                 }
             }
             // update the cache with any new solutions after possible merging
@@ -163,7 +163,7 @@ class Evaluator(
         // handle duplicate input requests by grabbing from the solution map based on the input of the request
         val solutions = mutableListOf<Solution>()
         for(request in rawRequests){
-            solutions.add(solutionMap[request.inputMap]!!)
+            solutions.add(solutionMap[request]!!)
         }
         return solutions
     }
@@ -176,14 +176,14 @@ class Evaluator(
      *  @param uniqueRequests the requests that need evaluation
      */
     private fun updateRequestReplicationData(
-        solutionMap: MutableMap<InputMap, Solution>,
-        uniqueRequests: List<EvaluationRequest>
+        solutionMap: MutableMap<RequestData, Solution>,
+        uniqueRequests: List<RequestData>
     ) {
         if (solutionMap.isNotEmpty()) {
             return
         }
         for (request in uniqueRequests) {
-            val sol = solutionMap[request.inputMap]
+            val sol = solutionMap[request]
             if (sol != null) {
                 val n = sol.numReplications
                 totalCachedEvaluations++
@@ -202,13 +202,13 @@ class Evaluator(
      */
     private fun evaluateViaSimulation(
         requests: List<RequestData>
-    ): Map<EvaluationRequest, Solution> {
+    ): Map<RequestData, Solution> {
         require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
         totalOracleEvaluations = totalOracleEvaluations + requests.size
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         val cases = simulationProvider.runSimulations(requests)
-        val solutions: MutableMap<EvaluationRequest, Solution> = mutableMapOf()
+        val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, responseMap) in cases) {
             //TODO why do we need EvaluationRequest?
@@ -227,7 +227,7 @@ class Evaluator(
      *  @param responseMap the response map to convert
      */
     private fun createSolution(
-        request: EvaluationRequest,
+        request: RequestData,
         responseMap: ResponseMap,
     ): Solution {
         val objFnName = problemDefinition.objFnResponseName
@@ -255,7 +255,7 @@ class Evaluator(
      *  and the supplied solution are not changed during the merging process.
      */
     private fun mergeSolution(
-        request: EvaluationRequest,
+        request: RequestData,
         firstSolution: Solution,
         secondSolution: Solution,
     ): Solution {
@@ -282,8 +282,8 @@ class Evaluator(
          * @param requests a list of evaluation requests
          * @return a list of evaluation requests that are unique
          */
-        fun filterToUniqueRequests(requests: List<EvaluationRequest>): List<EvaluationRequest> {
-            val uniqueRequests = mutableSetOf<EvaluationRequest>()
+        fun filterToUniqueRequests(requests: List<RequestData>): List<RequestData> {
+            val uniqueRequests = mutableSetOf<RequestData>()
             // since requests are the same based on the values of their input maps
             // we need only update the duplicate so that it has the maximum of any duplicate entries
             for (req in requests) {
