@@ -239,9 +239,10 @@ class Evaluator(
                 responseEstimates.add(estimate)
             }
         }
-        //TODO need to make the InputMap
+        // need to make the InputMap, this will not be the same object used to make the request
+        val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
         val solution = Solution(
-            request.inputMap,
+            inputMap,
             request.numReplications,
             estimatedObjFnc,
             responseEstimates,

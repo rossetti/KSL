@@ -23,6 +23,7 @@ class InputMap internal constructor(
 
     init {
         require(problemDefinition.validate(map)) {"The supplied map has invalid names or values for the problem definition."}
+        problemDefinition.roundToGranularity(map)
     }
 
     /**
