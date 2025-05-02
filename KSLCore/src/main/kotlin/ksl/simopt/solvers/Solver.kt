@@ -186,14 +186,15 @@ abstract class Solver(
      */
     var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
+            //TODO capture gap/difference in solutions, capture previous solution
             field = value
             if (saveSolutions){
                 mySolutions.add(value)
             }
             // if the new current solution is better than all previous solutions
             // capture the best solution
-            if (compare(currentSolution, bestSolution) < 0){
-                bestSolution = currentSolution
+            if (compare(field, bestSolution) < 0){
+                bestSolution = field
             }
             //TODO consider emitting solutions
         }
