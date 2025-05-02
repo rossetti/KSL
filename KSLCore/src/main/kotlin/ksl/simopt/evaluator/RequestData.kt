@@ -20,7 +20,7 @@ import ksl.controls.experiments.ExperimentRunParameters
 @Serializable
 data class RequestData(
     val modelIdentifier: String,
-    val numReplications: Int,
+    var numReplications: Int,
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
     val experimentRunParameters: ExperimentRunParameters? = null
@@ -36,27 +36,27 @@ data class RequestData(
         }
     }
 
-//    /**
-//     *  Since requests may cover portions of an experiment that has multiple replication,
-//     *  the starting replication number may be some number between 1 and the total
-//     *  number of replications in the experiment. The chunking process may
-//     *  set the starting replication number to the starting replication of the chunk
-//     *  of replications.
-//     */
-//    var startingReplicationNum: Int = 1
-//        set(value) {
-//            require(value >= 1) { "The starting replication number must be >= 1" }
-//            field = value
-//        }
-//
-//    /**
-//     *  Sets the number of requested replications to the maximum of the supplied
-//     *  [numReps] or the current setting for the number of requested replications.
-//     */
-//    fun maxOfReplication(numReps: Int) {
-//        require(numReps > 0) { "Number of reps must be greater than zero" }
-//        numReplications = maxOf(numReplications, numReps)
-//    }
+    /**
+     *  Since requests may cover portions of an experiment that has multiple replication,
+     *  the starting replication number may be some number between 1 and the total
+     *  number of replications in the experiment. The chunking process may
+     *  set the starting replication number to the starting replication of the chunk
+     *  of replications.
+     */
+    var startingReplicationNum: Int = 1
+        set(value) {
+            require(value >= 1) { "The starting replication number must be >= 1" }
+            field = value
+        }
+
+    /**
+     *  Sets the number of requested replications to the maximum of the supplied
+     *  [numReps] or the current setting for the number of requested replications.
+     */
+    fun maxOfReplication(numReps: Int) {
+        require(numReps > 0) { "Number of reps must be greater than zero" }
+        numReplications = maxOf(numReplications, numReps)
+    }
 
     /**
      *  Equals is based on modelIdentifier, inputs, and response names
