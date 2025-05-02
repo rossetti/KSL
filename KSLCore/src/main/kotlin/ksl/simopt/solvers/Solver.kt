@@ -200,7 +200,7 @@ abstract class Solver(
      *  The algorithm should ensure the updating of the best solution found
      *  across any iteration.
      */
-    var bestSolution: Solution? = null
+    var bestSolution: Solution = problemDefinition.badSolution()
 
     /**
      *  Causes the solver to be initialized. It will then
