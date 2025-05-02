@@ -179,6 +179,8 @@ abstract class Solver(
      */
     protected lateinit var initialSolution: Solution
 
+    var previousSolution: Solution = problemDefinition.badSolution()
+
     /**
      *  The current (or last) solution that was accepted as a possible
      *  solution to recommend for the solver. It is the responsibility
@@ -186,7 +188,8 @@ abstract class Solver(
      */
     var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
-            //TODO capture gap/difference in solutions, capture previous solution
+            //TODO capture gap/difference in solutions
+            previousSolution = field
             field = value
             if (saveSolutions){
                 mySolutions.add(value)
