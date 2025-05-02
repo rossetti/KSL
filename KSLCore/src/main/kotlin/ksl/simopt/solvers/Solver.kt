@@ -141,6 +141,13 @@ abstract class Solver(
      */
     var solutionComparer: CompareSolutionsIfc? = null
 
+    /**
+     *  The user can supply a function that will generate a neighbor
+     *  for the evaluation process. If supplied, this function will be used
+     *  instead of the pre-defined generateNeighbor() function. The user
+     *  may also override the generateNeighbor() function when
+     *  developing subclasses.
+     */
     var neighborGenerator: GenerateNeighborIfc? = null
 
     /**
@@ -183,6 +190,7 @@ abstract class Solver(
             if (saveSolutions){
                 mySolutions.add(value)
             }
+            //TODO consider emitting solutions
         }
 
     /**

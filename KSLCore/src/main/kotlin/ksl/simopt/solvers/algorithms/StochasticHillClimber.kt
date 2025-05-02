@@ -43,6 +43,9 @@ open class StochasticHillClimber(
         // if new solution is better (smaller) update the current solution
         if (compare(nextSolution, currentSolution) < 0){
             currentSolution = nextSolution
+            // improvement occurred
+        } else {
+            // improvement did not occur
         }
         TODO()
     }
