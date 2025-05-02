@@ -1,6 +1,5 @@
 package ksl.simopt.solvers
 
-import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.RequestData
 import ksl.simopt.evaluator.Solution
