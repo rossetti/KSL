@@ -1,7 +1,6 @@
 package ksl.simopt.evaluator
 
-import ksl.simopt.problem.InputMap
-import ksl.simopt.problem.ProblemDefinition
+//TODO Why both ResponseMap and ResponseData?
 
 /**
  *  A response map holds replication data from evaluations of the simulation

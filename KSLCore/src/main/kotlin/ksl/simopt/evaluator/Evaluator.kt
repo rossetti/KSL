@@ -211,9 +211,6 @@ class Evaluator(
         val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, responseMap) in cases) {
-            //TODO why do we need EvaluationRequest?
-     //       val inputs = InputMap(problemDefinition, request.inputs.toMutableMap())
- //           val evaluationRequest = EvaluationRequest(request.numReplications, inputs)
             solutions[request] = createSolution(request, responseMap)
         }
         return solutions

@@ -2,6 +2,8 @@ package ksl.simopt.evaluator
 
 import kotlinx.serialization.Serializable
 
+//TODO Why both ResponseMap and ResponseData?
+
 @Serializable
 data class ResponseData(
     val modelIdentifier: String,
