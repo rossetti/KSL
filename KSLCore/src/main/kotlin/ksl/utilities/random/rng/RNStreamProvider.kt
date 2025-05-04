@@ -31,6 +31,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * streams many times. Conceptually this provider could have a possibly infinite number of streams,
  * which would have bad memory implications.  Thus, the reason for the warning.
  * The default stream if not set is the first stream.
+ * @param defaultStreamNum the number of the default stream, which is 1 by default.
  */
 class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     init {

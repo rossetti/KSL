@@ -71,6 +71,8 @@ class Model(
     internal val myExecutive: Executive = Executive(eventCalendar)
     internal val myExperiment: Experiment = Experiment()
 
+    val streamProvider = RNStreamProvider()
+
     private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
 
     /** A flag to control whether a warning is issued if the user does not

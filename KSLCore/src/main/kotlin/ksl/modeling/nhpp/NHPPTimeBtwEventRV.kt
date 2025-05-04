@@ -19,6 +19,7 @@ package ksl.modeling.nhpp
 
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
+import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.KSLRandom
@@ -47,6 +48,10 @@ open class NHPPTimeBtwEventRV(
         streamNum: Int,
         name: String? = null
     ) : this(parent, rateFunction, lastRate, KSLRandom.rnStream(streamNum), name)
+
+    override fun instance(stream: RNStreamIfc): NHPPTimeBtwEventRV {
+        return NHPPTimeBtwEventRV(parent!!, myRateFunction, myLastRate, stream, null)
+    }
 
     /** Used to schedule the end of cycles if they repeat
      *
