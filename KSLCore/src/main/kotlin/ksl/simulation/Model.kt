@@ -209,6 +209,8 @@ class Model(
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
 
+    internal val myRNStreamProvider = RNStreamProvider()
+
     init {
         myModel = this
         myParentModelElement = null

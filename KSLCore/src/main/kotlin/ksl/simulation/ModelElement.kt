@@ -31,6 +31,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
+import ksl.utilities.random.rng.RNStreamProvider
 
 private var elementCounter: Int = 0
 
@@ -217,6 +218,9 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
      */
     val model
         get() = myModel
+
+    val streamProvider: RNStreamProvider
+        get() = myModel.myRNStreamProvider
 
     protected open var mySpatialModel: SpatialModel? = parent?.spatialModel
 

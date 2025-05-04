@@ -17,11 +17,8 @@
  */
 package ksl.utilities.random.rng
 
-import ksl.utilities.distributions.Poisson
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.KSLRandom.AlgoType
-import ksl.utilities.random.rvariable.KSLRandom.defaultRNStream
-import ksl.utilities.random.rvariable.KSLRandom.rnStream
 
 /**
  * Represents a random number stream with stream control

@@ -30,6 +30,9 @@ abstract class RandomElement(
     rSource: RandomIfc,
     name: String? = null
 ) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc {
+    //TODO need to assign random source with a setter to ensure it comes from the model's stream provider
+    // the initialRandomSource needs to fix this also
+    // should rnStream also do this? Can't check if it comes from the model's stream provider
 
     /**
      * Provides a reference to the underlying source of randomness during the replication.
@@ -42,8 +45,9 @@ abstract class RandomElement(
      * To change the random source for the entire experiment (all replications)
      * use the initialRandomSource property
      */
-    var randomSource: RandomIfc = rSource
-//TODO    var randomSource: RandomIfc = rSource.instance(streamProvider.rnStream(rSource.streamNumber))
+     var randomSource: RandomIfc = rSource.instance(streamProvider.rnStream(rSource.streamNumber))
+    //var randomSource: RandomIfc = rSource
+
     /**
      *  The random number stream for the current replication based on the
      *  current setting of property randomSource.  If the underlying stream
@@ -53,7 +57,7 @@ abstract class RandomElement(
     final override var rnStream: RNStreamIfc
         get() = randomSource.rnStream
         set(value) {
-            randomSource.rnStream = value
+            randomSource.rnStream = value //TODO need to use streamProvider??
         }
 
     /**
