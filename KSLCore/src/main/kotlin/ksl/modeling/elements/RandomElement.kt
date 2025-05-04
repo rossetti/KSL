@@ -43,7 +43,7 @@ abstract class RandomElement(
      * use the initialRandomSource property
      */
     var randomSource: RandomIfc = rSource
-
+//TODO    var randomSource: RandomIfc = rSource.instance(streamProvider.rnStream(rSource.streamNumber))
     /**
      *  The random number stream for the current replication based on the
      *  current setting of property randomSource.  If the underlying stream
@@ -67,7 +67,7 @@ abstract class RandomElement(
      * the random source, then each replication may not necessarily start in the
      * same initial state.  It is recommended that this be used only prior to executing replications.
      */
-    override var initialRandomSource: RandomIfc = rSource
+    override var initialRandomSource: RandomIfc = randomSource
         set(value) {
             if (model.isRunning) {
                 if (initialRandomSourceChangeWarning) {
