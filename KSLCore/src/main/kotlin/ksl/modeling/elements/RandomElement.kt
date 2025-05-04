@@ -46,6 +46,10 @@ abstract class RandomElement(
      * use the initialRandomSource property
      */
      var randomSource: RandomIfc = rSource.instance(streamProvider.rnStream(rSource.streamNumber))
+        set(value) {
+            field = value.instance(streamProvider.rnStream(value.streamNumber))
+        }
+    
     //var randomSource: RandomIfc = rSource
 
     /**
