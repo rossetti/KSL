@@ -73,7 +73,7 @@ class DPopulation(
      * @return Returns a new instance of the population with the same parameters
      * but a different random stream
      */
-    fun instance(stream: RNStreamIfc): DPopulation {
+    override fun instance(stream: RNStreamIfc): DPopulation {
         return DPopulation(myElements, stream)
     }
 

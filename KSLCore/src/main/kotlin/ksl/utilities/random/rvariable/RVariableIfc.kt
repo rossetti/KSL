@@ -66,7 +66,7 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, 
      * @param stream the RNStreamIfc to use
      * @return a new instance with same parameter values
      */
-    fun instance(stream: RNStreamIfc): RVariableIfc
+    override fun instance(stream: RNStreamIfc): RVariableIfc
 
     /**
      * @return a new instance with same parameter values, with a different stream

@@ -41,6 +41,12 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
 
     override var rnStream: RNStreamIfc = KSLRandom.nextRNStream()
 
+    override fun instance(stream: RNStreamIfc): MetropolisHastings1D {
+        val n = MetropolisHastings1D(initialX, myTargetFun, myProposalFun)
+        n.rnStream = stream
+        return n
+    }
+
     override fun resetStartStream() {
         rnStream.resetStartStream()
     }

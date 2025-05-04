@@ -20,11 +20,18 @@ package ksl.utilities.random
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  *
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
+
+    /**
+     * @param stream the RNStreamIfc to use
+     * @return a new instance with same parameter values
+     */
+    fun instance(stream: RNStreamIfc): RandomIfc
 
     /**
      * @param n the number of values to sum, must be 1 or more
