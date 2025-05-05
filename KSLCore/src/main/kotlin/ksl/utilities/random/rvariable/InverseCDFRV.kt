@@ -18,15 +18,18 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Facilitates the creation of random variables from distributions that implement InverseCDFIfc
  * @param inverseCDF the inverse of the distribution function
  * @param stream    a random number stream, must not be null
 */
-class InverseCDFRV (val inverseCDF: InverseCDFIfc, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class InverseCDFRV (
+    val inverseCDF: InverseCDFIfc,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider,name) {
 
     /**
      * Makes one using the supplied stream number to assign the stream
@@ -34,14 +37,21 @@ class InverseCDFRV (val inverseCDF: InverseCDFIfc, stream: RNStreamIfc = KSLRand
      * @param invFun    the inverse of the distribution function, must not be null
      * @param streamNum a positive integer
      */
-    constructor(invFun: InverseCDFIfc, streamNum: Int) : this(invFun, KSLRandom.rnStream(streamNum))
+    constructor(
+        invFun: InverseCDFIfc,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(invFun, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     override fun generate(): Double {
         return inverseCDF.invCDF(rnStream.randU01())
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return InverseCDFRV(inverseCDF, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return InverseCDFRV(inverseCDF, streamNum, streamProvider, name)
     }
 
     override fun toString(): String {

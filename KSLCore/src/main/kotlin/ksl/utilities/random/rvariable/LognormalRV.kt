@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.LognormalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -30,19 +30,27 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 class LognormalRV(
     val mean: Double,
     val variance: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name){
+) : ParameterizedRV(streamProvider, name){
+
     init {
         require(mean > 0) { "Mean must be positive" }
         require(variance > 0) { "Variance must be positive" }
     }
 
-    constructor(mean: Double, variance: Double, streamNum: Int) :
-            this(mean, variance, KSLRandom.rnStream(streamNum))
+    constructor(
+        mean: Double,
+        variance: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(mean, variance, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): LognormalRV {
-        return LognormalRV(mean, variance, stream)
+    override fun instance(streamNum: Int): LognormalRV {
+        return LognormalRV(mean, variance, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

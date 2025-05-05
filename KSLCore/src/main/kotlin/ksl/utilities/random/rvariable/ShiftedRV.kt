@@ -18,7 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Shifts the generated value of the supplied random variable by the shift amount.
@@ -29,9 +29,10 @@ import ksl.utilities.random.rng.RNStreamIfc
  */
 class ShiftedRV(
     val shift: Double,
-    rv: RVariableIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    private val rv: RVariableIfc,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
 
     init {
         require(shift >= 0.0) { "The shift should not be < 0.0" }
@@ -44,15 +45,22 @@ class ShiftedRV(
      * @param rv        the random variable to shift
      * @param streamNum the stream number
      */
-    constructor(shift: Double, rv: RVariableIfc, streamNum: Int) :
-            this(shift, rv, KSLRandom.rnStream(streamNum))
+    constructor(
+        shift: Double,
+        rv: RVariableIfc,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(shift, rv, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     override fun generate(): Double {
         return shift + myRV.value
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return ShiftedRV(shift, myRV, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return ShiftedRV(shift, myRV, streamNum, streamProvider, name)
     }
 
     override fun toString(): String {

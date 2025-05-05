@@ -2,7 +2,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.TruncatedNormalRVParameters
 
@@ -10,9 +10,9 @@ class TruncatedNormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     interval: Interval,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
 
     init {
         require(interval.contains(mean)){ "The normal mean value, $mean, was not within the truncation interval, $interval." }
@@ -29,14 +29,22 @@ class TruncatedNormalRV(
         Double.POSITIVE_INFINITY,
         interval.lowerLimit,
         interval.upperLimit,
-        stream
+        streamProvider, name
     )
 
-    constructor(mean: Double, variance: Double, interval: Interval, streamNum: Int) :
-            this(mean, variance, interval, KSLRandom.rnStream(streamNum))
+    constructor(
+        mean: Double,
+        variance: Double,
+        interval: Interval,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(mean, variance, interval, streamProvider, name){
+        myTN.rnStream = streamProvider.rnStream(streamNum)  //TODO check it out
+    }
 
-    override fun instance(stream: RNStreamIfc): TruncatedNormalRV {
-        return TruncatedNormalRV(mean, variance, myInterval, stream)
+    override fun instance(streamNum: Int): TruncatedNormalRV {
+        return TruncatedNormalRV(mean, variance, myInterval, streamNum, streamProvider, name)
     }
 
     override fun toString(): String {

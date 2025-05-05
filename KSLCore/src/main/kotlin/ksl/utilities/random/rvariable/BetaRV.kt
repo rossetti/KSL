@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.BetaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -30,18 +30,31 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 class BetaRV(
     val alpha1: Double = 1.0,
     val alpha2: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
     init {
         require(alpha1 > 0) { "The 1st shape parameter must be > 0" }
         require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, streamNum: Int) : this(alpha1, alpha2, KSLRandom.rnStream(streamNum)) {}
+    constructor(
+        alpha1: Double,
+        alpha2: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(
+        alpha1,
+        alpha2,
+        streamProvider,
+        name
+    ) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): BetaRV {
-        return BetaRV(alpha1, alpha2, stream)
+    override fun instance(streamNum: Int): BetaRV {
+        return BetaRV(alpha1, alpha2, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

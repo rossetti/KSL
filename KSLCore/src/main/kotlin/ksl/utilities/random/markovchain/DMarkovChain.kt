@@ -112,8 +112,8 @@ open class DMarkovChain(
     var state = initialState
         protected set
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return DMarkovChain(initialState, myTransProb, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return DMarkovChain(initialState, myTransProb, streamNum)
     }
 
     override fun generate(): Double {

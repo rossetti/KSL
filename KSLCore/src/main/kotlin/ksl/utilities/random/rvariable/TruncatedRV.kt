@@ -22,7 +22,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InvertibleCDFIfc
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Constructs a truncated random variable based on the provided distribution
@@ -40,8 +40,10 @@ class TruncatedRV(
     val cdfUL: Double,
     val lowerLimit: Double,
     val upperLimit: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
+
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
         require(lowerLimit >= cdfLL) { "The lower limit must be >= $cdfLL" }
@@ -61,35 +63,42 @@ class TruncatedRV(
      */
     constructor(
         distribution: InvertibleCDFIfc, cdfLL: Double, cdfUL: Double,
-        truncLL: Double, truncUL: Double, streamNum: Int
-    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum))
+        truncLL: Double, truncUL: Double, streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     constructor(
         distribution: ContinuousDistributionIfc,
         distDomain: Interval = distribution.domain(),
         truncInterval: Interval,
-        stream: RNStreamIfc = KSLRandom.nextRNStream()
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
     ) : this(
         distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
-        stream
+        streamProvider, name
     )
 
     constructor(
         distribution: ContinuousDistributionIfc,
         distDomain: Interval = distribution.domain(),
         truncInterval: Interval,
-        streamNum: Int
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
     ) : this(
         distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
-        stream = KSLRandom.rnStream(streamNum)
+        streamNum, streamProvider, name
     )
 
     private val myDistribution: InvertibleCDFIfc = distribution
@@ -122,8 +131,8 @@ class TruncatedRV(
         return myDistribution.invCDF(v)
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNum, streamProvider, name)
     }
 
     override fun toString(): String {

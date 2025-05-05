@@ -19,15 +19,12 @@
 package ksl.modeling.variable
 
 import ksl.modeling.elements.RandomElement
-import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.simulation.ModelElement
 import ksl.utilities.IdentityIfc
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.StreamOptionIfc
-import ksl.utilities.random.rvariable.ParameterizedRV
-import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  *  While RandomVariable instances should in general be declared as private within model
@@ -132,8 +129,8 @@ open class RandomVariable(
     name: String? = null
 ) : RandomElement(parent, rSource, name), RandomIfc, PreviousValueIfc {
 
-    override fun instance(stream: RNStreamIfc): RandomVariable {
-        return RandomVariable(parent!!, initialRandomSource.instance(stream), null)
+    override fun instance(streamNum: Int): RandomVariable {
+        return RandomVariable(parent!!, initialRandomSource.instance(streamNum), null)
     }
 
     //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement

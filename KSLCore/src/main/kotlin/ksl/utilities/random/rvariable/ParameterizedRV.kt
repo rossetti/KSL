@@ -19,12 +19,13 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParametersIfc
 
 /**
  * @param stream the source of the randomness
  */
 abstract class ParameterizedRV (
-    stream: RNStreamIfc,
+    streamProvider: RNStreamProviderIfc,
     name: String? = null
-) : RVariable(stream, name), RVParametersIfc
+) : RVariable(streamProvider, name), RVParametersIfc

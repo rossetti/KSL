@@ -20,7 +20,6 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
 import kotlin.math.sin
 import kotlin.math.abs
 import kotlin.math.*
@@ -36,17 +35,7 @@ import kotlin.math.*
  *
  * The preferred approach to creating random variables is to subclass RVariable.
  */
-interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleEmitterIfc {
-
-//    /**
-//     * The set of pre-defined distribution types
-//     */
-//    enum class RVType {
-//        Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma,
-//        GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial,
-//        Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular,
-//        Uniform, Weibull, DEmpirical, Empirical
-//    }
+interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
 
     /**
      * The randomly generated value. Each value
@@ -63,21 +52,17 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, 
     override fun value(): Double = value
 
     /**
-     * @param stream the RNStreamIfc to use
+     * @param streamNum the RNStreamIfc to use
      * @return a new instance with same parameter values
      */
-    override fun instance(stream: RNStreamIfc): RVariableIfc
+    override fun instance(streamNum: Int): RVariableIfc
 
     /**
      * @return a new instance with same parameter values, with a different stream
      */
-    fun instance(): RVariableIfc {
-        return instance(KSLRandom.nextRNStream())
-    }
+    override fun instance(): RVariableIfc
 
-    override fun antitheticInstance(): RVariableIfc {
-        return instance(rnStream.antitheticInstance())
-    }
+    override fun antitheticInstance(): RVariableIfc
 
     operator fun plus(other: RVariableIfc): RVariableIfc {
         return RVFunction(this, other, Double::plus)

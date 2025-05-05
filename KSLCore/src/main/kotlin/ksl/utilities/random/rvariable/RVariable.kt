@@ -21,48 +21,63 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.*
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * An abstract base class for building random variables.  Implement
  * the random generation procedure in the method generate().
  */
-abstract class RVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : RVariableIfc,
-    IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
-
-        //TODO should this be stream number??, why is even needed
-  //  constructor(stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(stream, null)
+abstract class RVariable(
+    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    final override var rnStream: RNStreamIfc = stream
+    protected val rnStream: RNStreamIfc = streamProvider.nextRNStream()
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
+
+    //TODO consider late init for this
+    //TODO do not allow the stream to be changed from public interface. This property should be setter protected at least
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
      */
     final override var previousValue: Double = Double.NaN
         private set
-
-    /** The last (previous) randomly generated value. This value does not
-     *  change until the next randomly generated value is obtained
-     * @return the last randomly generated value, same as using property previous
-     */
-//    fun previous(): Double = previous
-
-    /** Makes a new instance.  False allows the new instance to keep using
-     * the same underlying source of random numbers.
-     *
-     * @param newRNG true means use new stream. This is same as instance(). False
-     * means clone uses same underlying source of randomness
-     * @return a new instance configured based on current instance
-     */
-    fun instance(newRNG: Boolean): RVariableIfc {
-        return if (newRNG) {
-            instance()
-        } else {
-            instance(rnStream)
-        }
-    }
 
     /**
      *

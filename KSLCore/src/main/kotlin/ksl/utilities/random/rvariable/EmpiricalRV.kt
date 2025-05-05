@@ -18,7 +18,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.EmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Histogram
@@ -29,8 +29,12 @@ import ksl.utilities.statistic.Histogram
  * @param data the data to sample from
  * @param stream the random number stream to use
  */
-class EmpiricalRV (private val data: DoubleArray, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
-    ParameterizedRV(stream, name){
+class EmpiricalRV (
+    private val data: DoubleArray,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamProvider, name){
+
     init {
         require(data.isNotEmpty()) { "The supplied data array had no elements." }
     }
@@ -47,25 +51,67 @@ class EmpiricalRV (private val data: DoubleArray, stream: RNStreamIfc = KSLRando
      * @param data the data to sample from
      * @param streamNum the random number stream to use
      */
-    constructor(data: DoubleArray, streamNum: Int) : this(data, KSLRandom.rnStream(streamNum))
+    constructor(
+        data: DoubleArray,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(data, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     /**
      *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
      *  apart. Each point in the series will be equally likely to occur.
      */
-    constructor(lowerLimit: Double, numPoints: Int, width: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-            this(Histogram.createBreakPoints(lowerLimit, numPoints, width), stream)
+    constructor(
+        lowerLimit: Double,
+        numPoints: Int,
+        width: Double,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(Histogram.createBreakPoints(lowerLimit, numPoints, width), streamProvider, name)
+
+    /**
+     *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
+     *  apart. Each point in the series will be equally likely to occur.
+     */
+    constructor(
+        lowerLimit: Double,
+        numPoints: Int,
+        width: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(Histogram.createBreakPoints(lowerLimit, numPoints, width), streamNum, streamProvider, name)
 
     /**
      *  Creates a series of [numPoints] points starting at the lower limit, each
      *  an equal distance apart based on the number of points.
      *  Each point in the series will be equally likely to occur.
      */
-    constructor(interval: Interval, numPoints: Int, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-            this(interval.stepPoints(numPoints), stream)
+    constructor(
+        interval: Interval,
+        numPoints: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(interval.stepPoints(numPoints), streamProvider, name)
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return EmpiricalRV(values, rnStream)
+    /**
+     *  Creates a series of [numPoints] points starting at the lower limit, each
+     *  an equal distance apart based on the number of points.
+     *  Each point in the series will be equally likely to occur.
+     */
+    constructor(
+        interval: Interval,
+        numPoints: Int,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(interval.stepPoints(numPoints), streamNum, streamProvider, name)
+
+    override fun instance(streamNum: Int): RVariableIfc {
+        return EmpiricalRV(values, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

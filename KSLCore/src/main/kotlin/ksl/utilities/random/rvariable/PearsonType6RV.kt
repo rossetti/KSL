@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.PearsonType6RVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -32,20 +32,28 @@ class PearsonType6RV (
     val alpha1: Double,
     val alpha2: Double,
     val beta: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name)  {
+) : ParameterizedRV(streamProvider, name)  {
     init {
         require(alpha1 > 0.0) { "The 1st shape parameter must be > 0.0" }
         require(alpha2 > 0.0) { "The 2nd shape parameter must be > 0.0" }
         require(beta > 0.0) { "The scale parameter must be > 0.0" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, beta: Double, streamNum: Int) : this(
-        alpha1, alpha2, beta, KSLRandom.rnStream(streamNum))
+    constructor(
+        alpha1: Double,
+        alpha2: Double,
+        beta: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(alpha1, alpha2, beta, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): PearsonType6RV {
-        return PearsonType6RV(alpha1, alpha2, beta, stream)
+    override fun instance(streamNum: Int): PearsonType6RV {
+        return PearsonType6RV(alpha1, alpha2, beta, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

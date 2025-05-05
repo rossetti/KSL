@@ -18,7 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -28,8 +28,12 @@ import kotlin.math.sqrt
  * @param degreesOfFreedom degrees of freedom, must be greater than or equal to 1.0
  * @param stream the random number generator
  */
-class StudentTRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRandom.nextRNStream()) :
-    RVariable(stream) {
+class StudentTRV (
+    val degreesOfFreedom: Double,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
+
     init {
         require(degreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }
     }
@@ -39,14 +43,21 @@ class StudentTRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRandom.
      * @param dof       degrees of freedom
      * @param streamNum the stream number
      */
-    constructor(dof: Double, streamNum: Int) : this(dof, KSLRandom.rnStream(streamNum)) {}
+    constructor(
+        dof: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(dof, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     override fun generate(): Double {
         return baileysAcceptanceRejection()
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return StudentTRV(degreesOfFreedom, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return StudentTRV(degreesOfFreedom, streamNum, streamProvider, name)
     }
 
     /**

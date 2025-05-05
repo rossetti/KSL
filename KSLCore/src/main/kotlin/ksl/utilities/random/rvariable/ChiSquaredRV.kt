@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.ChiSquaredRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -26,8 +26,11 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param degreesOfFreedom the degrees of freedom for the random variable, must be greater than 0.0
  * @param stream the random number stream
  */
-class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
-    ParameterizedRV(stream, name) {
+class ChiSquaredRV (
+    val degreesOfFreedom: Double,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamProvider, name) {
     init {
         require(degreesOfFreedom > 0.0) { "Chi-Squared degrees of freedom must be > 0.0" }
     }
@@ -36,11 +39,17 @@ class ChiSquaredRV (val degreesOfFreedom: Double, stream: RNStreamIfc = KSLRando
      * @param degreesOfFreedom the degrees of freedom for the random variable, must be greater than 0.0
      * @param streamNum the random number stream number
      */
-    constructor(degreesOfFreedom: Double, streamNum: Int, name: String? = null)
-            : this(degreesOfFreedom, KSLRandom.rnStream(streamNum), name)
+    constructor(
+        degreesOfFreedom: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(degreesOfFreedom, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): ChiSquaredRV {
-        return ChiSquaredRV(degreesOfFreedom, stream)
+    override fun instance(streamNum: Int): ChiSquaredRV {
+        return ChiSquaredRV(degreesOfFreedom, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

@@ -20,7 +20,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.PDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  *  Implements the acceptance/rejection algorithm for uni-variate distributions.
@@ -39,12 +39,24 @@ class AcceptanceRejectionRV(
     val proposalDistribution: ContinuousDistributionIfc,
     val majorizingConstant: Double,
     val pdf: PDFIfc,
-    rnStream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(rnStream) {
+    streamProvider: RNStreamProviderIfc  = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
     init {
         require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
      }
+
+    constructor(
+        proposalDistribution: ContinuousDistributionIfc,
+        majorizingConstant: Double,
+        pdf: PDFIfc,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc  = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): this(proposalDistribution, majorizingConstant, pdf, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     private val rVariable: RVariableIfc = proposalDistribution.randomVariable(rnStream)
     private val domain = pdf.domain()
@@ -59,7 +71,7 @@ class AcceptanceRejectionRV(
         return w
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, streamNum, streamProvider, name)
     }
 }
