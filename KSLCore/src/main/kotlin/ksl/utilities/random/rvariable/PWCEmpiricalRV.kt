@@ -1,7 +1,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.isStrictlyIncreasing
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.statistic.HistogramIfc
 
 /**
@@ -23,8 +23,9 @@ import ksl.utilities.statistic.HistogramIfc
 class PWCEmpiricalRV(
     breakPoints: DoubleArray,
     proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
 
     private val myProportions: DoubleArray
     private val myBreakPoints: DoubleArray
@@ -37,24 +38,34 @@ class PWCEmpiricalRV(
     constructor(
         breakPoints: DoubleArray,
         proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
-        streamNum: Int) : this(
-        breakPoints, proportions, KSLRandom.rnStream(streamNum)
-    )
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(breakPoints, proportions, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     /** Note the requirements for breakpoints and proportions.
      *
      *  @param histogram a histogram specifying the breakpoints and proportions
      *  @param stream The random number stream.
      */
-    constructor(histogram: HistogramIfc, stream: RNStreamIfc = KSLRandom.nextRNStream()): this(
-        histogram.breakPoints, histogram.binFractions, stream)
+    constructor(
+        histogram: HistogramIfc,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): this(histogram.breakPoints, histogram.binFractions, streamProvider, name)
 
     /** Note the requirements for breakpoints and proportions.
      *  @param histogram a histogram specifying the breakpoints and proportions
      *  @param streamNum supplied the number of the stream instead of the stream
      */
-    constructor(histogram: HistogramIfc, streamNum: Int): this(
-        histogram.breakPoints, histogram.binFractions, KSLRandom.rnStream(streamNum))
+    constructor(
+        histogram: HistogramIfc,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): this(histogram.breakPoints, histogram.binFractions, streamNum, streamProvider, name)
 
     init {
         require(proportions.isNotEmpty()) { "There must be at least 1 interval" }
@@ -107,7 +118,7 @@ class PWCEmpiricalRV(
         return i
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return PWCEmpiricalRV(myProportions, myBreakPoints, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNum, streamProvider, name)
     }
 }

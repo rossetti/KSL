@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.JohnsonBRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -34,18 +34,29 @@ class JohnsonBRV (
     val alpha2: Double,
     val min: Double,
     val max: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null
-) : ParameterizedRV(stream, name) {
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamProvider, name) {
+
     init {
         require(alpha2 > 0) { "alpha2 must be > 0" }
         require(max > min) { "the min must be < than the max" }
     }
 
-    constructor(alpha1: Double, alpha2: Double, min: Double, max: Double, streamNum: Int) :
-            this(alpha1, alpha2, min, max, KSLRandom.rnStream(streamNum))
+    constructor(
+        alpha1: Double,
+        alpha2: Double,
+        min: Double,
+        max: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(alpha1, alpha2, min, max, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): JohnsonBRV {
-        return JohnsonBRV(alpha1, alpha2, min, max, stream)
+    override fun instance(streamNum: Int): JohnsonBRV {
+        return JohnsonBRV(alpha1, alpha2, min, max, streamNum,streamProvider, name)
     }
 
     override fun generate(): Double {

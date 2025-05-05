@@ -30,7 +30,7 @@ class RVUFunction(
     private val first = theFirst.instance(rnStream)
     private val transform = theTransform
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
+    override fun instance(streamNum: Int): RVariableIfc {
         return RVUFunction(first, transform, rnStream, name)
     }
 

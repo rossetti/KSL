@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -29,17 +29,26 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 class LaplaceRV(
     val location: Double,
     val scale: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
+
     init {
         require(scale > 0) { "Scale must be positive" }
     }
 
-    constructor(location: Double, scale: Double, streamNum: Int) : this(location, scale, KSLRandom.rnStream(streamNum))
+    constructor(
+        location: Double,
+        scale: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(location, scale, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): LaplaceRV {
-        return LaplaceRV(location, scale, stream)
+    override fun instance(streamNum: Int): LaplaceRV {
+        return LaplaceRV(location, scale, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

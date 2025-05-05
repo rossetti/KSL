@@ -20,7 +20,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.distributions.ProbPoint
 import ksl.utilities.distributions.cdf
 import ksl.utilities.distributions.values
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.HistogramIfc
@@ -38,9 +38,9 @@ import ksl.utilities.statistic.HistogramIfc
 class DEmpiricalRV(
     values: DoubleArray,
     cdf: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
     init {
         require(values.size == cdf.size) { "The arrays did not have the same length." }
         require(KSLRandom.isValidCDF(cdf)) { "The supplied cdf was not valid." }
@@ -75,42 +75,55 @@ class DEmpiricalRV(
      * @param cdf       the cumulative probability associated with each element of array
      * @param streamNum the stream number
      */
-    constructor(values: DoubleArray, cdf: DoubleArray, streamNum: Int) : this(
-        values, cdf, KSLRandom.rnStream(streamNum)
-    )
+    constructor(
+        values: DoubleArray,
+        cdf: DoubleArray,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(values, cdf, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     constructor(
         probData: List<ProbPoint>,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(probData.values(), probData.cdf(), stream, name)
+    ) : this(probData.values(), probData.cdf(), streamProvider, name)
 
     constructor(
         probData: List<ProbPoint>,
         streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(probData.values(), probData.cdf(), KSLRandom.rnStream(streamNum), name)
+    ) : this(probData.values(), probData.cdf(), streamNum, streamProvider, name)
 
     /**
      *
      * @param histogram a histogram specifying the midpoints and bin fractions
      * @param streamNum the stream number
      */
-    constructor(histogram: HistogramIfc, streamNum: Int) : this(
-        histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), KSLRandom.rnStream(streamNum)
-    )
+    constructor(
+        histogram: HistogramIfc,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), streamProvider, name)
 
     /**
      *
      * @param histogram a histogram specifying the midpoints and bin fractions
      * @param stream  the source of randomness
      */
-    constructor(histogram: HistogramIfc, stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(
-        histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), stream
-    )
+    constructor(
+        histogram: HistogramIfc,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), streamProvider,name)
 
-    override fun instance(stream: RNStreamIfc): DEmpiricalRV {
-        return DEmpiricalRV(myValues, myCDF, stream)
+
+    override fun instance(streamNum: Int): DEmpiricalRV {
+        return DEmpiricalRV(myValues, myCDF, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

@@ -44,8 +44,8 @@ class TwoStateMarkovChain(
         streamNum: Int
     ) : this(theInitialState, p01, p11, KSLRandom.rnStream(streamNum))
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return TwoStateMarkovChain(initialState, p01, p11, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return TwoStateMarkovChain(initialState, p01, p11, streamNum)
     }
 
     var initialState = theInitialState

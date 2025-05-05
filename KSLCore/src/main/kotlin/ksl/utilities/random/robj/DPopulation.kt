@@ -69,12 +69,12 @@ class DPopulation(
     /** Returns a new instance of the random source with the same parameters
      * but an independent generator
      *
-     * @param stream a random number stream, must not null.
+     * @param streamNum a random number stream, must not null.
      * @return Returns a new instance of the population with the same parameters
      * but a different random stream
      */
-    override fun instance(stream: RNStreamIfc): DPopulation {
-        return DPopulation(myElements, stream)
+    override fun instance(streamNum: Int): DPopulation {
+        return DPopulation(myElements, streamNum)
     }
 
     /** Creates a new array that contains a randomly sampled values without replacement

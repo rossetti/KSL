@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.AR1NormalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -32,9 +32,9 @@ class AR1NormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     val lag1Corr: Double = 0.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
     private var myX: Double
     private val myErrors: NormalRV
 
@@ -42,11 +42,11 @@ class AR1NormalRV(
         require(variance > 0) { "Variance must be positive" }
         require(!(lag1Corr < -1.0 || lag1Corr > 1.0)) { "The correlation must be [-1,1]" }
         // generate the first value for the process N(mean, variance)
-        myX = KSLRandom.rNormal(mean, variance, stream)
+        myX = KSLRandom.rNormal(mean, variance, rnStream)
         // set the correlation and the error distribution N(0, myVar*(1-myPhi^2)
         val v = variance * (1.0 - lag1Corr * lag1Corr)
         // create the error random variable
-        myErrors = NormalRV(0.0, v, stream)
+        myErrors = NormalRV(0.0, v, streamProvider, name)
     }
 
     /**
@@ -57,11 +57,19 @@ class AR1NormalRV(
      * @param lag1Corr the lag-1 correlation for the process
      * @param streamNum the stream number
      */
-    constructor(mean: Double = 0.0, variance: Double = 1.0, lag1Corr: Double = 0.0, streamNum: Int) :
-            this(mean, variance, lag1Corr, KSLRandom.rnStream(streamNum))
+    constructor(
+        mean: Double = 0.0,
+        variance: Double = 1.0,
+        lag1Corr: Double = 0.0,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(mean, variance, lag1Corr, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return AR1NormalRV(mean, variance, lag1Corr, stream)
+    override fun instance(streamNum: Int): RVariableIfc {
+        return AR1NormalRV(mean, variance, lag1Corr, streamNum, streamProvider, name)
     }
 
     /**

@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.BinomialRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -31,9 +31,9 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 class BinomialRV constructor(
     val pSuccess: Double,
     val numTrials: Int,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamProvider, name) {
     init {
         require(!(pSuccess < 0.0 || pSuccess > 1.0)) { "Success Probability must be [0,1]" }
         require(numTrials > 0) { "Number of trials must be >= 1" }
@@ -44,15 +44,23 @@ class BinomialRV constructor(
      * @param numTrials the number of trials, must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      */
-    constructor(pSuccess: Double, numTrials: Int, streamNum: Int, name: String? = null) : this(
+    constructor(
+        pSuccess: Double,
+        numTrials: Int,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(
         pSuccess,
         numTrials,
-        KSLRandom.rnStream(streamNum),
+        streamProvider,
         name
-    )
+    ) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
-    override fun instance(stream: RNStreamIfc): BinomialRV {
-        return BinomialRV(pSuccess, numTrials, stream)
+    override fun instance(streamNum: Int): BinomialRV {
+        return BinomialRV(pSuccess, numTrials, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

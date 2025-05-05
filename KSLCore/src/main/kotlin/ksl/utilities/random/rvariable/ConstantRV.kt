@@ -17,16 +17,15 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.parameters.ConstantRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Allows a constant value to pretend to be a random variable
  */
-open class ConstantRV(var constVal: Double, name: String? = null) : ParameterizedRV(KSLRandom.defaultRNStream(), name){
+open class ConstantRV(var constVal: Double, name: String? = null) : ParameterizedRV(KSLRandom.DefaultRNStreamProvider, name){
 
-    override fun instance(stream: RNStreamIfc): ConstantRV {
+    override fun instance(streamNum: Int): ConstantRV {
         return ConstantRV(constVal)
     }
 

@@ -18,7 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Two exponential random variables mixed to get a hyper-exponential. For higher
@@ -29,8 +29,9 @@ class Hyper2ExponentialRV(
     val mixingProb: Double,
     val mean1: Double,
     val mean2: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamProvider, name) {
 
     init {
         require(!(mixingProb < 0.0 || mixingProb > 1.0)) { "Mixing Probability must be [0,1]" }
@@ -38,8 +39,16 @@ class Hyper2ExponentialRV(
         require(mean2 > 0.0) { "Exponential mean2 must be > 0.0" }
     }
 
-    constructor(mixingProb: Double, mean1: Double, mean2: Double, streamNum: Int) :
-            this(mixingProb, mean1, mean2, KSLRandom.rnStream(streamNum))
+    constructor(
+        mixingProb: Double,
+        mean1: Double,
+        mean2: Double,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(mixingProb, mean1, mean2, streamProvider, name){
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     override fun generate(): Double {
         val v = KSLRandom.rBernoulli(mixingProb, rnStream)
@@ -51,11 +60,11 @@ class Hyper2ExponentialRV(
     }
 
     /**
-     * @param stream the RNStreamIfc to use
+     * @param streamNum the RNStreamIfc to use
      * @return a new instance with same parameter value
      */
-    override fun instance(stream: RNStreamIfc): Hyper2ExponentialRV {
-        return Hyper2ExponentialRV(mixingProb, mean1, mean2, stream)
+    override fun instance(streamNum: Int): Hyper2ExponentialRV {
+        return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, streamProvider, name)
     }
 
     override fun toString(): String {

@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.DUniformRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -27,8 +27,13 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param max the upper limit of the range, must be strictly greater than min
  * @param stream the random number stream
  */
-class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
-    ParameterizedRV(stream, name)  {
+class DUniformRV(
+    val min: Int,
+    val max: Int,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamProvider, name)  {
+
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
@@ -39,24 +44,41 @@ class DUniformRV(val min: Int, val max: Int, stream: RNStreamIfc = KSLRandom.nex
      * @param max the upper limit of the range, must be strictly greater than min
      * @param streamNum the stream number for the associated random number stream
      */
-    constructor(min: Int, max: Int, streamNum: Int) : this(min, max, KSLRandom.rnStream(streamNum))
+    constructor(
+        min: Int,
+        max: Int,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(min, max, streamProvider, name) {
+        rnStream = streamProvider.rnStream(streamNum)
+    }
 
     /**
      * Discrete uniform(min, max) random variable
      * @param range the range of integers
      * @param streamNum the stream number for the associated random number stream
      */
-    constructor(range: IntRange, streamNum: Int) : this(range.first, range.last, KSLRandom.rnStream(streamNum))
+    constructor(
+        range: IntRange,
+        streamNum: Int,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(range.first, range.last, streamNum, streamProvider, name)
 
     /**
      * Discrete uniform(min, max) random variable
      * @param range the range of integers
      * @param stream the random number stream
      */
-    constructor(range: IntRange, stream: RNStreamIfc = KSLRandom.nextRNStream()) : this(range.first, range.last, stream)
+    constructor(
+        range: IntRange,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(range.first, range.last, streamProvider, name)
 
-    override fun instance(stream: RNStreamIfc): DUniformRV {
-        return DUniformRV(min, max, stream)
+    override fun instance(streamNum: Int): DUniformRV {
+        return DUniformRV(min, max, streamNum, streamProvider, name)
     }
 
     override fun generate(): Double {

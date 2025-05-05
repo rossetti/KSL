@@ -21,17 +21,38 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  *
  */
-interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChangeIfc {
+interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticInstanceIfc {
+
+//    /**
+//     *  The underlying stream of U(0,1) pseudo-random numbers associated with the source of randomness
+//     */
+//    val rnStream: RNStreamIfc
 
     /**
-     * @param stream the RNStreamIfc to use
+     *
+     * @return the stream number allocated to the random variable by the default stream provider. This will
+     * return -1 if the random variable's underlying stream was not provided by the default stream provider
+     */
+    val streamNumber: Int
+
+    /**
+     * @param streamNum the stream number to use from the underlying provider
      * @return a new instance with same parameter values
      */
-    fun instance(stream: RNStreamIfc): RandomIfc
+    fun instance(streamNum: Int): RandomIfc
+
+    /**
+     * @return a new instance with same parameter values, with a different stream
+     * from the underlying provider
+     */
+    fun instance(): RandomIfc
 
     /**
      * @param n the number of values to sum, must be 1 or more
@@ -46,33 +67,33 @@ interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, RNStreamChange
         return sum
     }
 
-    override var advanceToNextSubStreamOption: Boolean
-        get() = rnStream.advanceToNextSubStreamOption
-        set(value) {
-            rnStream.advanceToNextSubStreamOption = value
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = rnStream.resetStartStreamOption
-        set(value) {
-            rnStream.resetStartStreamOption = value
-        }
-
-    override fun resetStartStream() {
-        rnStream.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        rnStream.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        rnStream.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = rnStream.antithetic
-        set(value) {
-            rnStream.antithetic = value
-        }
+//    override var advanceToNextSubStreamOption: Boolean
+//        get() = rnStream.advanceToNextSubStreamOption
+//        set(value) {
+//            rnStream.advanceToNextSubStreamOption = value
+//        }
+//
+//    override var resetStartStreamOption: Boolean
+//        get() = rnStream.resetStartStreamOption
+//        set(value) {
+//            rnStream.resetStartStreamOption = value
+//        }
+//
+//    override fun resetStartStream() {
+//        rnStream.resetStartStream()
+//    }
+//
+//    override fun resetStartSubStream() {
+//        rnStream.resetStartSubStream()
+//    }
+//
+//    override fun advanceToNextSubStream() {
+//        rnStream.advanceToNextSubStream()
+//    }
+//
+//    override var antithetic: Boolean
+//        get() = rnStream.antithetic
+//        set(value) {
+//            rnStream.antithetic = value
+//        }
 }
