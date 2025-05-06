@@ -17,35 +17,14 @@
  */
 package ksl.utilities.random.robj
 
+import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
-import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  *  Defines sampling of random elements. Implementers must ensure that
  *  non-null random elements are sampled.
  */
-interface RElementIfc<T> : RNStreamControlIfc {
-
-//TODO need to remove rnStream from this interface
-    /**
-     *
-     * the underlying stream of random numbers
-     */
-    val rnStream: RNStreamIfc
-
-    val streamNumber: Int
-
-    override var advanceToNextSubStreamOption: Boolean
-        get() = rnStream.advanceToNextSubStreamOption
-        set(value) {
-            rnStream.advanceToNextSubStreamOption = value
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = rnStream.resetStartStreamOption
-        set(value) {
-            rnStream.resetStartStreamOption = value
-        }
+interface RElementIfc<T> : RNStreamControlIfc, StreamNumberIfc {
 
     /** Returns an element randomly selected from the list
      *
@@ -74,21 +53,4 @@ interface RElementIfc<T> : RNStreamControlIfc {
         return list
     }
 
-    override fun resetStartStream() {
-        rnStream.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        rnStream.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        rnStream.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = rnStream.antithetic
-        set(value) {
-            rnStream.antithetic = value
-        }
 }
