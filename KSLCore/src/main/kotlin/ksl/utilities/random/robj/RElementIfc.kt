@@ -19,12 +19,24 @@ package ksl.utilities.random.robj
 
 import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Defines sampling of random elements. Implementers must ensure that
  *  non-null random elements are sampled.
  */
 interface RElementIfc<T> : RNStreamControlIfc, StreamNumberIfc {
+
+    /**
+     * @param streamNumber the stream number to use from the underlying provider
+     * @param rnStreamProvider the provider for the stream instance
+     * @return a new instance with same parameter values
+     */
+    fun instance(
+        streamNumber: Int = 0,
+        rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ): RElementIfc<T>
 
     /** Returns an element randomly selected from the list
      *

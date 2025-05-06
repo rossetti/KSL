@@ -132,6 +132,8 @@ open class RandomVariable(
     name: String? = null
 ) : RandomElement(parent, rSource, name), SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIfc, PreviousValueIfc {
 
+    //TODO need to setup the source to use the model's RNStreamProvider
+
     override val streamNumber: Int
         get() = randomSource.streamNumber
 

@@ -36,40 +36,14 @@ class REmpiricalList<T>(
         parent: ModelElement,
         elements: List<T>,
         theCDF: DoubleArray,
-        streamNum: Int,
+        streamNumber: Int,
         name: String? = null
-    ) : this(parent, DEmpiricalList<T>(elements, theCDF, KSLRandom.rnStream(streamNum)), name)
-
-    constructor(
-        parent: ModelElement,
-        elements: List<T>,
-        theCDF: DoubleArray,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
-        name: String? = null
-    ) : this(parent, DEmpiricalList<T>(elements, theCDF, stream), name)
+    ) : this(parent, DEmpiricalList<T>(elements, theCDF, streamNumber, parent.streamProvider), name)
 
     private val myDEmpirical = dEmpiricalList
 
-    var initialStream = dEmpiricalList.rnStream
-        set(value) {
-            if (model.isRunning) {
-                if (initialRandomSourceChangeWarning) {
-                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
-                }
-            }
-            model.removeStream(field)
-            field = value
-            model.addStream(value)
-        }
-
     override val randomElement: T
         get() = myDEmpirical.randomElement
-
-    override var rnStream: RNStreamIfc
-        get() = myDEmpirical.rnStream
-        set(value) {
-            myDEmpirical.rnStream = value
-        }
 
     /**
      * Controls whether warning of changing the initial random source during a replication

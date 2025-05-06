@@ -30,6 +30,7 @@ abstract class RandomElement(
     rSource: RandomIfc,
     name: String? = null
 ) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc {
+    //TODO need to setup the source to use the model's RNStreamProvider
     //TODO need to assign random source with a setter to ensure it comes from the model's stream provider
     // the initialRandomSource needs to fix this also
     // should rnStream also do this? Can't check if it comes from the model's stream provider
