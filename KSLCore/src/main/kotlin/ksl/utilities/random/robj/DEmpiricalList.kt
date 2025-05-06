@@ -35,12 +35,13 @@ class DEmpiricalList<T>(
     streamNumber: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : RElementIfc<T> {
+
     init {
         require(KSLRandom.isValidCDF(theCDF)) { "The supplied cdf array is not a valid cdf" }
         require(elements.size >= theCDF.size) { "The number of objects was less than the number of probabilities." }
     }
 
-    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
@@ -52,6 +53,35 @@ class DEmpiricalList<T>(
     override val randomElement: T
         get() = KSLRandom.randomlySelect(elements, cdf, rnStream)
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }
 
 fun main() {

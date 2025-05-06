@@ -16,7 +16,7 @@ class RMap<K, V>(
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : Map<K, V> by map, RElementIfc<V> {
 
-    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
@@ -36,6 +36,36 @@ class RMap<K, V>(
             require(this.isNotEmpty()) { "Cannot draw a random element from an empty map" }
             return map[myList[rnStream.randInt(0, myList.size - 1)]]!!
         }
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }
 
 /**
@@ -54,7 +84,7 @@ class REmpiricalMap<K, V>(
 
     private val myList: DEmpiricalList<K>
 
-    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
@@ -72,4 +102,33 @@ class REmpiricalMap<K, V>(
     override val randomElement: V
         get() = map[myList.randomElement]!!
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }
