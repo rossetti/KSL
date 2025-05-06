@@ -34,7 +34,7 @@ abstract class RVariable(
     streamNumber: Int = 0,
     protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
+) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter(), NewAntitheticInstanceIfc {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers

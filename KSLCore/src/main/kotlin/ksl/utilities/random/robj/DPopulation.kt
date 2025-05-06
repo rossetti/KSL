@@ -25,6 +25,7 @@ import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
 
 /** A DPopulation is a population of doubles that can be sampled from and permuted.
  * @author rossetti
@@ -36,18 +37,17 @@ import ksl.utilities.random.rvariable.KSLRandom
 class DPopulation(
     elements: DoubleArray,
     streamNumber: Int = 0,
-    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name){
+) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name), NewAntitheticInstanceIfc {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
-
 
     private var myElements: DoubleArray = elements.copyOf()
 

@@ -19,24 +19,19 @@ package ksl.utilities.random
 
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
 
-/**
- *  A general interface to represent randomness within models. The interface
- *  permits sampling, stream control, and creation of instances.
- */
-interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticInstanceIfc {
-    //TODO Why NewAntitheticInstanceIfc
+interface StreamNumberIfc {
     /**
      *
      * @return the stream number allocated to the random variable by the default stream provider. This will
      * return -1 if the random variable's underlying stream was not provided by the default stream provider
      */
     val streamNumber: Int
+}
 
+interface RandomInstanceIfc {
     /**
      * @param streamNumber the stream number to use from the underlying provider
      * @param rnStreamProvider the provider for the stream instance
@@ -46,6 +41,13 @@ interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticI
         streamNumber: Int = 0,
         rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): RandomIfc
+}
+
+/**
+ *  A general interface to represent randomness within models. The interface
+ *  permits sampling, stream control, and creation of instances.
+ */
+interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIfc, RandomInstanceIfc {
 
     /**
      * @param n the number of values to sum, must be 1 or more
