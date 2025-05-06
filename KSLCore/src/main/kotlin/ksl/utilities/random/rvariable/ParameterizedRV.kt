@@ -23,7 +23,9 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParametersIfc
 
 /**
- * @param stream the source of the randomness
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 abstract class ParameterizedRV (
     streamNumber: Int,

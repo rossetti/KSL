@@ -18,28 +18,34 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
+/**
+ *  This represents a univariate function of a randomv variable.
+ *
+ * @param theFirst the first random variable in the function mapping
+ * @param theTransform the functional transformation using (first) to produce a double
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ */
 class RVUFunction(
     theFirst: RVariableIfc,
     theTransform: ((f: Double) -> Double) = { f: Double -> f },
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(stream, name) {
+) : RVariable(streamNumber, streamProvider, name) {
 
-    private val first = theFirst.instance(rnStream)
+    private val first = theFirst.instance(streamNumber, streamProvider)
     private val transform = theTransform
 
-    override fun instance(streamNum: Int): RVariableIfc {
-        return RVUFunction(first, transform, rnStream, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RVUFunction(first, transform, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {
         return transform(first.value)
     }
 
-    override fun useStreamNumber(streamNumber: Int) {
-        super.useStreamNumber(streamNumber) // sets rnStream
-        first.useStreamNumber(streamNumber)
-    }
 }

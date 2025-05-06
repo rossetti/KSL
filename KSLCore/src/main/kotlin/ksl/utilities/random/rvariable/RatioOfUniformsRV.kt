@@ -38,26 +38,14 @@ class RatioOfUniformsRV (
     vmin: Double,
     vmax: Double,
     f: PDFIfc,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamProvider, name) {
+) : RVariable(streamNumber, streamProvider, name) {
 
-    private val uCDF: UniformRV = UniformRV(0.0, umax, streamProvider, name)
-    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamProvider)
+    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNumber, streamProvider, name)
+    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNumber, streamProvider,name)
     private val pdf: PDFIfc = f
-
-    constructor(
-        umax: Double,
-        vmin: Double,
-        vmax: Double,
-        f: PDFIfc,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ): this(umax, vmin, vmax, f, streamProvider, name) {
-        uCDF.rnStream = streamProvider.rnStream(streamNum)
-        vCDF.rnStream = streamProvider.rnStream(streamNum)
-    }
 
     override fun generate(): Double {
         while (true) {
@@ -70,7 +58,7 @@ class RatioOfUniformsRV (
         }
     }
 
-    override fun instance(streamNum: Int): RVariableIfc {
-        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, streamNum)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, streamNumber, rnStreamProvider, name)
     }
 }
