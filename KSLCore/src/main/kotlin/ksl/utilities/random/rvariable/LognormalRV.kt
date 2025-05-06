@@ -25,32 +25,25 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Lognormal(mean, variance). The mean and variance are for the lognormal random variables
  * @param mean the mean of the distribution must be greater than 0
  * @param variance the variance of the distribution must be greater than 0
- * @param stream the random number stream
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class LognormalRV(
     val mean: Double,
     val variance: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name){
+) : ParameterizedRV(streamNumber, streamProvider, name){
 
     init {
         require(mean > 0) { "Mean must be positive" }
         require(variance > 0) { "Variance must be positive" }
     }
 
-    constructor(
-        mean: Double,
-        variance: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(mean, variance, streamProvider, name){
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): LognormalRV {
-        return LognormalRV(mean, variance, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LognormalRV {
+        return LognormalRV(mean, variance, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {
