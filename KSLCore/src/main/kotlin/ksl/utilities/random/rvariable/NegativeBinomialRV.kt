@@ -25,37 +25,25 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * NegativeBinomial(probability of success, number of trials until rth success)
  * @param probOfSuccess       the probability of success, must be in (0,1)
  * @param numSuccess number of trials until rth success
- * @param stream     the stream from the stream provider to use
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class NegativeBinomialRV(
     val probOfSuccess: Double,
     val numSuccess: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name) {
+) : ParameterizedRV(streamNumber, streamProvider, name) {
 
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Success Probability must be (0,1)" }
         require(numSuccess > 0) { "Number of trials until rth success must be > 0" }
     }
 
-    /**
-     * @param prob       the probability of success, must be in (0,1)
-     * @param numSuccess number of trials until rth success
-     * @param streamNum  the stream number from the stream provider to use
-     */
-    constructor(
-        prob: Double,
-        numSuccess: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(prob, numSuccess, streamProvider, name){
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): NegativeBinomialRV {
-        return NegativeBinomialRV(probOfSuccess, numSuccess, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): NegativeBinomialRV {
+        return NegativeBinomialRV(probOfSuccess, numSuccess, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

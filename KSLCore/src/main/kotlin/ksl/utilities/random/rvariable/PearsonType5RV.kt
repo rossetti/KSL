@@ -25,31 +25,25 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Pearson Type 5(shape, scale) random variable
  * @param shape the shape parameter, must be greater than 0.0
  * @param scale the scale parameter, must be greater than 0.0
- * @param stream the random number stream
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class PearsonType5RV (
     val shape: Double,
     val scale: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name) {
+) : ParameterizedRV(streamNumber, streamProvider, name) {
+
     init {
         require(shape > 0) { "Shape parameter must be positive" }
         require(scale > 0) { "Scale parameter must be positive" }
     }
 
-    constructor(
-        shape: Double,
-        scale: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(shape, scale, streamProvider, name) {
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): PearsonType5RV {
-        return PearsonType5RV(shape, scale, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): PearsonType5RV {
+        return PearsonType5RV(shape, scale, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {
