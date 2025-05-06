@@ -1,6 +1,7 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
@@ -11,12 +12,14 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 class RMap<K, V>(
     private val map: Map<K, V>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : Map<K, V> by map, RElementIfc<V> {
 
-    constructor(map: Map<K, V>, streamNum: Int) : this(map, KSLRandom.rnStream(streamNum))
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
-    override var rnStream: RNStreamIfc = stream
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     private val myList: List<K>
 
@@ -45,11 +48,16 @@ class RMap<K, V>(
 class REmpiricalMap<K, V>(
     private val map: Map<K, V>,
     theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : Map<K, V> by map, RElementIfc<V> {
 
     private val myList: DEmpiricalList<K>
-    override var rnStream: RNStreamIfc = stream
+
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     init {
         require(map.isNotEmpty()) { "The supplied map must have at least 1 element." }

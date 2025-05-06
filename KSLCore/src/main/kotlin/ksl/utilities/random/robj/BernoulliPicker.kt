@@ -19,6 +19,7 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 interface BernoulliPickerIfc<T> : RElementIfc<T> {
@@ -37,19 +38,13 @@ class BernoulliPicker<T>(
     private val successProbability: Double,
     successOption: T,
     failureOption: T,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : BernoulliPickerIfc<T> {
 
     init {
         require(successOption != failureOption) {"The success and failure options cannot be the same."}
     }
-
-    constructor(
-        successProbability: Double,
-        successOption: T,
-        failureOption: T,
-        streamNum: Int,
-    ) : this(successProbability, successOption, failureOption, KSLRandom.rnStream(streamNum))
 
     override var success: T = successOption
         set(value) {
@@ -67,7 +62,13 @@ class BernoulliPicker<T>(
         require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
     }
 
-    override var rnStream: RNStreamIfc = stream
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers
+     */
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     override val randomElement: T
         get() = if (rnStream.randU01() <= successProbability) success else failure

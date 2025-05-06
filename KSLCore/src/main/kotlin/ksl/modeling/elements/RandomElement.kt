@@ -49,20 +49,6 @@ abstract class RandomElement(
         set(value) {
             field = value.instance(value.streamNumber, streamProvider)
         }
-    
-    //var randomSource: RandomIfc = rSource
-
-    /**
-     *  The random number stream for the current replication based on the
-     *  current setting of property randomSource.  If the underlying stream
-     *  is changed, the change will only be in effect for the current replication and
-     *  no stream control will take place based on the model's control of streams.
-     */
-    final override var rnStream: RNStreamIfc
-        get() = randomSource.rnStream
-        set(value) {
-            randomSource.rnStream = value //TODO need to use streamProvider??
-        }
 
     /**
      * Provides a reference to the underlying source of randomness to initialize each replication.
@@ -83,8 +69,8 @@ abstract class RandomElement(
                 }
             }
             //      println("-------->  $name is changing initial random source to $value")
-            field = value
-            model.addStream(field.rnStream)
+            field = value.instance(value.streamNumber, streamProvider)
+            model.addStream(field.rnStream) //TODO investigate removal of these
         }
 
     /**

@@ -29,12 +29,7 @@ import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
  *  permits sampling, stream control, and creation of instances.
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticInstanceIfc {
-
-    /**
-     *  The underlying stream of U(0,1) pseudo-random numbers associated with the source of randomness
-     */
-    val rnStream: RNStreamIfc
-
+    //TODO Why NewAntitheticInstanceIfc
     /**
      *
      * @return the stream number allocated to the random variable by the default stream provider. This will
