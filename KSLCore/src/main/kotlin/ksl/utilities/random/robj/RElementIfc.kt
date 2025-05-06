@@ -26,6 +26,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  */
 interface RElementIfc<T> : RNStreamControlIfc {
 
+//TODO need to remove rnStream from this interface
     /**
      *
      * the underlying stream of random numbers

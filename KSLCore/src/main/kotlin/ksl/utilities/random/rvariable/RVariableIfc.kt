@@ -63,8 +63,6 @@ interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
      */
     fun instance(streamNumber: Int = 0) : RVariableIfc
 
-    override fun antitheticInstance(): RVariableIfc
-
     operator fun plus(other: RVariableIfc): RVariableIfc {
         return RVFunction(this, other, Double::plus)
     }

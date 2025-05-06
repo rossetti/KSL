@@ -20,9 +20,13 @@ package ksl.modeling.variable
 
 import ksl.modeling.elements.RandomElement
 import ksl.simulation.ModelElement
+import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.SampleIfc
+import ksl.utilities.random.StreamNumberIfc
+import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rng.StreamOptionIfc
@@ -126,17 +130,10 @@ open class RandomVariable(
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null
-) : RandomElement(parent, rSource, name), RandomIfc, PreviousValueIfc {
+) : RandomElement(parent, rSource, name), SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIfc, PreviousValueIfc {
+
     override val streamNumber: Int
-        get() = TODO("Not yet implemented")
-
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RandomIfc {
-        TODO("Not yet implemented")
-    }
-
-    override fun antitheticInstance(): RandomIfc {
-        TODO("Not yet implemented")
-    }
+        get() = randomSource.streamNumber
 
     //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
     // common interfaces
