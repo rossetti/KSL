@@ -6,13 +6,24 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.TruncatedNormalRVParameters
 
+/**
+ * A truncated normal distribution.
+ *
+ * @param mean the mean of the distribution
+ * @param variance the variance of the distribution
+ * @param interval the interval over which the distribution is defined
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ */
 class TruncatedNormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     interval: Interval,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name) {
+) : ParameterizedRV(streamNumber, streamProvider, name) {
 
     init {
         require(interval.contains(mean)){ "The normal mean value, $mean, was not within the truncation interval, $interval." }
@@ -32,19 +43,8 @@ class TruncatedNormalRV(
         streamProvider, name
     )
 
-    constructor(
-        mean: Double,
-        variance: Double,
-        interval: Interval,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(mean, variance, interval, streamProvider, name){
-        myTN.rnStream = streamProvider.rnStream(streamNum)  //TODO check it out
-    }
-
-    override fun instance(streamNum: Int): TruncatedNormalRV {
-        return TruncatedNormalRV(mean, variance, myInterval, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedNormalRV {
+        return TruncatedNormalRV(mean, variance, myInterval, streamNumber, rnStreamProvider, name)
     }
 
     override fun toString(): String {

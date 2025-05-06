@@ -17,8 +17,6 @@
  */
 package ksl.modeling.elements
 
-import ksl.utilities.random.rng.StreamOptionIfc
-import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 //TODO consider whether this is necessary given new model stream control
 /**
@@ -26,4 +24,4 @@ import ksl.utilities.random.rng.RNStreamControlIfc
  *
  * @author rossetti
  */
-interface RandomElementIfc : RNStreamControlIfc, RNStreamChangeIfc
+interface RandomElementIfc : RNStreamControlIfc

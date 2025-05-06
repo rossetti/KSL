@@ -45,9 +45,9 @@ abstract class RandomElement(
      * To change the random source for the entire experiment (all replications)
      * use the initialRandomSource property
      */
-     var randomSource: RandomIfc = rSource.instance(streamProvider.rnStream(rSource.streamNumber))
+     var randomSource: RandomIfc = rSource.instance(rSource.streamNumber, streamProvider)
         set(value) {
-            field = value.instance(streamProvider.rnStream(value.streamNumber))
+            field = value.instance(value.streamNumber, streamProvider)
         }
     
     //var randomSource: RandomIfc = rSource

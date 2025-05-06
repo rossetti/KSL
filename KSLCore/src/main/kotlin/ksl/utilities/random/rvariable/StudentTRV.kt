@@ -23,41 +23,30 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * Constructs a StudentT distribution dof degrees of freedom
+ * Constructs a StudentT random variable with dof degrees of freedom
  *
  * @param degreesOfFreedom degrees of freedom, must be greater than or equal to 1.0
- * @param stream the random number generator
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class StudentTRV (
     val degreesOfFreedom: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamProvider, name) {
+) : RVariable(streamNumber, streamProvider, name) {
 
     init {
         require(degreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }
-    }
-    /**
-     * Constructs a StudentT distribution dof degrees of freedom
-     *
-     * @param dof       degrees of freedom
-     * @param streamNum the stream number
-     */
-    constructor(
-        dof: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(dof, streamProvider, name) {
-        rnStream = streamProvider.rnStream(streamNum)
     }
 
     override fun generate(): Double {
         return baileysAcceptanceRejection()
     }
 
-    override fun instance(streamNum: Int): RVariableIfc {
-        return StudentTRV(degreesOfFreedom, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): StudentTRV {
+        return StudentTRV(degreesOfFreedom, streamNumber, rnStreamProvider, name)
     }
 
     /**
