@@ -17,6 +17,7 @@
  */
 package ksl.utilities.random.robj
 
+import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -45,6 +46,10 @@ class DEmpiricalList<T>(
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DEmpiricalList<T>  {
+        return DEmpiricalList(elements, cdf, streamNumber, rnStreamProvider)
+    }
 
     val elements: List<T> = ArrayList(elements)
 

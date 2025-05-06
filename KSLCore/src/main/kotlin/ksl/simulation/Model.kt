@@ -227,6 +227,7 @@ class Model(
      * @param stream the stream that the model will manage
      */
     fun addStream(stream: RNStreamIfc) {
+        //TODO need to remove this stuff
         val b = myStreams.add(stream)
         if (b) {
             RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
