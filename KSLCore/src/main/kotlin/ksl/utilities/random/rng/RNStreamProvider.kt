@@ -21,6 +21,7 @@ package ksl.utilities.random.rng
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.KSLRandom
+import kotlin.math.abs
 
 //private val logger = KotlinLogging.logger {}
 
@@ -70,24 +71,26 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     override fun lastRNStreamNumber() = myStreams.size
 
     override fun rnStream(i: Int): RNStreamIfc {
-        require(i > 0) {
-            "The stream number must be > 0!"
+        if (i == 0) {
+            return nextRNStream()
         }
-        //       println("want stream: $i")
-        if (i > lastRNStreamNumber()) {
+        val k = abs(i)
+        if (k > lastRNStreamNumber()) {
             var stream: RNStreamIfc? = null
-            //           println("last stream number: ${lastRNStreamNumber()}")
-            for (j in lastRNStreamNumber()..<i) {
+            for (j in lastRNStreamNumber()..<k) {
                 stream = nextRNStream()
-//                println("$j with stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size}")
             }
-            // this is safe because there must be at least one call to nextRNStream()
-//            for(s in myStreams) {
-//                println("stream $s")
-//            }
-            return stream!!
+            return if (i < 0) {
+                stream!!.antitheticInstance()
+            } else {
+                stream!!
+            }
         }
-        return myStreams[i - 1]
+        return if (i < 0) {
+            myStreams[k - 1].antitheticInstance()
+        } else {
+            myStreams[k - 1]
+        }
     }
 
     override fun streamNumber(stream: RNStreamIfc): Int {

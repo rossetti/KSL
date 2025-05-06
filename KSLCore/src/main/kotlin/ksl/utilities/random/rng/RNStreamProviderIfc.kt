@@ -73,10 +73,17 @@ interface RNStreamProviderIfc {
 
     /**
      * Tells the provider to return the ith stream of the sequence of streams that it provides.
-     * If i is greater than lastRNStreamNumber() then lastRNStreamNumber() is advanced
+     * If i = 0, then the next stream in the sequence of streams is return.
+     * If i < 0, then the antithetic stream associated with stream abs(i) is returned. The antithetic
+     * stream will not be managed by the provider but stream abs(i) will be managed. That is,
+     * antithetic streams are not subject to the stream control; however a standard stream that
+     * has been told to produce antithetic PRNs via its antithetic property will be controlled
+     * by the provider.
+     *
+     * If abs(i) is greater than lastRNStreamNumber() then lastRNStreamNumber() is advanced
      * according to the additional number of streams. For example, if lastRNStreamNumber() = 10
      * and i = 15, then streams 11, 12, 13, 14, 15 are assumed provided and stream 15 is returned and
-     * lastRNStreamNumber() now equals 15.  If i is less than or equal to lastRNStreamNumber(),
+     * lastRNStreamNumber() now equals 15.  If abs(i) is less than or equal to lastRNStreamNumber(),
      * then no new streams are created, lastRNStreamNumber() stays at its current value and the ith
      * stream is returned.
      *
