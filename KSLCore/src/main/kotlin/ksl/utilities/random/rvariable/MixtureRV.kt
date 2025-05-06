@@ -22,14 +22,17 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 /**
  * @param list   a list holding the random variables to select from
  * @param cdf    the cumulative probability associated with each element of the list
- * @param stream the source of the randomness
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class MixtureRV(
     list: List<RVariableIfc>,
     cdf: DoubleArray,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamProvider, name) {
+) : RVariable(streamNumber, streamProvider, name) {
 
     val cdf = cdf.copyOf()
         get() = field.copyOf()
@@ -40,27 +43,12 @@ class MixtureRV(
         require(KSLRandom.isValidCDF(cdf)) { "The cdf was not a valid CDF" }
     }
 
-    /**
-     * @param list      a list holding the random variables to select from
-     * @param cdf       the cumulative probability associated with each element of the list
-     * @param streamNum the stream number
-     */
-    constructor(
-        list: List<RVariableIfc>,
-        cdf: DoubleArray,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(list, cdf, streamProvider, name){
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
     override fun generate(): Double {
         return KSLRandom.randomlySelect(myRVList, cdf, rnStream).value
     }
 
-    override fun instance(streamNum: Int): MixtureRV {
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MixtureRV {
         val list: List<RVariableIfc> = ArrayList(myRVList)
-        return MixtureRV(list, cdf, streamNum, streamProvider, name)
+        return MixtureRV(list, cdf, streamNumber, rnStreamProvider, name)
     }
 }
