@@ -27,13 +27,16 @@ import ksl.utilities.statistic.Histogram
  * A random variable that samples from the provided data. Each value is
  * equally likely to occur.
  * @param data the data to sample from
- * @param stream the random number stream to use
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class EmpiricalRV (
     private val data: DoubleArray,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name){
+) : ParameterizedRV(streamNumber, streamProvider, name){
 
     init {
         require(data.isNotEmpty()) { "The supplied data array had no elements." }
@@ -46,21 +49,6 @@ class EmpiricalRV (
         get() = data.copyOf()
 
     /**
-     * A random variable that samples from the provided data. Each value is
-     * equally likely to occur.
-     * @param data the data to sample from
-     * @param streamNum the random number stream to use
-     */
-    constructor(
-        data: DoubleArray,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(data, streamProvider, name) {
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    /**
      *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
      *  apart. Each point in the series will be equally likely to occur.
      */
@@ -68,22 +56,10 @@ class EmpiricalRV (
         lowerLimit: Double,
         numPoints: Int,
         width: Double,
+        streamNumber: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(Histogram.createBreakPoints(lowerLimit, numPoints, width), streamProvider, name)
-
-    /**
-     *  Creates a series of [numPoints] points starting at the lower limit, each [width] units
-     *  apart. Each point in the series will be equally likely to occur.
-     */
-    constructor(
-        lowerLimit: Double,
-        numPoints: Int,
-        width: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(Histogram.createBreakPoints(lowerLimit, numPoints, width), streamNum, streamProvider, name)
+    ) : this(Histogram.createBreakPoints(lowerLimit, numPoints, width), streamNumber, streamProvider, name)
 
     /**
      *  Creates a series of [numPoints] points starting at the lower limit, each
@@ -93,25 +69,13 @@ class EmpiricalRV (
     constructor(
         interval: Interval,
         numPoints: Int,
+        streamNumber: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(interval.stepPoints(numPoints), streamProvider, name)
+    ) : this(interval.stepPoints(numPoints), streamNumber, streamProvider, name)
 
-    /**
-     *  Creates a series of [numPoints] points starting at the lower limit, each
-     *  an equal distance apart based on the number of points.
-     *  Each point in the series will be equally likely to occur.
-     */
-    constructor(
-        interval: Interval,
-        numPoints: Int,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(interval.stepPoints(numPoints), streamNum, streamProvider, name)
-
-    override fun instance(streamNum: Int): RVariableIfc {
-        return EmpiricalRV(values, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): EmpiricalRV {
+        return EmpiricalRV(values, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {
@@ -127,7 +91,6 @@ class EmpiricalRV (
             val parameters: RVParameters = EmpiricalRVParameters()
             parameters.changeDoubleArrayParameter("population", data)
             return parameters
-
         }
 
 }

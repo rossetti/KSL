@@ -26,8 +26,12 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 /**
  * An abstract base class for building random variables.  Implement
  * the random generation procedure in the method generate().
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 abstract class RVariable(
+    streamNumber: Int = 0,
     protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
@@ -35,13 +39,22 @@ abstract class RVariable(
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected val rnStream: RNStreamIfc = streamProvider.nextRNStream()
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
 
-    //TODO consider late init for this
-    //TODO do not allow the stream to be changed from public interface. This property should be setter protected at least
+    /**
+     *  An instance of the random variable with the stream provided
+     *  by the same underlying stream provider
+     */
+    override fun instance(streamNumber: Int) : RVariableIfc {
+        return instance(streamNumber, streamProvider)
+    }
+
+    override fun antitheticInstance(): RVariableIfc {
+        return instance(streamNumber = -streamNumber, streamProvider)
+    }
 
     override var advanceToNextSubStreamOption: Boolean
         get() = rnStream.advanceToNextSubStreamOption

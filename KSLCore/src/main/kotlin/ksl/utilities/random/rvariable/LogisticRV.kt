@@ -25,31 +25,24 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Logistic(location, scale) random variable
  * @param location must be a real number
  * @param scale must be greater than 0
- * @param stream the stream to use
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class LogisticRV(
     val location: Double = 0.0,
     val scale: Double = 1.0,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name)  {
+) : ParameterizedRV(streamNumber, streamProvider, name)  {
 
     init {
         require(scale > 0) { "Scale parameter must be > 0" }
     }
 
-    constructor(
-        location: Double,
-        scale: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(location, scale, streamProvider, name) {
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): LogisticRV {
-        return LogisticRV(location, scale, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LogisticRV {
+        return LogisticRV(location, scale, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

@@ -25,32 +25,25 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * LogLogistic(shape, scale) random variable
  * @param shape must be greater than 0
  * @param scale must be greater than 0
- * @param stream the stream to use
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class LogLogisticRV(
     val shape: Double,
     val scale: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name)  {
+) : ParameterizedRV(streamNumber, streamProvider, name)  {
 
     init {
         require(shape > 0) { "Shape parameter must be > 0" }
         require(scale > 0) { "Scale parameter must be > 0" }
     }
 
-    constructor(
-        shape: Double,
-        scale: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(shape, scale, streamProvider, name) {
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): LogLogisticRV {
-        return LogLogisticRV(shape, scale, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LogLogisticRV {
+        return LogLogisticRV(shape, scale, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

@@ -18,22 +18,22 @@
 package ksl.utilities.random
 
 import ksl.utilities.GetValueIfc
-import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
-import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
- *
+ *  A general interface to represent randomness within models. The interface
+ *  permits sampling, stream control, and creation of instances.
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticInstanceIfc {
 
-//    /**
-//     *  The underlying stream of U(0,1) pseudo-random numbers associated with the source of randomness
-//     */
-//    val rnStream: RNStreamIfc
+    /**
+     *  The underlying stream of U(0,1) pseudo-random numbers associated with the source of randomness
+     */
+    val rnStream: RNStreamIfc
 
     /**
      *
@@ -43,16 +43,14 @@ interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, NewAntitheticI
     val streamNumber: Int
 
     /**
-     * @param streamNum the stream number to use from the underlying provider
+     * @param streamNumber the stream number to use from the underlying provider
+     * @param rnStreamProvider the provider for the stream instance
      * @return a new instance with same parameter values
      */
-    fun instance(streamNum: Int): RandomIfc
-
-    /**
-     * @return a new instance with same parameter values, with a different stream
-     * from the underlying provider
-     */
-    fun instance(): RandomIfc
+    fun instance(
+        streamNumber: Int = 0,
+        rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ): RandomIfc
 
     /**
      * @param n the number of values to sum, must be 1 or more
