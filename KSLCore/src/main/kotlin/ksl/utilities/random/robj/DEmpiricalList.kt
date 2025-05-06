@@ -18,6 +18,7 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /** Randomly selects the elements in the list according to a supplied CDF across the items
@@ -25,25 +26,24 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param <T> the type of elements in the list
  * @param elements the list of elements, must not be null
  * @param theCDF an array holding the cumulative probabilities across the elements in the list
- * @param stream the underlying random number stream to use for randomness
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
 class DEmpiricalList<T>(
     elements: List<T>,
     theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : RElementIfc<T> {
     init {
         require(KSLRandom.isValidCDF(theCDF)) { "The supplied cdf array is not a valid cdf" }
         require(elements.size >= theCDF.size) { "The number of objects was less than the number of probabilities." }
     }
 
-    constructor(
-        elements: List<T>,
-        theCDF: DoubleArray,
-        streamNum: Int
-    ) : this(elements, theCDF, KSLRandom.rnStream(streamNum))
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
-    override var rnStream: RNStreamIfc = stream
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     val elements: List<T> = ArrayList(elements)
 

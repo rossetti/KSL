@@ -17,9 +17,11 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.RandomIfc
+
 interface NewAntitheticInstanceIfc {
     /**
      * @return a new instance with same parameter value, but that has antithetic variates
      */
-    fun antitheticInstance(): RVariableIfc
+    fun antitheticInstance(): RandomIfc
 }

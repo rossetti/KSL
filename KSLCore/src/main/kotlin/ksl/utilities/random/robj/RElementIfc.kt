@@ -17,14 +17,22 @@
  */
 package ksl.utilities.random.robj
 
-import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamIfc
 
 /**
  *  Defines sampling of random elements. Implementers must ensure that
  *  non-null random elements are sampled.
  */
-interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
+interface RElementIfc<T> : RNStreamControlIfc {
+
+    /**
+     *
+     * the underlying stream of random numbers
+     */
+    val rnStream: RNStreamIfc
+
+    val streamNumber: Int
 
     override var advanceToNextSubStreamOption: Boolean
         get() = rnStream.advanceToNextSubStreamOption

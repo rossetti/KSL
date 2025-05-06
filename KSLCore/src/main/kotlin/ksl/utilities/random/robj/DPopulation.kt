@@ -23,30 +23,31 @@ import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /** A DPopulation is a population of doubles that can be sampled from and permuted.
  * @author rossetti
  * @param elements the elements to sample from
- * @param stream the stream to use for sampling
- * @param name the name of the population, optional
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class DPopulation(
     elements: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNumber: Int = 0,
+    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name){
-
-    constructor(
-        elements: DoubleArray,
-        streamNum: Int,
-        name: String? = null
-    ) : this(elements, KSLRandom.rnStream(streamNum), name)
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    override var rnStream: RNStreamIfc = stream
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
+
 
     private var myElements: DoubleArray = elements.copyOf()
 
@@ -63,18 +64,11 @@ class DPopulation(
      * but a different random stream
      */
     fun instance(): DPopulation {
-        return DPopulation(myElements)
+        return DPopulation(myElements, 0, streamProvider, name)
     }
 
-    /** Returns a new instance of the random source with the same parameters
-     * but an independent generator
-     *
-     * @param streamNum a random number stream, must not null.
-     * @return Returns a new instance of the population with the same parameters
-     * but a different random stream
-     */
-    override fun instance(streamNum: Int): DPopulation {
-        return DPopulation(myElements, streamNum)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DPopulation {
+        return DPopulation(myElements, streamNumber, rnStreamProvider, name)
     }
 
     /** Creates a new array that contains a randomly sampled values without replacement
@@ -158,6 +152,40 @@ class DPopulation(
      * @return the randomly generated value, same as using property value
      */
     override fun value(): Double = value
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
+
+    override fun antitheticInstance(): DPopulation {
+        return instance(streamNumber = -streamNumber, streamProvider)
+    }
 
     override fun sample(): Double {
         return myElements[randomIndex]

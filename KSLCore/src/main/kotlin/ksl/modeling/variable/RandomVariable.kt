@@ -24,6 +24,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rng.StreamOptionIfc
 
 /**
@@ -66,8 +67,6 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
      * same initial state.  It is recommended that this be used only prior to executing experiments.
      */
     var initialRandomSource: RandomIfc
-
-    var rnStream: RNStreamIfc
 
     /**
      * Controls whether warning of changing the initial random source during a replication
@@ -128,9 +127,15 @@ open class RandomVariable(
     rSource: RandomIfc,
     name: String? = null
 ) : RandomElement(parent, rSource, name), RandomIfc, PreviousValueIfc {
+    override val streamNumber: Int
+        get() = TODO("Not yet implemented")
 
-    override fun instance(streamNum: Int): RandomVariable {
-        return RandomVariable(parent!!, initialRandomSource.instance(streamNum), null)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RandomIfc {
+        TODO("Not yet implemented")
+    }
+
+    override fun antitheticInstance(): RandomIfc {
+        TODO("Not yet implemented")
     }
 
     //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
@@ -190,7 +195,7 @@ open class RandomVariable(
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine(super.toString())
-        sb.append("Initial random Source: $initialRandomSource with stream ${initialRandomSource.rnStream.id}")
+        sb.append("Initial random Source: $initialRandomSource with stream ${initialRandomSource.streamNumber}")
         return sb.toString()
     }
 

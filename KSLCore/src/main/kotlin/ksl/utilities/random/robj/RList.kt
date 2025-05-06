@@ -19,13 +19,24 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
+/**
+ * An abstract base class for building random lists.
+ *
+ * @param elements the elements of the list
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ */
 abstract class RList<T>(
     val elements: MutableList<T>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : RListIfc<T>, MutableList<T> by elements {
 
-    override var rnStream: RNStreamIfc = stream
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 }
