@@ -24,30 +24,26 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * Two exponential random variables mixed to get a hyper-exponential. For higher
  * order hyper-exponential use MixtureRV.  The mixing probability is the
  * probability of getting the first exponential distribution with mean1
+ * @param mixingProb   probability of selecting the first exponential distribution
+ * @param mean1 the mean of the first exponential distribution
+ * @param mean2 the mean of the second exponential distribution
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class Hyper2ExponentialRV(
     val mixingProb: Double,
     val mean1: Double,
     val mean2: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamProvider, name) {
+) : RVariable(streamNumber, streamProvider, name) {
 
     init {
         require(!(mixingProb < 0.0 || mixingProb > 1.0)) { "Mixing Probability must be [0,1]" }
         require(mean1 > 0.0) { "Exponential mean1 must be > 0.0" }
         require(mean2 > 0.0) { "Exponential mean2 must be > 0.0" }
-    }
-
-    constructor(
-        mixingProb: Double,
-        mean1: Double,
-        mean2: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(mixingProb, mean1, mean2, streamProvider, name){
-        rnStream = streamProvider.rnStream(streamNum)
     }
 
     override fun generate(): Double {
@@ -59,12 +55,8 @@ class Hyper2ExponentialRV(
         }
     }
 
-    /**
-     * @param streamNum the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(streamNum: Int): Hyper2ExponentialRV {
-        return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNumber, rnStreamProvider, name)
     }
 
     override fun toString(): String {

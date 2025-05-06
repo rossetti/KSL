@@ -27,36 +27,27 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param alpha2 alpha2 parameter, must be greater than zero
  * @param min    the min, must be less than max
  * @param max    the max
- * @param stream    the random number stream
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class JohnsonBRV (
     val alpha1: Double,
     val alpha2: Double,
     val min: Double,
     val max: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name) {
+) : ParameterizedRV(streamNumber, streamProvider, name) {
 
     init {
         require(alpha2 > 0) { "alpha2 must be > 0" }
         require(max > min) { "the min must be < than the max" }
     }
 
-    constructor(
-        alpha1: Double,
-        alpha2: Double,
-        min: Double,
-        max: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(alpha1, alpha2, min, max, streamProvider, name){
-        rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    override fun instance(streamNum: Int): JohnsonBRV {
-        return JohnsonBRV(alpha1, alpha2, min, max, streamNum,streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): JohnsonBRV {
+        return JohnsonBRV(alpha1, alpha2, min, max, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

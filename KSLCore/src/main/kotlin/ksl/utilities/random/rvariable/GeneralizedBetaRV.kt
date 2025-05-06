@@ -27,49 +27,28 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param beta the beta shape parameter, must be greater than 0
  * @param min the minimum of the range, must be less than maximum
  * @param max the maximum of the range
- * @param stream the random number stream
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class GeneralizedBetaRV(
     val alpha: Double,
     val beta: Double,
     val min: Double,
     val max: Double,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamProvider, name) {
+) : ParameterizedRV(streamNumber, streamProvider, name) {
 
     init {
         require(max > min) { "the min must be < than the max" }
     }
 
-    private val myBeta: BetaRV = BetaRV(alpha, beta, streamProvider)
+    private val myBeta: BetaRV = BetaRV(alpha, beta, streamNumber, streamProvider)
 
-    /**
-     * GeneralizeBetaRV(alpha1, alpha2, min, max) random variable
-     * @param alphaShape the alpha shape parameter
-     * @param betaShape the beta shape parameter
-     * @param min the minimum of the range
-     * @param max the maximum of the range
-     * @param streamNum the random number stream number
-     */
-    constructor(
-        alphaShape: Double,
-        betaShape: Double,
-        min: Double,
-        max: Double,
-        streamNum: Int,
-        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-        name: String? = null
-    ) : this(alphaShape, betaShape, min, max, streamProvider, name) {
-        myBeta.rnStream = streamProvider.rnStream(streamNum)
-    }
-
-    /**
-     * @param streamNum the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(streamNum: Int): GeneralizedBetaRV {
-        return GeneralizedBetaRV(alpha, beta, min, max, streamNum, streamProvider, name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNumber, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

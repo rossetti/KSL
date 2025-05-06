@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.sin
 import kotlin.math.abs
 import kotlin.math.*
@@ -51,16 +52,16 @@ interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
      */
     override fun value(): Double = value
 
-    /**
-     * @param streamNum the RNStreamIfc to use
-     * @return a new instance with same parameter values
-     */
-    override fun instance(streamNum: Int): RVariableIfc
+    override fun instance(
+        streamNumber: Int,
+        rnStreamProvider: RNStreamProviderIfc
+    ): RVariableIfc
 
     /**
-     * @return a new instance with same parameter values, with a different stream
+     *  An instance of the random variable with the stream provided
+     *  by the same underlying stream provider
      */
-    override fun instance(): RVariableIfc
+    fun instance(streamNumber: Int = 0) : RVariableIfc
 
     override fun antitheticInstance(): RVariableIfc
 
