@@ -28,6 +28,10 @@ class RMap<K, V>(
         myList = map.keys.toList()
     }
 
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return RMap(map.toMap(), streamNumber, rnStreamProvider)
+    }
+
     /**
      *  Selected a value equally likely from the map
      */
@@ -94,6 +98,10 @@ class REmpiricalMap<K, V>(
         require(KSLRandom.isValidCDF(theCDF)) { "The supplied cdf array is not a valid cdf" }
         require(map.size == theCDF.size) { "The number of keys must be equal to the number of probabilities." }
         myList = DEmpiricalList(map.keys.toList(), theCDF)
+    }
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return REmpiricalMap(map.toMap(), myList.cdf, streamNumber, rnStreamProvider)
     }
 
     /**

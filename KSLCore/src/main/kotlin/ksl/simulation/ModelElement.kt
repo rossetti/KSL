@@ -31,6 +31,7 @@ import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
+import ksl.utilities.GetTimeIfc
 import ksl.utilities.random.rng.RNStreamProvider
 
 private var elementCounter: Int = 0
@@ -41,7 +42,9 @@ private var elementCounter: Int = 0
  */
 private var qObjCounter: Long = 0
 
-abstract class ModelElement internal constructor(name: String? = null) : IdentityIfc, ParentNameIfc {
+abstract class ModelElement internal constructor(
+    name: String? = null) : IdentityIfc, ParentNameIfc, GetTimeIfc {
+
     //TODO spatial model stuff
     //TODO change parent model element method, was in JSL, can/should it be in KSL
 
@@ -379,10 +382,12 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         }
 
     /**
-     *  The current simulation time
+     *
+     * @return the simulated time as a double
      */
-    val time
-        get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
+    override fun time(): Double{
+        return executive.currentTime * model.baseTimeUnit.value
+    }
 
     /**
      * Fills up the supplied StringBuilder carrying a string representation of

@@ -22,18 +22,20 @@ import ksl.modeling.variable.RandomSourceCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.StreamNumberIfc
 
 abstract class RandomElement(
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null
-) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc {
+) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc, StreamNumberIfc {
     //TODO need to setup the source to use the model's RNStreamProvider
     //TODO need to assign random source with a setter to ensure it comes from the model's stream provider
     // the initialRandomSource needs to fix this also
     // should rnStream also do this? Can't check if it comes from the model's stream provider
+
+    override val streamNumber: Int
+        get() = randomSource.streamNumber
 
     /**
      * Provides a reference to the underlying source of randomness during the replication.
@@ -71,7 +73,7 @@ abstract class RandomElement(
             }
             //      println("-------->  $name is changing initial random source to $value")
             field = value.instance(value.streamNumber, streamProvider)
-            model.addStream(field.rnStream) //TODO investigate removal of these
+//            model.addStream(field.rnStream) //TODO investigate removal of these
         }
 
     /**
@@ -140,10 +142,10 @@ abstract class RandomElement(
 
     init {
         warmUpOption = false
-        //TODO can this be moved into model? if so, where (cannot be in addToModelElementMap()) because that is in constructor
-        // of the model element, which is called before this init block. this init block is called after the element has
-        // been added to the model, upon creation of the element
-        model.addStream(initialRandomSource.rnStream)
-        RNStreamProvider.logger.info { "Initialized RandomElement(id = $id, name = ${this.name}) with stream id = ${randomSource.rnStream.id}" }
+//        //TODO can this be moved into model? if so, where (cannot be in addToModelElementMap()) because that is in constructor
+//        // of the model element, which is called before this init block. this init block is called after the element has
+//        // been added to the model, upon creation of the element
+//        model.addStream(initialRandomSource.rnStream)
+//        RNStreamProvider.logger.info { "Initialized RandomElement(id = $id, name = ${this.name}) with stream id = ${randomSource.rnStream.id}" }
     }
 }

@@ -130,12 +130,9 @@ open class RandomVariable(
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null
-) : RandomElement(parent, rSource, name), SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIfc, PreviousValueIfc {
+) : RandomElement(parent, rSource, name), SampleIfc, GetValueIfc, PreviousValueIfc {
 
     //TODO need to setup the source to use the model's RNStreamProvider
-
-    override val streamNumber: Int
-        get() = randomSource.streamNumber
 
     //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
     // common interfaces

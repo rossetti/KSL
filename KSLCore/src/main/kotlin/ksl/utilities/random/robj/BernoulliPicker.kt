@@ -35,7 +35,7 @@ interface BernoulliPickerIfc<T> : RElementIfc<T> {
  *  @param stream the associated random number stream
  */
 class BernoulliPicker<T>(
-    private val successProbability: Double,
+    val successProbability: Double,
     successOption: T,
     failureOption: T,
     streamNumber: Int = 0,
@@ -43,6 +43,7 @@ class BernoulliPicker<T>(
 ) : BernoulliPickerIfc<T> {
 
     init {
+        require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
         require(successOption != failureOption) {"The success and failure options cannot be the same."}
     }
 
@@ -58,8 +59,8 @@ class BernoulliPicker<T>(
             field = value
         }
 
-    init {
-        require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<T> {
+        return BernoulliPicker(successProbability, success, failure, streamNumber, rnStreamProvider)
     }
 
     /**
