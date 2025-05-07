@@ -36,12 +36,13 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 open class NHPPEventGenerator(
     parent: ModelElement,
-    rateFunction: InvertibleCumulativeRateFunctionIfc,
+    private val timeBtwEvents: NHPPTimeBtwEventRVV2,
     generatorAction: GeneratorActionIfc,
-    lastRate: Double = Double.NaN,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    theName: String? = null
-) : ModelElement(parent, theName), EventGeneratorIfc, RNStreamControlIfc by stream {
+    name: String? = null
+) : ModelElement(parent, name), EventGeneratorIfc, RNStreamControlIfc by timeBtwEvents {
+
+    //TODO why is this not sub-classing from EventGenerator?
+    // Why stream control? not really needed
 
     constructor(
         parent: ModelElement,
@@ -50,11 +51,19 @@ open class NHPPEventGenerator(
         lastRate: Double = Double.NaN,
         streamNum: Int,
         name: String? = null
-    ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
+    ) : this(
+        parent,
+        NHPPTimeBtwEventRVV2(parent, rateFunction, lastRate, streamNum, parent.streamProvider),
+        generatorAction,
+        name
+    )
 
-    protected val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate, stream)
+    private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, timeBtwEvents, timeBtwEvents)
 
-    private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, myTBARV, myTBARV)
+    override fun initialize() {
+        super.initialize()
+        timeBtwEvents.initialize()
+    }
 
     override fun turnOnGenerator(t: Double) {
         myEventGenerator.turnOnGenerator(t)
@@ -98,7 +107,7 @@ open class NHPPEventGenerator(
         get() = myEventGenerator.timeBetweenEvents
 
     override fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long) {
-        require(timeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
+        require(timeBtwEvents is NHPPTimeBtwEventRVV2) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
         myEventGenerator.setTimeBetweenEvents(timeBtwEvents, maxNumEvents)
     }
 
@@ -106,7 +115,7 @@ open class NHPPEventGenerator(
         initialTimeBtwEvents: RandomIfc,
         initialMaxNumEvents: Long
     ) {
-        require(initialTimeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
+        require(initialTimeBtwEvents is NHPPTimeBtwEventRVV2) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
         myEventGenerator.setInitialTimeBetweenEventsAndMaxNumEvents(initialTimeBtwEvents, initialMaxNumEvents)
     }
 
