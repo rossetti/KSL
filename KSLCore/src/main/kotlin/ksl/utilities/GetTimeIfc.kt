@@ -23,9 +23,12 @@ package ksl.utilities
  */
 fun interface GetTimeIfc {
 
-    //TODO is this okay?
-//    val time: Double
-//        get() = time()
+    /**
+     *
+     * @return the simulated time as a double
+     */
+    val time: Double
+        get() = time()
 
     /**
      *
