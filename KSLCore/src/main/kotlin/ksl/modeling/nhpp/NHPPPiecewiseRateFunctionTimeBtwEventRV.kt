@@ -1,28 +1,20 @@
 package ksl.modeling.nhpp
 
-import ksl.simulation.ModelElement
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.GetTimeIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Models non-homogenous Poisson processes based on piecewise rate functions.
  */
 class NHPPPiecewiseRateFunctionTimeBtwEventRV(
-    parent: ModelElement,
+    timeGetter: GetTimeIfc,
     rateFunction: PiecewiseRateFunction,
-    lastRate: Double = Double.NaN,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    lastRate: Double? = null,
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : NHPPTimeBtwEventRV(parent, rateFunction, lastRate, stream, name) {
-
-
-    constructor(
-        parent: ModelElement,
-        rateFunction: PiecewiseRateFunction,
-        lastRate: Double = Double.NaN,
-        streamNum: Int,
-        name: String? = null
-    ) : this(parent, rateFunction, lastRate, KSLRandom.rnStream(streamNum), name)
+) : NHPPTimeBtwEventRV(timeGetter, rateFunction, lastRate, streamNumber, streamProvider, name) {
 
     /**
      *  This function can be used to adjust the rates within the piecewise rate function
@@ -34,7 +26,7 @@ class NHPPPiecewiseRateFunctionTimeBtwEventRV(
      */
     fun adjustRates(factor: Double) {
         require(factor > 0.0) { "factor must be positive: $factor" }
-        val rf = rateFunction as PiecewiseRateFunction
-        rateFunction = rf.instance(factor)
+        val rf = myRateFunction as PiecewiseRateFunction
+        myRateFunction = rf.instance(factor)
     }
 }
