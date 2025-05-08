@@ -68,10 +68,22 @@ class Model(
     val out: LogPrintWriter
         get() = outputDirectory.out
 
+    /**
+     *  Controls the execution of events
+     */
     internal val myExecutive: Executive = Executive(eventCalendar)
+
+    /**
+     * Used internally to specify the model's experiment parameters
+     */
     internal val myExperiment: Experiment = Experiment()
 
-    private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
+    /**
+     *  Used internally to control all the random number streams
+     */
+    internal val myRNStreamProvider = RNStreamProvider()
+
+//    private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
 
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
@@ -209,8 +221,6 @@ class Model(
      */
     private val myReplicationProcess: ReplicationProcess = ReplicationProcess("Model: Replication Process")
 
-    internal val myRNStreamProvider = RNStreamProvider()
-
     init {
         myModel = this
         myParentModelElement = null
@@ -223,23 +233,23 @@ class Model(
 
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
-    /**
-     * @param stream the stream that the model will manage
-     */
-    fun addStream(stream: RNStreamIfc) {
-        //TODO need to remove this stuff
-        val b = myStreams.add(stream)
-        if (b) {
-            RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
-        }
-    }
-
-    /**
-     * @param stream the stream that the model will no longer manage
-     */
-    fun removeStream(stream: RNStreamIfc) {
-        myStreams.remove(stream)
-    }
+//    /**
+//     * @param stream the stream that the model will manage
+//     */
+//    fun addStream(stream: RNStreamIfc) {
+//        //TODO need to remove this stuff
+//        val b = myStreams.add(stream)
+//        if (b) {
+//            RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
+//        }
+//    }
+//
+//    /**
+//     * @param stream the stream that the model will no longer manage
+//     */
+//    fun removeStream(stream: RNStreamIfc) {
+//        myStreams.remove(stream)
+//    }
 
     /**
      * Attaches the CSVReplicationReport to the model if not attached.
@@ -516,9 +526,7 @@ class Model(
      * @param option true means that streams will have their antithetic property set to true
      */
     fun antitheticOption(option: Boolean) {
-        for (rs in myStreams) {
-            rs.antithetic = option
-        }
+        myRNStreamProvider.setAllStreamsAntitheticOption(option)
     }
 
     /**
@@ -542,11 +550,7 @@ class Model(
      * permits advancement via the advanceToNextSubStreamOption.
      */
     fun advanceToNextSubStream() {
-        for (rs in myStreams) {
-            if (rs.advanceToNextSubStreamOption) {
-                rs.advanceToNextSubStream()
-            }
-        }
+        myRNStreamProvider.advanceAllStreamsToNextSubStream()
     }
 
     /**
@@ -555,11 +559,7 @@ class Model(
      * if the stream permits resetting via the resetStartStreamOption
      */
     fun resetStartStream() {
-        for (rs in myStreams) {
-            if (rs.resetStartStreamOption) {
-                rs.resetStartStream()
-            }
-        }
+        myRNStreamProvider.resetAllStreamsToStart()
     }
 
     /**
@@ -567,9 +567,7 @@ class Model(
      * reset their random number sequence to the beginning of their current sub-stream.
      */
     fun resetStartSubStream() {
-        for (rs in myStreams) {
-            rs.resetStartSubStream()
-        }
+        myRNStreamProvider.resetAllStreamsToStartOfCurrentSubStream()
     }
 
     /**
@@ -939,6 +937,7 @@ class Model(
      * @param option The option, true means to reset prior to each experiment
      */
     private fun setAllResetStartStreamOptions(option: Boolean) {
+       // myRNStreamProvider.
         for (rs in myStreams) {
             rs.resetStartStreamOption = option
         }
