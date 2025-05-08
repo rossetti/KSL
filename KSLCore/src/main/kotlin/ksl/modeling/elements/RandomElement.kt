@@ -29,13 +29,6 @@ abstract class RandomElement(
     rSource: RandomIfc,
     name: String? = null
 ) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc, StreamNumberIfc {
-    //TODO need to setup the source to use the model's RNStreamProvider
-    //TODO need to assign random source with a setter to ensure it comes from the model's stream provider
-    // the initialRandomSource needs to fix this also
-    // should rnStream also do this? Can't check if it comes from the model's stream provider
-
-    override val streamNumber: Int
-        get() = randomSource.streamNumber
 
     /**
      * Provides a reference to the underlying source of randomness during the replication.
@@ -48,10 +41,17 @@ abstract class RandomElement(
      * To change the random source for the entire experiment (all replications)
      * use the initialRandomSource property
      */
-     var randomSource: RandomIfc = rSource.instance(rSource.streamNumber, streamProvider)
+    var randomSource: RandomIfc = rSource
         set(value) {
             field = value.instance(value.streamNumber, streamProvider)
         }
+
+    init {
+        warmUpOption = false
+        if (rSource.streamProvider != streamProvider){
+            randomSource =rSource.instance(rSource.streamNumber, streamProvider)
+        }
+    }
 
     /**
      * Provides a reference to the underlying source of randomness to initialize each replication.
@@ -71,9 +71,11 @@ abstract class RandomElement(
                     Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
                 }
             }
-            //      println("-------->  $name is changing initial random source to $value")
-            field = value.instance(value.streamNumber, streamProvider)
-//            model.addStream(field.rnStream) //TODO investigate removal of these
+            field = if (value.streamProvider == streamProvider){
+                value
+            } else {
+                value.instance(value.streamNumber, streamProvider)
+            }
         }
 
     /**
@@ -81,6 +83,9 @@ abstract class RandomElement(
      * is logged, default is true.
      */
     final override var initialRandomSourceChangeWarning = true
+
+    override val streamNumber: Int
+        get() = randomSource.streamNumber
 
     override fun resetStartStream() {
         initialRandomSource.resetStartStream()
@@ -140,12 +145,4 @@ abstract class RandomElement(
         }
     }
 
-    init {
-        warmUpOption = false
-//        //TODO can this be moved into model? if so, where (cannot be in addToModelElementMap()) because that is in constructor
-//        // of the model element, which is called before this init block. this init block is called after the element has
-//        // been added to the model, upon creation of the element
-//        model.addStream(initialRandomSource.rnStream)
-//        RNStreamProvider.logger.info { "Initialized RandomElement(id = $id, name = ${this.name}) with stream id = ${randomSource.rnStream.id}" }
-    }
 }

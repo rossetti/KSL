@@ -41,7 +41,7 @@ open class MovableResourcePool(
         get() = myResourcesByName
 
     protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
-    val velocityRV: RandomSourceCIfc
+    val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
         get() = myVelocity

@@ -18,7 +18,7 @@
 
 package ksl.modeling.station
 
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
@@ -59,7 +59,7 @@ open class ActivityStation(
     var useQObjectForActivityTime: Boolean = false
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, "${this.name}:ActivityRV")
-    override val activityTimeRV: RandomSourceCIfc
+    override val activityTimeRV: RandomVariableCIfc
         get() = myActivityTimeRV
 
     override fun process(arrivingQObject: QObject) {

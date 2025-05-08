@@ -49,6 +49,8 @@ interface RandomInstanceIfc {
  */
 interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIfc, RandomInstanceIfc {
 
+    val streamProvider: RNStreamProviderIfc
+
     /**
      * @param n the number of values to sum, must be 1 or more
      * @return the sum of n values of getValue()

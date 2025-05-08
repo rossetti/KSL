@@ -11,7 +11,7 @@ interface StationCIfc {
 }
 
 interface ActivityStationCIfc : StationCIfc {
-    val activityTimeRV: RandomSourceCIfc
+    val activityTimeRV: RandomVariableCIfc
 }
 
 interface SingleQStationCIfc : ActivityStationCIfc {

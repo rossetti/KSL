@@ -17,7 +17,7 @@
  */
 package ksl.modeling.elements
 
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.utilities.random.RandomIfc
 
 interface EventGeneratorCIfc {
@@ -35,7 +35,7 @@ interface EventGeneratorCIfc {
      * first event. This change becomes effective at the beginning of the next
      * replication to execute
      */
-    val initialTimeUntilFirstEvent: RandomSourceCIfc
+    val initialTimeUntilFirstEvent: RandomVariableCIfc
 
     /**
      * This value is used to set the ending time for generating actions for each
