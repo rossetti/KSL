@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.PI
 import kotlin.math.pow
@@ -139,8 +140,8 @@ class LogLogistic(
         return doubleArrayOf(shape, scale)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return LogLogisticRV(shape, scale, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): LogLogisticRV {
+        return LogLogisticRV(shape, scale, streamNumber, streamProvider)
     }
 
 

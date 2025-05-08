@@ -3,9 +3,11 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.PWCEmpiricalRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.toCSVString
 
 class PWCEmpiricalCDF(
@@ -169,8 +171,8 @@ class PWCEmpiricalCDF(
         return list.toDoubleArray()
     }
 
-    override fun randomVariable(stream: RNStreamIfc): PWCEmpiricalRV {
-        return PWCEmpiricalRV(myProportions, myBreakPoints, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): PWCEmpiricalRV {
+        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

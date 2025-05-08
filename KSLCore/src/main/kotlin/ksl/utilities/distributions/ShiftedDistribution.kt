@@ -18,6 +18,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.InverseCDFRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
@@ -137,9 +138,7 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
 //        return first!!.thirdOrderLossFunction(x - myShift)
 //    }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return InverseCDFRV(instance(), stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): RVariableIfc {
+        return InverseCDFRV(instance(), streamNumber, streamProvider)
     }
-
-
 }

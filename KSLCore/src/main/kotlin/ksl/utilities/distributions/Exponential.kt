@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.exp
 import kotlin.math.ln
@@ -128,16 +129,16 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
         return doubleArrayOf(mean)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return ExponentialRV(mean, stream)
-    }
-
     override fun firstOrderLossFunction(x: Double): Double {
         return exp(-mean * x) / mean
     }
 
     override fun secondOrderLossFunction(x: Double): Double {
         return firstOrderLossFunction(x) / mean
+    }
+
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): ExponentialRV {
+        return ExponentialRV(mean, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

@@ -18,29 +18,42 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 
 /**
  * An interface for getting random variables
  */
 interface GetRVariableIfc {
-    /**
-     * @param stream the stream to use
-     * @return a random variable
-     */
-    fun randomVariable(stream: RNStreamIfc): RVariableIfc
 
     /**
-     * @param streamNum the stream number to use
-     * @return a random variable
+     *  Promises to return a random variable that uses the
+     *  supplied stream number using the supplied stream provider
+     *  @param streamNumber the number of the stream requested from the provider
+     *  @param streamProvider the provider of random number streams
      */
-    fun randomVariable(streamNum: Int): RVariableIfc {
-        return randomVariable(KSLRandom.rnStream(streamNum))
-    }
+    fun randomVariable(
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ) : RVariableIfc
 
-    /**
-     * @return an instance of the random variable based on the next stream
-     */
-    val randomVariable: RVariableIfc
-        get() = randomVariable(KSLRandom.nextRNStream())
+//    /**
+//     * @param stream the stream to use
+//     * @return a random variable
+//     */
+//    fun randomVariable(stream: RNStreamIfc): RVariableIfc
+//
+//    /**
+//     * @param streamNum the stream number to use
+//     * @return a random variable
+//     */
+//    fun randomVariable(streamNum: Int): RVariableIfc {
+//        return randomVariable(KSLRandom.rnStream(streamNum))
+//    }
+//
+//    /**
+//     * @return an instance of the random variable based on the next stream
+//     */
+//    val randomVariable: RVariableIfc
+//        get() = randomVariable(KSLRandom.nextRNStream())
 }

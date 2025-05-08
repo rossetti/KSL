@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -314,8 +315,8 @@ class Triangular(
         return doubleArrayOf(minimum, mode, maximum)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return TriangularRV(minimum, mode, maximum, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): TriangularRV {
+        return TriangularRV(minimum, mode, maximum, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
