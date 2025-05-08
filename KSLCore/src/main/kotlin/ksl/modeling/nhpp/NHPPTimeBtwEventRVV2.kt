@@ -110,7 +110,14 @@ open class NHPPTimeBtwEventRVV2(
     val time: Double
         get() = timeGetter.time
 
-    //TODO the issue is when should this be called.  It needs to be called before the start of any cycle.
+    /**
+     * This function should be called to initialize the generation process.
+     * This function resets the process to start at the current time as
+     * if no cycles have occurred and as if the rate function is at the beginning
+     * of its defined range (typically time 0.0). Within a DEDS model,
+     * this function should be called at the beginning of each replication (typically)
+     * within a model element's initialize() function.
+     */
     fun initialize() {
         cycleStartTime = time
         myPPTime = cycleStartTime
