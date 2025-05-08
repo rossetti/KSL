@@ -71,7 +71,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * be advanced to its next sub-stream after each replication.  This occurs by default unless the resetNextSubStreamOption
  * is set to false.
  */
-open class RandomVariable(
+class RandomVariable(
     parent: ModelElement,
     rSource: RVariableIfc,
     name: String? = null
@@ -91,14 +91,16 @@ open class RandomVariable(
      */
     var randomSource: RVariableIfc = rSource
         set(value) {
-            field = value.instance(value.streamNumber, streamProvider)
+            field = if (value.streamProvider != streamProvider) {
+                value.instance(value.streamNumber, streamProvider)
+            } else {
+                value
+            }
         }
 
     init {
         warmUpOption = false
-        if (rSource.streamProvider != streamProvider){
-            randomSource =rSource.instance(rSource.streamNumber, streamProvider)
-        }
+        this.randomSource = rSource
     }
 
     /**
@@ -114,11 +116,7 @@ open class RandomVariable(
      */
     override var initialRandomSource: RVariableIfc = randomSource
         set(value) {
-            if (model.isRunning) {
-                if (initialRandomSourceChangeWarning) {
-                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
-                }
-            }
+            require(model.isNotRunning) {"The initial random source cannot be changed during a replication"}
             field = if (value.streamProvider == streamProvider){
                 value
             } else {
@@ -126,17 +124,11 @@ open class RandomVariable(
             }
         }
 
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    final override var initialRandomSourceChangeWarning = true
-
-    final override fun sample(): Double {
+    override fun sample(): Double {
         return randomSource.sample()
     }
 
-    final override fun value(): Double {
+    override fun value(): Double {
         previousValue = randomSource.value
         notifyModelElementObservers(Status.UPDATE)
         return previousValue

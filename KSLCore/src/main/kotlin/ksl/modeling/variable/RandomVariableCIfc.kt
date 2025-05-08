@@ -45,12 +45,6 @@ interface RandomVariableCIfc : StreamOptionIfc, IdentityIfc {
      */
     var initialRandomSource: RVariableIfc
 
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    var initialRandomSourceChangeWarning: Boolean
-
     fun asString(): String
 
 }

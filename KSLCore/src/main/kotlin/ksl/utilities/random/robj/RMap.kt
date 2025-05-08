@@ -14,7 +14,7 @@ class RMap<K, V>(
     private val map: Map<K, V>,
     streamNumber: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-) : Map<K, V> by map, RElementIfc<V> {
+) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
     private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
@@ -84,7 +84,7 @@ class REmpiricalMap<K, V>(
     theCDF: DoubleArray,
     streamNumber: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
-) : Map<K, V> by map, RElementIfc<V> {
+) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
     private val myList: DEmpiricalList<K>
 

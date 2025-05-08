@@ -40,7 +40,7 @@ class BernoulliPicker<T>(
     failureOption: T,
     streamNumber: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
-) : BernoulliPickerIfc<T> {
+) : BernoulliPickerIfc<T>, RElementInstanceIfc<T>  {
 
     init {
         require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
@@ -59,7 +59,7 @@ class BernoulliPicker<T>(
             field = value
         }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<T> {
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliPicker<T> {
         return BernoulliPicker(successProbability, success, failure, streamNumber, rnStreamProvider)
     }
 
