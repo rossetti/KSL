@@ -37,7 +37,7 @@ import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
 class DPopulation(
     elements: DoubleArray,
     streamNumber: Int = 0,
-    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name), NewAntitheticInstanceIfc {
 
