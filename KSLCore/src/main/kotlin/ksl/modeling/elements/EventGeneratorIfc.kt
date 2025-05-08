@@ -18,7 +18,7 @@
 package ksl.modeling.elements
 
 import ksl.modeling.variable.RandomVariableCIfc
-import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 interface EventGeneratorCIfc {
     /**
@@ -55,7 +55,7 @@ interface EventGeneratorCIfc {
      * @param initialMaxNumEvents the initial maximum number of events
      */
     fun setInitialTimeBetweenEventsAndMaxNumEvents(
-        initialTimeBtwEvents: RandomIfc,
+        initialTimeBtwEvents: RVariableIfc,
         initialMaxNumEvents: Long = Long.MAX_VALUE
     )
 }
@@ -108,7 +108,7 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      *
      * @param r The time until the generator should be turned on
      */
-    fun turnOnGenerator(r: RandomIfc)
+    fun turnOnGenerator(r: RVariableIfc)
 
     /**
      * This method turns the generator off, the next scheduled generation event
@@ -163,7 +163,7 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      * 0.0, if the current setting of the maximum number of events is infinite
      * (Long.MAX_VALUE).  This is only for the current replication.
      */
-    val timeBetweenEvents: RandomIfc
+    val timeBetweenEvents: RVariableIfc
 
     /**
      * Controls the maximum number of events to be used to initialize each
@@ -180,7 +180,7 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      * current value, which by default is Long.Max_Value
      *
      */
-    val initialTimeBtwEvents: RandomIfc
+    val initialTimeBtwEvents: RVariableIfc
 
     /**
      * Sets the time between events and the maximum number of events for the
@@ -195,7 +195,7 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      * @param timeBtwEvents the time between events
      * @param maxNumEvents the maximum number of events
      */
-    fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long = Long.MAX_VALUE)
+    fun setTimeBetweenEvents(timeBtwEvents: RVariableIfc, maxNumEvents: Long = Long.MAX_VALUE)
 
     /**
      * Controls the ending time for generating events for the current replication. A
