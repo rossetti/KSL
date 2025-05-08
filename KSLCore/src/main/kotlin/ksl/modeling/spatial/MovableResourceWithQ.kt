@@ -7,6 +7,7 @@ import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * A movable resource is a single unit capacity resource that resides within a spatial model and thus can be moved.
@@ -34,7 +35,7 @@ import ksl.utilities.random.RandomIfc
 class MovableResourceWithQ(
     parent: ModelElement,
     initLocation: LocationIfc,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     queue: RequestQ? = null,
     name: String? = null,
 ) : MovableResource(parent, initLocation, defaultVelocity, name), ResourceWithQCIfc{
@@ -86,7 +87,7 @@ class MovableResourceWithQ(
             parent: ModelElement,
             numToCreate: Int,
             initLocation: LocationIfc,
-            defaultVelocity: RandomIfc,
+            defaultVelocity: RVariableIfc,
         ): List<MovableResource> {
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
             val list = mutableListOf<MovableResource>()

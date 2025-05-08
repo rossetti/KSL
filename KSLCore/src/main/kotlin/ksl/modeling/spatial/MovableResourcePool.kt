@@ -40,7 +40,9 @@ open class MovableResourcePool(
     val resourcesByName: Map<String, MovableResource>
         get() = myResourcesByName
 
+    //TODO RandomVariable does not implement RVariableIfc
     protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
+
     val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
@@ -59,7 +61,7 @@ open class MovableResourcePool(
     final override fun addResource(resource: MovableResource) {
         super.addResource(resource)
         myResourcesByName[resource.name] = resource
-        resource.velocityRV.initialRandomSource = myVelocity
+        resource.velocityRV.initialRandomSource = myVelocity.initialRandomSource
         resource.myMovableResourcePools.add(this)
     }
 
