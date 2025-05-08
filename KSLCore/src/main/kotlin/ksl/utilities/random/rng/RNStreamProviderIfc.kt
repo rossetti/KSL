@@ -126,6 +126,9 @@ interface RNStreamProviderIfc {
      */
     fun resetRNStreamSequence()
 
+    //TODO not efficient for this looping, also need to check if reset is allowed
+    // need to add setting of advanceToNextSubStreamOption and resetStartStreamOption options
+
     /**
      * Causes all streams that have been provided to be reset to the start of their stream. Thus,
      * the individual streams act as if they have not generated any pseudo-random numbers.
