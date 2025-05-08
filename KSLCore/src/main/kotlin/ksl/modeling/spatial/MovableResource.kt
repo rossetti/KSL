@@ -13,6 +13,7 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.toDouble
 
 interface MovableResourceIfc : SpatialElementIfc, VelocityIfc
@@ -37,7 +38,7 @@ interface MoveableResourceCIfc : ResourceCIfc {
 open class MovableResource(
     parent: ModelElement,
     initLocation: LocationIfc,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     name: String? = null,
 ) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
 
@@ -246,7 +247,7 @@ open class MovableResource(
             parent: ModelElement,
             numToCreate: Int,
             initLocation: LocationIfc,
-            defaultVelocity: RandomIfc,
+            defaultVelocity: RVariableIfc,
             baseName: String? = parent.name
         ): List<MovableResource> {
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }
