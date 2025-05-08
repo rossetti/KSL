@@ -33,7 +33,7 @@ abstract class RList<T>(
     val elements: MutableList<T>,
     streamNumber: Int = 0,
     protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-) : RListIfc<T>, MutableList<T> by elements {
+) : RListIfc<T>, MutableList<T> by elements, RElementInstanceIfc<T>  {
 
     protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 

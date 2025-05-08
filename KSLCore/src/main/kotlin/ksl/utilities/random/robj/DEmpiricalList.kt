@@ -35,7 +35,7 @@ class DEmpiricalList<T>(
     theCDF: DoubleArray,
     streamNumber: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
-) : RElementIfc<T> {
+) : RElementIfc<T>, RElementInstanceIfc<T>  {
 
     init {
         require(KSLRandom.isValidCDF(theCDF)) { "The supplied cdf array is not a valid cdf" }
