@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 import ksl.utilities.column
 import ksl.utilities.isAllDifferent
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 
 @Serializable
@@ -277,7 +278,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         return param
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): DEmpiricalRV {
         val values = DoubleArray(myProbabilityPoints.size)
         val cdf = DoubleArray(myProbabilityPoints.size)
         var i = 0
@@ -286,7 +287,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
             cdf[i] = probPoint.cumProb
             i++
         }
-        return DEmpiricalRV(values, cdf, stream)
+        return DEmpiricalRV(values, cdf, streamNumber, streamProvider)
     }
 
     companion object {
@@ -385,7 +386,7 @@ fun main() {
 
     var cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
     val n2 = DEmpiricalCDF(values, cdf)
-    val rv2 = n2.randomVariable
+    val rv2 = n2.randomVariable()
     println("mean = " + n2.mean())
     println("var = " + n2.variance())
     println("pmf")
@@ -396,7 +397,7 @@ fun main() {
     values = doubleArrayOf(1.0, 2.0, 4.0, 5.0)
     cdf = doubleArrayOf(0.7, 0.8, 0.9, 1.0)
     val d = DEmpiricalCDF(values, cdf)
-    val rvd = d.randomVariable
+    val rvd = d.randomVariable()
     println("mean = " + d.mean())
     println("var = " + d.variance())
     println("pmf")

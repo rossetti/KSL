@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GeneralizedBetaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -126,8 +127,8 @@ class GeneralizedBeta(
 
     override fun domain(): Interval = Interval(min, max)
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return GeneralizedBetaRV(alpha, beta, min, max, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNumber, streamProvider)
     }
 
     override fun invCDF(p: Double): Double {

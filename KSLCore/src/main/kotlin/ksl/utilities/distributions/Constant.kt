@@ -18,6 +18,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 
 /**
@@ -84,7 +85,7 @@ class Constant (var value: Double = 0.0, name: String? = null) : Distribution(na
         return value
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): ConstantRV {
         return ConstantRV(value)
     }
 

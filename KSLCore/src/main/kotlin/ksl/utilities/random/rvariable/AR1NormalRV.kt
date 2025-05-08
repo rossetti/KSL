@@ -49,7 +49,7 @@ class AR1NormalRV(
         // set the correlation and the error distribution N(0, myVar*(1-myPhi^2)
         val v = variance * (1.0 - lag1Corr * lag1Corr)
         // create the error random variable
-        myErrors = NormalRV(0.0, v, streamProvider, name)
+        myErrors = NormalRV(0.0, v, streamNumber, streamProvider, name)
     }
 
     override fun instance(

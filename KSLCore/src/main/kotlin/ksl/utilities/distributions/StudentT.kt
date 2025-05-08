@@ -23,6 +23,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
@@ -157,8 +158,8 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         return inverseContinuousCDFViaBisection(this, p, ll, ul, start)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return StudentTRV(degreesOfFreedom, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): StudentTRV {
+        return StudentTRV(degreesOfFreedom, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.pow
 
@@ -171,8 +172,8 @@ class PearsonType6 (
         } else scale * scale * shape1 * (shape1 + shape2 - 1) / ((shape2 - 2) * (shape2 - 1.0) * (shape2 - 1.0))
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return PearsonType6RV(shape1, shape2, scale, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): PearsonType6RV {
+        return PearsonType6RV(shape1, shape2, scale, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

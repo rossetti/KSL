@@ -39,7 +39,7 @@ class TruncatedNormalRV(
         Double.NEGATIVE_INFINITY,
         Double.POSITIVE_INFINITY,
         interval.lowerLimit,
-        interval.upperLimit,
+        interval.upperLimit, streamNumber,
         streamProvider, name
     )
 

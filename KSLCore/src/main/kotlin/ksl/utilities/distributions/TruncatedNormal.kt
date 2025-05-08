@@ -3,6 +3,7 @@ package ksl.utilities.distributions
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedNormalRV
@@ -187,12 +188,12 @@ class TruncatedNormal(
         return doubleArrayOf(normalMean, normalVariance, lowerLimit, upperLimit)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return TruncatedNormalRV(normalMean, normalVariance, myInterval, stream)
-    }
-
     override fun instance(): TruncatedNormal {
         return TruncatedNormal(normalMean, normalVariance, myInterval)
+    }
+
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): TruncatedNormalRV {
+        return TruncatedNormalRV(normalMean, normalVariance, myInterval, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

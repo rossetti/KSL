@@ -21,6 +21,7 @@ import ksl.utilities.math.FunctionIfc
 import ksl.utilities.observers.Observable
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.Statistic
 
@@ -30,21 +31,32 @@ import ksl.utilities.statistic.Statistic
  * @param initialX the initial value to start generation process
  * @param targetFun the target function
  * @param proposalFun the proposal function
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
-class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposalFun: ProposalFunction1DIfc) :
-    RandomIfc, Observable<Double>() {
+class MetropolisHastings1D(
+    var initialX: Double,
+    targetFun: FunctionIfc,
+    proposalFun: ProposalFunction1DIfc,
+    streamNumber: Int = 0,
+    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+) : Observable<Double>(), RandomIfc {
 
     private val myTargetFun: FunctionIfc = targetFun
     private val myProposalFun: ProposalFunction1DIfc = proposalFun
     private val myAcceptanceStat: Statistic = Statistic("Acceptance Statistics")
     private val myObservedStat: Statistic = Statistic("Observed Value Statistics")
 
-    override var rnStream: RNStreamIfc = KSLRandom.nextRNStream()
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers
+     */
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
-    override fun instance(streamNum: Int): MetropolisHastings1D {
-        val n = MetropolisHastings1D(initialX, myTargetFun, myProposalFun)
-        n.rnStream = streamNum
-        return n
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MetropolisHastings1D {
+        return MetropolisHastings1D(initialX, myTargetFun, myProposalFun, streamNumber, rnStreamProvider)
     }
 
     override fun resetStartStream() {
@@ -63,6 +75,18 @@ class MetropolisHastings1D(var initialX: Double, targetFun: FunctionIfc, proposa
         get() = rnStream.antithetic
         set(value) {
             rnStream.antithetic = value
+        }
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
         }
 
     /**

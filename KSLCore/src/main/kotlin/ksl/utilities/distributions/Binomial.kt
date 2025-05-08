@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.BinomialRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -63,8 +64,8 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         return Binomial(probOfSuccess, numTrials)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return BinomialRV(probOfSuccess, numTrials, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): BinomialRV {
+        return BinomialRV(probOfSuccess, numTrials, streamNumber, streamProvider)
     }
 
     override fun cdf(x: Double): Double {
