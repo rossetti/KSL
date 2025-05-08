@@ -2,10 +2,7 @@ package ksl.modeling.spatial
 
 import ksl.modeling.entity.*
 import ksl.modeling.queue.QueueCIfc
-import ksl.modeling.variable.RandomSourceCIfc
-import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
-import ksl.utilities.GetValueIfc
 import ksl.utilities.random.RandomIfc
 
 /**

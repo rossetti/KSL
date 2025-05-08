@@ -94,7 +94,7 @@ open class SingleQStation(
         get() = myResource
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, name = "${this.name}:ActivityRV")
-    override val activityTimeRV: RandomSourceCIfc
+    override val activityTimeRV: RandomVariableCIfc
         get() = myActivityTimeRV
 
     protected val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")

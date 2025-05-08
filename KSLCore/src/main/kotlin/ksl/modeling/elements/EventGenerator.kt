@@ -20,7 +20,7 @@ package ksl.modeling.elements
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.variable.RandomVariable
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -137,7 +137,7 @@ open class EventGenerator(
         this, myInitialTimeUntilFirstEvent,
         "${this.name}:TimeUntilFirstEventRV"
     )
-    override val initialTimeUntilFirstEvent: RandomSourceCIfc
+    override val initialTimeUntilFirstEvent: RandomVariableCIfc
         get() = myTimeUntilFirstEventRV
 
     /**

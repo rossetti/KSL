@@ -32,7 +32,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  */
 abstract class RVariable(
     streamNumber: Int = 0,
-    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    final override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter(), NewAntitheticInstanceIfc {
 

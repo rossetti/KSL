@@ -233,24 +233,6 @@ class Model(
 
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
-//    /**
-//     * @param stream the stream that the model will manage
-//     */
-//    fun addStream(stream: RNStreamIfc) {
-//        //TODO need to remove this stuff
-//        val b = myStreams.add(stream)
-//        if (b) {
-//            RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
-//        }
-//    }
-//
-//    /**
-//     * @param stream the stream that the model will no longer manage
-//     */
-//    fun removeStream(stream: RNStreamIfc) {
-//        myStreams.remove(stream)
-//    }
-
     /**
      * Attaches the CSVReplicationReport to the model if not attached.
      * If you turn on the reporting, you need to do it before running the simulation.

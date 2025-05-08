@@ -18,69 +18,14 @@
 
 package ksl.modeling.variable
 
-import ksl.modeling.elements.RandomElement
+import ksl.modeling.elements.RandomElementIfc
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.IdentityIfc
 import ksl.utilities.PreviousValueIfc
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.SampleIfc
 import ksl.utilities.random.StreamNumberIfc
-import ksl.utilities.random.rng.RNStreamControlIfc
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rng.StreamOptionIfc
-
-/**
- *  While RandomVariable instances should in general be declared as private within model
- *  elements, this interface provides the modeler the ability to declare a public property
- *  that returns an instance with limited ability to change and use the underlying RandomVariable,
- *  prior to running the model.
- *
- *  For example:
- *
- *   private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1))
- *   val tba: RandomSourceCIfc
- *      get() = myTBA
- *
- *   Then users of the public property can change the initial random source and do other
- *   controlled changes without fully exposing the private variable.  The implementer of the
- *   model element that contains the private random variable does not have to write additional
- *   functions to control the random variable and can use this strategy to expose what is needed.
- *   This is most relevant to setting up the model elements prior to running the model or
- *   accessing information after the model has been executed. Changes or use during a model
- *   run is readily available through the general interface presented by RandomVariable.
- *
- *   The naming convention "CIfc" is used to denote controlled interface.
- *
- */
-interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
-
-    /**
-     * RandomIfc provides a reference to the underlying source of randomness
-     * to initialize each replication.
-     * Controls the underlying RandomIfc source for the RandomVariable. This is the
-     * source to which each replication will be initialized.  This is only used
-     * when the replication is initialized. Changing the reference has no effect
-     * during a replication, since the random variable will continue to use
-     * the reference returned by property randomSource.  Please also see the
-     * discussion in the class documentation.
-     * <p>
-     * WARNING: If this is used during an experiment to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing experiments.
-     */
-    var initialRandomSource: RandomIfc
-
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    var initialRandomSourceChangeWarning: Boolean
-
-    fun asString(): String
-
-}
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * A random variable (RandomVariable) is a function that maps a probability space to a real number.
@@ -128,14 +73,64 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
  */
 open class RandomVariable(
     parent: ModelElement,
-    rSource: RandomIfc,
+    rSource: RVariableIfc,
     name: String? = null
-) : RandomElement(parent, rSource, name), SampleIfc, GetValueIfc, PreviousValueIfc {
+) : ModelElement(parent, name), RandomElementIfc,
+    RandomVariableCIfc, StreamNumberIfc, SampleIfc, GetValueIfc, PreviousValueIfc {
 
-    //TODO need to setup the source to use the model's RNStreamProvider
+    /**
+     * Provides a reference to the underlying source of randomness during the replication.
+     * Controls the underlying RandomIfc source.  This
+     * changes the source for the current replication only. The random
+     * variable will start to use this source immediately; however if
+     * a replication is started after this method is called, the random source
+     * will be reassigned to the initial random source before the next replication
+     * is executed.
+     * To change the random source for the entire experiment (all replications)
+     * use the initialRandomSource property
+     */
+    var randomSource: RVariableIfc = rSource
+        set(value) {
+            field = value.instance(value.streamNumber, streamProvider)
+        }
 
-    //the calls to super<RandomElement> are because both RandomElementIfc and RandomIfc implement
-    // common interfaces
+    init {
+        warmUpOption = false
+        if (rSource.streamProvider != streamProvider){
+            randomSource =rSource.instance(rSource.streamNumber, streamProvider)
+        }
+    }
+
+    /**
+     * Provides a reference to the underlying source of randomness to initialize each replication.
+     * Controls the underlying RandomIfc source for the element. This is the
+     * source to which each replication will be initialized.  This is only used
+     * when the replication is initialized. Changing the reference has no effect
+     * during a replication.
+     *
+     * WARNING: If this is used during a replication to change the characteristics of
+     * the random source, then each replication may not necessarily start in the
+     * same initial state.  It is recommended that this be used only prior to executing replications.
+     */
+    override var initialRandomSource: RVariableIfc = randomSource
+        set(value) {
+            if (model.isRunning) {
+                if (initialRandomSourceChangeWarning) {
+                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
+                }
+            }
+            field = if (value.streamProvider == streamProvider){
+                value
+            } else {
+                value.instance(value.streamNumber, streamProvider)
+            }
+        }
+
+    /**
+     * Controls whether warning of changing the initial random source during a replication
+     * is logged, default is true.
+     */
+    final override var initialRandomSourceChangeWarning = true
 
     final override fun sample(): Double {
         return randomSource.sample()
@@ -150,35 +145,62 @@ open class RandomVariable(
     override var previousValue: Double = 0.0
         protected set
 
-    final override fun resetStartStream() {
-        super<RandomElement>.resetStartStream()
+    override val streamNumber: Int
+        get() = randomSource.streamNumber
+
+    override fun resetStartStream() {
+        initialRandomSource.resetStartStream()
     }
 
-    final override fun resetStartSubStream() {
-        super<RandomElement>.resetStartSubStream()
+    override fun resetStartSubStream() {
+        initialRandomSource.resetStartSubStream()
     }
 
-    final override fun advanceToNextSubStream() {
-        super<RandomElement>.advanceToNextSubStream()
+    override fun advanceToNextSubStream() {
+        initialRandomSource.advanceToNextSubStream()
     }
 
-    final override var antithetic: Boolean
-        get() = super<RandomElement>.antithetic
+    override var antithetic: Boolean
+        get() = initialRandomSource.antithetic
         set(value) {
-            super<RandomElement>.antithetic = value
+            initialRandomSource.antithetic = value
         }
 
-    final override var advanceToNextSubStreamOption: Boolean
-        get() = super<RandomElement>.advanceToNextSubStreamOption
+    override var advanceToNextSubStreamOption: Boolean
+        get() = initialRandomSource.advanceToNextSubStreamOption
         set(value) {
-            super<RandomElement>.advanceToNextSubStreamOption = value
+            initialRandomSource.advanceToNextSubStreamOption = value
         }
 
-    final override var resetStartStreamOption: Boolean
-        get() = super<RandomElement>.resetStartStreamOption
+    override var resetStartStreamOption: Boolean
+        get() = initialRandomSource.resetStartStreamOption
         set(value) {
-            super<RandomElement>.resetStartStreamOption = value
+            initialRandomSource.resetStartStreamOption = value
         }
+
+    /**
+     * before any replications make sure that the random source is using the initial random source
+     */
+    override fun beforeExperiment() {
+        super.beforeExperiment()
+        randomSource = initialRandomSource
+    }
+
+    /**
+     * after each replication check if random source changed during the replication and
+     * if so, provide information to the user
+     */
+    override fun afterReplication() {
+        super.afterReplication()
+        if (randomSource !== initialRandomSource) {
+            // the random source or the initial random source references
+            // were changed during the replication
+            // make sure that the random source is the same
+            // as the initial random source for the next replication
+            randomSource = initialRandomSource
+            Model.logger.info { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
+        }
+    }
 
     override fun asString(): String {
         val sb = StringBuilder()
