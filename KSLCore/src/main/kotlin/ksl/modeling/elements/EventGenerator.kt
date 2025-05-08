@@ -24,8 +24,8 @@ import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * This class allows for the periodic generation of events similar to that
@@ -77,8 +77,8 @@ import ksl.utilities.random.rvariable.ConstantRV
 open class EventGenerator(
     parent: ModelElement,
     generateAction: GeneratorActionIfc? = null,
-    timeUntilFirstRV: RandomIfc = ConstantRV.ZERO,
-    timeBtwEventsRV: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+    timeUntilFirstRV: RVariableIfc = ConstantRV.ZERO,
+    timeBtwEventsRV: RVariableIfc = ConstantRV.POSITIVE_INFINITY,
     maxNumberOfEvents: Long = Long.MAX_VALUE,
     timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
     name: String? = null
@@ -128,7 +128,7 @@ open class EventGenerator(
      * Holds the random source for the time until first event. Used to
      * initialize the generator at the beginning of each replication
      */
-    private var myInitialTimeUntilFirstEvent: RandomIfc = timeUntilFirstRV
+    private var myInitialTimeUntilFirstEvent: RVariableIfc = timeUntilFirstRV
 
     /**
      * A RandomVariable that uses the time until first random source
@@ -144,7 +144,7 @@ open class EventGenerator(
      * Holds the random source for the time between events. Used to initialize
      * the generator at the beginning of each replication
      */
-    private var myInitialTimeBtwEvents: RandomIfc = timeBtwEventsRV
+    private var myInitialTimeBtwEvents: RVariableIfc = timeBtwEventsRV
 
     /**
      * Used to initialize the maximum number of events at the beginning of each
@@ -212,7 +212,7 @@ open class EventGenerator(
         protected set
 
 
-    override var initialTimeBtwEvents: RandomIfc
+    override var initialTimeBtwEvents: RVariableIfc
         get() = myInitialTimeBtwEvents
         set(timeBtwEvents) {
             setInitialTimeBetweenEventsAndMaxNumEvents(timeBtwEvents, myInitialMaxNumEvents)
@@ -237,11 +237,11 @@ open class EventGenerator(
     }
 
     interface TimeBetweenEventsStepIfc {
-        fun timeBetweenEvents(timeBtwEvents: RandomIfc): BuildStepIfc
+        fun timeBetweenEvents(timeBtwEvents: RVariableIfc): BuildStepIfc
     }
 
     interface BuildStepIfc {
-        fun timeUntilFirst(timeUntilFirst: RandomIfc): BuildStepIfc
+        fun timeUntilFirst(timeUntilFirst: RVariableIfc): BuildStepIfc
         fun maxNumberOfEvents(maxNum: Long): BuildStepIfc
         fun name(name: String?): BuildStepIfc
         fun timeUntilLastEvent(timeUntilLastEvent: Double): BuildStepIfc
@@ -252,8 +252,8 @@ open class EventGenerator(
         BuildStepIfc {
         private val parent: ModelElement
         private var action: GeneratorActionIfc? = null
-        private var timeUntilFirst: RandomIfc = ConstantRV.ZERO
-        private var timeBtwEvents: RandomIfc? = null
+        private var timeUntilFirst: RVariableIfc = ConstantRV.ZERO
+        private var timeBtwEvents: RVariableIfc? = null
         private var maxNum = Long.MAX_VALUE
         private var name: String? = null
         private var timeUntilLastEvent = Double.POSITIVE_INFINITY
@@ -267,12 +267,12 @@ open class EventGenerator(
             return this
         }
 
-        override fun timeUntilFirst(timeUntilFirst: RandomIfc): BuildStepIfc {
+        override fun timeUntilFirst(timeUntilFirst: RVariableIfc): BuildStepIfc {
             this.timeUntilFirst = timeUntilFirst
             return this
         }
 
-        override fun timeBetweenEvents(timeBtwEvents: RandomIfc): BuildStepIfc {
+        override fun timeBetweenEvents(timeBtwEvents: RVariableIfc): BuildStepIfc {
             this.timeBtwEvents = timeBtwEvents
             return this
         }
@@ -319,7 +319,7 @@ open class EventGenerator(
         scheduleFirstEvent(t)
     }
 
-    override fun turnOnGenerator(r: RandomIfc) {
+    override fun turnOnGenerator(r: RVariableIfc) {
         turnOnGenerator(r.value)
     }
 
@@ -392,13 +392,13 @@ open class EventGenerator(
     /**
      * The time between events for the current replication
      */
-    override var timeBetweenEvents: RandomIfc
+    override var timeBetweenEvents: RVariableIfc
         get() = myTimeBtwEventsRV.randomSource
         set(timeUntilNext) {
             setTimeBetweenEvents(timeUntilNext, myMaxNumEvents)
         }
 
-    override fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long) {
+    override fun setTimeBetweenEvents(timeBtwEvents: RVariableIfc, maxNumEvents: Long) {
         require(maxNumEvents >= 0) { "The maximum number of actions was < 0!" }
         if (maxNumEvents == Long.MAX_VALUE) {
             if (timeBtwEvents is ConstantRV) {
@@ -415,7 +415,7 @@ open class EventGenerator(
     }
 
     override fun setInitialTimeBetweenEventsAndMaxNumEvents(
-        initialTimeBtwEvents: RandomIfc,
+        initialTimeBtwEvents: RVariableIfc,
         initialMaxNumEvents: Long
     ) {
         require(initialMaxNumEvents >= 0) { "The maximum number of events to generate was < 0!" }
