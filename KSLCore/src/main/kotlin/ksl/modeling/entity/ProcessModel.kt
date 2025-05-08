@@ -30,6 +30,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.spatial.*
 import ksl.utilities.Identity
+import ksl.utilities.random.rvariable.RVariableIfc
 import kotlin.IllegalStateException
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
@@ -74,8 +75,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
-        timeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
-        timeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+        timeUntilTheFirstEntity: RVariableIfc = ConstantRV.ZERO,
+        timeBtwEvents: RVariableIfc = ConstantRV.POSITIVE_INFINITY,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
@@ -233,8 +234,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      */
     protected inner class EntitySequenceGenerator<T : Entity>(
         private val entityCreator: () -> T,
-        timeUntilTheFirstEntity: RandomIfc = ConstantRV.ZERO,
-        timeBtwEvents: RandomIfc = ConstantRV.POSITIVE_INFINITY,
+        timeUntilTheFirstEntity: RVariableIfc = ConstantRV.ZERO,
+        timeBtwEvents: RVariableIfc = ConstantRV.POSITIVE_INFINITY,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,

@@ -4,6 +4,7 @@ import ksl.modeling.entity.*
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * A MovableResourcePool represents a list of MovableResource from which
@@ -27,7 +28,7 @@ import ksl.utilities.random.RandomIfc
 class MovableResourcePoolWithQ(
     parent: ModelElement,
     movableResources: List<MovableResource>,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     queue: RequestQ? = null,
     name: String? = null
 ) : MovableResourcePool(parent, movableResources, defaultVelocity, name), VelocityIfc {
@@ -48,7 +49,7 @@ class MovableResourcePoolWithQ(
         parent: ModelElement,
         numUnits: Int,
         initLocation: LocationIfc,
-        defaultVelocity: RandomIfc,
+        defaultVelocity: RVariableIfc,
         queue: RequestQ? = null,
         name: String? = null
     ) : this(parent, MovableResource.createMovableResources(parent, numUnits, initLocation, defaultVelocity, name),

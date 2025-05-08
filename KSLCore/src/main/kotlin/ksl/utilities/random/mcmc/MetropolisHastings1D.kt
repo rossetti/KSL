@@ -39,7 +39,7 @@ class MetropolisHastings1D(
     targetFun: FunctionIfc,
     proposalFun: ProposalFunction1DIfc,
     streamNumber: Int = 0,
-    protected val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : Observable<Double>(), RandomIfc {
 
     private val myTargetFun: FunctionIfc = targetFun

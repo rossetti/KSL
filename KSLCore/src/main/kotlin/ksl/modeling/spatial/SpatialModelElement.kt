@@ -8,11 +8,12 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 open class SpatialModelElement(
     parent: ModelElement,
     initLocation: LocationIfc,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     aName: String? = null
 ) : ProcessModel(parent, aName), SpatialElementIfc, VelocityIfc {
     protected val mySpatialElement = SpatialElement(this, initLocation, aName)
