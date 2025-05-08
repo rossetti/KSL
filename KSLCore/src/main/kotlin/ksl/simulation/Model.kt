@@ -937,10 +937,7 @@ class Model(
      * @param option The option, true means to reset prior to each experiment
      */
     private fun setAllResetStartStreamOptions(option: Boolean) {
-       // myRNStreamProvider.
-        for (rs in myStreams) {
-            rs.resetStartStreamOption = option
-        }
+        myRNStreamProvider.setAllResetStartStreamOptions(option)
     }
 
     /**
@@ -954,9 +951,7 @@ class Model(
      * @param option The option, true means to reset prior to each replication
      */
     private fun setAllAdvanceToNextSubStreamOptions(option: Boolean) {
-        for (rs in myStreams) {
-            rs.advanceToNextSubStreamOption = option
-        }
+        myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
     //called from simulation, so internal

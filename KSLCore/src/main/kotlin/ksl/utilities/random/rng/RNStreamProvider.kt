@@ -51,6 +51,9 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
 
     private val myStreams: MutableList<RNStreamIfc> = ArrayList()
 
+    override val streams: Iterator<RNStreamIfc>
+        get() = myStreams.iterator()
+
     override val defaultStreamNumber: Int = defaultStreamNum
 
     init {

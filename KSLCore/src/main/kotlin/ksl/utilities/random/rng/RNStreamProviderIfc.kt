@@ -126,8 +126,10 @@ interface RNStreamProviderIfc {
      */
     fun resetRNStreamSequence()
 
-    //TODO not efficient for this looping, also need to check if reset is allowed
-    // need to add setting of advanceToNextSubStreamOption and resetStartStreamOption options
+    /**
+     *  The streams that have been provided represented as an iterator
+     */
+    val streams: Iterator<RNStreamIfc>
 
     /**
      * Causes all streams that have been provided to be reset to the start of their stream. Thus,
@@ -135,9 +137,38 @@ interface RNStreamProviderIfc {
      * Note: This call only effects previously provided streams.
      */
     fun resetAllStreamsToStart() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).resetStartStream()
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            if (stream.resetStartStreamOption){
+                stream.resetStartStream()
+            }
+        }
+    }
+
+    /**
+     *  Causes all streams that have been provided to change their
+     *  resetStartStreamOption property to the supplied value.
+     *  @param option if true the streams will all participation in resets
+     */
+    fun setAllResetStartStreamOptions(option: Boolean){
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            stream.resetStartStreamOption = option
+        }
+    }
+
+    /**
+     *  Causes all streams that have been provided to change their
+     *  advanceToNextSubStreamOption property to the supplied value.
+     *  @param option if true the streams will all participation in advancing
+     */
+    fun setAllAdvanceToNextSubStreamOption(option: Boolean){
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            stream.advanceToNextSubStreamOption = option
         }
     }
 
@@ -148,9 +179,10 @@ interface RNStreamProviderIfc {
      * Note: This call only effects previously provided streams.
      */
     fun resetAllStreamsToStartOfCurrentSubStream() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).resetStartSubStream()
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            stream.resetStartSubStream()
         }
     }
 
@@ -161,9 +193,12 @@ interface RNStreamProviderIfc {
      * Note: This call only effects previously provided streams.
      */
     fun advanceAllStreamsToNextSubStream() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).advanceToNextSubStream()
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            if (stream.advanceToNextSubStreamOption){
+                stream.advanceToNextSubStream()
+            }
         }
     }
 
@@ -177,9 +212,10 @@ interface RNStreamProviderIfc {
      * position in their stream
      */
     fun setAllStreamsAntitheticOption(option: Boolean) {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).antithetic = option
+        val itr = streams
+        while(itr.hasNext()){
+            val stream = itr.next()
+            stream.antithetic = option
         }
     }
 }
