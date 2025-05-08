@@ -32,6 +32,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
 import ksl.utilities.GetTimeIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 
 private var elementCounter: Int = 0
@@ -247,8 +248,8 @@ abstract class ModelElement internal constructor(
     /**
      *  A global uniform random number source
      */
-    protected val defaultUniformRV: RandomVariable
-        get() = myModel.myDefaultUniformRV
+    protected val defaultRNStream: RNStreamIfc
+        get() = myModel.myDefaultStream
 
     /**
      *  the executive that is executing the events

@@ -83,7 +83,20 @@ class Model(
      */
     internal val myRNStreamProvider = RNStreamProvider()
 
-//    private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
+    /**
+     *  The model has a default stream. This property controls which
+     *  stream is assigned by default. The value must be >= 1.
+     */
+    var defaultStreamNumber: Int = myRNStreamProvider.defaultStreamNumber
+        set(value) {
+            require(value >= 1) {"The default stream number for the model must be >= 1"}
+            field = value
+        }
+
+    /**
+     *  An internal default stream if used will be the provider's default stream
+     */
+    internal val myDefaultStream by lazy { myRNStreamProvider.rnStream(defaultStreamNumber) }
 
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
@@ -126,7 +139,7 @@ class Model(
     val timeSeriesResponses: List<TimeSeriesResponseCIfc>
         get() {
             val list = mutableListOf<TimeSeriesResponseCIfc>()
-            for ( (_, element) in myModelElementMap){
+            for ((_, element) in myModelElementMap) {
                 if (element is TimeSeriesResponseCIfc) {
                     list.add(element)
                 }
@@ -228,9 +241,6 @@ class Model(
         addDefaultElements()
     }
 
-    //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "${this.name}:DefaultUniformRV")
-
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
@@ -239,10 +249,10 @@ class Model(
      *
      */
     fun turnOnReplicationCSVStatisticReporting() {
-        if (myCSVRepReport == null){
+        if (myCSVRepReport == null) {
             myCSVRepReport = CSVReplicationReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVRepReport!!)){
+        if (!isModelElementObserverAttached(myCSVRepReport!!)) {
             attachModelElementObserver(myCSVRepReport!!)
         }
     }
@@ -252,7 +262,7 @@ class Model(
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        if (myCSVRepReport == null){
+        if (myCSVRepReport == null) {
             return
         }
         detachModelElementObserver(myCSVRepReport!!)
@@ -263,11 +273,11 @@ class Model(
      * Attaches the CSVExperimentReport to the model if not attached.
      *
      */
-    fun turnOnAcrossReplicationStatisticReporting(){
-        if (myCSVExpReport == null){
+    fun turnOnAcrossReplicationStatisticReporting() {
+        if (myCSVExpReport == null) {
             myCSVExpReport = CSVExperimentReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVExpReport!!)){
+        if (!isModelElementObserverAttached(myCSVExpReport!!)) {
             attachModelElementObserver(myCSVExpReport!!)
         }
     }
@@ -277,7 +287,7 @@ class Model(
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        if (myCSVExpReport == null){
+        if (myCSVExpReport == null) {
             return
         }
         detachModelElementObserver(myCSVExpReport!!)
@@ -301,7 +311,7 @@ class Model(
      *  Tells the model to stop collecting and reporting within and across replication
      *  statistics as comma separated value (CSV) files.
      */
-    fun turnOffCSVStatisticalReports(){
+    fun turnOffCSVStatisticalReports() {
         turnOffReplicationCSVStatisticReporting()
         turnOffAcrossReplicationStatisticReporting()
     }
@@ -699,11 +709,11 @@ class Model(
             myCounters.add(modelElement)
         }
 
-        if (modelElement is HistogramResponse){
+        if (modelElement is HistogramResponse) {
             myHistograms.add(modelElement)
         }
 
-        if (modelElement is IntegerFrequencyResponse){
+        if (modelElement is IntegerFrequencyResponse) {
             myFrequencies.add(modelElement)
         }
 
@@ -1234,7 +1244,7 @@ class Model(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
-        if (autoCSVReports){
+        if (autoCSVReports) {
             turnOnCSVStatisticalReports()
         } else {
             turnOffCSVStatisticalReports()
@@ -1256,7 +1266,7 @@ class Model(
         println()
         simulationReporter.printHalfWidthSummaryReport()
         println()
-        if (histAndFreq){
+        if (histAndFreq) {
             println(simulationReporter.histogramTextResults())
             println(simulationReporter.frequencyTextResults())
         }

@@ -22,176 +22,9 @@ import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import java.util.*
 import java.util.function.Predicate
-
-interface QueueCIfc<T : ModelElement.QObject> : DefaultReportingOptionIfc {
-
-    /**
-     * Allows access to number in queue response information
-     */
-    val numInQ : TWResponseCIfc
-
-    /**
-     *  Allows access to time in queue response information
-     */
-    val timeInQ : ResponseCIfc
-
-    /**
-     *  The initial queue discipline. The initial discipline indicates
-     *  the queue distribution that will be used at the beginning of each
-     *  replication.  Changing the initial discipline during a replication
-     *  will have no effect until the next replication.  WARNING:
-     *  This will cause replications to have different disciplines and thus
-     *  invalidate the concept of replications if used during a replication.
-     *  Use this method only when the simulation is not running.
-     */
-    var initialDiscipline: Queue.Discipline
-
-    /**
-     * The current discipline for the queue
-     */
-    var currentDiscipline: Queue.Discipline
-
-    /**
-     * Indicates whether something was just enqueued or dequeued
-     */
-    val status: Queue.Status
-
-    /**
-     * Gets the size (number of elements) of the queue.
-     */
-    val size: Int
-
-    /**
-     * Returns whether the queue is empty.
-     *
-     * @return True if the queue is empty.
-     */
-    val isEmpty: Boolean
-
-    /**
-     * Returns true if the queue is not empty
-     *
-     * @return true if the queue is not empty
-     */
-    val isNotEmpty: Boolean
-
-    /**
-     *
-     * @return unmodifiable view of the underlying list for the Queue
-     */
-    val immutableList: List<T>
-
-    /**
-     * Adds the supplied listener to this queue
-     *
-     * @param listener Must not be null, cannot already be added
-     * @return true if added
-     */
-    fun addQueueListener(listener: QueueListenerIfc<T>): Boolean
-
-    /**
-     * Removes the supplied listener from this queue
-     *
-     * @param listener Must not be null
-     * @return true if removed
-     */
-    fun removeQueueListener(listener: QueueListenerIfc<T>): Boolean
-
-    /**
-     *  Default option for whether waiting time statistics are collected
-     *  upon removal of items from the queue
-     */
-    var waitTimeStatOption: Boolean
-
-    /**
-     * Returns true if this queue contains the specified element. More formally,
-     * returns true if and only if this list contains at least one element e
-     * such that (o==null ? e==null : o.equals(e)).
-     *
-     * @param qObj The object to be removed
-     * @return True if the queue contains the specified element.
-     */
-    operator fun contains(qObj: T): Boolean
-
-    val initialRandomSource: RandomIfc
-}
-
-interface QueueIfc<T : ModelElement.QObject> : Iterable<T>{
-    /**
-     * Gets the size (number of elements) of the queue.
-     */
-    val size: Int
-
-    /**
-     * Returns whether the queue is empty.
-     *
-     * @return True if the queue is empty.
-     */
-    val isEmpty: Boolean
-
-    /**
-     * Returns true if the queue is not empty
-     *
-     * @return true if the queue is not empty
-     */
-    val isNotEmpty: Boolean
-
-    /**
-     * Places the QObject in the queue, with the specified priority
-     * Automatically, updates the number in queue response variable.
-     *
-     * @param qObject - the QObject to enqueue
-     */
-    fun enqueue(qObject: T)
-
-    /**
-     * Returns a reference to the QObject representing the item that is next to
-     * be removed from the queue according to the queue discipline that was
-     * specified.
-     *
-     * @return a reference to the QObject object next item to be removed, or
-     * null if the queue is empty
-     */
-    fun peekNext(): T?
-
-    /**
-     * Removes the next item from the queue according to the queue discipline
-     * that was specified. Returns a reference to the QObject representing the
-     * item that was removed
-     *
-     * Automatically, collects the time in queue for the item and includes it in
-     * the time in queue response variable.
-     *
-     * Automatically, updates the number in queue response variable.
-     *
-     * @return a reference to the QObject object, or null if the queue is empty
-     */
-    fun removeNext(): T?
-
-    /**
-     * Returns true if this queue contains the specified element. More formally,
-     * returns true if and only if this list contains at least one element e
-     * such that (o==null ? e==null : o.equals(e)).
-     *
-     * @param qObj The object to be removed
-     * @return True if the queue contains the specified element.
-     */
-    operator fun contains(qObj: T): Boolean
-
-    /**
-     * Removes all the elements from this collection
-     *
-     * WARNING: This method DOES NOT record the time in queue for the cleared
-     * items if the user wants this functionality, it can be accomplished using
-     * the remove(int index) method, while looping through the items to remove
-     * Listeners are notified of the queue change with IGNORE
-     *
-     * This method simply clears the underlying data structure that holds the objects
-     */
-    fun clear()
-}
 
 /**
  * The Queue class provides the ability to hold entities (QObjects) within the
@@ -352,7 +185,6 @@ open class Queue<T : ModelElement.QObject>(
         if (currentDiscipline != initialDiscipline) {
             currentDiscipline = initialDiscipline
         }
-        randomness = initialRandomSource
     }
 
     override fun afterReplication() {
@@ -850,27 +682,15 @@ open class Queue<T : ModelElement.QObject>(
     }
 
     /**
-     * RandomIfc provides a reference to the underlying source of randomness
-     * to initialize each replication.
-     * Controls the underlying RandomIfc source for the RandomVariable. This is the
-     * source to which each replication will be initialized.  This is only used
-     * when the replication is initialized. Changing the reference has no effect
-     * during a replication, since the random variable will continue to use
-     * the reference returned by property randomSource.
+     * This property provides a reference to allow random selection
+     * from queues. It can only be changed if the model is not running.
+     * By default, it is set equal to the model's default random number stream
      */
-    final override var initialRandomSource: RandomIfc = defaultUniformRV
+    final override var initialStreamNumber: Int = model.defaultStreamNumber
         set(value) {
             require(model.isNotRunning) {"The model should not be running when changing the initial random source"}
             field = value
         }
-
-    /**
-     * If the Queue uses randomness, this controls it. By default, it uses
-     * the model's global source of uniform random variates set via the initialRandomSource property
-     * if the user decides to change it, replications may not be replications.  Every
-     * replication will start with the same initial random source as per the initialRandomSource property.
-     */
-    var randomness: RandomIfc = initialRandomSource
 
     private inner class QueueListIterator : ListIterator<T> {
         private var myIterator: ListIterator<T> = myList.listIterator()
@@ -1063,7 +883,7 @@ open class Queue<T : ModelElement.QObject>(
             myNext = if (myList.size == 1) {
                 0
             } else {
-                randomness.rnStream.randInt(0, myList.size - 1)
+                streamProvider.rnStream(initialStreamNumber).randInt(0, myList.size - 1)
             }
             return myList[myNext] // randomly pick it from the range available
         }
