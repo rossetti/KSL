@@ -21,6 +21,7 @@ import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * @param parent the parent
@@ -122,7 +123,7 @@ open class NHPPEventGenerator private constructor(
         myEventGenerator.turnOnGenerator(t)
     }
 
-    fun turnOnGenerator(r: RandomIfc) {
+    fun turnOnGenerator(r: RVariableIfc) {
         myEventGenerator.turnOnGenerator(r)
     }
 
