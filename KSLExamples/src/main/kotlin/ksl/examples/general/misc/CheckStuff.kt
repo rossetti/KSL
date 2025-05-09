@@ -80,7 +80,7 @@ fun serializing(){
 }
 
 fun testBoxMuller(n: Int = 1000){
-    val u = UniformRV(streamNum = 1)
+    val u = UniformRV(streamNumber = 1)
 //    val h = CachedHistogram()
     val data = mutableListOf<Double>()
     for (i in 1..n) {

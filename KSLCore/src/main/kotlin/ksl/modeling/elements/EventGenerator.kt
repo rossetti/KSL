@@ -212,11 +212,8 @@ open class EventGenerator(
         protected set
 
 
-    override var initialTimeBtwEvents: RVariableIfc
-        get() = myInitialTimeBtwEvents
-        set(timeBtwEvents) {
-            setInitialTimeBetweenEventsAndMaxNumEvents(timeBtwEvents, myInitialMaxNumEvents)
-        }
+    override val initialTimeBtwEvents: RandomVariableCIfc
+        get() = myTimeBtwEventsRV
 
     override var initialMaximumNumberOfEvents: Long
         get() = myInitialMaxNumEvents
@@ -418,6 +415,7 @@ open class EventGenerator(
         initialTimeBtwEvents: RVariableIfc,
         initialMaxNumEvents: Long
     ) {
+        require(model.isNotRunning) { "The model should not be running when changing the initial time between events or the initial maximum number of events." }
         require(initialMaxNumEvents >= 0) { "The maximum number of events to generate was < 0!" }
         if (initialMaxNumEvents == Long.MAX_VALUE) {
             if (initialTimeBtwEvents is ConstantRV) {
@@ -436,11 +434,12 @@ open class EventGenerator(
         myNextEvent = null
         // set ending time based on the value to be used for each replication
         endingTime = initialEndingTime
-        // set the time until first event based on the value to be used for each replication
+        // set the time until first event RV based on the value to be used for each replication
         myTimeUntilFirstEventRV.randomSource = myInitialTimeUntilFirstEvent
-
         //set the time between events, maximum number of events based on the values to be used for each replication
         setTimeBetweenEvents(myInitialTimeBtwEvents, myInitialMaxNumEvents)
+        // set the time between events RV based on the value to be used for each replication
+        myTimeBtwEventsRV.initialRandomSource = myInitialTimeBtwEvents
         if (startOnInitializeOption) {
             if (myMaxNumEvents > 0) {
                 scheduleFirstEvent(myTimeUntilFirstEventRV)

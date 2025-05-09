@@ -21,6 +21,7 @@ package ksl.examples.book.appendixD
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
@@ -29,12 +30,13 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 class GIGcQueue(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -51,11 +53,8 @@ class GIGcQueue(
         }
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd, name = "${parent.name}:ServiceTime")
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ad, name = "${parent.name}:TBA")
-    val arrivalRV: RandomSourceCIfc
-        get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     val numBusyPharmacists: TWResponseCIfc
@@ -75,7 +74,10 @@ class GIGcQueue(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myArrivalRV, myArrivalRV)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
+    val arrivalGenerator: EventGeneratorCIfc
+        get() = myArrivalGenerator
+
     private val endServiceEvent = this::endOfService
 
     private inner class Arrivals : GeneratorActionIfc {

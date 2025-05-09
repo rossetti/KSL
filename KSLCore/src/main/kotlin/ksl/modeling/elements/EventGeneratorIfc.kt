@@ -58,6 +58,23 @@ interface EventGeneratorCIfc {
         initialTimeBtwEvents: RVariableIfc,
         initialMaxNumEvents: Long = Long.MAX_VALUE
     )
+
+    /**
+     * Controls the maximum number of events to be used to initialize each
+     * replication. The time between events cannot evaluate to a constant value
+     * of 0.0 if the maximum number of events is infinite (Long.MAX_VALUE). Uses
+     * the current value for initial time between events
+     */
+    var initialMaximumNumberOfEvents: Long
+
+    /**
+     * Sets the time between events and the maximum number of events to be used
+     * to initialize each replication. The time between events cannot evaluate
+     * to a constant value of 0.0. The maximum number of events is kept at its
+     * current value, which by default is Long.Max_Value
+     *
+     */
+    val initialTimeBtwEvents: RandomVariableCIfc
 }
 
 /** An interface to define how event generators operate.  The primary
@@ -164,23 +181,6 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      * (Long.MAX_VALUE).  This is only for the current replication.
      */
     val timeBetweenEvents: RVariableIfc
-
-    /**
-     * Controls the maximum number of events to be used to initialize each
-     * replication. The time between events cannot evaluate to a constant value
-     * of 0.0 if the maximum number of events is infinite (Long.MAX_VALUE). Uses
-     * the current value for initial time between events
-     */
-    val initialMaximumNumberOfEvents: Long
-
-    /**
-     * Sets the time between events and the maximum number of events to be used
-     * to initialize each replication. The time between events cannot evaluate
-     * to a constant value of 0.0. The maximum number of events is kept at its
-     * current value, which by default is Long.Max_Value
-     *
-     */
-    val initialTimeBtwEvents: RVariableIfc
 
     /**
      * Sets the time between events and the maximum number of events for the

@@ -32,7 +32,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  */
 class BernoulliRV (
     val probOfSuccess: Double,
-    streamNumber: Int,
+    streamNumber: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : ParameterizedRV(streamNumber, streamProvider, name) {

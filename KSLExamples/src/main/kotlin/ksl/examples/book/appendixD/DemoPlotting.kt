@@ -134,7 +134,7 @@ fun demoWelchPlotting() {
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(model, 1)
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(1.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(1.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
     val rvWelch = WelchFileObserver(dtp.systemTime, 1.0)
     val twWelch = WelchFileObserver(dtp.numInSystem, 10.0)
