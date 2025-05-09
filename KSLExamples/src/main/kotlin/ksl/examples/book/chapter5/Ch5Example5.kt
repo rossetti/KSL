@@ -14,7 +14,7 @@ fun main(){
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(model, 1)
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(1.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(1.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
     model.numberOfReplications = 1
     model.lengthOfReplication = 1000000.0

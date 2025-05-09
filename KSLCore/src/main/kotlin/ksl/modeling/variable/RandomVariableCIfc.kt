@@ -38,10 +38,8 @@ interface RandomVariableCIfc : StreamOptionIfc, IdentityIfc {
      * during a replication, since the random variable will continue to use
      * the reference returned by property randomSource.  Please also see the
      * discussion in the class documentation.
-     * <p>
-     * WARNING: If this is used during an experiment to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing experiments.
+     *
+     * The intitial random source should not be changed while the model is running.
      */
     var initialRandomSource: RVariableIfc
 

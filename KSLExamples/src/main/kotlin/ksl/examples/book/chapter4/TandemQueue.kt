@@ -22,14 +22,14 @@ import ksl.modeling.elements.EventGenerator
 import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 class TandemQueue(
     parent: ModelElement,
-    ad: RandomIfc = ExponentialRV(6.0, 1),
-    sd1: RandomIfc = ExponentialRV(4.0, 2),
-    sd2: RandomIfc = ExponentialRV(3.0, 3),
+    ad: RVariableIfc = ExponentialRV(6.0, 1),
+    sd1: RVariableIfc = ExponentialRV(4.0, 2),
+    sd2: RVariableIfc = ExponentialRV(3.0, 3),
     name: String? = null
 ) : ModelElement(parent, name) {
 

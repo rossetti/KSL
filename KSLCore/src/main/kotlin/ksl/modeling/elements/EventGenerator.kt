@@ -152,11 +152,23 @@ open class EventGenerator(
      */
     private var myInitialMaxNumEvents: Long = maxNumberOfEvents
 
+    override var initialMaximumNumberOfEvents: Long
+        get() = myInitialMaxNumEvents
+        set(maxNumEvents) {
+            setInitialTimeBetweenEventsAndMaxNumEvents(myInitialTimeBtwEvents, maxNumEvents)
+        }
+
     /**
      * A random variable for the time between events
      */
     private val myTimeBtwEventsRV: RandomVariable =
         RandomVariable(this, myInitialTimeBtwEvents, "${this.name}:TimeBtwEventsRV")
+
+    override var initialTimeBtwEvents: RVariableIfc
+        get() = myInitialTimeBtwEvents
+        set(value) {
+            setInitialTimeBetweenEventsAndMaxNumEvents(value, myInitialMaxNumEvents)
+        }
 
     /**
      * The time to stop generating for the current replication
@@ -210,16 +222,6 @@ open class EventGenerator(
      */
     override var isStarted = false
         protected set
-
-
-    override val initialTimeBtwEvents: RandomVariableCIfc
-        get() = myTimeBtwEventsRV
-
-    override var initialMaximumNumberOfEvents: Long
-        get() = myInitialMaxNumEvents
-        set(maxNumEvents) {
-            setInitialTimeBetweenEventsAndMaxNumEvents(myInitialTimeBtwEvents, maxNumEvents)
-        }
 
     // now set the time to turn off
 
@@ -424,6 +426,7 @@ open class EventGenerator(
         }
         myInitialMaxNumEvents = initialMaxNumEvents
         myInitialTimeBtwEvents = initialTimeBtwEvents
+        myTimeBtwEventsRV.initialRandomSource = myInitialTimeBtwEvents
     }
 
     override fun initialize() {
@@ -436,10 +439,8 @@ open class EventGenerator(
         endingTime = initialEndingTime
         // set the time until first event RV based on the value to be used for each replication
         myTimeUntilFirstEventRV.randomSource = myInitialTimeUntilFirstEvent
-        //set the time between events, maximum number of events based on the values to be used for each replication
-        setTimeBetweenEvents(myInitialTimeBtwEvents, myInitialMaxNumEvents)
         // set the time between events RV based on the value to be used for each replication
-        myTimeBtwEventsRV.initialRandomSource = myInitialTimeBtwEvents
+        myTimeBtwEventsRV.randomSource = myInitialTimeBtwEvents
         if (startOnInitializeOption) {
             if (myMaxNumEvents > 0) {
                 scheduleFirstEvent(myTimeUntilFirstEventRV)
