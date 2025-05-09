@@ -18,6 +18,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
@@ -31,8 +32,9 @@ import kotlin.math.sqrt
  * @param m2        mean of 2nd coordinate
  * @param v2        variance of 2nd coordinate
  * @param corr         correlation between X1 and X2
- * @param stream  the random number stream
- * @author rossetti
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class BivariateLogNormalRV(
     val m1: Double = 1.0,
@@ -40,9 +42,10 @@ class BivariateLogNormalRV(
     val m2: Double = 1.0,
     val v2: Double = 1.0,
     val corr: Double = 0.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(stream, name) {
+) : MVRVariable(streamNumber, streamProvider, name) {
 
     private val myBVN: BivariateNormalRV
 
@@ -62,28 +65,12 @@ class BivariateLogNormalRV(
         // calculate the correlation
         val cov = ln(1.0 + corr * sqrt(v1 * v2) / abs(m1 * m2))
         val rho = cov / sqrt(var1 * var2)
-        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, stream)
+        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, streamNumber, streamProvider)
     }
 
-    /**
-     * Constructs a bi-variate lognormal with the provided parameters
-     *
-     * @param m1        mean of first coordinate
-     * @param v1        variance of first coordinate
-     * @param m2        mean of 2nd coordinate
-     * @param v2        variance of 2nd coordinate
-     * @param corr         correlation between X1 and X2
-     * @param streamNum the stream number
-     */
-    constructor(
-        m1: Double = 1.0,
-        v1: Double = 1.0,
-        m2: Double = 1.0,
-        v2: Double = 1.0,
-        corr: Double = 0.0,
-        streamNum: Int,
-        name: String?
-    ) : this(m1, v1, m2, v2, corr, KSLRandom.rnStream(streamNum), name)
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {
+        return BivariateLogNormalRV(m1, v1, m2, v2, corr, streamNumber, rnStreamProvider)
+    }
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }
@@ -93,10 +80,6 @@ class BivariateLogNormalRV(
         array[1] = exp(array[1])
     }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return BivariateLogNormalRV(m1, v1, m2, v2, corr, stream)
-    }
-
     override fun toString(): String {
         return "BivariateLogNormalRV(m1=$m1, v1=$v1, m2=$m2, v2=$v2, corr=$corr)"
     }
@@ -104,8 +87,4 @@ class BivariateLogNormalRV(
     override val dimension: Int
         get() = 2
 
-    override fun antitheticInstance(): MVRVariableIfc {
-        return BivariateLogNormalRV(m1, v1, m2, v2, corr, rnStream.antitheticInstance()
-        )
-    }
 }

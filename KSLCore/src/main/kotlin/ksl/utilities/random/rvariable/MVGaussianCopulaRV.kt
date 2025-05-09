@@ -19,23 +19,38 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
+/**
+ *  Defines a multi-variate Gaussian copula random variable
+ *
+ * @param marginals the marginals for each dimension
+ * @param correlation the correlation between the marginals
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ */
 class MVGaussianCopulaRV(
     val marginals: List<InverseCDFIfc>,
     correlation: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariable(stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNumber, streamProvider, name) {
 
     init {
         require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         require(marginals.size == correlation.size) {" The number of supplied marginals must be equal to ${correlation.size}"}
     }
 
-    private val myCopula = MVGaussianCopula(correlation, stream)
+    private val myCopula = MVGaussianCopula(correlation, streamNumber, streamProvider)
 
     override val dimension: Int
         get() = myCopula.dimension
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVGaussianCopulaRV {
+        return MVGaussianCopulaRV(marginals, myCopula.correlations, streamNumber, rnStreamProvider)
+    }
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
@@ -47,12 +62,5 @@ class MVGaussianCopulaRV(
         }
     }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVGaussianCopulaRV(marginals, myCopula.correlations, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return MVGaussianCopulaRV(marginals, myCopula.correlations, rnStream.antitheticInstance())
-    }
 
 }

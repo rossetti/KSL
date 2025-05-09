@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  *  Uses a bivariate Gaussian copula to produce (u_1, u_2) and uses the generated
@@ -29,18 +30,27 @@ import ksl.utilities.random.rng.RNStreamIfc
  *
  *  @param bvnCorrelation is the correlation of the bivariate Gaussian copula.
  *  The resulting correlation for (x_1, x_2) may not match this supplied correlation.
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class BVGaussianCopulaRV(
     val marginal1: InverseCDFIfc,
     val marginal2: InverseCDFIfc,
     val bvnCorrelation: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariable(stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNumber, streamProvider, name) {
 
-    private val bvGaussianCopula = BVGaussianCopula(bvnCorrelation, stream)
+    private val bvGaussianCopula = BVGaussianCopula(bvnCorrelation, streamNumber, streamProvider)
 
     override val dimension: Int
         get() = bvGaussianCopula.dimension
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {
+        return BVGaussianCopulaRV(marginal1, marginal2, bvnCorrelation, streamNumber, rnStreamProvider)
+    }
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
@@ -51,11 +61,4 @@ class BVGaussianCopulaRV(
         array[1] = marginal2.invCDF(u[1])
     }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return BVGaussianCopulaRV(marginal1, marginal2, bvnCorrelation, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return BVGaussianCopulaRV(marginal1, marginal2, bvnCorrelation, rnStream.antitheticInstance())
-    }
 }

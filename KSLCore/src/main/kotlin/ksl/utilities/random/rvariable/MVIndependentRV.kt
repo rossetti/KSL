@@ -18,7 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Represents a multi-variate distribution with the specified dimensions.
@@ -27,21 +27,31 @@ import ksl.utilities.random.rng.RNStreamIfc
  * distribution as provided by the supplied random variable
  * @param theDimension         the dimension, must be at least 2
  * @param theRandomVariable the random variable for the marginals
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
-class MVIndependentRV(theDimension: Int, theRandomVariable: RVariableIfc) : MVRVariable (theRandomVariable.rnStream){
+class MVIndependentRV(
+    theDimension: Int,
+    theRandomVariable: RVariableIfc,
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNumber, streamProvider, name) {
     init {
         require(theDimension > 1) { "The multi-variate dimension must be at least 2" }
     }
+
     override val dimension: Int = theDimension
 
-    private val myRV: RVariableIfc = theRandomVariable
-
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVIndependentRV(dimension, myRV.instance())
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {
+        return MVIndependentRV(dimension, myRV, streamNumber, rnStreamProvider, name)
     }
 
-    override fun antitheticInstance(): MVRVariableIfc {
-        return MVIndependentRV(dimension, myRV.antitheticInstance())
+    private val myRV: RVariableIfc = if (theRandomVariable.streamProvider != streamProvider) {
+        theRandomVariable.instance(streamNumber, streamProvider)
+    } else {
+        theRandomVariable
     }
 
     override fun generate(array: DoubleArray) {

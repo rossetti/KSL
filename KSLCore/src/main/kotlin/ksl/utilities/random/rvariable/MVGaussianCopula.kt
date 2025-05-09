@@ -21,20 +21,28 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.KSLArrays
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Generations d-dimensional Gaussian copula, where the supplied
- * correlation matrix is the correlation for the underlying multi-variate normal
+ * correlation matrix is the correlation for the underlying multi-variate normal.
+ * Copulas generate correlated uniform random variates which can then be transformed.
+ * This defines the dependence in terms of an underlying Gaussian distribution
+ * (multi-variate normal distribution with the supplied correlation structure)
  *
- * @param correlation the covariance of the random variable
- * @param stream      the stream for sampling
+ * @param correlation the correlation between the marginals
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class MVGaussianCopula(
     correlation: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariable(stream){
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNumber, streamProvider, name){
 
-    private val mvNormalRV: MVNormalRV = MVNormalRV.createStandardMVN(correlation, stream)
+    private val mvNormalRV: MVNormalRV = MVNormalRV.createStandardMVN(correlation, streamNumber, streamProvider)
     private val myCorrelation = correlation
 
     val correlations
@@ -42,6 +50,10 @@ class MVGaussianCopula(
 
     override val dimension: Int
         get() = mvNormalRV.dimension
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVGaussianCopula {
+        return MVGaussianCopula(myCorrelation, streamNumber, rnStreamProvider)
+    }
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
@@ -52,13 +64,6 @@ class MVGaussianCopula(
         }
     }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVGaussianCopula(myCorrelation, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return MVGaussianCopula(myCorrelation, mvNormalRV.antitheticInstance().rnStream)
-    }
 
 }
 
