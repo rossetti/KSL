@@ -19,9 +19,11 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.*
+import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
 import ksl.utilities.random.rvariable.KSLRandom
@@ -81,8 +83,9 @@ class BasicStatistics(aName: String? = null) : MVBSEstimatorIfc, IdentityIfc by 
 open class BootstrapSampler(
     originalData: DoubleArray,
     val estimator: MVBSEstimatorIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RNStreamControlIfc, RNStreamChangeIfc {
+    streamNumber: Int = 0,
+    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+) : RNStreamControlIfc, StreamNumberIfc {
 
     init {
         require(originalData.size > 1) { "The supplied bootstrap original data had only 1 data point!" }
@@ -102,7 +105,7 @@ open class BootstrapSampler(
     val originalDataEstimate = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
-    protected val myOriginalPop: DPopulation = DPopulation(originalData, stream)
+    protected val myOriginalPop: DPopulation = DPopulation(originalData, streamNumber, streamProvider)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
     protected val myAcrossBSStat = MVStatistic(estimator.names)
@@ -127,11 +130,8 @@ open class BootstrapSampler(
     val bootStrapData: Array<DoubleArray>
         get() = myBSEstimates.toTypedArray()
 
-    override var rnStream: RNStreamIfc
-        get() = myOriginalPop.rnStream
-        set(value) {
-            myOriginalPop.rnStream = value
-        }
+    override val streamNumber: Int
+        get() = myOriginalPop.streamNumber
 
     /**
      * Tells the stream to start producing antithetic variates
@@ -280,17 +280,14 @@ open class BootstrapSampler(
      */
     fun empiricalRVForEachBootstrapSample(useCRN: Boolean = true): List<RVariableIfc> {
         val list: MutableList<RVariableIfc> = ArrayList()
-        var rnStream: RNStreamIfc? = null
-        if (useCRN) {
-            rnStream = KSLRandom.nextRNStream()
-        }
+        val streamNumber = streamProvider.lastRNStreamNumber() + 1
         for (s in myBSArrayList) {
             val data: DoubleArray = s.savedData()
             if (data.isNotEmpty()) {
                 if (useCRN) {
-                    list.add(EmpiricalRV(data, rnStream!!))
+                    list.add(EmpiricalRV(data, streamNumber, streamProvider))
                 } else {
-                    list.add(EmpiricalRV(data))
+                    list.add(EmpiricalRV(data, 0, streamProvider))
                 }
             }
         }

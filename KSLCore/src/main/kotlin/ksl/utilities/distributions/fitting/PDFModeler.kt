@@ -105,9 +105,11 @@ class PDFModeler(
         result: EstimationResult,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream()
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     ): List<BootstrapEstimate> {
-        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream, result.distribution)
+        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level,
+            streamNumber, streamProvider, result.distribution)
     }
 
     /**
@@ -118,10 +120,11 @@ class PDFModeler(
         estimator: MVBSEstimatorIfc,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         label: String? = null
     ): List<BootstrapEstimate> {
-        val bss = BootstrapSampler(myData, estimator, stream)
+        val bss = BootstrapSampler(myData, estimator, streamNumber, streamProvider)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         for (e in list) {
             e.defaultCILevel = level

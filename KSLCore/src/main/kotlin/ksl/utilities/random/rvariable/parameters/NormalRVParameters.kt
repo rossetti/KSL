@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -15,10 +16,13 @@ class NormalRVParameters : RVParameters(
         addDoubleParameter("variance", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val mean = doubleParameter("mean")
         val variance = doubleParameter("variance")
-        return NormalRV(mean, variance, rnStream)
+        return NormalRV(mean, variance, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): Normal {
