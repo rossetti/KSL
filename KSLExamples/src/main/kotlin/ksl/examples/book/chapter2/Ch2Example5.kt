@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * an existing stream such that the new stream produces the
  * antithetic pseudo-random numbers of the first stream.
  * That is if stream A produces u1, u2, .., then the
- * antithetic of stream A produces 1-u1, 1-u2, ....
+ * antithetic stream of stream A produces 1-u1, 1-u2, ....
  */
 fun main() {
     // get the default stream
