@@ -215,7 +215,7 @@ fun testStateFrequencyPlot() {
 
 fun testPPandQQ_Plots() {
     val nd = Normal(10.0, 1.0)
-    val nRV = nd.randomVariable
+    val nRV = nd.randomVariable()
     val data = nRV.sample(200)
     val qqPlot = QQPlot(data, nd)
     qqPlot.showInBrowser()
@@ -280,7 +280,7 @@ fun testWelchPlotting() {
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(model, 1)
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(1.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(1.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
 
     val rt = ResponseTrace(dtp.numInSystem)
@@ -392,7 +392,7 @@ fun testCDFDiffPlot() {
 
 fun testComparePMFPlot() {
     val bd = Binomial(0.8, 20)
-    val rv = bd.randomVariable
+    val rv = bd.randomVariable()
     val sample = rv.sample(1000)
     val data = IntArray(sample.size) { sample[it].toInt() }
     val plot = PMFComparisonPlot(data, bd)

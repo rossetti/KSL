@@ -1,6 +1,7 @@
 package ksl.examples.general.variables
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.station.SResource
@@ -13,6 +14,7 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import org.jetbrains.kotlinx.dataframe.api.print
 
 
@@ -23,7 +25,7 @@ fun main() {
 //    model.lengthOfReplicationWarmUp = 5000.0
     // add the model element to the main model
     val dtp = TestTimeSeriesResponse(model, 1, name = "Pharmacy")
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     dtp.timeSeriesResponse.acrossRepStatisticsOption = true
     // demonstrate capturing data to database with an observer
@@ -50,8 +52,8 @@ fun main() {
 class TestTimeSeriesResponse(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -61,11 +63,8 @@ class TestTimeSeriesResponse(
         get() = myPharmacists
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = myArrivalRV
 
     private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
@@ -89,7 +88,10 @@ class TestTimeSeriesResponse(
     private val endServiceEvent = this::endOfService
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        this, this::arrival, myArrivalRV, myArrivalRV)
+        this, this::arrival, ad, ad
+    )
+    val arrivalGenerator: EventGeneratorCIfc
+        get() = myArrivalGenerator
 
     private fun arrival(generator: EventGenerator) {
         myNS.increment() // new customer arrived

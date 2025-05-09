@@ -34,7 +34,7 @@ class TestNHPPPWLinearNonRepeat(parent: ModelElement, f: PiecewiseRateFunction, 
     ModelElement(parent, name) {
 
     private val myListener: EventListener = EventListener()
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, lastRate, streamNum = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, lastRate, streamNumber = 1)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
     private val myCountersSC: MutableList<Counter> = mutableListOf()
     private val myPWRF: PiecewiseRateFunction = f
