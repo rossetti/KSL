@@ -1,6 +1,7 @@
 package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.ChiSquaredRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -13,8 +14,11 @@ class ChiSquaredRVParameters : RVParameters(
         addDoubleParameter("dof", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val dof = doubleParameter("dof")
-        return ChiSquaredRV(dof, rnStream)
+        return ChiSquaredRV(dof, streamNumber, streamProvider)
     }
 }

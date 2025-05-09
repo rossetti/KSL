@@ -114,7 +114,7 @@ class ContinuousCDFGoodnessOfFit(
 
 fun main(){
     val d = Exponential(10.0)
-    val e = d.randomVariable
+    val e = d.randomVariable()
     e.advanceToNextSubStream()
     val n = 1000
     val data = e.sample(n)
