@@ -57,6 +57,10 @@ interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
         rnStreamProvider: RNStreamProviderIfc
     ): RVariableIfc
 
+    fun antitheticInstance(): RVariableIfc {
+        return instance(streamNumber = -streamNumber, streamProvider)
+    }
+
     /**
      *  An instance of the random variable with the stream provided
      *  by the same underlying stream provider

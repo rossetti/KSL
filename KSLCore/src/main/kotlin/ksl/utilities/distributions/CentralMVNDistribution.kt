@@ -7,11 +7,9 @@ import ksl.utilities.math.FunctionIfc
 import ksl.utilities.mcintegration.MCExperimentSetUpIfc
 import ksl.utilities.mcintegration.MCMultiVariateIntegration
 import ksl.utilities.random.mcmc.FunctionMVIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
-//import org.hipparchus.random.RandomVectorGenerator
-//import org.hipparchus.random.SobolSequenceGenerator
 
 /**
  * Represents a multi-variate normal distribution with means = 0.0
@@ -20,11 +18,13 @@ import ksl.utilities.statistic.Statistic
  * to do this computation than done here.
  *
  * @param covariances the variance-covariance matrix, must not be null, must be square and positive definite
- * @param stream      the stream for the sampler
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
 open class CentralMVNDistribution (
     covariances: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : MVCDF(covariances.size) {
 
     protected val covariances: Array<DoubleArray>
@@ -38,7 +38,7 @@ open class CentralMVNDistribution (
         nDim = covariances.size
         cfL = MVNormalRV.choleskyDecomposition(covariances)
         this.covariances = KSLArrays.copy2DArray(covariances)
-        sampler = MVIndependentRV(nDim, UniformRV(0.0, 1.0, stream))
+        sampler = MVIndependentRV(nDim, UniformRV(0.0, 1.0, streamNumber, streamProvider))
 //        sampler = SobolSequence(nDim)  // doesn't improve the accuracy, but a little faster
         val genzFunc = GenzFunc(nDim)
         integrator = MCMultiVariateIntegration(genzFunc, sampler)

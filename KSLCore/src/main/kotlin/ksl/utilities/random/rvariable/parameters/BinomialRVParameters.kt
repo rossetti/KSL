@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.Binomial
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.BinomialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -20,10 +21,13 @@ class BinomialRVParameters : RVParameters(
         addDoubleParameter("numTrials", 2.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val probOfSuccess = doubleParameter("probOfSuccess")
         val numTrials = doubleParameter("numTrials")
-        return BinomialRV(probOfSuccess, numTrials.toInt(), rnStream)
+        return BinomialRV(probOfSuccess, numTrials.toInt(), streamNumber, streamProvider)
     }
 
     override fun createDistribution(): Binomial {

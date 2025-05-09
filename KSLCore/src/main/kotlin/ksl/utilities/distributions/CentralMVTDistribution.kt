@@ -4,7 +4,7 @@ import ksl.utilities.Interval
 import ksl.utilities.KSLArrays
 import ksl.utilities.mcintegration.MCMultiVariateIntegration
 import ksl.utilities.random.mcmc.FunctionMVIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.rootfinding.GridEnumerator
 import kotlin.math.sqrt
@@ -15,13 +15,15 @@ import kotlin.math.sqrt
  * using Monte-Carlo integration
  * @param dof         the degrees of freedom, must be greater than zero
  * @param covariances the variance-covariance matrix, must not be null, must be square and positive definite
- * @param stream      the stream for the sampler
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
 class CentralMVTDistribution(
     dof: Double,
     covariances: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : CentralMVNDistribution(covariances, stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+) : CentralMVNDistribution(covariances, streamNumber, streamProvider) {
 
     val dof: Double
 

@@ -19,6 +19,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -39,6 +40,7 @@ import kotlin.reflect.KClass
  *   that are parameterized random variables
  */
 abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTypeIfc) {
+
     enum class DataType(private val clazz: KClass<*>) {
         DOUBLE(Double::class), INTEGER(Int::class), DOUBLE_ARRAY(DoubleArray::class);
 
@@ -326,23 +328,6 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * @return an instance of the random variable based on the current parameter parameters,
-     * with a new stream
-     */
-    fun createRVariable(): RVariableIfc {
-        return createRVariable(KSLRandom.nextRNStream())
-    }
-
-    /**
-     * @param streamNumber a number representing the desired stream based on the RNStreamProvider
-     * @return an instance of the random variable based on the current parameter parameters using the designated
-     * stream number
-     */
-    fun createRVariable(streamNumber: Int): RVariableIfc {
-        return createRVariable(KSLRandom.rnStream(streamNumber))
-    }
-
-    /**
      * Returns true if at least one double[] parameter has been set
      *
      * @return true if it has at least one double[] parameter
@@ -396,10 +381,14 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
         get() = (integerParameters.keys)
 
     /**
-     * @param rnStream the stream to use
+     * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @return an instance of the random variable based on the current parameter parameters
      */
-    abstract fun createRVariable(rnStream: RNStreamIfc): RVariableIfc
+    abstract fun createRVariable(
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ): RVariableIfc
 
     internal fun extractParameterData(elementId: Int, rvName: String): List<RVParameterData> {
         val list = mutableListOf<RVParameterData>()

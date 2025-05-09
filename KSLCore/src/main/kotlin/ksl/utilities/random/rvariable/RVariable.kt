@@ -34,7 +34,7 @@ abstract class RVariable(
     streamNumber: Int = 0,
     final override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter(), NewAntitheticInstanceIfc {
+) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
@@ -50,10 +50,6 @@ abstract class RVariable(
      */
     override fun instance(streamNumber: Int) : RVariableIfc {
         return instance(streamNumber, streamProvider)
-    }
-
-    override fun antitheticInstance(): RVariableIfc {
-        return instance(streamNumber = -streamNumber, streamProvider)
     }
 
     override var advanceToNextSubStreamOption: Boolean

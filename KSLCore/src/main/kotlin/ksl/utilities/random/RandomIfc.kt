@@ -21,6 +21,7 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.RVariableIfc
 
 interface StreamNumberIfc {
     /**
