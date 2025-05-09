@@ -55,7 +55,7 @@ class AcceptanceRejectionRV(
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
      }
 
-    private val rVariable: RVariableIfc = proposalDistribution.randomVariable(streamNumber, streamProvider)
+    private val rVariable: RVariableIfc = proposalDistribution.randomVariable(this.streamNumber, streamProvider)
     private val domain = pdf.domain()
 
     override fun generate(): Double {
