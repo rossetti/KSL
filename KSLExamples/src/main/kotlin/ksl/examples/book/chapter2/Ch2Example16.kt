@@ -41,6 +41,7 @@ fun main() {
     for (i in 1..1000) {
         h.collect(rv.value)
     }
+    println(h)
     val hp = h.histogramPlot()
     hp.showInBrowser()
     val dp = DensityPlot(h) { x -> fOfx.pdf(x) }
