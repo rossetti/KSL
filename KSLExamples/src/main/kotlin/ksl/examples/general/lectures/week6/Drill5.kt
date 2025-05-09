@@ -9,6 +9,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 
 fun main() {
@@ -40,8 +41,8 @@ fun main() {
 class ATM(
     parent: ModelElement,
     numUnits: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.9, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.9, 2),
     name: String? = null
 ) : ModelElement(parent, name = name) {
 
@@ -53,10 +54,10 @@ class ATM(
         }
 
     private var myServiceTime: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV:RandomVariableCIfc
         get() = myServiceTime
     private var myArrivalRV: RandomVariable = RandomVariable(this , ad)
-    val arrivalRV: RandomSourceCIfc
+    val arrivalRV: RandomVariableCIfc
         get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")

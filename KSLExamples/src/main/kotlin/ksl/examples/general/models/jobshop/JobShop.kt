@@ -11,10 +11,11 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.GammaRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
-    private val myTBA = RandomVariable(this, ExponentialRV(0.25, 1))
+    private val myTBA = ExponentialRV(0.25, 1)
 
     // define the resources
     private val machine1: ResourceWithQ = ResourceWithQ(this, capacity = 3, name = "Machine1")
@@ -24,7 +25,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
     private val machine5: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Machine5")
 
     // define steps to represent a sequence
-    private inner class JobStep(val resource: ResourceWithQ, random: RandomIfc) {
+    private inner class JobStep(val resource: ResourceWithQ, random: RVariableIfc) {
         val processTime = RandomVariable(this@JobShop, random)
     }
 

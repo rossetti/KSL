@@ -23,7 +23,7 @@ class TestTaskProcessor(
     name: String? = null
 ) : TaskProcessingSystem(parent, name) {
 
-    private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
+    private val myTBA = ExponentialRV(6.0, 1)
     private val myST = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
 
     //    private val myTaskProcessor1 = TransientTaskProcessor(name = "TestProcessor1")

@@ -53,6 +53,12 @@ open class NHPPTimeBtwEventRV(
 ) : RVariable(streamNumber, streamProvider, name) {
 
     protected var myRateFunction: InvertibleCumulativeRateFunctionIfc = rateFunction
+        set(value) {
+            field = value
+            if (repeatsFlag == true) {
+                cycleLength = myRateFunction.timeRangeUpperLimit - myRateFunction.timeRangeLowerLimit
+            }
+        }
 
     /** Indicates whether the rate function should repeat
      * when its range has been covered

@@ -67,7 +67,7 @@ class TestAndRepairShopResourceConstrained(parent: ModelElement, name: String? =
     )
 
     // define steps to represent a plan
-    inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomIfc, val tester: ResourceWithQ)
+    inner class TestPlanStep(val testMachine: ResourceWithQ, val processTime: RandomVariable, val tester: ResourceWithQ)
 
     // make all the plans
     private val testPlan1 = listOf(

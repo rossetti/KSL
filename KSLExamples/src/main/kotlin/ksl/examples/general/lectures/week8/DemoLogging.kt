@@ -12,6 +12,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 fun main() {
     val model = Model("Demo_Logging")
@@ -31,8 +32,8 @@ fun main() {
 class DemoLogging(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -49,11 +50,8 @@ class DemoLogging(
         }
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     val numBusyPharmacists: TWResponseCIfc
@@ -73,7 +71,7 @@ class DemoLogging(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrival, myArrivalRV, myArrivalRV)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrival, ad, ad)
     private val endServiceEvent = this::endOfService
 
     private fun arrival(generator: EventGenerator){

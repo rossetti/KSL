@@ -33,8 +33,8 @@ class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, n
     private val myOperationTime = RandomVariable(this, LognormalRV(0.75, 0.25 * 0.25))
     private val myPostOpStayTime = RandomVariable(this, ExponentialRV(72.0))
 
-    private val myNonOpPatientTBA = RandomVariable(this, ExponentialRV(12.0))
-    private val myOpPatientTBA = RandomVariable(this, ExponentialRV(6.0))
+    private val myNonOpPatientTBA = ExponentialRV(12.0)
+    private val myOpPatientTBA = ExponentialRV(6.0)
 
     private val mySystemTime = Response(this, "System Time")
     private val myBedWard: BedWard = BedWard(this)

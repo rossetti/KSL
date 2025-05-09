@@ -57,7 +57,7 @@ class MfgSystemActivityV2(
     private val machine3: ResourceWithQ = ResourceWithQ(this, "machine3")
 
     private val machineSelector = REmpiricalList<ResourceWithQ>(this,
-        elements = listOf(machine1, machine2, machine3), theCDF = doubleArrayOf(0.2, 0.5, 1.0), streamNum = 2)
+        elements = listOf(machine1, machine2, machine3), theCDF = doubleArrayOf(0.2, 0.5, 1.0), streamNumber = 2)
 
     override fun initialize() {
         schedule(this::arrival, timeBetweenArrivalRV)

@@ -67,7 +67,7 @@ fun bsExample2() {
     println("90% CI = ${mainSampleStats.confidenceInterval(.90)}")
     println()
     // now to the bootstrapping
-    val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), KSLRandom.rnStream(3))
+    val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), streamNumber = 3)
     bs.generateSamples(400, numBootstrapTSamples = 399)
     println(bs)
 }

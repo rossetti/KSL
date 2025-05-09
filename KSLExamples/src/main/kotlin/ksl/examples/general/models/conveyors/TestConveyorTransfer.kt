@@ -49,10 +49,10 @@ class TestConveyorTransfer (
     private val tba = ExponentialRV(1.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
-    val service1RV: RandomSourceCIfc
+    val service1RV: RandomVariableCIfc
         get() = st1
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
-    val service2RV: RandomSourceCIfc
+    val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
     val generator: EventGeneratorCIfc

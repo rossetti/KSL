@@ -12,6 +12,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.UniformRV
 
 fun main() {
@@ -32,9 +33,9 @@ class DumpTruckSystemProcessView(
     numLoaders: Int = 2,
     numTrucks: Int = 8,
     numScales: Int = 1,
-    weighingTime: RandomIfc = UniformRV(1.0, 9.0, 1),
-    loadingTime: RandomIfc = UniformRV(12.0, 24.0, 3),
-    traveledTime: RandomIfc = ExponentialRV(85.0, 2),
+    weighingTime: RVariableIfc = UniformRV(1.0, 9.0, 1),
+    loadingTime: RVariableIfc = UniformRV(12.0, 24.0, 3),
+    traveledTime: RVariableIfc = ExponentialRV(85.0, 2),
     name: String? = null
 ) : ProcessModel(parent, name = name) {
 
@@ -52,15 +53,15 @@ class DumpTruckSystemProcessView(
         }
 
     private var myWeighingTimeRV: RandomVariable = RandomVariable(this, weighingTime)
-    val weighingTimeRV: RandomSourceCIfc
+    val weighingTimeRV: RandomVariableCIfc
         get() = myWeighingTimeRV
 
     private var myTravelTimeRV: RandomVariable = RandomVariable(this, traveledTime)
-    val travelTimeRV: RandomSourceCIfc
+    val travelTimeRV: RandomVariableCIfc
         get() = myTravelTimeRV
 
     private var myLoadingTimeRV: RandomVariable = RandomVariable(this, loadingTime)
-    val loadingTimeRV: RandomSourceCIfc
+    val loadingTimeRV: RandomVariableCIfc
         get() = myLoadingTimeRV
 
     private val myLoaders: ResourceWithQ = ResourceWithQ(this, "Loaders", numLoaders)

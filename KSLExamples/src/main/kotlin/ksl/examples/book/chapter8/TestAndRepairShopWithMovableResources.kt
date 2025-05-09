@@ -39,7 +39,7 @@ class TestAndRepairShopWithMovableResources(parent: ModelElement, name: String? 
     private val diagnosticTime = RandomVariable(this, ExponentialRV(30.0))
 
     // velocity is in meters/min
-    private val myWalkingSpeedRV = RandomVariable(this, TriangularRV(22.86, 45.72, 52.5))
+    private val myWalkingSpeedRV = TriangularRV(22.86, 45.72, 52.5)
     private val dm = DistancesModel()
     private val diagnosticStation = dm.Location("DiagnosticStation")
     private val testStation1 = dm.Location("TestStation1")
@@ -91,7 +91,7 @@ class TestAndRepairShopWithMovableResources(parent: ModelElement, name: String? 
     // define steps to represent a plan, include location information
     inner class TestPlanStep(
         val testMachine: ResourceWithQ,
-        val processTime: RandomIfc,
+        val processTime: RandomVariable,
         val testStation: LocationIfc)
 
     // make all the plans
