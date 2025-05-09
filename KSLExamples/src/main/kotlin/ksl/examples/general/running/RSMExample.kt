@@ -44,7 +44,7 @@ fun rQModel(): Model {
     rqModel.initialReorderPoint = 2
     rqModel.initialReorderQty = 3
     rqModel.initialOnHand = rqModel.initialReorderPoint + rqModel.initialReorderQty
-    rqModel.timeBetweenDemand.initialRandomSource = ExponentialRV(1.0 / 3.6)
+    rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
     m.lengthOfReplication = 72.0

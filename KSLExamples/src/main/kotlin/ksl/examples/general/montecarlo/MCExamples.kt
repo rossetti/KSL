@@ -21,6 +21,7 @@ package ksl.examples.general.montecarlo
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.write
 import ksl.utilities.io.writeToFile
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.Histogram
@@ -40,11 +41,11 @@ fun main(){
 fun example1(){
     // illustrate common random numbers
     // normals are dependent, because same stream
-    val n1Stream = KSLRandom.rnStream(1)
-    // n2Stream is a clone of n1Stream but not the same object
-    val n2Stream = n1Stream.instance()
-    val n1 = NormalRV(2.0, 0.64, n1Stream)
-    val n2 = NormalRV(2.2, 0.36, n2Stream)
+    val rp1 = RNStreamProvider()
+    val rp2 = RNStreamProvider()
+    // normals are dependent, because the providers provide the same sequence of streams
+    val n1 = NormalRV(2.0, 0.64, streamNumber = 1, rp1)
+    val n2 = NormalRV(2.2, 0.36, streamNumber = 1, rp2)
     val s1 = n1.sample(100)
     val s2 = n2.sample(100)
     val d = KSLArrays.subtractElements(s1, s2)

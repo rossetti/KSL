@@ -32,7 +32,7 @@ import ksl.simulation.ModelElement
 class TestNHPPPWLinear(parent: ModelElement, f: PiecewiseRateFunction, name: String? = null) : ModelElement(parent, name) {
 
     private val myListener: EventListener = EventListener()
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, streamNum = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, streamNumber = 1)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
     private val myPWRF: PiecewiseRateFunction = f
 
