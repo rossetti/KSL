@@ -1,8 +1,9 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
@@ -20,7 +21,7 @@ class RQInventorySystem(
         name = "${this.name}:DemandAmountRV"
     )
 
-    val demandAmount: RandomSourceCIfc
+    val demandAmount: RandomVariableCIfc
         get() = demandAmountRV
 
     private var leadTimeRV = RandomVariable(
@@ -46,19 +47,15 @@ class RQInventorySystem(
             inventory.costPerOrder = value
         }
 
-    val leadTime: RandomSourceCIfc
+    val leadTime: RandomVariableCIfc
         get() = leadTimeRV
 
-    private var timeBetweenDemandRV: RandomVariable = RandomVariable(
-        parent, ExponentialRV(365.0 / 14.0),
-        name = "${this.name}:TimeBtwDemandRV"
-    )
+    private var timeBetweenDemandRV = ExponentialRV(365.0 / 14.0)
 
-    val timeBetweenDemand: RandomSourceCIfc
-        get() = timeBetweenDemandRV
-
-    private val demandGenerator = EventGenerator(this, this::sendDemand,
+    private val myDemandGenerator = EventGenerator(this, this::sendDemand,
         timeBetweenDemandRV, timeBetweenDemandRV)
+    val demandGenerator: EventGeneratorCIfc
+        get() = myDemandGenerator
 
     private val inventory: RQInventory = RQInventory(
         this, reorderPt, reorderQty, replenisher = Warehouse(), name = "${this.name}:Item"

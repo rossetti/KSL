@@ -110,9 +110,7 @@ class RandomVariable(
      * when the replication is initialized. Changing the reference has no effect
      * during a replication.
      *
-     * WARNING: If this is used during a replication to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing replications.
+     * The initial random source cannot be changed while the model is running.
      */
     override var initialRandomSource: RVariableIfc = randomSource
         set(value) {

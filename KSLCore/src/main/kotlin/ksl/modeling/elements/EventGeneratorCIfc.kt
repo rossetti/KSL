@@ -57,5 +57,5 @@ interface EventGeneratorCIfc {
      * current value, which by default is Long.Max_Value
      *
      */
-    val initialTimeBtwEvents: RandomVariableCIfc
+    var initialTimeBtwEvents: RVariableIfc
 }

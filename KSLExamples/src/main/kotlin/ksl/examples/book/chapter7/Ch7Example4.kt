@@ -60,7 +60,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
-    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomIfc)
+    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans
     private val testPlan1 = listOf(
