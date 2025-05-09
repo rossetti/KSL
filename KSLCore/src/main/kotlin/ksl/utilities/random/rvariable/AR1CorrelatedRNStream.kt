@@ -21,32 +21,32 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rng.RNStreamIfc
 
-/**
- * Uses the autoregressive to anything algorithm
- * to generate correlated uniform variates.
- * The user supplies the correlation of the underlying
- * AR(1) process.  The resulting correlation in the u's
- * may not necessarily meet this correlation, due to
- * the correlation matching problem.
- */
-class AR1CorrelatedRNStream(
-    lag1Corr: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-) : RNStreamIfc by stream {
-
-    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
-    private var myPrevU : Double = Double.NaN
-
-    val ar1LagCorr
-        get() = myAR1NormalRV.lag1Corr
-
-    override val previousU: Double
-        get() = myPrevU
-
-    override fun randU01(): Double {
-        val z = myAR1NormalRV.value
-        val u = Normal.stdNormalCDF(z)
-        myPrevU = u
-        return u
-    }
-}
+///**
+// * Uses the autoregressive to anything algorithm
+// * to generate correlated uniform variates.
+// * The user supplies the correlation of the underlying
+// * AR(1) process.  The resulting correlation in the u's
+// * may not necessarily meet this correlation, due to
+// * the correlation matching problem.
+// */
+//class AR1CorrelatedRNStream(
+//    lag1Corr: Double,
+//    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+//) : RNStreamIfc by stream {
+//
+//    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
+//    private var myPrevU : Double = Double.NaN
+//
+//    val ar1LagCorr
+//        get() = myAR1NormalRV.lag1Corr
+//
+//    override val previousU: Double
+//        get() = myPrevU
+//
+//    override fun randU01(): Double {
+//        val z = myAR1NormalRV.value
+//        val u = Normal.stdNormalCDF(z)
+//        myPrevU = u
+//        return u
+//    }
+//}

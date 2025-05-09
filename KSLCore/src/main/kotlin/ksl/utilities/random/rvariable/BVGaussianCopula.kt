@@ -19,37 +19,42 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.Normal
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  *  Generates a bivariate Gaussian copula. (u_1, u_2)
  *  @param bvnCorrelation is the correlation of the bivariate normal random variable.
  *  The resulting correlation for (u_1, u_2) may not match this supplied correlation.
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class BVGaussianCopula(
     val bvnCorrelation: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariable(stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNumber, streamProvider, name) {
 
-    private val bvn = BivariateNormalRV(corr = bvnCorrelation, stream = stream)
+    private val bvn = BivariateNormalRV(
+        corr = bvnCorrelation,
+        streamNumber = streamNumber, streamProvider = streamProvider
+    )
 
     override val dimension: Int
         get() = bvn.dimension
 
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {
+        return BVGaussianCopula(bvnCorrelation, streamNumber, rnStreamProvider)
+    }
+
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
         val x = bvn.sample()
-        for(i in array.indices){
+        for (i in array.indices) {
             array[i] = Normal.stdNormalCDF(x[i])
         }
     }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return BVGaussianCopula(bvn.corr, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return BVGaussianCopula(bvn.corr, bvn.rnStream.antitheticInstance())
-    }
 
 }
