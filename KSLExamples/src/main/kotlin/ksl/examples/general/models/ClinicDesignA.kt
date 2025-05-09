@@ -35,22 +35,21 @@ class ClinicDesignA(
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private var timeBetweenArrivals: RandomVariable = RandomVariable(parent,
-        ExponentialRV(60.0 / 9.5, 1))
+    private val timeBetweenArrivals = ExponentialRV(60.0 / 9.5, 1)
 
-    private var needsFollowUp: RandomVariable = RandomVariable(this,
+    private val needsFollowUp: RandomVariable = RandomVariable(this,
         BernoulliRV(0.05, 2))
 
-    private var paperWorkTime: RandomVariable = RandomVariable(this,
+    private val paperWorkTime: RandomVariable = RandomVariable(this,
         LognormalRV(6.5, 0.5 * 0.5, 3))
 
-    private var vitalsTime: RandomVariable = RandomVariable(this,
+    private val vitalsTime: RandomVariable = RandomVariable(this,
         LognormalRV(6.0, 0.5 * 0.5, 4))
 
-    private var diabetesTestTime: RandomVariable = RandomVariable(this,
+    private val diabetesTestTime: RandomVariable = RandomVariable(this,
         LognormalRV(5.5, 0.5 * 0.5, 5))
 
-    private var schedulingTime: RandomVariable = RandomVariable(this,
+    private val schedulingTime: RandomVariable = RandomVariable(this,
         WeibullRV(2.6, 7.3, 6))
 
     private val wip: TWResponse = TWResponse(this,

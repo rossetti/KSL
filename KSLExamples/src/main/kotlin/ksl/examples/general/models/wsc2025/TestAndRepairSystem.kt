@@ -81,7 +81,7 @@ class TestAndRepairSystem(parent: ModelElement, name: String? = null) : ProcessM
     )
 
     // define steps to represent a plan
-    inner class TestPlanStep(val tester: ResourceWithQ, val processTime: RandomIfc)
+    inner class TestPlanStep(val tester: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans
     private val testPlan1 = listOf(

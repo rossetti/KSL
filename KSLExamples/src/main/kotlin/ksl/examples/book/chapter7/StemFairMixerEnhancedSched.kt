@@ -20,6 +20,7 @@ package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.*
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
 import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
@@ -97,7 +98,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPTimeBtwEventRV
+    private val myTBArrivals: NHPPPiecewiseRateFunctionTimeBtwEventRV
 //    private val myTBArrivals: RVariableIfc
 
     private val myJHBuntSchedule : CapacitySchedule = CapacitySchedule(this, 0.0)
@@ -115,7 +116,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPTimeBtwEventRV(this, f, streamNum = 1)
+        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNumber = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
 
         myJHBuntSchedule.addItem(capacity = 1, duration = 60.0)

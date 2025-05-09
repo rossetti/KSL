@@ -48,7 +48,7 @@ fun testBootStrapSampler(){
 
 fun example1() {
     val n = Normal(10.0, 3.0)
-    val rv: RVariableIfc = n.randomVariable
+    val rv: RVariableIfc = n.randomVariable()
     val bs = Bootstrap(rv.sample(50))
     bs.generateSamples(10, saveBootstrapSamples = true)
     println(bs)
@@ -67,7 +67,7 @@ fun example1() {
 
 fun example2() {
     val n = Lognormal(10.0, 3.0)
-    val rv: RVariableIfc = n.randomVariable
+    val rv: RVariableIfc = n.randomVariable()
     val bs = Bootstrap(rv.sample(50), estimator = BSEstimatorIfc.Minimum())
     bs.generateSamples(1000)
     println(bs)
@@ -77,8 +77,8 @@ fun example3() {
     val n1 = Normal(10.0, 3.0)
     val n2 = Normal(5.0, 1.5)
     val smap = mutableMapOf<String, SampleIfc>()
-    smap["n1"] = n1.randomVariable
-    smap["n2"] = n2.randomVariable
+    smap["n1"] = n1.randomVariable()
+    smap["n2"] = n2.randomVariable()
     val multiBootstrap: MultiBootstrap = MultiBootstrap.create(100, smap)
     multiBootstrap.generateSamples(20, saveBootstrapSamples = true)
     println(multiBootstrap)

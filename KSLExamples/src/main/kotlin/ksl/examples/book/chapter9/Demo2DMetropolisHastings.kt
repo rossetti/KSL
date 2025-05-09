@@ -76,8 +76,8 @@ object ExampleIndependencePF : ProposalFunctionMVIfc {
 
     private val myY1Dist = GeneralizedBeta(alphaShape = 2.0, betaShape = 5.0, minimum = 0.5, maximum = 1.5)
     private val myY2Dist = GeneralizedBeta(alphaShape = 2.0, betaShape = 5.0, minimum = 20.0, maximum = 35.0)
-    private val myY1RV = myY1Dist.randomVariable
-    private val myY2RV = myY2Dist.randomVariable
+    private val myY1RV = myY1Dist.randomVariable()
+    private val myY2RV = myY2Dist.randomVariable()
 
     override val dimension: Int
         get() = 2

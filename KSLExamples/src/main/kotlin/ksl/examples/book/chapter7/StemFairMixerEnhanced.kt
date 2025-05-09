@@ -22,6 +22,7 @@ import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
 import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
@@ -99,13 +100,13 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPTimeBtwEventRV
+    private val myTBArrivals: NHPPPiecewiseRateFunctionTimeBtwEventRV
     private val rateFunction: PiecewiseConstantRateFunction
 //    private val myTBArrivals: RVariableIfc
 
     fun adjustRates(factor: Double){
         require(factor > 0.0) {"the adjustment factor must be >= 0.0"}
-        myTBArrivals.rateFunction = rateFunction.instance(factor)
+        myTBArrivals.adjustRates(factor)
     }
 
     init {
@@ -120,7 +121,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPTimeBtwEventRV(this, rateFunction, streamNum = 1)
+        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, rateFunction, streamNumber = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
     }
 

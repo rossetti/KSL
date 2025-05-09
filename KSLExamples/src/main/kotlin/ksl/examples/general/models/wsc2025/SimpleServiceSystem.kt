@@ -29,10 +29,12 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
-class SimpleServiceSystem(parent: ModelElement, numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.7, 2),
+class SimpleServiceSystem(
+    parent: ModelElement, numServers: Int = 1,
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.7, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
     init {
@@ -73,7 +75,7 @@ class SimpleServiceSystem(parent: ModelElement, numServers: Int = 1,
     }
 }
 
-fun main(){
+fun main() {
     val sim = Model("MM1 Model")
     sim.numberOfReplications = 30
     sim.lengthOfReplication = 20000.0

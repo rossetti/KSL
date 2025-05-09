@@ -22,6 +22,7 @@ import ksl.modeling.elements.EventGenerator
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.entity.ResourceWithQ
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
 import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.spatial.DistancesModel
@@ -110,7 +111,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPTimeBtwEventRV
+    private val myTBArrivals: NHPPPiecewiseRateFunctionTimeBtwEventRV
 //    private val myTBArrivals: RVariableIfc
 
     init {
@@ -125,7 +126,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPTimeBtwEventRV(this, f, streamNum = 1)
+        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNumber = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
     }
 
