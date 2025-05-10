@@ -17,7 +17,6 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.abs
 import kotlin.math.exp
@@ -32,7 +31,7 @@ import kotlin.math.sqrt
  * @param m2        mean of 2nd coordinate
  * @param v2        variance of 2nd coordinate
  * @param corr         correlation between X1 and X2
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -42,10 +41,10 @@ class BivariateLogNormalRV(
     val m2: Double = 1.0,
     val v2: Double = 1.0,
     val corr: Double = 0.0,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
     private val myBVN: BivariateNormalRV
 
@@ -65,7 +64,7 @@ class BivariateLogNormalRV(
         // calculate the correlation
         val cov = ln(1.0 + corr * sqrt(v1 * v2) / abs(m1 * m2))
         val rho = cov / sqrt(var1 * var2)
-        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, streamNumber, streamProvider)
+        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, streamNum, streamProvider)
     }
 
     override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {

@@ -27,16 +27,16 @@ import ksl.utilities.statistic.Histogram
  * A random variable that samples from the provided data. Each value is
  * equally likely to occur.
  * @param data the data to sample from
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class EmpiricalRV (
     private val data: DoubleArray,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name){
+) : ParameterizedRV(streamNum, streamProvider, name){
 
     init {
         require(data.isNotEmpty()) { "The supplied data array had no elements." }

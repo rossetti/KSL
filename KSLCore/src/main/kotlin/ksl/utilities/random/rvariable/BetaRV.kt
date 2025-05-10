@@ -25,17 +25,17 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Beta(alpha1, alpha2) random variable, range (0,1)
  * @param alpha1 the first shape parameter
  * @param alpha2 the second shape parameter
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class BetaRV(
     val alpha1: Double = 1.0,
     val alpha2: Double = 1.0,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(alpha1 > 0) { "The 1st shape parameter must be > 0" }

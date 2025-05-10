@@ -31,10 +31,10 @@ import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 class WeibullRV (
     val shape: Double,
     val scale: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(shape > 0) { "Shape parameter must be positive" }

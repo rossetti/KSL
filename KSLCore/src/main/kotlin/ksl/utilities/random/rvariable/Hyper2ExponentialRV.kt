@@ -27,7 +27,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param mixingProb   probability of selecting the first exponential distribution
  * @param mean1 the mean of the first exponential distribution
  * @param mean2 the mean of the second exponential distribution
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -35,10 +35,10 @@ class Hyper2ExponentialRV(
     val mixingProb: Double,
     val mean1: Double,
     val mean2: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     init {
         require(!(mixingProb < 0.0 || mixingProb > 1.0)) { "Mixing Probability must be [0,1]" }

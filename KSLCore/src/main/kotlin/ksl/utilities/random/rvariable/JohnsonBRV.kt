@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param alpha2 alpha2 parameter, must be greater than zero
  * @param min    the min, must be less than max
  * @param max    the max
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -36,10 +36,10 @@ class JohnsonBRV (
     val alpha2: Double,
     val min: Double,
     val max: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(alpha2 > 0) { "alpha2 must be > 0" }

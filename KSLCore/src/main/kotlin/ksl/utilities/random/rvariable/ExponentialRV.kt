@@ -24,16 +24,16 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 /**
  * Exponential(mean) random variable
  * @param mean must be greater than 0.0, defaults to 1.0
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class ExponentialRV(
     val mean: Double = 1.0,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(mean > 0.0) { "Exponential mean must be > 0.0" }

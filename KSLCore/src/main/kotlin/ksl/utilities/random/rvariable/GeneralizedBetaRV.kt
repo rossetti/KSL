@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param beta the beta shape parameter, must be greater than 0
  * @param min the minimum of the range, must be less than maximum
  * @param max the maximum of the range
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -36,16 +36,16 @@ class GeneralizedBetaRV(
     val beta: Double,
     val min: Double,
     val max: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(max > min) { "the min must be < than the max" }
     }
 
-    private val myBeta: BetaRV = BetaRV(alpha, beta, streamNumber, streamProvider)
+    private val myBeta: BetaRV = BetaRV(alpha, beta, streamNum, streamProvider)
 
     override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
         return GeneralizedBetaRV(alpha, beta, min, max, streamNumber, rnStreamProvider, name)

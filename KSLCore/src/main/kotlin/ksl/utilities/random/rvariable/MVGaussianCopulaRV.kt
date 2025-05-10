@@ -26,24 +26,24 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *
  * @param marginals the marginals for each dimension
  * @param correlation the correlation between the marginals
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class MVGaussianCopulaRV(
     val marginals: List<InverseCDFIfc>,
     correlation: Array<DoubleArray>,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
     init {
         require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         require(marginals.size == correlation.size) {" The number of supplied marginals must be equal to ${correlation.size}"}
     }
 
-    private val myCopula = MVGaussianCopula(correlation, streamNumber, streamProvider)
+    private val myCopula = MVGaussianCopula(correlation, streamNum, streamProvider)
 
     override val dimension: Int
         get() = myCopula.dimension

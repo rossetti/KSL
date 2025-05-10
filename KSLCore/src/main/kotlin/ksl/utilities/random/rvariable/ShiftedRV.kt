@@ -25,23 +25,23 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * The shift amount must be positive.
  * @param shift a non-negative value
  * @param rv    the random variable to shift
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class ShiftedRV(
     val shift: Double,
     private val rv: RVariableIfc,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     init {
         require(shift >= 0.0) { "The shift should not be < 0.0" }
     }
 
-    private val myRV: RVariableIfc = rv.instance(streamNumber, streamProvider)
+    private val myRV: RVariableIfc = rv.instance(streamNum, streamProvider)
 
     override fun generate(): Double {
         return shift + myRV.value

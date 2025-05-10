@@ -26,17 +26,17 @@ import kotlin.math.sqrt
  * Normal(mean, variance)
  * @param mean the mean of the distribution
  * @param variance the variance of the distribution
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class NormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(variance > 0) { "Variance must be positive" }

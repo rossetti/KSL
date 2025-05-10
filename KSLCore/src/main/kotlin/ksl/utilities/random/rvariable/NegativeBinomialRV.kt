@@ -25,17 +25,17 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * NegativeBinomial(probability of success, number of trials until rth success)
  * @param probOfSuccess       the probability of success, must be in (0,1)
  * @param numSuccess number of trials until rth success
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class NegativeBinomialRV(
     val probOfSuccess: Double,
     val numSuccess: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Success Probability must be (0,1)" }

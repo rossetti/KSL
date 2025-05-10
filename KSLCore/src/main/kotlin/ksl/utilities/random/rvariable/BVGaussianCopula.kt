@@ -25,20 +25,20 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *  Generates a bivariate Gaussian copula. (u_1, u_2)
  *  @param bvnCorrelation is the correlation of the bivariate normal random variable.
  *  The resulting correlation for (u_1, u_2) may not match this supplied correlation.
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class BVGaussianCopula(
     val bvnCorrelation: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
     private val bvn = BivariateNormalRV(
         corr = bvnCorrelation,
-        streamNumber = streamNumber, streamProvider = streamProvider
+        streamNum = streamNum, streamProvider = streamProvider
     )
 
     override val dimension: Int

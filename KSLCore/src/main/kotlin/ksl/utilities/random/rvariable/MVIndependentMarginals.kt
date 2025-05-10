@@ -18,7 +18,6 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -29,23 +28,23 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * All the random variables will share the same stream. The sampling ensures that
  * is the sampling is consecutive within the stream and thus independent.
  * @param marginals must have at least 2 supplied marginals
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class MVIndependentMarginals(
     marginals: List<RVariableIfc>,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
     private val myRVs: MutableList<RVariableIfc> = ArrayList()
 
     init {
         require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         for (rv in marginals) {
-            myRVs.add(rv.instance(streamNumber, streamProvider))
+            myRVs.add(rv.instance(streamNum, streamProvider))
         }
     }
 

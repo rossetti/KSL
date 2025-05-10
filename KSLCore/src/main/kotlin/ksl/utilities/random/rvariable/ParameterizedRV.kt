@@ -18,17 +18,16 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParametersIfc
 
 /**
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 abstract class ParameterizedRV (
-    streamNumber: Int,
+    streamNum: Int,
     streamProvider: RNStreamProviderIfc,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name), RVParametersIfc
+) : RVariable(streamNum, streamProvider, name), RVParametersIfc

@@ -26,7 +26,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param theFirst the first random variable in the function mapping
  * @param theSecond the second random variable in the function mapping
  * @param theTransform the functional transformation using (first, second) to produce a double
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -34,10 +34,10 @@ class RVFunction(
     theFirst: RVariableIfc,
     theSecond: RVariableIfc,
     theTransform: ((f: Double, s: Double) -> Double) = { f: Double, s: Double -> f + s },
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     private val first = theFirst.instance()
     private val second = theSecond.instance()
