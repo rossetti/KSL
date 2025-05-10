@@ -57,8 +57,32 @@ interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
         rnStreamProvider: RNStreamProviderIfc
     ): RVariableIfc
 
+    /**
+     *  Creates an instance of the random variable that is independent
+     *  of the underlying stream provider but has an underlying stream
+     *  that is in the exact same state as the random variable's stream,
+     *  except that it is set to produce antithetic pseudo-random numbers (1-u).
+     *  That is, its stream is a clone and will produce the antithetic
+     *  sequence of pseudo-random numbers (i.e. 1-u1, 1-u2, 1-u3,...).
+     */
     fun antitheticInstance(): RVariableIfc {
         return instance(streamNum = -streamNumber, streamProvider)
+    }
+
+    /**
+     *  Creates an instance of the random variable that is independent
+     *  of the underlying stream provider but has an underlying stream
+     *  that is in the exact same state as the random variable's stream.
+     *  That is, its stream is a clone and will produce the same
+     *  sequence of pseudo-random numbers (i.e. common random numbers).
+     */
+    fun crnInstance(): RVariableIfc {
+        // creates a new instance that is not managed by the provider that is antithetic
+        // to the current underlying stream
+        val rv = antitheticInstance()
+        // now turn it back to not being antithetic
+        rv.antithetic = true
+        return rv
     }
 
     /**
