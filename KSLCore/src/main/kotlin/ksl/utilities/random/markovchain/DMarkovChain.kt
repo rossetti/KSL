@@ -25,7 +25,6 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.IntegerFrequency
 
 
@@ -111,8 +110,8 @@ open class DMarkovChain(
     var state = initialState
         protected set
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DMarkovChain {
-        return DMarkovChain(initialState, myTransProb, streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DMarkovChain {
+        return DMarkovChain(initialState, myTransProb, streamNum, rnStreamProvider)
     }
 
     override fun generate(): Double {

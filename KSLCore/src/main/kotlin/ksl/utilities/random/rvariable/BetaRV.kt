@@ -42,8 +42,8 @@ class BetaRV(
         require(alpha2 > 0) { "The 2nd shape parameter must be > 0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return BetaRV(alpha1, alpha2, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return BetaRV(alpha1, alpha2, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

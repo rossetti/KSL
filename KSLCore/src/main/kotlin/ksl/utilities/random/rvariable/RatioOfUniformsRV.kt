@@ -58,7 +58,7 @@ class RatioOfUniformsRV (
         }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, streamNum, rnStreamProvider, name)
     }
 }

@@ -46,8 +46,8 @@ class JohnsonBRV (
         require(max > min) { "the min must be < than the max" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): JohnsonBRV {
-        return JohnsonBRV(alpha1, alpha2, min, max, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): JohnsonBRV {
+        return JohnsonBRV(alpha1, alpha2, min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

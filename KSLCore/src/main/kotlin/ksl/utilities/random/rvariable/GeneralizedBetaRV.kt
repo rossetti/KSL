@@ -47,8 +47,8 @@ class GeneralizedBetaRV(
 
     private val myBeta: BetaRV = BetaRV(alpha, beta, streamNum, streamProvider)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
-        return GeneralizedBetaRV(alpha, beta, min, max, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

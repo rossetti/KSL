@@ -45,8 +45,8 @@ class TriangularRV(
         require(mode <= max) { "mode must be <= max" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): TriangularRV {
-        return TriangularRV(min, mode, max, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TriangularRV {
+        return TriangularRV(min, mode, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

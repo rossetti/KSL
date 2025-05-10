@@ -55,8 +55,8 @@ class MetropolisHastings1D(
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MetropolisHastings1D {
-        return MetropolisHastings1D(initialX, myTargetFun, myProposalFun, streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): MetropolisHastings1D {
+        return MetropolisHastings1D(initialX, myTargetFun, myProposalFun, streamNum, rnStreamProvider)
     }
 
     override fun resetStartStream() {

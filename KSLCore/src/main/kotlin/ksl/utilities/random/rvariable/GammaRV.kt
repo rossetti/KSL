@@ -42,8 +42,8 @@ class GammaRV (
         require(scale > 0){"The shape parameter must be > 0"}
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): GammaRV {
-        return GammaRV(shape, scale, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): GammaRV {
+        return GammaRV(shape, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

@@ -53,10 +53,10 @@ class AR1NormalRV(
     }
 
     override fun instance(
-        streamNumber: Int,
+        streamNum: Int,
         rnStreamProvider: RNStreamProviderIfc,
     ): AR1NormalRV {
-        return AR1NormalRV(mean, variance, lag1Corr, streamNumber, rnStreamProvider, name)
+        return AR1NormalRV(mean, variance, lag1Corr, streamNum, rnStreamProvider, name)
     }
 
     /**

@@ -47,8 +47,8 @@ class NormalRV(
      */
     val stdDeviation: Double = sqrt(variance)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): NormalRV {
-        return NormalRV(mean, variance, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): NormalRV {
+        return NormalRV(mean, variance, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

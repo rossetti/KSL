@@ -42,8 +42,8 @@ class UniformRV (
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): UniformRV {
-        return UniformRV(min, max, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): UniformRV {
+        return UniformRV(min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

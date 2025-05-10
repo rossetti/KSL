@@ -74,8 +74,8 @@ class EmpiricalRV (
         name: String? = null
     ) : this(interval.stepPoints(numPoints), streamNumber, streamProvider, name)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): EmpiricalRV {
-        return EmpiricalRV(values, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): EmpiricalRV {
+        return EmpiricalRV(values, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

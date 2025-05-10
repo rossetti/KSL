@@ -38,8 +38,8 @@ class ChiSquaredRV (
         require(degreesOfFreedom > 0.0) { "Chi-Squared degrees of freedom must be > 0.0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): ChiSquaredRV {
-        return ChiSquaredRV(degreesOfFreedom, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ChiSquaredRV {
+        return ChiSquaredRV(degreesOfFreedom, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

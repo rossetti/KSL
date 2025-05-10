@@ -40,8 +40,8 @@ class RVUFunction(
     private val first = theFirst.instance(streamNum, streamProvider)
     private val transform = theTransform
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return RVUFunction(first, transform, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RVUFunction(first, transform, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

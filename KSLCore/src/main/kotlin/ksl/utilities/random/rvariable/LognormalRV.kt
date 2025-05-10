@@ -42,8 +42,8 @@ class LognormalRV(
         require(variance > 0) { "Variance must be positive" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LognormalRV {
-        return LognormalRV(mean, variance, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): LognormalRV {
+        return LognormalRV(mean, variance, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

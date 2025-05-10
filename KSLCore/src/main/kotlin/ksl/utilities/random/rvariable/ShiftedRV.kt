@@ -47,8 +47,8 @@ class ShiftedRV(
         return shift + myRV.value
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): ShiftedRV {
-        return ShiftedRV(shift, myRV, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ShiftedRV {
+        return ShiftedRV(shift, myRV, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

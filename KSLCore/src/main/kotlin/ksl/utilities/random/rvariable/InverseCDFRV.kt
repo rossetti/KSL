@@ -38,8 +38,8 @@ class InverseCDFRV (
         return inverseCDF.invCDF(rnStream.randU01())
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): InverseCDFRV {
-        return InverseCDFRV(inverseCDF, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): InverseCDFRV {
+        return InverseCDFRV(inverseCDF, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

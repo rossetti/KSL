@@ -39,8 +39,8 @@ class ShiftedGeometricRV(
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): ShiftedGeometricRV {
-        return ShiftedGeometricRV(probOfSuccess, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ShiftedGeometricRV {
+        return ShiftedGeometricRV(probOfSuccess, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

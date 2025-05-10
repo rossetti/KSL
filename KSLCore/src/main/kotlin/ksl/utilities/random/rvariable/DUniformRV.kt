@@ -53,8 +53,8 @@ class DUniformRV(
         name: String? = null
     ) : this(range.first, range.last, streamNumber, streamProvider, name)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DUniformRV {
-        return DUniformRV(min, max, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DUniformRV {
+        return DUniformRV(min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

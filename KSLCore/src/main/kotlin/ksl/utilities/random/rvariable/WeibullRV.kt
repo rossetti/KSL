@@ -41,8 +41,8 @@ class WeibullRV (
         require(scale > 0) { "Scale parameter must be positive" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): WeibullRV {
-        return WeibullRV(shape, scale, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): WeibullRV {
+        return WeibullRV(shape, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

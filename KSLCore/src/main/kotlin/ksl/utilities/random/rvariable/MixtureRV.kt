@@ -47,8 +47,8 @@ class MixtureRV(
         return KSLRandom.randomlySelect(myRVList, cdf, rnStream).value
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MixtureRV {
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): MixtureRV {
         val list: List<RVariableIfc> = ArrayList(myRVList)
-        return MixtureRV(list, cdf, streamNumber, rnStreamProvider, name)
+        return MixtureRV(list, cdf, streamNum, rnStreamProvider, name)
     }
 }
