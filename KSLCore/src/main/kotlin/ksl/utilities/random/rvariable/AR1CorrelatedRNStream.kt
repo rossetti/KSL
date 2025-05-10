@@ -21,32 +21,38 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.rng.RNStreamIfc
 
-///**
-// * Uses the autoregressive to anything algorithm
-// * to generate correlated uniform variates.
-// * The user supplies the correlation of the underlying
-// * AR(1) process.  The resulting correlation in the u's
-// * may not necessarily meet this correlation, due to
-// * the correlation matching problem.
-// */
-//class AR1CorrelatedRNStream(
-//    lag1Corr: Double,
-//    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-//) : RNStreamIfc by stream {
-//
-//    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
-//    private var myPrevU : Double = Double.NaN
-//
-//    val ar1LagCorr
-//        get() = myAR1NormalRV.lag1Corr
-//
-//    override val previousU: Double
-//        get() = myPrevU
-//
-//    override fun randU01(): Double {
-//        val z = myAR1NormalRV.value
-//        val u = Normal.stdNormalCDF(z)
-//        myPrevU = u
-//        return u
-//    }
-//}
+/**
+ * Uses the autoregressive to anything algorithm
+ * to generate correlated uniform variates.
+ * The user supplies the correlation of the underlying
+ * AR(1) process.  The resulting correlation in the u's
+ * may not necessarily meet this correlation, due to
+ * the correlation matching problem.
+ */
+class AR1CorrelatedRNStream(
+    private val lag1Corr: Double,
+    private val stream: RNStreamIfc = KSLRandom.nextRNStream(),
+) : RNStreamIfc by stream {
+    private var myX: Double = 0.0
+    private val errorVariance: Double
+
+    init {
+        require(!(lag1Corr < -1.0 || lag1Corr > 1.0)) { "The correlation must be [-1,1]" }
+        // generate the first value for the process N(mean, variance)
+        myX = KSLRandom.rNormal(0.0, 1.0, stream)
+        errorVariance = (1.0 - lag1Corr * lag1Corr)
+    }
+    
+    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
+    private var myPrevU : Double = Double.NaN
+
+    override val previousU: Double
+        get() = myPrevU
+
+    override fun randU01(): Double {
+        val z = myAR1NormalRV.value
+        val u = Normal.stdNormalCDF(z)
+        myPrevU = u
+        return u
+    }
+}
