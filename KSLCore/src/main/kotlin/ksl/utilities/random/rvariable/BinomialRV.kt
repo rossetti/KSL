@@ -41,8 +41,8 @@ class BinomialRV constructor(
         require(numTrials > 0) { "Number of trials must be >= 1" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): BinomialRV {
-        return BinomialRV(pSuccess, numTrials, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): BinomialRV {
+        return BinomialRV(pSuccess, numTrials, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

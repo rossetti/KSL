@@ -69,10 +69,10 @@ class AcceptanceRejectionRV(
     }
 
     override fun instance(
-        streamNumber: Int,
+        streamNum: Int,
         rnStreamProvider: RNStreamProviderIfc,
     ): AcceptanceRejectionRV {
-        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, streamNumber, rnStreamProvider, name)
+        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, streamNum, rnStreamProvider, name)
     }
 
 }

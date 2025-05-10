@@ -41,8 +41,8 @@ class LaplaceRV(
         require(scale > 0) { "Scale must be positive" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LaplaceRV {
-        return LaplaceRV(location, scale, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): LaplaceRV {
+        return LaplaceRV(location, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

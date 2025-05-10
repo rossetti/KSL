@@ -100,8 +100,8 @@ class TruncatedRV(
         return myDistribution.invCDF(v)
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedRV {
-        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedRV {
+        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

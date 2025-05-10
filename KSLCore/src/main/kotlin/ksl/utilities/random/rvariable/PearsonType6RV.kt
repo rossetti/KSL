@@ -45,8 +45,8 @@ class PearsonType6RV (
         require(beta > 0.0) { "The scale parameter must be > 0.0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): PearsonType6RV {
-        return PearsonType6RV(alpha1, alpha2, beta, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PearsonType6RV {
+        return PearsonType6RV(alpha1, alpha2, beta, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

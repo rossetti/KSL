@@ -43,8 +43,8 @@ class RVFunction(
     private val second = theSecond.instance()
     private val transform = theTransform
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return RVFunction(first, second, transform, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RVFunction(first, second, transform, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

@@ -42,8 +42,8 @@ class NegativeBinomialRV(
         require(numSuccess > 0) { "Number of trials until rth success must be > 0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): NegativeBinomialRV {
-        return NegativeBinomialRV(probOfSuccess, numSuccess, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): NegativeBinomialRV {
+        return NegativeBinomialRV(probOfSuccess, numSuccess, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

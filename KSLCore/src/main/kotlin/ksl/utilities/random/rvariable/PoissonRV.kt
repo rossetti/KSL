@@ -39,8 +39,8 @@ class PoissonRV (
         require(mean > 0.0) { "Poisson mean must be > 0.0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): PoissonRV {
-        return PoissonRV(mean, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PoissonRV {
+        return PoissonRV(mean, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

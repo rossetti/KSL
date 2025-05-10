@@ -109,8 +109,8 @@ open class NHPPTimeBtwEventRV(
      */
     private var myUseLastRateFlag = false
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return NHPPTimeBtwEventRV(timeGetter, myRateFunction, lastRate, streamNumber, rnStreamProvider, name )
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return NHPPTimeBtwEventRV(timeGetter, myRateFunction, lastRate, streamNum, rnStreamProvider, name )
     }
 
     private val myRate1Expo: ExponentialRV = ExponentialRV(1.0, streamNumber, streamProvider, name)

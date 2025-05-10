@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  */
 open class ConstantRV(var constVal: Double, name: String? = null) : ParameterizedRV(0, KSLRandom.DefaultRNStreamProvider, name){
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): ConstantRV {
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ConstantRV {
         return ConstantRV(constVal)
     }
 

@@ -21,7 +21,6 @@ package ksl.utilities.random.markovchain
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.Statistic
 
 /**
@@ -50,8 +49,8 @@ class TwoStateMarkovChain(
         require((theInitialState == 0) || (theInitialState == 1)) { "The initial state must be 0 or 1" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): TwoStateMarkovChain {
-        return TwoStateMarkovChain(initialState, p01, p11, streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TwoStateMarkovChain {
+        return TwoStateMarkovChain(initialState, p01, p11, streamNum, rnStreamProvider)
     }
 
     var initialState = theInitialState

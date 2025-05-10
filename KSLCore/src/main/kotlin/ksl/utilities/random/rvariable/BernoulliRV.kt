@@ -46,8 +46,8 @@ class BernoulliRV (
         return KSLRandom.rBernoulli(probOfSuccess, rnStream)
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliRV {
-        return BernoulliRV(probOfSuccess, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliRV {
+        return BernoulliRV(probOfSuccess, streamNum, rnStreamProvider, name)
     }
 
     /**

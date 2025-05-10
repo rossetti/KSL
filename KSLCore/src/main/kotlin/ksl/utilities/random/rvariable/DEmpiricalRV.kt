@@ -91,8 +91,8 @@ class DEmpiricalRV(
         name: String? = null
     ) : this(histogram.midPoints, KSLRandom.makeCDF(histogram.binFractions), streamNumber, streamProvider, name)
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DEmpiricalRV {
-        return DEmpiricalRV(myValues, myCDF, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DEmpiricalRV {
+        return DEmpiricalRV(myValues, myCDF, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

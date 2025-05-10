@@ -67,8 +67,8 @@ class DPopulation(
         return DPopulation(myElements, 0, streamProvider, name)
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): DPopulation {
-        return DPopulation(myElements, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DPopulation {
+        return DPopulation(myElements, streamNum, rnStreamProvider, name)
     }
 
     /** Creates a new array that contains a randomly sampled values without replacement
@@ -184,7 +184,7 @@ class DPopulation(
         }
 
     override fun antitheticInstance(): DPopulation {
-        return instance(streamNumber = -streamNumber, streamProvider)
+        return instance(streamNum = -streamNumber, streamProvider)
     }
 
     override fun sample(): Double {

@@ -53,19 +53,19 @@ interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
     override fun value(): Double = value
 
     override fun instance(
-        streamNumber: Int,
+        streamNum: Int,
         rnStreamProvider: RNStreamProviderIfc
     ): RVariableIfc
 
     fun antitheticInstance(): RVariableIfc {
-        return instance(streamNumber = -streamNumber, streamProvider)
+        return instance(streamNum = -streamNumber, streamProvider)
     }
 
     /**
      *  An instance of the random variable with the stream provided
      *  by the same underlying stream provider
      */
-    fun instance(streamNumber: Int = 0) : RVariableIfc
+    fun instance(streamNum: Int = 0) : RVariableIfc
 
     operator fun plus(other: RVariableIfc): RVariableIfc {
         return RVFunction(this, other, Double::plus)

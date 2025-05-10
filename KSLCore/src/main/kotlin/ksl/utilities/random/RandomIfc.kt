@@ -21,7 +21,6 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
-import ksl.utilities.random.rvariable.RVariableIfc
 
 interface StreamNumberIfc {
     /**
@@ -34,12 +33,12 @@ interface StreamNumberIfc {
 
 interface RandomInstanceIfc {
     /**
-     * @param streamNumber the stream number to use from the underlying provider
+     * @param streamNum the stream number to use from the underlying provider
      * @param rnStreamProvider the provider for the stream instance
      * @return a new instance with same parameter values
      */
     fun instance(
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): RandomIfc
 }
@@ -64,34 +63,4 @@ interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIf
         }
         return sum
     }
-
-//    override var advanceToNextSubStreamOption: Boolean
-//        get() = rnStream.advanceToNextSubStreamOption
-//        set(value) {
-//            rnStream.advanceToNextSubStreamOption = value
-//        }
-//
-//    override var resetStartStreamOption: Boolean
-//        get() = rnStream.resetStartStreamOption
-//        set(value) {
-//            rnStream.resetStartStreamOption = value
-//        }
-//
-//    override fun resetStartStream() {
-//        rnStream.resetStartStream()
-//    }
-//
-//    override fun resetStartSubStream() {
-//        rnStream.resetStartSubStream()
-//    }
-//
-//    override fun advanceToNextSubStream() {
-//        rnStream.advanceToNextSubStream()
-//    }
-//
-//    override var antithetic: Boolean
-//        get() = rnStream.antithetic
-//        set(value) {
-//            rnStream.antithetic = value
-//        }
 }

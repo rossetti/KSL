@@ -41,8 +41,8 @@ class LogisticRV(
         require(scale > 0) { "Scale parameter must be > 0" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): LogisticRV {
-        return LogisticRV(location, scale, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): LogisticRV {
+        return LogisticRV(location, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

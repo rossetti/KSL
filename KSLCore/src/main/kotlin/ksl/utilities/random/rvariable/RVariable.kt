@@ -48,8 +48,8 @@ abstract class RVariable(
      *  An instance of the random variable with the stream provided
      *  by the same underlying stream provider
      */
-    override fun instance(streamNumber: Int) : RVariableIfc {
-        return instance(streamNumber, streamProvider)
+    override fun instance(streamNum: Int) : RVariableIfc {
+        return instance(streamNum, streamProvider)
     }
 
     override var advanceToNextSubStreamOption: Boolean

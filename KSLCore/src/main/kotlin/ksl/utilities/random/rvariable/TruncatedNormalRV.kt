@@ -43,8 +43,8 @@ class TruncatedNormalRV(
         streamProvider, name
     )
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedNormalRV {
-        return TruncatedNormalRV(mean, variance, myInterval, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedNormalRV {
+        return TruncatedNormalRV(mean, variance, myInterval, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

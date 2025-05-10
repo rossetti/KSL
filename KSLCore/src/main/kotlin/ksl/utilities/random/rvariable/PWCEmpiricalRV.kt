@@ -99,7 +99,7 @@ class PWCEmpiricalRV(
         return i
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): PWCEmpiricalRV {
-        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PWCEmpiricalRV {
+        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNum, rnStreamProvider, name)
     }
 }

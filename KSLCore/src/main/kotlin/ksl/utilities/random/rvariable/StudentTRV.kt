@@ -45,8 +45,8 @@ class StudentTRV (
         return baileysAcceptanceRejection()
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): StudentTRV {
-        return StudentTRV(degreesOfFreedom, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): StudentTRV {
+        return StudentTRV(degreesOfFreedom, streamNum, rnStreamProvider, name)
     }
 
     /**

@@ -42,8 +42,8 @@ class PearsonType5RV (
         require(scale > 0) { "Scale parameter must be positive" }
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): PearsonType5RV {
-        return PearsonType5RV(shape, scale, streamNumber, rnStreamProvider, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PearsonType5RV {
+        return PearsonType5RV(shape, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {
