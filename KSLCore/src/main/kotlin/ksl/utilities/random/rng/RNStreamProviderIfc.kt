@@ -17,6 +17,7 @@
  */
 package ksl.utilities.random.rng
 
+
 /**
  * An interface to define the ability to provide random number streams (RNStreamIfc)
  * Conceptualizes this process as making a sequence of streams, numbered 1, 2, 3, ...
@@ -138,9 +139,9 @@ interface RNStreamProviderIfc {
      */
     fun resetAllStreamsToStart() {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
-            if (stream.resetStartStreamOption){
+            if (stream.resetStartStreamOption) {
                 stream.resetStartStream()
             }
         }
@@ -151,9 +152,9 @@ interface RNStreamProviderIfc {
      *  resetStartStreamOption property to the supplied value.
      *  @param option if true the streams will all participation in resets
      */
-    fun setAllResetStartStreamOptions(option: Boolean){
+    fun setAllResetStartStreamOptions(option: Boolean) {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
             stream.resetStartStreamOption = option
         }
@@ -164,9 +165,9 @@ interface RNStreamProviderIfc {
      *  advanceToNextSubStreamOption property to the supplied value.
      *  @param option if true the streams will all participation in advancing
      */
-    fun setAllAdvanceToNextSubStreamOption(option: Boolean){
+    fun setAllAdvanceToNextSubStreamOption(option: Boolean) {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
             stream.advanceToNextSubStreamOption = option
         }
@@ -180,7 +181,7 @@ interface RNStreamProviderIfc {
      */
     fun resetAllStreamsToStartOfCurrentSubStream() {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
             stream.resetStartSubStream()
         }
@@ -194,9 +195,9 @@ interface RNStreamProviderIfc {
      */
     fun advanceAllStreamsToNextSubStream() {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
-            if (stream.advanceToNextSubStreamOption){
+            if (stream.advanceToNextSubStreamOption) {
                 stream.advanceToNextSubStream()
             }
         }
@@ -213,9 +214,10 @@ interface RNStreamProviderIfc {
      */
     fun setAllStreamsAntitheticOption(option: Boolean) {
         val itr = streams
-        while(itr.hasNext()){
+        while (itr.hasNext()) {
             val stream = itr.next()
             stream.antithetic = option
         }
     }
+
 }
