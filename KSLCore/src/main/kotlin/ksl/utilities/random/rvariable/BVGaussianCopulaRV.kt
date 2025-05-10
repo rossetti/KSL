@@ -19,7 +19,6 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -30,7 +29,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  *
  *  @param bvnCorrelation is the correlation of the bivariate Gaussian copula.
  *  The resulting correlation for (x_1, x_2) may not match this supplied correlation.
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -38,12 +37,12 @@ class BVGaussianCopulaRV(
     val marginal1: InverseCDFIfc,
     val marginal2: InverseCDFIfc,
     val bvnCorrelation: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
-    private val bvGaussianCopula = BVGaussianCopula(bvnCorrelation, streamNumber, streamProvider)
+    private val bvGaussianCopula = BVGaussianCopula(bvnCorrelation, streamNum, streamProvider)
 
     override val dimension: Int
         get() = bvGaussianCopula.dimension

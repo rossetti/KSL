@@ -32,7 +32,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param cdfUL        The upper limit of the range of support of the distribution
  * @param lowerLimit      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
  * @param upperLimit      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -42,10 +42,10 @@ class TruncatedRV(
     val cdfUL: Double,
     val lowerLimit: Double,
     val upperLimit: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }

@@ -24,16 +24,16 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 /**
  * Geometric(probability of success) random variable, range 0, 1, 2, etc.
  * @param probOfSuccess   probability of success, must be in range (0,1)
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class GeometricRV (
     val probOfSuccess: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }

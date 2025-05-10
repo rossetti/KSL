@@ -26,19 +26,19 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 /**
  * An abstract base class for building multi-variate random variables.  Implement
  * the random generation procedure in the method generate().
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 abstract class MVRVariable(
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     final override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : MVRVariableIfc, IdentityIfc by Identity(name), RNStreamControlIfc {
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)

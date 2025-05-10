@@ -38,13 +38,13 @@ class RatioOfUniformsRV (
     vmin: Double,
     vmax: Double,
     f: PDFIfc,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
-    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNumber, streamProvider, name)
-    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNumber, streamProvider,name)
+    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNum, streamProvider, name)
+    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNum, streamProvider,name)
     private val pdf: PDFIfc = f
 
     override fun generate(): Double {

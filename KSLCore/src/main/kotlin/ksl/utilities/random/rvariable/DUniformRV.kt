@@ -25,17 +25,17 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Discrete uniform(min, max) random variable
  * @param min the lower limit of the range, must be strictly less than max
  * @param max the upper limit of the range, must be strictly greater than min
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class DUniformRV(
     val min: Int,
     val max: Int,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name)  {
+) : ParameterizedRV(streamNum, streamProvider, name)  {
 
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }

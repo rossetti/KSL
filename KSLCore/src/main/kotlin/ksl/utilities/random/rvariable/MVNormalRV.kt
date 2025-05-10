@@ -5,7 +5,6 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.addConstant
 import ksl.utilities.io.write
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import org.hipparchus.linear.CholeskyDecomposition
 import org.hipparchus.linear.MatrixUtils
@@ -15,17 +14,17 @@ import kotlin.math.sqrt
  * Generations multi-dimensional normal random variates
  * @param means       the desired mean of the random variable, must not be null
  * @param covariances the covariance of the random variable
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class MVNormalRV constructor(
     means: DoubleArray,
     covariances: Array<DoubleArray>,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : MVRVariable(streamNumber, streamProvider, name) {
+) : MVRVariable(streamNum, streamProvider, name) {
 
     override val dimension: Int
 
@@ -40,7 +39,7 @@ class MVNormalRV constructor(
         cfL = choleskyDecomposition(covariances)
         this.myCovariances = KSLArrays.copy2DArray(covariances)
         this.myMeans = means.copyOf(means.size)
-        normalRV = NormalRV(0.0, 1.0, streamNumber, streamProvider)
+        normalRV = NormalRV(0.0, 1.0, streamNum, streamProvider)
     }
 
     val means

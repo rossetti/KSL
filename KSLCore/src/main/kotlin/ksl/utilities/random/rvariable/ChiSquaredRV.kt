@@ -24,16 +24,16 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 /**
  * Chi-Squared(degrees of freedom) random variable
  * @param degreesOfFreedom the degrees of freedom for the random variable, must be greater than 0.0
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class ChiSquaredRV (
     val degreesOfFreedom: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
     init {
         require(degreesOfFreedom > 0.0) { "Chi-Squared degrees of freedom must be > 0.0" }
     }

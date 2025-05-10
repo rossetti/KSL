@@ -33,17 +33,17 @@ import ksl.utilities.statistic.HistogramIfc
  * That is, monotonically increasing.
  * @param values array to select from
  * @param cdf the cumulative probability associated with each element of array
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class DEmpiricalRV(
     values: DoubleArray,
     cdf: DoubleArray,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(values.size == cdf.size) { "The arrays did not have the same length." }

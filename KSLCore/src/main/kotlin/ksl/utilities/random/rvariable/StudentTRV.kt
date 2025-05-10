@@ -26,16 +26,16 @@ import kotlin.math.sqrt
  * Constructs a StudentT random variable with dof degrees of freedom
  *
  * @param degreesOfFreedom degrees of freedom, must be greater than or equal to 1.0
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class StudentTRV (
     val degreesOfFreedom: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     init {
         require(degreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }

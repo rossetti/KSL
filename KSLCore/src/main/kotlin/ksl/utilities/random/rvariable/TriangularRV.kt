@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
  * @param min  the min, must be less than or equal to mode
  * @param mode the mode, must be less than or equal to max
  * @param max  the max
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -34,10 +34,10 @@ class TriangularRV(
     val min: Double,
     val mode: Double,
     val max: Double,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(streamNumber, streamProvider, name)  {
+) : ParameterizedRV(streamNum, streamProvider, name)  {
 
     init {
         require(min <= mode) { "min must be <= mode" }

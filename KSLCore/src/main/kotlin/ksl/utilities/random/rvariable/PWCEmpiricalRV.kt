@@ -18,17 +18,17 @@ import ksl.utilities.statistic.HistogramIfc
  *  by the breakpoints. All proportions must be strictly greater than 0 and strictly
  *  less than 1. If not supplied, the default is intervals with equal probability. That is,
  *  with proportion equal to 1.0/(n - 1).
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class PWCEmpiricalRV(
     breakPoints: DoubleArray,
     proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
 
     private val myProportions: DoubleArray
     private val myBreakPoints: DoubleArray
