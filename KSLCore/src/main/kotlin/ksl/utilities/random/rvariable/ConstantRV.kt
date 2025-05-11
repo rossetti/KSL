@@ -17,6 +17,8 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamFactory
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.ConstantRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
@@ -24,7 +26,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 /**
  * Allows a constant value to pretend to be a random variable
  */
-open class ConstantRV(
+class ConstantRV(
     var constVal: Double,
     name: String? = null
 ) : ParameterizedRV(
@@ -32,6 +34,14 @@ open class ConstantRV(
     KSLRandom.DefaultRNStreamProvider,
     name
 ) {
+
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers
+     */
+    override val rnStream: RNStreamIfc = RNStreamFactory().nextStream()
+
+    override val streamNumber: Int
+        get() = 1
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ConstantRV {
         return ConstantRV(constVal)
@@ -70,17 +80,17 @@ open class ConstantRV(
         /**
          * A constant to represent zero for sharing
          */
-        val ZERO = lazy { ConstantRV(0.0) }
+        val ZERO: ConstantRV by lazy { ConstantRV(0.0) }
 
         /**
          * A constant to represent one for sharing
          */
-        val ONE = lazy { ConstantRV(1.0) }
+        val ONE: ConstantRV by lazy { ConstantRV(1.0) }
 
         /**
          * A constant to represent positive infinity for sharing
          */
-        val POSITIVE_INFINITY = lazy { ConstantRV(Double.POSITIVE_INFINITY) }
+        val POSITIVE_INFINITY: ConstantRV by lazy { ConstantRV(Double.POSITIVE_INFINITY) }
 
     }
 
