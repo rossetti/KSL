@@ -30,16 +30,16 @@ import ksl.utilities.random.rvariable.RVariableIfc
 interface RandomVariableCIfc : StreamOptionIfc, IdentityIfc {
 
     /**
-     * RandomIfc provides a reference to the underlying source of randomness
+     * Provides a reference to the underlying source of randomness
      * to initialize each replication.
-     * Controls the underlying RandomIfc source for the RandomVariable. This is the
+     * Controls the underlying source for the RandomVariable. This is the
      * source to which each replication will be initialized.  This is only used
      * when the replication is initialized. Changing the reference has no effect
      * during a replication, since the random variable will continue to use
      * the reference returned by property randomSource.  Please also see the
      * discussion in the class documentation.
      *
-     * The intitial random source should not be changed while the model is running.
+     * The initial random source should not be changed while the model is running.
      */
     var initialRandomSource: RVariableIfc
 
