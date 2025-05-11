@@ -30,7 +30,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * the correlation matching problem.
  */
 class AR1CorrelatedRNStream(
-    private val lag1Corr: Double,
+    val lag1Corr: Double,
     private val stream: RNStreamIfc = KSLRandom.nextRNStream(),
 ) : RNStreamIfc by stream {
     private var myX: Double = 0.0
