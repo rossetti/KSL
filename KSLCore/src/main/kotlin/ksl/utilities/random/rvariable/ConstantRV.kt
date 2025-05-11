@@ -31,7 +31,7 @@ open class ConstantRV(
     KSLRandom.defaultStreamNumber,
     KSLRandom.DefaultRNStreamProvider,
     name
-){
+) {
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ConstantRV {
         return ConstantRV(constVal)
@@ -59,7 +59,8 @@ open class ConstantRV(
     override var antithetic: Boolean
         get() = false
         @Suppress("UNUSED_PARAMETER")
-        set(flag) {}
+        set(flag) {
+        }
 
     override fun antitheticInstance(): RVariableIfc {
         return ConstantRV(constVal)
@@ -69,22 +70,17 @@ open class ConstantRV(
         /**
          * A constant to represent zero for sharing
          */
-        val ZERO = ConstantRV(0.0)
+        val ZERO = lazy { ConstantRV(0.0) }
 
         /**
          * A constant to represent one for sharing
          */
-        val ONE = ConstantRV(1.0)
-
-        /**
-         * A constant to represent two for sharing
-         */
-        val TWO = ConstantRV(2.0)
+        val ONE = lazy { ConstantRV(1.0) }
 
         /**
          * A constant to represent positive infinity for sharing
          */
-        val POSITIVE_INFINITY = ConstantRV(Double.POSITIVE_INFINITY)
+        val POSITIVE_INFINITY = lazy { ConstantRV(Double.POSITIVE_INFINITY) }
 
     }
 
