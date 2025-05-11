@@ -84,19 +84,6 @@ open class EventGenerator(
     name: String? = null
 ) : ModelElement(parent, name), EventGeneratorIfc {
 
-    init {
-        require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
-        if (maxNumberOfEvents == Long.MAX_VALUE) {
-            if (timeBtwEventsRV is ConstantRV) {
-                //TODO ranges will make this easier to check
-                require(timeBtwEventsRV.value != 0.0) { "Maximum number of events is $maxNumberOfEvents and time between events is 0.0" }
-            }
-        }
-        require(timeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
-        //TODO need to implement ranges so that time until first can be checked
-    }
-
-    // Create the underlying random variables first with default values.
     // The random variables handle the setting of their initial sources.
     // The random variables also handle the resetting of the random sources to initial values prior
     // to the running of replications.
@@ -141,7 +128,7 @@ open class EventGenerator(
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         name: String? = null
     ): this(parent, generateAction,
-        timeUntilFirstRV = arrivalsRV.instance(arrivalsRV.streamNumber, parent.streamProvider),
+        timeUntilFirstRV = arrivalsRV,
         timeBtwEventsRV = arrivalsRV,
         maxNumberOfEvents, timeOfTheLastEvent, name
     )
@@ -150,11 +137,23 @@ open class EventGenerator(
      * A RandomVariable that uses the time until first random source
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
-        this, ConstantRV.ZERO,
+        this, timeBtwEventsRV,
         "${this.name}:TimeUntilFirstEventRV"
     )
     override val initialTimeUntilFirstEvent: RandomVariableCIfc
         get() = myTimeUntilFirstEventRV
+
+    init {
+        require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
+        if (maxNumberOfEvents == Long.MAX_VALUE) {
+            if (timeBtwEventsRV is ConstantRV) {
+                //TODO ranges will make this easier to check
+                require(timeBtwEventsRV.value != 0.0) { "Maximum number of events is $maxNumberOfEvents and time between events is 0.0" }
+            }
+        }
+        require(timeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
+        //TODO need to implement ranges so that time until first can be checked
+    }
 
     private var myInitialMaxNumEvents: Long = maxNumberOfEvents
 
@@ -168,7 +167,7 @@ open class EventGenerator(
      * A random variable for the time between events
      */
     private val myTimeBtwEventsRV: RandomVariable =
-        RandomVariable(this, ConstantRV.ONE, "${this.name}:TimeBtwEventsRV")
+        RandomVariable(this, timeBtwEventsRV, "${this.name}:TimeBtwEventsRV")
 
     override var initialTimeBtwEvents: RVariableIfc
         get() = myTimeBtwEventsRV.initialRandomSource
