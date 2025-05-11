@@ -136,7 +136,7 @@ class RandomVariable(
         protected set
 
     override val streamNumber: Int
-        get() = randomSource.streamNumber
+        get() = initialRandomSource.streamNumber
 
     override fun resetStartStream() {
         initialRandomSource.resetStartStream()
