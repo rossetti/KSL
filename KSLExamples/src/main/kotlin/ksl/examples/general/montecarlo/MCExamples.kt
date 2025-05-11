@@ -30,12 +30,12 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 fun main(){
-    //example1()
+    example1()
    // example2()
 
  //   mvnExample()
 
-    estimatePI()
+//    estimatePI()
 }
 
 fun example1(){
@@ -44,8 +44,8 @@ fun example1(){
     val rp1 = RNStreamProvider()
     val rp2 = RNStreamProvider()
     // normals are dependent, because the providers provide the same sequence of streams
-    val n1 = NormalRV(2.0, 0.64, streamNumber = 1, rp1)
-    val n2 = NormalRV(2.2, 0.36, streamNumber = 1, rp2)
+    val n1 = NormalRV(2.0, 0.64, streamNum = 1, rp1)
+    val n2 = NormalRV(2.2, 0.36, streamNum = 1, rp2)
     val s1 = n1.sample(100)
     val s2 = n2.sample(100)
     val d = KSLArrays.subtractElements(s1, s2)
