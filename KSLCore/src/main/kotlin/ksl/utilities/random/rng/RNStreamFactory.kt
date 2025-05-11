@@ -332,7 +332,7 @@ class RNStreamFactory {
             return if (antithetic) 1 - u else u
         }
 
-        override fun instance(name: String?): RNStreamIfc {
+        override fun crnInstance(name: String?): RNStreamIfc {
             val s: RNStream = RNStream(name)
             s.antithetic = antithetic
             s.previousU = previousU
@@ -350,7 +350,7 @@ class RNStreamFactory {
         }
 
         override fun antitheticInstance(name: String?): RNStreamIfc {
-            val s = instance(name)
+            val s = crnInstance(name)
             s.antithetic = !s.antithetic
             return s
         }

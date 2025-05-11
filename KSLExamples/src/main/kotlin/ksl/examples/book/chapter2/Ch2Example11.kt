@@ -32,7 +32,7 @@ import ksl.utilities.random.rvariable.NormalRV
  */
 fun main() {
     // create a normal mean = 20.0, variance = 4.0, with the stream
-    val n = NormalRV(20.0, 4.0, streamNumber = 3)
+    val n = NormalRV(20.0, 4.0, streamNum = 3)
     print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
         // value property returns generated values
