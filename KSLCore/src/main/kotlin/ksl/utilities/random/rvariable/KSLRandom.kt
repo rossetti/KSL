@@ -48,7 +48,7 @@ import kotlin.math.*
  * @author rossetti
  */
 object KSLRandom {
-    var DefaultRNStreamProvider: RNStreamProviderIfc = RNStreamProvider()
+    var DefaultRNStreamProvider: RNStreamProviderIfc = RNStreamProvider(name="DefaultRNStreamProvider")
 
     enum class AlgoType {
         Inverse, AcceptanceRejection
