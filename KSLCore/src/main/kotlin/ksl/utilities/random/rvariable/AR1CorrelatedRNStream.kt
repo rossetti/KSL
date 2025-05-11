@@ -37,21 +37,21 @@ class AR1CorrelatedRNStream(
     private val errorVariance: Double
 
     init {
-        require(!(lag1Corr < -1.0 || lag1Corr > 1.0)) { "The correlation must be [-1,1]" }
+        require( (-1.0 < lag1Corr) && (lag1Corr < 1.0)){ "The correlation must be (-1,1)" }
         // generate the first value for the process N(mean, variance)
-        myX = KSLRandom.rNormal(0.0, 1.0, stream)
+        myX = KSLRandom.rNormal(stream)
         errorVariance = (1.0 - lag1Corr * lag1Corr)
     }
-    
-    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
-    private var myPrevU : Double = Double.NaN
+
+    private var myPrevU: Double = Double.NaN
 
     override val previousU: Double
         get() = myPrevU
 
     override fun randU01(): Double {
-        val z = myAR1NormalRV.value
-        val u = Normal.stdNormalCDF(z)
+        val e = KSLRandom.rNormal(0.0, errorVariance, stream)
+        myX = lag1Corr * myX + e
+        val u = Normal.stdNormalCDF(myX)
         myPrevU = u
         return u
     }
