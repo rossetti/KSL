@@ -84,6 +84,18 @@ open class EventGenerator(
     name: String? = null
 ) : ModelElement(parent, name), EventGeneratorIfc {
 
+    init {
+        require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
+        if (maxNumberOfEvents == Long.MAX_VALUE) {
+            if (timeBtwEventsRV is ConstantRV) {
+                //TODO ranges will make this easier to check
+                require(timeBtwEventsRV.value != 0.0) { "Maximum number of events is $maxNumberOfEvents and time between events is 0.0" }
+            }
+        }
+        require(timeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
+        //TODO need to implement ranges so that time until first can be checked
+    }
+
     // Create the underlying random variables first with default values.
     // The random variables handle the setting of their initial sources.
     // The random variables also handle the resetting of the random sources to initial values prior
@@ -165,16 +177,6 @@ open class EventGenerator(
         }
 
     init {
-        require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }
-        if (maxNumberOfEvents == Long.MAX_VALUE) {
-            if (timeBtwEventsRV is ConstantRV) {
-                //TODO ranges will make this easier to check
-                require(timeBtwEventsRV.value != 0.0) { "Maximum number of events is $maxNumberOfEvents and time between events is 0.0" }
-            }
-        }
-        require(timeOfTheLastEvent >= 0) { "The time of the last event was < 0!" }
-        //TODO need to implement ranges so that time until first can be checked
-
         // now set the initial random sources for the random variables to the supplied values
         // these functions also ensure that the random sources come from the model's provider
         myTimeUntilFirstEventRV.initialRandomSource = timeUntilFirstRV
