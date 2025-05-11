@@ -39,7 +39,7 @@ abstract class RVariable(
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+    protected open val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
