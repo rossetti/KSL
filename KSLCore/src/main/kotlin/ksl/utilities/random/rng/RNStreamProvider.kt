@@ -19,6 +19,8 @@
 package ksl.utilities.random.rng
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.utilities.Identity
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.abs
@@ -34,7 +36,10 @@ import kotlin.math.abs
  * The default stream if not set is the first stream.
  * @param defaultStreamNum the number of the default stream, which is 1 by default.
  */
-class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
+class RNStreamProvider(
+    defaultStreamNum: Int = 1,
+    name: String? = null
+) : RNStreamProviderIfc, IdentityIfc by Identity(name) {
     init {
         require(defaultStreamNum > 0) {
             "The default stream number must be > 0!"
@@ -57,7 +62,8 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     override val defaultStreamNumber: Int = defaultStreamNum
 
     init {
-        defaultRNStream()
+        logger.info { "Created: RNStreamProvider($name)" }
+//        defaultRNStream()
     }
 
     override fun nextRNStream(): RNStreamIfc {
@@ -67,7 +73,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
             logger.warn { "The number of streams made is now = ${myStreams.size}" }
             logger.warn { "Increase the stream warning limit if you don't want to see this message" }
         }
-        logger.info { "Provided stream ${stream.id}, stream ${lastRNStreamNumber()} of ${myStreams.size} streams" }
+        logger.info { "RNStreamProvider($name): nextRNStream(): Provided stream id = ${stream.id}, streamNum = ${lastRNStreamNumber()} of ${myStreams.size} streams" }
         return stream
     }
 
@@ -75,6 +81,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
 
     override fun rnStream(i: Int): RNStreamIfc {
         if (i == 0) {
+            //logger.info { "RNStreamProvider($name) : requested next stream."}
             return nextRNStream()
         }
         val k = abs(i)
@@ -83,12 +90,14 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
             for (j in lastRNStreamNumber()..<k) {
                 stream = nextRNStream()
             }
+            //logger.info { "RNStreamProvider($name) : retrieving stream $i"}
             return if (i < 0) {
                 stream!!.antitheticInstance()
             } else {
                 stream!!
             }
         }
+       // logger.info { "RNStreamProvider($name) : retrieving stream $i"}
         return if (i < 0) {
             myStreams[k - 1].antitheticInstance()
         } else {
@@ -103,12 +112,14 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
     }
 
     override fun advanceStreamMechanism(n: Int) {
+        logger.info { "RNStreamProvider($name) : advancing stream mechanism by $n"}
         myStreamFactory.advanceSeeds(n)
     }
 
     override fun resetRNStreamSequence() {
         myStreams.clear()
         myStreamFactory.resetFactorySeed()
+        logger.info { "RNStreamProvider($name) : cleared streams and reset random number stream sequence to factory initial seeds"}
     }
 
     /**
@@ -143,6 +154,7 @@ class RNStreamProvider(defaultStreamNum: Int = 1) : RNStreamProviderIfc {
      */
     fun initialSeed(seed: LongArray = longArrayOf(12345, 12345, 12345, 12345, 12345, 12345)) {
         myStreamFactory.setFactorySeed(seed)
+        logger.info { "RNStreamProvider($name) : setting the initial seed to ${seed.contentToString()}"}
     }
 
     companion object {

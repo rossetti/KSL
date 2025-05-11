@@ -17,13 +17,16 @@
  */
 package ksl.utilities.random.rng
 
+import ksl.utilities.IdentityIfc
+import ksl.utilities.random.rng.RNStreamProvider.Companion.logger
+
 
 /**
  * An interface to define the ability to provide random number streams (RNStreamIfc)
  * Conceptualizes this process as making a sequence of streams, numbered 1, 2, 3, ...
  * for use in generating pseudo-random numbers that can be controlled.
  */
-interface RNStreamProviderIfc {
+interface RNStreamProviderIfc : IdentityIfc {
 
     /**
      *  When the number of streams provided reaches this limit a warning is issued.
@@ -145,6 +148,7 @@ interface RNStreamProviderIfc {
                 stream.resetStartStream()
             }
         }
+        logger.info { "RNStreamProvider($name) : reset all streams to start"}
     }
 
     /**
@@ -158,6 +162,7 @@ interface RNStreamProviderIfc {
             val stream = itr.next()
             stream.resetStartStreamOption = option
         }
+        logger.info { "RNStreamProvider($name) : set all reset start stream options to $option"}
     }
 
     /**
@@ -171,6 +176,7 @@ interface RNStreamProviderIfc {
             val stream = itr.next()
             stream.advanceToNextSubStreamOption = option
         }
+        logger.info { "RNStreamProvider($name) : set all advance to next sub-stream options to $option"}
     }
 
     /**
@@ -185,6 +191,7 @@ interface RNStreamProviderIfc {
             val stream = itr.next()
             stream.resetStartSubStream()
         }
+        logger.info { "RNStreamProvider($name) : reset all streams to start of current sub-stream"}
     }
 
     /**
@@ -201,6 +208,7 @@ interface RNStreamProviderIfc {
                 stream.advanceToNextSubStream()
             }
         }
+        logger.info { "RNStreamProvider($name) : advance all streams to next sub-stream"}
     }
 
     /**
@@ -218,6 +226,7 @@ interface RNStreamProviderIfc {
             val stream = itr.next()
             stream.antithetic = option
         }
+        logger.info { "RNStreamProvider($name) : set all streams to antithetic option: $option"}
     }
 
 }

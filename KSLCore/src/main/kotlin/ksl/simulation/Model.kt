@@ -81,7 +81,7 @@ class Model(
     /**
      *  Used internally to control all the random number streams
      */
-    internal val myRNStreamProvider = RNStreamProvider()
+    internal val myRNStreamProvider = RNStreamProvider(name="${name}:RNStreamProvider")
 
     /**
      *  The model has a default stream. This property controls which
@@ -929,6 +929,7 @@ class Model(
      * @param option The option, true means to reset prior to each experiment
      */
     private fun setAllResetStartStreamOptions(option: Boolean) {
+        RNStreamProvider.logger.info {"Model: $name setting all reset start stream options to: $option"}
         myRNStreamProvider.setAllResetStartStreamOptions(option)
     }
 
@@ -943,6 +944,7 @@ class Model(
      * @param option The option, true means to reset prior to each replication
      */
     private fun setAllAdvanceToNextSubStreamOptions(option: Boolean) {
+        RNStreamProvider.logger.info {"Model: $name setting all advance to next sub-stream options to: $option"}
         myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
@@ -1013,6 +1015,7 @@ class Model(
         replicationEndedActions()
         if (advanceNextSubStreamOption) {
             logger.info { "Advancing random number streams to the next sub-stream" }
+            RNStreamProvider.logger.info {"Model: $name : end replication $currentReplicationNumber : advancing streams to next sub-stream"}
             advanceToNextSubStream()
         }
         logger.info { "Performing after replication actions for model elements" }
