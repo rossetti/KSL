@@ -30,12 +30,14 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 fun main(){
-    example1()
+   // example1()
    // example2()
 
  //   mvnExample()
 
 //    estimatePI()
+
+    testAR1Stream()
 }
 
 fun example1(){
@@ -117,4 +119,12 @@ fun estimatePI(){
     System.out.printf("Area estimate = %10.3f %n", stat.average)
     println("Confidence Interval")
     println(stat.confidenceInterval)
+}
+
+fun testAR1Stream() {
+    val ar1s = AR1CorrelatedRNStream(0.9)
+
+    for(i in 1..10){
+        println("u($i) = ${ar1s.randU01()}")
+    }
 }
