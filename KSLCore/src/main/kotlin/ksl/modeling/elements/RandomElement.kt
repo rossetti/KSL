@@ -43,46 +43,35 @@ abstract class RandomElement(
      */
     var randomSource: RandomIfc = rSource
         set(value) {
-            field = value.instance(value.streamNumber, streamProvider)
+            field = if (value.streamProvider != streamProvider) {
+                value.instance(value.streamNumber, streamProvider)
+            } else {
+                value
+            }
         }
 
     init {
         warmUpOption = false
-        if (rSource.streamProvider != streamProvider){
-            randomSource =rSource.instance(rSource.streamNumber, streamProvider)
-        }
+        this.randomSource = rSource
     }
 
     /**
      * Provides a reference to the underlying source of randomness to initialize each replication.
      * Controls the underlying RandomIfc source for the element. This is the
      * source to which each replication will be initialized.  This is only used
-     * when the replication is initialized. Changing the reference has no effect
-     * during a replication.
+     * when the replication is initialized.
      *
-     * WARNING: If this is used during a replication to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing replications.
+     * You cannot change the initial random source while the model is running.
      */
     override var initialRandomSource: RandomIfc = randomSource
         set(value) {
-            if (model.isRunning) {
-                if (initialRandomSourceChangeWarning) {
-                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
-                }
-            }
+            require(model.isNotRunning) {"The initial random source cannot be changed during a replication"}
             field = if (value.streamProvider == streamProvider){
                 value
             } else {
                 value.instance(value.streamNumber, streamProvider)
             }
         }
-
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    final override var initialRandomSourceChangeWarning = true
 
     override val streamNumber: Int
         get() = randomSource.streamNumber
@@ -135,7 +124,7 @@ abstract class RandomElement(
      */
     override fun afterReplication() {
         super.afterReplication()
-        if (randomSource !== initialRandomSource) {
+        if (randomSource != initialRandomSource) {
             // the random source or the initial random source references
             // were changed during the replication
             // make sure that the random source is the same

@@ -33,18 +33,10 @@ interface RandomSourceCIfc : StreamOptionIfc, IdentityIfc {
      * during a replication, since the random variable will continue to use
      * the reference returned by property randomSource.  Please also see the
      * discussion in the class documentation.
-     * <p>
-     * WARNING: If this is used during an experiment to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing experiments.
+     *
+     * The initial random source should not be changed while the model is running.
      */
     var initialRandomSource: RandomIfc
-
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    var initialRandomSourceChangeWarning: Boolean
 
     fun asString(): String
 

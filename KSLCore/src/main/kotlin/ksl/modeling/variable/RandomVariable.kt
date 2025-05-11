@@ -182,7 +182,7 @@ class RandomVariable(
      */
     override fun afterReplication() {
         super.afterReplication()
-        if (randomSource !== initialRandomSource) {
+        if (randomSource != initialRandomSource) {
             // the random source or the initial random source references
             // were changed during the replication
             // make sure that the random source is the same
