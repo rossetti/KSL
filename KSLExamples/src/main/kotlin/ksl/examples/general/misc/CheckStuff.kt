@@ -19,6 +19,7 @@ import ksl.modeling.entity.CapacityItemData
 import ksl.modeling.entity.CapacityScheduleData
 import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamProvider
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
@@ -34,8 +35,21 @@ fun main(){
 //    simulateDemandDuringLeadTime(1000, lt2)
 
 //    testBoxMuller()
-      serializing()
+//      serializing()
 //    testMRound()
+
+    testRV()
+}
+
+fun testRV(){
+
+    val rvp = RNStreamProvider()
+    val ad: RVariableIfc = ExponentialRV(1.0, 1)
+    val ad2 : RVariableIfc = ExponentialRV(1.0, 1, rvp)
+
+    for (i in 1..5){
+        println("ad = ${ad.value}    ad2 = ${ad2.value}")
+    }
 }
 
 fun testMRound(){
