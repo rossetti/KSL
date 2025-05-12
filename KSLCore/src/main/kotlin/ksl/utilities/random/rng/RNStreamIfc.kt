@@ -27,6 +27,8 @@ import ksl.utilities.random.rvariable.KSLRandom.AlgoType
  */
 interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, GetAntitheticStreamIfc {
 
+    val streamProvider: RNStreamProviderIfc?
+
     /**
      *  An identifier assigned by the underlying stream factory to identity the stream
      *  for reporting purposes

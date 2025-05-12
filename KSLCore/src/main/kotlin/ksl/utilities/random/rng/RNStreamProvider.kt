@@ -67,13 +67,14 @@ class RNStreamProvider(
     }
 
     override fun nextRNStream(): RNStreamIfc {
-        val stream = myStreamFactory.nextStream()
+        val stream = myStreamFactory.nextStream() as RNStreamFactory.RNStream
         myStreams.add(stream)
         if (myStreams.size > streamNumberWarningLimit) {
             logger.warn { "The number of streams made is now = ${myStreams.size}" }
             logger.warn { "Increase the stream warning limit if you don't want to see this message" }
         }
         logger.info { "RNStreamProvider($name): nextRNStream(): Provided stream id = ${stream.id}, streamNum = ${lastRNStreamNumber()} of ${myStreams.size} streams" }
+        stream.streamProvider = this
         return stream
     }
 
