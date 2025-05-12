@@ -104,7 +104,6 @@ class DriveThroughPharmacyWithQ(
         override fun generate(generator: EventGenerator) {
             myNS.increment() // new customer arrived
             val arrivingCustomer = QObject()
-            println("$time > arrival, customer = ${arrivingCustomer.id}")
             myInQ.value = myWaitingQ.numInQ.value.toInt()
             myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
             if (myNumBusy.value < numPharmacists) { // server available
@@ -131,7 +130,6 @@ class DriveThroughPharmacyWithQ(
         mySysTime.value = (time - departingCustomer.createTime)
         myNS.decrement() // customer left system
         myNumCustomers.increment()
-        println("$time > departure, customer = ${departingCustomer.id}")
     }
 }
 
