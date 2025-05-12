@@ -1,8 +1,16 @@
 package ksl.modeling.elements
 
-import ksl.modeling.variable.RandomVariableCIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ *  Permits controlled access to the underlying event generator.
+ *  Of particular note are the [initialTimeUntilFirstEvent] and
+ *  [initialTimeBtwEvents] properties which govern the arrival process.
+ *  In addition, the function setInitialRandomSource() is provided
+ *  to facilitate the setting of both [initialTimeUntilFirstEvent] and
+ *  [initialTimeBtwEvents] to the same random variable, which is
+ *  a common use case.
+ */
 interface EventGeneratorCIfc {
     /**
      * Sets the flag that indicates whether the generator will
@@ -54,8 +62,17 @@ interface EventGeneratorCIfc {
      * Sets the time between events and the maximum number of events to be used
      * to initialize each replication. The time between events cannot evaluate
      * to a constant value of 0.0. The maximum number of events is kept at its
-     * current value, which by default is Long.Max_Value
+     * current value, which by default is Long.Max_Value. Note that
+     * setting the initial time between events does not affect the random
+     * variable governing the time of the first event.
      *
      */
     var initialTimeBtwEvents: RVariableIfc
+
+    /**
+     *  Often the time of the first event and the time between events is
+     *  the same distribution. This property causes both [initialTimeUntilFirstEvent]
+     *  and [initialTimeBtwEvents] to be set to the same random variable.
+     */
+    fun setInitialRandomSource(rVariable: RVariableIfc)
 }

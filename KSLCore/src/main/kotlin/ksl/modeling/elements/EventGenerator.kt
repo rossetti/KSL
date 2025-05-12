@@ -178,6 +178,11 @@ open class EventGenerator(
             setInitialTimeBetweenEventsAndMaxNumEvents(value, myInitialMaxNumEvents)
         }
 
+    override fun setInitialRandomSource(rVariable: RVariableIfc) {
+        initialTimeUntilFirstEvent = rVariable
+        initialTimeBtwEvents = rVariable
+    }
+
     init {
         // now set the initial random sources for the random variables to the supplied values
         // these functions also ensure that the random sources come from the model's provider
@@ -511,7 +516,6 @@ open class EventGenerator(
      * @param t the time to the first event
      */
     private fun scheduleFirstEvent(t: Double) {
-        println("first inter-arrival time = $t")
         if (t + time > endingTime) {
             turnOffGenerator()
         }
@@ -541,7 +545,6 @@ open class EventGenerator(
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
-                println("inter-arrival time = $t")
                 if (t + time > endingTime) {
                     turnOffGenerator()
                 }
