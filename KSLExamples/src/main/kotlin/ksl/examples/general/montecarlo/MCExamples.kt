@@ -30,14 +30,14 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
 
 fun main(){
-   // example1()
+    example1()
    // example2()
 
  //   mvnExample()
 
 //    estimatePI()
 
-    testAR1Stream()
+ //   testAR1Stream()
 }
 
 fun example1(){
