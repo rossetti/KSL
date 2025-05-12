@@ -140,8 +140,11 @@ open class EventGenerator(
         this, timeBtwEventsRV,
         "${this.name}:TimeUntilFirstEventRV"
     )
-    override val initialTimeUntilFirstEvent: RandomVariableCIfc
-        get() = myTimeUntilFirstEventRV
+    override var initialTimeUntilFirstEvent: RVariableIfc
+        get() = myTimeUntilFirstEventRV.initialRandomSource
+        set(value){
+            myTimeUntilFirstEventRV.initialRandomSource = value
+        }
 
     init {
         require(maxNumberOfEvents >= 0) { "The maximum number of events to generate was < 0!" }

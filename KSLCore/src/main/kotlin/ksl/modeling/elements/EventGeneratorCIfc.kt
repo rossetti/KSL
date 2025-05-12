@@ -18,7 +18,7 @@ interface EventGeneratorCIfc {
      * first event. This change becomes effective at the beginning of the next
      * replication to execute
      */
-    val initialTimeUntilFirstEvent: RandomVariableCIfc
+    var initialTimeUntilFirstEvent: RVariableIfc
 
     /**
      * This value is used to set the ending time for generating actions for each
