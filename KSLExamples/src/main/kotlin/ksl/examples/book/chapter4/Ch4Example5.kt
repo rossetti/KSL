@@ -41,6 +41,7 @@ fun main() {
 //    sim.lengthOfReplicationWarmUp = 5000.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
+    dtp.arrivalGenerator.initialTimeUntilFirstEvent = ExponentialRV(6.0, 1)
     dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 //    val kslDatabaseObserver = KSLDatabaseObserver(sim)
