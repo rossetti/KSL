@@ -508,6 +508,7 @@ open class EventGenerator(
      * @param t the time to the first event
      */
     private fun scheduleFirstEvent(t: Double) {
+        println("first inter-arrival time = $t")
         if (t + time > endingTime) {
             turnOffGenerator()
         }
@@ -537,6 +538,7 @@ open class EventGenerator(
                 // get the time until next event
                 val t: Double = myTimeBtwEventsRV.value
                 // check if it is past end time
+                println("inter-arrival time = $t")
                 if (t + time > endingTime) {
                     turnOffGenerator()
                 }
