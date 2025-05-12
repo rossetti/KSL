@@ -200,6 +200,9 @@ class RNStreamFactory {
     inner class RNStream(sName: String? = null) : IdentityIfc, RNStreamIfc,
             RNStreamNewInstanceIfc, GetAntitheticStreamIfc {
 
+        override var streamProvider: RNStreamProviderIfc? = null
+            internal set
+
         override var advanceToNextSubStreamOption: Boolean = true
 
         override var resetStartStreamOption: Boolean = true
