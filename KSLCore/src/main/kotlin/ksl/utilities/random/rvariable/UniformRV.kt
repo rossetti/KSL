@@ -17,6 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
@@ -41,6 +42,13 @@ class UniformRV (
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
+
+    constructor(
+        interval: Interval,
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): this(interval.lowerLimit, interval.upperLimit, streamNum, streamProvider, name)
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): UniformRV {
         return UniformRV(min, max, streamNum, rnStreamProvider, name)
