@@ -31,7 +31,7 @@ fun interface GeneratorActionIfc {
      *
      * @param generator the generator
      */
-    fun generate(generator: EventGenerator)
+    fun generate(generator: BaseGeneratorIfc)
 
 }
 
@@ -42,5 +42,5 @@ fun interface EndGeneratorActionIfc {
      *
      * @param generator the generator
      */
-    fun endGeneration(generator: EventGenerator)
+    fun endGeneration(generator: BaseGeneratorIfc)
 }
