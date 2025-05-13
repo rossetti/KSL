@@ -5,23 +5,14 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
-class NHPPPiecewiseRateFunctionEventGenerator(
+class NHPPPiecewiseRateFunctionEventGeneratorNEW(
     parent: ModelElement,
     rateFunction: PiecewiseRateFunction,
     generatorAction: GeneratorActionIfc,
     lastRate: Double = Double.NaN,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
     theName: String? = null
-) : NHPPEventGenerator(parent, rateFunction, generatorAction, lastRate, stream, theName) {
-
-    constructor(
-        parent: ModelElement,
-        rateFunction: PiecewiseRateFunction,
-        generatorAction: GeneratorActionIfc,
-        lastRate: Double = Double.NaN,
-        streamNum: Int,
-        name: String? = null
-    ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
+) : NHPPEventGeneratorNEW(parent, rateFunction, generatorAction, lastRate, streamNum, theName) {
 
     /**
      *  This function can be used to adjust the rates within the piecewise rate function
@@ -32,6 +23,7 @@ class NHPPPiecewiseRateFunctionEventGenerator(
      * @param factor The factor must be positive
      */
     fun adjustRates(factor: Double) {
+        //TODO need to revisit
         require(factor > 0.0) { "factor must be positive: $factor" }
         val rv = myTBARV as NHPPPiecewiseRateFunctionTimeBtwEventRV
         rv.adjustRates(factor)

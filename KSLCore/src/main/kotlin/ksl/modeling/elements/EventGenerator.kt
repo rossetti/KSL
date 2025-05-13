@@ -137,7 +137,7 @@ open class EventGenerator(
      * A RandomVariable that uses the time until first random source
      */
     private val myTimeUntilFirstEventRV: RandomVariable = RandomVariable(
-        this, timeBtwEventsRV,
+        this, timeUntilFirstRV,
         "${this.name}:TimeUntilFirstEventRV"
     )
     override var initialTimeUntilFirstEvent: RVariableIfc
@@ -365,10 +365,6 @@ open class EventGenerator(
         }
         isStarted = true
         scheduleFirstEvent(t)
-    }
-
-    override fun turnOnGenerator(r: RVariableIfc) {
-        turnOnGenerator(r.value)
     }
 
     override fun turnOffGenerator() {
