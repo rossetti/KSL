@@ -9,7 +9,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 
 open class BaseEventGenerator(
     parent: ModelElement,
-    generateAction: GeneratorActionIfc? = null,
+    generateAction: GeneratorActionIfc,
     timeUntilFirstEvent: GetValueIfc,
     timeBtwEvents: GetValueIfc,
     maxNumberOfEvents: Long = Long.MAX_VALUE,
@@ -96,13 +96,13 @@ open class BaseEventGenerator(
     /**
      * The action for the events for generation
      */
-    private var generatorAction: GeneratorActionIfc? = generateAction
+    private var generatorAction: GeneratorActionIfc = generateAction
 
     /**
      *  Can be used to supply logic to invoke when the generator's
      *  is supposed to generate
      */
-    fun generatorAction(action: GeneratorActionIfc?) {
+    fun generatorAction(action: GeneratorActionIfc) {
         generatorAction = action
     }
 
@@ -284,7 +284,7 @@ open class BaseEventGenerator(
     @Suppress("UNUSED_PARAMETER")
     private fun endGeneratorAction(event: KSLEvent<Nothing>) {
         turnOffGenerator()
-        endGeneratorAction?.endGeneration(this) ?: endGeneration()
+        endGeneratorAction?.endGeneration(this)
     }
 
     /**
@@ -327,7 +327,7 @@ open class BaseEventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
-                generatorAction?.generate(this@BaseEventGenerator) ?: generate()
+                generatorAction.generate(this@BaseEventGenerator)
                 // get the time until next event
                 val t: Double = myTimeBtwEvents.value
                 // check if it is past end time
@@ -341,12 +341,6 @@ open class BaseEventGenerator(
                 }
             }
         }
-    }
-
-    protected open fun generate() {
-    }
-
-    protected open fun endGeneration() {
     }
 
     companion object {
