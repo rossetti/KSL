@@ -10,7 +10,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 
 open class BaseEventGenerator(
     parent: ModelElement,
-    generateAction: GeneratorActionIfc? = null,
+    generateAction: GeneratorActionIfc,
     timeUntilFirstEvent: GetValueIfc = ConstantValue(0.0),
     timeBtwEvents: GetValueIfc = ConstantValue(1.0),
     maxNumberOfEvents: Long = Long.MAX_VALUE,
@@ -97,25 +97,13 @@ open class BaseEventGenerator(
     /**
      * The action for the events for generation
      */
-    private var generatorAction: GeneratorActionIfc? = generateAction
-
-    /**
-     *  Can be used to supply logic to invoke when the generator's
-     *  is supposed to generate
-     */
-    fun generatorAction(action: GeneratorActionIfc) {
-        generatorAction = action
-    }
-
-    private var endGeneratorAction: EndGeneratorActionIfc? = null
+    var generatorAction: GeneratorActionIfc = generateAction
 
     /**
      *  Can be used to supply logic to invoke when the generator's
      *  ending time is finite and the generator is turned off.
      */
-    fun endGeneratorAction(action: EndGeneratorActionIfc?) {
-        endGeneratorAction = action
-    }
+    var endGeneratorAction: EndGeneratorActionIfc? = null
 
     /**
      * Determines the priority of the event generator's events The default is
@@ -288,10 +276,6 @@ open class BaseEventGenerator(
         endGeneratorAction?.endGeneration(this)
     }
 
-    protected fun generate() {
-
-    }
-
     /**
      * Schedules the first event at current time + r.getValue()
      *
@@ -332,7 +316,7 @@ open class BaseEventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
-                generatorAction?.generate(this@BaseEventGenerator) ?: generate()
+                generatorAction.generate(this@BaseEventGenerator)
                 // get the time until next event
                 val t: Double = myTimeBtwEvents.value
                 // check if it is past end time

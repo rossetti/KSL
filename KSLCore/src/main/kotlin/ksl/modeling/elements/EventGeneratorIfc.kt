@@ -187,5 +187,4 @@ interface EventGeneratorIfc {
      */
     val isEventPending: Boolean
 
-    fun generate()
 }

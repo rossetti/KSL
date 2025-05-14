@@ -2253,7 +2253,7 @@ abstract class ModelElement internal constructor(
     // defines functions for creating random variables that use the model's stream provider
 
     fun rvBernoulli(probOfSuccess: Double, streamNum : Int = 0, name: String? = null) : BernoulliRV {
-        return BernoulliRV(probOfSuccess, streamNum, streamProvider, null)
+        return BernoulliRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
     fun rvBeta(alpha1: Double, alpha2: Double, streamNum: Int = 0, name: String? = null) : BetaRV {
@@ -2273,11 +2273,11 @@ abstract class ModelElement internal constructor(
     }
 
     fun rvDUniform(min: Int, max: Int, streamNum: Int = 0, name: String? = null) : DUniformRV {
-        return DUniformRV(min, max, streamNum, streamProvider)
+        return DUniformRV(min, max, streamNum, streamProvider, name)
     }
 
     fun rvDUniform(range: IntRange, streamNum: Int = 0, name: String? = null) : DUniformRV {
-        return DUniformRV(range, streamNum, streamProvider)
+        return DUniformRV(range, streamNum, streamProvider, name)
     }
 
     fun rvEmpirical(data: DoubleArray, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
@@ -2293,7 +2293,7 @@ abstract class ModelElement internal constructor(
     }
 
     fun rvExponential(mean: Double, streamNum : Int = 0, name: String? = null) : ExponentialRV {
-        return ExponentialRV(mean, streamNum, streamProvider, null)
+        return ExponentialRV(mean, streamNum, streamProvider, name)
     }
 
     fun rvGamma(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : GammaRV {
@@ -2349,7 +2349,7 @@ abstract class ModelElement internal constructor(
     }
 
     fun rvPoisson(mean: Double, streamNum : Int = 0, name: String? = null) : PoissonRV {
-        return PoissonRV(mean, streamNum, streamProvider, null)
+        return PoissonRV(mean, streamNum, streamProvider, name)
     }
 
     fun rvPieceWiseContinuousEmpirical(
@@ -2404,11 +2404,11 @@ abstract class ModelElement internal constructor(
     }
 
     fun rvUniform(min: Double, max: Double, streamNum: Int = 0, name: String? = null) : UniformRV {
-        return UniformRV(min, max, streamNum, streamProvider)
+        return UniformRV(min, max, streamNum, streamProvider, name)
     }
 
     fun rvUniform(interval: Interval, streamNum: Int = 0, name: String? = null) : UniformRV {
-        return UniformRV(interval, streamNum, streamProvider)
+        return UniformRV(interval, streamNum, streamProvider, name)
     }
 
     fun rvWeibull(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : WeibullRV {
