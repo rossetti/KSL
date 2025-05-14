@@ -1,6 +1,5 @@
 package ksl.examples.book.chapter7
 
-import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.KSLProcess

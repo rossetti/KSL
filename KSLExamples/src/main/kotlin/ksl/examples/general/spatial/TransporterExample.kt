@@ -1,6 +1,6 @@
 package ksl.examples.general.spatial
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
@@ -53,7 +53,7 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
     val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")

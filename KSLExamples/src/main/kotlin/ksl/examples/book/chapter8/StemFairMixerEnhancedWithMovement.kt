@@ -18,12 +18,11 @@
 
 package ksl.examples.book.chapter8
 
-import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.entity.ResourceWithQ
-import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
-import ksl.modeling.nhpp.NHPPTimeBtwEventRV
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionEventGenerator
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.variable.*
@@ -111,8 +110,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPPiecewiseRateFunctionTimeBtwEventRV
-//    private val myTBArrivals: RVariableIfc
+    private val rateFunction: PiecewiseConstantRateFunction
 
     init {
         // set up the generator
@@ -125,12 +123,11 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
             55.0, 55.0, 60.0, 30.0, 5.0, 5.0
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
-        val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNum = 1)
-//        myTBArrivals = ExponentialRV(2.0, 1)
+        rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
     }
 
-    private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
+    private val generator = NHPPPiecewiseRateFunctionEventGenerator(this, this::createStudents,
+        rateFunction)
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
     private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")
@@ -164,7 +161,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         myEndTime.value = time
     }
 
-    private fun createStudents(eventGenerator: EventGenerator) {
+    private fun createStudents(generator: EventGeneratorIfc) {
         val student = Student()
         if (student.isMixer) {
             activate(student.mixingStudentProcess)

@@ -1,6 +1,6 @@
 package ksl.examples.general.models.jobshop
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -56,7 +56,7 @@ class JobShop(parent: ModelElement, name: String? = null) : ProcessModel(parent,
     private val seqList = REmpiricalList<List<JobStep>>(this, sequences, seqCDF)
 
     private val myArrivalGenerator = EntityGenerator(::Job, myTBA, myTBA)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     // define the responses

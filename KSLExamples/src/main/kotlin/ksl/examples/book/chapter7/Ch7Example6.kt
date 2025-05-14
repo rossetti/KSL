@@ -41,7 +41,7 @@ class NHPPPWLinearExample(
 ) : ModelElement(parent, name) {
 
     private val myPWRF: PiecewiseRateFunction = f
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, this::arrivals, streamNum = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, this::arrivals, f, streamNum = 1)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
 
     init {

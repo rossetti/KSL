@@ -44,8 +44,8 @@ class NHPPPiecewiseRateFunctionEventGenerator private constructor(
      */
     constructor(
         parent: ModelElement,
-        rateFunction: PiecewiseRateFunction,
         generatorAction: GeneratorActionIfc,
+        rateFunction: PiecewiseRateFunction,
         streamNum: Int = 0,
         lastRate: Double = Double.NaN,
         maxNumberOfEvents: Long = Long.MAX_VALUE,

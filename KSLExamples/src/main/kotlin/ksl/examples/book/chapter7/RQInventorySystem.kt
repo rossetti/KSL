@@ -1,7 +1,6 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.EventGeneratorCIfc
 import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.variable.RandomVariable

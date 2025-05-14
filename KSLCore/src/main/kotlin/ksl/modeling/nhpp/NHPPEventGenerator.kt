@@ -57,8 +57,8 @@ open class NHPPEventGenerator protected constructor(
      */
     constructor(
         parent: ModelElement,
-        rateFunction: InvertibleCumulativeRateFunctionIfc,
         generatorAction: GeneratorActionIfc,
+        rateFunction: InvertibleCumulativeRateFunctionIfc,
         streamNum: Int = 0,
         lastRate: Double = Double.NaN,
         maxNumberOfEvents: Long = Long.MAX_VALUE,

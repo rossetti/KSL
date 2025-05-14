@@ -1,7 +1,7 @@
 package ksl.examples.general.models.conveyors
 
 import ksl.examples.book.chapter8.TandemQueueWithConveyors
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -55,7 +55,7 @@ class TestConveyorTransfer (
     val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
