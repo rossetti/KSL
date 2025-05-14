@@ -73,7 +73,7 @@ open class EventGenerator protected constructor(
      */
     constructor(
         parent: ModelElement,
-        generateAction: GeneratorActionIfc? = null,
+        generateAction: GeneratorActionIfc,
         timeUntilFirstRV: RVariableIfc,
         timeBtwEventsRV: RVariableIfc,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
@@ -110,7 +110,7 @@ open class EventGenerator protected constructor(
      */
     constructor(
         parent: ModelElement,
-        generateAction: GeneratorActionIfc? = null,
+        generateAction: GeneratorActionIfc,
         arrivalsRV: RVariableIfc,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,

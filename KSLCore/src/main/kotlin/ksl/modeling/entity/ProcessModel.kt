@@ -28,6 +28,8 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.spatial.*
 import ksl.utilities.Identity
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -82,17 +84,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
         name: String? = null
     ) : EventGenerator(
-        this@ProcessModel, null, timeUntilTheFirstEntity,
+        this@ProcessModel, DefaultEntityGeneratorNoOp, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
 
-        override fun generate() {
+        private val myEntityGeneratorAction = GeneratorActionIfc { generate() }
+
+        init {
+            baseEventGenerator.generatorAction = myEntityGeneratorAction
+        }
+
+        private fun generate() {
             val entity = entityCreator()
             require(entity.defaultProcess != null) { "There was no default process specified for the entity. Ensure that the `defaultProcess` property is set via the process() function or directly." }
             activate(entity.defaultProcess!!, priority = activationPriority)
         }
 
     }
+
+    private val DefaultEntityGeneratorNoOp = GeneratorActionIfc { }
 
     /**
      *  This class will activate the entity's default process or the process provided by the process name argument.
@@ -241,10 +251,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,
         name: String? = null
     ) : EventGenerator(
-        this@ProcessModel, null, timeUntilTheFirstEntity,
+        this@ProcessModel, DefaultEntityGeneratorNoOp, timeUntilTheFirstEntity,
         timeBtwEvents, maxNumberOfEvents, timeOfTheLastEvent, name
     ) {
-        override fun generate() {
+
+        private val myEntityGeneratorAction = GeneratorActionIfc { generate() }
+
+        init {
+            baseEventGenerator.generatorAction = myEntityGeneratorAction
+        }
+
+        private fun generate() {
             val entity = entityCreator()
             require(entity.useProcessSequence) { "Cannot start the sequence because the entity ${entity.name} does not use a sequence" }
             require(entity.processSequence.isNotEmpty()) { "Use process sequence was on, but no processes are in the sequence" }
