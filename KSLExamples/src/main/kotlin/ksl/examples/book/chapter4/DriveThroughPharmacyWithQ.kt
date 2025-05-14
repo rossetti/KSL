@@ -19,9 +19,7 @@ package ksl.examples.book.chapter4
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.EventGeneratorCIfc
-import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -93,7 +91,7 @@ class DriveThroughPharmacyWithQ(
         get() = mySTGT4
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
-    val arrivalGenerator: EventGeneratorCIfc
+    val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val endServiceEvent = this::endOfService
@@ -101,7 +99,7 @@ class DriveThroughPharmacyWithQ(
     private val myInQ = IntegerFrequencyResponse(this, "NQ Upon Arrival")
 
     private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             myNS.increment() // new customer arrived
             val arrivingCustomer = QObject()
             myInQ.value = myWaitingQ.numInQ.value.toInt()

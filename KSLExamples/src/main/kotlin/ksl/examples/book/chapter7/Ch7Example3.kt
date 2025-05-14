@@ -19,6 +19,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
@@ -56,7 +57,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
     private val tip2 = Response(this, "${name}:TimeInSystem2")
     private val generator = EventGenerator(this, this::arrivals, tba, tba)
 
-    private fun arrivals(generator: EventGenerator){
+    private fun arrivals(generator: EventGeneratorIfc){
         val c = Customer()
         if (decideProcess.value.toBoolean()){
             activate(c.usePool1)

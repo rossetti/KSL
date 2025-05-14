@@ -144,8 +144,10 @@ interface EventGeneratorCIfc : EventGeneratorTimeUntilFirstEventCIfc, EventGener
  *  [initialTimeBtwEvents] to the same reference, which is
  *  a common use case.
  */
-interface EventGeneratorRVCIfc : EventGeneratorTimeUntilFirstEventRVCIfc, EventGeneratorInitialTimeBtwEventsRVCIfc,
-    EventGeneratorInitializationCIfc
+interface EventGeneratorRVCIfc : EventGeneratorTimeUntilFirstEventRVCIfc,
+    EventGeneratorInitialTimeBtwEventsRVCIfc,
+    EventGeneratorInitializationCIfc,
+    EventGeneratorInitialEventTimeProcessesRVCIfc
 
 interface EventGeneratorRVIfc :  EventGeneratorTimeUntilFirstEventRVCIfc,
     EventGeneratorInitialTimeBtwEventsRVCIfc, EventGeneratorTimeBtwEventsRVIfc,

@@ -27,7 +27,7 @@ open class EventGenerator protected constructor(
     name: String? = null,
     protected val baseEventGenerator: BaseEventGenerator
 ) : ModelElement(parent, name), EventGeneratorIfc by baseEventGenerator,
-    EventGeneratorInitializationCIfc by baseEventGenerator, EventGeneratorRVIfc {
+    EventGeneratorInitializationCIfc by baseEventGenerator, EventGeneratorRVIfc, EventGeneratorRVCIfc {
 
     // The random variables handle the setting of their initial sources.
     // The random variables also handle the resetting of the random sources to initial values prior

@@ -20,9 +20,7 @@ package ksl.examples.book.appendixD
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.EventGeneratorCIfc
-import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -75,13 +73,13 @@ class GIGcQueue(
         get() = myWaitingQ
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
-    val arrivalGenerator: EventGeneratorCIfc
+    val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val endServiceEvent = this::endOfService
 
     private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             myNS.increment() // new customer arrived
             val arrivingCustomer = QObject()
             myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer

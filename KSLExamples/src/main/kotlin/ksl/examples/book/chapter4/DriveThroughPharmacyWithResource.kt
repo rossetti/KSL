@@ -17,9 +17,7 @@
  */
 package ksl.examples.book.chapter4
 
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.EventGeneratorCIfc
-import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.station.SResource
@@ -104,10 +102,10 @@ class DriveThroughPharmacyWithResource(
     private val myArrivalGenerator: EventGenerator = EventGenerator(
         this, this::arrival, ad, ad
     )
-    val arrivalGenerator: EventGeneratorCIfc
+    val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
-    private fun arrival(generator: EventGenerator) {
+    private fun arrival(generator: EventGeneratorIfc) {
         myNS.increment() // new customer arrived
         myInQ.value = myWaitingQ.numInQ.value.toInt()
         val arrivingCustomer = QObject()

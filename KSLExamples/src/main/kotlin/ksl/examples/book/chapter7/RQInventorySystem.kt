@@ -2,6 +2,8 @@ package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.RandomVariableCIfc
 import ksl.simulation.KSLEvent
@@ -54,7 +56,7 @@ class RQInventorySystem(
 
     private val myDemandGenerator = EventGenerator(this, this::sendDemand,
         timeBetweenDemandRV, timeBetweenDemandRV)
-    val demandGenerator: EventGeneratorCIfc
+    val demandGenerator: EventGeneratorRVCIfc
         get() = myDemandGenerator
 
     private val inventory: RQInventory = RQInventory(
@@ -84,7 +86,7 @@ class RQInventorySystem(
         inventory.setInitialPolicyParameters(reorderPt, reorderQty)
     }
 
-    private fun sendDemand(generator: EventGenerator) {
+    private fun sendDemand(generator: EventGeneratorIfc) {
         inventory.fillInventory(demandAmountRV.value.toInt())
     }
 
