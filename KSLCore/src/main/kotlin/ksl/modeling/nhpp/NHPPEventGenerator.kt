@@ -17,120 +17,62 @@
  */
 package ksl.modeling.nhpp
 
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.GeneratorActionIfc
-import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.elements.*
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
-import ksl.modeling.variable.RandomSourceCIfc
-import ksl.utilities.random.rng.RNStreamControlIfc
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  * @param parent the parent
- * @param rateFunction the rate function
  * @param generatorAction   the listener for generation
- * @param lastRate  the last rate
+ * @param nhppTimeBtwEventRV the non-homogeneous Poisson process random variable
+ * @param baseEventGenerator the base event generator for generating events
  * @param name the name to assign
  */
-open class NHPPEventGenerator(
+open class NHPPEventGenerator protected constructor(
     parent: ModelElement,
-    rateFunction: InvertibleCumulativeRateFunctionIfc,
     generatorAction: GeneratorActionIfc,
-    lastRate: Double = Double.NaN,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    theName: String? = null
-) : ModelElement(parent, theName), EventGeneratorIfc, RNStreamControlIfc by stream {
+    protected val nhppTimeBtwEventRV: NHPPTimeBtwEventRV,
+    protected val baseEventGenerator: BaseEventGenerator = BaseEventGenerator(parent, generatorAction),
+    name: String? = null
+) : ModelElement(parent, name), EventGeneratorIfc by baseEventGenerator,
+    EventGeneratorInitializationCIfc by baseEventGenerator {
 
+    /**
+     * @param parent the parent
+     * @param rateFunction the rate function
+     * @param generatorAction   the listener for generation
+     * @param streamNum the stream number for the underlying NHPP
+     * @param lastRate  the last rate
+     * @param maxNumberOfEvents A long that supplies the maximum number of events to
+     * generate. Each time an event is to be scheduled the maximum number of
+     * events is checked. If the maximum has been reached, then the generator is
+     * turned off. The default is Long.MAX_VALUE. This parameter cannot be
+     * Long.MAX_VALUE when the time until next always returns a value of 0.0
+     * @param timeOfTheLastEvent A double that supplies a time to stop generating
+     * events. When the generator is created, this variable is used to set the
+     * ending time of the generator. Each time an event is to be scheduled the
+     * ending time is checked. If the time of the next event is past this time,
+     * then the generator is turned off and the event won't be scheduled. The
+     * default is Double.POSITIVE_INFINITY.
+     * @param name the name of the generator
+     */
     constructor(
         parent: ModelElement,
         rateFunction: InvertibleCumulativeRateFunctionIfc,
         generatorAction: GeneratorActionIfc,
+        streamNum: Int = 0,
         lastRate: Double = Double.NaN,
-        streamNum: Int,
+        maxNumberOfEvents: Long = Long.MAX_VALUE,
+        timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         name: String? = null
-    ) : this(parent, rateFunction, generatorAction, lastRate, KSLRandom.rnStream(streamNum), name)
-
-    protected val myTBARV: NHPPTimeBtwEventRV = NHPPTimeBtwEventRV(this, rateFunction, lastRate, stream)
-
-    private val myEventGenerator: EventGenerator = EventGenerator(this, generatorAction, myTBARV, myTBARV)
-
-    override fun turnOnGenerator(t: Double) {
-        myEventGenerator.turnOnGenerator(t)
-    }
-
-    override fun turnOnGenerator(r: RandomIfc) {
-        myEventGenerator.turnOnGenerator(r)
-    }
-
-    override fun turnOffGenerator() {
-        myEventGenerator.turnOffGenerator()
-    }
-
-    override val isStarted: Boolean
-        get() = myEventGenerator.isStarted
-
-    override var startOnInitializeOption: Boolean
-        get() = myEventGenerator.startOnInitializeOption
-        set(value) {
-            myEventGenerator.startOnInitializeOption = value
-        }
-
-    override fun suspend() {
-        myEventGenerator.suspend()
-    }
-
-    override val isSuspended: Boolean
-        get() = myEventGenerator.isSuspended
-
-    override fun resume() {
-        myEventGenerator.resume()
-    }
-
-    override val isDone: Boolean
-        get() = myEventGenerator.isDone
-
-    override val maximumNumberOfEvents: Long
-        get() = myEventGenerator.maximumNumberOfEvents
-
-    override val timeBetweenEvents: RandomIfc
-        get() = myEventGenerator.timeBetweenEvents
-
-    override fun setTimeBetweenEvents(timeBtwEvents: RandomIfc, maxNumEvents: Long) {
-        require(timeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
-        myEventGenerator.setTimeBetweenEvents(timeBtwEvents, maxNumEvents)
-    }
-
-    override fun setInitialTimeBetweenEventsAndMaxNumEvents(
-        initialTimeBtwEvents: RandomIfc,
-        initialMaxNumEvents: Long
+    ) : this(
+        parent, generatorAction,
+        NHPPTimeBtwEventRV(parent, rateFunction, lastRate, streamNum),
+        name = name
     ) {
-        require(initialTimeBtwEvents is NHPPTimeBtwEventRV) {"The time between events random variable for the generator must be a NHPPTimeBtwEventRV" }
-        myEventGenerator.setInitialTimeBetweenEventsAndMaxNumEvents(initialTimeBtwEvents, initialMaxNumEvents)
+        baseEventGenerator.endingTime = timeOfTheLastEvent
+        baseEventGenerator.timeUntilFirstEvent = nhppTimeBtwEventRV
+        baseEventGenerator.setTimeBetweenEvents(nhppTimeBtwEventRV, maxNumberOfEvents)
     }
 
-    override val initialTimeUntilFirstEvent: RandomSourceCIfc
-        get() = myEventGenerator.initialTimeUntilFirstEvent
 
-    override val endingTime: Double
-        get() = myEventGenerator.endingTime
-
-    override var initialEndingTime: Double
-        get() = myEventGenerator.initialEndingTime
-        set(value) {
-            myEventGenerator.initialEndingTime = value
-        }
-
-    override val eventCount: Long
-        get() = myEventGenerator.eventCount
-
-    override val initialMaximumNumberOfEvents: Long
-        get() = myEventGenerator.initialMaximumNumberOfEvents
-
-    override val initialTimeBtwEvents: RandomIfc
-        get() = myEventGenerator.initialTimeBtwEvents
-
-    override val isEventPending: Boolean
-        get() = myEventGenerator.isEventPending
 }
