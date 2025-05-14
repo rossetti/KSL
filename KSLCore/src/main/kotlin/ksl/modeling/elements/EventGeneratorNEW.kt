@@ -22,7 +22,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.RVariableIfc
 
 
-open class EventGeneratorNEW private constructor(
+open class EventGeneratorNEW protected constructor(
     parent: ModelElement,
     name: String? = null,
     protected val baseEventGenerator: BaseEventGenerator
