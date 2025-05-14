@@ -3,6 +3,7 @@ package ksl.examples.general.running
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
@@ -74,7 +75,7 @@ class DemoLogging(
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrival, ad, ad)
     private val endServiceEvent = this::endOfService
 
-    private fun arrival(generator: EventGenerator){
+    private fun arrival(generator: EventGeneratorIfc){
         KSL.logger.info { "$time started arrival function" }
         myNS.increment() // new customer arrived
         val arrivingCustomer = QObject()

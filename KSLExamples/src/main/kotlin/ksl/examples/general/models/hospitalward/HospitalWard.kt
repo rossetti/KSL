@@ -18,6 +18,7 @@
 package ksl.examples.general.models.hospitalward
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
@@ -71,11 +72,11 @@ class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, n
             get() = myPostOpStayTime
     }
 
-    private fun noOperationPatientArrival(generator: EventGenerator){
+    private fun noOperationPatientArrival(generator: EventGeneratorIfc){
         myBedWard.receiveNewPatient(NoOpPatient())
     }
 
-    private fun operationPatientArrival(generator: EventGenerator){
+    private fun operationPatientArrival(generator: EventGeneratorIfc){
         myBedWard.receiveNewPatient(OpPatient())
     }
 

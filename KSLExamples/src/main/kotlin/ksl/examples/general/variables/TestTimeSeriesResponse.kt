@@ -1,7 +1,8 @@
 package ksl.examples.general.variables
 
 import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.station.SResource
@@ -90,10 +91,10 @@ class TestTimeSeriesResponse(
     private val myArrivalGenerator: EventGenerator = EventGenerator(
         this, this::arrival, ad, ad
     )
-    val arrivalGenerator: EventGeneratorCIfc
+    val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
-    private fun arrival(generator: EventGenerator) {
+    private fun arrival(generator: EventGeneratorIfc) {
         myNS.increment() // new customer arrived
         val arrivingCustomer = QObject()
         myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer

@@ -1,6 +1,7 @@
 package ksl.examples.general.models
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
@@ -51,7 +52,7 @@ class LKInventoryModel(
     private val myOrderArrivalEvent: OrderArrival = OrderArrival()
 
     private inner class DemandArrival : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             myInvLevel.decrement(myDemandAmount.value)
             myPosInv.value = Math.max(0.0, myInvLevel.value)
             myNegInv.value = -Math.min(0.0, myInvLevel.value)
@@ -86,7 +87,7 @@ class LKInventoryModel(
     }
 
     private inner class InventoryCheck : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             if (myInvLevel.value < myReorderPoint) {
                 val orderSize: Double = myOrderUpToLevel - myInvLevel.value
                 scheduleReplenishment(orderSize)

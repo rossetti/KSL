@@ -18,6 +18,7 @@
 package ksl.examples.general.models
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
@@ -49,14 +50,14 @@ class EventGeneratorCPP(parent: ModelElement, mtba: Double = 1.0, name: String? 
 //        myEventCounter.addCountLimitStoppingAction()
     }
 
-    private fun arrivals(generator: EventGenerator) {
+    private fun arrivals(generator: EventGeneratorIfc) {
         myEventCounter.increment()
         val n = myNumArrivals.value
         myArrivalCounter.increment(n)
     }
 
     private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             myEventCounter.increment()
             val n = myNumArrivals.value
             myArrivalCounter.increment(n)

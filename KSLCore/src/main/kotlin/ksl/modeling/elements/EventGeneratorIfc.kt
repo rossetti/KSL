@@ -187,4 +187,14 @@ interface EventGeneratorIfc {
      */
     val isEventPending: Boolean
 
+    /**
+     * The action for the events for generation
+     */
+    var generatorAction: GeneratorActionIfc
+
+    /**
+     *  Can be used to supply logic to invoke when the generator's
+     *  ending time is finite and the generator is turned off.
+     */
+    var endGeneratorAction: EndGeneratorActionIfc?
 }

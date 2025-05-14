@@ -1,6 +1,6 @@
 package ksl.examples.general.models.conveyors
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.KSLProcess
@@ -85,7 +85,7 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
 
     private val myArrivalGenerator = EntityGenerator(this::Part, tba, tba)
 
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     // define the responses

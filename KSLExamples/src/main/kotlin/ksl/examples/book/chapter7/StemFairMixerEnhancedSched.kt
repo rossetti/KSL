@@ -19,7 +19,9 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.*
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionEventGenerator
 import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
 import ksl.modeling.nhpp.NHPPTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
@@ -98,8 +100,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPPiecewiseRateFunctionTimeBtwEventRV
-//    private val myTBArrivals: RVariableIfc
+    private val rateFunction: PiecewiseConstantRateFunction
 
     private val myJHBuntSchedule : CapacitySchedule = CapacitySchedule(this, 0.0)
     private val myMalWartSchedule : CapacitySchedule = CapacitySchedule(this, 0.0)
@@ -115,8 +116,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
             55.0, 55.0, 60.0, 30.0, 5.0, 5.0
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
-        val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNumber = 1)
+        rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
 //        myTBArrivals = ExponentialRV(2.0, 1)
 
         myJHBuntSchedule.addItem(capacity = 1, duration = 60.0)
@@ -137,7 +137,8 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
 
     }
 
-    private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
+    private val generator = NHPPPiecewiseRateFunctionEventGenerator(this, this::createStudents,
+        rateFunction)
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
     private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")
@@ -175,7 +176,7 @@ class StemFairMixerEnhancedSched(parent: ModelElement, name: String? = null) : P
         myEndTime.value = time
     }
 
-    private fun createStudents(eventGenerator: EventGenerator) {
+    private fun createStudents(generator: EventGeneratorIfc) {
         val student = Student()
         if (student.isMixer) {
             activate(student.mixingStudentProcess)

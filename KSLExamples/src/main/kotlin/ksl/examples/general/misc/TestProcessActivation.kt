@@ -34,7 +34,8 @@ class TestProcessActivation(parent: ModelElement) : ProcessModel(parent, null) {
 
 
     private val activator = ProcessActivator(this::ActivationEntity, initialCountLimit = 3)
-    private val generator = EntityGenerator(this::TestActivator, timeBtwEvents = ConstantRV.ONE)
+    private val generator = EntityGenerator(this::TestActivator, timeUntilTheFirstEntity = ConstantRV.ZERO,
+        timeBtwEvents = ConstantRV.ONE)
 
     private inner class ActivationEntity: Entity() {
 

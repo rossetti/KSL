@@ -97,13 +97,13 @@ open class BaseEventGenerator(
     /**
      * The action for the events for generation
      */
-    var generatorAction: GeneratorActionIfc = generateAction
+    override var generatorAction: GeneratorActionIfc = generateAction
 
     /**
      *  Can be used to supply logic to invoke when the generator's
      *  ending time is finite and the generator is turned off.
      */
-    var endGeneratorAction: EndGeneratorActionIfc? = null
+    override var endGeneratorAction: EndGeneratorActionIfc? = null
 
     /**
      * Determines the priority of the event generator's events The default is

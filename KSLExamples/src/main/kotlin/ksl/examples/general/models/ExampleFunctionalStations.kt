@@ -1,6 +1,7 @@
 package ksl.examples.general.models
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.Model
@@ -35,7 +36,7 @@ class InspectionSystem(
     private var myArrivalRV: RVariableIfc = timeBtwArrivals
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        this,
+        this, GeneratorActionIfc{},
         timeUntilFirstRV = myArrivalRV, timeBtwEventsRV = myArrivalRV
     )
 
@@ -72,7 +73,7 @@ class InspectionSystem(
     private val myInspectDecide = TwoWayByChanceSender(myDecideProbRV)
 
     init {
-        myArrivalGenerator.generatorAction { myInspectionStation.receive(YBox()) }
+        myArrivalGenerator.generatorAction = GeneratorActionIfc { myInspectionStation.receive(YBox()) }
         myAdjustmentStation.exitAction { (it as YBox).numAdjustments++ }
         myInspectionStation.nextReceiver(myInspectDecide)
         myAdjustmentStation.nextReceiver(myInspectionStation)

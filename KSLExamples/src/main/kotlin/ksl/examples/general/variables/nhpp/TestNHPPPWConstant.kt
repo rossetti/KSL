@@ -18,6 +18,7 @@
 package ksl.examples.general.variables.nhpp
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.nhpp.NHPPEventGenerator
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
@@ -37,7 +38,7 @@ class TestNHPPPWConstant(parent: ModelElement, f: PiecewiseRateFunction, name: S
 
 
     init {
-        myNHPPGenerator = NHPPEventGenerator(this, f, myListener)
+        myNHPPGenerator = NHPPEventGenerator(this, myListener, f)
         myPWRF = f
         myCountersFC = ArrayList<Counter>()
         val n: Int = f.numberSegments()
@@ -48,7 +49,7 @@ class TestNHPPPWConstant(parent: ModelElement, f: PiecewiseRateFunction, name: S
     }
 
     protected inner class EventListener : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             val t: Double = time
 
             //System.out.println("event at time: " + t);				
