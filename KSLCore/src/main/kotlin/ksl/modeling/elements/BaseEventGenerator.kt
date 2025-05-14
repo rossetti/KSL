@@ -4,18 +4,19 @@ import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.ConstantValue
 import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.ConstantRV
 
 open class BaseEventGenerator(
     parent: ModelElement,
-    generateAction: GeneratorActionIfc,
-    timeUntilFirstEvent: GetValueIfc,
-    timeBtwEvents: GetValueIfc,
+    generateAction: GeneratorActionIfc? = null,
+    timeUntilFirstEvent: GetValueIfc = ConstantValue(0.0),
+    timeBtwEvents: GetValueIfc = ConstantValue(1.0),
     maxNumberOfEvents: Long = Long.MAX_VALUE,
     timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
     name: String? = null
-) : ModelElement(parent, name), BaseGeneratorIfc, BaseGeneratorTimeBtwEventsIfc, BaseGeneratorCIfc {
+) : ModelElement(parent, name), EventGeneratorIfc, EventGeneratorTimeBtwEventsIfc, EventGeneratorCIfc {
 
     init {
         validateMaxNumEventsAndTimeBtwEvents(timeBtwEvents, maxNumberOfEvents)
@@ -96,7 +97,7 @@ open class BaseEventGenerator(
     /**
      * The action for the events for generation
      */
-    private var generatorAction: GeneratorActionIfc = generateAction
+    private var generatorAction: GeneratorActionIfc? = generateAction
 
     /**
      *  Can be used to supply logic to invoke when the generator's
@@ -287,6 +288,10 @@ open class BaseEventGenerator(
         endGeneratorAction?.endGeneration(this)
     }
 
+    protected fun generate() {
+
+    }
+
     /**
      * Schedules the first event at current time + r.getValue()
      *
@@ -327,7 +332,7 @@ open class BaseEventGenerator(
         override fun action(event: KSLEvent<Nothing>) {
             incrementNumberOfEvents()
             if (!isDone) {
-                generatorAction.generate(this@BaseEventGenerator)
+                generatorAction?.generate(this@BaseEventGenerator) ?: generate()
                 // get the time until next event
                 val t: Double = myTimeBtwEvents.value
                 // check if it is past end time

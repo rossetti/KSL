@@ -75,8 +75,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      */
     protected inner class EntityGenerator<T : Entity>(
         private val entityCreator: () -> T,
-        timeUntilTheFirstEntity: RVariableIfc = ConstantRV.ZERO,
-        timeBtwEvents: RVariableIfc = ConstantRV.POSITIVE_INFINITY,
+        timeUntilTheFirstEntity: RVariableIfc,
+        timeBtwEvents: RVariableIfc,
         maxNumberOfEvents: Long = Long.MAX_VALUE,
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         var activationPriority: Int = KSLEvent.DEFAULT_PRIORITY + 1,

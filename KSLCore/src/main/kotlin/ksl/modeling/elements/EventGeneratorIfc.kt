@@ -17,7 +17,56 @@
  */
 package ksl.modeling.elements
 
+import ksl.utilities.GetValueIfc
 import ksl.utilities.random.rvariable.RVariableIfc
+
+interface EventGeneratorTimeBtwEventsIfc {
+    /**
+     * Controls the time between event random source. Must not always evaluate to
+     * 0.0, if the current setting of the maximum number of events is infinite
+     * (Long.MAX_VALUE).  This is only for the current replication.
+     */
+    val timeBetweenEvents: GetValueIfc
+
+    /**
+     * Sets the time between events and the maximum number of events for the
+     * generator. These two parameters are dependent. The time between events
+     * cannot always evaluate to 0.0 if the maximum number of events is infinite
+     * (Long.MAX_VALUE). This method only changes these parameters for the
+     * current replication. The changes take effect when the next event is
+     * generated. If current number of events that have been generated is
+     * greater than or equal to the supplied maximum number of events, the
+     * generator will be turned off.
+     *
+     * @param timeBtwEvents the time between events
+     * @param maxNumEvents the maximum number of events
+     */
+    fun setTimeBetweenEvents(timeBtwEvents: GetValueIfc, maxNumEvents: Long = Long.MAX_VALUE)
+}
+
+interface EventGeneratorTimeBtwEventsRVIfc {
+    /**
+     * Controls the time between event random source. Must not always evaluate to
+     * 0.0, if the current setting of the maximum number of events is infinite
+     * (Long.MAX_VALUE).  This is only for the current replication.
+     */
+    val timeBetweenEvents: RVariableIfc
+
+    /**
+     * Sets the time between events and the maximum number of events for the
+     * generator. These two parameters are dependent. The time between events
+     * cannot always evaluate to 0.0 if the maximum number of events is infinite
+     * (Long.MAX_VALUE). This method only changes these parameters for the
+     * current replication. The changes take effect when the next event is
+     * generated. If current number of events that have been generated is
+     * greater than or equal to the supplied maximum number of events, the
+     * generator will be turned off.
+     *
+     * @param timeBtwEvents the time between events
+     * @param maxNumEvents the maximum number of events
+     */
+    fun setTimeBetweenEvents(timeBtwEvents: RVariableIfc, maxNumEvents: Long = Long.MAX_VALUE)
+}
 
 /** An interface to define how event generators operate.  The primary
  * subclass is EventGenerator.  Of particular note is the use of
@@ -36,7 +85,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *
  * @author rossetti
  */
-interface EventGeneratorIfc : EventGeneratorCIfc {
+interface EventGeneratorIfc {
     /**
      * If the generator was not started upon initialization at the beginning of
      * a replication, then this method can be used to start the generator
@@ -67,7 +116,7 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      *
      * @param r The time until the generator should be turned on
      */
-    fun turnOnGenerator(r: RVariableIfc){
+    fun turnOnGenerator(r: GetValueIfc){
         turnOnGenerator(r.value)
     }
 
@@ -120,28 +169,6 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
     val maximumNumberOfEvents: Long
 
     /**
-     * Controls the time between event random source. Must not always evaluate to
-     * 0.0, if the current setting of the maximum number of events is infinite
-     * (Long.MAX_VALUE).  This is only for the current replication.
-     */
-    val timeBetweenEvents: RVariableIfc
-
-    /**
-     * Sets the time between events and the maximum number of events for the
-     * generator. These two parameters are dependent. The time between events
-     * cannot always evaluate to 0.0 if the maximum number of events is infinite
-     * (Long.MAX_VALUE). This method only changes these parameters for the
-     * current replication. The changes take effect when the next event is
-     * generated. If current number of events that have been generated is
-     * greater than or equal to the supplied maximum number of events, the
-     * generator will be turned off.
-     *
-     * @param timeBtwEvents the time between events
-     * @param maxNumEvents the maximum number of events
-     */
-    fun setTimeBetweenEvents(timeBtwEvents: RVariableIfc, maxNumEvents: Long = Long.MAX_VALUE)
-
-    /**
      * Controls the ending time for generating events for the current replication. A
      * new ending time will be applied to the generator. If this change results
      * in an ending time that is less than the current time, the generator will
@@ -159,4 +186,6 @@ interface EventGeneratorIfc : EventGeneratorCIfc {
      * true if an event is scheduled to occur for the generator
      */
     val isEventPending: Boolean
+
+    fun generate()
 }
