@@ -1,6 +1,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.nhpp.NHPPEventGenerator
 import ksl.modeling.nhpp.PiecewiseLinearRateFunction
 import ksl.modeling.nhpp.PiecewiseRateFunction
@@ -40,7 +41,7 @@ class NHPPPWLinearExample(
 ) : ModelElement(parent, name) {
 
     private val myPWRF: PiecewiseRateFunction = f
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, this::arrivals, streamNumber = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, this::arrivals, streamNum = 1)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
 
     init {
@@ -51,7 +52,7 @@ class NHPPPWLinearExample(
         }
     }
 
-    private fun arrivals(generator: EventGenerator){
+    private fun arrivals(generator: EventGeneratorIfc){
         val t: Double = time
         val i: Int = myPWRF.findTimeInterval(t)
         myCountersFC[i].increment()

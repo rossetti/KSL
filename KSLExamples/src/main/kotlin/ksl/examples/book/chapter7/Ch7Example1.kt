@@ -1,6 +1,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
@@ -55,7 +56,7 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
     val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
@@ -95,7 +96,7 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
     val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")

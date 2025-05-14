@@ -126,7 +126,7 @@ class StemFairMixerEnhancedWithMovement(parent: ModelElement, name: String? = nu
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         val f = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNumber = 1)
+        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, f, streamNum = 1)
 //        myTBArrivals = ExponentialRV(2.0, 1)
     }
 

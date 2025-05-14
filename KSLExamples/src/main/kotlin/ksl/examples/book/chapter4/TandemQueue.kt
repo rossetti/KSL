@@ -19,6 +19,7 @@
 package ksl.examples.book.chapter4
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
@@ -63,7 +64,7 @@ class TandemQueue(
         myStation2.nextReceiver(ExitSystem())
     }
 
-    private fun arrivalEvent(generator: EventGenerator) {
+    private fun arrivalEvent(generator: EventGeneratorIfc) {
         val customer = QObject()
         myNS.increment()
         myStation1.receive(customer)
