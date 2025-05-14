@@ -82,8 +82,8 @@ fun runModel1() {
 
     // set the parameters of the experiment
     // set the parameters of the experiment
-    s.numberOfReplications = 2
-    s.lengthOfReplication = 100.0
+    s.numberOfReplications = 200
+    s.lengthOfReplication = 50.0
 
     // tell the simulation to run
     s.simulate()
