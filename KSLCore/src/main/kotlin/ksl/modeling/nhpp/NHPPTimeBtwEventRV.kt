@@ -123,58 +123,60 @@ open class NHPPTimeBtwEventRV(
     }
 
     final override val value: Double
-        get() = value()
+        get() {
+            if (myUseLastRateFlag == true) {
+                // if this option is on the exponential distribution
+                // should have been set to use the last rate
+                // just return the time between arrivals
+                return randomSource.value
+            }
+            val t: Double = time // the current time
+            //System.out.println("Current time = " + t);
+            // exponential time btw events for rate 1 PP
+            val x: Double = randomSource.value
+            // compute the time of the next event on the rate 1 PP scale
+            val tppne = myPPTime + x
+            // tne cannot go past the rate range of the cumulative rate function
+            // if this happens then the corresponding time will be past the
+            // time range of the rate function
+            val crul = myRateFunction.cumulativeRateRangeUpperLimit
+            //System.out.println("tppne = " + tppne);
+            //System.out.println("crul =" + crul);
+            if (tppne >= crul) {
+                // compute the residual into the next appropriate cycle
+                val n = floor(tppne / crul).toInt()
+                val residual = tppne.IEEErem(crul)
+                //System.out.println("residual = " + residual);
+                // must either repeat or use constant rate forever
+                if (myRepeatFlag == false) {
+                    // a last rate has been set, use constant rate forever
+                    myUseLastRateFlag = true
+                    //System.out.println("setting use last rate flag");
+                    // set source for last rate, will be used from now on
+                    // ensure new rv uses same stream with new parameter
+                    //System.out.printf("%f > setting the rate to last rate = %f %n", getTime(), myLastRate);
+                    //TODO seems unnecessary to create a new one each time, maybe use lazy only if myLastRate is not NaN
+                    val e = ExponentialRV(1.0 / myLastRate, myRate1Expo.streamNumber, streamProvider)
+                    // update the random source
+                    randomSource = e
+                    // need to use the residual amount, to get the time of the next event
+                    // using the inverse function for the final constant rate
+                    val tone = myRateFunction.timeRangeUpperLimit + residual / myLastRate
+                    //System.out.println("computing tone using residual: tone = " + tone);
+                    return tone - t
+                }
+                //  set up to repeat
+                myPPTime = residual
+                myNumCycles = myNumCycles + n
+                //			myCycleStartTime = myRateFunction.getTimeRangeUpperLimit();
+            } else {
+                myPPTime = tppne
+            }
+            val nt = myCycleLength * myNumCycles + myRateFunction.inverseCumulativeRate(myPPTime)
+            return nt - t
+        }
 
     override fun value(): Double {
-        if (myUseLastRateFlag == true) {
-            // if this option is on the exponential distribution
-            // should have been set to use the last rate
-            // just return the time between arrivals
-            return randomSource.value
-        }
-        val t: Double = time // the current time
-        //System.out.println("Current time = " + t);
-        // exponential time btw events for rate 1 PP
-        val x: Double = randomSource.value
-        // compute the time of the next event on the rate 1 PP scale
-        val tppne = myPPTime + x
-        // tne cannot go past the rate range of the cumulative rate function
-        // if this happens then the corresponding time will be past the
-        // time range of the rate function
-        val crul = myRateFunction.cumulativeRateRangeUpperLimit
-        //System.out.println("tppne = " + tppne);
-        //System.out.println("crul =" + crul);
-        if (tppne >= crul) {
-            // compute the residual into the next appropriate cycle
-            val n = floor(tppne / crul).toInt()
-            val residual = tppne.IEEErem(crul)
-            //System.out.println("residual = " + residual);
-            // must either repeat or use constant rate forever
-            if (myRepeatFlag == false) {
-                // a last rate has been set, use constant rate forever
-                myUseLastRateFlag = true
-                //System.out.println("setting use last rate flag");
-                // set source for last rate, will be used from now on
-                // ensure new rv uses same stream with new parameter
-                //System.out.printf("%f > setting the rate to last rate = %f %n", getTime(), myLastRate);
-                //TODO seems unnecessary to create a new one each time, maybe use lazy only if myLastRate is not NaN
-                val e = ExponentialRV(1.0 / myLastRate, myRate1Expo.streamNumber, streamProvider)
-                // update the random source
-                randomSource = e
-                // need to use the residual amount, to get the time of the next event
-                // using the inverse function for the final constant rate
-                val tone = myRateFunction.timeRangeUpperLimit + residual / myLastRate
-                //System.out.println("computing tone using residual: tone = " + tone);
-                return tone - t
-            }
-            //  set up to repeat
-            myPPTime = residual
-            myNumCycles = myNumCycles + n
-            //			myCycleStartTime = myRateFunction.getTimeRangeUpperLimit();
-        } else {
-            myPPTime = tppne
-        }
-        val nt = myCycleLength * myNumCycles + myRateFunction.inverseCumulativeRate(myPPTime)
-        return nt - t
+        return value
     }
 }
