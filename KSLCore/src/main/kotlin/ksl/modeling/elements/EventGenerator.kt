@@ -119,6 +119,9 @@ open class EventGenerator protected constructor(
         )
     )
 
+    //TODO this implementation is not setting  up the BaseGenerator to use the random
+    // variable instances that are from the model's stream provider!
+
     /**
      * A RandomVariable that uses the time until first random source
      */

@@ -43,8 +43,8 @@ fun main() {
     sim.lengthOfReplication = 20.0
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(sim, 1)
-//    dtp.arrivalGenerator.setInitialEventTimeProcesses(ExponentialRV(6.0, 1))
-//    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+    dtp.arrivalGenerator.setInitialEventTimeProcesses(ExponentialRV(6.0, 1))
+    dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
 //    val kslDatabaseObserver = KSLDatabaseObserver(sim)
 //    val testDb = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(sim)
     sim.simulate()
