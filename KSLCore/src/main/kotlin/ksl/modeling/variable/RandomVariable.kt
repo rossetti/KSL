@@ -123,7 +123,7 @@ class RandomVariable(
         }
 
     override fun sample(): Double {
-        return randomSource.sample()
+        return value()
     }
 
     override fun value(): Double {

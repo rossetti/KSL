@@ -34,6 +34,8 @@ open class BaseEventGenerator(
         }
     }
 
+//    protected var myInitialTimeUntilFirstEvent : GetValueIfc = timeUntilFirstEvent
+
     override var timeUntilFirstEvent: GetValueIfc = timeUntilFirstEvent
         set(value) {
             require(model.isNotRunning) { "The model should not be running when changing the time until the first event." }
@@ -260,6 +262,7 @@ open class BaseEventGenerator(
         myMaxNumEvents = myInitialMaxNumEvents
         // set the time between events based on the initial setting for replications
         myTimeBtwEvents = myInitialTimeBtwEvents
+
         if (startOnInitializeOption) {
             if (myMaxNumEvents > 0) {
                 scheduleFirstEvent(timeUntilFirstEvent)
