@@ -79,10 +79,8 @@ open class EventGenerator protected constructor(
         maxNumberOfEvents: Long = Long.MAX_VALUE,
         timeOfTheLastEvent: Double = Double.POSITIVE_INFINITY,
         name: String? = null
-    ) : this(
-        parent, name, BaseEventGenerator(parent, generateAction, timeUntilFirstRV,
-            timeBtwEventsRV, maxNumberOfEvents, timeOfTheLastEvent
-        )
+    ) : this(parent, name, BaseEventGenerator(parent, generateAction, timeUntilFirstRV,
+            timeBtwEventsRV, maxNumberOfEvents, timeOfTheLastEvent)
     )
 
     /**
