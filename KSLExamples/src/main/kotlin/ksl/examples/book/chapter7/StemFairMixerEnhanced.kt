@@ -24,11 +24,9 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionEventGenerator
-import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionTimeBtwEventRV
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
@@ -121,12 +119,10 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-//        myTBArrivals = NHPPPiecewiseRateFunctionTimeBtwEventRV(this, rateFunction, streamNum = 1)
-//        myTBArrivals = ExponentialRV(2.0, 1)
     }
 
     private val generator = NHPPPiecewiseRateFunctionEventGenerator(this, this::createStudents,
-        rateFunction = rateFunction)
+        rateFunction = rateFunction, streamNum = 1)
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
     private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")

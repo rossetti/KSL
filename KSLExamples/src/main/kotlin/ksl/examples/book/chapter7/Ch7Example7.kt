@@ -7,9 +7,9 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.print
 
 fun main() {
- //   baseCase()
+    baseCase()
 //    infiniteCapacityCase()
-   scheduledCase()
+//   scheduledCase()
 }
 
 fun baseCase() {
