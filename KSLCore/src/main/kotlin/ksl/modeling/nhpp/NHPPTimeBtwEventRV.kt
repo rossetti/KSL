@@ -44,10 +44,17 @@ open class NHPPTimeBtwEventRV(
 
     //ExponentialRV(1.0, stream)
 //TODO this is different
-    private val myRate1Expo: RandomVariable = RandomVariable(this, ExponentialRV(1.0, streamNum, streamProvider))
+    override val streamNumber: Int
+        get() = myRate1Expo.streamNumber
+
+    private val myRate1Expo = ExponentialRV(1.0, streamNum, streamProvider)
+    private val myStream
+        get() = streamProvider.rnStream(streamNumber)
+
+//    private val myRate1Expo: RandomVariable = RandomVariable(this, ExponentialRV(1.0, streamNum, streamProvider))
     //   private val myRNStream: RNStreamIfc = myRate1Expo.rnStream
 
-    private var randomSource: SampleIfc = myRate1Expo //TODO this is different
+//    private var randomSource: SampleIfc = myRate1Expo //TODO this is different
 
     /** Supplied to invert the rate function.
      *
@@ -121,8 +128,6 @@ open class NHPPTimeBtwEventRV(
         myPPTime = myCycleStartTime
         myNumCycles = 0
         myUseLastRateFlag = false
-        // make sure that it starts with the rate 1 process
-        randomSource = myRate1Expo //TODO this is different
     }
 
 
@@ -131,12 +136,12 @@ open class NHPPTimeBtwEventRV(
             // if this option is on the exponential distribution
             // should have been set to use the last rate
             // just return the time between arrivals
-            return randomSource.sample() //TODO this is different
+            return myStream.rExponential(1.0 / myLastRate)
         }
         val t: Double = time // the current time
         //System.out.println("Current time = " + t);
         // exponential time btw events for rate 1 PP
-        val x: Double = randomSource.sample() //TODO this is different
+        val x = myRate1Expo.value
         // compute the time of the next event on the rate 1 PP scale
         val tppne = myPPTime + x
         // tne cannot go past the rate range of the cumulative rate function
@@ -158,11 +163,6 @@ open class NHPPTimeBtwEventRV(
                 // set source for last rate, will be used from now on
                 // ensure new rv uses same stream with new parameter
                 //System.out.printf("%f > setting the rate to last rate = %f %n", getTime(), myLastRate);
-                //TODO seems unnecessary to create a new one each time, maybe use lazy only if myLastRate is not NaN
-                val e =
-                    ExponentialRV(1.0 / myLastRate, myRate1Expo.streamNumber, streamProvider) //TODO this is different
-                // update the random source
-                randomSource = e
                 // need to use the residual amount, to get the time of the next event
                 // using the inverse function for the final constant rate
                 val tone = myRateFunction.timeRangeUpperLimit + residual / myLastRate
@@ -180,9 +180,6 @@ open class NHPPTimeBtwEventRV(
         return nt - t
     }
 
-    override val streamNumber: Int
-        get() = myRate1Expo.streamNumber
-
     override fun sample(): Double {
         return value()
     }
@@ -190,7 +187,6 @@ open class NHPPTimeBtwEventRV(
     override fun value(): Double {
         previousValue = generate()
         notifyModelElementObservers(Status.UPDATE)
-        //println("Generated value $previousValue")
         return previousValue
     }
 
