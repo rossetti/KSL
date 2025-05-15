@@ -38,7 +38,7 @@ class TestNHPPPWConstant(parent: ModelElement, f: PiecewiseRateFunction, name: S
 
 
     init {
-        myNHPPGenerator = NHPPEventGenerator(this, myListener, f)
+        myNHPPGenerator = NHPPEventGenerator(this, myListener, f, streamNum = 3)
         myPWRF = f
         myCountersFC = ArrayList<Counter>()
         val n: Int = f.numberSegments()
