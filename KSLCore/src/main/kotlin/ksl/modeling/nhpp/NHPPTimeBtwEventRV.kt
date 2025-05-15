@@ -17,6 +17,7 @@
  */
 package ksl.modeling.nhpp
 
+import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -40,26 +41,16 @@ open class NHPPTimeBtwEventRV(
     lastRate: Double = Double.NaN,
     streamNum: Int = 0,
     name: String? = null
-) : ModelElement(parent, name), StreamNumberIfc, SampleIfc, GetValueIfc, PreviousValueIfc { //TODO this is different
+) : ModelElement(parent, name), StreamNumberIfc, SampleIfc,
+    GetValueIfc, PreviousValueIfc, RandomElementIfc {
 
-    //ExponentialRV(1.0, stream)
-//TODO this is different
+    private val myRate1Expo = ExponentialRV(1.0, streamNum, streamProvider)
+
     override val streamNumber: Int
         get() = myRate1Expo.streamNumber
 
-    private val myRate1Expo = ExponentialRV(1.0, streamNum, streamProvider)
     private val myStream
         get() = streamProvider.rnStream(streamNumber)
-
-//    private val myRate1Expo: RandomVariable = RandomVariable(this, ExponentialRV(1.0, streamNum, streamProvider))
-    //   private val myRNStream: RNStreamIfc = myRate1Expo.rnStream
-
-//    private var randomSource: SampleIfc = myRate1Expo //TODO this is different
-
-    /** Supplied to invert the rate function.
-     *
-     */
-    private var myRateFunction: InvertibleCumulativeRateFunctionIfc = rateFunction
 
     /** If supplied and the repeat flag is false then this rate will
      * be used after the range of the rate function has been passed
@@ -77,6 +68,11 @@ open class NHPPTimeBtwEventRV(
      *
      */
     private var myCycleLength = 0.0
+
+    /** Supplied to invert the rate function.
+     *
+     */
+    private var myRateFunction: InvertibleCumulativeRateFunctionIfc = rateFunction
 
     init {
         if (!lastRate.isNaN()) {
@@ -112,15 +108,17 @@ open class NHPPTimeBtwEventRV(
      */
     private var myUseLastRateFlag = false
 
-    //TODO need to fix the setting of the rate function
-
     /** the rate function for the random variable.
      *
      */
     var rateFunction: InvertibleCumulativeRateFunctionIfc
         get() = myRateFunction
         set(rateFunction) {
+            require(model.isNotRunning) {"The NHPP rate function cannot be changed while the model is running"}
             myRateFunction = rateFunction
+            if (myRepeatFlag == true) {
+                myCycleLength = myRateFunction.timeRangeUpperLimit - myRateFunction.timeRangeLowerLimit
+            }
         }
 
     final override fun initialize() {
@@ -129,7 +127,6 @@ open class NHPPTimeBtwEventRV(
         myNumCycles = 0
         myUseLastRateFlag = false
     }
-
 
     private fun generate(): Double {
         if (myUseLastRateFlag == true) {
@@ -192,4 +189,32 @@ open class NHPPTimeBtwEventRV(
 
     override var previousValue: Double = 0.0
         protected set
+
+    override fun resetStartStream() {
+        myRate1Expo.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        myRate1Expo.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        myRate1Expo.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = myRate1Expo.antithetic
+        set(value) {
+            myRate1Expo.antithetic = value
+        }
+    override var advanceToNextSubStreamOption: Boolean
+        get() = myRate1Expo.advanceToNextSubStreamOption
+        set(value) {
+            myRate1Expo.advanceToNextSubStreamOption = value
+        }
+    override var resetStartStreamOption: Boolean
+        get() = myRate1Expo.resetStartStreamOption
+        set(value) {
+            myRate1Expo.resetStartStreamOption = value
+        }
 }
