@@ -90,7 +90,8 @@ class DriveThroughPharmacyWithQ(
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(),
+        ExponentialRV(6.0, 1, streamProvider), ExponentialRV(6.0, 1, streamProvider))
     val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
