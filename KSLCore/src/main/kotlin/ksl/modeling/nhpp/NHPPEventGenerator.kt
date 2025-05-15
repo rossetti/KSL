@@ -70,10 +70,8 @@ open class NHPPEventGenerator protected constructor(
         name = name
     ) {
         baseEventGenerator.initialEndingTime = timeOfTheLastEvent
-//        baseEventGenerator.endingTime = timeOfTheLastEvent
         baseEventGenerator.timeUntilFirstEvent = nhppTimeBtwEventRV
         baseEventGenerator.initialTimeBtwEvents = nhppTimeBtwEventRV
-//        baseEventGenerator.setTimeBetweenEvents(nhppTimeBtwEventRV, maxNumberOfEvents)
         baseEventGenerator.setInitialTimeBetweenEventsAndMaxNumEvents(nhppTimeBtwEventRV, maxNumberOfEvents)
     }
 
