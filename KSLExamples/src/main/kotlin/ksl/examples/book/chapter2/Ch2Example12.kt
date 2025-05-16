@@ -35,7 +35,7 @@ fun main() {
     // cdf is the cumulative distribution function over the values
     val cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
     //create a discrete empirical random variable
-    val n1 = DEmpiricalRV(values, cdf)
+    val n1 = DEmpiricalRV(values, cdf, streamNum = 1)
     println(n1)
     print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {

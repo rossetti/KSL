@@ -28,11 +28,12 @@ import ksl.utilities.random.rvariable.MixtureRV
  */
 fun main() {
     // rvs is the list of random variables for the mixture
-    val rvs = listOf(ExponentialRV(1.5), ExponentialRV(1.1))
+    val rvs = listOf(ExponentialRV(1.5, streamNum = 1),
+        ExponentialRV(1.1, streamNum = 1))
     // cdf is the cumulative distribution function over the random variables
     val cdf = doubleArrayOf(0.7, 1.0)
     //create a mixture random variable
-    val he = MixtureRV(rvs, cdf)
+    val he = MixtureRV(rvs, cdf, streamNum = 1)
     print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
         print(String.format("%3d %15f %n", i, he.value))
