@@ -39,8 +39,8 @@ class RVFunction(
     name: String? = null
 ) : RVariable(streamNum, streamProvider, name) {
 
-    private val first = theFirst.instance()
-    private val second = theSecond.instance()
+    private val first = theFirst.instance(streamNum)
+    private val second = theSecond.instance(streamNum)
     private val transform = theTransform
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {

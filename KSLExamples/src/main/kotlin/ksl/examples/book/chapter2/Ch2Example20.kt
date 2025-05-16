@@ -29,9 +29,9 @@ import ksl.utilities.statistic.Statistic
  *  Erlang random variable via convolution.
  */
 fun main(){
-    var erlang: RVariableIfc = ExponentialRV(10.0)
+    var erlang: RVariableIfc = ExponentialRV(10.0, streamNum = 1)
     for(i in 1..4) {
-        erlang = erlang + ExponentialRV(10.0)
+        erlang = erlang + ExponentialRV(10.0, streamNum = 1)
     }
     val sample = erlang.sample(1000)
     val stats = Statistic(sample)

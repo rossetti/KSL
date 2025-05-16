@@ -30,13 +30,13 @@ import ksl.utilities.random.rvariable.NewAntitheticInstanceIfc
 /** A DPopulation is a population of doubles that can be sampled from and permuted.
  * @author rossetti
  * @param elements the elements to sample from
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
 class DPopulation(
     elements: DoubleArray,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : RandomIfc, SampleIfc, ParametersIfc, IdentityIfc by Identity(name), NewAntitheticInstanceIfc {
@@ -44,7 +44,7 @@ class DPopulation(
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)

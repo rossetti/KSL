@@ -58,7 +58,7 @@ class TruncatedRV(
         distribution: ContinuousDistributionIfc,
         distDomain: Interval = distribution.domain(),
         truncInterval: Interval,
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
     ) : this(
@@ -67,7 +67,7 @@ class TruncatedRV(
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
-        streamNumber, streamProvider, name
+        streamNum, streamProvider, name
     )
 
     private val myDistribution: InvertibleCDFIfc = distribution

@@ -38,7 +38,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param proposalDistribution the proposal distribution for generating variates that could be rejected
  * @param majorizingConstant the majorizing constant for the rejection process
  * @param pdf the PDF from which random variates are needed
- * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
@@ -46,10 +46,10 @@ class AcceptanceRejectionRV(
     val proposalDistribution: ContinuousDistributionIfc,
     val majorizingConstant: Double,
     val pdf: PDFIfc,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc  = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNumber, streamProvider, name) {
+) : RVariable(streamNum, streamProvider, name) {
     init {
         require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
