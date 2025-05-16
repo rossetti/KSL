@@ -28,7 +28,7 @@ import ksl.utilities.statistic.IntegerFrequency
  */
 fun main() {
     val f = IntegerFrequency(name = "Frequency Demo")
-    val bn = BinomialRV(0.5, 100)
+    val bn = BinomialRV(0.5, 100, streamNum = 2)
     val sample = bn.sample(10000)
     f.collect(sample)
     println(f)

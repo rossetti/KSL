@@ -8,7 +8,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 fun main() {
     val values = doubleArrayOf(5.0, 10.0, 40.0, 45.0, 50.0, 55.0, 60.0)
     val cdf = doubleArrayOf(0.1, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0)
-    val dCDF = DEmpiricalRV(values, cdf)
+    val dCDF = DEmpiricalRV(values, cdf, streamNum = 2)
     val nv = NewsVendor(dCDF)
     val exp = MCExperiment(nv)
     exp.desiredHWErrorBound = 0.01

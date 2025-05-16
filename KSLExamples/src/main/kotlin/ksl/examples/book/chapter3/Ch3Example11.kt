@@ -27,7 +27,7 @@ import ksl.utilities.statistic.Statistic
  * This example illustrates the simulation of a simple inspection process.
  */
 fun main() {
-    val itemRV = BernoulliRV(probOfSuccess = 0.15)
+    val itemRV = BernoulliRV(probOfSuccess = 0.15, streamNum = 2)
     val itemsPerBox = 4
     val stat = Statistic("Num Until Rejection")
     val sampleSize = 100

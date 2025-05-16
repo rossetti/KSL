@@ -49,7 +49,7 @@ class RVUFunction private constructor (
 
     //TODO how to handle the case of the rv being a ConstantRV?
     init {
-        require(rv !is ConstantRV ) {"A constant random variable cannot be transform"}
+        require(rv !is ConstantRV ) {"A constant random variable cannot be transformed."}
     }
     private val first = rv.instance(streamNum, streamProvider)
     private val transform = theTransform
