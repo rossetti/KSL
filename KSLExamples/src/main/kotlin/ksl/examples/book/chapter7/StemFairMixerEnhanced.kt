@@ -99,6 +99,8 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
+    private val myNumArrivals = Counter(this, "TotalNumberArrivals")
+
     private val rateFunction: PiecewiseConstantRateFunction
 //    private val myTBArrivals: RVariableIfc
 
@@ -157,6 +159,7 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
     }
 
     private fun createStudents(generator: EventGeneratorIfc) {
+        myNumArrivals.increment()
         val student = Student()
         if (student.isMixer) {
             activate(student.mixingStudentProcess)
