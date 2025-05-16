@@ -28,23 +28,63 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param theTransform the functional transformation using (first, second) to produce a double
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
- * @param name an optional name
  */
-class RVFunction(
+class RVFunction private constructor (
     theFirst: RVariableIfc,
     theSecond: RVariableIfc,
     theTransform: ((f: Double, s: Double) -> Double) = { f: Double, s: Double -> f + s },
-    streamNum: Int = 0,
-    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
-    name: String? = null
-) : RVariable(streamNum, streamProvider, name) {
+    streamNum: Int,
+    streamProvider: RNStreamProviderIfc
+) : RVariable(streamNum, streamProvider, null) {
 
-    private val first = theFirst.instance(streamNum)
-    private val second = theSecond.instance(streamNum)
+    /**
+     *  This represents a bi-variate functional. The stream number and provider
+     *  are determined by the first random variable.
+     *
+     * @param theFirst the first random variable in the function mapping
+     * @param theSecond the second random variable in the function mapping
+     * @param theTransform the functional transformation using (first, second) to produce a double
+     */
+    constructor(
+        theFirst: RVariableIfc,
+        theSecond: RVariableIfc,
+        theTransform: ((f: Double, s: Double) -> Double) = { f: Double, s: Double -> f + s },
+    ) : this(theFirst, theSecond, theTransform, theFirst.streamNumber, theFirst.streamProvider)
+
+    /**
+     *  This represents a bi-variate functional. The stream number and provider
+     *  are determined by the non-constant random variable.
+     *
+     * @param theFirst the first random variable in the function mapping
+     * @param theSecond the second random variable in the function mapping
+     * @param theTransform the functional transformation using (first, second) to produce a double
+     */
+    constructor(
+        theFirst: ConstantRV,
+        theSecond: RVariableIfc,
+        theTransform: ((f: Double, s: Double) -> Double) = { f: Double, s: Double -> f + s },
+    ) : this(theFirst, theSecond, theTransform, theSecond.streamNumber, theSecond.streamProvider)
+
+    private val first : RVariableIfc
+    private val second : RVariableIfc
+
+    init {
+        first = if (theFirst is ConstantRV){
+            theFirst
+        } else {
+            theFirst.instance(streamNum, streamProvider)
+        }
+        second = if (theSecond is ConstantRV){
+            theSecond
+        } else {
+            theSecond.instance(streamNum, streamProvider)
+        }
+    }
+
     private val transform = theTransform
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
-        return RVFunction(first, second, transform, streamNum, rnStreamProvider, name)
+        return RVFunction(first, second, transform, streamNum, rnStreamProvider)
     }
 
     override fun generate(): Double {
