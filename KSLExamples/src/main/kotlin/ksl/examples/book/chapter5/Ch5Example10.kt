@@ -49,6 +49,7 @@ fun buildScenarios() : List<Scenario> {
     dtpModel.lengthOfReplication = 20000.0
     dtpModel.lengthOfReplicationWarmUp = 5000.0
     val dtp = DriveThroughPharmacyWithQ(dtpModel, name = "DTP")
+
     val sim4Inputs = mapOf(
         "DTP.numPharmacists" to 2.0,
     )
