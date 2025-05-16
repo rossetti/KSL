@@ -100,7 +100,7 @@ class DriveThroughPharmacyWithQ(
 
     private inner class Arrivals : GeneratorActionIfc {
         override fun generate(generator: EventGeneratorIfc) {
-            println("$time > arriving customer")
+           // println("$time > arriving customer")
             myNS.increment() // new customer arrived
             val arrivingCustomer = QObject()
             myInQ.value = myWaitingQ.numInQ.value.toInt()

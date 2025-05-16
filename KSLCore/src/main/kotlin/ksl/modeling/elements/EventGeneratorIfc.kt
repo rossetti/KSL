@@ -190,7 +190,7 @@ interface EventGeneratorIfc {
     /**
      * The action for the events for generation
      */
-    var generatorAction: GeneratorActionIfc
+    var generatorAction: GeneratorActionIfc?
 
     /**
      *  Can be used to supply logic to invoke when the generator's

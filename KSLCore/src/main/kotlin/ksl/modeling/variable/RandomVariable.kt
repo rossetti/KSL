@@ -115,10 +115,10 @@ class RandomVariable(
     override var initialRandomSource: RVariableIfc = randomSource
         set(value) {
             require(model.isNotRunning) {"The initial random source cannot be changed during a replication"}
-            field = if (value.streamProvider == streamProvider){
-                value
-            } else {
+            field = if (value.streamProvider != streamProvider) {
                 value.instance(value.streamNumber, streamProvider)
+            } else {
+                value
             }
         }
 
