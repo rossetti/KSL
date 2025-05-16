@@ -29,7 +29,7 @@ import ksl.utilities.statistic.Histogram
  * and use it to collect statistics on a randomly generated sample.
  */
 fun main() {
-    val d = ExponentialRV(2.0)
+    val d = ExponentialRV(2.0, streamNum = 1)
     val data = d.sample(1000)
     val ch = CachedHistogram()
     for (x in data) {
