@@ -30,17 +30,19 @@ import ksl.utilities.statistics
  */
 fun main(){
     // define a lognormal random variable, y
-    val x = NormalRV(2.0, 5.0)
+    val x = NormalRV(2.0, 5.0, streamNum = 1)
     val y = exp(x)
     // generate from y
+    println("stream number = ${y.streamNumber}")
     val ySample = y.sample(1000)
     println(ySample.statistics())
     // define a beta random variable in terms of gamma
     val alpha1 = 2.0
     val alpha2 = 5.0
-    val y1 = GammaRV(alpha1, 1.0)
+    val y1 = GammaRV(alpha1, 1.0, streamNum = 2)
     val y2 = GammaRV(alpha2, 1.0)
     val betaRV = y1/(y1+y2)
     val betaSample = betaRV.sample(500)
+    println("stream number = ${betaRV.streamNumber}")
     println(betaSample.statistics())
 }
