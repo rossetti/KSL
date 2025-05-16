@@ -15,7 +15,7 @@ fun main(){
     val model = Model("Drive Through Pharmacy")
     // add DriveThroughPharmacy to the main model
     val dtp = DriveThroughPharmacyWithQ(model, 1)
-    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(6.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(1.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(0.7, 2)
 
     val rvWelch = WelchFileObserver(dtp.systemTime, 1.0)
