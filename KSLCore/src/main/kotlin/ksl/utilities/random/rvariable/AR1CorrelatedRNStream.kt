@@ -30,22 +30,28 @@ import ksl.utilities.random.rng.RNStreamIfc
  * the correlation matching problem.
  */
 class AR1CorrelatedRNStream(
-    lag1Corr: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    val lag1Corr: Double,
+    private val stream: RNStreamIfc = KSLRandom.nextRNStream(),
 ) : RNStreamIfc by stream {
+    private var myX: Double = 0.0
+    private val errorVariance: Double
 
-    private val myAR1NormalRV = AR1NormalRV(lag1Corr = lag1Corr, stream = stream)
-    private var myPrevU : Double = Double.NaN
+    init {
+        require( (-1.0 < lag1Corr) && (lag1Corr < 1.0)){ "The correlation must be (-1,1)" }
+        // generate the first value for the process N(mean, variance)
+        myX = KSLRandom.rNormal(stream)
+        errorVariance = (1.0 - lag1Corr * lag1Corr)
+    }
 
-    val ar1LagCorr
-        get() = myAR1NormalRV.lag1Corr
+    private var myPrevU: Double = Double.NaN
 
     override val previousU: Double
         get() = myPrevU
 
     override fun randU01(): Double {
-        val z = myAR1NormalRV.value
-        val u = Normal.stdNormalCDF(z)
+        val e = KSLRandom.rNormal(0.0, errorVariance, stream)
+        myX = lag1Corr * myX + e
+        val u = Normal.stdNormalCDF(myX)
         myPrevU = u
         return u
     }

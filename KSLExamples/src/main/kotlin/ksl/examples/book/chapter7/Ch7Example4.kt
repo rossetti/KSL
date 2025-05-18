@@ -1,6 +1,6 @@
 package ksl.examples.book.chapter7
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -60,7 +60,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     private val myRepair: ResourceWithQ = ResourceWithQ(this, "Repair", capacity = 3)
 
     // define steps to represent a plan
-    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomIfc)
+    inner class TestPlanStep(val resource: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans
     private val testPlan1 = listOf(
@@ -88,7 +88,7 @@ class TestAndRepairShop(parent: ModelElement, name: String? = null) : ProcessMod
     // define the random variables
     private val tba = ExponentialRV(20.0)
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     // define the responses

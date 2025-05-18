@@ -5,7 +5,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.addConstant
 import ksl.utilities.io.write
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import org.hipparchus.linear.CholeskyDecomposition
 import org.hipparchus.linear.MatrixUtils
 import kotlin.math.sqrt
@@ -14,25 +14,32 @@ import kotlin.math.sqrt
  * Generations multi-dimensional normal random variates
  * @param means       the desired mean of the random variable, must not be null
  * @param covariances the covariance of the random variable
- * @param stream      the stream for sampling
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class MVNormalRV constructor(
     means: DoubleArray,
     covariances: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariableIfc {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNum, streamProvider, name) {
+
     override val dimension: Int
+
     private val myCovariances: Array<DoubleArray>
     private val cfL: Array<DoubleArray> // Cholesky decomposition array
     private val myMeans: DoubleArray
     private val normalRV: NormalRV
+
     init {
         require(isValidCovariance(covariances)) { "The covariance array was not valid" }
         dimension = covariances.size
         cfL = choleskyDecomposition(covariances)
         this.myCovariances = KSLArrays.copy2DArray(covariances)
         this.myMeans = means.copyOf(means.size)
-        normalRV = NormalRV(0.0, 1.0, stream)
+        normalRV = NormalRV(0.0, 1.0, streamNum, streamProvider)
     }
 
     val means
@@ -47,56 +54,17 @@ class MVNormalRV constructor(
     val choleskyDecomposition
         get() = KSLArrays.copy2DArray(cfL)
 
-    override var rnStream: RNStreamIfc
-        get() = normalRV.rnStream
-        set(stream) {
-            normalRV.rnStream = stream
-        }
 
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVNormalRV(myMeans, myCovariances, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return MVNormalRV(myMeans, myCovariances, normalRV.antitheticInstance().rnStream)
-    }
-
-    override fun sample(array: DoubleArray) {
+    override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The length of the array was not the proper dimension" }
         val c: DoubleArray = KSLArrays.postProduct(cfL, normalRV.sample(dimension))
         val result: DoubleArray = KSLArrays.addElements(myMeans, c)
         System.arraycopy(result, 0, array, 0, result.size)
     }
 
-    override fun resetStartStream() {
-        normalRV.resetStartStream()
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVNormalRV {
+        return MVNormalRV(means, covariances, streamNumber, rnStreamProvider)
     }
-
-    override fun resetStartSubStream() {
-        normalRV.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        normalRV.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = normalRV.antithetic
-        set(flag) {
-            normalRV.antithetic = flag
-        }
-
-    override var advanceToNextSubStreamOption: Boolean
-        get() = normalRV.advanceToNextSubStreamOption
-        set(b) {
-            normalRV.advanceToNextSubStreamOption = b
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = normalRV.resetStartStreamOption
-        set(b) {
-            normalRV.resetStartStreamOption = b
-        }
 
     override fun toString(): String {
         val sb = StringBuilder("MVNormalRV")
@@ -140,13 +108,15 @@ class MVNormalRV constructor(
          */
         fun createStandardMVN(
             correlation: Array<DoubleArray>,
-            stream: RNStreamIfc = KSLRandom.nextRNStream()
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+            name: String? = null
         ) : MVNormalRV {
             val d = correlation.size
             val means = DoubleArray(d)
             val sigmas = DoubleArray(d)
             sigmas.addConstant(1.0)
-            return createRV(means, sigmas, correlation, stream)
+            return createRV(means, sigmas, correlation, streamNumber, streamProvider, name)
         }
 
         /**
@@ -160,10 +130,12 @@ class MVNormalRV constructor(
             means: DoubleArray,
             stdDevs: DoubleArray,
             correlation: Array<DoubleArray>,
-            stream: RNStreamIfc = KSLRandom.nextRNStream()
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+            name: String? = null
         ): MVNormalRV {
             val covariances = convertToCovariance(stdDevs, correlation)
-            return MVNormalRV(means, covariances, stream)
+            return MVNormalRV(means, covariances, streamNumber, streamProvider, name)
         }
 
         /**

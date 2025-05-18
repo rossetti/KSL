@@ -18,6 +18,7 @@
 package ksl.examples.general.variables.nhpp
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.nhpp.NHPPEventGenerator
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
@@ -39,8 +40,8 @@ class TestNHPP(parent: ModelElement, f: PiecewiseRateFunction, name: String? = n
     private var myPWRF: PiecewiseRateFunction
 
     init {
-        myNHPPGenerator = NHPPEventGenerator(this, f, myListener)
         myPWRF = f
+        myNHPPGenerator = NHPPEventGenerator(this, myListener, f, streamNum = 3)
         myCounters = ArrayList()
         val n: Int = f.numberSegments()
         for (i in 0 until n) {
@@ -51,12 +52,12 @@ class TestNHPP(parent: ModelElement, f: PiecewiseRateFunction, name: String? = n
     }
 
     private inner class EventListener : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             val t: Double = time
 
-            //System.out.println("event at time: " + t);
+            //println("event at time: $t");
             val i: Int = myPWRF.findTimeInterval(t)
-            //System.out.println("occurs in interval: " + i);
+            //println("occurs in interval: $i");
             if (i < 0) return
             myCounters[i].increment()
         }
@@ -64,8 +65,8 @@ class TestNHPP(parent: ModelElement, f: PiecewiseRateFunction, name: String? = n
 }
 
 fun main() {
-    runModel1()
-//            runModel2();
+//    runModel1()
+           runModel2()
 }
 
 fun runModel1() {
@@ -81,8 +82,8 @@ fun runModel1() {
 
     // set the parameters of the experiment
     // set the parameters of the experiment
-    s.numberOfReplications = 2
-    s.lengthOfReplication = 100.0
+    s.numberOfReplications = 200
+    s.lengthOfReplication = 50.0
 
     // tell the simulation to run
     s.simulate()

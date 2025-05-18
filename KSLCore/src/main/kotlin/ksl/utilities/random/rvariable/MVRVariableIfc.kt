@@ -17,27 +17,30 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
+
+interface MVRandomInstanceIfc {
+    /**
+     * @param streamNumber the stream number to use from the underlying provider
+     * @param rnStreamProvider the provider for the stream instance
+     * @return a new instance with same parameter values
+     */
+    fun instance(
+        streamNumber: Int = 0,
+        rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ): MVRVariableIfc
+}
 
 /**
  * An interface for defining multi-variate random variables
  */
-interface MVRVariableIfc : RNStreamControlIfc, MVSampleIfc, RNStreamChangeIfc {
-    /**
-     * @param stream the random number stream to use
-     * @return a new instance with same parameter value
-     */
-    fun instance(stream: RNStreamIfc): MVRVariableIfc
+interface MVRVariableIfc : RNStreamControlIfc, MVSampleIfc, MVRandomInstanceIfc {
 
-    /**
-     * @return a new instance with same parameter value
-     */
-    fun instance(): MVRVariableIfc {
-        return instance(KSLRandom.nextRNStream())
-    }
+    val streamProvider: RNStreamProviderIfc
+
+    val streamNumber: Int
 
     /**
      * @return a new instance with same parameter value, but that has antithetic variates

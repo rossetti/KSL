@@ -46,8 +46,8 @@ class UpDownComponent (parent: ModelElement, name: String? = null) :
     private var myTimeLastUp = 0.0
 
     init {
-        val utd: RVariableIfc = ExponentialRV(1.0)
-        val dtd: RVariableIfc = ExponentialRV(2.0)
+        val utd: RVariableIfc = ExponentialRV(1.0, streamNum = 1)
+        val dtd: RVariableIfc = ExponentialRV(2.0, streamNum = 2)
         myUpTime = RandomVariable(this, utd, "up time")
         myDownTime = RandomVariable(this, dtd, "down time")
         myState = TWResponse(this, name = "state")

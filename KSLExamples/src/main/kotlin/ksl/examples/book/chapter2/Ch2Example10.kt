@@ -28,7 +28,7 @@ import ksl.utilities.random.rvariable.TriangularRV
  */
 fun main() {
     // create a triangular random variable with min = 2.0, mode = 5.0, max = 10.0
-    val t = TriangularRV(2.0, 5.0, 10.0)
+    val t = TriangularRV(2.0, 5.0, 10.0, streamNum = 1)
     // sample 5 values
     val sample = t.sample(5)
     print(String.format("%3s %15s %n", "n", "Values"))

@@ -17,8 +17,7 @@
  */
 package ksl.examples.book.chapter4
 
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.station.SResource
@@ -29,6 +28,7 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.HistogramIfc
 
 fun main() {
@@ -38,7 +38,7 @@ fun main() {
     model.lengthOfReplicationWarmUp = 5000.0
     // add the model element to the main model
     val dtp = DriveThroughPharmacyWithResource(model, 1, name = "Pharmacy")
-    dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+    dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
     model.simulate()
     model.print()
@@ -59,22 +59,18 @@ fun main() {
 class DriveThroughPharmacyWithResource(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
-) :
-    ModelElement(parent, name = name) {
+) : ModelElement(parent, name = name) {
 
     private val myPharmacists: SResource = SResource(this, numServers, "${this.name}:Pharmacists")
     val resource: SResourceCIfc
         get() = myPharmacists
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = myArrivalRV
 
     private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
@@ -104,9 +100,12 @@ class DriveThroughPharmacyWithResource(
     private val endServiceEvent = this::endOfService
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        this, this::arrival, myArrivalRV, myArrivalRV)
+        this, this::arrival, ad, ad
+    )
+    val arrivalGenerator: EventGeneratorRVCIfc
+        get() = myArrivalGenerator
 
-    private fun arrival(generator: EventGenerator) {
+    private fun arrival(generator: EventGeneratorIfc) {
         myNS.increment() // new customer arrived
         myInQ.value = myWaitingQ.numInQ.value.toInt()
         val arrivingCustomer = QObject()

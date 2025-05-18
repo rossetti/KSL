@@ -20,7 +20,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.PreviousValueIfc
 import ksl.utilities.observers.DoubleEmitterIfc
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.sin
 import kotlin.math.abs
 import kotlin.math.*
@@ -36,17 +36,7 @@ import kotlin.math.*
  *
  * The preferred approach to creating random variables is to subclass RVariable.
  */
-interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, DoubleEmitterIfc {
-
-//    /**
-//     * The set of pre-defined distribution types
-//     */
-//    enum class RVType {
-//        Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma,
-//        GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial,
-//        Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular,
-//        Uniform, Weibull, DEmpirical, Empirical
-//    }
+interface RVariableIfc : RandomIfc, PreviousValueIfc, DoubleEmitterIfc {
 
     /**
      * The randomly generated value. Each value
@@ -62,22 +52,44 @@ interface RVariableIfc : RandomIfc, NewAntitheticInstanceIfc, PreviousValueIfc, 
      */
     override fun value(): Double = value
 
-    /**
-     * @param stream the RNStreamIfc to use
-     * @return a new instance with same parameter values
-     */
-    fun instance(stream: RNStreamIfc): RVariableIfc
+    override fun instance(
+        streamNum: Int,
+        rnStreamProvider: RNStreamProviderIfc
+    ): RVariableIfc
 
     /**
-     * @return a new instance with same parameter values, with a different stream
+     *  Creates an instance of the random variable that is independent
+     *  of the underlying stream provider but has an underlying stream
+     *  that is in the exact same state as the random variable's stream,
+     *  except that it is set to produce antithetic pseudo-random numbers (1-u).
+     *  That is, its stream is a clone and will produce the antithetic
+     *  sequence of pseudo-random numbers (i.e. 1-u1, 1-u2, 1-u3,...).
      */
-    fun instance(): RVariableIfc {
-        return instance(KSLRandom.nextRNStream())
+    fun antitheticInstance(): RVariableIfc {
+        return instance(streamNum = -streamNumber, streamProvider)
     }
 
-    override fun antitheticInstance(): RVariableIfc {
-        return instance(rnStream.antitheticInstance())
+    /**
+     *  Creates an instance of the random variable that is independent
+     *  of the underlying stream provider but has an underlying stream
+     *  that is in the exact same state as the random variable's stream.
+     *  That is, its stream is a clone and will produce the same
+     *  sequence of pseudo-random numbers (i.e. common random numbers).
+     */
+    fun crnInstance(): RVariableIfc {
+        // creates a new instance that is not managed by the provider that is antithetic
+        // to the current underlying stream
+        val rv = antitheticInstance()
+        // now turn it back to not being antithetic
+        rv.antithetic = true
+        return rv
     }
+
+    /**
+     *  An instance of the random variable with the stream provided
+     *  by the same underlying stream provider
+     */
+    fun instance(streamNum: Int = 0) : RVariableIfc
 
     operator fun plus(other: RVariableIfc): RVariableIfc {
         return RVFunction(this, other, Double::plus)

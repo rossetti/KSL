@@ -14,45 +14,22 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 class RandomEmpiricalMap <K, V>(
     parent: ModelElement,
-    private val map: Map<K, V>,
-    theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    private val rMap : REmpiricalMap<K, V>,
     name: String? = null
-): ModelElement(parent, name), Map<K, V> by map, RElementIfc<V> {
+): ModelElement(parent, name), Map<K, V> by rMap, RElementIfc<V> by rMap {
 
-    private val rMap : REmpiricalMap<K, V> = REmpiricalMap(map, theCDF, stream)
+    //TODO how to ensure rMap uses the model's stream provider
 
     init {
         warmUpOption = false
-        //TODO can this be moved into model? if so, where (cannot be in addToModelElementMap()) because that is in constructor
-        // of the model element, which is called before this init block. this init block is called after the element has
-        // been added to the model, upon creation of the element
-        model.addStream(rMap.rnStream)
-        RNStreamProvider.logger.info { "Initialized RandomMap(id = $id, name = ${this.name}) with stream id = ${rnStream.id}" }
     }
 
     constructor(
         parent: ModelElement,
         map: Map<K, V>,
         theCDF: DoubleArray,
-        streamNum: Int,
+        streamNumber: Int = 0,
         name: String? = null
-    ) : this(parent, map, theCDF, KSLRandom.rnStream(streamNum), name)
+    ) : this(parent, REmpiricalMap(map, theCDF, streamNumber, parent.streamProvider), name)
 
-    override val randomElement: V
-        get() = rMap.randomElement
-
-    /**
-     *  The random number stream for the current replication based on the
-     *  current setting of property randomSource.  If the underlying stream
-     *  is changed, the change will only be in effect for the current replication and
-     *  no stream control will take place based on the model's control of streams.
-     */
-    override var rnStream: RNStreamIfc
-        get() = rMap.rnStream
-        set(value) {
-            model.removeStream(rMap.rnStream)
-            rMap.rnStream = value
-            model.addStream(rnStream)
-        }
 }

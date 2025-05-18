@@ -35,8 +35,7 @@ class ClinicDesignB(
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private var timeBetweenArrivals: RandomVariable = RandomVariable(
-        parent, ExponentialRV(60.0 / 9.5, 1))
+    private var timeBetweenArrivals = ExponentialRV(60.0 / 9.5, 1)
 
     private var needsFollowUp: RandomVariable = RandomVariable(this,
         BernoulliRV(0.05, 2))

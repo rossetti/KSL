@@ -2,6 +2,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.ChiSquaredRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -44,12 +45,12 @@ class ChiSquaredDistribution(
         return myGamma.domain()
     }
 
-    override fun invCDF(p: Double): Double {
-        return myGamma.invCDF(p)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): ChiSquaredRV {
+        return ChiSquaredRV(dof, streamNumber, streamProvider)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return ChiSquaredRV(dof, stream)
+    override fun invCDF(p: Double): Double {
+        return myGamma.invCDF(p)
     }
 
     override fun instance(): ChiSquaredDistribution {

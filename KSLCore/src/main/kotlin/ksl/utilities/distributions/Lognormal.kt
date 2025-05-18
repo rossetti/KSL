@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.PI
 import kotlin.math.exp
@@ -230,8 +231,8 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
         }
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return LognormalRV(mean, variance, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): LognormalRV {
+        return LognormalRV(mean, variance, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

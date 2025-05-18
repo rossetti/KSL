@@ -36,10 +36,10 @@ class Airport(
 
     private var myInspectionTimeRV: RandomVariable = RandomVariable(this,
         TriangularRV(0.75, 1.5, 3.0, 2))
-    val inspectionRV: RandomSourceCIfc
+    val inspectionRV: RandomVariableCIfc
         get() = myInspectionTimeRV
     private var myArrivalRV: RandomVariable = RandomVariable(this , ExponentialRV(2.0, 1))
-    val arrivalRV: RandomSourceCIfc
+    val arrivalRV: RandomVariableCIfc
         get() = myArrivalRV
 
     private var myPassRV : RandomVariable = RandomVariable(this, BernoulliRV(0.93, 3))

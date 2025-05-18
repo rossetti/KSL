@@ -22,14 +22,13 @@ import ksl.modeling.variable.RandomSourceCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.StreamNumberIfc
 
 abstract class RandomElement(
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null
-) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc {
+) : ModelElement(parent, name), RandomElementIfc, RandomSourceCIfc, StreamNumberIfc {
 
     /**
      * Provides a reference to the underlying source of randomness during the replication.
@@ -43,47 +42,39 @@ abstract class RandomElement(
      * use the initialRandomSource property
      */
     var randomSource: RandomIfc = rSource
-
-    /**
-     *  The random number stream for the current replication based on the
-     *  current setting of property randomSource.  If the underlying stream
-     *  is changed, the change will only be in effect for the current replication and
-     *  no stream control will take place based on the model's control of streams.
-     */
-    final override var rnStream: RNStreamIfc
-        get() = randomSource.rnStream
         set(value) {
-            randomSource.rnStream = value
+            field = if (value.streamProvider != streamProvider) {
+                value.instance(value.streamNumber, streamProvider)
+            } else {
+                value
+            }
         }
+
+    init {
+        warmUpOption = false
+        this.randomSource = rSource
+    }
 
     /**
      * Provides a reference to the underlying source of randomness to initialize each replication.
      * Controls the underlying RandomIfc source for the element. This is the
      * source to which each replication will be initialized.  This is only used
-     * when the replication is initialized. Changing the reference has no effect
-     * during a replication.
+     * when the replication is initialized.
      *
-     * WARNING: If this is used during a replication to change the characteristics of
-     * the random source, then each replication may not necessarily start in the
-     * same initial state.  It is recommended that this be used only prior to executing replications.
+     * You cannot change the initial random source while the model is running.
      */
-    override var initialRandomSource: RandomIfc = rSource
+    override var initialRandomSource: RandomIfc = randomSource
         set(value) {
-            if (model.isRunning) {
-                if (initialRandomSourceChangeWarning) {
-                    Model.logger.warn { "Changed the initial random source of $name during replication ${model.currentReplicationNumber}." }
-                }
+            require(model.isNotRunning) {"The initial random source cannot be changed during a replication"}
+            field = if (value.streamProvider == streamProvider){
+                value
+            } else {
+                value.instance(value.streamNumber, streamProvider)
             }
-            //      println("-------->  $name is changing initial random source to $value")
-            field = value
-            model.addStream(field.rnStream)
         }
 
-    /**
-     * Controls whether warning of changing the initial random source during a replication
-     * is logged, default is true.
-     */
-    final override var initialRandomSourceChangeWarning = true
+    override val streamNumber: Int
+        get() = initialRandomSource.streamNumber
 
     override fun resetStartStream() {
         initialRandomSource.resetStartStream()
@@ -133,7 +124,7 @@ abstract class RandomElement(
      */
     override fun afterReplication() {
         super.afterReplication()
-        if (randomSource !== initialRandomSource) {
+        if (randomSource != initialRandomSource) {
             // the random source or the initial random source references
             // were changed during the replication
             // make sure that the random source is the same
@@ -143,12 +134,4 @@ abstract class RandomElement(
         }
     }
 
-    init {
-        warmUpOption = false
-        //TODO can this be moved into model? if so, where (cannot be in addToModelElementMap()) because that is in constructor
-        // of the model element, which is called before this init block. this init block is called after the element has
-        // been added to the model, upon creation of the element
-        model.addStream(initialRandomSource.rnStream)
-        RNStreamProvider.logger.info { "Initialized RandomElement(id = $id, name = ${this.name}) with stream id = ${randomSource.rnStream.id}" }
-    }
 }

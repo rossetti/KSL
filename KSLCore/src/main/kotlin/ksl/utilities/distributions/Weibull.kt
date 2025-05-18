@@ -21,6 +21,7 @@ import ksl.utilities.Interval
 import ksl.utilities.countLessEqualTo
 import ksl.utilities.countLessThan
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
 import kotlin.math.exp
@@ -189,8 +190,8 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         return n / d
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return WeibullRV(shape, scale, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): WeibullRV {
+        return WeibullRV(shape, scale, streamNumber, streamProvider)
     }
 
     override val mean: Double

@@ -1,6 +1,6 @@
 package ksl.examples.book.chapter8
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.Conveyor
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
@@ -41,13 +41,13 @@ class TandemQueueWithWorkOnConveyors(
     private val tba = ExponentialRV(1.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
-    val service1RV: RandomSourceCIfc
+    val service1RV: RandomVariableCIfc
         get() = st1
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
-    val service2RV: RandomSourceCIfc
+    val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
@@ -58,10 +58,10 @@ class TandemQueueWithWorkOnConveyors(
         get() = timeInSystem
 
     private val myLoadingTime = RandomVariable(this, UniformRV(0.5, 0.8))
-    val loadingTimeRV: RandomSourceCIfc
+    val loadingTimeRV: RandomVariableCIfc
         get() = myLoadingTime
     private val myUnLoadingTime = RandomVariable(this, UniformRV(0.25, 0.5))
-    val unloadingTimeRV: RandomSourceCIfc
+    val unloadingTimeRV: RandomVariableCIfc
         get() = myUnLoadingTime
 
     private inner class Part : Entity() {

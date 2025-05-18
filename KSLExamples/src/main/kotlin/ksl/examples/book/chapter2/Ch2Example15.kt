@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.*
  */
 fun main() {
     val w = WeibullRV(shape = 3.0, scale = 5.0)
-    val rv = ShiftedRV(5.0, w)
+    val rv = ShiftedRV(5.0, w, streamNum = 1)
     print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
         print(String.format("%3d %15f %n", i, rv.value))

@@ -17,36 +17,30 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.ShiftedGeometricRVParameters
 
 /**
  * Shifted Geometric(probability of success) random variable, range 1, 2, 3, etc.
  * @param probOfSuccess   probability of success, must be in range (0,1)
- * @param stream the random number stream to use
-
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class ShiftedGeometricRV(
-    val probOfSuccess: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    val probOfSuccess: Double,
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }
     }
 
-    /**
-     * @param probOfSuccess      probability of success, must be in range (0,1)
-     * @param streamNum the stream number to use
-     */
-    constructor(probOfSuccess: Double, streamNum: Int) : this(probOfSuccess, KSLRandom.rnStream(streamNum)) {}
-
-    /**
-     * @param stream the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(stream: RNStreamIfc): ShiftedGeometricRV {
-        return ShiftedGeometricRV(probOfSuccess, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ShiftedGeometricRV {
+        return ShiftedGeometricRV(probOfSuccess, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

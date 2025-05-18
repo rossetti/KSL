@@ -1,6 +1,7 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
@@ -11,18 +12,24 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 class RMap<K, V>(
     private val map: Map<K, V>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : Map<K, V> by map, RElementIfc<V> {
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
-    constructor(map: Map<K, V>, streamNum: Int) : this(map, KSLRandom.rnStream(streamNum))
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
 
-    override var rnStream: RNStreamIfc = stream
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     private val myList: List<K>
 
     init {
         require(map.isNotEmpty()) { "To randomly sample from a map, there must be at least one element" }
         myList = map.keys.toList()
+    }
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return RMap(map.toMap(), streamNumber, rnStreamProvider)
     }
 
     /**
@@ -32,6 +39,36 @@ class RMap<K, V>(
         get() {
             require(this.isNotEmpty()) { "Cannot draw a random element from an empty map" }
             return map[myList[rnStream.randInt(0, myList.size - 1)]]!!
+        }
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
         }
 }
 
@@ -45,11 +82,16 @@ class RMap<K, V>(
 class REmpiricalMap<K, V>(
     private val map: Map<K, V>,
     theCDF: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : Map<K, V> by map, RElementIfc<V> {
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
     private val myList: DEmpiricalList<K>
-    override var rnStream: RNStreamIfc = stream
+
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     init {
         require(map.isNotEmpty()) { "The supplied map must have at least 1 element." }
@@ -58,10 +100,43 @@ class REmpiricalMap<K, V>(
         myList = DEmpiricalList(map.keys.toList(), theCDF)
     }
 
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return REmpiricalMap(map.toMap(), myList.cdf, streamNumber, rnStreamProvider)
+    }
+
     /**
      *  Selected a value based on the supplied CDF from the map
      */
     override val randomElement: V
         get() = map[myList.randomElement]!!
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }

@@ -21,13 +21,27 @@ import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
-abstract class MVRVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) : MVRVariableIfc,
-    IdentityIfc by Identity(name), RNStreamControlIfc by stream {
+/**
+ * An abstract base class for building multi-variate random variables.  Implement
+ * the random generation procedure in the method generate().
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ */
+abstract class MVRVariable(
+    streamNum: Int = 0,
+    final override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariableIfc, IdentityIfc by Identity(name), RNStreamControlIfc {
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    override var rnStream: RNStreamIfc = stream
+    protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     /** The last (previous) randomly generated value. This value does not
      *  change until the next randomly generated value is obtained
@@ -65,4 +79,39 @@ abstract class MVRVariable(stream: RNStreamIfc = KSLRandom.nextRNStream(), name:
      * @return the randomly generated variates
      */
     protected abstract fun generate(array: DoubleArray)
+
+    override fun antitheticInstance(): MVRVariableIfc {
+        return instance(streamNumber = -streamNumber, streamProvider)
+    }
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
+
 }

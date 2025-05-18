@@ -36,7 +36,7 @@ fun main() {
     val wx = Uniform(-1.0, 1.0)
     // majorizing constant, if g(x) is majorizing function, then g(x) = w(x)*c
     val c = 3.0 / 2.0
-    val rv = AcceptanceRejectionRV(wx, c, fOfx)
+    val rv = AcceptanceRejectionRV(wx, c, fOfx, streamNum = 1)
     val h = Histogram.create(-1.0, 1.0, 100)
     for (i in 1..1000) {
         h.collect(rv.value)

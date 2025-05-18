@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.Bernoulli
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -14,9 +15,12 @@ class BernoulliRVParameters : RVParameters(
         addDoubleParameter("probOfSuccess", 0.5)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val probOfSuccess = doubleParameter("probOfSuccess")
-        return BernoulliRV(probOfSuccess, rnStream)
+        return BernoulliRV(probOfSuccess, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): Bernoulli {

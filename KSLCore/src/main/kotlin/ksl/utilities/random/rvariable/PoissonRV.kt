@@ -17,24 +17,30 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.PoissonRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Poisson(mean) random variable
  * @param mean the mean rate, must be greater than 0.0
- * @param stream the random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
-class PoissonRV (val mean: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null) :
-    ParameterizedRV(stream, name)  {
+class PoissonRV (
+    val mean: Double,
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamNum, streamProvider, name)  {
+
     init {
         require(mean > 0.0) { "Poisson mean must be > 0.0" }
     }
-    constructor(mean: Double, streamNum: Int) : this(mean, KSLRandom.rnStream(streamNum)) {}
 
-    override fun instance(stream: RNStreamIfc): PoissonRV {
-        return PoissonRV(mean, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PoissonRV {
+        return PoissonRV(mean, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

@@ -22,10 +22,9 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.copyOf
 import ksl.utilities.hasElement
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.IntegerFrequency
 
 
@@ -38,23 +37,22 @@ import ksl.utilities.statistic.IntegerFrequency
  *  etc.
  *  @param theInitialState the initial state
  *  @param transMatrix the single step transition matrix
- *  @param stream the random number stream
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  * @author rossetti
  */
 open class DMarkovChain(
     theInitialState: Int = 1,
     transMatrix: Array<DoubleArray>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNumber, streamProvider, name) {
+
     init {
         require(KSLArrays.isSquare(transMatrix)) { "The probability transition matrix must be square" }
     }
-
-    constructor(
-        theInitialState: Int = 1,
-        transMatrix: Array<DoubleArray>,
-        streamNum: Int
-    ) : this(theInitialState, transMatrix, KSLRandom.rnStream(streamNum))
 
     protected var myStates: IntArray = IntArray(transMatrix.size)
     val states: IntArray
@@ -112,8 +110,8 @@ open class DMarkovChain(
     var state = initialState
         protected set
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return DMarkovChain(initialState, myTransProb, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DMarkovChain {
+        return DMarkovChain(initialState, myTransProb, streamNum, rnStreamProvider)
     }
 
     override fun generate(): Double {

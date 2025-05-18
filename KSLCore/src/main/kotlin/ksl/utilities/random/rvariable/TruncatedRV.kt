@@ -22,7 +22,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InvertibleCDFIfc
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Constructs a truncated random variable based on the provided distribution
@@ -32,7 +32,9 @@ import ksl.utilities.random.rng.RNStreamIfc
  * @param cdfUL        The upper limit of the range of support of the distribution
  * @param lowerLimit      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
  * @param upperLimit      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
- * @param stream the random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class TruncatedRV(
     distribution: InvertibleCDFIfc,
@@ -40,8 +42,11 @@ class TruncatedRV(
     val cdfUL: Double,
     val lowerLimit: Double,
     val upperLimit: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNum, streamProvider, name) {
+
     init {
         require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
         require(lowerLimit >= cdfLL) { "The lower limit must be >= $cdfLL" }
@@ -49,47 +54,20 @@ class TruncatedRV(
         require(!(lowerLimit == cdfLL && upperLimit == cdfUL)) { "There was no truncation over the interval of support" }
     }
 
-    /**
-     * Constructs a truncated random variable based on the provided distribution
-     *
-     * @param distribution the distribution to truncate, must not be null
-     * @param cdfLL        The lower limit of the range of support of the distribution
-     * @param cdfUL        The upper limit of the range of support of the distribution
-     * @param truncLL      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
-     * @param truncUL      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
-     * @param streamNum    A positive integer to identify the stream
-     */
-    constructor(
-        distribution: InvertibleCDFIfc, cdfLL: Double, cdfUL: Double,
-        truncLL: Double, truncUL: Double, streamNum: Int
-    ) : this(distribution, cdfLL, cdfUL, truncLL, truncUL, KSLRandom.rnStream(streamNum))
-
     constructor(
         distribution: ContinuousDistributionIfc,
         distDomain: Interval = distribution.domain(),
         truncInterval: Interval,
-        stream: RNStreamIfc = KSLRandom.nextRNStream()
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
     ) : this(
         distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
         truncInterval.upperLimit,
-        stream
-    )
-
-    constructor(
-        distribution: ContinuousDistributionIfc,
-        distDomain: Interval = distribution.domain(),
-        truncInterval: Interval,
-        streamNum: Int
-    ) : this(
-        distribution,
-        distDomain.lowerLimit,
-        distDomain.upperLimit,
-        truncInterval.lowerLimit,
-        truncInterval.upperLimit,
-        stream = KSLRandom.rnStream(streamNum)
+        streamNum, streamProvider, name
     )
 
     private val myDistribution: InvertibleCDFIfc = distribution
@@ -122,8 +100,8 @@ class TruncatedRV(
         return myDistribution.invCDF(v)
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedRV {
+        return TruncatedRV(myDistribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

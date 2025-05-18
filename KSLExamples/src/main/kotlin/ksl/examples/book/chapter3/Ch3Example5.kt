@@ -32,7 +32,7 @@ import ksl.utilities.statistic.Statistic
  * batches multiple.
  */
 fun main() {
-    val d = ExponentialRV(2.0)
+    val d = ExponentialRV(2.0, streamNum = 2)
 
     // number of observations
     val n = 1000

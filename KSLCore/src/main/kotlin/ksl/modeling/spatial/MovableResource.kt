@@ -3,7 +3,7 @@ package ksl.modeling.spatial
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.entity.*
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
@@ -13,12 +13,13 @@ import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.toDouble
 
 interface MovableResourceIfc : SpatialElementIfc, VelocityIfc
 
 interface MoveableResourceCIfc : ResourceCIfc {
-    val velocityRV: RandomSourceCIfc
+    val velocityRV: RandomVariableCIfc
     val initialHomeBase: LocationIfc?
     val homeBase: LocationIfc?
     val hasHomeBase: Boolean
@@ -37,7 +38,7 @@ interface MoveableResourceCIfc : ResourceCIfc {
 open class MovableResource(
     parent: ModelElement,
     initLocation: LocationIfc,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     name: String? = null,
 ) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
 
@@ -70,7 +71,7 @@ open class MovableResource(
     protected val mySpatialElement = SpatialElement(this, initLocation, name)
 
     protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
-    override val velocityRV: RandomSourceCIfc
+    override val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
         get() = myVelocity
@@ -246,7 +247,7 @@ open class MovableResource(
             parent: ModelElement,
             numToCreate: Int,
             initLocation: LocationIfc,
-            defaultVelocity: RandomIfc,
+            defaultVelocity: RVariableIfc,
             baseName: String? = parent.name
         ): List<MovableResource> {
             require(numToCreate >= 1) { "The initial numToCreate must be >= 1" }

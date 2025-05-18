@@ -5,7 +5,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * A MovableResourcePool represents a list of movable resources from which
@@ -31,7 +31,7 @@ import ksl.utilities.random.RandomIfc
 open class MovableResourcePool(
     parent: ModelElement,
     movableResources: List<MovableResource>,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     name: String? = null
 ) : AbstractResourcePool<MovableResource>(parent, name), VelocityIfc {
 
@@ -40,8 +40,10 @@ open class MovableResourcePool(
     val resourcesByName: Map<String, MovableResource>
         get() = myResourcesByName
 
+    //TODO RandomVariable does not implement RVariableIfc
     protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
-    val velocityRV: RandomSourceCIfc
+
+    val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
         get() = myVelocity
@@ -59,7 +61,7 @@ open class MovableResourcePool(
     final override fun addResource(resource: MovableResource) {
         super.addResource(resource)
         myResourcesByName[resource.name] = resource
-        resource.velocityRV.initialRandomSource = myVelocity
+        resource.velocityRV.initialRandomSource = myVelocity.initialRandomSource
         resource.myMovableResourcePools.add(this)
     }
 

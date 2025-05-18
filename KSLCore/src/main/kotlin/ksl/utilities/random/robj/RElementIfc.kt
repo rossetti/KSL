@@ -17,26 +17,38 @@
  */
 package ksl.utilities.random.robj
 
-import ksl.utilities.random.rng.RNStreamChangeIfc
+import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.KSLRandom
+
+interface RElementInstanceIfc<T> {
+    /**
+     * @param streamNumber the stream number to use from the underlying provider
+     * @param rnStreamProvider the provider for the stream instance
+     * @return a new instance with same parameter values
+     */
+    fun instance(
+        streamNumber: Int = 0,
+        rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+    ): RElementIfc<T>
+}
 
 /**
  *  Defines sampling of random elements. Implementers must ensure that
  *  non-null random elements are sampled.
  */
-interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
+interface RElementIfc<T> : RNStreamControlIfc, StreamNumberIfc {
 
-    override var advanceToNextSubStreamOption: Boolean
-        get() = rnStream.advanceToNextSubStreamOption
-        set(value) {
-            rnStream.advanceToNextSubStreamOption = value
-        }
-
-    override var resetStartStreamOption: Boolean
-        get() = rnStream.resetStartStreamOption
-        set(value) {
-            rnStream.resetStartStreamOption = value
-        }
+//    /**
+//     * @param streamNumber the stream number to use from the underlying provider
+//     * @param rnStreamProvider the provider for the stream instance
+//     * @return a new instance with same parameter values
+//     */
+//    fun instance(
+//        streamNumber: Int = 0,
+//        rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+//    ): RElementIfc<T>
 
     /** Returns an element randomly selected from the list
      *
@@ -65,21 +77,4 @@ interface RElementIfc<T> : RNStreamControlIfc, RNStreamChangeIfc {
         return list
     }
 
-    override fun resetStartStream() {
-        rnStream.resetStartStream()
-    }
-
-    override fun resetStartSubStream() {
-        rnStream.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        rnStream.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = rnStream.antithetic
-        set(value) {
-            rnStream.antithetic = value
-        }
 }

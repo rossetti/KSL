@@ -18,12 +18,13 @@
 
 package ksl.modeling.station
 
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  *  Models a simple delay.
@@ -46,7 +47,7 @@ import ksl.utilities.random.rvariable.ConstantRV
  */
 open class ActivityStation(
     parent: ModelElement,
-    activityTime: RandomIfc = ConstantRV.ZERO,
+    activityTime: RVariableIfc = ConstantRV.ZERO,
     nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
 ) : Station(parent, nextReceiver, name = name), ActivityStationCIfc{
@@ -59,7 +60,7 @@ open class ActivityStation(
     var useQObjectForActivityTime: Boolean = false
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, "${this.name}:ActivityRV")
-    override val activityTimeRV: RandomSourceCIfc
+    override val activityTimeRV: RandomVariableCIfc
         get() = myActivityTimeRV
 
     override fun process(arrivingQObject: QObject) {

@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 
@@ -28,18 +28,21 @@ import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
  * @param scale the scale, must be greater than 0
  * @param stream   the random number stream
  */
-class WeibullRV (val shape: Double, val scale: Double,
-                 stream: RNStreamIfc = KSLRandom.nextRNStream(),
-name: String? = null) :
-    ParameterizedRV(stream, name) {
+class WeibullRV (
+    val shape: Double,
+    val scale: Double,
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(shape > 0) { "Shape parameter must be positive" }
         require(scale > 0) { "Scale parameter must be positive" }
     }
-    constructor(shape: Double, scale: Double, streamNum: Int) : this(shape, scale, KSLRandom.rnStream(streamNum))
 
-    override fun instance(stream: RNStreamIfc): WeibullRV {
-        return WeibullRV(shape, scale, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): WeibullRV {
+        return WeibullRV(shape, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

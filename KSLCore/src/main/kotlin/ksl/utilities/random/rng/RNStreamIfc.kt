@@ -17,11 +17,8 @@
  */
 package ksl.utilities.random.rng
 
-import ksl.utilities.distributions.Poisson
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.KSLRandom.AlgoType
-import ksl.utilities.random.rvariable.KSLRandom.defaultRNStream
-import ksl.utilities.random.rvariable.KSLRandom.rnStream
 
 /**
  * Represents a random number stream with stream control
@@ -30,6 +27,12 @@ import ksl.utilities.random.rvariable.KSLRandom.rnStream
  */
 interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, GetAntitheticStreamIfc {
 
+    val streamProvider: RNStreamProviderIfc?
+
+    /**
+     *  An identifier assigned by the underlying stream factory to identity the stream
+     *  for reporting purposes
+     */
     val id: Int
 
     /**
@@ -58,7 +61,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *  @param pSuccess the probability of getting + 1. The default is 0.5.
      */
     fun rSign(pSuccess: Double = 0.5): Double {
-        return if (rBernoulli(pSuccess) < 1) -1.0 else 1.0
+        return if (randU01() < pSuccess) -1.0 else 1.0
     }
 
     /**

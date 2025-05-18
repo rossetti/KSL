@@ -17,7 +17,8 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.Interval
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 
@@ -26,22 +27,31 @@ import ksl.utilities.random.rvariable.parameters.UniformRVParameters
  *
  * @param min the minimum of the range, must be less than maximum
  * @param max the maximum of the range
- * @param stream     the random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class UniformRV (
     val min: Double = 0.0,
     val max: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(min < max) { "Lower limit must be < upper limit. lower limit = $min upper limit = $max" }
     }
 
-    constructor(min: Double = 0.0, max: Double = 1.0, streamNum: Int) : this(min, max, KSLRandom.rnStream(streamNum))
+    constructor(
+        interval: Interval,
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): this(interval.lowerLimit, interval.upperLimit, streamNum, streamProvider, name)
 
-    override fun instance(stream: RNStreamIfc): UniformRV {
-        return UniformRV(min, max, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): UniformRV {
+        return UniformRV(min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

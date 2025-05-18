@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.PearsonType5RV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
@@ -173,10 +174,6 @@ class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = nul
         setParameters(params[0], params[1])
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return PearsonType5RV(shape, scale, stream)
-    }
-
     override val mean: Double
         get() = mean()
     override val variance: Double
@@ -195,6 +192,10 @@ class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = nul
             }
             return (6.0*(5.0*shape - 11.0))/((shape - 3.0)*(shape - 4.0))
         }
+
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): PearsonType5RV {
+        return PearsonType5RV(shape, scale, streamNumber, streamProvider)
+    }
 
     override fun toString(): String {
         return "PearsonType5(shape=$shape, scale=$scale)"

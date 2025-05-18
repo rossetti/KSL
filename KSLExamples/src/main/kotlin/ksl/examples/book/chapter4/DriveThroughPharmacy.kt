@@ -20,8 +20,8 @@ package ksl.examples.book.chapter4
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * This model element illustrates how to model a simple multiple server
@@ -34,8 +34,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
  */
 class DriveThroughPharmacy(
     parent: ModelElement, numServers: Int = 1,
-    timeBtwArrivals: RandomIfc = ExponentialRV(1.0, 1),
-    serviceTime: RandomIfc = ExponentialRV(0.5, 2),
+    timeBtwArrivals: RVariableIfc = ExponentialRV(1.0, 1),
+    serviceTime: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ModelElement(parent, name) {
     init{
@@ -49,11 +49,11 @@ class DriveThroughPharmacy(
         }
 
     private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "ServiceRV")
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
     private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "ArrivalRV")
-    val arrivalRV: RandomSourceCIfc
+    val arrivalRV: RandomVariableCIfc
         get() = myArrivalRV
 
     private val myNumInQ: TWResponse = TWResponse(this, "NumInQ")

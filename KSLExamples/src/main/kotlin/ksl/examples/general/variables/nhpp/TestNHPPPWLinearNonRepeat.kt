@@ -18,6 +18,7 @@
 package ksl.examples.general.variables.nhpp
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.nhpp.NHPPEventGenerator
 import ksl.modeling.nhpp.PiecewiseLinearRateFunction
@@ -34,7 +35,7 @@ class TestNHPPPWLinearNonRepeat(parent: ModelElement, f: PiecewiseRateFunction, 
     ModelElement(parent, name) {
 
     private val myListener: EventListener = EventListener()
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, lastRate, streamNum = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, myListener, f, streamNum = 1,  lastRate)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
     private val myCountersSC: MutableList<Counter> = mutableListOf()
     private val myPWRF: PiecewiseRateFunction = f
@@ -52,7 +53,7 @@ class TestNHPPPWLinearNonRepeat(parent: ModelElement, f: PiecewiseRateFunction, 
     }
 
     protected inner class EventListener : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             val t: Double = time
             if (t <= 2000.0) {
                 //System.out.println("event at time: " + t);				

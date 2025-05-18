@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.NegativeBinomial
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.NegativeBinomialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -21,10 +22,13 @@ class NegativeBinomialRVParameters : RVParameters(
         addDoubleParameter("numSuccesses", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val probOfSuccess = doubleParameter("probOfSuccess")
         val numSuccesses = doubleParameter("numSuccesses")
-        return NegativeBinomialRV(probOfSuccess, floor(numSuccesses), rnStream)
+        return NegativeBinomialRV(probOfSuccess, floor(numSuccesses), streamNumber, streamProvider)
     }
 
     override fun createDistribution(): NegativeBinomial {

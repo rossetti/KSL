@@ -68,10 +68,35 @@ class Model(
     val out: LogPrintWriter
         get() = outputDirectory.out
 
+    /**
+     *  Controls the execution of events
+     */
     internal val myExecutive: Executive = Executive(eventCalendar)
+
+    /**
+     * Used internally to specify the model's experiment parameters
+     */
     internal val myExperiment: Experiment = Experiment()
 
-    private val myStreams: MutableSet<RNStreamIfc> = mutableSetOf()
+    /**
+     *  Used internally to control all the random number streams
+     */
+    internal val myRNStreamProvider = RNStreamProvider(name="${name}:RNStreamProvider")
+
+    /**
+     *  The model has a default stream. This property controls which
+     *  stream is assigned by default. The value must be >= 1.
+     */
+    var defaultStreamNumber: Int = myRNStreamProvider.defaultStreamNumber
+        set(value) {
+            require(value >= 1) {"The default stream number for the model must be >= 1"}
+            field = value
+        }
+
+    /**
+     *  An internal default stream if used will be the provider's default stream
+     */
+    internal val myDefaultStream by lazy { myRNStreamProvider.rnStream(defaultStreamNumber) }
 
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
@@ -114,7 +139,7 @@ class Model(
     val timeSeriesResponses: List<TimeSeriesResponseCIfc>
         get() {
             val list = mutableListOf<TimeSeriesResponseCIfc>()
-            for ( (_, element) in myModelElementMap){
+            for ((_, element) in myModelElementMap) {
                 if (element is TimeSeriesResponseCIfc) {
                     list.add(element)
                 }
@@ -216,27 +241,7 @@ class Model(
         addDefaultElements()
     }
 
-    //TODO default stream?
-    internal val myDefaultUniformRV = RandomVariable(this, UniformRV(), "${this.name}:DefaultUniformRV")
-
     val simulationReporter: SimulationReporter = SimulationReporter(this)
-
-    /**
-     * @param stream the stream that the model will manage
-     */
-    fun addStream(stream: RNStreamIfc) {
-        val b = myStreams.add(stream)
-        if (b) {
-            RNStreamProvider.logger.info { "Stream $stream added to model stream control" }
-        }
-    }
-
-    /**
-     * @param stream the stream that the model will no longer manage
-     */
-    fun removeStream(stream: RNStreamIfc) {
-        myStreams.remove(stream)
-    }
 
     /**
      * Attaches the CSVReplicationReport to the model if not attached.
@@ -244,10 +249,10 @@ class Model(
      *
      */
     fun turnOnReplicationCSVStatisticReporting() {
-        if (myCSVRepReport == null){
+        if (myCSVRepReport == null) {
             myCSVRepReport = CSVReplicationReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVRepReport!!)){
+        if (!isModelElementObserverAttached(myCSVRepReport!!)) {
             attachModelElementObserver(myCSVRepReport!!)
         }
     }
@@ -257,7 +262,7 @@ class Model(
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        if (myCSVRepReport == null){
+        if (myCSVRepReport == null) {
             return
         }
         detachModelElementObserver(myCSVRepReport!!)
@@ -268,11 +273,11 @@ class Model(
      * Attaches the CSVExperimentReport to the model if not attached.
      *
      */
-    fun turnOnAcrossReplicationStatisticReporting(){
-        if (myCSVExpReport == null){
+    fun turnOnAcrossReplicationStatisticReporting() {
+        if (myCSVExpReport == null) {
             myCSVExpReport = CSVExperimentReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVExpReport!!)){
+        if (!isModelElementObserverAttached(myCSVExpReport!!)) {
             attachModelElementObserver(myCSVExpReport!!)
         }
     }
@@ -282,7 +287,7 @@ class Model(
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        if (myCSVExpReport == null){
+        if (myCSVExpReport == null) {
             return
         }
         detachModelElementObserver(myCSVExpReport!!)
@@ -306,7 +311,7 @@ class Model(
      *  Tells the model to stop collecting and reporting within and across replication
      *  statistics as comma separated value (CSV) files.
      */
-    fun turnOffCSVStatisticalReports(){
+    fun turnOffCSVStatisticalReports() {
         turnOffReplicationCSVStatisticReporting()
         turnOffAcrossReplicationStatisticReporting()
     }
@@ -513,9 +518,7 @@ class Model(
      * @param option true means that streams will have their antithetic property set to true
      */
     fun antitheticOption(option: Boolean) {
-        for (rs in myStreams) {
-            rs.antithetic = option
-        }
+        myRNStreamProvider.setAllStreamsAntitheticOption(option)
     }
 
     /**
@@ -539,11 +542,7 @@ class Model(
      * permits advancement via the advanceToNextSubStreamOption.
      */
     fun advanceToNextSubStream() {
-        for (rs in myStreams) {
-            if (rs.advanceToNextSubStreamOption) {
-                rs.advanceToNextSubStream()
-            }
-        }
+        myRNStreamProvider.advanceAllStreamsToNextSubStream()
     }
 
     /**
@@ -552,11 +551,7 @@ class Model(
      * if the stream permits resetting via the resetStartStreamOption
      */
     fun resetStartStream() {
-        for (rs in myStreams) {
-            if (rs.resetStartStreamOption) {
-                rs.resetStartStream()
-            }
-        }
+        myRNStreamProvider.resetAllStreamsToStart()
     }
 
     /**
@@ -564,9 +559,7 @@ class Model(
      * reset their random number sequence to the beginning of their current sub-stream.
      */
     fun resetStartSubStream() {
-        for (rs in myStreams) {
-            rs.resetStartSubStream()
-        }
+        myRNStreamProvider.resetAllStreamsToStartOfCurrentSubStream()
     }
 
     /**
@@ -716,11 +709,11 @@ class Model(
             myCounters.add(modelElement)
         }
 
-        if (modelElement is HistogramResponse){
+        if (modelElement is HistogramResponse) {
             myHistograms.add(modelElement)
         }
 
-        if (modelElement is IntegerFrequencyResponse){
+        if (modelElement is IntegerFrequencyResponse) {
             myFrequencies.add(modelElement)
         }
 
@@ -936,9 +929,8 @@ class Model(
      * @param option The option, true means to reset prior to each experiment
      */
     private fun setAllResetStartStreamOptions(option: Boolean) {
-        for (rs in myStreams) {
-            rs.resetStartStreamOption = option
-        }
+        RNStreamProvider.logger.info {"Model: $name setting all reset start stream options to: $option"}
+        myRNStreamProvider.setAllResetStartStreamOptions(option)
     }
 
     /**
@@ -952,9 +944,8 @@ class Model(
      * @param option The option, true means to reset prior to each replication
      */
     private fun setAllAdvanceToNextSubStreamOptions(option: Boolean) {
-        for (rs in myStreams) {
-            rs.advanceToNextSubStreamOption = option
-        }
+        RNStreamProvider.logger.info {"Model: $name setting all advance to next sub-stream options to: $option"}
+        myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
     //called from simulation, so internal
@@ -1024,6 +1015,7 @@ class Model(
         replicationEndedActions()
         if (advanceNextSubStreamOption) {
             logger.info { "Advancing random number streams to the next sub-stream" }
+            RNStreamProvider.logger.info {"Model: $name : end replication $currentReplicationNumber : advancing streams to next sub-stream"}
             advanceToNextSubStream()
         }
         logger.info { "Performing after replication actions for model elements" }
@@ -1255,7 +1247,7 @@ class Model(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
-        if (autoCSVReports){
+        if (autoCSVReports) {
             turnOnCSVStatisticalReports()
         } else {
             turnOffCSVStatisticalReports()
@@ -1277,7 +1269,7 @@ class Model(
         println()
         simulationReporter.printHalfWidthSummaryReport()
         println()
-        if (histAndFreq){
+        if (histAndFreq) {
             println(simulationReporter.histogramTextResults())
             println(simulationReporter.frequencyTextResults())
         }

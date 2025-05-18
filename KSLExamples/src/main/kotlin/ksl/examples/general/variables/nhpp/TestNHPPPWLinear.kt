@@ -18,6 +18,7 @@
 package ksl.examples.general.variables.nhpp
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.nhpp.NHPPEventGenerator
 import ksl.modeling.nhpp.PiecewiseLinearRateFunction
@@ -32,7 +33,7 @@ import ksl.simulation.ModelElement
 class TestNHPPPWLinear(parent: ModelElement, f: PiecewiseRateFunction, name: String? = null) : ModelElement(parent, name) {
 
     private val myListener: EventListener = EventListener()
-    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, f, myListener, streamNum = 1)
+    private val myNHPPGenerator: NHPPEventGenerator = NHPPEventGenerator(this, myListener, f,  streamNum = 1)
     private val myCountersFC: MutableList<Counter> = mutableListOf()
     private val myPWRF: PiecewiseRateFunction = f
 
@@ -45,7 +46,7 @@ class TestNHPPPWLinear(parent: ModelElement, f: PiecewiseRateFunction, name: Str
     }
 
     private inner class EventListener : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             val t: Double = time
 
             //System.out.println("event at time: " + t);				

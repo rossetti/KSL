@@ -18,7 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * Represents a multi-variate distribution with the specified marginals
@@ -28,32 +28,32 @@ import ksl.utilities.random.rng.RNStreamIfc
  * All the random variables will share the same stream. The sampling ensures that
  * is the sampling is consecutive within the stream and thus independent.
  * @param marginals must have at least 2 supplied marginals
- * @param stream the stream to associate with each marginal
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class MVIndependentMarginals(
     marginals: List<RVariableIfc>,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : MVRVariable(stream) {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : MVRVariable(streamNum, streamProvider, name) {
 
     private val myRVs: MutableList<RVariableIfc> = ArrayList()
 
     init {
         require(marginals.size > 1) { "The number of supplied marginals must be at least 2" }
         for (rv in marginals) {
-            myRVs.add(rv.instance(rnStream))
+            myRVs.add(rv.instance(streamNum, streamProvider))
         }
-    }
-
-    override fun instance(stream: RNStreamIfc): MVRVariableIfc {
-        return MVIndependentMarginals(myRVs, stream)
-    }
-
-    override fun antitheticInstance(): MVRVariableIfc {
-        return MVIndependentMarginals(myRVs, rnStream.antitheticInstance())
     }
 
     override val dimension: Int
         get() = myRVs.size
+
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVIndependentMarginals {
+        return MVIndependentMarginals(myRVs, streamNumber, rnStreamProvider)
+    }
 
     override fun generate(array: DoubleArray) {
         require(array.size == dimension) { "The size of the array to fill does not match the sampling dimension!" }

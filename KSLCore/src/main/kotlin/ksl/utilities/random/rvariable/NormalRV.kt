@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.NormalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import kotlin.math.sqrt
@@ -26,13 +26,17 @@ import kotlin.math.sqrt
  * Normal(mean, variance)
  * @param mean the mean of the distribution
  * @param variance the variance of the distribution
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class NormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(variance > 0) { "Variance must be positive" }
@@ -43,11 +47,8 @@ class NormalRV(
      */
     val stdDeviation: Double = sqrt(variance)
 
-    constructor(mean: Double, variance: Double, streamNum: Int) :
-            this(mean, variance, KSLRandom.rnStream(streamNum))
-
-    override fun instance(stream: RNStreamIfc): NormalRV {
-        return NormalRV(mean, variance, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): NormalRV {
+        return NormalRV(mean, variance, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

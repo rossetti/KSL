@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
 
@@ -26,26 +26,27 @@ import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
  * @param min  the min, must be less than or equal to mode
  * @param mode the mode, must be less than or equal to max
  * @param max  the max
- * @param stream  the random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class TriangularRV(
     val min: Double,
     val mode: Double,
     val max: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name)  {
+) : ParameterizedRV(streamNum, streamProvider, name)  {
+
     init {
         require(min <= mode) { "min must be <= mode" }
         require(min < max) { "min must be < max" }
         require(mode <= max) { "mode must be <= max" }
     }
 
-    constructor(min: Double, mode: Double, max: Double, streamNum: Int) :
-            this(min, mode, max, KSLRandom.rnStream(streamNum))
-
-    override fun instance(stream: RNStreamIfc): TriangularRV {
-        return TriangularRV(min, mode, max, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TriangularRV {
+        return TriangularRV(min, mode, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

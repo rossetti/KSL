@@ -17,12 +17,16 @@
  */
 package ksl.utilities.random.rng
 
+import ksl.utilities.IdentityIfc
+import ksl.utilities.random.rng.RNStreamProvider.Companion.logger
+
+
 /**
  * An interface to define the ability to provide random number streams (RNStreamIfc)
  * Conceptualizes this process as making a sequence of streams, numbered 1, 2, 3, ...
  * for use in generating pseudo-random numbers that can be controlled.
  */
-interface RNStreamProviderIfc {
+interface RNStreamProviderIfc : IdentityIfc {
 
     /**
      *  When the number of streams provided reaches this limit a warning is issued.
@@ -73,10 +77,17 @@ interface RNStreamProviderIfc {
 
     /**
      * Tells the provider to return the ith stream of the sequence of streams that it provides.
-     * If i is greater than lastRNStreamNumber() then lastRNStreamNumber() is advanced
+     * If i = 0, then the next stream in the sequence of streams is return.
+     * If i < 0, then the antithetic stream associated with stream abs(i) is returned. The antithetic
+     * stream will not be managed by the provider but stream abs(i) will be managed. That is,
+     * antithetic streams are not subject to the stream control; however a standard stream that
+     * has been told to produce antithetic PRNs via its antithetic property will be controlled
+     * by the provider.
+     *
+     * If abs(i) is greater than lastRNStreamNumber() then lastRNStreamNumber() is advanced
      * according to the additional number of streams. For example, if lastRNStreamNumber() = 10
      * and i = 15, then streams 11, 12, 13, 14, 15 are assumed provided and stream 15 is returned and
-     * lastRNStreamNumber() now equals 15.  If i is less than or equal to lastRNStreamNumber(),
+     * lastRNStreamNumber() now equals 15.  If abs(i) is less than or equal to lastRNStreamNumber(),
      * then no new streams are created, lastRNStreamNumber() stays at its current value and the ith
      * stream is returned.
      *
@@ -120,15 +131,52 @@ interface RNStreamProviderIfc {
     fun resetRNStreamSequence()
 
     /**
+     *  The streams that have been provided represented as an iterator
+     */
+    val streams: Iterator<RNStreamIfc>
+
+    /**
      * Causes all streams that have been provided to be reset to the start of their stream. Thus,
      * the individual streams act as if they have not generated any pseudo-random numbers.
      * Note: This call only effects previously provided streams.
      */
     fun resetAllStreamsToStart() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).resetStartStream()
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            if (stream.resetStartStreamOption) {
+                stream.resetStartStream()
+            }
         }
+        logger.info { "RNStreamProvider($name) : reset all streams to start"}
+    }
+
+    /**
+     *  Causes all streams that have been provided to change their
+     *  resetStartStreamOption property to the supplied value.
+     *  @param option if true the streams will all participation in resets
+     */
+    fun setAllResetStartStreamOptions(option: Boolean) {
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            stream.resetStartStreamOption = option
+        }
+        logger.info { "RNStreamProvider($name) : set all reset start stream options to $option"}
+    }
+
+    /**
+     *  Causes all streams that have been provided to change their
+     *  advanceToNextSubStreamOption property to the supplied value.
+     *  @param option if true the streams will all participation in advancing
+     */
+    fun setAllAdvanceToNextSubStreamOption(option: Boolean) {
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            stream.advanceToNextSubStreamOption = option
+        }
+        logger.info { "RNStreamProvider($name) : set all advance to next sub-stream options to $option"}
     }
 
     /**
@@ -138,10 +186,12 @@ interface RNStreamProviderIfc {
      * Note: This call only effects previously provided streams.
      */
     fun resetAllStreamsToStartOfCurrentSubStream() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).resetStartSubStream()
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            stream.resetStartSubStream()
         }
+        logger.info { "RNStreamProvider($name) : reset all streams to start of current sub-stream"}
     }
 
     /**
@@ -151,10 +201,14 @@ interface RNStreamProviderIfc {
      * Note: This call only effects previously provided streams.
      */
     fun advanceAllStreamsToNextSubStream() {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).advanceToNextSubStream()
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            if (stream.advanceToNextSubStreamOption) {
+                stream.advanceToNextSubStream()
+            }
         }
+        logger.info { "RNStreamProvider($name) : advance all streams to next sub-stream"}
     }
 
     /**
@@ -167,9 +221,12 @@ interface RNStreamProviderIfc {
      * position in their stream
      */
     fun setAllStreamsAntitheticOption(option: Boolean) {
-        val n = lastRNStreamNumber()
-        for (i in 1..n) {
-            rnStream(i).antithetic = option
+        val itr = streams
+        while (itr.hasNext()) {
+            val stream = itr.next()
+            stream.antithetic = option
         }
+        logger.info { "RNStreamProvider($name) : set all streams to antithetic option: $option"}
     }
+
 }

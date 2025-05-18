@@ -1,6 +1,6 @@
 package ksl.examples.general.spatial
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
@@ -47,13 +47,13 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
     private val tba = ExponentialRV(2.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
-    val service1RV: RandomSourceCIfc
+    val service1RV: RandomVariableCIfc
         get() = st1
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
-    val service2RV: RandomSourceCIfc
+    val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
@@ -64,10 +64,10 @@ class SmallTransporterModel(parent: ModelElement, name: String? = null) : Proces
         get() = timeInSystem
 
     private val myLoadingTime = RandomVariable(this, UniformRV(0.5, 0.8))
-    val loadingTimeRV: RandomSourceCIfc
+    val loadingTimeRV: RandomVariableCIfc
         get() = myLoadingTime
     private val myUnLoadingTime = RandomVariable(this, UniformRV(0.25, 0.5))
-    val unloadingTimeRV: RandomSourceCIfc
+    val unloadingTimeRV: RandomVariableCIfc
         get() = myUnLoadingTime
     private inner class Part : Entity() {
         val mfgProcess: KSLProcess = process(isDefaultProcess = true) {

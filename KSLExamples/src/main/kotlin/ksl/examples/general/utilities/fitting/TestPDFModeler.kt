@@ -358,7 +358,7 @@ fun testBootStrappingOfFamily(){
 fun testPearsonType5(){
 
     val d = PearsonType5(shape = 0.40677819273863525, scale = 2.816753701768571)
-     val rv = d.randomVariable
+     val rv = d.randomVariable()
 
  //   val e = ExponentialRV(10.0)
     //   val se = ShiftedRV(5.0, e)

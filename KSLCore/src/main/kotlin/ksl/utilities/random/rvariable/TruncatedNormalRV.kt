@@ -2,17 +2,28 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.Interval
 import ksl.utilities.distributions.Normal
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.random.rvariable.parameters.TruncatedNormalRVParameters
 
+/**
+ * A truncated normal distribution.
+ *
+ * @param mean the mean of the distribution
+ * @param variance the variance of the distribution
+ * @param interval the interval over which the distribution is defined
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ */
 class TruncatedNormalRV(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     interval: Interval,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(interval.contains(mean)){ "The normal mean value, $mean, was not within the truncation interval, $interval." }
@@ -28,15 +39,12 @@ class TruncatedNormalRV(
         Double.NEGATIVE_INFINITY,
         Double.POSITIVE_INFINITY,
         interval.lowerLimit,
-        interval.upperLimit,
-        stream
+        interval.upperLimit, streamNum,
+        streamProvider, name
     )
 
-    constructor(mean: Double, variance: Double, interval: Interval, streamNum: Int) :
-            this(mean, variance, interval, KSLRandom.rnStream(streamNum))
-
-    override fun instance(stream: RNStreamIfc): TruncatedNormalRV {
-        return TruncatedNormalRV(mean, variance, myInterval, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TruncatedNormalRV {
+        return TruncatedNormalRV(mean, variance, myInterval, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {

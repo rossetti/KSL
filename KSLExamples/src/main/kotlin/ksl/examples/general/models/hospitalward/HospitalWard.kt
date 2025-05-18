@@ -18,6 +18,7 @@
 package ksl.examples.general.models.hospitalward
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
@@ -33,8 +34,8 @@ class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, n
     private val myOperationTime = RandomVariable(this, LognormalRV(0.75, 0.25 * 0.25))
     private val myPostOpStayTime = RandomVariable(this, ExponentialRV(72.0))
 
-    private val myNonOpPatientTBA = RandomVariable(this, ExponentialRV(12.0))
-    private val myOpPatientTBA = RandomVariable(this, ExponentialRV(6.0))
+    private val myNonOpPatientTBA = ExponentialRV(12.0)
+    private val myOpPatientTBA = ExponentialRV(6.0)
 
     private val mySystemTime = Response(this, "System Time")
     private val myBedWard: BedWard = BedWard(this)
@@ -71,11 +72,11 @@ class HospitalWard(parent: ModelElement, name: String?) : ModelElement(parent, n
             get() = myPostOpStayTime
     }
 
-    private fun noOperationPatientArrival(generator: EventGenerator){
+    private fun noOperationPatientArrival(generator: EventGeneratorIfc){
         myBedWard.receiveNewPatient(NoOpPatient())
     }
 
-    private fun operationPatientArrival(generator: EventGenerator){
+    private fun operationPatientArrival(generator: EventGeneratorIfc){
         myBedWard.receiveNewPatient(OpPatient())
     }
 

@@ -18,7 +18,7 @@
 
 package ksl.observers
 
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
@@ -118,7 +118,7 @@ class ControlVariateDataCollector(model: Model, name: String? = null) : ModelEle
      * @return the control as a response
      */
     fun addControlVariate(
-        rvSource: RandomSourceCIfc,
+        rvSource: RandomVariableCIfc,
         meanValue: Double,
         controlAlias: String = rvSource.name
     ): ResponseCIfc {

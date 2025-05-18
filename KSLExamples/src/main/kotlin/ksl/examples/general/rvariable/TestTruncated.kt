@@ -13,7 +13,7 @@ fun exampleTT1(){
 
     println(tn)
     println()
-    val tnRV = tn.randomVariable
+    val tnRV = tn.randomVariable()
 
     for(i in 1..10){
         println(tnRV.value)
@@ -24,9 +24,8 @@ fun exampleTT1(){
 
     println()
 
-   // val stream = tnRV.rnStream
     tnRV.resetStartStream()
-    val rv = TruncatedNormalRV(0.0, 1.0, Interval(-0.5, 0.5), tnRV.rnStream)
+    val rv = TruncatedNormalRV(0.0, 1.0, Interval(-0.5, 0.5), tnRV.streamNumber)
     for(i in 1..10){
         println(rv.value)
     }

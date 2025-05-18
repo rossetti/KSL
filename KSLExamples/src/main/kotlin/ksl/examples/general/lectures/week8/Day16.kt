@@ -9,6 +9,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.PoissonRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 fun main() {
     val sim = Model("DTP_With_Q")
@@ -24,8 +25,8 @@ fun main() {
 class DTPWithQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -38,10 +39,10 @@ class DTPWithQ(
         }
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
     private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
+    val arrivalRV: RandomVariableCIfc
         get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")

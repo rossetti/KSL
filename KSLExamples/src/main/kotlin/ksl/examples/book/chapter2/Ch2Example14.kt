@@ -29,7 +29,8 @@ import ksl.utilities.random.rvariable.TruncatedRV
  */
 fun main() {
     val cdf = Exponential(mean = 10.0)
-    val rv = TruncatedRV(cdf, Interval(0.0, Double.POSITIVE_INFINITY), Interval(3.0, 6.0))
+    val rv = TruncatedRV(cdf, Interval(0.0, Double.POSITIVE_INFINITY),
+        Interval(3.0, 6.0), streamNum = 1)
     print(String.format("%3s %15s %n", "n", "Values"))
     for (i in 1..5) {
         print(String.format("%3d %15f %n", i, rv.value))

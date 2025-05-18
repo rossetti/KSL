@@ -28,7 +28,7 @@ import ksl.utilities.statistic.BootstrapSampler
  */
 fun main(){
     // define a normal random variable,
-    val x = NormalRV(2.0, 5.0)
+    val x = NormalRV(2.0, 5.0, streamNum = 1)
     // generate some data
     val data = x.sample(100)
     // create the estimator

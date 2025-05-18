@@ -17,29 +17,30 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Exponential(mean) random variable
- * @param mean must be greater than 0.0
+ * @param mean must be greater than 0.0, defaults to 1.0
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
-class ExponentialRV(val mean: Double = 1.0, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
-    ParameterizedRV(stream, name) {
-
-    /**
-     * @param mean      must be greater than 0.0
-     * @param streamNum the stream number
-     */
-    constructor(mean: Double, streamNum: Int) : this(mean, KSLRandom.rnStream(streamNum))
+class ExponentialRV(
+    val mean: Double = 1.0,
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(mean > 0.0) { "Exponential mean must be > 0.0" }
     }
 
-    override fun instance(stream: RNStreamIfc): ExponentialRV {
-        return ExponentialRV(mean, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ExponentialRV {
+        return ExponentialRV(mean, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

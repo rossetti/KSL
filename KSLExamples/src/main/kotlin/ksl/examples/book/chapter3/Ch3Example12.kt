@@ -33,15 +33,15 @@ import ksl.utilities.statistic.Statistic
  */
 fun main() {
     val activityRVs = mapOf<String, TriangularRV>(
-        "A" to TriangularRV(2.0, 5.0, 8.0),
-        "B" to TriangularRV(6.0, 9.0, 12.0),
-        "C" to TriangularRV(6.0, 7.0, 8.0),
-        "D" to TriangularRV(1.0, 4.0, 7.0),
-        "E" to TriangularRV(7.0, 8.0, 9.0),
-        "F" to TriangularRV(5.0, 14.0, 17.0),
-        "G" to TriangularRV(3.0, 12.0, 21.0),
-        "H" to TriangularRV(3.0, 6.0, 9.0),
-        "I" to TriangularRV(5.0, 8.0, 11.0),
+        "A" to TriangularRV(2.0, 5.0, 8.0, streamNum = 2),
+        "B" to TriangularRV(6.0, 9.0, 12.0, streamNum = 3),
+        "C" to TriangularRV(6.0, 7.0, 8.0, streamNum = 4),
+        "D" to TriangularRV(1.0, 4.0, 7.0, streamNum = 5),
+        "E" to TriangularRV(7.0, 8.0, 9.0, streamNum = 6),
+        "F" to TriangularRV(5.0, 14.0, 17.0, streamNum = 7),
+        "G" to TriangularRV(3.0, 12.0, 21.0, streamNum = 8),
+        "H" to TriangularRV(3.0, 6.0, 9.0, streamNum = 9),
+        "I" to TriangularRV(5.0, 8.0, 11.0, streamNum = 10),
     )
     val paths = mutableListOf<List<String>>(
         listOf("A", "B", "D", "F", "H", "I"),

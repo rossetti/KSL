@@ -18,7 +18,7 @@
 
 package ksl.examples.general.models
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.Counter
@@ -34,9 +34,9 @@ import ksl.utilities.random.rvariable.toBoolean
 
 class YBoxSystemPV(parent: ModelElement, name: String?= null) : ProcessModel(parent, name) {
     private val maxAdjustments = 2
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ExponentialRV(15.0, 1))
+    private var myArrivalRV = ExponentialRV(15.0, 1)
     private val myArrivalGenerator = EntityGenerator(::YBox, myArrivalRV, myArrivalRV)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val inspectors: ResourceWithQ = ResourceWithQ(this, capacity = 2, name = "Inspectors")
