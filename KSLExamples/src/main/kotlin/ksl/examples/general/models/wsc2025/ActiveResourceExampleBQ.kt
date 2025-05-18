@@ -10,6 +10,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 fun main() {
     KSL.out.OUTPUT_ON = false
@@ -28,8 +29,8 @@ fun main() {
 class MM1ViaActiveResourceViaBQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.7, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.7, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
 
@@ -38,11 +39,9 @@ class MM1ViaActiveResourceViaBQ(
     }
 
     private val serviceTime: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = serviceTime
-    private val timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = timeBetweenArrivals
+
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = wip
@@ -55,7 +54,7 @@ class MM1ViaActiveResourceViaBQ(
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
 
-    private val generator = EntityGenerator(::Customer, timeBetweenArrivals, timeBetweenArrivals)
+    private val generator = EntityGenerator(::Customer, ad, ad)
 
     private val serverInputQ: BlockingQueue<QObject> = BlockingQueue(this, name = "ServerInputQ")
     private val serverOutputQ: BlockingQueue<QObject> = BlockingQueue(this, name = "ServerOutputQ")

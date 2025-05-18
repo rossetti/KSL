@@ -7,17 +7,17 @@ import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.BinomialRV
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TriangularRV
 
 class PalletWorkCenter(
     parent: ModelElement,
     numWorkers: Int = 2,
-    numPallets: RandomIfc = BinomialRV(0.8, 100, 1),
-    transportTime: RandomIfc = ExponentialRV(5.0, 2),
-    processingTime: RandomIfc = TriangularRV(8.0, 12.0, 15.0, 3),
+    numPallets: RVariableIfc = BinomialRV(0.8, 100, 1),
+    transportTime: RVariableIfc = ExponentialRV(5.0, 2),
+    processingTime: RVariableIfc = TriangularRV(8.0, 12.0, 15.0, 3),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -38,13 +38,13 @@ class PalletWorkCenter(
         }
 
     private val myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime, name = "ProcessingTimeRV")
-    val processingTimeRV: RandomSourceCIfc
+    val processingTimeRV: RandomVariableCIfc
         get() = myProcessingTimeRV
     private val myTransportTimeRV: RandomVariable = RandomVariable(parent, transportTime, name = "TransportTimeRV")
-    val transportTimeRV: RandomSourceCIfc
+    val transportTimeRV: RandomVariableCIfc
         get() = myTransportTimeRV
     private val myNumPalletsRV: RandomVariable = RandomVariable(parent, numPallets, name = "NumPalletsRV")
-    val numPalletsRV: RandomSourceCIfc
+    val numPalletsRV: RandomVariableCIfc
         get() = myNumPalletsRV
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusyWorkers")
     val numBusyWorkers: TWResponseCIfc

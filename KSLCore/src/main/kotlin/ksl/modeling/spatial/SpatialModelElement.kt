@@ -1,23 +1,24 @@
 package ksl.modeling.spatial
 
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.variable.RandomSourceCIfc
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.observers.ObservableComponent
 import ksl.utilities.observers.ObserverIfc
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.rvariable.RVariableIfc
 
 open class SpatialModelElement(
     parent: ModelElement,
     initLocation: LocationIfc,
-    defaultVelocity: RandomIfc,
+    defaultVelocity: RVariableIfc,
     aName: String? = null
 ) : ProcessModel(parent, aName), SpatialElementIfc, VelocityIfc {
     protected val mySpatialElement = SpatialElement(this, initLocation, aName)
     protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
-    val velocityRV: RandomSourceCIfc
+    val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
         get() = myVelocity

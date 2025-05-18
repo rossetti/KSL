@@ -18,15 +18,15 @@
 
 package ksl.examples.book.chapter7
 
-import ksl.modeling.elements.EventGenerator
+
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceCIfc
 import ksl.modeling.entity.ResourceWithQ
-import ksl.modeling.nhpp.NHPPTimeBtwEventRV
+import ksl.modeling.nhpp.NHPPPiecewiseRateFunctionEventGenerator
 import ksl.modeling.nhpp.PiecewiseConstantRateFunction
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.*
@@ -99,13 +99,14 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         myTotalAtRecruiters.observe(myMalWartRecruiters.waitingQ.numInQ)
     }
 
-    private val myTBArrivals: NHPPTimeBtwEventRV
+    private val myNumArrivals = Counter(this, "TotalNumberArrivals")
+
     private val rateFunction: PiecewiseConstantRateFunction
 //    private val myTBArrivals: RVariableIfc
 
     fun adjustRates(factor: Double){
         require(factor > 0.0) {"the adjustment factor must be >= 0.0"}
-        myTBArrivals.rateFunction = rateFunction.instance(factor)
+        generator.adjustRates(factor)
     }
 
     init {
@@ -120,11 +121,10 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         )
         val ratesPerMinute = hourlyRates.divideConstant(60.0)
         rateFunction = PiecewiseConstantRateFunction(durations, ratesPerMinute)
-        myTBArrivals = NHPPTimeBtwEventRV(this, rateFunction, streamNum = 1)
-//        myTBArrivals = ExponentialRV(2.0, 1)
     }
 
-    private val generator = EventGenerator(this, this::createStudents, myTBArrivals, myTBArrivals)
+    private val generator = NHPPPiecewiseRateFunctionEventGenerator(this, this::createStudents,
+        rateFunction = rateFunction, streamNum = 1)
 
     private val hourlyResponseSchedule = ResponseSchedule(this, 0.0, name = "Hourly")
     private val peakResponseInterval: ResponseInterval = ResponseInterval(this, 120.0, "PeakPeriod:[150.0,270.0]")
@@ -158,7 +158,8 @@ class StemFairMixerEnhanced(parent: ModelElement, name: String? = null) : Proces
         myEndTime.value = time
     }
 
-    private fun createStudents(eventGenerator: EventGenerator) {
+    private fun createStudents(generator: EventGeneratorIfc) {
+        myNumArrivals.increment()
         val student = Student()
         if (student.isMixer) {
             activate(student.mixingStudentProcess)

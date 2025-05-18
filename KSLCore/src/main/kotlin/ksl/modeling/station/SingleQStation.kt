@@ -27,6 +27,7 @@ import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  *  Models a simple work station that has a single queue for holding received qObjects
@@ -52,7 +53,7 @@ import ksl.utilities.random.rvariable.ConstantRV
  */
 open class SingleQStation(
     parent: ModelElement,
-    activityTime: RandomIfc = ConstantRV.ZERO,
+    activityTime: RVariableIfc = ConstantRV.ZERO,
     resource: SResource? = null,
     nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
     name: String? = null
@@ -72,7 +73,7 @@ open class SingleQStation(
      */
     constructor(
         parent: ModelElement,
-        activityTime: RandomIfc = ConstantRV.ZERO,
+        activityTime: RVariableIfc = ConstantRV.ZERO,
         initialCapacity: Int,
         nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
         name: String? = null
@@ -94,7 +95,7 @@ open class SingleQStation(
         get() = myResource
 
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, name = "${this.name}:ActivityRV")
-    override val activityTimeRV: RandomSourceCIfc
+    override val activityTimeRV: RandomVariableCIfc
         get() = myActivityTimeRV
 
     protected val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:Q")

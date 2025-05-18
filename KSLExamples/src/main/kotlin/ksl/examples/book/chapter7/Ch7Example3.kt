@@ -19,6 +19,7 @@
 package ksl.examples.book.chapter7
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.*
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
@@ -47,7 +48,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
         pool1.initialDefaultResourceAllocationRule = rule
         pool2.initialDefaultResourceAllocationRule= rule
     }
-    private val tba = RandomVariable(this, ExponentialRV(1.0, 1), "Arrival RV")
+    private val tba = ExponentialRV(1.0, 1)
     private val st = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
     private val decideProcess = RandomVariable(this, BernoulliRV(0.5, 3))
     private val wip1 = TWResponse(this, "${name}:WIP1")
@@ -56,7 +57,7 @@ class ResourcePoolExample(parent: ModelElement) : ProcessModel(parent, null) {
     private val tip2 = Response(this, "${name}:TimeInSystem2")
     private val generator = EventGenerator(this, this::arrivals, tba, tba)
 
-    private fun arrivals(generator: EventGenerator){
+    private fun arrivals(generator: EventGeneratorIfc){
         val c = Customer()
         if (decideProcess.value.toBoolean()){
             activate(c.usePool1)

@@ -3,6 +3,7 @@ package ksl.utilities.random.rvariable.parameters
 import ksl.utilities.distributions.Gamma
 import ksl.utilities.distributions.GeneralizedBeta
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GeneralizedBetaRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -18,12 +19,15 @@ class GeneralizedBetaRVParameters : RVParameters(
         addDoubleParameter("max", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val alpha = doubleParameter("alpha")
         val beta = doubleParameter("beta")
         val min = doubleParameter("min")
         val max = doubleParameter("max")
-        return GeneralizedBetaRV(alpha, beta, min, max, rnStream)
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): GeneralizedBeta {

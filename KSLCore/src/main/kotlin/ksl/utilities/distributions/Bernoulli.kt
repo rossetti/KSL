@@ -20,6 +20,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.BernoulliRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -52,10 +53,6 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) :
 
     override fun instance(): Bernoulli {
         return Bernoulli(probOfSuccess)
-    }
-
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return BernoulliRV(probOfSuccess)
     }
 
     override fun cdf(x: Double): Double {
@@ -105,6 +102,10 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) :
         } else {
             0.0
         }
+    }
+
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): BernoulliRV {
+        return BernoulliRV(probOfSuccess, streamNumber, streamProvider)
     }
 
     override fun parameters(params: DoubleArray) {

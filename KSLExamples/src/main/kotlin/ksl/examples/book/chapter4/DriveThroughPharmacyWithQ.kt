@@ -19,15 +19,14 @@ package ksl.examples.book.chapter4
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.elements.EventGenerator
-import ksl.modeling.elements.GeneratorActionIfc
+import ksl.modeling.elements.*
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.HistogramIfc
 
 
@@ -44,8 +43,8 @@ import ksl.utilities.statistic.HistogramIfc
 class DriveThroughPharmacyWithQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -62,11 +61,8 @@ class DriveThroughPharmacyWithQ(
         }
 
     private var myServiceRV: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = myServiceRV
-    private var myArrivalRV: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = myArrivalRV
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
     val numBusyPharmacists: TWResponseCIfc
@@ -94,13 +90,17 @@ class DriveThroughPharmacyWithQ(
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myArrivalRV, myArrivalRV)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
+    val arrivalGenerator: EventGeneratorRVCIfc
+        get() = myArrivalGenerator
+
     private val endServiceEvent = this::endOfService
 
     private val myInQ = IntegerFrequencyResponse(this, "NQ Upon Arrival")
 
     private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
+           // println("$time > arriving customer")
             myNS.increment() // new customer arrived
             val arrivingCustomer = QObject()
             myInQ.value = myWaitingQ.numInQ.value.toInt()

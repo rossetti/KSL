@@ -36,7 +36,7 @@ fun main() {
 
 fun testPoisson() {
     val dist = Poisson(5.0)
-    val rv = dist.randomVariable
+    val rv = dist.randomVariable()
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
@@ -47,7 +47,7 @@ fun testPoisson() {
 
 fun tesNegBinomial() {
     val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
-    val rv = dist.randomVariable
+    val rv = dist.randomVariable()
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
@@ -57,7 +57,7 @@ fun tesNegBinomial() {
 
 fun testBinomial() {
     val dist = Binomial(0.2, nTrials = 100)
-    val rv = dist.randomVariable
+    val rv = dist.randomVariable()
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     var breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)

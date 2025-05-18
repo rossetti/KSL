@@ -20,7 +20,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.PDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  *  Implements the acceptance/rejection algorithm for uni-variate distributions.
@@ -34,19 +34,28 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  Since the proposal distribution may generate values outside the domain of the target PDF
  *  it is essential that the PDF function return 0.0 for any value of x that is not
  *  within its domain.
+ *
+ * @param proposalDistribution the proposal distribution for generating variates that could be rejected
+ * @param majorizingConstant the majorizing constant for the rejection process
+ * @param pdf the PDF from which random variates are needed
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class AcceptanceRejectionRV(
     val proposalDistribution: ContinuousDistributionIfc,
     val majorizingConstant: Double,
     val pdf: PDFIfc,
-    rnStream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(rnStream) {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc  = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNum, streamProvider, name) {
     init {
         require(majorizingConstant > 0.0) { "The majorizing constant must be greater than 0.0" }
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
      }
 
-    private val rVariable: RVariableIfc = proposalDistribution.randomVariable(rnStream)
+    private val rVariable: RVariableIfc = proposalDistribution.randomVariable(this.streamNumber, streamProvider)
     private val domain = pdf.domain()
 
     override fun generate(): Double {
@@ -54,12 +63,16 @@ class AcceptanceRejectionRV(
         var u: Double
         do {
             w = rVariable.value
-            u = rVariable.rnStream.randU01()
+            u = rnStream.randU01()
         } while (!domain.contains(w) || ( u * majorizingConstant * proposalDistribution.pdf(w) > pdf.pdf(w)))
         return w
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, stream)
+    override fun instance(
+        streamNum: Int,
+        rnStreamProvider: RNStreamProviderIfc,
+    ): AcceptanceRejectionRV {
+        return AcceptanceRejectionRV(proposalDistribution, majorizingConstant, pdf, streamNum, rnStreamProvider, name)
     }
+
 }

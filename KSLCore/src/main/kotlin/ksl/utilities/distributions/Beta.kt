@@ -23,6 +23,7 @@ import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.BetaRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -125,8 +126,8 @@ class Beta(
         return Beta(alpha, beta)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return BetaRV(alpha, alpha, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): BetaRV {
+        return BetaRV(alpha, beta, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

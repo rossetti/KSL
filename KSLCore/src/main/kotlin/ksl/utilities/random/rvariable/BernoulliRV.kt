@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.BernoulliRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -26,34 +26,28 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * Bernoulli(probability of success) random variable
  *
  * @param probOfSuccess      the probability, must be in (0,1)
- * @param stream the stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class BernoulliRV (
     val probOfSuccess: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
-    /**
-     * @param probOfSuccess      the probability, must be in (0,1)
-     * @param streamNum the stream number
-     */
-    constructor(probOfSuccess: Double, streamNum: Int) : this(probOfSuccess, KSLRandom.rnStream(streamNum))
 
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Probability must be (0,1)" }
     }
 
-    /**
-     * @param stream the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(stream: RNStreamIfc): BernoulliRV {
-        return BernoulliRV(probOfSuccess, stream)
-    }
-
     override fun generate(): Double {
         return KSLRandom.rBernoulli(probOfSuccess, rnStream)
+    }
+
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliRV {
+        return BernoulliRV(probOfSuccess, streamNum, rnStreamProvider, name)
     }
 
     /**

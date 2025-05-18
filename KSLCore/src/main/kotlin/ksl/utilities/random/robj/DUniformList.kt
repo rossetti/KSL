@@ -18,18 +18,25 @@
 
 package ksl.utilities.random.robj
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
+/**
+ * A class to randomly select elements from a list
+ *
+ * @param elements the elements of the list
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ */
 class DUniformList<T>(
     elements: MutableList<T> = mutableListOf(),
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RList<T>(elements, stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+) : RList<T>(elements, streamNumber, streamProvider) {
 
-    constructor(
-        elements: MutableList<T>,
-        streamNum: Int
-    ) : this(elements, KSLRandom.rnStream(streamNum))
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<T> {
+        return DUniformList(elements, streamNumber, rnStreamProvider)
+    }
 
     override val randomElement: T
         get() {

@@ -19,7 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.PDFIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 
 /**
@@ -38,10 +38,13 @@ class RatioOfUniformsRV (
     vmin: Double,
     vmax: Double,
     f: PDFIfc,
-    rnStream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(rnStream) {
-    private val uCDF: UniformRV = UniformRV(0.0, umax, rnStream)
-    private val vCDF: UniformRV = UniformRV(vmin, vmax, rnStream)
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNum, streamProvider, name) {
+
+    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNum, streamProvider, name)
+    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNum, streamProvider,name)
     private val pdf: PDFIfc = f
 
     override fun generate(): Double {
@@ -55,7 +58,7 @@ class RatioOfUniformsRV (
         }
     }
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RatioOfUniformsRV {
+        return RatioOfUniformsRV(uCDF.max, vCDF.min, vCDF.max, pdf, streamNum, rnStreamProvider, name)
     }
 }

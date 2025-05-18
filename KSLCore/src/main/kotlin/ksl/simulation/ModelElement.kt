@@ -23,24 +23,22 @@ import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.*
 import ksl.observers.ModelElementObserver
-import ksl.utilities.GetValueIfc
-import ksl.utilities.IdentityIfc
-import ksl.utilities.NameIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
+import ksl.utilities.*
+import ksl.utilities.distributions.InvertibleCDFIfc
+import ksl.utilities.distributions.PWCEmpiricalCDF
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.rvariable.*
+import ksl.utilities.statistic.HistogramIfc
 
-private var elementCounter: Int = 0
+abstract class ModelElement internal constructor(
+    name: String? = null) : IdentityIfc, ParentNameIfc, GetTimeIfc {
 
-/**
- * incremented to give a running total of the number of model QObject
- * created
- */
-private var qObjCounter: Long = 0
-
-abstract class ModelElement internal constructor(name: String? = null) : IdentityIfc, ParentNameIfc {
     //TODO spatial model stuff
     //TODO change parent model element method, was in JSL, can/should it be in KSL
 
@@ -218,6 +216,9 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
     val model
         get() = myModel
 
+    val streamProvider: RNStreamProvider
+        get() = myModel.myRNStreamProvider
+
     protected open var mySpatialModel: SpatialModel? = parent?.spatialModel
 
     /**
@@ -240,8 +241,8 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
     /**
      *  A global uniform random number source
      */
-    protected val defaultUniformRV: RandomVariable
-        get() = myModel.myDefaultUniformRV
+    protected val defaultRNStream: RNStreamIfc
+        get() = myModel.myDefaultStream
 
     /**
      *  the executive that is executing the events
@@ -374,11 +375,16 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
             return sb.toString()
         }
 
+    final override val time: Double
+        get() = super.time
+
     /**
-     *  The current simulation time
+     *
+     * @return the simulated time as a double
      */
-    val time
-        get() = executive.currentTime * model.baseTimeUnit.value //TODO check if I should multiply by base time unit
+    override fun time(): Double{
+        return executive.currentTime * model.baseTimeUnit.value
+    }
 
     /**
      * Fills up the supplied StringBuilder carrying a string representation of
@@ -1859,6 +1865,14 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
     companion object {
         private var enumCounter: Int = 0
 
+        private var elementCounter: Int = 0
+
+        /**
+         * incremented to give a running total of the number of model QObject
+         * created
+         */
+        private var qObjCounter: Long = 0
+
         fun nextEnumConstant() : Int {
             return ++enumCounter
         }
@@ -2235,4 +2249,170 @@ abstract class ModelElement internal constructor(name: String? = null) : Identit
         }
 
     }
+
+    // defines functions for creating random variables that use the model's stream provider
+
+    fun BernoulliRV(probOfSuccess: Double, streamNum : Int = 0, name: String? = null) : BernoulliRV {
+        return BernoulliRV(probOfSuccess, streamNum, streamProvider, name)
+    }
+
+    fun BetaRV(alpha1: Double, alpha2: Double, streamNum: Int = 0, name: String? = null) : BetaRV {
+        return BetaRV(alpha1, alpha2, streamNum, streamProvider, name)
+    }
+
+    fun BinomialRV(pSuccess: Double, numTrials: Int, streamNum: Int = 0, name: String? = null) : BinomialRV {
+        return BinomialRV(pSuccess, numTrials, streamNum, streamProvider, name)
+    }
+
+    fun ConstantRV(value: Double, name: String? = null): ConstantRV {
+        return ConstantRV(value, name)
+    }
+
+    fun DEmpiricalRV(values: DoubleArray, cdf: DoubleArray, streamNum: Int = 0, name: String? = null) : DEmpiricalRV {
+        return DEmpiricalRV(values, cdf, streamNum, streamProvider, name)
+    }
+
+    fun DUniformRV(min: Int, max: Int, streamNum: Int = 0, name: String? = null) : DUniformRV {
+        return DUniformRV(min, max, streamNum, streamProvider, name)
+    }
+
+    fun DUniformRV(range: IntRange, streamNum: Int = 0, name: String? = null) : DUniformRV {
+        return DUniformRV(range, streamNum, streamProvider, name)
+    }
+
+    fun EmpiricalRV(data: DoubleArray, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
+        return EmpiricalRV(data, streamNum, streamProvider, name)
+    }
+
+    fun EmpiricalRV(lowerLimit: Double, numPoints: Int, width: Double, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
+        return EmpiricalRV(lowerLimit, numPoints, width, streamNum, streamProvider, name)
+    }
+
+    fun EmpiricalRV(interval: Interval, numPoints: Int, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
+        return EmpiricalRV(interval, numPoints, streamNum, streamProvider, name)
+    }
+
+    fun ExponentialRV(mean: Double, streamNum : Int = 0, name: String? = null) : ExponentialRV {
+        return ExponentialRV(mean, streamNum, streamProvider, name)
+    }
+
+    fun GammaRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : GammaRV {
+        return GammaRV(shape, scale, streamNum, streamProvider, name)
+    }
+
+    fun GeneralizedBetaRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : GeneralizedBetaRV {
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNum, streamProvider, name)
+    }
+
+    fun GeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : GeometricRV {
+        return GeometricRV(probOfSuccess, streamNum, streamProvider, name)
+    }
+
+    fun Hyper2ExponentialRV(mixingProb: Double, mean1: Double, mean2: Double, streamNum: Int = 0, name: String? = null): Hyper2ExponentialRV{
+        return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, streamProvider, name)
+    }
+
+    fun JohnsonBRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : JohnsonBRV {
+        return JohnsonBRV(alpha, beta, min, max, streamNum, streamProvider, name)
+    }
+
+    fun LaplaceRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LaplaceRV {
+        return LaplaceRV(location, scale, streamNum, streamProvider, name)
+    }
+
+    fun LogisticRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogisticRV {
+        return LogisticRV(location, scale, streamNum, streamProvider, name)
+    }
+
+    fun LogLogisticRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogLogisticRV {
+        return LogLogisticRV(shape, scale, streamNum, streamProvider, name)
+    }
+
+    fun LognormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): LognormalRV {
+        return LognormalRV(mean, variance, streamNum, streamProvider, name)
+    }
+
+    fun MixtureRV(list: List<RVariableIfc>, cdf: DoubleArray, streamNum: Int = 0, name: String? = null): MixtureRV {
+        return MixtureRV(list, cdf, streamNum, streamProvider, name)
+    }
+
+    fun NormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): NormalRV {
+        return NormalRV(mean, variance, streamNum, streamProvider, name)
+    }
+
+    fun PearsonType5RV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : PearsonType5RV {
+        return PearsonType5RV(shape, scale, streamNum, streamProvider, name)
+    }
+
+    fun PearsonType6RV(alpha1: Double, alpha2: Double, beta: Double, streamNum: Int = 0, name: String? = null) : PearsonType6RV {
+        return PearsonType6RV(alpha1, alpha2, beta, streamNum, streamProvider, name)
+    }
+
+    fun PoissonRV(mean: Double, streamNum : Int = 0, name: String? = null) : PoissonRV {
+        return PoissonRV(mean, streamNum, streamProvider, name)
+    }
+
+    fun PWCEmpiricalRV(
+        breakPoints: DoubleArray,
+        proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
+        streamNum: Int = 0,
+        name: String? = null
+    ) : PWCEmpiricalRV {
+        return PWCEmpiricalRV(breakPoints, proportions, streamNum, streamProvider, name)
+    }
+
+    fun PWCEmpiricalRV(
+        histogram: HistogramIfc,
+        streamNum: Int = 0,
+        name: String? = null
+    ) : PWCEmpiricalRV {
+        return PWCEmpiricalRV(histogram, streamNum, streamProvider, name)
+    }
+
+    fun ShiftedGeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : ShiftedGeometricRV {
+        return ShiftedGeometricRV(probOfSuccess, streamNum, streamProvider, name)
+    }
+
+    fun ShiftedRV(shift: Double, rv: RVariableIfc, streamNum: Int = 0, name: String? = null) : ShiftedRV {
+        return ShiftedRV(shift, rv, streamNum, streamProvider, name)
+    }
+
+    fun TriangularRV(min: Double, mode: Double, max: Double, streamNum: Int = 0, name: String? = null) : TriangularRV {
+        return TriangularRV(min, mode, max, streamNum, streamProvider, name)
+    }
+
+    fun TruncatedNormalRV(
+        mean: Double,
+        variance: Double,
+        interval: Interval,
+        streamNum: Int = 0,
+        name: String? = null
+    ) : TruncatedNormalRV {
+        return TruncatedNormalRV(mean, variance, interval, streamNum, streamProvider, name)
+    }
+
+    fun TruncatedRV(
+        distribution: InvertibleCDFIfc,
+        cdfLL: Double,
+        cdfUL: Double,
+        lowerLimit: Double,
+        upperLimit: Double,
+        streamNum: Int = 0,
+        name: String? = null
+    ) : TruncatedRV {
+        return TruncatedRV(distribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNum, streamProvider, name)
+    }
+
+    fun UniformRV(min: Double, max: Double, streamNum: Int = 0, name: String? = null) : UniformRV {
+        return UniformRV(min, max, streamNum, streamProvider, name)
+    }
+
+    fun UniformRV(interval: Interval, streamNum: Int = 0, name: String? = null) : UniformRV {
+        return UniformRV(interval, streamNum, streamProvider, name)
+    }
+
+    fun WeibullRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : WeibullRV {
+        return WeibullRV(shape, scale, streamNum, streamProvider, name)
+    }
+
 }

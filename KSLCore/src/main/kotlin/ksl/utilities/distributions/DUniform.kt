@@ -18,6 +18,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.DUniformRV
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
@@ -153,10 +154,9 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
         return param
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return DUniformRV(minimum, maximum, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): DUniformRV {
+        return DUniformRV(minimum, maximum, streamNumber, streamProvider)
     }
-
     override fun toString(): String {
         return "DUniform(minimum=$minimum, maximum=$maximum)"
     }

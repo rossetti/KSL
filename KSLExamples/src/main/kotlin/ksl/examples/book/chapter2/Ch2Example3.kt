@@ -33,7 +33,7 @@ fun main() {
     // get the default stream
     val s = KSLRandom.defaultRNStream()
     // make a clone of the stream
-    val clone = s.instance()
+    val clone = s.crnInstance()
     print(String.format("%3s %15s %15s %n", "n", "U", "U again"))
     for (i in 1..3) {
         print(String.format("%3d %15f %15f %n", i, s.randU01(), clone.randU01()))

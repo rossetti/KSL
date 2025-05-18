@@ -18,18 +18,30 @@
 
 package ksl.utilities.random.markovchain
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.RVariable
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.Statistic
 
+/**
+ *  Randomly generates the states of a two state discrete Markov Chain. Assumes that
+ *  the states are labeled 0, 1
+ *  @param theInitialState the initial state, defaults to 0
+ *  @param p01 the probability of transitioning from state 0 to state 1
+ *  @param p11 the probability of transitioning from state 1 to state 1
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
+ * @author rossetti
+ */
 class TwoStateMarkovChain(
-    theInitialState: Int = 1,
+    theInitialState: Int = 0,
     val p01: Double = 0.5,
     val p11: Double = 0.5,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamNumber: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNumber, streamProvider, name) {
 
     init {
         require((0.0 < p11) && (p11 < 1.0)) { "P11 must be in (0,1)" }
@@ -37,15 +49,8 @@ class TwoStateMarkovChain(
         require((theInitialState == 0) || (theInitialState == 1)) { "The initial state must be 0 or 1" }
     }
 
-    constructor(
-        theInitialState: Int = 1,
-        p01: Double = 0.5,
-        p11: Double = 0.5,
-        streamNum: Int
-    ) : this(theInitialState, p01, p11, KSLRandom.rnStream(streamNum))
-
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return TwoStateMarkovChain(initialState, p01, p11, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): TwoStateMarkovChain {
+        return TwoStateMarkovChain(initialState, p01, p11, streamNum, rnStreamProvider)
     }
 
     var initialState = theInitialState
@@ -63,10 +68,6 @@ class TwoStateMarkovChain(
             require((value == 0) || (value == 1)) { "The state must be 0 or 1" }
             field = value
         }
-
-    override fun instance(): TwoStateMarkovChain {
-        return TwoStateMarkovChain(initialState, p01, p11, rnStream)
-    }
 
     override fun generate(): Double {
         if (state == 1) {

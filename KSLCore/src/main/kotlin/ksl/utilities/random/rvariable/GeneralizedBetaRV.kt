@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.GeneralizedBetaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -27,38 +27,28 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param beta the beta shape parameter, must be greater than 0
  * @param min the minimum of the range, must be less than maximum
  * @param max the maximum of the range
- * @param stream the random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class GeneralizedBetaRV(
     val alpha: Double,
     val beta: Double,
     val min: Double,
     val max: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(), name: String? = null
-) : ParameterizedRV(stream, name) {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(max > min) { "the min must be < than the max" }
     }
 
-    private val myBeta: BetaRV = BetaRV(alpha, beta, stream)
+    private val myBeta: BetaRV = BetaRV(alpha, beta, streamNum, streamProvider)
 
-    /**
-     * GeneralizeBetaRV(alpha1, alpha2, min, max) random variable
-     * @param alphaShape the alpha shape parameter
-     * @param betaShape the beta shape parameter
-     * @param min the minimum of the range
-     * @param max the maximum of the range
-     * @param streamNum the random number stream number
-     */
-    constructor(alphaShape: Double, betaShape: Double, min: Double, max: Double, streamNum: Int) :
-            this(alphaShape, betaShape, min, max, KSLRandom.rnStream(streamNum))
-
-    /**
-     * @param stream the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(stream: RNStreamIfc): GeneralizedBetaRV {
-        return GeneralizedBetaRV(alpha, beta, min, max, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): GeneralizedBetaRV {
+        return GeneralizedBetaRV(alpha, beta, min, max, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

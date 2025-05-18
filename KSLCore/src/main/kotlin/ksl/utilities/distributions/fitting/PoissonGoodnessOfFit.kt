@@ -26,7 +26,7 @@ fun main() {
         val p = dist.cdf(i) - dist.cdf(i - 1)
         println("i = $i  p(i) = ${dist.pmf(i)}   cp(i) = ${dist.cdf(i)}   p = $p")
     }
-    val rv = dist.randomVariable
+    val rv = dist.randomVariable()
     // rv.advanceToNextSubStream()
     val data = rv.sample(500)
 

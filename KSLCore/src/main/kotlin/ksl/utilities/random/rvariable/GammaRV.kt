@@ -17,28 +17,33 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * GammaRV(shape, scale) random variable
+ * @param shape the shape parameter, must be > 0
+ * @param scale the scale parameter, must b > 0
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
-class GammaRV (val shape: Double, val scale: Double, stream: RNStreamIfc = KSLRandom.nextRNStream(), name:String? = null) :
-    ParameterizedRV(stream, name) {
+class GammaRV (
+    val shape: Double,
+    val scale: Double,
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(shape > 0){"The shape parameter must be > 0"}
         require(scale > 0){"The shape parameter must be > 0"}
     }
-    constructor(shape: Double, scale: Double, streamNum: Int) : this(shape, scale, KSLRandom.rnStream(streamNum))
 
-    /**
-     * @param stream the RNStreamIfc to use
-     * @return a new instance with same parameter value
-     */
-    override fun instance(stream: RNStreamIfc): GammaRV {
-        return GammaRV(shape, scale, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): GammaRV {
+        return GammaRV(shape, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

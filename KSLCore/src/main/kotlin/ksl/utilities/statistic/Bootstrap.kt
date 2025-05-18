@@ -20,6 +20,7 @@ package ksl.utilities.statistic
 import ksl.utilities.*
 import ksl.utilities.distributions.Normal
 import ksl.utilities.random.SampleIfc
+import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.*
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.EmpiricalRV
@@ -252,33 +253,32 @@ open class BootstrapEstimate(
  *
  * @param originalData the data to sample from to form the bootstraps
  * @param estimator    a function to be applied to the data
- * @param stream the random number stream for forming the bootstraps
- * @param name a name for the bootstrap statistics
+ * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 open class Bootstrap(
     originalData: DoubleArray,
     val estimator: BSEstimatorIfc = BSEstimatorIfc.Average(),
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNumber: Int = 0,
+    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : IdentityIfc by Identity(name), RNStreamControlIfc, RNStreamChangeIfc, BootstrapEstimateIfc {
+) : IdentityIfc by Identity(name), RNStreamControlIfc, BootstrapEstimateIfc, StreamNumberIfc {
 
     init {
         require(originalData.size > 1) { "The supplied bootstrap generate had only 1 data point" }
     }
 
     protected val myOriginalData: DoubleArray = originalData.copyOf()
-    protected val myOriginalPop: DPopulation = DPopulation(originalData, stream)
+    protected val myOriginalPop: DPopulation = DPopulation(originalData, streamNumber, streamProvider)
     protected val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
     protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
     protected val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
     protected val myBSEstimates = DoubleArraySaver()
     protected val myStudentizedTValues = DoubleArraySaver()
 
-    override var rnStream: RNStreamIfc
-        get() = myOriginalPop.rnStream
-        set(value) {
-            myOriginalPop.rnStream = value
-        }
+    override val streamNumber: Int
+        get() = myOriginalPop.streamNumber
 
     /**
      * Tells the stream to start producing antithetic variates
@@ -477,17 +477,14 @@ open class Bootstrap(
      */
     fun empiricalRVForEachBootstrapSample(useCRN: Boolean = true): List<RVariableIfc> {
         val list: MutableList<RVariableIfc> = ArrayList()
-        var rnStream: RNStreamIfc? = null
-        if (useCRN) {
-            rnStream = KSLRandom.nextRNStream()
-        }
+        val streamNumber = streamProvider.lastRNStreamNumber() + 1
         for (s in myBSArrayList) {
             val data: DoubleArray = s.savedData()
             if (data.isNotEmpty()) {
                 if (useCRN) {
-                    list.add(EmpiricalRV(data, rnStream!!))
+                    list.add(EmpiricalRV(data, streamNumber, streamProvider))
                 } else {
-                    list.add(EmpiricalRV(data))
+                    list.add(EmpiricalRV(data, streamProvider = streamProvider))
                 }
             }
         }
@@ -648,18 +645,21 @@ open class Bootstrap(
          * @param sampleSize the size of the original sample, must be greater than 1
          * @param estimator    a function to be applied to the data
          * @param sampler something to generate the original sample of the provided size
-         * @param stream the random number stream for forming the bootstraps
+         * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+         * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+         * @param name an optional name
          * @return an instance of Bootstrap based on the sample
          */
         fun create(
             sampleSize: Int,
             sampler: SampleIfc,
             estimator: BSEstimatorIfc,
-            stream: RNStreamIfc = KSLRandom.nextRNStream(),
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
             name: String? = null
         ): Bootstrap {
             require(sampleSize > 1) { "The sample size must be greater than 1" }
-            return Bootstrap(sampler.sample(sampleSize), estimator, stream, name)
+            return Bootstrap(sampler.sample(sampleSize), estimator, streamNumber, streamProvider, name)
         }
 
         /**

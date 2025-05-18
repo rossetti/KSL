@@ -2,6 +2,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
@@ -90,8 +91,8 @@ class Laplace(
         return doubleArrayOf(location, scale)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return LaplaceRV(location, scale, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): LaplaceRV {
+        return LaplaceRV(location, scale, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

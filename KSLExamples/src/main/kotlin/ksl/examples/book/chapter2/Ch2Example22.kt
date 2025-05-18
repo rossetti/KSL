@@ -51,7 +51,7 @@ fun main() {
     println("mean = " + bnDF.mean())
     println("variance = " + bnDF.variance())
     // make random variables based on the distributions
-    val brv = bnDF.randomVariable
+    val brv = bnDF.randomVariable(1)
     print(String.format("%3s %15s %n", "n", "Values"))
     // generate some values
     for (i in 1..5) {

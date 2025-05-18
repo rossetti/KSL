@@ -19,6 +19,7 @@
 package ksl.utilities.random.robj
 
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 interface BernoulliPickerIfc<T> : RElementIfc<T> {
@@ -34,22 +35,17 @@ interface BernoulliPickerIfc<T> : RElementIfc<T> {
  *  @param stream the associated random number stream
  */
 class BernoulliPicker<T>(
-    private val successProbability: Double,
+    val successProbability: Double,
     successOption: T,
     failureOption: T,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : BernoulliPickerIfc<T> {
+    streamNumber: Int = 0,
+    private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+) : BernoulliPickerIfc<T>, RElementInstanceIfc<T>  {
 
     init {
+        require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
         require(successOption != failureOption) {"The success and failure options cannot be the same."}
     }
-
-    constructor(
-        successProbability: Double,
-        successOption: T,
-        failureOption: T,
-        streamNum: Int,
-    ) : this(successProbability, successOption, failureOption, KSLRandom.rnStream(streamNum))
 
     override var success: T = successOption
         set(value) {
@@ -63,13 +59,48 @@ class BernoulliPicker<T>(
             field = value
         }
 
-    init {
-        require(!(successProbability <= 0.0 || successProbability >= 1.0)) { "Probability must be (0,1)" }
+    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliPicker<T> {
+        return BernoulliPicker(successProbability, success, failure, streamNumber, rnStreamProvider)
     }
 
-    override var rnStream: RNStreamIfc = stream
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers
+     */
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     override val randomElement: T
         get() = if (rnStream.randU01() <= successProbability) success else failure
 
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }

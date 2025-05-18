@@ -17,20 +17,33 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamFactory
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.ConstantRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Allows a constant value to pretend to be a random variable
  */
-open class ConstantRV(var constVal: Double, name: String? = null) : ParameterizedRV(KSLRandom.defaultRNStream(), name){
+class ConstantRV(
+    var constVal: Double,
+    name: String? = null
+) : ParameterizedRV(
+    KSLRandom.defaultStreamNumber,
+    KSLRandom.DefaultRNStreamProvider,
+    name
+) {
 
-    override fun instance(stream: RNStreamIfc): ConstantRV {
-        return ConstantRV(constVal)
-    }
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers
+     */
+    override val rnStream: RNStreamIfc = RNStreamFactory().nextStream()
 
-    override fun instance(): ConstantRV {
+    override val streamNumber: Int
+        get() = 1
+
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ConstantRV {
         return ConstantRV(constVal)
     }
 
@@ -56,9 +69,10 @@ open class ConstantRV(var constVal: Double, name: String? = null) : Parameterize
     override var antithetic: Boolean
         get() = false
         @Suppress("UNUSED_PARAMETER")
-        set(flag) {}
+        set(flag) {
+        }
 
-    override fun antitheticInstance(): RVariableIfc {
+    override fun antitheticInstance(): ConstantRV {
         return ConstantRV(constVal)
     }
 
@@ -66,22 +80,17 @@ open class ConstantRV(var constVal: Double, name: String? = null) : Parameterize
         /**
          * A constant to represent zero for sharing
          */
-        val ZERO = ConstantRV(0.0)
+        val ZERO: ConstantRV by lazy { ConstantRV(0.0) }
 
         /**
          * A constant to represent one for sharing
          */
-        val ONE = ConstantRV(1.0)
-
-        /**
-         * A constant to represent two for sharing
-         */
-        val TWO = ConstantRV(2.0)
+        val ONE: ConstantRV by lazy { ConstantRV(1.0) }
 
         /**
          * A constant to represent positive infinity for sharing
          */
-        val POSITIVE_INFINITY = ConstantRV(Double.POSITIVE_INFINITY)
+        val POSITIVE_INFINITY: ConstantRV by lazy { ConstantRV(Double.POSITIVE_INFINITY) }
 
     }
 

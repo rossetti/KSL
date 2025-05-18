@@ -32,11 +32,11 @@ fun main() {
     // make a provider for creating streams
     val p1 = RNStreamProvider()
     // get the first stream from the provider
-    val p1s1 = p1.nextRNStream()
+    val p1s1 = p1.rnStream(1)
     // make another provider, the providers are identical
     val p2 = RNStreamProvider()
     // thus the first streams returned are identical
-    val p2s1 = p2.nextRNStream()
+    val p2s1 = p2.rnStream(1)
     print(String.format("%3s %15s %15s %n", "n", "p1s1", "p2s2"))
     for (i in 1..10) {
         print(String.format("%3d %15f %15f %n", i, p1s1.randU01(), p2s1.randU01()))

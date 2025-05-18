@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
@@ -187,8 +188,8 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
         }
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return GeometricRV(pSuccess, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): GeometricRV {
+        return GeometricRV(pSuccess, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

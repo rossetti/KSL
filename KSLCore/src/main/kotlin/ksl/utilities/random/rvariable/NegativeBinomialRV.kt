@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.NegativeBinomialRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -25,30 +25,25 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * NegativeBinomial(probability of success, number of trials until rth success)
  * @param probOfSuccess       the probability of success, must be in (0,1)
  * @param numSuccess number of trials until rth success
- * @param stream     the stream from the stream provider to use
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class NegativeBinomialRV(
     val probOfSuccess: Double,
     val numSuccess: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(!(probOfSuccess <= 0.0 || probOfSuccess >= 1.0)) { "Success Probability must be (0,1)" }
         require(numSuccess > 0) { "Number of trials until rth success must be > 0" }
     }
 
-    /**
-     * @param prob       the probability of success, must be in (0,1)
-     * @param numSuccess number of trials until rth success
-     * @param streamNum  the stream number from the stream provider to use
-     */
-    constructor(prob: Double, numSuccess: Double, streamNum: Int) : this(
-        prob, numSuccess, KSLRandom.rnStream(streamNum)
-    )
-
-    override fun instance(stream: RNStreamIfc): NegativeBinomialRV {
-        return NegativeBinomialRV(probOfSuccess, numSuccess, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): NegativeBinomialRV {
+        return NegativeBinomialRV(probOfSuccess, numSuccess, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

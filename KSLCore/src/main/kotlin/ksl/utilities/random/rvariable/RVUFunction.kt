@@ -18,28 +18,48 @@
 
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
-class RVUFunction(
-    theFirst: RVariableIfc,
+/**
+ *  This represents a uni-variate function of a random variable.
+ *
+ * @param rv the random variable in the function mapping
+ * @param theTransform the functional transformation using (first) to produce a double
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ */
+class RVUFunction private constructor (
+    rv: RVariableIfc,
     theTransform: ((f: Double) -> Double) = { f: Double -> f },
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
-    name: String? = null
-) : RVariable(stream, name) {
+    streamNum: Int,
+    streamProvider: RNStreamProviderIfc
+) : RVariable(streamNum, streamProvider) {
 
-    private val first = theFirst.instance(rnStream)
+    /**
+     *  This represents a uni-variate function of a random variable. The function will
+     *  have the same stream and same underlying provider as the supplied random variable
+     *
+     * @param rv the random variable in the function mapping
+     * @param theTransform the functional transformation using (first) to produce a double
+     */
+    constructor(
+        rv: RVariableIfc,
+        theTransform: ((f: Double) -> Double) = { f: Double -> f }
+    ) : this(rv, theTransform, rv.streamNumber, rv.streamProvider)
+
+    //TODO how to handle the case of the rv being a ConstantRV?
+    init {
+        require(rv !is ConstantRV ) {"A constant random variable cannot be transformed."}
+    }
+    private val first = rv.instance(streamNum, streamProvider)
     private val transform = theTransform
 
-    override fun instance(stream: RNStreamIfc): RVariableIfc {
-        return RVUFunction(first, transform, rnStream, name)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+        return RVUFunction(first, transform, streamNum, rnStreamProvider)
     }
 
     override fun generate(): Double {
         return transform(first.value)
     }
 
-    override fun useStreamNumber(streamNumber: Int) {
-        super.useStreamNumber(streamNumber) // sets rnStream
-        first.useStreamNumber(streamNumber)
-    }
 }

@@ -2,6 +2,7 @@ package ksl.utilities.distributions.fitting
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.BootstrapEstimate
@@ -45,14 +46,14 @@ class EstimationResult(
     var message: String? = null,
     var success: Boolean,
     val estimator: MVBSEstimatorIfc
-){
+) {
 
     val distribution: String
         get() {
-            return if ((parameters == null) || !success){
+            return if ((parameters == null) || !success) {
                 "Success=$success: $message"
             } else {
-                if (shiftedData != null){
+                if (shiftedData != null) {
                     "${shiftedData!!.shift} + ${PDFModeler.createDistribution(parameters).toString()}"
                 } else {
                     PDFModeler.createDistribution(parameters).toString()
@@ -66,7 +67,7 @@ class EstimationResult(
      */
     val testData: DoubleArray
         get() {
-            return if (shiftedData != null){
+            return if (shiftedData != null) {
                 shiftedData!!.shiftedData
             } else {
                 originalData
@@ -76,16 +77,19 @@ class EstimationResult(
     /**
      *  Computes and saves the bootstrap results for the quality
      *  of the parameter estimates.
+     * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      */
     fun bootStrapResults(
         numBootstrapSamples: Int = 399,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): BootStrapResults {
-        val map = bootstrapParameters(numBootstrapSamples, stream)
+        val map = bootstrapParameters(numBootstrapSamples, streamNumber, streamProvider)
         var tb = 0.0
         var tm = 0.0
         var tv = 0.0
-        for((_,b) in map){
+        for ((_, b) in map) {
             tb = tb + b.bootstrapBiasEstimate
             tm = tm + b.bootstrapMSEEstimate
             tv = tv + b.acrossBootstrapStatistics.variance
@@ -98,21 +102,23 @@ class EstimationResult(
      *  with the estimation result.
      *
      *  @param numBootstrapSamples the number of bootstrap samples
-     *  @param stream the stream for the bootstrap sampling
+     * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      *  @return map of BootStrapEstimate instances representing the bootstrap
      *  estimate results for each parameter. The key to the map is the name
      *  of the parameter.
      */
     fun bootstrapParameters(
         numBootstrapSamples: Int = 399,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): Map<String, BootstrapEstimate> {
         val data = if (shiftedData != null) {
             shiftedData!!.shiftedData
         } else {
             originalData
         }
-        val bss = BootstrapSampler(data, estimator, stream)
+        val bss = BootstrapSampler(data, estimator, streamNumber, streamProvider)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         val map = mutableMapOf<String, BootstrapEstimate>()
         for (e in list) {
@@ -169,17 +175,19 @@ class EstimationResult(
      *
      *  @param numBootstrapSamples the number of bootstrap samples
      *  @param level the desired confidence interval level for each parameter
-     *  @param stream the stream for the bootstrap sampling
+     * @param streamNumber the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      *  @return a map with key = parameter name and value being the interval
      *
      */
     fun percentileBootstrapCI(
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): Map<String, Interval> {
         val map = mutableMapOf<String, Interval>()
-        val bMap = bootstrapParameters(numBootstrapSamples, stream)
+        val bMap = bootstrapParameters(numBootstrapSamples, streamNumber, streamProvider)
         for ((name, e) in bMap) {
             map[name] = e.percentileBootstrapCI(level)
         }
@@ -189,7 +197,7 @@ class EstimationResult(
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Estimation Results:")
-        if (success){
+        if (success) {
             sb.appendLine("The estimation was a SUCCESS!")
         } else {
             sb.appendLine("The estimation was a FAILURE!")

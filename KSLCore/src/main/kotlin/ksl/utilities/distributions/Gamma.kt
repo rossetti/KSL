@@ -21,6 +21,7 @@ import ksl.utilities.Interval
 import ksl.utilities.exceptions.KSLTooManyIterationsException
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
 
@@ -270,8 +271,8 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         return g2
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return GammaRV(shape, scale, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): GammaRV {
+        return GammaRV(shape, scale, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

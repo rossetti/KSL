@@ -29,6 +29,7 @@ import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
 
 /**
@@ -53,8 +54,8 @@ fun main(){
 class DriveThroughPharmacy(
     parent: ModelElement,
     numPharmacists: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.5, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
     init {
@@ -64,10 +65,10 @@ class DriveThroughPharmacy(
     private val pharmacists: ResourceWithQ = ResourceWithQ(this, "Pharmacists", numPharmacists)
 
     private val serviceTime: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = serviceTime
     private val timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
+    val arrivalRV: RandomVariableCIfc
         get() = timeBetweenArrivals
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc

@@ -3,6 +3,7 @@ package ksl.utilities.random.rvariable.parameters
 import ksl.utilities.distributions.Distribution
 import ksl.utilities.distributions.Logistic
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.LogisticRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -16,10 +17,13 @@ class LogisticRVParameters : RVParameters(
         addDoubleParameter("scale", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val location = doubleParameter("location")
         val scale = doubleParameter("scale")
-        return LogisticRV(location, scale, rnStream)
+        return LogisticRV(location, scale, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): Logistic {

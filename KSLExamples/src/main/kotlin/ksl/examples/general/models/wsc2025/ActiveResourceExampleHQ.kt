@@ -7,6 +7,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.io.MarkDown
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 fun main() {
     val m = Model("Active Resource Example")
@@ -24,8 +25,8 @@ fun main() {
 class MM1ViaActiveResourceViaHQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RandomIfc = ExponentialRV(1.0, 1),
-    sd: RandomIfc = ExponentialRV(0.7, 2),
+    ad: RVariableIfc = ExponentialRV(1.0, 1),
+    sd: RVariableIfc = ExponentialRV(0.7, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
 
@@ -34,11 +35,9 @@ class MM1ViaActiveResourceViaHQ(
     }
 
     private val serviceTime: RandomVariable = RandomVariable(this, sd)
-    val serviceRV: RandomSourceCIfc
+    val serviceRV: RandomVariableCIfc
         get() = serviceTime
-    private val timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
-    val arrivalRV: RandomSourceCIfc
-        get() = timeBetweenArrivals
+
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = wip
@@ -51,7 +50,7 @@ class MM1ViaActiveResourceViaHQ(
 
     private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
 
-    private val generator = EntityGenerator(::Customer, timeBetweenArrivals, timeBetweenArrivals)
+    private val generator = EntityGenerator(::Customer, ad, ad)
     private val customerWaitingQ = HoldQueue(this, "CustomerWaitingQ")
     private val customerInServiceQ = HoldQueue(this, "CustomerInServiceQ")
     private val serverWaitingQ = HoldQueue(this, "ServerWaitingQ")

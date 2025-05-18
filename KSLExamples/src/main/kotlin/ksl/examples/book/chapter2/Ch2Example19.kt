@@ -38,7 +38,7 @@ fun main() {
     }
 
     // create the population
-    val p = DPopulation(y)
+    val p = DPopulation(y, streamNum = 1)
     println(p.contentToString())
 
     println("Print the permuted population")

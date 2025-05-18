@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.Exponential
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -14,9 +15,12 @@ class ExponentialRVParameters : RVParameters(
         addDoubleParameter("mean", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val mean = doubleParameter("mean")
-        return ExponentialRV(mean, rnStream)
+        return ExponentialRV(mean, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): Exponential {

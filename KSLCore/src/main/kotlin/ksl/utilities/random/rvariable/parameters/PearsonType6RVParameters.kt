@@ -2,6 +2,7 @@ package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.distributions.PearsonType6
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.PearsonType6RV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -16,11 +17,14 @@ class PearsonType6RVParameters : RVParameters(
         addDoubleParameter("scale", 1.0)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val alpha1 = doubleParameter("shape1")
         val alpha2 = doubleParameter("shape2")
         val beta = doubleParameter("scale")
-        return PearsonType6RV(alpha1, alpha2, beta, rnStream)
+        return PearsonType6RV(alpha1, alpha2, beta, streamNumber, streamProvider)
     }
 
     override fun createDistribution(): PearsonType6 {

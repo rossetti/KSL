@@ -1,7 +1,7 @@
 package ksl.examples.general.models.wsc2025
 
 import ksl.examples.book.chapter8.TestAndRepairShopResourceConstrained
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.*
 import ksl.modeling.variable.*
@@ -81,7 +81,7 @@ class TestAndRepairSystem(parent: ModelElement, name: String? = null) : ProcessM
     )
 
     // define steps to represent a plan
-    inner class TestPlanStep(val tester: ResourceWithQ, val processTime: RandomIfc)
+    inner class TestPlanStep(val tester: ResourceWithQ, val processTime: RandomVariable)
 
     // make all the plans
     private val testPlan1 = listOf(
@@ -116,7 +116,7 @@ class TestAndRepairSystem(parent: ModelElement, name: String? = null) : ProcessM
     // define the random variables
     private val tba = ExponentialRV(20.0)
     private val myArrivalGenerator = EntityGenerator(::Part, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     // define the responses

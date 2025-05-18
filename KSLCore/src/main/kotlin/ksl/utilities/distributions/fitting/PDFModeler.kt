@@ -30,6 +30,7 @@ import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.toStatDataFrame
 import ksl.utilities.moda.*
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.random.rvariable.parameters.GammaRVParameters
@@ -104,9 +105,11 @@ class PDFModeler(
         result: EstimationResult,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream()
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     ): List<BootstrapEstimate> {
-        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level, stream, result.distribution)
+        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level,
+            streamNumber, streamProvider, result.distribution)
     }
 
     /**
@@ -117,10 +120,11 @@ class PDFModeler(
         estimator: MVBSEstimatorIfc,
         numBootstrapSamples: Int = 399,
         level: Double = 0.95,
-        stream: RNStreamIfc = KSLRandom.nextRNStream(),
+        streamNumber: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         label: String? = null
     ): List<BootstrapEstimate> {
-        val bss = BootstrapSampler(myData, estimator, stream)
+        val bss = BootstrapSampler(myData, estimator, streamNumber, streamProvider)
         val list = bss.bootStrapEstimates(numBootstrapSamples)
         for (e in list) {
             e.defaultCILevel = level
@@ -1263,7 +1267,8 @@ class PDFModeler(
             scoringModels: Set<PDFScoringModel> = defaultScoringModels,
             numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
-            stream: RNStreamIfc = KSLRandom.nextRNStream()
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): IntegerFrequency {
             val cdfFreq = IntegerFrequency(name = "Distribution Frequency")
             val estMap = HashBiMap.create<RVParametersTypeIfc, Int>()
@@ -1277,7 +1282,7 @@ class PDFModeler(
             for ((i, rv) in invMap) {
                 cellLabels[i] = rv.toString()
             }
-            val bsPop = DPopulation(data, stream)
+            val bsPop = DPopulation(data, streamNumber,streamProvider)
             for (i in 1..numBootstrapSamples) {
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
@@ -1317,11 +1322,12 @@ class PDFModeler(
             scoringModels: Set<PDFScoringModel> = defaultScoringModels,
             numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
-            stream: RNStreamIfc = KSLRandom.nextRNStream()
+            streamNumber: Int = 0,
+            streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): AnyFrame {
             val freq = bootstrapFamilyFrequency(
                 data, evaluationMethod,
-                estimators, scoringModels, numBootstrapSamples, automaticShifting, stream
+                estimators, scoringModels, numBootstrapSamples, automaticShifting, streamNumber, streamProvider
             )
             var df = freq.toDataFrame()
             df = df.remove("id", "name", "value")

@@ -18,6 +18,7 @@
 package ksl.examples.general.models
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.RandomVariable
@@ -26,6 +27,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * Arrivals are governed by a compound Poisson process. An EventGenerator is used
@@ -35,7 +37,7 @@ import ksl.utilities.random.rvariable.ExponentialRV
 class EventGeneratorCPP(parent: ModelElement, mtba: Double = 1.0, name: String? = null) : ModelElement(parent, name) {
     private val myEventCounter: Counter = Counter(this, "Counts Events")
     private val myArrivalCounter: Counter = Counter(this, "Counts Arrivals")
-    private val myTBA: RandomIfc = ExponentialRV(mtba)
+    private val myTBA: RVariableIfc = ExponentialRV(mtba)
 //    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), myTBA, myTBA)
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
     private var myNumArrivals: RandomVariable
@@ -48,14 +50,14 @@ class EventGeneratorCPP(parent: ModelElement, mtba: Double = 1.0, name: String? 
 //        myEventCounter.addCountLimitStoppingAction()
     }
 
-    private fun arrivals(generator: EventGenerator) {
+    private fun arrivals(generator: EventGeneratorIfc) {
         myEventCounter.increment()
         val n = myNumArrivals.value
         myArrivalCounter.increment(n)
     }
 
     private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGenerator) {
+        override fun generate(generator: EventGeneratorIfc) {
             myEventCounter.increment()
             val n = myNumArrivals.value
             myArrivalCounter.increment(n)

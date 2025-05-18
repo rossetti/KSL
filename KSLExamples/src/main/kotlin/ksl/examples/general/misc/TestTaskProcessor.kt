@@ -1,6 +1,7 @@
 package ksl.examples.general.misc
 
 import ksl.modeling.elements.EventGenerator
+import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.entity.TaskProcessingSystem
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.RandomVariable
@@ -23,7 +24,7 @@ class TestTaskProcessor(
     name: String? = null
 ) : TaskProcessingSystem(parent, name) {
 
-    private val myTBA = RandomVariable(this, ExponentialRV(6.0, 1), "Arrival RV")
+    private val myTBA = ExponentialRV(6.0, 1)
     private val myST = RandomVariable(this, ExponentialRV(3.0, 2), "Service RV")
 
     //    private val myTaskProcessor1 = TransientTaskProcessor(name = "TestProcessor1")
@@ -40,7 +41,7 @@ class TestTaskProcessor(
 
     private val myArrivalGenerator: EventGenerator = EventGenerator(this, this::arrivals, myTBA, myTBA)
 
-    private fun arrivals(generator: EventGenerator) {
+    private fun arrivals(generator: EventGeneratorIfc) {
         val task = WorkTask(myST)
         myTaskDispatcher.receive(task)
     }

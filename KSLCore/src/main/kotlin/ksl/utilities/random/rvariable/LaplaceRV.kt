@@ -17,7 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.LaplaceRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 
@@ -25,21 +25,24 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * LaplaceRV(mean, scale)
  * @param location the mean (location) of the random variable
  * @param scale must be greater than 0
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class LaplaceRV(
     val location: Double,
     val scale: Double,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : ParameterizedRV(stream, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
+
     init {
         require(scale > 0) { "Scale must be positive" }
     }
 
-    constructor(location: Double, scale: Double, streamNum: Int) : this(location, scale, KSLRandom.rnStream(streamNum))
-
-    override fun instance(stream: RNStreamIfc): LaplaceRV {
-        return LaplaceRV(location, scale, stream)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): LaplaceRV {
+        return LaplaceRV(location, scale, streamNum, rnStreamProvider, name)
     }
 
     override fun generate(): Double {

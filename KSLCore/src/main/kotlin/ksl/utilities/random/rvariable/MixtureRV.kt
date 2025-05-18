@@ -17,18 +17,22 @@
  */
 package ksl.utilities.random.rvariable
 
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
  * @param list   a list holding the random variables to select from
  * @param cdf    the cumulative probability associated with each element of the list
- * @param stream the source of the randomness
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
 class MixtureRV(
     list: List<RVariableIfc>,
     cdf: DoubleArray,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RVariable(stream) {
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    name: String? = null
+) : RVariable(streamNum, streamProvider, name) {
 
     val cdf = cdf.copyOf()
         get() = field.copyOf()
@@ -39,20 +43,12 @@ class MixtureRV(
         require(KSLRandom.isValidCDF(cdf)) { "The cdf was not a valid CDF" }
     }
 
-    /**
-     * @param list      a list holding the random variables to select from
-     * @param cdf       the cumulative probability associated with each element of the list
-     * @param streamNum the stream number
-     */
-    constructor(list: List<RVariableIfc>, cdf: DoubleArray, streamNum: Int) :
-            this(list, cdf, KSLRandom.rnStream(streamNum))
-
     override fun generate(): Double {
         return KSLRandom.randomlySelect(myRVList, cdf, rnStream).value
     }
 
-    override fun instance(stream: RNStreamIfc): MixtureRV {
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): MixtureRV {
         val list: List<RVariableIfc> = ArrayList(myRVList)
-        return MixtureRV(list, cdf, stream)
+        return MixtureRV(list, cdf, streamNum, rnStreamProvider, name)
     }
 }

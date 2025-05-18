@@ -30,8 +30,6 @@ fun main() {
 //    test1()
 //   test2()
 
-//    test3()
-
     test4()
 
     val rvTypes: Array<RVType> = enumValues<RVType>()
@@ -93,23 +91,4 @@ fun test2() {
     val p = rv1.pow(2.0)
 
     print(p.sample(100).statistics())
-}
-
-fun test3() {
-    var v = ExponentialRV(10.0)
-    val m = 2.0.pow(v)
-    val sn = m.streamNumber
-    println("using stream number = $sn")
-    m.resetStartStream()
-    print(m.sample(100).statistics())
-    println()
-    println()
-    v.useStreamNumber(sn)
-    v.resetStartStream()
-    val s = Statistic()
-    for (i in 1..100) {
-        val y = 2.0.pow(v.value)
-        s.collect(y)
-    }
-    print(s)
 }

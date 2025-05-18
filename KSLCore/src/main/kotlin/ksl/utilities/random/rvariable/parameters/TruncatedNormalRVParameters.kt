@@ -3,6 +3,7 @@ package ksl.utilities.random.rvariable.parameters
 import ksl.utilities.Interval
 import ksl.utilities.distributions.TruncatedNormal
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedNormalRV
@@ -18,12 +19,15 @@ class TruncatedNormalRVParameters : RVParameters(
         addDoubleParameter("upperLimit", Double.POSITIVE_INFINITY)
     }
 
-    override fun createRVariable(rnStream: RNStreamIfc): RVariableIfc {
+    override fun createRVariable(
+        streamNumber: Int,
+        streamProvider: RNStreamProviderIfc
+    ): RVariableIfc {
         val mean = doubleParameter("mean")
         val variance = doubleParameter("variance")
         val lowerLimit = doubleParameter("lowerLimit")
         val upperLimit = doubleParameter("upperLimit")
-        return TruncatedNormalRV(mean, variance, Interval(lowerLimit, upperLimit), rnStream)
+        return TruncatedNormalRV(mean, variance, Interval(lowerLimit, upperLimit), streamNumber, streamProvider)
     }
 
     override fun createDistribution(): TruncatedNormal {

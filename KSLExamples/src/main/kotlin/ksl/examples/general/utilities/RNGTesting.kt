@@ -123,7 +123,7 @@ fun test2() {
 fun test3() {
     // check stream assignment
     val rv = BernoulliRV(0.10, 5)
-    println("rv was assigned stream : ${rv.rnStream}")
+    println("rv was assigned stream : ${rv.streamNumber}")
 
     val last = KSLRandom.DefaultRNStreamProvider.lastRNStreamNumber()
     println()

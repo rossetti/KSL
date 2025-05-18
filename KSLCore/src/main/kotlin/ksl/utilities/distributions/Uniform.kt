@@ -19,6 +19,7 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 
 /** Defines a uniform distribution over the given range.
@@ -152,8 +153,8 @@ class Uniform (minimum: Double = 0.0, maximum: Double = 1.0, name: String? = nul
         return doubleArrayOf(minimum, maximum)
     }
 
-    override fun randomVariable(stream: RNStreamIfc): RVariableIfc {
-        return UniformRV(minimum, maximum, stream)
+    override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): UniformRV {
+        return UniformRV(minimum, maximum, streamNumber, streamProvider)
     }
 
     override fun toString(): String {

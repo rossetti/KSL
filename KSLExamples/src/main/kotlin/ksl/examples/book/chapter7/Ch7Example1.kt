@@ -1,6 +1,6 @@
 package ksl.examples.book.chapter7
 
-import ksl.modeling.elements.EventGeneratorCIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
@@ -49,13 +49,13 @@ class TandemQueue(parent: ModelElement, name: String? = null) : ProcessModel(par
     private val tba = ExponentialRV(2.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
-    val service1RV: RandomSourceCIfc
+    val service1RV: RandomVariableCIfc
         get() = st1
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
-    val service2RV: RandomSourceCIfc
+    val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
@@ -89,13 +89,13 @@ class TandemQueueV2(parent: ModelElement, name: String? = null) : ProcessModel(p
     private val tba = ExponentialRV(2.0, 1)
 
     private val st1 = RandomVariable(this, ExponentialRV(0.7, 2))
-    val service1RV: RandomSourceCIfc
+    val service1RV: RandomVariableCIfc
         get() = st1
     private val st2 = RandomVariable(this, ExponentialRV(0.9, 3))
-    val service2RV: RandomSourceCIfc
+    val service2RV: RandomVariableCIfc
         get() = st2
     private val myArrivalGenerator = EntityGenerator(::Customer, tba, tba)
-    val generator: EventGeneratorCIfc
+    val generator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")

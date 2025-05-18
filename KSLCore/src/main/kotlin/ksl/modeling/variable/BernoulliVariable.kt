@@ -18,77 +18,109 @@
 
 package ksl.modeling.variable
 
-import ksl.modeling.elements.RandomElement
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
-import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.StreamNumberIfc
+import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.robj.BernoulliPickerIfc
 import ksl.utilities.random.rvariable.BernoulliRV
-import ksl.utilities.random.rvariable.KSLRandom
 
+interface BernoulliVariableCIfc {
+    /**
+     * Provides a reference to the underlying source of randomness to initialize each replication.
+     * Controls the underlying BernoulliRV source for the element. This is the
+     * source to which each replication will be initialized.  This is only used
+     * when the replication is initialized. Changing the reference has no effect
+     * during a replication.
+     *
+     * This cannot be used during a replication
+     */
+    var initialBernoulliRV: BernoulliRV
+}
+
+/**
+ *  A BernoulliVariable models two choices ([success], [failure]) governed
+ *   by a Bernoulli random variable
+ *   @param parent the parent model element
+ *   @param bernoulliRV the Bernoulli random variable with success probability mapped to [success].
+ *   @param success the thing associated with success, must have the same type as failure
+ *   @param failure the thing associated with failure, must have the same type as success
+ *   @param name the name of the model element
+ */
 class BernoulliVariable<T>(
     parent: ModelElement,
-    private val bernoulliRV: BernoulliRV,
+    bernoulliRV: BernoulliRV,
     override val success: T,
     override val failure: T,
     name: String? = null
-) : RandomElement(parent, bernoulliRV, name), BernoulliPickerIfc<T> {
+) : ModelElement(parent, name), BernoulliPickerIfc<T>,
+    RNStreamControlIfc, StreamNumberIfc, BernoulliVariableCIfc {
 
     init {
-        require(success != failure) {"The success and failure options cannot be the same."}
+        require(success != failure) { "The success and failure options cannot be the same." }
     }
 
+    /**
+     *  A BernoulliVariable models two choices ([success], [failure]) governed
+     *   by a Bernoulli random variable
+     *   @param parent the parent model element
+     *   @param successProbability the success probability mapped to [success].
+     *   @param success the thing associated with success, must have the same type as failure
+     *   @param failure the thing associated with failure, must have the same type as success
+     *   @param streamNumber the desired stream number from the model's provider
+     *   @param name the name of the model element
+     */
     constructor(
         parent: ModelElement,
-        successProb: Double,
+        successProbability: Double,
         success: T,
         failure: T,
-        stream: RNStreamIfc,
+        streamNumber: Int = 0,
         name: String? = null
-    ) : this(parent, BernoulliRV(successProb, stream), success, failure, name)
+    ): this(parent, BernoulliRV(successProbability, streamNumber, parent.streamProvider), success, failure, name)
 
-    constructor(
-        parent: ModelElement,
-        successProb: Double,
-        success: T,
-        failure: T,
-        streamNum: Int,
-        name: String? = null
-    ) : this(parent, BernoulliRV(successProb, KSLRandom.rnStream(streamNum)), success, failure, name)
-
-    override var initialRandomSource: RandomIfc
-        get() = super.initialRandomSource
+    /**
+     * Provides a reference to the underlying source of randomness during the replication.
+     * Controls the underlying BernoulliRV source.  This
+     * changes the source for the current replication only. The random
+     * variable will start to use this source immediately; however if
+     * a replication is started after this method is called, the random source
+     * will be reassigned to the initial random source before the next replication
+     * is executed.
+     * To change the random source for the entire experiment (all replications)
+     * use the initialRandomSource property
+     */
+    var bernoulliRV: BernoulliRV = bernoulliRV
         set(value) {
-            require(value is BernoulliRV) { "The initial random source must be a BernoulliRV" }
-            super.initialRandomSource = value
+            field = if (value.streamProvider != streamProvider) {
+                value.instance(value.streamNumber, streamProvider)
+            } else {
+                value
+            }
         }
 
-    override fun resetStartStream() {
-        bernoulliRV.resetStartStream()
+    init {
+        warmUpOption = false
+        this.bernoulliRV = bernoulliRV
     }
 
-    override fun resetStartSubStream() {
-        bernoulliRV.resetStartSubStream()
-    }
-
-    override fun advanceToNextSubStream() {
-        bernoulliRV.advanceToNextSubStream()
-    }
-
-    override var antithetic: Boolean
-        get() = bernoulliRV.antithetic
+    /**
+     * Provides a reference to the underlying source of randomness to initialize each replication.
+     * Controls the underlying BernoulliRV source for the element. This is the
+     * source to which each replication will be initialized.  This is only used
+     * when the replication is initialized. Changing the reference has no effect
+     * during a replication.
+     *
+     * This cannot be used during a replication
+     */
+    override var initialBernoulliRV: BernoulliRV = bernoulliRV
         set(value) {
-            bernoulliRV.antithetic = value
-        }
-    override var advanceToNextSubStreamOption: Boolean
-        get() = bernoulliRV.advanceToNextSubStreamOption
-        set(value) {
-            bernoulliRV.advanceToNextSubStreamOption = value
-        }
-    override var resetStartStreamOption: Boolean
-        get() = bernoulliRV.resetStartStreamOption
-        set(value) {
-            bernoulliRV.resetStartStreamOption = value
+            require(model.isNotRunning) {"The initial Bernoulli source cannot be changed during a replication"}
+            field = if (value.streamProvider == streamProvider){
+                value
+            } else {
+                value.instance(value.streamNumber, streamProvider)
+            }
         }
 
     /** Returns a randomly selected value
@@ -96,23 +128,60 @@ class BernoulliVariable<T>(
     override val randomElement: T
         get() = if (bernoulliRV.boolValue) success else failure
 
-    /** Returns a randomly selected value
-     */
-    override fun sample(): T {
-        return randomElement
+    override val streamNumber: Int
+        get() = initialBernoulliRV.streamNumber
+
+    override fun resetStartStream() {
+        initialBernoulliRV.resetStartStream()
     }
 
-    /** Returns sample of [size] of type T
-     *
-     * @return randomly selected elements as a list
-     */
-    override fun sample(size: Int): List<T> {
-        require(size > 0) { "The size of the sample must be at least 1." }
-        val list = mutableListOf<T>()
-        for (i in 0 until size) {
-            list.add(randomElement)
+    override fun resetStartSubStream() {
+        initialBernoulliRV.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        initialBernoulliRV.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = initialBernoulliRV.antithetic
+        set(value) {
+            initialBernoulliRV.antithetic = value
         }
-        return list
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = initialBernoulliRV.advanceToNextSubStreamOption
+        set(value) {
+            initialBernoulliRV.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = initialBernoulliRV.resetStartStreamOption
+        set(value) {
+            initialBernoulliRV.resetStartStreamOption = value
+        }
+
+    /**
+     * before any replications make sure that the random source is using the initial random source
+     */
+    override fun beforeExperiment() {
+        super.beforeExperiment()
+        bernoulliRV = initialBernoulliRV
     }
 
+    /**
+     * after each replication check if random source changed during the replication and
+     * if so, provide information to the user
+     */
+    override fun afterReplication() {
+        super.afterReplication()
+        if (bernoulliRV !== initialBernoulliRV) {
+            // the random source or the initial random source references
+            // were changed during the replication
+            // make sure that the random source is the same
+            // as the initial random source for the next replication
+            bernoulliRV = initialBernoulliRV
+            Model.logger.info { "The random source of $name was changed back to the initial random source after replication ${model.currentReplicationNumber}." }
+        }
+    }
 }
