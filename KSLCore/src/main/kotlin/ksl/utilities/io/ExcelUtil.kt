@@ -467,7 +467,7 @@ object ExcelUtil  {
             }
             workbook.write(it)
             workbook.close()
-            workbook.dispose()
+           // workbook.dispose()
             logger.info { "Closed workbook $path after writing map $sheetName to Excel" }
         }
     }
@@ -591,7 +591,7 @@ object ExcelUtil  {
             }
             workbook.write(it)
             workbook.close()
-            workbook.dispose()
+           // workbook.dispose()
             logger.info { "Closed workbook $path after writing database ${db.label} output" }
             DatabaseIfc.logger.info { "Completed database ${db.label} export to workbook at $path" }
         }
@@ -601,7 +601,7 @@ object ExcelUtil  {
      * Opens the workbook for reading only and writes the sheets of the workbook into database tables.
      * The list of names is the names of the
      * sheets in the workbook and the names of the tables that need to be written. They are in the
-     * order that is required for entering data so that no integrity constraints are violated. The
+     * order required for entering data so that no integrity constraints are violated. The
      * underlying workbook is closed after the operation.
      *
      *  Uses the longLastingConnection property for the connection for metadata checking.

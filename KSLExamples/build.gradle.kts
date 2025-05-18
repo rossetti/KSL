@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.9.20"
+    kotlin("jvm") version "2.1.21"
 }
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"
@@ -45,38 +45,24 @@ dependencies {
 //    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
 
 //TODO probably not needed because only used in KSLCore
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+//    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+//    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     testImplementation(kotlin("test"))
-    implementation(kotlin("stdlib-jdk8"))
+//    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "17"
+kotlin {
+    jvmToolchain(21)
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
 // this is good because user can then provide their own logging specification
 // TODO need reference to why this is good
 tasks.jar {
-//    manifest {
-//        attributes(
-//                "Implementation-Title" to project.name,
-//                "Implementation-Version" to project.version
-//        )
-//    }
     exclude("logback.xml")
-}
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "17"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "17"
 }
