@@ -72,7 +72,7 @@ class ConstantRV(
         set(flag) {
         }
 
-    override fun antitheticInstance(): RVariableIfc {
+    override fun antitheticInstance(): ConstantRV {
         return ConstantRV(constVal)
     }
 

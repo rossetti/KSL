@@ -55,7 +55,7 @@ class Hyper2ExponentialRV(
         }
     }
 
-    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): Hyper2ExponentialRV {
         return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, rnStreamProvider, name)
     }
 

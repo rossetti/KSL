@@ -39,7 +39,7 @@ class ExponentialRV(
         require(mean > 0.0) { "Exponential mean must be > 0.0" }
     }
 
-    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): ExponentialRV {
         return ExponentialRV(mean, streamNum, rnStreamProvider, name)
     }
 
