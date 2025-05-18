@@ -24,8 +24,8 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "1.9.20"
-    kotlin("plugin.serialization") version "1.9.0"
+    kotlin("jvm") version "2.1.21"
+    kotlin("plugin.serialization") version "2.1.21"
  //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
     id("org.jetbrains.dokka") version "2.0.0"
 }
@@ -40,14 +40,14 @@ repositories {
 dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.3")
+    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.7")
 
-    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.16")
+    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.17")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.15")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.18")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.15")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.18")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
@@ -55,14 +55,14 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
 
     api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.8.0")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.10.0")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
-    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.4.1")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.6.2")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel
 //    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.7.3")
 
@@ -70,26 +70,24 @@ dependencies {
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.3.3")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.6.2")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
 //    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
-    api("org.jetbrains.kotlinx:dataframe-core:0.13.1")
+    api("org.jetbrains.kotlinx:dataframe-core:0.15.0")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.20")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
 //    implementation("org.ktorm:ktorm-core:3.5.0")
 
- //   implementation(group = "org.apache.commons", name = "commons-math3", version = "3.6.1")
-    // replacement for apache math commons
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
-    api("org.hipparchus:hipparchus-core:3.1")
+    api("org.hipparchus:hipparchus-core:4.0.1")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
-    api("org.hipparchus:hipparchus-stat:3.1")
+    api("org.hipparchus:hipparchus-stat:4.0.1")
 
-    implementation("com.google.guava:guava:33.3.1-jre")
+    implementation("com.google.guava:guava:33.4.8-jre")
 
     // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
 //    implementation("org.knowm.xchart:xchart:3.8.2")
@@ -106,18 +104,18 @@ dependencies {
     // https://db.apache.org/derby/releases
     // 10.16.1.1 is only compatible with Java 17
     // upgrade to Java 21 and 10.17.1.0 or higher to avoid this vulnerability.
-    implementation(group = "org.apache.derby", name = "derby", version = "10.15.2.0")
-    implementation(group = "org.apache.derby", name = "derbyshared", version = "10.15.2.0")
-    implementation(group = "org.apache.derby", name = "derbyclient", version = "10.15.2.0")
-    implementation(group = "org.apache.derby", name = "derbytools", version = "10.15.2.0")
+    implementation(group = "org.apache.derby", name = "derby", version = "10.17.1.0")
+    implementation(group = "org.apache.derby", name = "derbyshared", version = "10.17.1.0")
+    implementation(group = "org.apache.derby", name = "derbyclient", version = "10.17.1.0")
+    implementation(group = "org.apache.derby", name = "derbytools", version = "10.17.1.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.3")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.5")
 
-    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.46.0.0")
+    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.49.1.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
-    implementation("org.duckdb:duckdb_jdbc:1.1.3")
-    implementation(group = "com.zaxxer", name = "HikariCP", version = "5.1.0")
+    implementation("org.duckdb:duckdb_jdbc:1.2.2.0")
+    implementation(group = "com.zaxxer", name = "HikariCP", version = "6.3.0")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
 //    implementation("org.dhatim:fastexcel-reader:0.14.0")
@@ -125,44 +123,26 @@ dependencies {
 //    implementation("org.dhatim:fastexcel:0.14.0")
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi
-    api(group = "org.apache.poi", name = "poi", version = "5.2.5")
+    api(group = "org.apache.poi", name = "poi", version = "5.4.1")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.2.5")// this vulnerability is not on maven
+    implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.4.1")// this vulnerability is not on maven
     // required POI to update their dependencies to remove the vulnerability
 
-    implementation(kotlin("stdlib-jdk8"))
+//    implementation(kotlin("stdlib-jdk8"))
 // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-test
 //    api("org.jetbrains.kotlin:kotlin-test:1.9.24")
 
-}
-
-//tasks.test {
-//    useJUnitPlatform()
-//}
-
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "17"
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
 // this is good because user can then provide their own logging specification
 // TODO need reference to why this is good
 tasks.jar {
-//    manifest {
-//        attributes(
-//                "Implementation-Title" to project.name,
-//                "Implementation-Version" to project.version
-//        )
-//    }
     exclude("logback.xml")
 }
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "17"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "17"
+
+kotlin {
+    jvmToolchain(21)
 }
 
 // these extensions are needed when publishing to maven

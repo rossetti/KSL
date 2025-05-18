@@ -4,10 +4,32 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSL
 import org.jetbrains.letsPlot.Figure
-import org.jetbrains.letsPlot.GGBunch
+import org.jetbrains.letsPlot.ggbunch
 import java.io.File
 import java.nio.file.Path
 
+/**
+ * A class for creating and displaying distribution fit plots.
+ *
+ * FitDistPlot generates a set of four diagnostic plots to assess how well a continuous distribution
+ * fits to a given dataset:
+ * - Density plot: Compares the empirical density of the data with the PDF of the fitted distribution
+ * - QQ plot (Quantile-Quantile): Compares the quantiles of the data with the theoretical quantiles
+ * - ECDF plot (Empirical Cumulative Distribution Function): Compares the empirical CDF with the theoretical CDF
+ * - PP plot (Probability-Probability): Plots the empirical probabilities against the theoretical probabilities
+ *
+ * @property defaultPlotDir The default directory where plots will be saved. Defaults to KSL.plotDir.
+ * @property title The title of the plot. If dataName is provided in the constructor, the title will include it.
+ * @property densityPlot The density plot component comparing data density to the theoretical PDF.
+ * @property ecdfPlot The ECDF plot component comparing empirical CDF to the theoretical CDF.
+ * @property qqPlot The QQ plot component comparing data quantiles to theoretical quantiles.
+ * @property ppPlot The PP plot component comparing empirical probabilities to theoretical probabilities.
+ *
+ * @param data The data array to be analyzed and plotted.
+ * @param cdfFunction The continuous distribution interface providing CDF and PDF functions.
+ * @param quantileFun The inverse CDF interface providing quantile functions.
+ * @param dataName Optional name for the data being analyzed, used in the plot title.
+ */
 class FitDistPlot(
     data: DoubleArray,
     private val cdfFunction: ContinuousDistributionIfc,
@@ -33,15 +55,20 @@ class FitDistPlot(
         val p3 = ecdfPlot.buildPlot()
         val p4 = ppPlot.buildPlot()
 
-        val p = GGBunch()
-            .addPlot(p1, 0, 0, 400, 300)
-            .addPlot(p2, 400, 0, 400, 300)
-            .addPlot(p3, 0, 300, 400, 300)
-            .addPlot(p4, 400, 300, 400, 300)
+//        val p = GGBunch()
+//            .addPlot(p1, 0, 0, 400, 300)
+//            .addPlot(p2, 400, 0, 400, 300)
+//            .addPlot(p3, 0, 300, 400, 300)
+//            .addPlot(p4, 400, 300, 400, 300)
+        val plots = listOf(p1, p2, p3, p4)
+        val regions = listOf(listOf(0, 0, 400, 300), listOf(400, 0, 400, 300),
+            listOf(0, 300, 400, 300), listOf(400, 300, 400, 300))
+        val plot = ggbunch(plots, regions)
+
 // could not get gggrid() to work, something not supported
 //        val plots = listOf(p1, p2, p3, p4)
 //        return gggrid(plots, ncol = 2) + ggtitle(title) + ggsize(500, 500)
-        return p
+        return plot
     }
 
     /**
