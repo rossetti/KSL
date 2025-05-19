@@ -73,30 +73,30 @@ class DuckDb(
         data: List<T>,
         tableName: String,
         schemaName: String? = defaultSchemaName
-    )  {
+    ) {
         if (data.isEmpty()) {
             return
         }
         require(containsTable(tableName, schemaName))
-            { "Database $label does not contain table $tableName for inserting data!" }
+        { "Database $label does not contain table $tableName for inserting data!" }
         // data should come from the table
         val first = data.first()
         require(first.tableName == tableName) { "The supplied data was not from table $tableName" }
         val duckDbCon = longLastingConnection as DuckDBConnection
-        val sn = if (schemaName == null){
+        val sn = if (schemaName == null) {
             "main"
         } else {
             defaultSchemaName
         }
         val appender: DuckDBAppender = duckDbCon.createAppender(sn, tableName)
-        for(d in data){
+        for (d in data) {
             require(!d.autoIncField) { "To use appender the autoIncField for table (${d.tableName}) must be false." }
             val values = d.extractPropertyValues()
             appender.beginRow()
-            for((i, value) in values.withIndex()){
+            for ((i, value) in values.withIndex()) {
                 val b = appendValue(appender, value)
-                if (!b){
-                    logger.warn {"The value ($value) for field $i was not appended!"}
+                if (!b) {
+                    logger.warn { "The value ($value) for field $i was not appended!" }
                 }
             }
             appender.endRow()
@@ -104,11 +104,9 @@ class DuckDb(
         appender.close()
     }
 
-    private fun appendValue(appender: DuckDBAppender, value : Any?) : Boolean {
-        if (value == null){
-            //appender.append(null) //TODO
-            return true
-        }
+    private fun appendValue(appender: DuckDBAppender, value: Any?): Boolean {
+        //TODO apparently DuckDb handles nulls within the underlying appender calls, but
+        // it is not clear from the documentation how this occurs.
         if (value is Double) {
             appender.append(value)
         } else if (value is Int) {
@@ -123,12 +121,14 @@ class DuckDb(
             appender.append(value)
         } else if (value is Byte) {
             appender.append(value)
-        } else if (value is String){
+        } else if (value is String) {
             appender.append(value)
-        } else if (value is BigDecimal){
+        } else if (value is BigDecimal) {
             appender.appendBigDecimal(value)
-        } else if (value is LocalDateTime){
+        } else if (value is LocalDateTime) {
             appender.appendLocalDateTime(value)
+        } else if (value is ByteArray) {
+            appender.append(value)
         } else {
             return false
         }
@@ -225,8 +225,8 @@ class DuckDb(
             dbName: String,
             dbDirectory: Path = KSL.dbDir,
             deleteIfExists: Boolean = true
-        ) : DuckDb {
-            require(SQLiteDb.isDatabase(pathToSQLiteFile)){"The file was not an SQLite database"}
+        ): DuckDb {
+            require(SQLiteDb.isDatabase(pathToSQLiteFile)) { "The file was not an SQLite database" }
             // create the DuckDb database
             val db = DuckDb(dbName, dbDirectory, deleteIfExists)
             // first attach the SQLite file
