@@ -62,7 +62,7 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
     api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
-    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.6.2")
+    implementation("org.jetbrains.lets-plot:lets-plot-batik:4.5.2")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel
 //    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.7.3")
 
@@ -70,7 +70,7 @@ dependencies {
 //    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.6.2")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
 //    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
