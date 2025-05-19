@@ -60,7 +60,7 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.10.0")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.6.2")
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel

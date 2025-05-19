@@ -4,7 +4,7 @@ import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.InverseCDFIfc
 import ksl.utilities.io.KSL
 import org.jetbrains.letsPlot.Figure
-import org.jetbrains.letsPlot.ggbunch
+import org.jetbrains.letsPlot.GGBunch
 import java.io.File
 import java.nio.file.Path
 
@@ -49,21 +49,32 @@ class FitDistPlot(
         ecdfPlot = ECDFPlot(data, fn)
     }
 
+    /**
+     * Builds a figure containing all four diagnostic plots arranged in a 2x2 grid.
+     *
+     * The grid layout is:
+     * - Top-left: Density plot
+     * - Top-right: QQ plot
+     * - Bottom-left: ECDF plot
+     * - Bottom-right: PP plot
+     *
+     * @return A Figure object containing the combined plots.
+     */
     private fun buildFigure(): Figure {
         val p1 = densityPlot.buildPlot()
         val p2 = qqPlot.buildPlot()
         val p3 = ecdfPlot.buildPlot()
         val p4 = ppPlot.buildPlot()
 
-//        val p = GGBunch()
-//            .addPlot(p1, 0, 0, 400, 300)
-//            .addPlot(p2, 400, 0, 400, 300)
-//            .addPlot(p3, 0, 300, 400, 300)
-//            .addPlot(p4, 400, 300, 400, 300)
-        val plots = listOf(p1, p2, p3, p4)
-        val regions = listOf(listOf(0, 0, 400, 300), listOf(400, 0, 400, 300),
-            listOf(0, 300, 400, 300), listOf(400, 300, 400, 300))
-        val plot = ggbunch(plots, regions)
+        val plot = GGBunch()
+            .addPlot(p1, 0, 0, 400, 300)
+            .addPlot(p2, 400, 0, 400, 300)
+            .addPlot(p3, 0, 300, 400, 300)
+            .addPlot(p4, 400, 300, 400, 300)
+//        val plots = listOf(p1, p2, p3, p4)
+//        val regions = listOf(listOf(0, 0, 400, 300), listOf(400, 0, 400, 300),
+//            listOf(0, 300, 400, 300), listOf(400, 300, 400, 300))
+//        val plot = ggbunch(plots, regions)
 
 // could not get gggrid() to work, something not supported
 //        val plots = listOf(p1, p2, p3, p4)
