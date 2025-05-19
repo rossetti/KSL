@@ -121,7 +121,7 @@ dependencies {
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
-// this is good because user can then provide their own logging specification
+// this is good because the user can then provide their own logging specification
 tasks.jar {
     exclude("logback.xml")
 }
