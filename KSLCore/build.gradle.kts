@@ -89,21 +89,7 @@ dependencies {
 
     implementation("com.google.guava:guava:33.4.8-jre")
 
-    // https://mvnrepository.com/artifact/org.knowm.xchart/xchart
-//    implementation("org.knowm.xchart:xchart:3.8.2")
-    
-    // https://mvnrepository.com/artifact/com.opencsv/opencsv
-    //Dependency maven:commons-collections:commons-collections:3.2.2 is vulnerable Cx78f40514-81ff,  Score: 7.5
-    //This requires opencsv to update their dependency
-//    implementation("com.opencsv:opencsv:5.9") //TODO vulnerability not showing on maven
-
-    // https://mvnrepository.com/artifact/org.apache.commons/commons-csv
-    // not needed because kotlinx:dataframe-core has this library as api
-//    implementation("org.apache.commons:commons-csv:1.11.0")
-
     // https://db.apache.org/derby/releases
-    // 10.16.1.1 is only compatible with Java 17
-    // upgrade to Java 21 and 10.17.1.0 or higher to avoid this vulnerability.
     implementation(group = "org.apache.derby", name = "derby", version = "10.17.1.0")
     implementation(group = "org.apache.derby", name = "derbyshared", version = "10.17.1.0")
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.17.1.0")
