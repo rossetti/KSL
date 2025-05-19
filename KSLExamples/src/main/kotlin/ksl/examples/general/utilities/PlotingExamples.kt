@@ -41,7 +41,7 @@ import kotlin.math.exp
 fun main() {
 //    testPlot()
 //    testScatterPlot()
-    testBoxPlot()
+//    testBoxPlot()
 //    testMultiBoxPlot()
 //    testConfidenceIntervalPlots()
 //    testFrequencyPlot()
@@ -58,7 +58,7 @@ fun main() {
 //
 //    testECDFPlot()
 //
-//    testFitDistPlot()
+    testFitDistPlot()
 //
 //    testCDFDiffPlot()
 //
