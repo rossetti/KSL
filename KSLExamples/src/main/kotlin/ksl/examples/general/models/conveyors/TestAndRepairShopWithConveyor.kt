@@ -105,15 +105,15 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         .velocity(10.0)
         .cellSize(1)
         .maxCellsAllowed(2)
-        .firstSegment(myDiagnostics, myTest1, 20)
-        .nextSegment(myTest2, 20)
-        .nextSegment(myRepair, 15)
-        .nextSegment(myTest3, 45)
-        .nextSegment(myDiagnostics, 30)
+        .firstSegment(myDiagnostics.name, myTest1.name, 20)
+        .nextSegment(myTest2.name, 20)
+        .nextSegment(myRepair.name, 15)
+        .nextSegment(myTest3.name, 45)
+        .nextSegment(myDiagnostics.name, 30)
         .build()
 
     init {
-        loopConveyor.accessQueueAt(myRepair).defaultReportingOption = false
+        loopConveyor.accessQueueAt(myRepair.name).defaultReportingOption = false
         println(loopConveyor)
     }
 
@@ -132,12 +132,12 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             // get the iterator
             val itr = plan.iterator()
             // iterate through the plan
-            var entryLocation = myDiagnostics
+            var entryLocation = myDiagnostics.name
             while (itr.hasNext()) {
                 val tp = itr.next()
-                convey(loopConveyor, entryLocation, tp.resource, cellsNeeded)
+                convey(loopConveyor, entryLocation, tp.resource.name, cellsNeeded)
                 use(tp.resource, delayDuration = tp.processTime)
-                entryLocation = tp.resource
+                entryLocation = tp.resource.name
             }
             timeInSystem.value = time - timeStamp
             wip.decrement()

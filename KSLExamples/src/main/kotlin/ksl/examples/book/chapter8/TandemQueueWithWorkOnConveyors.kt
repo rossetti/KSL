@@ -19,10 +19,10 @@ class TandemQueueWithWorkOnConveyors(
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private val enter = Identity("Enter")
-    private val station1 = Identity("Station1")
-    private val station2 = Identity("Station2")
-    private val exit = Identity("Exit")
+    private val enter = "Enter"
+    private val station1 = "Station1"
+    private val station2 = "Station2"
+    private val exit = "Exit"
 
     // velocity is in feet per min
     private val conveyor = Conveyor.builder(this, "Conveyor")

@@ -25,7 +25,6 @@ import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
 import ksl.utilities.IdentityIfc
-import ksl.utilities.random.rvariable.ConstantRV
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.spatial.*
@@ -811,7 +810,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *
          *  @param afterTermination a function to invoke after the process is successfully terminated
          */
-        fun terminateProcess(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
+        fun terminateProcess(afterTermination: ((entity: Entity) -> Unit)? = null) {
             if (myCurrentProcess != null) {
                 myCurrentProcess!!.terminate(afterTermination)
             }
@@ -937,7 +936,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         internal fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequestInternal(
             requestQ: RequestQ,
             resource: Resource,
-            request: ProcessModel.Entity.Request
+            request: Request
         ) {
             resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(requestQ, resource, request)
         }
@@ -957,7 +956,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param request the involved request
          */
         protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
-            queue: RequestQ, resource: Resource, request: ProcessModel.Entity.Request
+            queue: RequestQ, resource: Resource, request: Request
         ) {
         }
 
@@ -981,7 +980,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  waiting time statistics to be collected for that queue. The default is false.
          */
         protected fun moveRequestToResource(
-            request: ProcessModel.Entity.Request,
+            request: Request,
             currentQueue: RequestQ,
             resource: ResourceWithQ,
             resumePriority: Int,
@@ -1030,7 +1029,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  waiting time statistics to be collected for that queue. The default is false.
          */
         protected fun moveRequestToResourcePool(
-            request: ProcessModel.Entity.Request,
+            request: Request,
             currentQueue: RequestQ,
             pool: ResourcePoolWithQ,
             resourceSelectionRule: ResourceSelectionRuleIfc,
@@ -1080,7 +1079,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  waiting time statistics to be collected for that queue. The default is false.
          */
         protected fun moveRequestToMovableResourcePool(
-            request: ProcessModel.Entity.Request,
+            request: Request,
             currentQueue: RequestQ,
             pool: MovableResourcePoolWithQ,
             resourceSelectionRule: MovableResourceSelectionRuleIfc,
@@ -1123,7 +1122,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param request the involved request
          */
         protected open fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
-            queue: RequestQ, resource: MovableResource, request: ProcessModel.Entity.Request
+            queue: RequestQ, resource: MovableResource, request: Request
         ) {
         }
 
@@ -1451,7 +1450,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              * @param afterTermination a function to invoke after the process is successfully terminated
              */
-            internal fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
+            internal fun terminate(afterTermination: ((entity: Entity) -> Unit)? = null) {
                 state.terminate(afterTermination)
             }
 
@@ -1482,11 +1481,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
-            override fun startBlockage(blockage: Entity.Blockage) {
+            override fun startBlockage(blockage: Blockage) {
                 blockage.start(this, entity)
             }
 
-            override fun clearBlockage(blockage: Entity.Blockage, priority: Int) {
+            override fun clearBlockage(blockage: Blockage, priority: Int) {
                 blockage.end(this, entity, priority)
             }
 
@@ -2220,7 +2219,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override suspend fun requestConveyor(
                 conveyor: Conveyor,
-                entryLocation: IdentityIfc,
+                entryLocation: String,
                 numCellsNeeded: Int,
                 requestPriority: Int,
                 requestResumePriority: Int,
@@ -2231,7 +2230,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             "An entity can access only one conveyor at a time. Use exit() to stop accessing a conveyor."
                 }
                 require(conveyor.entryLocations.contains(entryLocation)) {
-                    "The location (${entryLocation.name}) " +
+                    "The location (${entryLocation}) " +
                             "is not an entry location for (${conveyor.name})"
                 }
                 require(numCellsNeeded >= 1) { "The amount of cells to allocate must be >= 1" }
@@ -2268,7 +2267,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override suspend fun rideConveyor(
                 conveyorRequest: ConveyorRequestIfc,
-                destination: IdentityIfc,
+                destination: String,
                 ridePriority: Int,
                 suspensionName: String?
             ): Double {
@@ -2287,8 +2286,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val conveyor = conveyorRequest.conveyor
                 val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
-                { "The destination (${destination.name}) is not reachable from entry location (${origin.name})" }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName" }
+                { "The destination (${destination}) is not reachable from entry location (${origin})" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from $origin to $destination : suspension name = $currentSuspendName" }
                 // schedules the need to ride the conveyor
                 conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
                 isMoving = true
@@ -2299,10 +2298,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     suspensionName = "$suspensionName:rideConveyor():HOLD DURING RIDE:${conveyor.myRidingHoldQ.name}"
                 )
                 isMoving = false
-                if (destination is LocationIfc) {
-                    currentLocation = destination
-                }
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > END: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from ${origin.name} to ${destination.name} : suspension name = $currentSuspendName" }
+//                if (destination is LocationIfc) { //TODO
+//                    currentLocation = destination
+//                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > END: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from $origin to $destination : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return (time - timeStarted)
@@ -2336,7 +2335,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override suspend fun transferTo(
                 conveyorRequest: ConveyorRequestIfc,
                 nextConveyor: Conveyor,
-                entryLocation: IdentityIfc,
+                entryLocation: String,
                 exitPriority: Int,
                 requestPriority: Int,
                 requestResumePriority: Int,
@@ -2344,7 +2343,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): ConveyorRequestIfc {
                 require(conveyorRequest.conveyor != nextConveyor) { "The current conveyor cannot be the same as the conveyor being transferred to" }
                 require(nextConveyor.entryLocations.contains(entryLocation)) {
-                    "The location (${entryLocation.name}) " +
+                    "The location (${entryLocation}) " +
                             "is not an entry location for (${nextConveyor.name})"
                 }
                 require(entity.conveyorRequest != null) { "The entity attempted to transfer without using a conveyor." }
@@ -2540,7 +2539,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     //remove it from its queue with no stats
                     @Suppress("UNCHECKED_CAST")
                     // since this is an entity, it must be in a HoldQueue which must hold EntityType.Entity
-                    val q = queue!! as Queue<ProcessModel.Entity>
+                    val q = queue!! as Queue<Entity>
                     q.remove(entity, false)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
                 } else if (isScheduled) {
@@ -2582,7 +2581,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 /**
                  *  @param afterTermination a function to invoke after the process is successfully terminated
                  */
-                open fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null) {
+                open fun terminate(afterTermination: ((entity: Entity) -> Unit)? = null) {
                     errorMessage("terminate process")
                 }
 
@@ -2646,7 +2645,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 /**
                  *  @param afterTermination a function to invoke after the process is successfully terminated
                  */
-                override fun terminate(afterTermination: ((entity: ProcessModel.Entity) -> Unit)?) {
+                override fun terminate(afterTermination: ((entity: Entity) -> Unit)?) {
                     state = terminated
                     //un-capture suspended entities here
                     suspendedEntities.remove(entity)
@@ -3090,14 +3089,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
     internal inner class CTransferEntity(
         nextConveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,
         suspensionName: String? = null
     ) : Entity() {
         lateinit var transferRequest: Conveyor.ConveyorRequest
-        val transferProcess = process() {
+        val transferProcess = process {
             val r = requestConveyor(
                 nextConveyor,
                 entryLocation, numCellsNeeded, requestPriority,

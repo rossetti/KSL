@@ -52,9 +52,9 @@ import ksl.utilities.Identity
 class ConveyorTest3(parent: ModelElement, conveyorType: Conveyor.Type) : ProcessModel(parent) {
 
     val conveyor: Conveyor
-    val stationA = Identity(name = "A")
-    val stationB = Identity(name = "B")
-    val stationC = Identity(name = "C")
+    val stationA = "A"
+    val stationB = "B"
+    val stationC = "C"
 
     init {
         conveyor = Conveyor.builder(this)
@@ -83,12 +83,12 @@ class ConveyorTest3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
     private inner class PartType(val amt: Int = 1, name: String? = null) : Entity(name) {
         val conveyingProcess: KSLProcess = process("PartType1") {
-            println("${entity.name}: time = $time before access at ${stationA.name}")
+            println("${entity.name}: time = $time before access at ${stationA}")
             val a = requestConveyor(conveyor, stationA, amt)
             println("${entity.name}: time = $time after access")
-            println("${entity.name}: time = $time before ride to ${stationB.name}")
+            println("${entity.name}: time = $time before ride to ${stationB}")
             rideConveyor(a, stationB)
-            println("${entity.name}: time = $time after ride to ${stationB.name}")
+            println("${entity.name}: time = $time after ride to ${stationB}")
             println("${entity.name}: The riding time was ${time - timeStamp}")
             delay(2.5)
             println("${entity.name}: time = $time before exit ")
@@ -99,17 +99,17 @@ class ConveyorTest3(parent: ModelElement, conveyorType: Conveyor.Type) : Process
 
     private inner class PartType4(val amt: Int = 1, name: String? = null) : Entity(name) {
         val conveyingProcess: KSLProcess = process("PartType4") {
-            println("${entity.name}: time = $time before access at ${stationB.name}")
+            println("${entity.name}: time = $time before access at ${stationB}")
             val a = requestConveyor(conveyor, stationB, amt)
             println("${entity.name}: time = $time after access")
-            println("${entity.name}: time = $time before ride to ${stationA.name}")
+            println("${entity.name}: time = $time before ride to ${stationA}")
             rideConveyor(a, stationA)
-            println("${entity.name}: time = $time after ride to ${stationA.name}")
+            println("${entity.name}: time = $time after ride to ${stationA}")
             println("${entity.name}: The riding time was ${time - timeStamp}")
             delay(2.5)
-            println("${entity.name}: time = $time continue to ride to ${stationB.name}")
+            println("${entity.name}: time = $time continue to ride to ${stationB}")
             rideConveyor(a, stationB)
-            println("${entity.name}: time = $time after ride to ${stationB.name}")
+            println("${entity.name}: time = $time after ride to ${stationB}")
             println("${entity.name}: time = $time before exit ")
             exitConveyor(a)
             println("${entity.name}: time = $time after exit ")

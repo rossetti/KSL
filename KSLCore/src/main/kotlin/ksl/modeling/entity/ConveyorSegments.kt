@@ -1,26 +1,25 @@
 package ksl.modeling.entity
 
-import ksl.utilities.IdentityIfc
 
 /**
  * This class represents the data associated with segments of a conveyor and facilitates
  * the specification of segments for a conveyor.  See the class Conveyor for more
  * details on how segments are used to represent a conveyor.
  */
-class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
+class ConveyorSegments(val cellSize: Int = 1, val firstLocation: String) {
     private val mySegments = mutableListOf<Segment>()
-    private val myDownStreamLocations: MutableMap<IdentityIfc, MutableList<IdentityIfc>> = mutableMapOf()
+    private val myDownStreamLocations: MutableMap<String, MutableList<String>> = mutableMapOf()
 
-    var lastLocation: IdentityIfc = firstLocation
+    var lastLocation: String = firstLocation
         private set
     var minimumSegmentLength = Integer.MAX_VALUE
         private set
     val segments: List<Segment>
         get() = mySegments
 
-    fun toLocation(next: IdentityIfc, length: Int) {
+    fun toLocation(next: String, length: Int) {
         require(length >= 1) { "The length ($length) of the segment must be >= 1 unit" }
-        require(next != lastLocation) { "The next location (${next.name}) as the last location (${lastLocation.name})" }
+        require(next != lastLocation) { "The next location (${next}) as the last location (${lastLocation})" }
         require(length % cellSize == 0) { "The length of the segment ($length) was not an integer multiple of the cell size ($cellSize)" }
         val numCells = length / cellSize
         require(numCells >= 2) { "There must be at least 2 cells on each segment: length = $length, cellSize = $cellSize, results in $numCells cells" }
@@ -38,18 +37,18 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         }
     }
 
-    val entryLocations: List<IdentityIfc>
+    val entryLocations: List<String>
         get() {
-            val list = mutableListOf<IdentityIfc>()
+            val list = mutableListOf<String>()
             for (seg in mySegments) {
                 list.add(seg.entryLocation)
             }
             return list
         }
 
-    val exitLocations: List<IdentityIfc>
+    val exitLocations: List<String>
         get() {
-            val list = mutableListOf<IdentityIfc>()
+            val list = mutableListOf<String>()
             for (seg in mySegments) {
                 list.add(seg.exitLocation)
             }
@@ -59,7 +58,7 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
     val isCircular: Boolean
         get() = firstLocation == lastLocation
 
-    fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
+    fun isReachable(start: String, end: String): Boolean {
         if (!entryLocations.contains(start))
             return false
         if (!exitLocations.contains(end))
@@ -86,8 +85,8 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
 
     override fun toString(): String {
         val sb = StringBuilder()
-        sb.appendLine("first location = ${firstLocation.name}")
-        sb.appendLine("last location = ${lastLocation.name}")
+        sb.appendLine("first location = ${firstLocation}")
+        sb.appendLine("last location = ${lastLocation}")
         for ((i, segment) in mySegments.withIndex()) {
             sb.appendLine("Segment: ${(i + 1)} = $segment")
         }
@@ -95,12 +94,12 @@ class ConveyorSegments(val cellSize: Int = 1, val firstLocation: IdentityIfc) {
         sb.appendLine("Downstream locations:")
         for ((loc, list) in myDownStreamLocations) {
             sb.appendLine(
-                "${loc.name} : ${
+                "${loc} : ${
                     list.joinToString(
                         separator = " -> ",
                         prefix = "[",
                         postfix = "]",
-                        transform = { it.name })
+                        transform = { it})
                 }"
             )
         }

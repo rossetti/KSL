@@ -1,23 +1,22 @@
 package ksl.modeling.entity
 
 import ksl.modeling.entity.Conveyor.Cell
-import ksl.utilities.IdentityIfc
 
 /**
  *  A conveyor request represents the holding of cells on a conveyor and acts as
  *  a "ticket" to use the conveyor.  Once an entity has a conveyor request, the entity
  *  has control over the cells at the start of the segment associated with the entry
  *  location along the conveyor.  After receiving a request to
- *  access the conveyor the entity can either ride on the conveyor or exit. The conveyor
+ *  access the conveyor, the entity can either ride on the conveyor or exit. The conveyor
  *  request blocks at the point of access until riding or exiting. The request is placed
  *  in the blocking entry state.  When the entity
- *  asks to ride the conveyor then the request will be placed in the riding state. If the entity
+ *  asks to ride the conveyor, then the request will be placed in the riding state. If the entity
  *  never rides the conveyor, then the request stays in the blocking entry state.  The property isWaitingForEntry
  *  indicates that the conveyor request is waiting to be allowed to block the entry cell of the conveyor
  *  at its current location. Once the conveyor request is used to ride the conveyor, the isWaitingToConvey property will
  *  report false. The isBlockingEntry property will report true until the request begins
  *  riding.  Once the request reaches its destination, the isBlockingExit property will be true and the
- *  request is in the blocking exit state.  When the request exits the conveyor the isCompleted property is true
+ *  request is in the blocking exit state.  When the request exits the conveyor, the isCompleted property is true
  *  and the request is in the completed state.  Once in the completed state, the request can no longer be used
  *  for any interaction with the conveyor.
  */
@@ -34,7 +33,7 @@ interface ConveyorRequestIfc {
     /**
      *  The location where the entity first accessed the conveyor
      */
-    val entryLocation: IdentityIfc
+    val entryLocation: String
 
     /**
      * The entity that needs to use the conveyor
@@ -50,12 +49,12 @@ interface ConveyorRequestIfc {
      * The current location of the entity. This is assigned
      * when the entity arrives at the end of a segment
      */
-    val currentLocation: IdentityIfc
+    val currentLocation: String
 
     /**
      * The final location where the entity wants to visit on the conveyor
      */
-    val destination: IdentityIfc?
+    val destination: String?
 
     /**
      *  The number of cells currently occupied on the conveyor.
@@ -100,9 +99,9 @@ interface ConveyorRequestIfc {
     val accessResumePriority: Int
 
     /**
-     *  While riding this is the location where the entity is heading
+     *  While riding, this is the location where the entity is heading
      */
-    val plannedLocation: IdentityIfc?
+    val plannedLocation: String?
         get() {
             return if (rearCell == null) {
                 null
@@ -124,7 +123,7 @@ interface ConveyorRequestIfc {
     fun asString(): String {
         val sb = StringBuilder()
         sb.appendLine("Conveyor Request for entity ${entity.id}")
-        sb.appendLine("conveyor: ${conveyor.name}, entry location: ${entryLocation.name}, current location: ${currentLocation.name}, destination: ${destination?.name}")
+        sb.appendLine("conveyor: ${conveyor.name}, entry location: ${entryLocation}, current location: ${currentLocation}, destination: ${destination}")
         sb.appendLine("Front cell = ${frontCell?.cellNumber}, Rear cell = ${rearCell?.cellNumber}")
         sb.appendLine("Has reached destination = $hasReachedDestination, Has reached exit cell $hasReachedAnExitCell")
         sb.appendLine("status = $status, num cell occupied = $numCellsOccupied, num cells needed = $numCellsNeeded")

@@ -28,7 +28,6 @@ import ksl.modeling.variable.TWResponse
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
 
 /**
@@ -122,7 +121,7 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
  *
  * A conveyor is considered circular if the entry location of the first segment is the same as the exit location of the last segment.
  *
- * To construct a conveyor use the supplied builder or specify the segment data.
+ * To construct a conveyor, use the supplied builder or specify the segment data.
  *
  * @param parent the containing model element
  * @param velocity the initial velocity of the conveyor
@@ -230,20 +229,20 @@ class Conveyor(
         }
 
     // the cells associated with each entry location
-    private val myEntryCells = mutableMapOf<IdentityIfc, Cell>()
-    val entryCells: Map<IdentityIfc, Cell>
+    private val myEntryCells = mutableMapOf<String, Cell>()
+    val entryCells: Map<String, Cell>
         get() = myEntryCells
 
     // the cells associated with each exit location
-    private val myExitCells = mutableMapOf<IdentityIfc, Cell>()
+    private val myExitCells = mutableMapOf<String, Cell>()
     @Suppress("unused")
-    val exitCells: Map<IdentityIfc, Cell>
+    val exitCells: Map<String, Cell>
         get() = myExitCells
 
     // holds the queues that hold requests that are waiting to use the conveyor associated with each entry location
-    private val myAccessQueues = mutableMapOf<IdentityIfc, ConveyorQ>()
+    private val myAccessQueues = mutableMapOf<String, ConveyorQ>()
     @Suppress("unused")
-    val accessQueues: Map<IdentityIfc, QueueCIfc<ConveyorRequest>>
+    val accessQueues: Map<String, QueueCIfc<ConveyorRequest>>
         get() = myAccessQueues
 
     // holds the requests that have requested to ride after blocking an entry cell
@@ -252,7 +251,7 @@ class Conveyor(
     /** indicates if entering items have priority at entry cell over items riding on the conveyor
      *  The default is no priority (false)
      */
-    private val enteringPriority = mutableMapOf<IdentityIfc, Boolean>()
+    private val enteringPriority = mutableMapOf<String, Boolean>()
 
     fun hasItemPositionedToEnter(): Boolean = positionedToEnter.isNotEmpty()
 
@@ -273,7 +272,7 @@ class Conveyor(
                     myEntryCells[segment.entryLocation] = entryCell
                     enteringPriority[segment.entryLocation] = false
                     myAccessQueues[segment.entryLocation] =
-                        ConveyorQ(this, "${this.name}:${segment.entryLocation.name}:AccessQ")
+                        ConveyorQ(this, "${this.name}:${segment.entryLocation}:AccessQ")
                 } else if (i == numCells) {
                     exitCell = Cell(CellType.EXIT, segment.exitLocation, segment, cells)
                     myExitCells[segment.exitLocation] = exitCell
@@ -377,7 +376,7 @@ class Conveyor(
      *  Returns the queue that holds requests that are waiting to access the
      *  conveyor at the supplied [location]
      */
-    fun accessQueueAt(location: IdentityIfc): QueueCIfc<ConveyorRequest> {
+    fun accessQueueAt(location: String): QueueCIfc<ConveyorRequest> {
         require(myAccessQueues.contains(location)) { "The origin ($location) is not a valid entry location on the conveyor" }
         return myAccessQueues[location]!!
     }
@@ -388,14 +387,14 @@ class Conveyor(
      *  conveyor have priority to access over items already riding on the conveyor.
      */
     @Suppress("unused")
-    fun enteringPriorityAt(entryLocation: IdentityIfc, priority: Boolean) {
-        require(entryLocations.contains(entryLocation)) { "The location (${entryLocation.name}) is not an entry location for (${name})" }
+    fun enteringPriorityAt(entryLocation: String, priority: Boolean) {
+        require(entryLocations.contains(entryLocation)) { "The location (${entryLocation}) is not an entry location for (${name})" }
         enteringPriority[entryLocation] = priority
     }
 
     /**
      *  The current velocity of the conveyor. A change will remain in effect
-     *  until the end of a replication at which time the velocity will be reset
+     *  until the end of a replication, at which time the velocity will be reset
      *  to the initial velocity associated with the conveyor at time 0.0
      */
     var velocity: Double = velocity
@@ -434,7 +433,7 @@ class Conveyor(
      *  A location is reachable if the item can ride on the conveyor from
      *  the start location to the end location without exiting the conveyor.
      */
-    fun isReachable(start: IdentityIfc, end: IdentityIfc): Boolean {
+    fun isReachable(start: String, end: String): Boolean {
         return conveyorSegments.isReachable(start, end)
     }
 
@@ -465,9 +464,9 @@ class Conveyor(
     }
 
     /**
-     * If any of the cells of the conveyor are occupied by an entity
+     * If any of the cells of the conveyor are occupied by an entity,
      * then return true; otherwise, if there are no entities occupying
-     * cells return false.
+     * cells, return false.
      */
     fun isOccupied(): Boolean {
         for (cell in conveyorCells) {
@@ -491,7 +490,7 @@ class Conveyor(
      * The entry locations that are blocked and the corresponding blocked cell
      */
     @Suppress("unused")
-    fun blockedEntryCells(): Map<IdentityIfc, Cell> {
+    fun blockedEntryCells(): Map<String, Cell> {
         return myEntryCells.filterValues { it.isBlocked }
     }
 
@@ -499,7 +498,7 @@ class Conveyor(
      *  The exit locations that are blocked and the corresponding blocked cell
      */
     @Suppress("unused")
-    fun blockedExitCells(): Map<IdentityIfc, Cell> {
+    fun blockedExitCells(): Map<String, Cell> {
         return myExitCells.filterValues { it.isBlocked }
     }
 
@@ -776,7 +775,7 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR ($name): movable cells: [${cells.first().cellNumber}..${cells.last().cellNumber}]" }
         require(cells.last().isOccupied) { "CONVEYOR ($name): The last cell (${cells.last().cellNumber}) of the list was not occupied by an item" }
         // the last cell of the list MUST now be occupied by an item
-        // the last cell of the list may be the cell at the end of non-circular conveyor
+        // the last cell of the list may be the cell at the end of a non-circular conveyor
         if (cells.last() == conveyorCells.last() && !isCircular) {
             // the last cell is the conveyor's last cell and the conveyor is not circular
             // the item at the last cell MUST be exiting
@@ -849,7 +848,7 @@ class Conveyor(
      *  rear most cell first occupies the entry cell.
      */
     @Suppress("unused")
-    fun isEntryLocationBlocked(entryLocation: IdentityIfc): Boolean {
+    fun isEntryLocationBlocked(entryLocation: String): Boolean {
         require(entryLocations.contains(entryLocation)) { "The location ($entryLocation) is not a valid entry point on the conveyor" }
         val entryCell = myEntryCells[entryLocation]!!
         return entryCell.isBlocked
@@ -865,7 +864,7 @@ class Conveyor(
      *  is fully off of the conveyor
      */
     @Suppress("unused")
-    fun isExitLocationBlocked(exitLocation: IdentityIfc): Boolean {
+    fun isExitLocationBlocked(exitLocation: String): Boolean {
         require(exitLocations.contains(exitLocation)) { "The location ($exitLocation) is not a valid exit point on the conveyor" }
         val exitCell = myExitCells[exitLocation]!!
         return exitCell.isBlocked
@@ -921,7 +920,7 @@ class Conveyor(
      */
     inner class Cell(
         val type: CellType,
-        val location: IdentityIfc?,
+        val location: String?,
         val segment: Segment,
         private val cellList: MutableList<Cell>
     ) {
@@ -1058,7 +1057,7 @@ class Conveyor(
         }
 
         override fun toString(): String {
-            return "Cell(segment=${segment.name}, cell=$cellNumber, location=${location?.name}, type=$type, " +
+            return "Cell(segment=${segment.name}, cell=$cellNumber, location=${location}, type=$type, " +
                     "isOccupied=$isOccupied, isBlocked=$isBlocked, item=${item?.entity?.name}, item status = ${item?.status})"
         }
     }
@@ -1106,14 +1105,14 @@ class Conveyor(
             return this
         }
 
-        override fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc {
+        override fun firstSegment(start: String, end: String, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
             segmentsData = ConveyorSegments(cellSize, start)
             segmentsData.toLocation(end, length)
             return this
         }
 
-        override fun nextSegment(next: IdentityIfc, length: Int): SegmentStepIfc {
+        override fun nextSegment(next: String, length: Int): SegmentStepIfc {
             require(length >= 1) { "The length of the segment must be >= 1 unit" }
             segmentsData.toLocation(next, length)
             return this
@@ -1139,11 +1138,11 @@ class Conveyor(
 
     interface FirstSegmentStepIfc {
         fun maxCellsAllowed(value: Int): FirstSegmentStepIfc
-        fun firstSegment(start: IdentityIfc, end: IdentityIfc, length: Int): SegmentStepIfc
+        fun firstSegment(start: String, end: String, length: Int): SegmentStepIfc
     }
 
     interface SegmentStepIfc {
-        fun nextSegment(next: IdentityIfc, length: Int): SegmentStepIfc
+        fun nextSegment(next: String, length: Int): SegmentStepIfc
 
         fun build(): Conveyor
     }
@@ -1205,7 +1204,7 @@ class Conveyor(
         if (conveyorType == Type.NON_ACCUMULATING) {
             cancelConveyorMovement()
         }
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination!!.name}) : itemReachedDestination()" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : resuming after reaching destination: (${request.destination}) : itemReachedDestination()" }
         myRidingHoldQ.removeAndResume(request.entity)
     }
 
@@ -1263,17 +1262,17 @@ class Conveyor(
                     if (!request.mustWait()){
                         dequeueRequest(request)
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}" }
-                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location.name}" }
+                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location}" }
                         myAccessingHoldQ.removeAndResume(request.entity)
                     } else {
                         // first request still needs to wait
-                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} must continue to wait for (${request.numCellsNeeded}) cells at location ${location.name}" }
+                        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} must continue to wait for (${request.numCellsNeeded}) cells at location ${location}" }
                     }
                 } else {
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location.name}: no requests waiting" }
+                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests at location ${location}: no requests waiting" }
                 }
             } else {
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests: at location ${location.name}: cell (${cell.cellNumber}) : blocked = ${cell.isBlocked}  : ride request waiting ${positionedToEnter.containsKey(cell)}" }
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): processing waiting requests: at location ${location}: cell (${cell.cellNumber}) : blocked = ${cell.isBlocked}  : ride request waiting ${positionedToEnter.containsKey(cell)}" }
             }
         }
     }
@@ -1455,7 +1454,7 @@ class Conveyor(
      */
     private fun removeBlockage(blockedCell: Cell) {
         blockedCell.isBlocked = false // this unblocks the cell
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): removed blockage at cell (${blockedCell.cellNumber}) : type (${blockedCell.type}) : location (${blockedCell.location?.name})" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): removed blockage at cell (${blockedCell.cellNumber}) : type (${blockedCell.type}) : location (${blockedCell.location})" }
         // no need to worry about event scheduling because removing a blockage occurs
         // during the movement cycle, thus rescheduling at end of cycle will determine whether
         // the blockage affects the movement
@@ -1601,7 +1600,7 @@ class Conveyor(
     inner class ConveyorRequest(
         requestingEntity: ProcessModel.Entity,
         override val numCellsNeeded: Int,
-        override val entryLocation: IdentityIfc,
+        override val entryLocation: String,
         override val accessResumePriority: Int
     ) : QObject(), ConveyorRequestIfc {
         init {
@@ -1611,7 +1610,7 @@ class Conveyor(
                         "the allowed maximum ($maxEntityCellsAllowed) for for conveyor (${this@Conveyor.name})"
             }
             require(entryLocations.contains(entryLocation))
-            { "The location (${entryLocation.name}) of requested cells is not on conveyor (${this@Conveyor.name})" }
+            { "The location (${entryLocation}) of requested cells is not on conveyor (${this@Conveyor.name})" }
             priority = requestingEntity.priority
         }
 
@@ -1625,11 +1624,11 @@ class Conveyor(
 
         override val entryCell: Cell = myEntryCells[entryLocation]!!
 
-        override var currentLocation: IdentityIfc = entryLocation
+        override var currentLocation: String = entryLocation
             internal set
 
         // this is set when the scheduleConveyorAction() function occurs, called from suspending function: rideConveyor()
-        override var destination: IdentityIfc? = null
+        override var destination: String? = null
             internal set
 
         internal var state: RequestState = requestWaitingForEntryState
@@ -1652,7 +1651,7 @@ class Conveyor(
         internal fun blockEntryLocation() {
             state.blockEntryCell(this)
             entryCell.isBlocked = true
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : caused blockage for entry cell (${entryCell.cellNumber}) at location (${entryLocation.name})" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : caused blockage for entry cell (${entryCell.cellNumber}) at location (${entryLocation})" }
         }
 
         internal fun startRiding() {
@@ -1796,7 +1795,7 @@ class Conveyor(
             if ((status == ItemStatus.EXITING) && (frontCell!!.isExitCell)) {
                 // need to move the item forward, through its front cell, which is the exit cell
                 // item no longer occupies its rear cell
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location?.name})" }
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: is exiting the conveyor from cell (${frontCell?.cellNumber}) at location (${frontCell?.location})" }
                 val exitCell = frontCell!! // captures the exit cell, because popping moves the item
                 popRearCell() // moves item forward, item no longer occupies its rear cell, now cover exit cell (or is off conveyor)
                 if (!occupiesCells) {
@@ -1824,11 +1823,11 @@ class Conveyor(
             }
             // item has moved forward, it may have reached its destination
             if (frontCell!!.isExitCell) {
-                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: destination = (${destination?.name}): has reached exit cell (${frontCell!!.cellNumber}) at location (${frontCell!!.location?.name})" }
+                ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: destination = (${destination}): has reached exit cell (${frontCell!!.cellNumber}) at location (${frontCell!!.location})" }
                 // reached an exit cell
                 if (destination == frontCell!!.location) {
                     // reached the intended destination
-                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has reached cell (${frontCell?.cellNumber}) and its destination: (${destination?.name})" }
+                    ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: has reached cell (${frontCell?.cellNumber}) and its destination: (${destination})" }
                     conveyor.itemReachedDestination(this)
                 }
                 // this should be the end of a segment
@@ -1869,7 +1868,7 @@ class Conveyor(
             } else {
                 status = ItemStatus.ENTERING
             }
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: cells needed: $numCellsNeeded : entered conveyor at location (${entryLocation.name}) occupied entry cell (${entryCell.cellNumber})" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${entity.id} : status = $status: cells needed: $numCellsNeeded : entered conveyor at location (${entryLocation}) occupied entry cell (${entryCell.cellNumber})" }
         }
 
         /**
@@ -2055,7 +2054,7 @@ class Conveyor(
     internal fun receiveEntity(
         entity: ProcessModel.Entity,
         numCellsNeeded: Int,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         accessPriority: Int,
         accessResumePriority: Int
     ): ConveyorRequest {
@@ -2074,12 +2073,12 @@ class Conveyor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
         // always enter the queue to get statistics on waiting to enter the conveyor
-        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request_id = ${request.id} at ${request.entryLocation.name}" }
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : enqueue request_id = ${request.id} at ${request.entryLocation}" }
         enqueueRequest(request)
         // check if the request does not have to wait
         if (!request.mustWait()) {
             // remove the request from the queue and start it processing
-            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation.name}" }
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation}" }
             dequeueRequest(request)
             myAccessingHoldQ.removeAndResume(request.entity)
         } else {
@@ -2093,7 +2092,7 @@ class Conveyor(
      */
     internal fun scheduleConveyAction(
         conveyorRequest: ConveyorRequest,
-        destination: IdentityIfc,
+        destination: String,
         ridePriority: Int
     ) {
         conveyorRequest.destination = destination
@@ -2138,7 +2137,7 @@ class Conveyor(
             // the request cannot be riding or completed, if just blocking the entry, it must just complete
             val entity = conveyorRequest.entity
             conveyorRequest.exitConveyor()
-            logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) released blockage at entry location ${conveyorRequest.currentLocation.name} for (${this.name})" }
+            logger.trace { "r = ${model.currentReplicationNumber} : $time > PROCESS: exitConveyor(): Entity (${entity.name}) released blockage at entry location ${conveyorRequest.currentLocation} for (${this.name})" }
         } else {
             // schedule the need for exit at the current time
             schedule(::startExitAction, 0.0, message = conveyorRequest, priority = exitPriority)
@@ -2212,10 +2211,10 @@ class Conveyor(
         val isFirstSegment: Boolean
             get() = conveyorCells.first() == entryCell
 
-        val entryLocation: IdentityIfc
+        val entryLocation: String
             get() = entryCell.location!!
 
-        val exitLocation: IdentityIfc
+        val exitLocation: String
             get() = exitCell.location!!
 
         val firstOccupiedCell: Cell?
@@ -2232,7 +2231,7 @@ class Conveyor(
             get() = findLeadingCell(cells)
 
         val name: String
-            get() = "${entryLocation.name}->${exitLocation.name}"
+            get() = "${entryLocation}->${exitLocation}"
 
         fun movableCells(): List<Cell> {
             val foc = firstOccupiedCell ?: return emptyList()
