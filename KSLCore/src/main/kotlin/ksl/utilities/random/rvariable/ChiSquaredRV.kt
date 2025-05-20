@@ -28,7 +28,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class ChiSquaredRV (
+class ChiSquaredRV @JvmOverloads constructor(
     val degreesOfFreedom: Double,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,

@@ -28,7 +28,7 @@ import ksl.utilities.random.rvariable.parameters.ShiftedGeometricRVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class ShiftedGeometricRV(
+class ShiftedGeometricRV @JvmOverloads constructor(
     val probOfSuccess: Double,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,

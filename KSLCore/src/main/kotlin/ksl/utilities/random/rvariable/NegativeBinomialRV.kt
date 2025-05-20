@@ -29,7 +29,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class NegativeBinomialRV(
+class NegativeBinomialRV @JvmOverloads constructor(
     val probOfSuccess: Double,
     val numSuccess: Double,
     streamNum: Int = 0,

@@ -35,7 +35,7 @@ import kotlin.math.sqrt
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class BivariateLogNormalRV(
+class BivariateLogNormalRV @JvmOverloads constructor(
     val m1: Double = 1.0,
     val v1: Double = 1.0,
     val m2: Double = 1.0,

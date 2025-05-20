@@ -29,7 +29,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class LognormalRV(
+class LognormalRV @JvmOverloads constructor(
     val mean: Double,
     val variance: Double,
     streamNum: Int = 0,

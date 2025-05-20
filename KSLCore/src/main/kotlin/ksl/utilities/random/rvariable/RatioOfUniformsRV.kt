@@ -33,7 +33,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param f the desired PDF
  * @param rnStream the random number stream to use
  */
-class RatioOfUniformsRV (
+class RatioOfUniformsRV @JvmOverloads constructor(
     umax: Double,
     vmin: Double,
     vmax: Double,

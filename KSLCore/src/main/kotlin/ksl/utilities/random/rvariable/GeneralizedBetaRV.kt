@@ -31,7 +31,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class GeneralizedBetaRV(
+class GeneralizedBetaRV @JvmOverloads constructor(
     val alpha: Double,
     val beta: Double,
     val min: Double,

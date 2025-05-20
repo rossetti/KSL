@@ -80,19 +80,19 @@ class Histogram(
         get() = myBins[0].lowerLimit
 
     /**
-     * Upper limit of last histogram bin.
+     * Upper limit of the last histogram bin.
      */
     override val lastBinUpperLimit: Double
         get() = myBins[myBins.size - 1].upperLimit
 
     /**
-     * Counts of values located below first bin.
+     * Counts of values located below the first bin.
      */
     override var underFlowCount: Double = 0.0
         private set
 
     /**
-     * Counts of values located above last bin.
+     * Counts of values located above the last bin.
      */
     override var overFlowCount: Double = 0.0
         private set
@@ -339,8 +339,8 @@ class Histogram(
         /**
          * Create a histogram with lower limit set to zero
          *
-         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
-         * @param numBins    the number of bins to create, must be greater than 0
+         * @param upperLimit the upper limit of the last bin cannot be positive infinity
+         * @param numBins    the number of bins to create must be greater than 0
          * @return the histogram
          */
         fun create(upperLimit: Double, numBins: Int): HistogramIfc {
@@ -351,8 +351,8 @@ class Histogram(
          * Create a histogram
          *
          * @param lowerLimit lower limit of first bin, cannot be negative infinity
-         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
-         * @param numBins    the number of bins to create, must be greater than 0
+         * @param upperLimit the upper limit of the last bin cannot be positive infinity
+         * @param numBins    the number of bins to create must be greater than 0
          * @return the histogram
          */
         fun create(lowerLimit: Double, upperLimit: Double, numBins: Int): HistogramIfc {
@@ -363,8 +363,8 @@ class Histogram(
          * Create a histogram with the given name based on the provided values
          *
          * @param lowerLimit lower limit of first bin, cannot be negative infinity
-         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
-         * @param numBins    the number of bins to create, must be greater than zero
+         * @param upperLimit the upper limit of the last bin cannot be positive infinity
+         * @param numBins    the number of bins to create must be greater than zero
          * @param name       the name of the histogram
          * @return the histogram
          */
@@ -373,9 +373,9 @@ class Histogram(
         }
 
         /**
-         * @param numBins    the number of bins to make, must be greater than zero
-         * @param lowerLimit the lower limit of the first bin, cannot be negative infinity
-         * @param width      the width of each bin, must be greater than zero
+         * @param numBins    the number of bins to make must be greater than zero
+         * @param lowerLimit the lower limit of the first bin cannot be negative infinity
+         * @param width      the width of each bin must be greater than zero
          * @return the created histogram
          */
         fun create(lowerLimit: Double, numBins: Int, width: Double): HistogramIfc {
@@ -386,8 +386,8 @@ class Histogram(
          * Divides the range equally across the number of bins.
          *
          * @param lowerLimit lower limit of first bin, cannot be negative infinity
-         * @param upperLimit the upper limit of the last bin, cannot be positive infinity
-         * @param numBins    the number of bins to create, must be greater than zero
+         * @param upperLimit the upper limit of the last bin cannot be positive infinity
+         * @param numBins    the number of bins to create must be greater than zero
          * @return the break points
          */
         fun createBreakPoints(lowerLimit: Double, upperLimit: Double, numBins: Int): DoubleArray {
@@ -407,9 +407,9 @@ class Histogram(
         }
 
         /**
-         * @param numBins    the number of bins to make, must be greater than 0
-         * @param lowerLimit the lower limit of the first bin, cannot be negative infinity
-         * @param width      the width of each bin, must be greater than 0
+         * @param numBins    the number of bins to make must be greater than 0
+         * @param lowerLimit the lower limit of the first bin cannot be negative infinity
+         * @param width      the width of each bin must be greater than 0
          * @return the constructed break points
          */
         fun createBreakPoints(lowerLimit: Double, numBins: Int, width: Double): DoubleArray {

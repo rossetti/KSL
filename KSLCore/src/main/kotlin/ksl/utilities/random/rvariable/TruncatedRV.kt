@@ -36,7 +36,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class TruncatedRV(
+class TruncatedRV @JvmOverloads constructor(
     distribution: InvertibleCDFIfc,
     val cdfLL: Double,
     val cdfUL: Double,

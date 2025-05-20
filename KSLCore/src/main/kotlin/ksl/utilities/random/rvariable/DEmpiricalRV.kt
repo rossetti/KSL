@@ -37,7 +37,7 @@ import ksl.utilities.statistic.HistogramIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class DEmpiricalRV(
+class DEmpiricalRV @JvmOverloads constructor(
     values: DoubleArray,
     cdf: DoubleArray,
     streamNum: Int = 0,

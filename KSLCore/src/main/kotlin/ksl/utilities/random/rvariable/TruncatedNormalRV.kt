@@ -16,7 +16,7 @@ import ksl.utilities.random.rvariable.parameters.TruncatedNormalRVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class TruncatedNormalRV(
+class TruncatedNormalRV @JvmOverloads constructor(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     interval: Interval,

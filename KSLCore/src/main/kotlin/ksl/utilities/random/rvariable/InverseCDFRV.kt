@@ -27,7 +27,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
 */
-class InverseCDFRV (
+class InverseCDFRV  @JvmOverloads constructor(
     val inverseCDF: InverseCDFIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,

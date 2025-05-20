@@ -31,7 +31,7 @@ import ksl.utilities.statistic.Histogram
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class EmpiricalRV (
+class EmpiricalRV @JvmOverloads constructor(
     private val data: DoubleArray,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,

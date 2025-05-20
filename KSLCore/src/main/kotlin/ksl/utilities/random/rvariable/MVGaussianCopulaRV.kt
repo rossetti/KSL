@@ -30,7 +30,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class MVGaussianCopulaRV(
+class MVGaussianCopulaRV @JvmOverloads constructor(
     val marginals: List<InverseCDFIfc>,
     correlation: Array<DoubleArray>,
     streamNum: Int = 0,

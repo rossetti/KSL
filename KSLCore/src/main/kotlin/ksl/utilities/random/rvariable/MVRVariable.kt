@@ -30,7 +30,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-abstract class MVRVariable(
+abstract class MVRVariable @JvmOverloads constructor(
     streamNum: Int = 0,
     final override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
