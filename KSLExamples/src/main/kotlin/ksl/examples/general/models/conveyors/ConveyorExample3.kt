@@ -50,10 +50,10 @@ class ConveyorExample3(
         myTBArrivals, myTBArrivals)
     private val mySTRV = RandomVariable(this, TriangularRV(12.0, 14.0, 16.0, 2))
     private val conveyor: Conveyor
-    private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
-    private val station1: IdentityIfc = Identity("Station1")
-    private val station2: IdentityIfc = Identity("Station2")
-    private val station3: IdentityIfc = Identity("Station3")
+    private val arrivalArea = "ArrivalArea"
+    private val station1 = "Station1"
+    private val station2 = "Station2"
+    private val station3 = "Station3"
     private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     init {

@@ -52,11 +52,11 @@ class ConveyorExample2(
         ::PartType,
         myTBArrivals, myTBArrivals)
     private val conveyor: Conveyor
-    private val station1: IdentityIfc = Identity("Station1")
-    private val station2: IdentityIfc = Identity("Station2")
-    private val station3: IdentityIfc = Identity("Station3")
-    private val station4: IdentityIfc = Identity("Station4")
-    private val exitArea: IdentityIfc = Identity("ExitArea")
+    private val station1  = "Station1"
+    private val station2 = "Station2"
+    private val station3 = "Station3"
+    private val station4 = "Station4"
+    private val exitArea = "ExitArea"
     private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     init {
@@ -73,7 +73,7 @@ class ConveyorExample2(
     }
 
     private val stations = listOf(station1, station2, station3, station4)
-    private val stationsRV = REmpiricalList<IdentityIfc>(this, stations, doubleArrayOf(0.2, 0.4, 0.7, 1.0))
+    private val stationsRV = REmpiricalList<String>(this, stations, doubleArrayOf(0.2, 0.4, 0.7, 1.0))
 
     private val myStation1R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station1R")
     private val myStation2R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station2R")
@@ -83,10 +83,10 @@ class ConveyorExample2(
     private inner class StationInfo(
         val resourceWithQ: ResourceWithQ,
         val delayTime: Double,
-        val nextStation: IdentityIfc
+        val nextStation: String
     )
 
-    private val stationData = mapOf<IdentityIfc, StationInfo>(
+    private val stationData = mapOf<String, StationInfo>(
         station1 to StationInfo(myStation1R, 4.0, station2),
         station2 to StationInfo(myStation2R, 5.0, station3),
         station3 to StationInfo(myStation3R, 4.0, station4),

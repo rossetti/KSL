@@ -35,8 +35,8 @@ class ConveyorExample1(
     private val myNumInSystem: TWResponse = TWResponse(this, "NumInSystem")
 
     private val conveyor: Conveyor
-    private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
-    private val exitArea: IdentityIfc = Identity("ExitArea")
+    private val arrivalArea = "ArrivalArea"
+    private val exitArea = "ExitArea"
 
     init {
         conveyor = Conveyor.builder(this, "Conveyor")

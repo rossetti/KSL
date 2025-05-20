@@ -87,7 +87,7 @@ class TestBlockUntilCompletion(parent: ModelElement) : ProcessModel(parent, null
 
     internal inner class CTransferEntity(
         nextConveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,

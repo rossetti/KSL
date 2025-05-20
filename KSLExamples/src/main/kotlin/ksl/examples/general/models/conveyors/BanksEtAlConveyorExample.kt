@@ -153,8 +153,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
     private val arrivalConveyor: Conveyor
     private val loopConveyor: Conveyor
     private val exitConveyor: Conveyor
-    private val arrivalArea: IdentityIfc = Identity("ArrivalArea")
-    private val exitArea: IdentityIfc = Identity("ExitArea")
+    private val arrivalArea = "ArrivalArea"
+    private val exitArea = "ExitArea"
 
     init {
         arrivalConveyor = Conveyor.builder(this, "ArrivalConveyor")
@@ -162,7 +162,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
             .velocity(25.0)
             .cellSize(10)
             .maxCellsAllowed(2)
-            .firstSegment(arrivalArea, myDrillingResource, 60)
+            .firstSegment(arrivalArea, myDrillingResource.name, 60)
             .build()
 
         loopConveyor = Conveyor.builder(this, "LoopConveyor")
@@ -170,11 +170,11 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
             .velocity(30.0)
             .cellSize(10)
             .maxCellsAllowed(2)
-            .firstSegment(myDrillingResource, myMillingResource, 70)
-            .nextSegment(myPlaningResource, 90)
-            .nextSegment(myGrindingResource, 50)
-            .nextSegment(myInspectionResource, 180)
-            .nextSegment(myDrillingResource, 250)
+            .firstSegment(myDrillingResource.name, myMillingResource.name, 70)
+            .nextSegment(myPlaningResource.name, 90)
+            .nextSegment(myGrindingResource.name, 50)
+            .nextSegment(myInspectionResource.name, 180)
+            .nextSegment(myDrillingResource.name, 250)
             .build()
 
         exitConveyor = Conveyor.builder(this, "ExitConveyor")
@@ -182,7 +182,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
             .velocity(45.0)
             .cellSize(10)
             .maxCellsAllowed(2)
-            .firstSegment(myInspectionResource, exitArea, 100)
+            .firstSegment(myInspectionResource.name, exitArea, 100)
             .build()
     }
 
@@ -201,7 +201,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
 
         val productionProcess = process(isDefaultProcess = true) {
             val cr1 = requestConveyor(arrivalConveyor, arrivalArea, 2)
-            rideConveyor(cr1, myDrillingResource)
+            rideConveyor(cr1, myDrillingResource.name)
             exitConveyor(cr1)
 
             var done = false
@@ -215,8 +215,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                 release(dra)
 
                 if (isType1){
-                    val cr2 = requestConveyor(loopConveyor, myDrillingResource, 2)
-                    rideConveyor(cr2, myMillingResource)
+                    val cr2 = requestConveyor(loopConveyor, myDrillingResource.name, 2)
+                    rideConveyor(cr2, myMillingResource.name)
                     exitConveyor(cr2)
 
                     if (myMillingResource.waitingQ.size >= millingQCapacity) {
@@ -227,12 +227,12 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     delay(myMillingRV, suspensionName = "delay milling")
                     release(mra)
 
-                    val cr3 = requestConveyor(loopConveyor, myMillingResource, 2)
-                    rideConveyor(cr3, myGrindingResource)
+                    val cr3 = requestConveyor(loopConveyor, myMillingResource.name, 2)
+                    rideConveyor(cr3, myGrindingResource.name)
                     exitConveyor(cr3)
                 } else {
-                    val cr4 = requestConveyor(loopConveyor, myDrillingResource, 2)
-                    rideConveyor(cr4, myPlaningResource)
+                    val cr4 = requestConveyor(loopConveyor, myDrillingResource.name, 2)
+                    rideConveyor(cr4, myPlaningResource.name)
                     exitConveyor(cr4)
 
                     if (myPlaningResource.waitingQ.size >= planingQCapacity) {
@@ -243,8 +243,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     delay(myPlaningRV, suspensionName = "delay planing")
                     release(pra)
 
-                    val cr5 = requestConveyor(loopConveyor, myPlaningResource, 2)
-                    rideConveyor(cr5, myGrindingResource)
+                    val cr5 = requestConveyor(loopConveyor, myPlaningResource.name, 2)
+                    rideConveyor(cr5, myGrindingResource.name)
                     exitConveyor(cr5)
                 }
 
@@ -260,8 +260,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                 }
                 release(ga)
 
-                val cr6 = requestConveyor(loopConveyor, myGrindingResource, 2)
-                rideConveyor(cr6, myInspectionResource)
+                val cr6 = requestConveyor(loopConveyor, myGrindingResource.name, 2)
+                rideConveyor(cr6, myInspectionResource.name)
                 exitConveyor(cr6)
 
                 if (myInspectionResource.waitingQ.size >= inspectionQCapacity) {
@@ -277,7 +277,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     myCompletedCounter.increment()
                     done = true
                     // passed, send to exit
-                    val cr7 = requestConveyor(exitConveyor, myInspectionResource, 2)
+                    val cr7 = requestConveyor(exitConveyor, myInspectionResource.name, 2)
                     rideConveyor(cr7, exitArea)
                     exitConveyor(cr7)
                     myOverallSystemTime.value = time - this@PartType.createTime
@@ -285,8 +285,8 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                     // needs rework
                     myReworkCounter.increment()
                     // send back to drilling
-                    val cr8 = requestConveyor(loopConveyor, myInspectionResource, 2)
-                    rideConveyor(cr8, myDrillingResource)
+                    val cr8 = requestConveyor(loopConveyor, myInspectionResource.name, 2)
+                    rideConveyor(cr8, myDrillingResource.name)
                     exitConveyor(cr8)
                 } else {
                     // must be inspectOutcome == 3.0, needs to be scrapped
@@ -301,7 +301,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
         val isType1 = myJobTypeRV.value.toBoolean()
 
         val productionProcess = process(isDefaultProcess = true) {
-            convey(arrivalConveyor, entryLocation = arrivalArea, destination = myDrillingResource, numCellsNeeded = 2)
+            convey(arrivalConveyor, entryLocation = arrivalArea, destination = myDrillingResource.name, numCellsNeeded = 2)
             var done = false
             while (!done) {
                 if (myDrillingResource.waitingQ.size >= drillingQCapacity) {
@@ -310,21 +310,21 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                 }
                 use(myDrillingResource, delayDuration = myDrillingRV)
                 if (isType1){
-                    convey(loopConveyor, entryLocation = myDrillingResource, destination = myMillingResource, numCellsNeeded = 2)
+                    convey(loopConveyor, entryLocation = myDrillingResource.name, destination = myMillingResource.name, numCellsNeeded = 2)
                     if (myMillingResource.waitingQ.size >= millingQCapacity) {
                         myOverflowCounter.increment()
                         return@process
                     }
                     use(myMillingResource, delayDuration = myMillingRV)
-                    convey(loopConveyor, entryLocation = myMillingResource, destination = myGrindingResource, numCellsNeeded = 2)
+                    convey(loopConveyor, entryLocation = myMillingResource.name, destination = myGrindingResource.name, numCellsNeeded = 2)
                 } else {
-                    convey(loopConveyor, entryLocation = myDrillingResource, destination = myPlaningResource, numCellsNeeded = 2)
+                    convey(loopConveyor, entryLocation = myDrillingResource.name, destination = myPlaningResource.name, numCellsNeeded = 2)
                     if (myPlaningResource.waitingQ.size >= planingQCapacity) {
                         myOverflowCounter.increment()
                         return@process
                     }
                     use(myPlaningResource, delayDuration = myPlaningRV)
-                    convey(loopConveyor, entryLocation = myPlaningResource, destination = myGrindingResource, numCellsNeeded = 2)
+                    convey(loopConveyor, entryLocation = myPlaningResource.name, destination = myGrindingResource.name, numCellsNeeded = 2)
                 }
 
                 if (myGrindingResource.waitingQ.size >= grindingQCapacity) {
@@ -336,7 +336,7 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                 } else {
                     use(myGrindingResource, delayDuration = myType2GrindingRV)
                 }
-                convey(loopConveyor, entryLocation = myGrindingResource, destination = myInspectionResource, numCellsNeeded = 2)
+                convey(loopConveyor, entryLocation = myGrindingResource.name, destination = myInspectionResource.name, numCellsNeeded = 2)
 
                 if (myInspectionResource.waitingQ.size >= inspectionQCapacity) {
                     myOverflowCounter.increment()
@@ -351,14 +351,14 @@ class BanksEtAlConveyorExample(parent: ModelElement, name: String? = null) : Pro
                         myCompletedCounter.increment()
                         done = true
                         // passed, send to exit
-                        convey(exitConveyor, entryLocation = myInspectionResource, destination = exitArea, numCellsNeeded = 2)
+                        convey(exitConveyor, entryLocation = myInspectionResource.name, destination = exitArea, numCellsNeeded = 2)
                         myOverallSystemTime.value = time - this@PartTypeV2.createTime
                     }
                     2.0 -> {
                         // needs rework
                         myReworkCounter.increment()
                         // send back to drilling
-                        convey(loopConveyor, entryLocation = myInspectionResource, destination = myDrillingResource, numCellsNeeded = 2)
+                        convey(loopConveyor, entryLocation = myInspectionResource.name, destination = myDrillingResource.name, numCellsNeeded = 2)
                     }
                     else -> {
                         // must be inspectOutcome == 3.0, needs to be scrapped

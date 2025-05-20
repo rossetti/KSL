@@ -2013,7 +2013,7 @@ interface KSLProcessBuilder {
      * @param entryLocation the location on the conveyor at which the cells are requested
      * @param numCellsNeeded the number of cells needed (requested)
      * @param requestPriority the priority of the access. If there are multiple entities that
-     * access the conveyor at the same time this priority determines which goes first. Similar to
+     * access the conveyor at the same time, this priority determines which goes first. Similar to
      * the seize resource priority.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
@@ -2022,7 +2022,7 @@ interface KSLProcessBuilder {
      */
     suspend fun requestConveyor(
         conveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,
@@ -2037,7 +2037,7 @@ interface KSLProcessBuilder {
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
      * while the entity occupies the final cells before exiting or riding again.  If the destination implements
-     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * the LocationIfc, then the current location property of the entity will be updated to this value at the
      * completion of the ride.
      *
      * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
@@ -2050,7 +2050,7 @@ interface KSLProcessBuilder {
      */
     suspend fun rideConveyor(
         conveyorRequest: ConveyorRequestIfc,
-        destination: IdentityIfc,
+        destination: String,
         ridePriority: Int = CONVEYOR_REQUEST_PRIORITY,
         suspensionName: String? = null
     ): Double
@@ -2063,7 +2063,7 @@ interface KSLProcessBuilder {
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
      * while the entity occupies the final cells before exiting or riding again. If the destination implements
-     * the LocationIfc then the current location property of the entity will be updated to this value at the
+     * the LocationIfc, then the current location property of the entity will be updated to this value at the
      * completion of the ride.
      *
      * @param destination the location to which to ride
@@ -2074,7 +2074,7 @@ interface KSLProcessBuilder {
      * due to blockages and the time moving through cells on the conveyor during the ride
      */
     suspend fun rideConveyor(
-        destination: IdentityIfc,
+        destination: String,
         ridePriority: Int = CONVEYOR_REQUEST_PRIORITY,
         suspensionName: String? = null
     ): Double {
@@ -2140,8 +2140,8 @@ interface KSLProcessBuilder {
      */
     suspend fun convey(
         conveyor: Conveyor,
-        entryLocation: IdentityIfc,
-        destination: IdentityIfc,
+        entryLocation: String,
+        destination: String,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,
@@ -2179,9 +2179,9 @@ interface KSLProcessBuilder {
      */
     suspend fun convey(
         conveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         loadingTime: Double = 0.0,
-        destination: IdentityIfc,
+        destination: String,
         unloadingTime: Double = 0.0,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
@@ -2222,9 +2222,9 @@ interface KSLProcessBuilder {
      */
     suspend fun convey(
         conveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         loadingTime: GetValueIfc = ConstantRV.ZERO,
-        destination: IdentityIfc,
+        destination: String,
         unloadingTime: GetValueIfc = ConstantRV.ZERO,
         numCellsNeeded: Int = 1,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
@@ -2272,7 +2272,7 @@ interface KSLProcessBuilder {
     suspend fun transferTo(
         conveyorRequest: ConveyorRequestIfc,
         nextConveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,
@@ -2305,7 +2305,7 @@ interface KSLProcessBuilder {
      */
     suspend fun transferTo(
         nextConveyor: Conveyor,
-        entryLocation: IdentityIfc,
+        entryLocation: String,
         exitPriority: Int = CONVEYOR_EXIT_PRIORITY,
         requestPriority: Int = CONVEYOR_REQUEST_PRIORITY,
         requestResumePriority: Int = RESUME_PRIORITY,
