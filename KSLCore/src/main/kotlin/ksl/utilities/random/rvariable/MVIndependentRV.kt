@@ -25,13 +25,13 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * The sampling of each dimension is independent. That is the resulting
  * distribution has independent marginals that are represented by the same
  * distribution as provided by the supplied random variable
- * @param theDimension         the dimension, must be at least 2
+ * @param theDimension the dimension must be at least 2
  * @param theRandomVariable the random variable for the marginals
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class MVIndependentRV(
+class MVIndependentRV @JvmOverloads constructor(
     theDimension: Int,
     theRandomVariable: RVariableIfc,
     streamNum: Int = 0,

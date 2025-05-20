@@ -29,7 +29,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class ShiftedRV(
+class ShiftedRV @JvmOverloads constructor(
     val shift: Double,
     private val rv: RVariableIfc,
     streamNum: Int = 0,

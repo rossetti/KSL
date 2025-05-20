@@ -24,11 +24,13 @@ import ksl.utilities.random.rvariable.parameters.WeibullRVParameters
 
 /**
  * Weibull(shape, scale) random variable
- * @param shape the shape, must be greater than 0
- * @param scale the scale, must be greater than 0
- * @param stream   the random number stream
+ * @param shape the shape must be greater than 0
+ * @param scale the scale must be greater than 0
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name an optional name
  */
-class WeibullRV (
+class WeibullRV @JvmOverloads constructor(
     val shape: Double,
     val scale: Double,
     streamNum: Int = 0,

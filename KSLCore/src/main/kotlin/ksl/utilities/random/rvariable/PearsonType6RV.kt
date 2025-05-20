@@ -23,14 +23,14 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Pearson Type 6(alpha1, alpha2, beta) random variable
- * @param alpha1 first shape parameter, must be greater than 0.0
- * @param alpha2 2nd shape parameter, must be greater than 0.0
- * @param beta first scale parameter, must be greater than 0.0
+ * @param alpha1 the first shape parameter must be greater than 0.0
+ * @param alpha2 2nd shape parameter must be greater than 0.0
+ * @param beta the first scale parameter must be greater than 0.0
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class PearsonType6RV (
+class PearsonType6RV @JvmOverloads constructor(
     val alpha1: Double,
     val alpha2: Double,
     val beta: Double,

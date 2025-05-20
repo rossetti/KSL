@@ -42,7 +42,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class AcceptanceRejectionRV(
+class AcceptanceRejectionRV @JvmOverloads constructor(
     val proposalDistribution: ContinuousDistributionIfc,
     val majorizingConstant: Double,
     val pdf: PDFIfc,

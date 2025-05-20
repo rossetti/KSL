@@ -29,7 +29,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  * may not necessarily meet this correlation, due to
  * the correlation matching problem.
  */
-class AR1CorrelatedRNStream(
+class AR1CorrelatedRNStream @JvmOverloads constructor(
     val lag1Corr: Double,
     private val stream: RNStreamIfc = KSLRandom.nextRNStream(),
 ) : RNStreamIfc by stream {

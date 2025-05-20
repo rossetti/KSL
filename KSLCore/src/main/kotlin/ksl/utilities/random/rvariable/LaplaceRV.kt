@@ -29,7 +29,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class LaplaceRV(
+class LaplaceRV @JvmOverloads constructor(
     val location: Double,
     val scale: Double,
     streamNum: Int = 0,

@@ -31,7 +31,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class Hyper2ExponentialRV(
+class Hyper2ExponentialRV @JvmOverloads constructor(
     val mixingProb: Double,
     val mean1: Double,
     val mean2: Double,

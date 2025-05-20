@@ -39,7 +39,7 @@ enum class EmpDistType {
  * @param name an optional String representing the name of the statistic
  * @param values an optional array of values to collect on
  */
-class Statistic(name: String? = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
+class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCounter}", values: DoubleArray? = null) :
     AbstractStatistic(name) {
 
     /**

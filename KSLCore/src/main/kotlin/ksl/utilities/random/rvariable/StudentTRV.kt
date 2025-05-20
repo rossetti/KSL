@@ -30,7 +30,7 @@ import kotlin.math.sqrt
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class StudentTRV (
+class StudentTRV @JvmOverloads constructor(
     val degreesOfFreedom: Double,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,

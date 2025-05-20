@@ -26,7 +26,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class MixtureRV(
+class MixtureRV @JvmOverloads constructor(
     list: List<RVariableIfc>,
     cdf: DoubleArray,
     streamNum: Int = 0,

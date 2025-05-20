@@ -30,7 +30,7 @@ import kotlin.math.sqrt
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class NormalRV(
+class NormalRV @JvmOverloads constructor(
     val mean: Double = 0.0,
     val variance: Double = 1.0,
     streamNum: Int = 0,

@@ -22,7 +22,7 @@ import ksl.utilities.statistic.HistogramIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class PWCEmpiricalRV(
+class PWCEmpiricalRV @JvmOverloads constructor(
     breakPoints: DoubleArray,
     proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
     streamNum: Int = 0,

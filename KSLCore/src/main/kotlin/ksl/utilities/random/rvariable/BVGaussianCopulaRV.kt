@@ -33,7 +33,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class BVGaussianCopulaRV(
+class BVGaussianCopulaRV @JvmOverloads constructor(
     val marginal1: InverseCDFIfc,
     val marginal2: InverseCDFIfc,
     val bvnCorrelation: Double,

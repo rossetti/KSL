@@ -25,13 +25,13 @@ import ksl.utilities.random.rvariable.parameters.UniformRVParameters
 /**
  * Generates a continuous uniform over the range
  *
- * @param min the minimum of the range, must be less than maximum
+ * @param min the minimum of the range must be less than the maximum
  * @param max the maximum of the range
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class UniformRV (
+class UniformRV @JvmOverloads constructor(
     val min: Double = 0.0,
     val max: Double = 1.0,
     streamNum: Int = 0,

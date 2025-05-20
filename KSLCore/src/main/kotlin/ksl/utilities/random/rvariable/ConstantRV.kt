@@ -26,7 +26,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameters
 /**
  * Allows a constant value to pretend to be a random variable
  */
-class ConstantRV(
+class ConstantRV @JvmOverloads constructor(
     var constVal: Double,
     name: String? = null
 ) : ParameterizedRV(

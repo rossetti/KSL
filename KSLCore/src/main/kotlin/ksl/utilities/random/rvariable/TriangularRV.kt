@@ -30,7 +30,7 @@ import ksl.utilities.random.rvariable.parameters.TriangularRVParameters
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class TriangularRV(
+class TriangularRV @JvmOverloads constructor(
     val min: Double,
     val mode: Double,
     val max: Double,
