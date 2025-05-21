@@ -18,14 +18,17 @@
 
 package ksl.modeling.spatial
 
-import com.google.common.collect.BiMap
-import com.google.common.collect.HashBasedTable
-import com.google.common.collect.HashBiMap
-import com.google.common.collect.Table
+//import com.google.common.collect.BiMap
+//import com.google.common.collect.HashBasedTable
+//import com.google.common.collect.HashBiMap
+//import com.google.common.collect.Table
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.KSLArrays
+import ksl.utilities.collections.HashBasedTable
+import ksl.utilities.collections.HashBiMap
+import ksl.utilities.collections.MutableBiMap
+import ksl.utilities.collections.MutableTable
 import ksl.utilities.io.JsonSettingsIfc
 
 @Serializable
@@ -157,15 +160,15 @@ interface DistancesCIfc : JsonSettingsIfc<DistancesData> {
 class DistancesModel() : SpatialModel(), DistancesCIfc {
 
     /**
-     * The default distance from a location to itself, must be greater than or equal to 0.0
+     * The default distance from a location to itself must be greater than or equal to 0.0
      */
     var defaultSameLocationDistance = 0.0
         set(value) {
             require(value >= 0.0) { "The default distance to/from same location must be >= 0.0" }
             field = value
         }
-    private val myDistanceTable: Table<LocationIfc, LocationIfc, Double> = HashBasedTable.create()
-    private val myLocationsAsBiMap: BiMap<String, LocationIfc> = HashBiMap.create()
+    private val myDistanceTable: MutableTable<LocationIfc, LocationIfc, Double> = HashBasedTable.create()
+    private val myLocationsAsBiMap: MutableBiMap<String, LocationIfc> = HashBiMap()
 
     override var defaultLocation: LocationIfc = Location("defaultLocation")
 
@@ -192,7 +195,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
      *  [toLoc] are string names of locations.  If a location with the name does not already
      *  exist in the model, then a new location with the name is created. The flag [symmetric] will cause
      *  an additional distance to be added going from [toLoc] to location [fromLoc] that has
-     *  the same distance. The default value of the flag is false. The pair must not have already been added to the model.
+     *  the same distance. The default value of the flag is false. The pair must not have been added to the model.
      *  @return the pair of locations added
      */
     fun addDistance(
@@ -222,6 +225,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
      *  @return a map containing the pairs of locations created. Each location is named Loc_k, where
      *  k is the index of the location in the array
      */
+    @Suppress("unused")
     fun addDistances(matrix: Array<DoubleArray>): Map<LocationIfc, LocationIfc> {
         require(KSLArrays.isSquare(matrix)) { "The supplied distance matrix was not square" }
         val map = mutableMapOf<LocationIfc, LocationIfc>()
@@ -255,7 +259,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
      * Adds a [distance] value between the pair of locations, going from [fromLocation] to [toLocation]. The distance
      * must be greater than or equal to 0.0. The flag [symmetric] will cause an additional distance to be added going
      * from [toLocation] to location [fromLocation] that has the same distance. The default value of the flag is false.
-     * The pair must not have already been added to the model. Use changeDistance() in that case.
+     * The pair must not have been added to the model. Use changeDistance() in that case.
      */
     fun addDistance(fromLocation: LocationIfc, toLocation: LocationIfc, distance: Double, symmetric: Boolean = false) {
         require(distance >= 0.0) { "The distance must be >= 0.0" }
@@ -269,8 +273,10 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
         if (symmetric) {
             myDistanceTable.put(toLocation, fromLocation, distance)
         }
-        myLocationsAsBiMap[fromLocation.name] = fromLocation
-        myLocationsAsBiMap[toLocation.name] = toLocation
+        //myLocationsAsBiMap[fromLocation.name] = fromLocation
+        myLocationsAsBiMap.forcePut(fromLocation.name, fromLocation)
+        myLocationsAsBiMap.forcePut(toLocation.name, toLocation)
+        //myLocationsAsBiMap[toLocation.name] = toLocation
     }
 
     /**
@@ -306,7 +312,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     override var distancesData: DistancesData
         get() {
             val list = mutableListOf<DistanceData>()
-            for (cell in myDistanceTable.cellSet()) {
+            for (cell in myDistanceTable.cellSet) {
                 val dd = DistanceData(cell.rowKey.name, cell.columnKey.name, cell.value)
                 list.add(dd)
             }
@@ -330,7 +336,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
         require(isValid(fromLocation)) { "The location ${fromLocation.name} is not a valid location for spatial model ${this.name}" }
         require(isValid(toLocation)) { "The location ${toLocation.name} is not a valid location for spatial model ${this.name}" }
         if (fromLocation == toLocation) {
-            // assume user did not add same location pair, but requested the distance
+            // assume user did not add the same location pair, but requested the distance
             if (!myDistanceTable.contains(fromLocation, toLocation)) {
                 // we return the default if the pair hasn't been added
                 return defaultSameLocationDistance
@@ -342,7 +348,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
                 toLocation
             )
         ) { "The pair (${fromLocation.name}, ${toLocation.name}) is not in the model" }
-        // the locations are the same and a distance is recorded, or
+        // the locations are the same, and a distance is recorded, or
         // the locations are different and a distance is recorded, so just return it
         return myDistanceTable.get(fromLocation, toLocation)!!
     }
@@ -359,7 +365,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     override fun toString(): String {
         val sb = StringBuilder()
         sb.appendLine("Distances")
-        for (x in myDistanceTable.cellSet()) {
+        for (x in myDistanceTable.cellSet) {
             sb.appendLine("From: ${x.rowKey.name}  ---> To: ${x.columnKey.name}  d = ${x.value}")
         }
         return sb.toString()
@@ -367,7 +373,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
 
     /** Represents a location within this spatial model.
      *
-     * @param aName the name of the location, will be assigned based on ID_id if null
+     * @param aName the name of the location will be assigned based on ID_id if null
      */
     inner class Location(aName: String? = null) : AbstractLocation(aName) {
         init {

@@ -7,7 +7,7 @@ import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.WithinRepViewData
 import ksl.utilities.io.toDataFrame
-import ksl.utilities.maps.ObservationDataDb
+import ksl.utilities.collections.ObservationDataDb
 import ksl.utilities.statistic.*
 import java.io.PrintWriter
 import java.nio.file.Path

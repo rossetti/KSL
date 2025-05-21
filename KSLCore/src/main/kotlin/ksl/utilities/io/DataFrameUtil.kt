@@ -20,16 +20,13 @@
 
 package ksl.utilities.io
 
-import ksl.controls.experiments.DesignPoint
 import ksl.controls.experiments.LinearModel
-import ksl.observers.ControlVariateDataCollector
-import ksl.observers.ReplicationDataCollector
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.tabularfiles.DataType
 import ksl.utilities.io.tabularfiles.TabularFile
 import ksl.utilities.io.tabularfiles.TabularOutputFile
 import ksl.utilities.isRectangular
-import ksl.utilities.maps.toMapOfLists
+import ksl.utilities.collections.toMapOfLists
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.sample

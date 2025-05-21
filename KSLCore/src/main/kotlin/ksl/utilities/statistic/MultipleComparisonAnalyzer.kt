@@ -29,11 +29,9 @@ import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DbTableData
-import ksl.utilities.maps.ObservationDataDb
-import ksl.utilities.maps.asObservationDataFrame
-import ksl.utilities.maps.toObservationData
+import ksl.utilities.collections.ObservationDataDb
+import ksl.utilities.collections.toObservationData
 import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.remove
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.io.PrintWriter

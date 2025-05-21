@@ -1,12 +1,14 @@
 package ksl.modeling.variable
 
-import com.google.common.collect.HashBasedTable
-import com.google.common.collect.Table
+//import com.google.common.collect.HashBasedTable
+//import com.google.common.collect.Table
 import kotlinx.serialization.Serializable
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.collections.HashBasedTable
+import ksl.utilities.collections.MutableTable
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.WeightedStatisticIfc
@@ -295,8 +297,8 @@ class TimeSeriesResponse(
 
     private val myResponseData = mutableMapOf<ResponseCIfc, MutableList<TimeSeriesPeriodData>>()
     private val myCounterData = mutableMapOf<CounterCIfc, MutableList<TimeSeriesPeriodData>>()
-    private var myAcrossRepResponseStatsTable: Table<ResponseCIfc, Int, Statistic>? = null
-    private var myAcrossRepCounterStatsTable: Table<CounterCIfc, Int, Statistic>? = null
+    private var myAcrossRepResponseStatsTable: MutableTable<ResponseCIfc, Int, Statistic>? = null
+    private var myAcrossRepCounterStatsTable: MutableTable<CounterCIfc, Int, Statistic>? = null
 
     init {
         require(periodLength.isFinite()) { "The length of the time series period must be finite" }
@@ -389,7 +391,7 @@ class TimeSeriesResponse(
             return emptyList()
         }
         val list = mutableListOf<TimeSeriesPeriodStatisticData>()
-        for (cell in myAcrossRepResponseStatsTable!!.cellSet()) {
+        for (cell in myAcrossRepResponseStatsTable!!.cellSet) {
             val period = cell.columnKey
             val startTime = defaultStartTime + (period - 1) * periodLength
             val endTime = startTime + periodLength
@@ -416,7 +418,7 @@ class TimeSeriesResponse(
             )
             list.add(data)
         }
-        for (cell in myAcrossRepCounterStatsTable!!.cellSet()) {
+        for (cell in myAcrossRepCounterStatsTable!!.cellSet) {
             val period = cell.columnKey
             val startTime = defaultStartTime + (period - 1) * periodLength
             val endTime = startTime + periodLength
@@ -545,7 +547,7 @@ class TimeSeriesResponse(
         if (acrossRepStatisticsOption) {
             // true, means turn on. so if not already created we need to create them
             if (myAcrossRepResponseStatsTable == null) {
-                myAcrossRepResponseStatsTable = HashBasedTable.create()
+               myAcrossRepResponseStatsTable = HashBasedTable.create()
             } else {
                 myAcrossRepResponseStatsTable!!.clear()
             }

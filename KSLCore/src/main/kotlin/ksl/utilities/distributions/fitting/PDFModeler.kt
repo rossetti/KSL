@@ -17,8 +17,10 @@
  */
 package ksl.utilities.distributions.fitting
 
-import com.google.common.collect.HashBiMap
+//import com.google.common.collect.HashBiMap
+import ksl.utilities.collections.HashBiMap
 import ksl.utilities.*
+import ksl.utilities.collections.MutableBiMap
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.estimators.*
 import ksl.utilities.distributions.fitting.scoring.*
@@ -29,7 +31,6 @@ import ksl.utilities.io.plotting.ObservationsPlot
 import ksl.utilities.io.toDataFrame
 import ksl.utilities.io.toStatDataFrame
 import ksl.utilities.moda.*
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.robj.DPopulation
 import ksl.utilities.random.rvariable.*
@@ -1258,7 +1259,7 @@ class PDFModeler(
          *  @param scoringModels the scoring models used during the estimation process
          *  @param numBootstrapSamples the number of bootstrap samples of the original data
          *  @param automaticShifting if true automatic shifting occurs, true is the default
-         *  @param stream the random number stream to use for the bootstrapping process
+         *  @param streamNum the random number stream to use for the bootstrapping process
          */
         fun bootstrapFamilyFrequency(
             data: DoubleArray,
@@ -1267,22 +1268,22 @@ class PDFModeler(
             scoringModels: Set<PDFScoringModel> = defaultScoringModels,
             numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
-            streamNumber: Int = 0,
+            streamNum: Int = 0,
             streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): IntegerFrequency {
             val cdfFreq = IntegerFrequency(name = "Distribution Frequency")
-            val estMap = HashBiMap.create<RVParametersTypeIfc, Int>()
+            val estMap : MutableBiMap<RVParametersTypeIfc, Int> = HashBiMap()
             var cnt = 1
             for (estimator in estimators) {
                 estMap[estimator.rvType] = cnt
                 cnt = cnt + 1
             }
             val cellLabels = mutableMapOf<Int, String>()
-            val invMap = estMap.inverse()
+            val invMap = estMap.inverse
             for ((i, rv) in invMap) {
                 cellLabels[i] = rv.toString()
             }
-            val bsPop = DPopulation(data, streamNumber,streamProvider)
+            val bsPop = DPopulation(data, streamNum,streamProvider)
             for (i in 1..numBootstrapSamples) {
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
@@ -1313,7 +1314,7 @@ class PDFModeler(
          *  @param scoringModels the scoring models used during the estimation process
          *  @param numBootstrapSamples the number of bootstrap samples of the original data
          *  @param automaticShifting if true automatic shifting occurs, true is the default
-         *  @param stream the random number stream to use for the bootstrapping process
+         *  @param streamNum the random number stream to use for the bootstrapping process
          */
         fun bootstrapFamilyFrequencyAsDataFrame(
             data: DoubleArray,
@@ -1322,12 +1323,12 @@ class PDFModeler(
             scoringModels: Set<PDFScoringModel> = defaultScoringModels,
             numBootstrapSamples: Int = 400,
             automaticShifting: Boolean = true,
-            streamNumber: Int = 0,
+            streamNum: Int = 0,
             streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): AnyFrame {
             val freq = bootstrapFamilyFrequency(
                 data, evaluationMethod,
-                estimators, scoringModels, numBootstrapSamples, automaticShifting, streamNumber, streamProvider
+                estimators, scoringModels, numBootstrapSamples, automaticShifting, streamNum, streamProvider
             )
             var df = freq.toDataFrame()
             df = df.remove("id", "name", "value")

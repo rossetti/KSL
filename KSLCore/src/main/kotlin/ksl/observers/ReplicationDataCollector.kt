@@ -25,8 +25,8 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.WithinRepViewData
-import ksl.utilities.maps.KSLMaps
-import ksl.utilities.maps.toMapOfLists
+import ksl.utilities.collections.KSLMaps
+import ksl.utilities.collections.toMapOfLists
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 

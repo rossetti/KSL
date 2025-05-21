@@ -18,7 +18,7 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.isRectangular
-import ksl.utilities.maps.isRectangular
+import ksl.utilities.collections.isRectangular
 import ksl.utilities.random.rvariable.ExponentialRV
 
 interface BatchStatisticIfc : StatisticIfc {

@@ -22,8 +22,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.maps.KSLMaps
-import ksl.utilities.maps.toJson
+import ksl.utilities.collections.KSLMaps
+import ksl.utilities.collections.toJson
 import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1

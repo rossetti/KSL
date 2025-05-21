@@ -3,9 +3,9 @@ package ksl.examples.book.chapter8
 import ksl.simulation.Model
 
 fun main() {
-   // cmVersion1()
+    cmVersion1()
 //    cmVersion2()
-    cmVersion3()
+ //   cmVersion3()
 }
 
 fun cmVersion1(){
