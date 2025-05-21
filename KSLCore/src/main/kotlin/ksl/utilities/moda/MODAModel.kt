@@ -1,9 +1,10 @@
 package ksl.utilities.moda
 
-import com.google.common.collect.HashBasedTable
+//import com.google.common.collect.HashBasedTable
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
+import ksl.utilities.collections.HashBasedTable
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.Database
@@ -231,7 +232,7 @@ abstract class MODAModel(
                 table.put(alternative, metric, rank)
             }
         }
-        return table.rowMap()
+        return table.rowMap
     }
 
     /**

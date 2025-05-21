@@ -87,7 +87,7 @@ dependencies {
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
     api("org.hipparchus:hipparchus-stat:4.0.1")
 
-    implementation("com.google.guava:guava:33.4.8-jre")
+//    implementation("com.google.guava:guava:33.4.8-jre")
 
     // https://db.apache.org/derby/releases
     implementation(group = "org.apache.derby", name = "derby", version = "10.17.1.0")

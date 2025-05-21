@@ -5,7 +5,7 @@ import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main(){
-    val e = ExponentialRV(10.0)
+    val e = ExponentialRV(10.0, streamNum = 2)
     //   val se = ShiftedRV(5.0, e)
     val n = 1000
     val data = e.sample(n)

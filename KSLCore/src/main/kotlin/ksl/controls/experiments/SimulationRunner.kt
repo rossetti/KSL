@@ -23,8 +23,7 @@ import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
 import ksl.simulation.Model
 import ksl.utilities.KSLArrays
-import ksl.utilities.maps.KSLMaps
-import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.collections.KSLMaps
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import ksl.utilities.toPrimitives
 import java.io.PrintWriter

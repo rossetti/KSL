@@ -22,8 +22,8 @@ import ksl.utilities.io.CSVRowIterator
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.SQLiteDb
-import ksl.utilities.maps.HashBiMap
-import ksl.utilities.maps.MutableBiMap
+import ksl.utilities.collections.HashBiMap
+import ksl.utilities.collections.MutableBiMap
 import org.apache.commons.csv.CSVRecord
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import java.io.IOException

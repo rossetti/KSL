@@ -19,12 +19,11 @@
 package ksl.utilities.random.rvariable.parameters
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
-import ksl.utilities.maps.KSLMaps
-import ksl.utilities.maps.toJson
+import ksl.utilities.collections.KSLMaps
+import ksl.utilities.collections.toJson
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ParameterizedRV
 import java.lang.StringBuilder
