@@ -37,8 +37,8 @@ class RandomList<T : Any>(
     constructor(
         parent: ModelElement,
         elements: MutableList<T>,
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         name: String? = null
-    ) : this(parent, DUniformList<T>(elements, streamNumber, parent.streamProvider), name)
+    ) : this(parent, DUniformList<T>(elements, streamNum, parent.streamProvider), name)
 
 }

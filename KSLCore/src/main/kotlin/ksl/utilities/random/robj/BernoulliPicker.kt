@@ -32,13 +32,14 @@ interface BernoulliPickerIfc<T> : RElementIfc<T> {
  *  @param successProbability the probability associated with success
  *  @param successOption the success choice
  *  @param failureOption the failure choice
- *  @param stream the associated random number stream
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
 class BernoulliPicker<T>(
     val successProbability: Double,
     successOption: T,
     failureOption: T,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : BernoulliPickerIfc<T>, RElementInstanceIfc<T>  {
 
@@ -59,14 +60,14 @@ class BernoulliPicker<T>(
             field = value
         }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliPicker<T> {
-        return BernoulliPicker(successProbability, success, failure, streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): BernoulliPicker<T> {
+        return BernoulliPicker(successProbability, success, failure, streamNum, rnStreamProvider)
     }
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)

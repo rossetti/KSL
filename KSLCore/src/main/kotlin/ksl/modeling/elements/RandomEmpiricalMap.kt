@@ -1,11 +1,8 @@
 package ksl.modeling.elements
 
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.robj.RElementIfc
 import ksl.utilities.random.robj.REmpiricalMap
-import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Allows random selection of elements from the map. The supplied map
@@ -28,8 +25,8 @@ class RandomEmpiricalMap <K, V>(
         parent: ModelElement,
         map: Map<K, V>,
         theCDF: DoubleArray,
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         name: String? = null
-    ) : this(parent, REmpiricalMap(map, theCDF, streamNumber, parent.streamProvider), name)
+    ) : this(parent, REmpiricalMap(map, theCDF, streamNum, parent.streamProvider), name)
 
 }

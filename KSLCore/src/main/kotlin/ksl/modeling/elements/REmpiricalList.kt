@@ -38,8 +38,8 @@ class REmpiricalList<T>(
         parent: ModelElement,
         elements: List<T>,
         theCDF: DoubleArray,
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         name: String? = null
-    ) : this(parent, DEmpiricalList<T>(elements, theCDF, streamNumber, parent.streamProvider), name)
+    ) : this(parent, DEmpiricalList<T>(elements, theCDF, streamNum, parent.streamProvider), name)
 
 }

@@ -12,11 +12,11 @@ import ksl.utilities.random.rvariable.KSLRandom
  */
 class RMap<K, V>(
     private val map: Map<K, V>,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
-    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
@@ -28,8 +28,8 @@ class RMap<K, V>(
         myList = map.keys.toList()
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
-        return RMap(map.toMap(), streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return RMap(map.toMap(), streamNum, rnStreamProvider)
     }
 
     /**
@@ -82,13 +82,13 @@ class RMap<K, V>(
 class REmpiricalMap<K, V>(
     private val map: Map<K, V>,
     theCDF: DoubleArray,
-    streamNumber: Int = 0,
+    streamNum: Int = 0,
     private val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : Map<K, V> by map, RElementIfc<V>, RElementInstanceIfc<V>  {
 
     private val myList: DEmpiricalList<K>
 
-    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNumber)
+    private val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
@@ -100,8 +100,8 @@ class REmpiricalMap<K, V>(
         myList = DEmpiricalList(map.keys.toList(), theCDF)
     }
 
-    override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
-        return REmpiricalMap(map.toMap(), myList.cdf, streamNumber, rnStreamProvider)
+    override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RElementIfc<V> {
+        return REmpiricalMap(map.toMap(), myList.cdf, streamNum, rnStreamProvider)
     }
 
     /**

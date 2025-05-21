@@ -10,8 +10,6 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.Identity
-import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.*
 
 /**
@@ -73,7 +71,8 @@ class ConveyorExample2(
     }
 
     private val stations = listOf(station1, station2, station3, station4)
-    private val stationsRV = REmpiricalList<String>(this, stations, doubleArrayOf(0.2, 0.4, 0.7, 1.0))
+    private val stationsRV = REmpiricalList<String>(this, stations,
+        doubleArrayOf(0.2, 0.4, 0.7, 1.0), streamNum = 2)
 
     private val myStation1R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station1R")
     private val myStation2R: ResourceWithQ = ResourceWithQ(this, capacity = 1, name = "Station2R")
