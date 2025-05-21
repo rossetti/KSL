@@ -19,7 +19,7 @@ import ksl.utilities.random.rvariable.randomlySelect
  *  and a granularity. The granularity specifies the acceptable precision of the input. The problem can
  *  have a set of linear constraints. The linear constraints are a deterministic function of the inputs.
  *  The problem can also have a set of functional constraints.  A functional constraint is a deterministic
- *  function of the inputs that is bounded by a constraints. This permits non-linear deterministic
+ *  function of the inputs that is bounded by constraints. This permits non-linear deterministic
  *  functional forms for the problem. In addition, a set of probabilistic constraints of the form E[G(x)] < c
  *  can be specified, where G(x) is some response from the simulation.
  *
