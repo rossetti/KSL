@@ -30,9 +30,12 @@ import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
 import ksl.utilities.*
 import ksl.utilities.distributions.InvertibleCDFIfc
-import ksl.utilities.distributions.PWCEmpiricalCDF
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.random.robj.BernoulliPicker
+import ksl.utilities.random.robj.DEmpiricalList
+import ksl.utilities.random.robj.DPopulation
+import ksl.utilities.random.robj.DUniformList
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.HistogramIfc
 
@@ -40,7 +43,7 @@ abstract class ModelElement internal constructor(
     name: String? = null) : IdentityIfc, ParentNameIfc, GetTimeIfc {
 
     //TODO spatial model stuff
-    //TODO change parent model element method, was in JSL, can/should it be in KSL
+    //TODO change parent model element method, was in JSL, can/should it be in KSL?
 
     /**
      * A set of constants for indicating model element status to observers of
@@ -60,7 +63,10 @@ abstract class ModelElement internal constructor(
     enum class TimeUnit(val value: Double) {
         MILLISECOND(1.0), SECOND(1000.0), MINUTE(60.0 * SECOND.value),
         HOUR(60.0 * MINUTE.value), DAY(24.0 * HOUR.value), WEEK(7.0 * DAY.value),
-        MONTH(30.0 * DAY.value), YEAR(365.0 * DAY.value)
+        @Suppress("unused")
+        MONTH(30.0 * DAY.value),
+        @Suppress("unused")
+        YEAR(365.0 * DAY.value)
         //TODO consider conversion functions
     }
 
@@ -124,31 +130,31 @@ abstract class ModelElement internal constructor(
         protected set
 
     /**
-     * A flag to control whether the model element reacts to before
+     * A flag to control if the model element reacts to before
      * experiment actions.
      */
     var beforeExperimentOption = true
 
     /**
-     * A flag to control whether the model element reacts to before
+     * A flag to control if the model element reacts to before
      * replication actions.
      */
     var beforeReplicationOption = true
 
     /**
-     * A flag to control whether the model element participates in monte
+     * A flag to control if the model element participates in monte
      * carlo actions.
      */
     var monteCarloOption = false
 
     /**
-     * A flag to control whether the model element reacts to
+     * A flag to control if the model element reacts to
      * initialization actions
      */
     var initializationOption = true
 
     /**
-     * A flag to control whether the model element reacts to end
+     * A flag to control if the model element reacts to end
      * replication actions.
      */
     var replicationEndedOption = true
@@ -160,22 +166,22 @@ abstract class ModelElement internal constructor(
     var afterReplicationOption = true
 
     /**
-     * A flag to control whether the model element reacts to after
+     * A flag to control if the model element reacts to after
      * experiment actions.
      */
     var afterExperimentOption = true
 
     /**
-     * Specifies if this model element will be warmed up when the warmup action
+     * Specifies if this model element is warmed up when the warmup action
      * occurs for its parent.
-     * The warm-up flag  indicates whether this model element
-     * will be warmed up when its parent warm up event/action occurs. The
+     * The warm-up flag indicates whether this model element
+     * will be warmed up when its parent warm-up event/action occurs. The
      * default value for all model elements is true. A value of true implies
      * that the model element allows its parent's warm up event to call the warm-up
      * action. A value of false implies that the model element does not allow
      * its parent's warm up event to call the warm-up action. False does not
      * necessarily mean that the model element will not be warmed up. It may,
-     * through the use of the lengthOfWarmUp property, have its own warm up
+     * through the use of the lengthOfWarmUp property, have its own warm-up
      * event and action.
      */
     var warmUpOption = true
@@ -241,6 +247,7 @@ abstract class ModelElement internal constructor(
     /**
      *  A global uniform random number source
      */
+    @Suppress("unused")
     protected val defaultRNStream: RNStreamIfc
         get() = myModel.myDefaultStream
 
@@ -254,13 +261,10 @@ abstract class ModelElement internal constructor(
      * Causes the current replication to stop processing events.
      * @param msg an optional string message can be supplied to inform output about the reason for the stoppage
      */
+    @Suppress("unused")
     protected fun stopReplication(msg:  String? = null){
         executive.stop("time $time> User stopped the replication: $msg" )
     }
-
-    //TODO revisit myDefaultEntityType when working on process modeling
-//    protected val defaultEntityType: EntityType
-//        get() = model.myDefaultEntityType
 
     /**
      * The action listener that reacts to the warm-up event.
@@ -288,36 +292,36 @@ abstract class ModelElement internal constructor(
      * The length of time from the start of the simulation to the warm-up event.
      * Sets the length of the warm-up for this model element.
      * <p>
-     * Setting the length of the warm up to 0.0 will set the warm-up option flag
+     * Setting the length of the warm-up to 0.0 will set the warm-up option flag
      * to true.
      * <p>
-     * This is based on the assumption that a zero length warm up implies that
-     * the model element's parent warm up event will take care of the warm-up
+     * This is based on the assumption that a zero-length warm-up implies that
+     * the model element's parent warm-up event will take care of the warm-up
      * action. If this is not the case, then setting the warmUpOption to false after
-     * setting the length of the warm up to 0.0, will cause the model element to
-     * not have a warmup.
+     * setting the length of the warm-up to 0.0, will cause the model element to
+     * not have a warm-up.
      * <p>
-     * In general, there is not a need to set the length of the warm up to zero
+     * In general, there is not a need to set the length of the warm-up to zero
      * unless the reactor is resetting the value after explicitly specifying it
-     * for a replication. The default value of the warm-up length is zero. A zero
-     * length warm up will not cause a separate event to be scheduled. The
-     * default warm up flag option starts as true, which implies that the model
-     * element lets its parent's warm up event take care of the warm-up action.
+     * for a replication. The default value of the warm-up length is zero. A zero-length
+     * warm-up will not cause a separate event to be scheduled. The
+     * default warm-up flag option starts as true, which implies that the model
+     * element lets its parent's warm-up event take care of the warm-up action.
      * <p>
      * Setting the length of the warm-up &gt; 0.0, will set the warm-up option
      * flag to false.
      * <p>
      * Prior to each replication the specified warm-up length will be checked to
-     * see if it is greater than zero. if the length of the warm-up is greater
+     * see if it is greater than zero. If the length of the warm-up is greater
      * than zero, it is checked to see if it is less than the simulation run
-     * length. If so, it is assumed that the model element wants its own warm up
+     * length. If so, it is assumed that the model element wants its own warm-up
      * event scheduled. It is also assumed that the model element does not
      * depend on its parent for a warm-up action. The warm-up option flag will
-     * be set to false and a separate warm up event will be scheduled for the
+     * be set to false, and a separate warm-up event will be scheduled for the
      * model element.
      */
-    protected var individualElementWarmUpLength = 0.0 // zero means no warm up
-        protected set(warmUpTime) {
+    protected var individualElementWarmUpLength = 0.0 // zero means no warm-up
+        set(warmUpTime) {
             require(warmUpTime >= 0.0) { "Individual element warm up event time must be >= 0.0" }
             field = warmUpTime
             warmUpOption = (field == 0.0)
@@ -368,6 +372,7 @@ abstract class ModelElement internal constructor(
      *
      * @return the model element as a string
      */
+    @Suppress("unused")
     val modelElementsAsString: String
         get() {
             val sb = StringBuilder()
@@ -442,6 +447,7 @@ abstract class ModelElement internal constructor(
     /**
      *  Checks if current status is the supplied status
      */
+    @Suppress("unused")
     fun isStatus(status: Status): Boolean {
         return status == currentStatus
     }
@@ -607,10 +613,11 @@ abstract class ModelElement internal constructor(
     }
 
     /**
-     * Gets the number of model elements contained by this model elements.
+     * Gets the number of model elements contained by the model element.
      *
      * @return a count of the number of direct child elements.
      */
+    @Suppress("unused")
     val numberOfModelElements: Int
         get() = myModelElements.size
 
@@ -632,6 +639,7 @@ abstract class ModelElement internal constructor(
      *
      * @param list the list of model elements
      */
+    @Suppress("unused")
     protected fun getThisElementsModelElements(list: MutableList<ModelElement>) {
         if (myModelElements.isNotEmpty()) {
             for (me in myModelElements) {
@@ -667,6 +675,7 @@ abstract class ModelElement internal constructor(
      *
      * @param c The collection to be filled.
      */
+    @Suppress("unused")
     protected fun getThisElementsResponseVariables(c: MutableCollection<Response>) {
         if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
@@ -704,6 +713,7 @@ abstract class ModelElement internal constructor(
      *
      * @param c The collection to be filled.
      */
+    @Suppress("unused")
     protected fun getThisElementsCounters(c: MutableCollection<Counter>) {
         if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
@@ -741,6 +751,7 @@ abstract class ModelElement internal constructor(
      *
      * @param c The collection to be filled.
      */
+    @Suppress("unused")
     protected fun getThisElementsRandomVariables(c: MutableCollection<RandomVariable>) {
         if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
@@ -758,6 +769,7 @@ abstract class ModelElement internal constructor(
      *
      * @param c The collection to be filled.
      */
+    @Suppress("unused")
     protected fun getThisElementsVariables(c: MutableCollection<Variable>) {
         if (myModelElements.isNotEmpty()) { // I have elements, so check them
             for (m in myModelElements) {
@@ -794,10 +806,10 @@ abstract class ModelElement internal constructor(
     }
 
     /**
-     * Returns the value of a 1 millisecond time interval in terms of the base
+     * Returns the value of a 1-millisecond time interval in terms of the base
      * time unit
      *
-     * @return the value of a 1 millisecond time interval in terms of the base
+     * @return the value of a 1-millisecond time interval in terms of the base
      * time unit
      */
     fun millisecond(): Double {
@@ -884,10 +896,10 @@ abstract class ModelElement internal constructor(
      * until the top Model.
      *
      *
-     * True means that some warm up event is scheduled in the upward chain.
-     * False means that no warm up event is scheduled in the upward chain.
+     * True means that some warm-up event is scheduled in the upward chain.
+     * False means that no warm-up event is scheduled in the upward chain.
      *
-     * @return true if any warm up event is scheduled in the upward chain
+     * @return true if any warm-up event is scheduled in the upward chain
      */
     fun isAnyWarmUpEventScheduled(): Boolean {
         // if this model element does not schedule the warm-up
@@ -902,17 +914,17 @@ abstract class ModelElement internal constructor(
                 // stop checking
             }
         }
-        // current element has warm up scheduled, return that fact
+        // current element has warm-up scheduled, return that fact
         return true
     }
 
     /**
-     * Find the first parent that has its own warm up event this guarantees that
+     * Find the first parent that has its own warm-up event this guarantees that
      * all elements below the found model element do not have their own warm-up
-     * event. A model element that has its own warm up event also opts out of
+     * event. A model element that has its own warm-up event also opts out of
      * the warm-up action. If the returned parent is the Model, then all are
      * controlled by the model (unless they opt out). Elements can opt out and
-     * not have their own warm-up event. Thus, they have no warm up at all.
+     * not have their own warm-up event. Thus, they have no warm-up at all.
      *
      * Null indicates that no model element in the parent chain has a warm-up
      * event.
@@ -943,6 +955,7 @@ abstract class ModelElement internal constructor(
      *
      * @return the planned time, 0.0 means no warm-up
      */
+    @Suppress("unused")
     fun getWarmUpEventTime(): Double {
         var m: ModelElement? = this
         var time = 0.0
@@ -968,7 +981,7 @@ abstract class ModelElement internal constructor(
      * model element in the hierarchy of model elements all the way until the
      * top Model participates in the warm-up action.
      *
-     * True means that this and every parent in the chain participates in the
+     * True means that this and every parent in the chain participate in the
      * warm-up action. False means this element or some parent does not
      * participate in the warm-up action
      *
@@ -994,6 +1007,7 @@ abstract class ModelElement internal constructor(
     /**
      * Cancels the warm-up event for this model element.
      */
+    @Suppress("unused")
     fun cancelWarmUpEvent() {
         if (warmUpEvent != null) {
             warmUpEvent!!.cancel = true
@@ -1016,6 +1030,7 @@ abstract class ModelElement internal constructor(
     /**
      * Cancels the timed update event for this model element.
      */
+    @Suppress("unused")
     fun cancelTimedUpdateEvent() {
         if (timedUpdateEvent != null) {
             timedUpdateEvent!!.cancel = true
@@ -1026,7 +1041,7 @@ abstract class ModelElement internal constructor(
      * event logic within the simulation.
      *
      * Implementor's of this interface should define a class that has concrete
-     * specification for the type T.  If the event message is not used, then
+     * specification for the type T. If the event message is not used, then
      * specify the type as Nothing.
      *
      * @param <T> the type associated with the KSLEvent's message property
@@ -1077,6 +1092,7 @@ abstract class ModelElement internal constructor(
      * The class has the ability to schedule its action according to a repeating
      * time between events.
      */
+    @Suppress("unused")
     protected abstract inner class TimedEventAction<T>(theTimeBtwEvents: GetValueIfc) : EventAction<T>() {
         protected var timeBetweenEvents: GetValueIfc = theTimeBtwEvents
 
@@ -1131,7 +1147,7 @@ abstract class ModelElement internal constructor(
      * Creates an EventScheduler which can be used to create and schedule events
      * on the simulation calendar reactingWith a fluency pattern.
      *
-     * @param <T>    if the event has a message, this is the type
+     * @param <T> if the event has a message, this is the type
      * @param action the action to be invoked at the event time
      * @return the builder of the event
      * */
@@ -1182,7 +1198,7 @@ abstract class ModelElement internal constructor(
         fun after(value: GetValueIfc): TimeUnitIfc<T> //would have liked to use the word "in"
 
         /**
-         * Sets the time of the event being built to current time + time
+         * Sets the time of the event being built to current time plus time
          *
          * @param time the time until the event should occur
          * @return the builder
@@ -1382,7 +1398,7 @@ abstract class ModelElement internal constructor(
         for (m in myModelElements) {
             c = m.markPreOrderTraversalTree(c)
         }
-        // reached end of children or no children
+        // reached the end of children or no children
         c = c + 1
         rightTraversalCount = c
         return c
@@ -1391,13 +1407,13 @@ abstract class ModelElement internal constructor(
     /**
      * This method should be overridden by subclasses that need logic to be
      * performed prior to an experiment. The beforeExperiment method allows
-     * model elements to be setup prior to the first replication within an
+     * model elements to be set up prior to the first replication within an
      * experiment. It is called once before any replications occur.
      */
     protected open fun beforeExperiment() {}
 
     /**
-     * The beforeExperimentActions method allows model elements to be setup prior to
+     * The beforeExperimentActions method allows model elements to be set up prior to
      * the first replication within an experiment. It is called once before any
      * replications occur within the experiment. This method ensures that each
      * contained model element has its beforeExperiment method called and that
@@ -1424,11 +1440,11 @@ abstract class ModelElement internal constructor(
      * each replication occurs if the model element wants initialization. It is
      * called after beforeReplication() is called
      */
-    protected open fun initialize() {}//TODO consider making this abstract so that elements have to implement
+    protected open fun initialize() {}
 
     /**
      * The initializeActions method allows model elements to be initialized to a
-     * standard reactor defined state. It is called by default before each
+     * standard reactor-defined state. It is called by default before each
      * replication
      *
      *
@@ -1497,14 +1513,14 @@ abstract class ModelElement internal constructor(
      */
     internal fun beforeReplicationActions() {
         if (individualElementWarmUpLength > 0.0) {
-            // the warm up period is > 0, ==> element wants a warm-up event
+            // the warm-up period is > 0, ==> the element wants a warm-up event
             myWarmUpEventAction = WarmUpEventAction()
             Model.logger.trace { "$name scheduling warm up event for time $individualElementWarmUpLength" }
             warmUpEvent = myWarmUpEventAction!!.schedule()
-            warmUpOption = false // no longer depends on parent's warm up
+            warmUpOption = false // no longer depends on parent's warm-up
         }
         if (timedUpdateInterval > 0.0) {
-            // the timed update is > 0, ==> element wants a timed update event
+            // the timed update is > 0, ==> the element wants a timed update event,
             // schedule the timed update event
             myTimedUpdateActionListener = TimedUpdateEventAction()
             Model.logger.trace { "$name scheduling timed update event for time $timedUpdateInterval" }
@@ -1555,7 +1571,7 @@ abstract class ModelElement internal constructor(
     /**
      * This method should be overridden by subclasses that need actions
      * performed at the warm-up event during each replication. It is called once
-     * during each replication if the model element reacts to warm up actions.
+     * during each replication if the model element reacts to warm-up actions.
      */
     protected open fun warmUp() {}
 
@@ -1655,7 +1671,7 @@ abstract class ModelElement internal constructor(
     /**
      * This method should be overridden by subclasses that need actions
      * performed when the replication ends and prior to the calling of
-     * afterReplication() . It is called when each replication ends and can be
+     * afterReplication(). It is called when each replication ends and can be
      * used to collect data from the model element, etc.
      */
     protected open fun replicationEnded() {}
@@ -1748,36 +1764,36 @@ abstract class ModelElement internal constructor(
      * 1) All children of this model element will have been removed from the
      * model.
      * 2) This model element will be removed from its parent's model,
-     * element list and from the model. The getParentModelElement() method will
+     * element list, and from the model. The getParentModelElement() method will
      * return null. In other words, this model element will no longer be connected
      * to a parent model element.
      * 3) This model element and all its children will no longer be
      * connected. In other words, there is no longer a parent/child relationship
      * between this model element and its former children.
      * 4) This model element and all of its children will no longer belong to a model.
-     * Their getModel() method will return null
-     * 5) The removed elements are no longer part of their former model's model element map
-     * 6) The name and label are set to null
-     * 7) Warm up and timed update listeners are set to null
-     * 9) Any reference to a spatial model is set to null
-     * 10) All observers of this model element are detached
+     * Their getModel() method will return null.
+     * 5) The removed elements are no longer part of their former model's model element map.
+     * 6) The name and label are set to null.
+     * 7) Warm up and timed update listeners are set to null.
+     * 9) Any reference to a spatial model is set to null.
+     * 10) All observers of this model element are detached.
      * 11) All child model elements are removed. It will no longer have any children.
      *
      * Since it has been removed from the model, it and its children will no
-     * longer participate in any of the standard model element actions, e.g.
+     * longer participate in any of the standard model element actions, e.g.,
      * initialize(), afterReplication(), etc.
      *
      *
      * Notes: 1) This method removes from the list of model elements. Thus, if a
-     * client attempts to use this method, via code that is iterating the list a
+     * client attempts to use this method, via code, that is, iterating the list, a
      * concurrent modification exception will occur.
      * 2) The user is responsible for ensuring that other references to this model
      * element are correctly handled.  If references to this model element exist within
-     * other data structures/collections then the user is responsible for appropriately
+     * other data structures/collections, then the user is responsible for appropriately
      * addressing those references. This is especially important for any observers
      * of the removed model element.  The observers will be notified that the model
      * element is being removed. It is up to the observer to correctly react to
-     * the removal. If the observer is a subclass of ModelElementObserver then
+     * the removal. If the observer is a subclass of ModelElementObserver, then
      * implementing the removedFromModel() method can be used. If the observer is a
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
@@ -1849,7 +1865,6 @@ abstract class ModelElement internal constructor(
      * @return True indicates that the remove was successful.
      */
     private fun removeModelElement(modelElement: ModelElement): Boolean {
-        //TODO why have a 1-line method for this
         return myModelElements.remove(modelElement)
     }
 
@@ -1873,6 +1888,7 @@ abstract class ModelElement internal constructor(
          */
         private var qObjCounter: Long = 0
 
+        @Suppress("unused")
         fun nextEnumConstant() : Int {
             return ++enumCounter
         }
@@ -1900,6 +1916,7 @@ abstract class ModelElement internal constructor(
         return modelElementObservers.contains(observer)
     }
 
+    @Suppress("unused")
     fun countModelElementObservers(): Int {
         return modelElementObservers.size
     }
@@ -2058,8 +2075,8 @@ abstract class ModelElement internal constructor(
         /**
          * Sets the priority to the supplied value If the QObject is queued, the
          * queue's changePriority() method is called (possibly causing a reordering
-         * of the queue) which may cause significant reordering overhead otherwise
-         * the priority is directly changed Changing this value only changes how the
+         * of the queue), which may cause significant reordering overhead; otherwise,
+         * the priority is directly changed. Changing this value only changes how the
          * QObjects are compared and may or may not change how they are ordered in
          * the queue, depending on the queue discipline used
          */
@@ -2088,6 +2105,7 @@ abstract class ModelElement internal constructor(
         /**
          * can be used to time stamp the qObject
          */
+        @Suppress("unused")
         var timeStamp: Double = createTime
             set(value) {
                 require(value >= createTime) { "The time stamp was less than the creation time $createTime" }
@@ -2116,6 +2134,7 @@ abstract class ModelElement internal constructor(
         /**
          *  Facilitates SAM setting with a lambda
          */
+        @Suppress("unused")
         fun valueObject(value: GetValueIfc?){
             valueObject = value
         }
@@ -2133,6 +2152,7 @@ abstract class ModelElement internal constructor(
         /**
          *  Facilitates SAM setting with a lambda
          */
+        @Suppress("unused")
         fun sender(sender: QObjectSenderIfc?){
             this.sender = sender
         }
@@ -2252,106 +2272,132 @@ abstract class ModelElement internal constructor(
 
     // defines functions for creating random variables that use the model's stream provider
 
+    @Suppress("unused")
     fun BernoulliRV(probOfSuccess: Double, streamNum : Int = 0, name: String? = null) : BernoulliRV {
         return BernoulliRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun BetaRV(alpha1: Double, alpha2: Double, streamNum: Int = 0, name: String? = null) : BetaRV {
         return BetaRV(alpha1, alpha2, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun BinomialRV(pSuccess: Double, numTrials: Int, streamNum: Int = 0, name: String? = null) : BinomialRV {
         return BinomialRV(pSuccess, numTrials, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun ConstantRV(value: Double, name: String? = null): ConstantRV {
         return ConstantRV(value, name)
     }
 
+    @Suppress("unused")
     fun DEmpiricalRV(values: DoubleArray, cdf: DoubleArray, streamNum: Int = 0, name: String? = null) : DEmpiricalRV {
         return DEmpiricalRV(values, cdf, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun DUniformRV(min: Int, max: Int, streamNum: Int = 0, name: String? = null) : DUniformRV {
         return DUniformRV(min, max, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun DUniformRV(range: IntRange, streamNum: Int = 0, name: String? = null) : DUniformRV {
         return DUniformRV(range, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun EmpiricalRV(data: DoubleArray, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(data, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun EmpiricalRV(lowerLimit: Double, numPoints: Int, width: Double, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(lowerLimit, numPoints, width, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun EmpiricalRV(interval: Interval, numPoints: Int, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(interval, numPoints, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun ExponentialRV(mean: Double, streamNum : Int = 0, name: String? = null) : ExponentialRV {
         return ExponentialRV(mean, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun GammaRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : GammaRV {
         return GammaRV(shape, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun GeneralizedBetaRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : GeneralizedBetaRV {
         return GeneralizedBetaRV(alpha, beta, min, max, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun GeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : GeometricRV {
         return GeometricRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun Hyper2ExponentialRV(mixingProb: Double, mean1: Double, mean2: Double, streamNum: Int = 0, name: String? = null): Hyper2ExponentialRV{
         return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun JohnsonBRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : JohnsonBRV {
         return JohnsonBRV(alpha, beta, min, max, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun LaplaceRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LaplaceRV {
         return LaplaceRV(location, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun LogisticRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogisticRV {
         return LogisticRV(location, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun LogLogisticRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogLogisticRV {
         return LogLogisticRV(shape, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun LognormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): LognormalRV {
         return LognormalRV(mean, variance, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun MixtureRV(list: List<RVariableIfc>, cdf: DoubleArray, streamNum: Int = 0, name: String? = null): MixtureRV {
         return MixtureRV(list, cdf, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun NormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): NormalRV {
         return NormalRV(mean, variance, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun PearsonType5RV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : PearsonType5RV {
         return PearsonType5RV(shape, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun PearsonType6RV(alpha1: Double, alpha2: Double, beta: Double, streamNum: Int = 0, name: String? = null) : PearsonType6RV {
         return PearsonType6RV(alpha1, alpha2, beta, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun PoissonRV(mean: Double, streamNum : Int = 0, name: String? = null) : PoissonRV {
         return PoissonRV(mean, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun PWCEmpiricalRV(
         breakPoints: DoubleArray,
         proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
@@ -2361,6 +2407,7 @@ abstract class ModelElement internal constructor(
         return PWCEmpiricalRV(breakPoints, proportions, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun PWCEmpiricalRV(
         histogram: HistogramIfc,
         streamNum: Int = 0,
@@ -2369,18 +2416,22 @@ abstract class ModelElement internal constructor(
         return PWCEmpiricalRV(histogram, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun ShiftedGeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : ShiftedGeometricRV {
         return ShiftedGeometricRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun ShiftedRV(shift: Double, rv: RVariableIfc, streamNum: Int = 0, name: String? = null) : ShiftedRV {
         return ShiftedRV(shift, rv, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun TriangularRV(min: Double, mode: Double, max: Double, streamNum: Int = 0, name: String? = null) : TriangularRV {
         return TriangularRV(min, mode, max, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun TruncatedNormalRV(
         mean: Double,
         variance: Double,
@@ -2391,6 +2442,7 @@ abstract class ModelElement internal constructor(
         return TruncatedNormalRV(mean, variance, interval, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun TruncatedRV(
         distribution: InvertibleCDFIfc,
         cdfLL: Double,
@@ -2403,16 +2455,50 @@ abstract class ModelElement internal constructor(
         return TruncatedRV(distribution, cdfLL, cdfUL, lowerLimit, upperLimit, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun UniformRV(min: Double, max: Double, streamNum: Int = 0, name: String? = null) : UniformRV {
         return UniformRV(min, max, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun UniformRV(interval: Interval, streamNum: Int = 0, name: String? = null) : UniformRV {
         return UniformRV(interval, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
     fun WeibullRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : WeibullRV {
         return WeibullRV(shape, scale, streamNum, streamProvider, name)
     }
 
+    @Suppress("unused")
+    fun <T> DUniformList(
+        elements: MutableList<T> = mutableListOf(),
+        streamNum: Int = 0
+    ) : DUniformList<T> {
+        return DUniformList(elements, streamNum, streamProvider)
+    }
+
+    @Suppress("unused")
+    fun <T> DEmpiricalList(
+        elements: List<T>,
+        theCDF: DoubleArray,
+        streamNum: Int = 0,
+    ) : DEmpiricalList<T> {
+        return DEmpiricalList(elements, theCDF, streamNum, streamProvider)
+    }
+
+    @Suppress("unused")
+    fun DPopulation(elements: DoubleArray, streamNum: Int = 0) : DPopulation {
+        return DPopulation(elements, streamNum, streamProvider)
+    }
+
+    @Suppress("unused")
+    fun <T> BernoulliPicker(
+        successProbability: Double,
+        successOption: T,
+        failureOption: T,
+        streamNum: Int = 0
+    ) : BernoulliPicker<T> {
+        return BernoulliPicker(successProbability, successOption, failureOption, streamNum, streamProvider)
+    }
 }

@@ -8,10 +8,6 @@ import ksl.modeling.variable.RandomVariable
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.BernoulliRV
-import ksl.utilities.random.rvariable.DEmpiricalRV
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.LognormalRV
 
 /*
 Activity 1 Basic Process Simulation
@@ -57,7 +53,7 @@ class MfgSystemActivityV2(
     private val machine3: ResourceWithQ = ResourceWithQ(this, "machine3")
 
     private val machineSelector = REmpiricalList<ResourceWithQ>(this,
-        elements = listOf(machine1, machine2, machine3), theCDF = doubleArrayOf(0.2, 0.5, 1.0), streamNumber = 2)
+        elements = listOf(machine1, machine2, machine3), theCDF = doubleArrayOf(0.2, 0.5, 1.0), streamNum = 2)
 
     override fun initialize() {
         schedule(this::arrival, timeBetweenArrivalRV)

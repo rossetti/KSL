@@ -23,8 +23,8 @@ class RandomMap<K, V>(
     constructor(
         parent: ModelElement,
         map: Map<K, V>,
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         name: String? = null
-    ) : this(parent, RMap(map, streamNumber, parent.streamProvider), name)
+    ) : this(parent, RMap(map, streamNum, parent.streamProvider), name)
 
 }

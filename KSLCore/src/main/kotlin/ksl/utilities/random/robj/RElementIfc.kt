@@ -24,12 +24,12 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 interface RElementInstanceIfc<T> {
     /**
-     * @param streamNumber the stream number to use from the underlying provider
+     * @param streamNum the stream number to use from the underlying provider
      * @param rnStreamProvider the provider for the stream instance
      * @return a new instance with same parameter values
      */
     fun instance(
-        streamNumber: Int = 0,
+        streamNum: Int = 0,
         rnStreamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
     ): RElementIfc<T>
 }
