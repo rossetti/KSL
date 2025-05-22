@@ -102,5 +102,5 @@ interface ControlIfc {
     fun limitToRange(values: DoubleArray): DoubleArray {
         return values.map { value -> limitToRange(value) }.toDoubleArray()
     }
-    
+
 }
