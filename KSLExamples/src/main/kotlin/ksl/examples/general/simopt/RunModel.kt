@@ -4,11 +4,13 @@ import ksl.controls.experiments.SimulationRunner
 import ksl.examples.general.models.LKInventoryModel
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.Model
+import ksl.utilities.Interval
 
 fun main() {
 
-    //simulationRunner()
-    buildModel()
+ //   simulationRunner()
+    //buildModel()
+    makeProblemDefinition()
 
 }
 
@@ -33,17 +35,9 @@ fun buildModel() : Model {
     model.numberOfReplications = 1000
     model.lengthOfReplicationWarmUp = 20.0
     val controls = model.controls()
-//    val cMap = controls.controlsByModelElement()
-//    println()
-//    println(controls)
-//    println()
-//    println("Controls by Model Element")
-//    for((key, value) in cMap) {
-//        val names: List<String> = value.map { it.keyName }
-//        println("$key: ${names.joinToString(", ")}")
-//    }
-//    println()
+    println("Model Controls:")
     controls.printControls()
+    println()
     return model
 }
 
@@ -52,6 +46,18 @@ fun makeProblemDefinition() {
         problemName = "InventoryProblem",
         modelIdentifier = "LKInventoryModel",
         objFnResponseName = "TotalCost",
-        inputNames = listOf("LKInventoryModel.orderUpToLevel", "LKInventoryModel.reorderPoint"),
+        inputNames = listOf("InventoryModel.orderQuantity", "InventoryModel.reorderPoint"),
     )
+   problemDefinition.inputVariable(
+       name = "InventoryModel.orderQuantity",
+       interval = Interval(1.0, 100.0),
+       granularity = 1.0
+   )
+    problemDefinition.inputVariable(
+        name = "InventoryModel.reorderPoint",
+        interval = Interval(1.0, 100.0),
+        granularity = 1.0
+    )
+
+    println(problemDefinition)
 }

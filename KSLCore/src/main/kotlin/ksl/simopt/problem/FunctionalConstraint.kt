@@ -1,5 +1,22 @@
 package ksl.simopt.problem
 
+/**
+ * Represents a functional constraint in an optimization problem.
+ *
+ * This class models a constraint where the left-hand side is computed
+ * using a user-defined function and is compared to a predefined right-hand side value
+ * using an inequality (less than or greater than).
+ *
+ * The valid variable names are defined at the time of initialization,
+ * and the left-hand side function is applied to input values to compute
+ * the constraint's value.
+ *
+ * @param validNames the input variable names that are valid for the function. The list
+ * must not be empty and must contain non-blank strings.
+ * @property lhsFunc The function used to compute the left-hand side of the equation.
+ * @property rhsValue The right-hand side value of the constraint. Defaults to 0.0.
+ * @property inequalityType The type of inequality (LESS_THAN or GREATER_THAN). Defaults to LESS_THAN.
+ */
 class FunctionalConstraint(
     validNames: List<String>,
     val lhsFunc: ConstraintFunctionIfc,
@@ -15,6 +32,21 @@ class FunctionalConstraint(
             require(name.isNotBlank()) { "The name was blank" }
         }
         this.validNames = validNames.distinct()
+    }
+
+    override fun toString() : String {
+        val sb = StringBuilder().apply{
+            append("Equation: ")
+            val names = validNames.joinToString(", ")
+            append("f($names)")
+            if (inequalityType == InequalityType.LESS_THAN) {
+                append(" <= ")
+            } else {
+                append(" >= ")
+            }
+            append("$rhsValue ")
+        }
+        return sb.toString()
     }
 
     /**

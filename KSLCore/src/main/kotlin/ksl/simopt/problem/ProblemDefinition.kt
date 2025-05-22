@@ -1,5 +1,6 @@
 package ksl.simopt.problem
 
+import com.sun.beans.introspect.PropertyInfo
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.evaluator.Solution
@@ -774,6 +775,67 @@ class ProblemDefinition(
         }
         return Solution(inputMap, 1, objFunc, list, 1)
     }
+
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("Problem Name: $name")
+            appendLine("Model Identifier: $modelIdentifier")
+            appendLine("Objective Function Response Name: $objFnResponseName")
+            appendLine("Input Names:")
+            for (name in inputNames) {
+                append("\t ")
+                appendLine(name)
+            }
+            appendLine("Response Names:")
+            if (responseNames.isNotEmpty()) {
+                for (name in responseNames) {
+                    append("\t ")
+                    appendLine(name)
+                }
+            } else {
+                appendLine("\t <None>")
+            }
+            appendLine("Input Definitions:")
+            val iDefns = inputDefinitionList
+            if (iDefns.isNotEmpty()) {
+                for (iDefn in iDefns) {
+                    append("\t ")
+                    appendLine(iDefn)
+                }
+            } else {
+                appendLine("\t <None>")
+            }
+            appendLine("Linear Constraints:")
+            if (myLinearConstraints.isNotEmpty()) {
+                for (constraint in myLinearConstraints) {
+                    append("\t ")
+                    appendLine(constraint)
+                }
+            } else {
+                appendLine("\t <None>")
+            }
+            appendLine("Functional Constraints:")
+            if (myFunctionalConstraints.isNotEmpty()) {
+                for (constraint in myFunctionalConstraints) {
+                    append("\t ")
+                    appendLine(constraint)
+                }
+            } else {
+                appendLine("\t <None>")
+            }
+            appendLine("Response Constraints:")
+            if (myResponseConstraints.isNotEmpty()) {
+                for (constraint in myResponseConstraints) {
+                    append("\t ")
+                    appendLine(constraint)
+                }
+            } else {
+                appendLine("\t <None>")
+            }
+        }
+        return sb.toString()
+    }
+
 
     companion object {
 

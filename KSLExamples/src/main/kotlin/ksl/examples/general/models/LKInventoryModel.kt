@@ -21,16 +21,20 @@ class LKInventoryModel(
     name: String? = null
 ) : ModelElement(parent, name) {
 
+
     @set:KSLControl(
         controlType = ControlType.INTEGER,
         lowerBound = 1.0
     )
-    var orderUpToLevel = 40
+    var orderQuantity = 20
         set(value) {
-            require(value > 0) { "Order up to level must be greater than zero" }
-            require(model.isNotRunning) { "The model must not be running when setting the order up to level" }
+            require(value > 0) { "Order quantity must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the order quantity" }
             field = value
         }
+
+    val orderUpToLevel : Int
+        get() = reorderPoint + orderQuantity
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
