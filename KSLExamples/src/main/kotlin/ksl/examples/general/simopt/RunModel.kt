@@ -41,7 +41,7 @@ fun buildModel() : Model {
     return model
 }
 
-fun makeProblemDefinition() {
+fun makeProblemDefinition() : ProblemDefinition {
     val problemDefinition = ProblemDefinition(
         problemName = "InventoryProblem",
         modelIdentifier = "LKInventoryModel",
@@ -60,4 +60,11 @@ fun makeProblemDefinition() {
     )
 
     println(problemDefinition)
+
+//    println("Random Starting Points:")
+//    for (i in 1..5) {
+//        val point  = problemDefinition.startingPoint()
+//        println(point)
+//    }
+    return problemDefinition
 }

@@ -182,4 +182,8 @@ class InputMap internal constructor(
         return problemDefinition.isFunctionalConstraintFeasible(this)
     }
 
+    override fun toString(): String {
+        return "InputMap($map)"
+    }
+
 }
