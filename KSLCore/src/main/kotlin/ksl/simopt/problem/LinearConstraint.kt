@@ -23,6 +23,22 @@ data class LinearConstraint(
         }
     }
 
+    override fun toString() : String {
+        val sb = StringBuilder().apply{
+            append("Equation: ")
+            for ((name, coefficient) in equation) {
+                append("$coefficient * $name + ")
+            }
+            if (inequalityType == InequalityType.LESS_THAN) {
+                append(" <= ")
+            } else {
+                append(" >= ")
+            }
+            append("$rhsValue ")
+        }
+        return sb.toString()
+    }
+
     /**
      *  The input variable names that are in the equation ordered based on
      *  appearance in the equation.

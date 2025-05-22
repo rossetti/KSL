@@ -5,7 +5,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.StudentT
 
 /**
- *  A response constraint represents a general constrain of the form E[R(x)] < b or E[R(x)] > b
+ *  A response constraint represents a general constraint of the form E[R(x)] < b or E[R(x)] > b
  *  where R(x) is some response from the model that is a function of the model inputs.
  *
  *  @param responseName the name of the response in the model
@@ -27,6 +27,21 @@ class ResponseConstraint(
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
         require(target >= 0.0) { "The target must be >= 0.0." }
         require(tolerance >= 0.0) { "The tolerance must be >= 0.0." }
+    }
+
+    override fun toString() : String {
+        val sb = StringBuilder().apply{
+            append("Equation: ")
+            append(responseName)
+            if (inequalityType == InequalityType.LESS_THAN) {
+                append(" <= ")
+            } else {
+                append(" >= ")
+            }
+            append("$rhsValue ")
+            append("\t Target: $target Tolerance: $tolerance")
+        }
+        return sb.toString()
     }
 
     /**
