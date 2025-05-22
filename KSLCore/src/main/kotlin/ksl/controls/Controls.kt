@@ -223,7 +223,7 @@ class Controls(aModel: Model) {
     /**
      * Gets a control of the supplied key name or null
      *
-     * @param controlKey the key for the control, must not be null
+     * @param controlKey the key for the control must not be null
      */
     fun control(controlKey: String): ControlIfc? {
         return myControls[controlKey]
@@ -241,8 +241,17 @@ class Controls(aModel: Model) {
     }
 
     /**
+     *  Basic printing of the controls as (name, value) pairs
+     */
+    fun printControls(){
+        for ((_, control) in myControls) {
+            println("${control.keyName}  = ${control.value}")
+        }
+    }
+
+    /**
      * Generate a "flat" map (String, Double) for communication
-     * outside this class. The key is the control key and the
+     * outside this class. The key is the control key, and the
      * number is the last double value assigned to the control.
      * Any controls that cannot be translated to Double are ignored.
      *
@@ -259,7 +268,7 @@ class Controls(aModel: Model) {
     /**
      * Sets all the contained control values using the supplied flat map
      *
-     * @param controlMap a flat map of control keys and values, must not be null
+     * @param controlMap a flat map of control keys and values must not be null
      * @return the number of control (key, value) pairs that were successfully set
      */
     fun setControlsFromMap(controlMap: Map<String, Double>): Int {

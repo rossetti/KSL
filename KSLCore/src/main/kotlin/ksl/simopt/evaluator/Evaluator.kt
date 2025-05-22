@@ -207,6 +207,7 @@ class Evaluator(
         totalOracleEvaluations = totalOracleEvaluations + requests.size
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
+        //TODO this is the long-running task
         val cases = simulationProvider.runSimulations(requests)
         val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)

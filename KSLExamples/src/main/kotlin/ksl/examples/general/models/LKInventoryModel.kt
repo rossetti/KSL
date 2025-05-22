@@ -1,16 +1,19 @@
 package ksl.examples.general.models
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.EventGeneratorIfc
+import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
+import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.random.rvariable.DEmpiricalRV
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.UniformRV
 import kotlin.math.max
 
 class LKInventoryModel(
@@ -18,36 +21,159 @@ class LKInventoryModel(
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    private val myOrderUpToLevel = 40
-    private val myReorderPoint = 20
-    private val myHoldingCost = 1.0
-    private val myCostPerItem = 3.0
-    private val myBackLogCost = 5.0
-    private val mySetupCost = 32.0
-    private var myInitialInventoryLevel = 60.0
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var orderUpToLevel = 40
+        set(value) {
+            require(value > 0) { "Order up to level must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the order up to level" }
+            field = value
+        }
 
-    private val myLeadTime: RandomVariable = RandomVariable(this, UniformRV(0.5, 1.0))
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var reorderPoint = 20
+        set(value) {
+            require(value > 0) { "Reorder point must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the reorder point" }
+            field = value
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var initialInventoryLevel = 60.0
+        set(value) {
+            require(value > 0) { "Initial inventory level must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the initial inventory level" }
+            field = value
+            initializeInventoryLevels(value)
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = 0.0
+    )
+    var holdingCost = 1.0
+        set(value) {
+            require(value > 0) { "The holding cost must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the holding cost" }
+            field = value
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = 0.0
+    )
+    var costPerItem = 3.0
+        set(value) {
+            require(value > 0) { "The cost per item must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the cost per item" }
+            field = value
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = 0.0
+    )
+    var backLogCost = 5.0
+        set(value) {
+            require(value > 0) { "The backlog cost must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the backlog cost" }
+            field = value
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE,
+        lowerBound = 0.0
+    )
+    var setupCost = 32.0
+        set(value) {
+            require(value > 0) { "The setup cost must be greater than zero" }
+            require(model.isNotRunning) { "The model must not be running when setting the setup cost" }
+            field = value
+        }
+
+    private val myLeadTime: RandomVariable = RandomVariable(this,
+        UniformRV(0.5, 1.0, streamNum = 2))
+    val leadTime: RandomVariableCIfc
+        get() = myLeadTime
+
     private val myDemandAmount: RandomVariable = RandomVariable(
         this,
         DEmpiricalRV(
             values = doubleArrayOf(1.0, 2.0, 3.0, 4.0),
-            cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0)
+            cdf = doubleArrayOf(1.0 / 6.0, 3.0 / 6.0, 5.0 / 6.0, 1.0), streamNum = 3
         )
     )
+    val demandAmount: RandomVariableCIfc
+        get() = myDemandAmount
 
-    private val myInvLevel: TWResponse = TWResponse(this, "InventoryLevel")
-    private val myPosInv: TWResponse = TWResponse(this, "On Hand Level")
-    private val myNegInv: TWResponse = TWResponse(this, "Backorder Level")
-    private val myAvgTotalCost: TWResponse = TWResponse(this, "Total Cost")
-    private val myAvgHoldingCost: TWResponse = TWResponse(this, "Holding Cost")
-    private val myAvgSetupCost: TWResponse = TWResponse(this, "Setup Cost")
-    private val myAvgShortageCost: TWResponse = TWResponse(this, "Shortage Cost")
+    private val myInvLevel: TWResponse = TWResponse(
+        this, "InventoryLevel",
+        allowedDomain = Interval()
+    )
+    val inventoryLevel: TWResponseCIfc
+        get() = myInvLevel
 
-    private val myDemandGenerator: EventGenerator = EventGenerator(this, DemandArrival(),
-        ExponentialRV(0.1), ExponentialRV(0.1), name = "Demand Generator")
+    private val myPosInv: TWResponse = TWResponse(this, "OnHandLevel")
+    val posInventoryLevel: TWResponseCIfc
+        get() = myPosInv
 
-    private val myInventoryCheckGenerator: EventGenerator = EventGenerator(this,
-        InventoryCheck(), ConstantRV.ZERO, ConstantRV.ONE, name = "Inventory Check")
+    private val myNegInv: TWResponse = TWResponse(this, "BackorderLevel")
+    val negInventoryLevel: TWResponseCIfc
+        get() = myNegInv
+
+    private val myAvgTotalCost: TWResponse = TWResponse(this, "TotalCost")
+    val avgTotalCost: TWResponseCIfc
+        get() = myAvgTotalCost
+    private val myAvgHoldingCost: TWResponse = TWResponse(this, "HoldingCost")
+    val avgHoldingCost: TWResponseCIfc
+        get() = myAvgHoldingCost
+    private val myAvgSetupCost: TWResponse = TWResponse(this, "SetupCost")
+    val avgSetupCost: TWResponseCIfc
+        get() = myAvgSetupCost
+    private val myAvgShortageCost: TWResponse = TWResponse(this, "ShortageCost")
+    val avgShortageCost: TWResponseCIfc
+        get() = myAvgShortageCost
+
+    init {
+        initializeInventoryLevels(initialInventoryLevel)
+    }
+
+    /**
+     *  Sets up the initial values for the inventory based on the initial inventory level.
+     */
+    private fun initializeInventoryLevels(level: Double) {
+        myInvLevel.initialValue = level
+        myPosInv.initialValue = Math.max(0.0, myInvLevel.initialValue)
+        myNegInv.initialValue = -Math.min(0.0, myInvLevel.initialValue)
+        myAvgHoldingCost.initialValue = holdingCost * myPosInv.initialValue
+        myAvgShortageCost.initialValue = backLogCost * myNegInv.initialValue
+        myAvgSetupCost.initialValue = 0.0
+        val cost: Double =
+            myAvgSetupCost.initialValue + myAvgHoldingCost.initialValue + myAvgShortageCost.initialValue
+        myAvgTotalCost.initialValue = cost
+    }
+
+    private val timeBetweenArrivals = ExponentialRV(0.1, 1)
+    private val myDemandGenerator: EventGenerator = EventGenerator(
+        this, DemandArrival(), arrivalsRV = timeBetweenArrivals, name = "Demand Generator"
+    )
+    val demandGenerator: EventGeneratorRVCIfc
+        get() = myDemandGenerator
+
+    private val myInventoryCheckGenerator: EventGenerator = EventGenerator(
+        this,
+        InventoryCheck(), ConstantRV.ZERO, ConstantRV.ONE, name = "Inventory Check"
+    )
+    val inventoryCheckGenerator: EventGeneratorRVCIfc
+        get() = myInventoryCheckGenerator
 
     private val myOrderArrivalEvent: OrderArrival = OrderArrival()
 
@@ -56,29 +182,11 @@ class LKInventoryModel(
             myInvLevel.decrement(myDemandAmount.value)
             myPosInv.value = Math.max(0.0, myInvLevel.value)
             myNegInv.value = -Math.min(0.0, myInvLevel.value)
-            myAvgHoldingCost.value = myHoldingCost * myPosInv.value
-            myAvgShortageCost.value = myBackLogCost * myNegInv.value
+            myAvgHoldingCost.value = holdingCost * myPosInv.value
+            myAvgShortageCost.value = backLogCost * myNegInv.value
             val cost: Double = myAvgSetupCost.value + myAvgHoldingCost.value + myAvgShortageCost.value
             myAvgTotalCost.value = cost
         }
-    }
-
-    fun setInitialInventoryLevel(level: Double) {
-        myInitialInventoryLevel = level
-        myInvLevel.initialValue = myInitialInventoryLevel
-        myPosInv.initialValue = Math.max(0.0 , myInvLevel.initialValue)
-        myNegInv.initialValue = -Math.min(0.0, myInvLevel.initialValue)
-        myAvgHoldingCost.initialValue = myHoldingCost * myPosInv.initialValue
-        myAvgShortageCost.initialValue = myBackLogCost * myNegInv.initialValue
-        myAvgSetupCost.initialValue = 0.0
-        val cost: Double =
-            myAvgSetupCost.initialValue + myAvgHoldingCost.initialValue + myAvgShortageCost.initialValue
-        myAvgTotalCost.initialValue = cost
-    }
-
-    override fun initialize() {
-        super.initialize()
-        setInitialInventoryLevel(myInitialInventoryLevel)
     }
 
     private fun scheduleReplenishment(orderSize: Double) {
@@ -88,10 +196,10 @@ class LKInventoryModel(
 
     private inner class InventoryCheck : GeneratorActionIfc {
         override fun generate(generator: EventGeneratorIfc) {
-            if (myInvLevel.value < myReorderPoint) {
-                val orderSize: Double = myOrderUpToLevel - myInvLevel.value
+            if (myInvLevel.value < reorderPoint) {
+                val orderSize: Double = orderUpToLevel - myInvLevel.value
                 scheduleReplenishment(orderSize)
-                myAvgSetupCost.value = mySetupCost + myCostPerItem * orderSize
+                myAvgSetupCost.value = setupCost + costPerItem * orderSize
             } else {
                 myAvgSetupCost.value = 0.0
             }
@@ -99,14 +207,15 @@ class LKInventoryModel(
             myAvgTotalCost.value = cost
         }
     }
+
     private inner class OrderArrival : EventActionIfc<Double> {
         override fun action(event: KSLEvent<Double>) {
             val orderSize: Double = event.message!!
             myInvLevel.increment(orderSize)
             myPosInv.value = max(0.0, myInvLevel.value)
             myNegInv.value = -Math.min(0.0, myInvLevel.value)
-            myAvgHoldingCost.value = myHoldingCost * myPosInv.value
-            myAvgShortageCost.value = myBackLogCost * myNegInv.value
+            myAvgHoldingCost.value = holdingCost * myPosInv.value
+            myAvgShortageCost.value = backLogCost * myNegInv.value
             val cost: Double = myAvgSetupCost.value + myAvgHoldingCost.value + myAvgShortageCost.value
             myAvgTotalCost.value = cost
         }
