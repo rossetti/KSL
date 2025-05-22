@@ -48,7 +48,7 @@ import java.io.StringWriter
  *  the resource had name Worker and annotated property initialCapacity, then the key
  *  will be "Worker.initialCapacity". Note the use of the "." character to separate
  *  the model element name and the property name.  Since, the KSL model element naming
- *  convention require unique names for each model element, the key will be unique for the control.
+ *  convention requires unique names for each model element, the key will be unique for the control.
  *  However, the model element name may be a very long string depending on your approach
  *  to naming the model elements. The name associated with each control can be inspected by
  *  asking the model for its controls via model.controls() and then using the methods on the Controls
@@ -56,15 +56,15 @@ import java.io.StringWriter
  *  for this purpose.
  *
  *  For the parameters associated with random variables, the naming convention is different.
- *  Again, the model element name is used as part of the identifier, then the value of
+ *  Again, the model element name is used as part of the identifier then the value of
  *  rvParamConCatString from the companion object is concatenated between the name of the
  *  model element and the name of its parameter.  For example, suppose there is a
  *  random variable that has been named ServiceTimeRV that is exponentially distributed.
  *  Also assume that rvParamConCatString is ".", which is its default value. Then,
  *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
  *  Thus, it is important to note the name of the random variable within the model and the
- *  KSL's default names for the random variable parameters.  When random variables are
- *  not explicitly named by the modeler, the KSL will automatically provide a default
+ *  KSL's default names for the random variable parameters.  When the modeler does
+ *  not explicitly name random variables, the KSL will automatically provide a default
  *  unique name. Thus, if you plan to control a specific random variable's parameters, you
  *  should strongly consider providing an explicit name. To get the names (and current values)
  *  of the random variable parameters, you can print out the toString() method of the

@@ -108,7 +108,7 @@ open class TWResponse(
         }
 
     override fun assignValue(newValue: Double) {
-        require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain" }
+        require(domain.contains(newValue)) { "The value $newValue was not within the limits $domain for variable ${this.name}" }
         previousValue = myValue
         previousTimeOfChange = timeOfChange
         myValue = newValue

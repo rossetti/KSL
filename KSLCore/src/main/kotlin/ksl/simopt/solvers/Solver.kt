@@ -25,7 +25,7 @@ import ksl.utilities.random.rng.RNStreamIfc
  *  Within the context of simulation optimization, the supplied evaluator promises to execute requests
  *  for evaluations of the simulation model at particular design points (as determined by the algorithm).
  *  In addition, because of the stochastic nature of the evaluation, the solver may request one or more replications
- *  for its evaluation requests. The number of replications may dynamically change and thus the user needs to
+ *  for its evaluation requests. The number of replications may dynamically change, and thus the user needs to
  *  supply a function to determine the number of replications per evaluation.  Within the framework of the
  *  hooks for subclasses the user could specify more complex procedures for determining the number of replications per
  *  evaluation.
@@ -119,7 +119,7 @@ abstract class Solver(
     /**
      *  Indicates whether the solver allows infeasible requests
      *  to be sent to the evaluator. The default is false. That is,
-     *  the solver is allowed to send problem infeasible requests for
+     *  the solver is allowed to send infeasible problem requests for
      *  evaluation by the evaluator.
      */
     var ensureProblemFeasibleRequests: Boolean = false
