@@ -836,7 +836,6 @@ class ProblemDefinition(
         return sb.toString()
     }
 
-
     companion object {
 
         /**
