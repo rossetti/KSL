@@ -2,8 +2,11 @@ package ksl.examples.general.simopt
 
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.general.models.LKInventoryModel
+import ksl.simopt.cache.MemorySolutionCache
+import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.SimulationProvider
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simulation.Model
 import ksl.utilities.Interval
 
@@ -11,8 +14,23 @@ fun main() {
 
  //   simulationRunner()
     //buildModel()
-    makeProblemDefinition()
+   // makeProblemDefinition()
 
+   runSolverTest()
+
+  //  testRunning(14, 33)
+
+
+}
+
+fun runSolverTest() {
+    val evaluator = setUpEvaluator()
+    val shc = StochasticHillClimber(evaluator, maxIterations = 10, replicationsPerEvaluation = 50)
+    shc.runAllIterations()
+
+    println()
+    println("Final Solution:")
+    println(shc.bestSolution)
 }
 
 fun basicRunning(){
@@ -29,12 +47,20 @@ fun simulationRunner(){
     reporter.printHalfWidthSummaryReport()
 }
 
-fun buildModel() : Model {
+fun testRunning(orderQuantity: Int, reorderPoint: Int){
+    val model = buildModel(orderQuantity, reorderPoint)
+    model.simulate()
+    model.print()
+}
+
+fun buildModel(orderQuantity: Int = 20, reorderPoint: Int = 20) : Model {
     val model = Model("LKInventoryModel")
     val lkInventoryModel = LKInventoryModel(model, "InventoryModel")
     model.lengthOfReplication = 120.0
     model.numberOfReplications = 1000
     model.lengthOfReplicationWarmUp = 20.0
+    lkInventoryModel.orderQuantity = orderQuantity
+    lkInventoryModel.reorderPoint = reorderPoint
     val controls = model.controls()
     println("Model Controls:")
     controls.printControls()
@@ -70,7 +96,14 @@ fun makeProblemDefinition() : ProblemDefinition {
     return problemDefinition
 }
 
-fun setUpEvaluator() {
+fun setUpEvaluator() : Evaluator {
     val simulationProvider = SimulationProvider(buildModel())
-
+    val problemDefinition = makeProblemDefinition()
+    val cache = MemorySolutionCache()
+    val evaluator = Evaluator(
+        problemDefinition,
+        simulationProvider,
+        cache
+    )
+    return evaluator
 }

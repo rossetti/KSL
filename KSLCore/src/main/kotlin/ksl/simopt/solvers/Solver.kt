@@ -9,6 +9,8 @@ import ksl.simulation.IterativeProcessStatusIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -84,6 +86,10 @@ abstract class Solver(
      *  the iterative process pattern.
      */
     private val myMainIterativeProcess = MainIterativeProcess()
+
+    private val myImprovingStepFraction = Statistic("ImprovingStepFraction")
+    val improvingStepFraction: StatisticIfc
+        get() = myImprovingStepFraction
 
     /**
      *  Allow the status of the outer iterative process to be accessible
@@ -179,7 +185,24 @@ abstract class Solver(
      */
     protected lateinit var initialSolution: Solution
 
+    /**
+     *  The previous solution in the sequence of solutions.
+     */
     var previousSolution: Solution = problemDefinition.badSolution()
+
+    /**
+     *  The difference between the previous solution's penalized objective function value
+     *  and the current solution's penalized objective function value.
+     */
+    var penalizedSolutionGap: Double = Double.NaN
+        private set
+
+    /**
+     *  The difference between the previous solution's unpenalized objective function value
+     *  and the current solution's unpenalized objective function value.
+     */
+    var unPenalizedSolutionGap: Double = Double.NaN
+        private set
 
     /**
      *  The current (or last) solution that was accepted as a possible
@@ -191,6 +214,8 @@ abstract class Solver(
             //TODO capture gap/difference in solutions
             previousSolution = field
             field = value
+            penalizedSolutionGap = field.penalizedObjFncValue - previousSolution.penalizedObjFncValue
+            unPenalizedSolutionGap = field.estimatedObjFncValue - previousSolution.estimatedObjFncValue
             if (saveSolutions){
                 mySolutions.add(value)
             }
@@ -198,6 +223,7 @@ abstract class Solver(
             // capture the best solution
             if (compare(field, bestSolution) < 0){
                 bestSolution = field
+                logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
             //TODO consider emitting solutions
         }
@@ -269,16 +295,33 @@ abstract class Solver(
      * Recognizing the need to be able to compare solutions that may have sampling error
      * the user can override this function to provide more extensive comparison or supply
      * an instance of the [CompareSolutionsIfc] interface via the [solutionComparer] property
-     * Returns -1 if first is less than second solution, 0 if the solutions are to be considered
+     * Returns -1 if first is less than the second solution, 0 if the solutions are to be considered
      * equivalent, and 1 if the first is larger than the second solution.
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
-     * @return -1 if first is less than second solution, 0 if the solutions are to be considered
+     * @return -1 if first is less than the second solution, 0 if the solutions are to be considered
      *   equivalent, and 1 if the first is larger than the second solution.
      */
     override fun compare(first: Solution, second: Solution) : Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
+    }
+
+    /**
+     * Updates the current solution based on a new solution. If the new solution
+     * is determined to be better than the current solution, the current solution
+     * is updated, and the improving step fraction is updated accordingly.
+     *
+     * @param newSolution the new solution to be compared with the current solution
+     */
+    protected fun updateCurrentSolution(newSolution: Solution) {
+        if (compare(newSolution, currentSolution) < 0){
+            currentSolution = newSolution
+            myImprovingStepFraction.collect(1.0)
+            logger.trace { "Solver: $name : solution improved to $newSolution" }
+        } else {
+            myImprovingStepFraction.collect(0.0)
+        }
     }
 
     /**
@@ -349,7 +392,7 @@ abstract class Solver(
     /**
      *  Creates a request for evaluation from the input map. The number of replications
      *  for the request will be based on the property [replicationsPerEvaluation] for the
-     *  solver. The resulting request will be input range feasible, but may be infeasible
+     *  solver. The resulting request will be input range-feasible but may be infeasible
      *  with respect to the problem. If the user does not allow infeasible requests by
      *  setting the [ensureProblemFeasibleRequests] to false, then this function will throw
      *  an exception if the supplied input is infeasible with respect to the deterministic
@@ -362,7 +405,7 @@ abstract class Solver(
         if (ensureProblemFeasibleRequests){
             require(inputMap.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
         }
-        // the input map will be range feasible, but may not be problem feasible
+        // the input map will be range-feasible but may not be problem-feasible.
         val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
         // since input map is immutable so is the RequestData instance
         return RequestData(
@@ -409,16 +452,17 @@ abstract class Solver(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            iterationCounter = 0
+            myImprovingStepFraction.reset()
+            iterationCounter = 1
             logger.info { "Resetting solver $name's evaluation counters in solver $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
-            logger.info { "Initializing solver $name's outer iteration loop" }
+            logger.trace { "Initializing solver $name" }
             this@Solver.initializeIterations()
-            logger.info { "Initialized solver $name's outer iteration loop" }
+            logger.info { "Initialized solver $name" }
         }
 
         override fun hasNextStep(): Boolean {
-            return (iterationCounter < maximumNumberIterations)
+            return (iterationCounter <= maximumNumberIterations)
         }
 
         /**
@@ -442,27 +486,27 @@ abstract class Solver(
 
         override fun runStep() {
             myCurrentStep = nextStep()
-            logger.info { "Executing beforeMainIteration(): iteration = $iterationCounter of solver $name's main iteration loop" }
+            logger.trace { "Executing beforeMainIteration(): iteration = $iterationCounter of solver $name" }
             beforeMainIteration()
-            logger.info { "Running: iteration = $iterationCounter of solver $name's main iteration loop" }
+            logger.trace { "Running: iteration = $iterationCounter of solver $name" }
             mainIteration()
-            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations of solver $name's main iteration loop" }
+            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations for solver $name" }
             iterationCounter++
-            logger.info { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name's main iteration loop" }
+            logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }
 
         override fun endIterations() {
-            logger.info { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
+            logger.trace { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             mainIterationsEnded()
-            logger.info { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
+            logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             super.endIterations()
-            logger.info { "Ended: solver $name's main iteration loop" }
+            logger.info { "Ended: solver $name iterations." }
         }
 
     }
 
     companion object {
-        private val logger = KotlinLogging.logger {}
+        val logger = KotlinLogging.logger {}
     }
 }
