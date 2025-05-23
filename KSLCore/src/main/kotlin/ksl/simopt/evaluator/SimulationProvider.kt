@@ -22,11 +22,12 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  input execution to be captured in the database. In the context of simulation optimization, you may only want the
  *  last provided execution. In that case, set the clear option to true. Then, the database will be cleared prior
  *  to each execution, leaving only the last execution in the database.
- *  @param saveSimulationRuns indicates if the SimulationRun instances created by running the model will be saved. The
- *  default is false.  Since the provider may execute thousands of simulations and simulation runs have substantial
+ *  @param saveSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
+ *  default is false.  Since the provider may execute thousands of simulations and simulation runs have significant
  *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
  *  access to all inputs and output responses from every execution.
  */
+@Suppress("unused")
 class SimulationProvider(
     modelCreator: () -> Model,
     var saveSimulationRuns: Boolean = false,
@@ -51,13 +52,14 @@ class SimulationProvider(
      *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
     private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
+    @Suppress("unused")
     val simulationRuns: Map<String, SimulationRun>
         get() = mySimulationRuns
 
     //TODO could add ExperimentDataCollector as an option
 
     /**
-     *  The KSLDatabase used to capture model execution results. The name of the experiments
+     *  The KSLDatabase used to capture model execution results. The names of the experiments
      *  are based on the name of the associated ProblemDefinition, as
      *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
@@ -91,6 +93,7 @@ class SimulationProvider(
      *  error will occur if multiple experiments have the same name in the database. You will likely want
      *  to export and clear the data from the database prior running additional simulations.
      */
+    @Suppress("unused")
     fun resetExecutionCounter() {
         executionCounter = 0
     }
@@ -98,6 +101,7 @@ class SimulationProvider(
     /**
      *  Causes any previous simulation runs associated with the execution of the model to be cleared.
      */
+    @Suppress("unused")
     fun clearSimulationRuns() {
         mySimulationRuns.clear()
     }
