@@ -132,7 +132,7 @@ class Evaluator(
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
         // check with the cache for solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
-        // the returned map is either empty or contains solutions associated with some of the requests
+        // the returned map is either empty or contains solutions associated with some requests
         // update the requests based on the replications in the solutions
         updateRequestReplicationData(solutionMap, uniqueRequests)
         // filter requests that no longer need replications
@@ -169,7 +169,7 @@ class Evaluator(
     }
 
     /**
-     *  Because some replications can be satisfied by the cache,
+     *  Because the cache can satisfy some replications,
      *  this function updates the request's original amount requested
      *  so that the simulation oracle does not need to run those replications.
      *  @param solutionMap the solutions obtained from the cache
@@ -237,7 +237,7 @@ class Evaluator(
                 responseEstimates.add(estimate)
             }
         }
-        // need to make the InputMap, this will not be the same object used to make the request
+        // Need to make the InputMap. This will not be the same object used to make the request.
         val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
         val solution = Solution(
             inputMap,
@@ -284,8 +284,8 @@ class Evaluator(
          */
         fun filterToUniqueRequests(requests: List<RequestData>): List<RequestData> {
             val uniqueRequests = mutableSetOf<RequestData>()
-            // since requests are the same based on the values of their input maps
-            // we need only update the duplicate so that it has the maximum of any duplicate entries
+            // Since requests are the same based on the values of their input maps,
+            // we need only update the duplicate so that it has the maximum of any duplicate entries.
             for (req in requests) {
                 if (uniqueRequests.contains(req)) {
                     req.maxOfReplication(req.numReplications)
