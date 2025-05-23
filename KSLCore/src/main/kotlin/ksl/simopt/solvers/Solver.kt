@@ -43,7 +43,7 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-): IdentityIfc by Identity(name), CompareSolutionsIfc {
+): IdentityIfc by Identity(name), CompareSolutionsIfc, SolutionEmitterIfc by SolutionEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -211,11 +211,10 @@ abstract class Solver(
      */
     var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
-            //TODO capture gap/difference in solutions
             previousSolution = field
             field = value
-            penalizedSolutionGap = field.penalizedObjFncValue - previousSolution.penalizedObjFncValue
-            unPenalizedSolutionGap = field.estimatedObjFncValue - previousSolution.estimatedObjFncValue
+            penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
+            unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
             if (saveSolutions){
                 mySolutions.add(value)
             }
@@ -225,7 +224,6 @@ abstract class Solver(
                 bestSolution = field
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
-            //TODO consider emitting solutions
         }
 
     /**
@@ -381,12 +379,14 @@ abstract class Solver(
         rnStream: RNStreamIfc
     ) : InputMap {
 
-        if (neighborGenerator != null){
-            return neighborGenerator!!.generateNeighbor(currentPoint, this, ensureProblemFeasibleRequests)
+        val nextPoint = if (neighborGenerator != null){
+            neighborGenerator!!.generateNeighbor(currentPoint, this, ensureProblemFeasibleRequests)
         } else {
             //TODO make this trial based
-            return currentPoint.randomizeInputVariable(rnStream)
+            currentPoint.randomizeInputVariable(rnStream)
         }
+        logger.trace { "Solver: $name : generated neighbor $nextPoint" }
+        return nextPoint
     }
 
     /**
@@ -425,7 +425,10 @@ abstract class Solver(
     protected fun requestEvaluation(input: InputMap): Solution {
         val requests = prepareEvaluationRequests(setOf(input))
         val solutions = requestEvaluations(requests)
-        return solutions.first()
+        val solution = solutions.first()
+        logger.trace { "Solver: $name : requested evaluation of $input and received $solution" }
+        emitter.emit(solution)
+        return solution
     }
 
     /**
@@ -448,6 +451,26 @@ abstract class Solver(
        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply{
+            appendLine("Solver name = $name")
+            appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
+            appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
+            appendLine("Maximum Number Iterations = $maximumNumberIterations")
+            appendLine("Initial Solution:")
+            appendLine("$initialSolution")
+            appendLine("Current Solution:")
+            appendLine("$currentSolution")
+            appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
+            appendLine("Penalized Solution Gap = $penalizedSolutionGap")
+            appendLine("Fraction of Improving Step Statistics = ${improvingStepFraction.average}")
+            appendLine("Number of Iterations Completed = $iterationCounter")
+            appendLine("Best Solution:")
+            appendLine("$bestSolution")
+        }
+        return sb.toString()
+    }
+
     protected inner class MainIterativeProcess : IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
 
         override fun initializeIterations() {
@@ -459,6 +482,7 @@ abstract class Solver(
             logger.trace { "Initializing solver $name" }
             this@Solver.initializeIterations()
             logger.info { "Initialized solver $name" }
+            logger.trace { "Initial solution = $initialSolution" }
         }
 
         override fun hasNextStep(): Boolean {

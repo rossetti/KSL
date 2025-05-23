@@ -270,6 +270,23 @@ class Evaluator(
         return createSolution(request, r1)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("Evaluator:")
+            appendLine("maxOracleReplicationBudget = $maxOracleReplicationBudget")
+            appendLine("totalEvaluations = $totalEvaluations")
+            appendLine("totalOracleEvaluations = $totalOracleEvaluations")
+            appendLine("totalCachedEvaluations = $totalCachedEvaluations")
+            appendLine("totalRequestsReceived = $totalRequestsReceived")
+            appendLine("totalDuplicateRequestReceived = $totalDuplicateRequestReceived")
+            appendLine("totalReplications = $totalReplications")
+            appendLine("Problem Definition = $problemDefinition")
+            appendLine("$problemDefinition")
+        }
+        return sb.toString()
+    }
+
+
     companion object {
 
         /**

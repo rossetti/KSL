@@ -5,6 +5,7 @@ import ksl.examples.general.models.LKInventoryModel
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.SimulationProvider
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simulation.Model
@@ -25,12 +26,20 @@ fun main() {
 
 fun runSolverTest() {
     val evaluator = setUpEvaluator()
-    val shc = StochasticHillClimber(evaluator, maxIterations = 10, replicationsPerEvaluation = 50)
-    shc.runAllIterations()
+    val shc = StochasticHillClimber(evaluator, maxIterations = 1000, replicationsPerEvaluation = 50)
+    shc.emitter.attach { printSolution(it) }
 
+    shc.runAllIterations()
+    println(evaluator)
     println()
-    println("Final Solution:")
-    println(shc.bestSolution)
+    println("Solver Results:")
+    println(shc)
+}
+
+fun printSolution(solution: Solution) {
+    val q = solution.inputMap["InventoryModel.orderQuantity"]
+    val rp = solution.inputMap["InventoryModel.reorderPoint"]
+    println("${solution.estimatedObjFncValue} \t $q \t $rp")
 }
 
 fun basicRunning(){
@@ -61,10 +70,10 @@ fun buildModel(orderQuantity: Int = 20, reorderPoint: Int = 20) : Model {
     model.lengthOfReplicationWarmUp = 20.0
     lkInventoryModel.orderQuantity = orderQuantity
     lkInventoryModel.reorderPoint = reorderPoint
-    val controls = model.controls()
-    println("Model Controls:")
-    controls.printControls()
-    println()
+//    val controls = model.controls()
+//    println("Model Controls:")
+//    controls.printControls()
+//    println()
     return model
 }
 
@@ -86,7 +95,7 @@ fun makeProblemDefinition() : ProblemDefinition {
         granularity = 1.0
     )
 
-    println(problemDefinition)
+//    println(problemDefinition)
 
 //    println("Random Starting Points:")
 //    for (i in 1..5) {
