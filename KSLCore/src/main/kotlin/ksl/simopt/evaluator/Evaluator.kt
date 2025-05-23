@@ -69,7 +69,7 @@ class Evaluator(
     /**
      *  The total number of replications requested across all evaluation requests.
      */
-    override var totalReplications: Int = 0
+    override var totalReplications: Int = 0  //TODO not tabulating, why is it even necessary
         private set
 
     /**
@@ -103,6 +103,7 @@ class Evaluator(
      *  evaluation run.
      */
     override fun resetEvaluationCounts() {
+        EvaluatorIfc.logger.info { "Resetting evaluator counts" }
         totalEvaluations = 0
         totalOracleEvaluations = 0
         totalCachedEvaluations = 0
@@ -125,35 +126,44 @@ class Evaluator(
      *  @return a list containing a solution for each request
      */
     override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
+        EvaluatorIfc.logger.info { "Evaluating ${rawRequests.size} requests" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
+        EvaluatorIfc.logger.trace { "Total Evaluations $totalEvaluations, total requests received $totalRequestsReceived" }
         // filter out the duplicate requests
         val uniqueRequests = filterToUniqueRequests(rawRequests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
+        EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
         // check with the cache for solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
+        EvaluatorIfc.logger.info { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
         // update the requests based on the replications in the solutions
         updateRequestReplicationData(solutionMap, uniqueRequests)
         // filter requests that no longer need replications
         val requestsToSimulate = uniqueRequests.filter { it.numReplications > 0 }
+        EvaluatorIfc.logger.info { "Requests to simulate: ${requestsToSimulate.size}" }
         // evaluate remaining requests and update solutions
         if (requestsToSimulate.isNotEmpty()) {
             //TODO since Solution contains InputMap, the association with EvaluationRequest may not be needed
             val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
+            EvaluatorIfc.logger.info { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
             // since some requests could have needed additional replications, we may need to merge solutions
             // from the cache with solutions performed by the oracle
             for ((request, simulatedSolution) in simulatedSolutions) {
                 if (solutionMap.containsKey(request)) {
                     // merge the solution with the cached solution
+                    EvaluatorIfc.logger.trace { "Merging solution with cached solution in solution map." }
                     val cachedSolution = solutionMap[request]!!
                     solutionMap[request] = mergeSolution(request, cachedSolution, simulatedSolution)
                 } else {
+                    EvaluatorIfc.logger.trace { "Adding solution to the solution map without merging with cached solution." }
                     solutionMap[request] = simulatedSolution
                 }
             }
             // update the cache with any new solutions after possible merging
             if (cache != null){
+                EvaluatorIfc.logger.info { "Updating cache with ${solutionMap.size} solutions" }
                 for((inputMap, solution) in solutionMap){
                     cache[inputMap] = solution
                 }
@@ -165,6 +175,7 @@ class Evaluator(
         for(request in rawRequests){
             solutions.add(solutionMap[request]!!)
         }
+        EvaluatorIfc.logger.info { "Packaged ${solutions.size} solutions for return" }
         return solutions
     }
 
@@ -279,7 +290,9 @@ class Evaluator(
             appendLine("totalCachedEvaluations = $totalCachedEvaluations")
             appendLine("totalRequestsReceived = $totalRequestsReceived")
             appendLine("totalDuplicateRequestReceived = $totalDuplicateRequestReceived")
-            appendLine("totalReplications = $totalReplications")
+            appendLine("totalCachedReplications = $totalCachedReplications")
+            appendLine("totalOracleReplications = $totalOracleReplications")
+ //           appendLine("totalReplications = $totalReplications")
             appendLine()
             appendLine("Problem Definition:")
             append("$problemDefinition")

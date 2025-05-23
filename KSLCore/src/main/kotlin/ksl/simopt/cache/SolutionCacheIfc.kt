@@ -12,7 +12,7 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
 
     /**
      *   If true input infeasible solutions are allowed to be
-     *   saved in the cache. If false, input infeasible solutions should not
+     *   saved in the cache. If false, input-infeasible solutions should not
      *   be saved in the cache. Implementors are free to decide how to
      *   handle what to do with unsaved input infeasible solutions.
      *   The default is false (do not allow input infeasible solutions to be saved)

@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.ProblemDefinition
 
@@ -99,13 +100,19 @@ interface EvaluatorIfc {
      *  Processes the supplied request for a solution. The solution may come from an associated
      *  solution cache (if present) or via an evaluation by the simulation oracle.
      *  A solution that results due to the processing will be entered into the cache (according
-     *  to the rules governing the cache).  If the request is input range
-     *  infeasible then a bad and infeasible solution will be returned.
+     *  to the rules governing the cache).  If the request is input range-infeasible,
+     *  then a bad and infeasible solution will be returned.
      *
      *  @param request a request needing evaluation
      *  @return the solution associated with the request
      */
     fun evaluate(request: RequestData): Solution {
         return evaluate(listOf(request)).first()
+    }
+
+    companion object {
+
+        val logger = KotlinLogging.logger {}
+
     }
 }
