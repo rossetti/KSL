@@ -16,4 +16,8 @@ class FixedReplicationsPerEvaluation(
     override fun numReplicationsPerEvaluation(solver: Solver): Int {
         return numReplications
     }
+
+    override fun toString(): String {
+        return "Fixed replications per evaluation: $numReplications"
+    }
 }

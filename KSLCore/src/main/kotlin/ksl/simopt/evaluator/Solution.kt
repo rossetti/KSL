@@ -4,8 +4,17 @@ import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
+import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rvariable.toDouble
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+
+interface SolutionEmitterIfc {
+    val emitter : Emitter<Solution>
+}
+
+class SolutionEmitter : SolutionEmitterIfc {
+    override val emitter: Emitter<Solution> = Emitter()
+}
 
 /**
  *  A solution represents the evaluated inputs for on a problem definition.
