@@ -280,8 +280,9 @@ class Evaluator(
             appendLine("totalRequestsReceived = $totalRequestsReceived")
             appendLine("totalDuplicateRequestReceived = $totalDuplicateRequestReceived")
             appendLine("totalReplications = $totalReplications")
-            appendLine("Problem Definition = $problemDefinition")
-            appendLine("$problemDefinition")
+            appendLine()
+            appendLine("Problem Definition:")
+            append("$problemDefinition")
         }
         return sb.toString()
     }
