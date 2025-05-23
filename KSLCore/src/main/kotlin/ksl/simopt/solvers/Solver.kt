@@ -476,7 +476,7 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             myImprovingStepFraction.reset()
-            iterationCounter = 1
+            iterationCounter = 0
             logger.info { "Resetting solver $name's evaluation counters in solver $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.trace { "Initializing solver $name" }
@@ -486,7 +486,7 @@ abstract class Solver(
         }
 
         override fun hasNextStep(): Boolean {
-            return (iterationCounter <= maximumNumberIterations)
+            return (iterationCounter < maximumNumberIterations)
         }
 
         /**
@@ -514,8 +514,8 @@ abstract class Solver(
             beforeMainIteration()
             logger.trace { "Running: iteration = $iterationCounter of solver $name" }
             mainIteration()
-            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations for solver $name" }
             iterationCounter++
+            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations for solver $name" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }
