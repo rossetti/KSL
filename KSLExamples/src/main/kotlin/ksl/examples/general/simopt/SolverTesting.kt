@@ -26,7 +26,7 @@ fun main() {
 
 fun runSolverTest() {
     val evaluator = setUpEvaluator()
-    val shc = StochasticHillClimber(evaluator, maxIterations = 10, replicationsPerEvaluation = 50)
+    val shc = StochasticHillClimber(evaluator, maxIterations = 1000, replicationsPerEvaluation = 50)
 //    shc.emitter.attach { printSolution(it) }
 
     shc.runAllIterations()

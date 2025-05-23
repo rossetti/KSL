@@ -69,8 +69,8 @@ data class RequestData(
         other as RequestData
 
         if (modelIdentifier != other.modelIdentifier) return false
-        if (inputs != other.inputs) return false
         if (responseNames != other.responseNames) return false
+        if (inputs != other.inputs) return false
 
         return true
     }

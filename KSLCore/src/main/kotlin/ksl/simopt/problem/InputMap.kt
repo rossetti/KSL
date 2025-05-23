@@ -5,15 +5,15 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 /**
  *  Two InputMaps are considered equal if their (name, value) pairs are the same.
- *  This class prevents the keys and values from changing.  This prevents an input map that
- *  is associated with a solution from being changed. InputMap instances
+ *  This class prevents the keys and values from changing.  This prevents an input map
+ *  associated with a solution from being changed. InputMap instances
  *  are the keys for solution caches. Thus, we cannot change the key of
- *  the solution cache. An input map that is infeasible with respect to
- *  the input variable ranges cannot be constructed by the user.
+ *  the solution cache. The user cannot construct an input map that is infeasible with
+ *  respect to the input variable ranges.
  *
  * @param map the map containing the (name, value) pairs associated with inputs
  * for the evaluation process. These names and values must be valid with respect
- * to the problem. The name must be a valid name for the problem and the value
+ * to the problem. The name must be a valid name for the problem, and the value
  * must be within the input variable's defined range of possible values.
  */
 class InputMap internal constructor(
