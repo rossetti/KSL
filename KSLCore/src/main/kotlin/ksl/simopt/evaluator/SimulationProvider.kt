@@ -29,13 +29,23 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  */
 @Suppress("unused")
 class SimulationProvider(
-    modelCreator: () -> Model,
+    val model: Model,
     var saveSimulationRuns: Boolean = false,
     useDb: Boolean = false,
-    clearDataBeforeExperimentOption: Boolean = false,
+    clearDataBeforeExperimentOption: Boolean = false
 ) : SimulationProviderIfc {
 
-    val model: Model = modelCreator()
+    constructor(
+        modelCreator: () -> Model,
+        saveSimulationRuns: Boolean = false,
+        useDb: Boolean = false,
+        clearDataBeforeExperimentOption: Boolean = false
+    ) : this(
+        model = modelCreator(),
+        saveSimulationRuns = saveSimulationRuns,
+        useDb = useDb,
+        clearDataBeforeExperimentOption = clearDataBeforeExperimentOption
+    )
 
     private val mySimulationRunner = SimulationRunner(model)
 
@@ -52,6 +62,7 @@ class SimulationProvider(
      *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
      */
     private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
+
     @Suppress("unused")
     val simulationRuns: Map<String, SimulationRun>
         get() = mySimulationRuns

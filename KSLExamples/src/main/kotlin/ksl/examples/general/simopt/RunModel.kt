@@ -2,6 +2,7 @@ package ksl.examples.general.simopt
 
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.general.models.LKInventoryModel
+import ksl.simopt.evaluator.SimulationProvider
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.Model
 import ksl.utilities.Interval
@@ -67,4 +68,9 @@ fun makeProblemDefinition() : ProblemDefinition {
 //        println(point)
 //    }
     return problemDefinition
+}
+
+fun setUpEvaluator() {
+    val simulationProvider = SimulationProvider(buildModel())
+
 }
