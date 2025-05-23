@@ -244,8 +244,12 @@ data class Solution(
         return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
     }
 
-    override fun toString(): String {
+    fun asString(): String {
         return toSolutionData().toDataFrame().toString()
+    }
+
+    override fun toString(): String {
+        return "Obj. Function: $penalizedObjFncValue Inputs: $inputMap"
     }
 
     companion object {

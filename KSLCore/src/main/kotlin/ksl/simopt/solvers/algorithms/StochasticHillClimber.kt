@@ -32,22 +32,27 @@ open class StochasticHillClimber(
         val initialPoint = problemDefinition.startingPoint(rnStream)
         initialSolution = requestEvaluation(initialPoint)
         currentSolution = initialSolution
+        println("Initial solution = $currentSolution")
     }
 
     override fun mainIteration() {
         // generate a random neighbor of the current solution
         val currentPoint = currentSolution.inputMap
         val nextPoint = generateNeighbor(currentPoint, rnStream)
+        println()
+        println("Iteration = $iterationCounter : Next point = $nextPoint")
         // evaluate the solution
         val nextSolution = requestEvaluation(nextPoint)
-        // if new solution is better (smaller) update the current solution
+        println("Iteration = $iterationCounter : next solution = $nextSolution")
+        // If the new solution is better (smaller) update the current solution
         if (compare(nextSolution, currentSolution) < 0){
             currentSolution = nextSolution
             // improvement occurred
+            println("Iteration = $iterationCounter : Improvement")
         } else {
-            // improvement did not occur
+            println("Iteration = $iterationCounter : No improvement")
         }
-        TODO()
+        //TODO()
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
