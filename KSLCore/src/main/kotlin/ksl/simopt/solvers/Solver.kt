@@ -198,7 +198,7 @@ abstract class Solver(
      */
     val problemDefinition: ProblemDefinition
         get() = myEvaluator.problemDefinition
-    
+
     /**
      *  The initial starting solution for the algorithm. It is the responsibility
      *  of the subclass to initialize the initial solution.
@@ -245,6 +245,21 @@ abstract class Solver(
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
         }
+
+    /**
+     * Represents the current point (input settings) of the solver
+     * during its iterative process.
+     *
+     * This value is derived from the `inputMap` of the currently active solution,
+     * which reflects the solver's progress in finding optimal or improved solutions.
+     * It is critical in defining the context for later operations such as
+     * generating neighbors, evaluating solutions, or updating the current solution.
+     *
+     * The property is read-only and provides an up-to-date snapshot of the solver's
+     * current position in the problem's solution space.
+     */
+    val currentPoint: InputMap
+        get() = currentSolution.inputMap
 
     /**
      *  The best solution found so far in the search. Some algorithms may allow
@@ -343,26 +358,68 @@ abstract class Solver(
     }
 
     /**
-     *  Subclasses should implement this function to prepare the solver
-     *  prior to running the first iteration.
+     * Defines and specifies the starting point for the solver's iterative process.
+     * This function is intended to be overridden in subclasses to provide an
+     * initial setting of input values for the solver.
+     *
+     * @return an instance of InputMap representing the initial state or starting point
+     * for the solver's process.
      */
-    protected abstract fun initializeIterations()
+    protected abstract fun startingPoint(): InputMap
 
     /**
-     *  The critical function to implement. This function should
-     *  contain the logic that iteratively executes until the
-     *  maximum number of iterations is reached or until the stopping
-     *  criteria is met.
+     * Defines and specifies how to get the next point for the solver's iterative process.
+     * This function is intended to be overridden in subclasses to provide a
+     * method for determining the next point in the search process.
+     *
+     * @return an instance of InputMap representing the next point
+     * for the solver's process.
      */
-    protected abstract fun mainIteration()
+    protected abstract fun nextPoint(): InputMap
+
+    /**
+     *  Subclasses may implement this function to prepare the solver
+     *  before running the first iteration. Generally, it is sufficient
+     *  to just implement the startingPoint() function.
+     */
+    protected open fun initializeIterations() {
+        val initialPoint = startingPoint()
+        initialSolution = requestEvaluation(initialPoint)
+        currentSolution = initialSolution
+    }
+
+    /**
+     *  This function should contain the logic that iteratively executes until the
+     *  maximum number of iterations is reached or until the stopping
+     *  criteria is met.  The base implementation calls nextPoint()
+     *  to determine the next point to evaluate, requests an evaluation
+     *  of the point, and then updates the current solution if the
+     *  resulting solution is better than the current solution. Generally,
+     *  implementing startingPoint() and nextPoint() should be adequate.
+     */
+    protected open fun mainIteration() {
+        // generate a random neighbor of the current solution
+        val nextPoint = nextPoint()
+        // evaluate the solution
+        val nextSolution = requestEvaluation(nextPoint)
+        updateCurrentSolution(nextSolution)
+    }
 
     /**
      *  Subclasses should implement this function to determine if the solver
      *  should continue running iterations. This will likely include some
-     *  implementation of stopping criteria.
+     *  implementation of stopping criteria. This function should implement
+     *  stopping criteria based on the quality of the solution. The number
+     *  of iterations, compared to the maximum number of iterations is automatically
+     *  checked after each step in the iterative process. Unless overridden, this
+     *  function returns false by default, which indicates that the solution
+     *  quality criteria has not been satisfied.  This will cause the solver
+     *  to iterate through all iterations of the solution process up to the
+     *  maximum number of iterations.
      */
-    protected abstract fun isStoppingCriteriaSatisfied(): Boolean
-    //TODO can this be made into a supplied functional?
+    protected open fun isStoppingCriteriaSatisfied(): Boolean {
+        return false
+    }
 
     /**
      *  This function is called before the function mainIteration() executes.
@@ -477,6 +534,9 @@ abstract class Solver(
             appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
             appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
             appendLine("Maximum Number Iterations = $maximumNumberIterations")
+            appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
+            appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
+            appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
             appendLine("Initial Solution:")
             appendLine("$initialSolution")
             appendLine("Current Solution:")
