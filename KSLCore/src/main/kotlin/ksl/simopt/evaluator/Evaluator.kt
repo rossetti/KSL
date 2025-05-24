@@ -69,8 +69,8 @@ class Evaluator(
     /**
      *  The total number of replications requested across all evaluation requests.
      */
-    override var totalReplications: Int = 0  //TODO not tabulating, why is it even necessary
-        private set
+    override val totalReplications: Int
+        get() = totalOracleReplications + totalCachedReplications
 
     /**
      *  The total number of replications performed by the simulation oracle.
@@ -108,7 +108,6 @@ class Evaluator(
         totalOracleEvaluations = 0
         totalCachedEvaluations = 0
         totalRequestsReceived = 0
-        totalReplications = 0
         totalDuplicateRequestReceived = 0
         totalOracleReplications = 0
         totalCachedReplications = 0
@@ -190,7 +189,7 @@ class Evaluator(
         solutionMap: MutableMap<RequestData, Solution>,
         uniqueRequests: List<RequestData>
     ) {
-        if (solutionMap.isNotEmpty()) {
+        if (solutionMap.isEmpty()) {
             return
         }
         for (request in uniqueRequests) {
@@ -292,7 +291,7 @@ class Evaluator(
             appendLine("totalDuplicateRequestReceived = $totalDuplicateRequestReceived")
             appendLine("totalCachedReplications = $totalCachedReplications")
             appendLine("totalOracleReplications = $totalOracleReplications")
- //           appendLine("totalReplications = $totalReplications")
+            appendLine("totalReplications = $totalReplications")
             appendLine()
             appendLine("Problem Definition:")
             append("$problemDefinition")
