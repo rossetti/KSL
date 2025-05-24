@@ -87,9 +87,30 @@ abstract class Solver(
      */
     private val myMainIterativeProcess = MainIterativeProcess()
 
+    /**
+     * Statistic object to track the fraction of iterations in which the solver
+     * successfully improves upon the current solution using an iterative process.
+     * This metric helps evaluate the effectiveness of the solver's approach in
+     * generating better solutions over time.
+     */
     private val myImprovingStepFraction = Statistic("ImprovingStepFraction")
+
+    /**
+     * Statistic object to track the fraction of iterations in which the solver
+     * successfully improves upon the current solution using an iterative process.
+     * This metric helps evaluate the effectiveness of the solver's approach in
+     * generating better solutions over time.
+     */
     val improvingStepFraction: StatisticIfc
         get() = myImprovingStepFraction
+
+    /**
+     * Represents the count of successfully improving steps achieved during the solver's iterative process.
+     * This value is calculated based on the sum of improving step fractions, converted to an integer.
+     * It is used to track the progress and effectiveness of the solver in generating better solutions.
+     */
+    val successCount: Int
+        get() = myImprovingStepFraction.sum.toInt()
 
     /**
      *  Allow the status of the outer iterative process to be accessible
@@ -177,8 +198,7 @@ abstract class Solver(
      */
     val problemDefinition: ProblemDefinition
         get() = myEvaluator.problemDefinition
-
-
+    
     /**
      *  The initial starting solution for the algorithm. It is the responsibility
      *  of the subclass to initialize the initial solution.
