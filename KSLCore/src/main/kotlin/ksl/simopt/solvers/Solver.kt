@@ -64,7 +64,7 @@ abstract class Solver(
      *  Within the context of simulation optimization, the supplied evaluator promises to execute requests
      *  for evaluations of the simulation model at particular design points (as determined by the algorithm).
      *  In addition, because of the stochastic nature of the evaluation, the solver may request one or more replications
-     *  for its evaluation requests. The number of replications may dynamically change and thus the user needs to
+     *  for its evaluation requests. The number of replications may dynamically change, and thus the user needs to
      *  supply a function to determine the number of replications per evaluation.  Within the framework of the
      *  hooks for subclasses the user could specify more complex procedures for determining the number of replications per
      *  evaluation.
@@ -109,12 +109,14 @@ abstract class Solver(
      * This value is calculated based on the sum of improving step fractions, converted to an integer.
      * It is used to track the progress and effectiveness of the solver in generating better solutions.
      */
+    @Suppress("unused")
     val successCount: Int
         get() = myImprovingStepFraction.sum.toInt()
 
     /**
-     *  Allow the status of the outer iterative process to be accessible
+     *  Allow the status of the iterative process to be accessible
      */
+    @Suppress("unused")
     val iterativeProcess: IterativeProcessStatusIfc
         get() = myMainIterativeProcess
 
@@ -208,9 +210,10 @@ abstract class Solver(
     /**
      *  The initial point associated with the initial solution.
      */
+    @Suppress("unused")
     val initialPoint: InputMap?
         get() = if (::initialSolution.isInitialized) initialSolution.inputMap else null
-    
+
     /**
      *  The previous solution in the sequence of solutions.
      */
@@ -221,6 +224,7 @@ abstract class Solver(
      *  The previous point in the solution process. It is associated with the
      *  previous solution.
      */
+    @Suppress("unused")
     val previousPoint: InputMap
         get() = previousSolution.inputMap
 
@@ -278,7 +282,7 @@ abstract class Solver(
     /**
      *  The best solution found so far in the search. Some algorithms may allow
      *  the current solution to vary from the best solution due to randomness
-     *  or other search needs (e.g. explore bad areas with the hope of getting better).
+     *  or other search needs (e.g., explore bad areas with the hope of getting better).
      *  The algorithm should ensure the updating of the best solution found
      *  across any iteration.
      */
@@ -320,10 +324,11 @@ abstract class Solver(
 
     /**
      *  Causes a graceful stopping of the iterative processes of the solver.
-     *  The inner process will complete its current iteration and then
+     *  The inner process will complete its current iteration, and then
      *  no more outer iterations will start.
      *  @param msg a message can be captured concerning why the stoppage occurred.
      */
+    @Suppress("unused")
     fun stopIterations(msg: String? = null){
         myMainIterativeProcess.stop(msg)
     }
@@ -339,7 +344,7 @@ abstract class Solver(
     }
 
     /**
-     * Recognizing the need to be able to compare solutions that may have sampling error
+     * Recognizing the need to be able to compare solutions that may have sampling error,
      * the user can override this function to provide more extensive comparison or supply
      * an instance of the [CompareSolutionsIfc] interface via the [solutionComparer] property
      * Returns -1 if first is less than the second solution, 0 if the solutions are to be considered
@@ -465,6 +470,15 @@ abstract class Solver(
 
     }
 
+    /**
+     * Generates a neighboring point based on the current point represented by the input map.
+     * This method determines the next potential point in the iterative process, either through a
+     * neighbor generator or by randomizing the input variables.
+     *
+     * @param currentPoint the current point represented as an instance of InputMap
+     * @param rnStream an instance of RNStreamIfc used for generating random values if no neighbor generator is provided
+     * @return an instance of InputMap representing the newly generated neighboring point.
+     */
     protected open fun generateNeighbor(
         currentPoint: InputMap,
         rnStream: RNStreamIfc
@@ -498,7 +512,7 @@ abstract class Solver(
         }
         // the input map will be range-feasible but may not be problem-feasible.
         val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
-        // since input map is immutable so is the RequestData instance
+        // since the input map is immutable so is the RequestData instance
         return RequestData(
             problemDefinition.modelIdentifier,
             numReps,
@@ -508,11 +522,27 @@ abstract class Solver(
         )
     }
 
+    /**
+     * Requests evaluations for a set of input maps. The function prepares the evaluation requests
+     * from the provided inputs and then performs evaluations to generate solutions.
+     *
+     * @param inputs a set of input maps, where each map contains input variables and their respective values
+     * @return a list of solutions obtained after performing evaluations on the inputs
+     */
+    @Suppress("unused")
     protected fun requestEvaluations(inputs: Set<InputMap>): List<Solution> {
         val requests = prepareEvaluationRequests(inputs)
         return requestEvaluations(requests)
     }
 
+    /**
+     * Requests an evaluation for a single input map and returns the resulting solution.
+     * The function prepares the input as an evaluation request, performs the evaluation,
+     * and subsequently emits and logs the resulting solution.
+     *
+     * @param input an instance of InputMap representing the input variables and their values to be evaluated
+     * @return the solution obtained after evaluating the input map
+     */
     protected fun requestEvaluation(input: InputMap): Solution {
         val requests = prepareEvaluationRequests(setOf(input))
         val solutions = requestEvaluations(requests)
