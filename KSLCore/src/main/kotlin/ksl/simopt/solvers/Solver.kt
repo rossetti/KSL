@@ -179,6 +179,9 @@ abstract class Solver(
      */
     var neighborGenerator: GenerateNeighborIfc? = null
 
+
+    var solutionQualityEvaluator: SolutionQualityEvaluatorIfc? = null
+
     /**
      *  The maximum number of iterations permitted for the main loop. This must be
      *  greater than 0.
@@ -434,10 +437,12 @@ abstract class Solver(
      *  function returns false by default, which indicates that the solution
      *  quality criteria has not been satisfied.  This will cause the solver
      *  to iterate through all iterations of the solution process up to the
-     *  maximum number of iterations.
+     *  maximum number of iterations. Alternatively, the user can specify
+     *  an instance of the SolutionQualityEvaluatorIfc interface to
+     *  determine if the solution quality has been reached.
      */
     protected open fun isStoppingCriteriaSatisfied(): Boolean {
-        return false
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: false
     }
 
     /**
