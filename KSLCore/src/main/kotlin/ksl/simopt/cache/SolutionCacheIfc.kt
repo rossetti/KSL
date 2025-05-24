@@ -3,6 +3,7 @@ package ksl.simopt.cache
 import ksl.simopt.evaluator.RequestData
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.Solutions
+import ksl.utilities.io.KSL
 
 /**
  *  A solution cache should be designed to efficiently look up a solution
