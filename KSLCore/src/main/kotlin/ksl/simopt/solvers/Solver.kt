@@ -206,9 +206,23 @@ abstract class Solver(
     protected lateinit var initialSolution: Solution
 
     /**
+     *  The initial point associated with the initial solution.
+     */
+    val initialPoint: InputMap?
+        get() = if (::initialSolution.isInitialized) initialSolution.inputMap else null
+    
+    /**
      *  The previous solution in the sequence of solutions.
      */
     var previousSolution: Solution = problemDefinition.badSolution()
+        protected set
+
+    /**
+     *  The previous point in the solution process. It is associated with the
+     *  previous solution.
+     */
+    val previousPoint: InputMap
+        get() = previousSolution.inputMap
 
     /**
      *  The difference between the previous solution's penalized objective function value
