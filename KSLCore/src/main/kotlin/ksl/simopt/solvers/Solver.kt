@@ -4,6 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
 import ksl.utilities.Identity
@@ -43,7 +44,7 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-): IdentityIfc by Identity(name), CompareSolutionsIfc, SolutionEmitterIfc by SolutionEmitter() {
+) : IdentityIfc by Identity(name), CompareSolutionsIfc, SolutionEmitterIfc by SolutionEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -193,6 +194,15 @@ abstract class Solver(
         }
 
     /**
+     * The maximum number of iterations when sampling for an input feasible point
+     */
+    var maxFeasibleSamplingIterations = defaultMaximumFeasibleSamplingIterations
+        set(value) {
+            require(value > 0) { "The maximum number of samples is $value, must be > 0" }
+            field = value
+        }
+
+    /**
      *  Returns how many iterations of the main loop have been executed.
      */
     var iterationCounter = 0
@@ -256,12 +266,12 @@ abstract class Solver(
             field = value
             penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
             unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
-            if (saveSolutions){
+            if (saveSolutions) {
                 mySolutions.add(value)
             }
             // if the new current solution is better than all previous solutions
             // capture the best solution
-            if (compare(field, bestSolution) < 0){
+            if (compare(field, bestSolution) < 0) {
                 bestSolution = field
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
@@ -313,7 +323,7 @@ abstract class Solver(
      *  Runs the next iteration. Only valid if the solver has been
      *  initialized and there are additional iterations to run.
      */
-    fun runNextIteration(){
+    fun runNextIteration() {
         myMainIterativeProcess.runNext()
     }
 
@@ -321,7 +331,7 @@ abstract class Solver(
      *   Causes the solver to run all iterations until its stopping
      *   criteria is met or the maximum number of iterations has been reached.
      */
-    fun runAllIterations(){
+    fun runAllIterations() {
         myMainIterativeProcess.run()
     }
 
@@ -332,7 +342,7 @@ abstract class Solver(
      *  @param msg a message can be captured concerning why the stoppage occurred.
      */
     @Suppress("unused")
-    fun stopIterations(msg: String? = null){
+    fun stopIterations(msg: String? = null) {
         myMainIterativeProcess.stop(msg)
     }
 
@@ -342,7 +352,7 @@ abstract class Solver(
      *  completion of inner and outer iterations.
      *  @param msg a message to capture for why the iterations were ended
      */
-    fun endIterations(msg: String? = null){
+    fun endIterations(msg: String? = null) {
         myMainIterativeProcess.end(msg)
     }
 
@@ -358,7 +368,7 @@ abstract class Solver(
      * @return -1 if first is less than the second solution, 0 if the solutions are to be considered
      *   equivalent, and 1 if the first is larger than the second solution.
      */
-    override fun compare(first: Solution, second: Solution) : Int {
+    override fun compare(first: Solution, second: Solution): Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
 
@@ -370,7 +380,7 @@ abstract class Solver(
      * @param newSolution the new solution to be compared with the current solution
      */
     protected fun updateCurrentSolution(newSolution: Solution) {
-        if (compare(newSolution, currentSolution) < 0){
+        if (compare(newSolution, currentSolution) < 0) {
             currentSolution = newSolution
             myImprovingStepFraction.collect(1.0)
             logger.trace { "Solver: $name : solution improved to $newSolution" }
@@ -451,7 +461,7 @@ abstract class Solver(
      *  be placed here instead of at the beginning of the mainIteration()
      *  function.
      */
-    protected open fun beforeMainIteration(){
+    protected open fun beforeMainIteration() {
 
     }
 
@@ -461,7 +471,7 @@ abstract class Solver(
      *  be placed here instead of at the end of the mainIteration()
      *  function.
      */
-    protected open fun afterMainIteration(){
+    protected open fun afterMainIteration() {
 
     }
 
@@ -471,7 +481,7 @@ abstract class Solver(
      *  has stopped.  This may include such concepts as selecting
      *  the best once all iterations have completed.
      */
-    protected open fun mainIterationsEnded(){
+    protected open fun mainIterationsEnded() {
 
     }
 
@@ -487,15 +497,42 @@ abstract class Solver(
     protected open fun generateNeighbor(
         currentPoint: InputMap,
         rnStream: RNStreamIfc
-    ) : InputMap {
+    ): InputMap {
 
-        val nextPoint = if (neighborGenerator != null){
+        val nextPoint = if (neighborGenerator != null) {
             neighborGenerator!!.generateNeighbor(currentPoint, this, ensureProblemFeasibleRequests)
         } else {
-            //TODO make this trial based
             currentPoint.randomizeInputVariable(rnStream)
         }
         logger.trace { "Solver: $name : generated neighbor $nextPoint" }
+        return nextPoint
+    }
+
+    /**
+     * Generates a random neighbor of the current point that satisfies input feasibility constraints.
+     * The method attempts to generate a feasible point by randomizing the input variables of the current point.
+     * If a feasible point cannot be generated within a maximum number of iterations, an exception is thrown.
+     *
+     * @param currentPoint The current point in the input space from which a neighbor will be generated.
+     * @param rnStream A stream of random numbers used for randomization of the input variables.
+     * @return An input feasible point representing a random neighbor of the given point.
+     * @throws IllegalStateException If a feasible neighbor cannot be generated within the allowed iterations.
+     */
+    fun generateInputFeasibleNeighbor(currentPoint: InputMap, rnStream: RNStreamIfc): InputMap {
+        var nextPoint = currentPoint.randomizeInputVariable(rnStream)
+        var count = 0
+        while (!problemDefinition.isInputFeasible(nextPoint)) {
+            // the point is infeasible, so try again
+            nextPoint = currentPoint.randomizeInputVariable(rnStream)
+            count++
+            if (count > maxFeasibleSamplingIterations) {
+                // we tried a lot and were still unsuccessful
+                logger.error { "Solver: $name : could not generate an input feasible random neighbor after $maxFeasibleSamplingIterations attempts, when sampling for an input feasible point." }
+                logger.error { "Solver: $name : Increase the max feasible sampling iterations for this problem, don't require input feasibility, or use a different neighbor generator" }
+                throw IllegalStateException("Could not generate an input feasible random neighbor after $maxFeasibleSamplingIterations attempts, when sampling for an input feasible point.")
+            }
+        }
+        // if we get here, the point is feasible
         return nextPoint
     }
 
@@ -512,8 +549,8 @@ abstract class Solver(
      *  @return the instance of RequestData that can be sent for evaluation
      */
     protected fun createRequest(inputMap: InputMap): RequestData {
-        if (ensureProblemFeasibleRequests){
-            require(inputMap.isInputFeasible()){"The input settings were infeasible for the problem when preparing requests."}
+        if (ensureProblemFeasibleRequests) {
+            require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
         // the input map will be range-feasible but may not be problem-feasible.
         val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
@@ -563,22 +600,22 @@ abstract class Solver(
      *  @param inputs the input (point) values to prepare
      *  @return the prepared requests
      */
-    private fun prepareEvaluationRequests(inputs: Set<InputMap>) : List<RequestData>{
+    private fun prepareEvaluationRequests(inputs: Set<InputMap>): List<RequestData> {
         val list = mutableListOf<RequestData>()
-        for(input in inputs){
+        for (input in inputs) {
             list.add(createRequest(input))
         }
         return list
     }
 
-    private fun requestEvaluations(requests: List<RequestData>) : List<Solution> {
+    private fun requestEvaluations(requests: List<RequestData>): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
         //TODO get rid of mySolverRunner
-       return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
+        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
     }
 
     override fun toString(): String {
-        val sb = StringBuilder().apply{
+        val sb = StringBuilder().apply {
             appendLine("Solver name = $name")
             appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
             appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
@@ -600,7 +637,8 @@ abstract class Solver(
         return sb.toString()
     }
 
-    protected inner class MainIterativeProcess : IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
+    protected inner class MainIterativeProcess :
+        IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
 
         override fun initializeIterations() {
             super.initializeIterations()
