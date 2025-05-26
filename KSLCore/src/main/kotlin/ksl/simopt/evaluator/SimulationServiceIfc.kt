@@ -19,7 +19,7 @@ interface SimulationServiceIfc : SimulationProviderIfc {
         return runSimulationRequests(listOf(request)).first()
     }
 
-    //TODO what else can the service do
+    //TODO what else should the service do
     // - indicate if model is registered
     // - return the response names for a model
     // - return the experiment run parameters for a model
