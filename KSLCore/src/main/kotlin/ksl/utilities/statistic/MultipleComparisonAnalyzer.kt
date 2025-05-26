@@ -318,7 +318,7 @@ class MultipleComparisonAnalyzer(
 
     /**
      * The paired differences as an array for the pair of data names given by the
-     * strings. If the data names don't exist then an error occurs. The paired
+     * strings. If the data names don't exist, then an error occurs. The paired
      * difference is assumed to be named "$s1 - $s2$". If the named difference
      * is not found an empty array is returned.
      *

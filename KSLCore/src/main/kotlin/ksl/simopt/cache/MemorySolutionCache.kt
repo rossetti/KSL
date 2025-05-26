@@ -17,7 +17,7 @@ import ksl.simopt.problem.InputMap
  *  identify the oldest solution with the largest penalized objective function for removal.
  *  @param capacity the maximum permitted size of the cache
  *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
- *  saved in the cache. If false, input infeasible solutions are silently ignored.
+ *  saved in the cache. If false, input-infeasible solutions are silently ignored.
  *  The default is false (do not allow input infeasible solutions to be saved)
  */
 class MemorySolutionCache(
