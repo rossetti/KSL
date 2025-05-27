@@ -18,20 +18,20 @@ import ksl.utilities.random.rvariable.ExponentialRV
 fun main() {
 
 //    simulationRunner2()
-    //buildModel()
-    val problemDefinition = makeProblemDefinition2()
-    println(problemDefinition)
+    //buildModel2()
+//    val problemDefinition = makeProblemDefinition2()
+//    println(problemDefinition)
 
-//   runSolverTest()
+   runSolverTest2()
 
-  //  testRunning(14, 33)
+  //  testRunning2(14, 33)
 
 
 }
 
 fun runSolverTest2() {
     val evaluator = setUpEvaluator2()
-    val shc = StochasticHillClimber(evaluator, maxIterations = 1000, replicationsPerEvaluation = 50)
+    val shc = StochasticHillClimber(evaluator, maxIterations = 10, replicationsPerEvaluation = 50)
 //    shc.emitter.attach { printSolution(it) }
 
     shc.runAllIterations()
@@ -74,7 +74,8 @@ fun buildModel2(reorderQty: Int = 2, reorderPoint: Int = 1) : Model {
     rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
-    model.lengthOfReplication = 110000.0
+    //model.lengthOfReplication = 110000.0
+    model.lengthOfReplication = 20000.0
     model.lengthOfReplicationWarmUp = 10000.0
     model.numberOfReplications = 40
 
