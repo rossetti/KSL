@@ -2289,7 +2289,7 @@ abstract class ModelElement internal constructor(
 
     @Suppress("unused")
     fun ConstantRV(value: Double, name: String? = null): ConstantRV {
-        return ConstantRV(value, name)
+        return ksl.utilities.random.rvariable.ConstantRV(value, name)
     }
 
     @Suppress("unused")
