@@ -72,6 +72,7 @@ class RQInventorySystem(
     var initialReorderPoint: Int
         get() = inventory.initialReorderPoint
         set(value) {
+            require(model.isNotRunning) { "The initial reorder point must be set before the simulation starts"}
             inventory.initialReorderPoint = value
         }
 

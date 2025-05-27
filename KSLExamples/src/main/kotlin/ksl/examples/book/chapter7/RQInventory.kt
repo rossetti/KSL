@@ -18,18 +18,36 @@ class RQInventory(
     name: String?
 ) : Inventory(parent, initialOnHand, replenisher, name) {
 
-    private var myInitialReorderPt: Int
-    private var myInitialReorderQty: Int
-
     init {
         require(reorderQty > 0) { "The reorder quantity must be > 0" }
         require(reorderPt >= -reorderQty) { "reorder point ($reorderPt) must be >= - reorder quantity ($reorderQty)" }
-        myInitialReorderPt = reorderQty
-        myInitialReorderQty = reorderQty
     }
 
+    private var myInitialReorderPt: Int = reorderPt
+    private var myInitialReorderQty: Int = reorderQty
     private var myReorderPt = myInitialReorderPt
     private var myReorderQty = myInitialReorderQty
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 0.0
+    )
+    var initialReorderPoint: Int
+        get() = myInitialReorderPt
+        set(value) {
+            setInitialPolicyParameters(value, myInitialReorderQty)
+        }
+
+    @set:KSLControl(
+        controlType = ControlType.INTEGER,
+        lowerBound = 1.0
+    )
+    var initialReorderQty: Int
+        get() = myInitialReorderQty
+        set(value) {
+            setInitialPolicyParameters(myInitialReorderPt, value)
+        }
+
     private val myNumReplenishment: Counter = Counter(this, "${this.name}:NumReplenishmentOrders")
 
     val numReplenishments: CounterCIfc
@@ -73,26 +91,6 @@ class RQInventory(
             field = value
         }
 
-    @set:KSLControl(
-        controlType = ControlType.INTEGER,
-        lowerBound = 0.0
-    )
-    var initialReorderPoint: Int
-        get() = myInitialReorderPt
-        set(value) {
-            setInitialPolicyParameters(value, myInitialReorderQty)
-        }
-
-    @set:KSLControl(
-        controlType = ControlType.INTEGER,
-        lowerBound = 0.0
-    )
-    var initialReorderQty: Int
-        get() = myInitialReorderQty
-        set(value) {
-            setInitialPolicyParameters(myInitialReorderPt, value)
-        }
-
     private val myTotalCost = Response(this, "${this.name}:TotalCost")
     val totalCost: ResponseCIfc
         get() = myTotalCost
@@ -109,7 +107,12 @@ class RQInventory(
     val backOrderCost: ResponseCIfc
         get() = myBackorderCost
 
-    fun setInitialPolicyParameters(reorderPt: Int = myInitialReorderPt, reorderQty: Int = myInitialReorderQty) {
+    private val myOrderingAndHoldingCost = Response(this, "${this.name}:OrderingAndHoldingCost")
+    val orderingAndHoldingCost: ResponseCIfc
+        get() = myOrderingAndHoldingCost
+
+    fun setInitialPolicyParameters(reorderPt: Int, reorderQty: Int) {
+        require(model.isNotRunning) { "The initial policy parameters cannot be changed while the model is running."}
         require(reorderQty > 0) { "reorder quantity must be > 0" }
         require(reorderPt >= -reorderQty) { "reorder point must be >= - reorder quantity" }
         myInitialReorderPt = reorderPt
@@ -179,6 +182,7 @@ class RQInventory(
         myBackorderCost.value = unitBackOrderCost * myAmountBackOrdered.withinReplicationStatistic.weightedAverage
         myOrderingFrequency.value = myNumReplenishment.value/(time - myNumReplenishment.timeOfWarmUp)
         myOrderingCost.value = costPerOrder * myOrderingFrequency.value
+        myOrderingAndHoldingCost.value = myOrderingCost.value + myHoldingCost.value
         myTotalCost.value = myOrderingCost.value + myHoldingCost.value + myBackorderCost.value
     }
 }

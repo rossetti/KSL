@@ -298,7 +298,6 @@ class ProblemDefinition(
 
     /**
      *  Creates an [ResponseConstraint] based on the supplied response name and right-hand side value.
-
      *  @param name the name of the response. Must be a pre-defined response name that is associated with
      *  the problem definition
      *  @param rhsValue the right-hand side of the constraint

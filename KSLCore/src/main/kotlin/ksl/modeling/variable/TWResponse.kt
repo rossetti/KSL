@@ -79,9 +79,7 @@ open class TWResponse(
     override var initialValue: Double = initialValue
         set(value) {
             require(domain.contains(value)) { "The initial value, $value must be within the specified limits: $domain" }
-            if (model.isRunning) {
-                Model.logger.info { "The user set the initial value during the replication. The next replication will use a different initial value" }
-            }
+            require(model.isNotRunning) {"The initial value must be set before the simulation is running."}
             field = value
         }
 

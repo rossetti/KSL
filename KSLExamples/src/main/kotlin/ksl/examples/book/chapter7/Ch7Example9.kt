@@ -28,6 +28,10 @@ fun test1() {
     val r = m.simulationReporter
     val out = m.outputDirectory.createPrintWriter("R-Q Inventory Results.md")
     r.writeHalfWidthSummaryReportAsMarkDown(out, df = MarkDown.D3FORMAT)
+
+    val c = m.controls()
+
+    c.printControls()
 }
 
 fun test2() {
