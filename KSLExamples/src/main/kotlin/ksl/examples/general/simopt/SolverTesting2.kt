@@ -24,27 +24,39 @@ fun main() {
 
    runSolverTest2()
 
-  //  testRunning2(14, 33)
+   // testRunning2(4, 1)
 
 
 }
 
 fun runSolverTest2() {
     val evaluator = setUpEvaluator2()
-    val shc = StochasticHillClimber(evaluator, maxIterations = 10, replicationsPerEvaluation = 50)
-//    shc.emitter.attach { printSolution(it) }
+    val shc = StochasticHillClimber(evaluator, maxIterations = 100, replicationsPerEvaluation = 50)
+    shc.emitter.attach { printSolution2(it) }
+    val inputs = mutableMapOf(
+        "RQInventoryModel:Item.initialReorderPoint" to 1.0,
+        "RQInventoryModel:Item.initialReorderQty" to 4.0)
+    shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
 
+    println()
+    println("Objective Function \t Q \t\t r \t\t fillRate \t\t\t Penalized Objective Function")
     shc.runAllIterations()
+    println()
     println(evaluator)
     println()
     println("Solver Results:")
     println(shc)
+    println()
+    println("Final Solution:")
+    println(shc.bestSolution.asString())
 }
 
 fun printSolution2(solution: Solution) {
     val q = solution.inputMap["RQInventoryModel:Item.initialReorderQty"]
     val rp = solution.inputMap["RQInventoryModel:Item.initialReorderPoint"]
-    println("${solution.estimatedObjFncValue} \t $q \t $rp")
+    val fillRate = solution.responseEstimatesMap["RQInventoryModel:Item:FillRate"]!!.average
+  //  println(solution)
+    println("${solution.estimatedObjFncValue} \t $q \t $rp \t $fillRate \t ${solution.penalizedObjFncValue}")
 }
 
 fun basicRunning2(){
