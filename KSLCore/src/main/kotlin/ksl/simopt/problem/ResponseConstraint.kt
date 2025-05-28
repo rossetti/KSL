@@ -86,6 +86,12 @@ class ResponseConstraint(
      *  @param responseValue The value of the response to be evaluated for the constraint.
      */
     fun violation(responseValue: Double): Double {
+//        println("responseName = $responseName")
+//        println("response value = $responseValue")
+//        println("rhsValue = $rhsValue")
+//        println("inequalityFactor = $inequalityFactor")
+//        println("rhsValue - responseValue = ${rhsValue - responseValue}")
+//        println("-slack(responseValue) = ${-slack(responseValue)}")
         return maxOf(0.0, -slack(responseValue))
     }
 

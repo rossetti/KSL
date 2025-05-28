@@ -760,7 +760,7 @@ class ProblemDefinition(
      *  Creates an infeasible and bad solution. This is useful when initializing solvers
      *  or when rejecting requests.
      *
-     *  @return the unbelievably bad solution
+     *  @return an unbelievably bad solution
      */
     fun badSolution(): Solution {
         val inputMap = midPoints()

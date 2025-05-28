@@ -181,6 +181,11 @@ abstract class Solver(
     var neighborGenerator: GenerateNeighborIfc? = null
 
 
+    /**
+     * A variable representing an instance of the `SolutionQualityEvaluatorIfc` interface.
+     * It is used to assess and evaluate the quality of a given solution.
+     * The variable can hold a nullable implementation of the interface.
+     */
     var solutionQualityEvaluator: SolutionQualityEvaluatorIfc? = null
 
     /**
@@ -219,6 +224,26 @@ abstract class Solver(
      *  of the subclass to initialize the initial solution.
      */
     protected lateinit var initialSolution: Solution
+
+    /**
+     *  An initial starting point for the solver. If supplied, this point
+     *  will be used instead of the returned value of the startingPoint() function.
+     *  The default is null, which indicates that the function should be called
+     *  to obtain the initial starting point.
+     *
+     *  The starting point must be a valid point in the input space.
+     *  It must also be input range-feasible.
+     *
+     */
+    var startingPoint: InputMap? = null
+        set(value) {
+            if (value != null) {
+                require(value.isNotEmpty()) { "Starting point must not be empty" }
+                require(problemDefinition == value.problemDefinition) { "Starting point must be of the same problem as the evaluator" }
+                require(problemDefinition.validate(value)) { "Starting point is not valid" }
+                field = value
+            }
+        }
 
     /**
      *  The initial point associated with the initial solution.
@@ -415,7 +440,7 @@ abstract class Solver(
      *  to just implement the startingPoint() function.
      */
     protected open fun initializeIterations() {
-        val initialPoint = startingPoint()
+        val initialPoint = startingPoint ?: startingPoint()
         initialSolution = requestEvaluation(initialPoint)
         currentSolution = initialSolution
     }
