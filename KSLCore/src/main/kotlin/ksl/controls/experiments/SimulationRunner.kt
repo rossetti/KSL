@@ -32,7 +32,7 @@ import java.io.StringWriter
 /**
  *  The purpose of this class is to facilitate the running of a simulation model based
  *  on some inputs and experimental run parameters. The simulate() functions take in
- *  the inputs and the experimental run parameters and after execution return an
+ *  the inputs and the experimental run parameters, and after execution return an
  *  instance of SimulationRun.
  *
  *  There are two key issues to note when using this class. First, you should strongly
@@ -45,9 +45,9 @@ import java.io.StringWriter
  *  parameters of random variables within the model. The naming convention is important to note.
  *  For controls, by default, the key to associate with the value is the model element's name
  *  concatenated with the property that was annotated with the control.  For example, if
- *  the resource had name Worker and annotated property initialCapacity, then the key
+ *  the resource had the name Worker and annotated property initialCapacity, then the key
  *  will be "Worker.initialCapacity". Note the use of the "." character to separate
- *  the model element name and the property name.  Since, the KSL model element naming
+ *  the model element name and the property name.  Since the KSL model element naming
  *  convention requires unique names for each model element, the key will be unique for the control.
  *  However, the model element name may be a very long string depending on your approach
  *  to naming the model elements. The name associated with each control can be inspected by
@@ -93,7 +93,7 @@ class SimulationRunner(
         inputs: Map<String, Double> = mapOf(),
         experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ): SimulationRun {
-        val simulationRun = SimulationRun(experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(model.name, experimentRunParameters, inputs)
         simulate(simulationRun)
         return simulationRun
     }
@@ -159,12 +159,12 @@ class SimulationRunner(
                 }
             }
             if (controlsMap.isNotEmpty()) {
-                // controls were found, tell model to use controls when it is simulated
+                // controls were found, tell the model to use controls when it is simulated
                 model.experimentalControls = controlsMap
                 Model.logger.info { "SimulationRunner: ${controlsMap.size} controls out of ${controls.size} were applied." }
             }
             if (rvParamMap.isNotEmpty()) {
-                // convert to form used by RVParameterSetter
+                // convert to the form used by RVParameterSetter
                 val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
                 // tell the model to use the supplied parameter values
                 model.rvParameterSetter.changeParameters(unflattenMap)

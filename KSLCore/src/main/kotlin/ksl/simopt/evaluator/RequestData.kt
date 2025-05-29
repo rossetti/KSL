@@ -1,5 +1,7 @@
 package ksl.simopt.evaluator
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import ksl.controls.experiments.ExperimentRunParameters
 
@@ -15,7 +17,7 @@ import ksl.controls.experiments.ExperimentRunParameters
  *  If no response names are provided, then all responses from the simulation will be returned. The default
  *  is all responses from the model.
  *  @param experimentRunParameters an optional set of simulation run parameters for application to the model.
- *  If not supplied then the model's current (default) settings will be used.
+ *  If not supplied, then the model's current (default) settings will be used.
  */
 @Serializable
 data class RequestData(
@@ -23,7 +25,8 @@ data class RequestData(
     var numReplications: Int,
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
-    val experimentRunParameters: ExperimentRunParameters? = null
+    val experimentRunParameters: ExperimentRunParameters? = null,
+    val requestTime: Instant = Clock.System.now()
 ) {
     init {
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }

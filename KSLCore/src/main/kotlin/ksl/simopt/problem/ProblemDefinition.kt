@@ -116,7 +116,7 @@ class ProblemDefinition(
 
     /**
      *  The input definitions as a list. The key is the name of the
-     *  input parameter and the value is the input definition.
+     *  input parameter, and the value is the input definition.
      */
     val inputDefinitions: Map<String, InputDefinition>
         get() = myInputDefinitions

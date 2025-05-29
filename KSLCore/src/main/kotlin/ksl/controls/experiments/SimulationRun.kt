@@ -40,6 +40,7 @@ import ksl.utilities.statistic.Statistic
 @kotlinx.serialization.Serializable
 class SimulationRun private constructor(
     val id: String,
+    val modelIdentifier: String,
     var name: String,
     val experimentRunParameters: ExperimentRunParameters,
     var runErrorMsg: String = "",
@@ -49,12 +50,14 @@ class SimulationRun private constructor(
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
     constructor(
+        modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
         runName: String? = null
     ) : this(
         id = runId ?: KSL.randomUUIDString(),
+        modelIdentifier = modelIdentifier,
         name = runName ?: (experimentRunParameters.experimentName),
         experimentRunParameters = experimentRunParameters,
         inputs = inputs
@@ -79,6 +82,7 @@ class SimulationRun private constructor(
         val sb = StringBuilder()
         sb.appendLine("id = $id")
         sb.appendLine("name = $name")
+        sb.appendLine("model identifier = $modelIdentifier")
         sb.appendLine(experimentRunParameters)
         sb.appendLine("functionError $runErrorMsg")
         sb.appendLine("beginExecutionTime = $beginExecutionTime")
