@@ -3,6 +3,8 @@ package ksl.simopt.evaluator
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
+import ksl.simopt.cache.MemorySimulationRunCache
+import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simulation.Model
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
@@ -14,7 +16,7 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *
  *  @param modelCreator a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
- *  @param useDb if true a database to capture simulation output is configured. The default is false.
+ *  @param useDb if true, a database to capture simulation output is configured. The default is false.
  *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
  *  relevant if useDb is true. The default is false. Data will not be cleared if multiple simulations of the
  *  same model are executed within the same execution frame. An error is issued if the experiment name has not changed.
@@ -22,7 +24,7 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  input execution to be captured in the database. In the context of simulation optimization, you may only want the
  *  last provided execution. In that case, set the clear option to true. Then, the database will be cleared prior
  *  to each execution, leaving only the last execution in the database.
- *  @param saveSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
+ *  @param cacheSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
  *  default is false.  Since the provider may execute thousands of simulations and simulation runs have significant
  *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
  *  access to all inputs and output responses from every execution.
@@ -30,19 +32,19 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
 @Suppress("unused")
 class SimulationProvider(
     val model: Model,
-    var saveSimulationRuns: Boolean = false,
+    override var cacheSimulationRuns: Boolean = false,
     useDb: Boolean = false,
     clearDataBeforeExperimentOption: Boolean = false
 ) : SimulationProviderIfc {
 
     constructor(
         modelCreator: () -> Model,
-        saveSimulationRuns: Boolean = false,
+        cachSimulationRuns: Boolean = false,
         useDb: Boolean = false,
         clearDataBeforeExperimentOption: Boolean = false
     ) : this(
         model = modelCreator(),
-        saveSimulationRuns = saveSimulationRuns,
+        cacheSimulationRuns = cachSimulationRuns,
         useDb = useDb,
         clearDataBeforeExperimentOption = clearDataBeforeExperimentOption
     )
@@ -51,21 +53,14 @@ class SimulationProvider(
 
     /**
      *  capture the original experiment run parameters so that they can
-     *  be restored to original after executing a simulation
+     *  be restored to the original after executing a simulation
      */
     private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
 
     /**
-     *  Use to hold executed simulation runs, 1 for each simulation executed.
-     *  The key is based on the problem definition name.
-     *
-     *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
+     *  Use to hold executed simulation runs.
      */
-    private val mySimulationRuns = mutableMapOf<String, SimulationRun>()
-
-    @Suppress("unused")
-    val simulationRuns: Map<String, SimulationRun>
-        get() = mySimulationRuns
+    override val simulationRunCache: SimulationRunCacheIfc by lazy { MemorySimulationRunCache() }
 
     //TODO could add ExperimentDataCollector as an option
 
@@ -114,7 +109,7 @@ class SimulationProvider(
      */
     @Suppress("unused")
     fun clearSimulationRuns() {
-        mySimulationRuns.clear()
+        simulationRunCache.clear()
     }
 
     override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
@@ -138,9 +133,9 @@ class SimulationProvider(
             Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
             // capture the simulation results
             captureResults(request, results, simulationRun)
-            // add the SimulationRun to the simulation run list
-            if (saveSimulationRuns) {
-                mySimulationRuns[model.experimentName] = simulationRun
+            // add the SimulationRun to the simulation run cache
+            if (cacheSimulationRuns) {
+                simulationRunCache.put(request, simulationRun)
             }
             // reset the model run parameters back to their original values
             model.changeRunParameters(myOriginalExpRunParams)

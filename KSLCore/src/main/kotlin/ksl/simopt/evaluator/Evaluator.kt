@@ -134,6 +134,7 @@ class Evaluator(
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
         EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
         // check with the cache for solutions
+        //TODO this is the check of the cache, what if the cache does not hold solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
         EvaluatorIfc.logger.info { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
