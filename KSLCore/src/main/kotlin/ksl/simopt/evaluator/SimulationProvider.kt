@@ -14,7 +14,7 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
- *  @param modelCreator a function that promises to create the model that will be executed. The model that is created
+ *  @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
  *  @param useDb if true, a database to capture simulation output is configured. The default is false.
  *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
@@ -37,14 +37,22 @@ class SimulationProvider(
     clearDataBeforeExperimentOption: Boolean = false
 ) : SimulationProviderIfc {
 
+    /**
+     * Secondary constructor for the SimulationProvider class.
+     *
+     * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
+     * @param cacheSimulationRuns Indicates whether the simulation run results should be cached to improve performance during repetitive runs. Default is false.
+     * @param useDb Specifies whether a database should be utilized for storing simulation-related results. Default is false.
+     * @param clearDataBeforeExperimentOption If true, clears any pre-existing data before running a new experiment. Default is false.
+     */
     constructor(
         modelCreator: () -> Model,
-        cachSimulationRuns: Boolean = false,
+        cacheSimulationRuns: Boolean = false,
         useDb: Boolean = false,
         clearDataBeforeExperimentOption: Boolean = false
     ) : this(
         model = modelCreator(),
-        cacheSimulationRuns = cachSimulationRuns,
+        cacheSimulationRuns = cacheSimulationRuns,
         useDb = useDb,
         clearDataBeforeExperimentOption = clearDataBeforeExperimentOption
     )
@@ -58,7 +66,7 @@ class SimulationProvider(
     private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
 
     /**
-     *  Use to hold executed simulation runs.
+     *  Used to hold executed simulation runs.
      */
     override val simulationRunCache: SimulationRunCacheIfc by lazy { MemorySimulationRunCache() }
 
