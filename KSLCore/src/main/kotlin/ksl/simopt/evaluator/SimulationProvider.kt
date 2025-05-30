@@ -141,6 +141,18 @@ class SimulationProvider(
         return results
     }
 
+    override fun isModelValid(modelIdentifier: String): Boolean {
+        return model.name == modelIdentifier
+    }
+
+    override fun areInputNamesValid(inputNames: Set<String>): Boolean {
+        return model.validateInputKeys(inputNames)
+    }
+
+    override fun areResponseNamesValid(responseNames: Set<String>): Boolean {
+        return model.validateResponseNames(responseNames)
+    }
+
     private fun respondFromCache(
         request: RequestData,
         results: MutableMap<RequestData, ResponseMap>

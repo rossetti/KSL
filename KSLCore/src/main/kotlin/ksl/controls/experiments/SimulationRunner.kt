@@ -145,7 +145,7 @@ class SimulationRunner(
             // get the random variable parameters
             val tmpSetter = RVParameterSetter(model)
             val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
-            // now check supplied input key is a control or a rv parameter
+            // now check if the supplied input key is a control or a rv parameter
             // and save them for application to the model
             val controlsMap = mutableMapOf<String, Double>()
             val rvParamMap = mutableMapOf<String, Double>()

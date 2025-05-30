@@ -56,10 +56,10 @@ class RVParameterSetter(private val model: Model) {
     /**
      *  The key to this map is the unique name of the random variable
      *  within the model. The associated value is an instance of
-     *  RVParameters which can be used to get the associated parameters
+     *  RVParameters, which can be used to get the associated parameters
      *  and to change the parameter values.
      *  The map cannot be modified, but the values can be retrieved and changed
-     *  as needed. Changing the values have no effect within the model until they are applied.
+     *  as needed. Changing the values havs no effect within the model until they are applied.
      *
      * @return parameters for every parameterized random variable within the model
     */
@@ -107,7 +107,7 @@ class RVParameterSetter(private val model: Model) {
      *   is keyed by the name of the random variable, with the associated datum as
      *   an instance of RVParameters.  From the RVParameters instance clients can inspect and set
      *   the parameters of the random variable. The inner map will hold only those
-     *   random variables that are parameterized, i.e. ParameterizedRV descended.
+     *   random variables that are parameterized, i.e., ParameterizedRV descended.
      */
     fun rvParametersByElementName() : Map<String, Map<String, RVParameters>> {
         val rvList: List<RandomVariable> = model.randomVariables()

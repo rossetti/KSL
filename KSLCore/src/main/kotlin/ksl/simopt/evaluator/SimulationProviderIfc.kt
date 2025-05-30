@@ -44,9 +44,27 @@ interface SimulationProviderIfc {
     fun isModelValid(modelIdentifier: String): Boolean
 
     /**
+     *  Indicates if the input names are valid. The input names are valid if
+     *  they are empty. If they are not empty, then they must be a subset of the input names
+     *  associated with the model.
+     *
+     *  @param inputNames the names of the responses
+     */
+    fun areInputNamesValid(inputNames: Set<String>): Boolean
+
+    /**
+     *  Indicates if the response names are valid. The response names are valid if
+     *  they are empty. If they are not empty, then they must be a subset of the response names
+     *  associated with the model.
+     *
+     *  @param responseNames the names of the responses
+     */
+    fun areResponseNamesValid(responseNames: Set<String>): Boolean
+
+    /**
      *  Indicates if the request is valid. The request is valid if
-     *  1. The model is valid.
-     *  2. The input names
+     *  1. The model identifier is valid.
+     *  2. The input names are valid.
      *  3. Response names are valid.
      *
      *  Empty input names and response names are valid.
@@ -55,6 +73,13 @@ interface SimulationProviderIfc {
      *  @param request the request to validate. If the input names and response names are not specified,
      *  then the current input settings of the model will be used and all responses from the simulation will be returned.
      */
-    fun isRequestValid(request: RequestData): Boolean
+    fun isRequestValid(request: RequestData): Boolean {
+        if (!isModelValid(request.modelIdentifier)) return false
+        // check input names
+        if (!areInputNamesValid(request.inputs.keys)) return false
+        // inputs are empty or valid
+        if (!areResponseNamesValid(request.responseNames)) return false
+        return true
+    }
 
 }
