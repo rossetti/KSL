@@ -193,13 +193,13 @@ class BatchStatistic constructor(
     /**
      * the number of batches
      */
-    override var numBatches = 0
+    override var numBatches : Int = 0
         private set
 
     /**
      * the number of times re-batching has occurred
      */
-    override var numRebatches = 0
+    override var numRebatches : Int = 0
         private set
 
     /**
@@ -483,17 +483,17 @@ class BatchStatistic constructor(
         /**
          * the default minimum number of batches
          */
-        const val MIN_NUM_BATCHES = 20
+        const val MIN_NUM_BATCHES : Int = 20
 
         /**
          * the default minimum number of observations per batch
          */
-        const val MIN_NUM_OBS_PER_BATCH = 16
+        const val MIN_NUM_OBS_PER_BATCH : Int = 16
 
         /**
          * the default multiplier that determines the maximum number of batches
          */
-        const val MAX_BATCH_MULTIPLE = 2
+        const val MAX_BATCH_MULTIPLE : Int = 2
 
         fun instance(bStat: BatchStatistic): BatchStatistic {
             val b = BatchStatistic(

@@ -128,6 +128,7 @@ tasks.jar {
 
 kotlin {
     jvmToolchain(21)
+ //   explicitApiWarning()
 }
 
 // these extensions are needed when publishing to maven

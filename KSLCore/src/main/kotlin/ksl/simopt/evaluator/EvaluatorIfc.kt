@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.ProblemDefinition
@@ -112,7 +113,7 @@ interface EvaluatorIfc {
 
     companion object {
 
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
 
     }
 }

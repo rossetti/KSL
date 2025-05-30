@@ -56,7 +56,7 @@ class DbCreateTask private constructor(builder: DbCreateTaskBuilder) {
      */
     lateinit var type: Type
 
-    var state = State.UN_EXECUTED
+    var state: State = State.UN_EXECUTED
         private set
 
     private val myDatabase: DatabaseIfc = builder.database

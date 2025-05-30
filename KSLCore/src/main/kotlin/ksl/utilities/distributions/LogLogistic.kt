@@ -44,13 +44,13 @@ class LogLogistic(
         require(theScale > 0) { "Scale parameter must be positive" }
     }
 
-    var shape = theShape
+    var shape : Double = theShape
         set(theShape) {
             require(theShape > 0) { "Shape parameter must be positive" }
             field = theShape
         }
 
-    var scale = theScale
+    var scale : Double = theScale
         set(theScale) {
             require(theScale > 0) { "Scale parameter must be positive" }
             field = theScale

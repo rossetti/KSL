@@ -35,12 +35,12 @@ abstract class CSVReport(
     directoryPath: Path = theModel.outputDirectory.outDir,
 ) :
     ModelElementObserver(reportName) {
-    var quoteChar = '"'
-    var headerFlag = false
-    var lineWidth = 300
+    var quoteChar : Char = '"'
+    var headerFlag : Boolean = false
+    var lineWidth : Int = 300
     protected val myLine: StringBuilder = StringBuilder(lineWidth)
     protected val myWriter: PrintWriter
-    protected val model = theModel
+    protected val model : Model = theModel
 
     init {
         var path = directoryPath

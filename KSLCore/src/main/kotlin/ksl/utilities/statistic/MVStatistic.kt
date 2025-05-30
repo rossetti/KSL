@@ -36,7 +36,7 @@ class MVStatistic(val names: List<String>) {
         require(names.isNotEmpty()) { "There must be at least one element for the names of the statistics" }
     }
 
-    val statistics = List(names.size) { Statistic(name = names[it]) }
+    val statistics : List<Statistic> = List(names.size) { Statistic(name = names[it]) }
 
     /**
      *  Statistics are collected on the dimensions of the supplied array.

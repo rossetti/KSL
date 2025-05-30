@@ -69,17 +69,17 @@ class TruncatedDistribution(
     var distribution: DistributionIfc = theDistribution
         private set
 
-    var lowerLimit = 0.0
+    var lowerLimit : Double = 0.0
         private set
-    var upperLimit = 0.0
+    var upperLimit : Double = 0.0
         private set
-    var cdfLowerLimit = 0.0
+    var cdfLowerLimit : Double = 0.0
         private set
-    var cdfUpperLimit = 0.0
+    var cdfUpperLimit : Double = 0.0
         private set
-    var cdfAtLowerLimit = 0.0
+    var cdfAtLowerLimit : Double = 0.0
         private set
-    var cdfAtUpperLimit = 0.0
+    var cdfAtUpperLimit : Double = 0.0
         private set
     private val myDeltaFUFL
         get() = cdfAtUpperLimit - cdfAtLowerLimit

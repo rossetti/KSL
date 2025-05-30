@@ -35,7 +35,7 @@ class DMHMarkovChain(
         require(alphaMatrix.size == proposalMatrix.size) { "Acceptance matrix must be size ${proposalMatrix.size}" }
     }
 
-    val acceptanceMatrix
+    val acceptanceMatrix: Array<DoubleArray>
         get() = alphaMatrix.copyOf()
 
     private val myAcceptanceStat: Statistic = Statistic("Acceptance Statistics")

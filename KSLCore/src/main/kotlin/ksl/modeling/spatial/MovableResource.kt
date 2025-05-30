@@ -54,23 +54,23 @@ open class MovableResource(
         lowerBound = 0.0,
         upperBound = 1.0
     )
-    override var initialCapacity
+    override var initialCapacity: Int
         get() = super.initialCapacity
         set(value) {
             require((value == 0) || (value == 1)) { "The initial capacity of a movable resource must be 0 or 1" }
             super.initialCapacity = value
         }
 
-    override var capacity
+    override var capacity: Int
         get() = super.capacity
         set(value) {
             require((value == 0) || (value == 1)) { "The capacity of a movable resource must be 0 or 1" }
             super.capacity = value
         }
 
-    protected val mySpatialElement = SpatialElement(this, initLocation, name)
+    protected val mySpatialElement: SpatialElement = SpatialElement(this, initLocation, name)
 
-    protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
+    protected val myVelocity: RandomVariable = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
     override val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc
@@ -95,7 +95,7 @@ open class MovableResource(
             myFracTimeMovingEmpty.value = field.toDouble()
         }
 
-    protected val myFracTimeMoving =
+    protected val myFracTimeMoving: TWResponse =
         TWResponse(this, name = "${this.name}:FracTimeMoving", initialValue = mySpatialElement.isMoving.toDouble())
     override val fracTimeMoving: TWResponseCIfc
         get() = myFracTimeMoving
@@ -183,7 +183,7 @@ open class MovableResource(
         }
     }
 
-    protected val myHomeQ = RequestQ(this, "${this.name}:HomeBaseQ")
+    protected val myHomeQ: RequestQ = RequestQ(this, "${this.name}:HomeBaseQ")
 
     init {
         myHomeQ.waitTimeStatOption = false
@@ -210,7 +210,7 @@ open class MovableResource(
         this@MovableResource, "${this@MovableResource.name}:Driver"
     ) {
 
-        var returningHome = false
+        var returningHome : Boolean = false
             private set
 
         fun sendToHomeBase() {
@@ -222,7 +222,7 @@ open class MovableResource(
         }
 
         inner class Driver() : Entity() {
-            val returnToHomeProcess = process {
+            val returnToHomeProcess: KSLProcess = process {
                 require(homeBase != null) { "There is no home based defined for ${this@MovableResource.name}" }
                 val a = seize(
                     this@MovableResource,

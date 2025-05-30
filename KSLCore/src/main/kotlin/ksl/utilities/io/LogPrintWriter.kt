@@ -32,7 +32,7 @@ class LogPrintWriter : PrintWriter {
     /**
      * Controls whether any the PrintWriter functionality happens
      */
-    var OUTPUT_ON = true
+    var OUTPUT_ON : Boolean = true
 
     /**
      * @param out the Writer

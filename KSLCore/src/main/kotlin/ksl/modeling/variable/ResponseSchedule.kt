@@ -96,7 +96,7 @@ class ResponseSchedule(
      * The schedule repeat flag controls whether the entire schedule will
      * repeat after its entire cycle has elapsed.  The default is true.
      */
-    var scheduleRepeatFlag = repeatSchedule
+    var scheduleRepeatFlag: Boolean = repeatSchedule
 
     /**
      * Represents the length of time of the schedule based on the intervals added

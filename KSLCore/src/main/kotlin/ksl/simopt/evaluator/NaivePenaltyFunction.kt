@@ -27,6 +27,6 @@ class NaivePenaltyFunction(
 
     companion object {
 
-        var defaultPenaltyFunction = NaivePenaltyFunction()
+        var defaultPenaltyFunction: PenaltyFunctionIfc = NaivePenaltyFunction()
     }
 }

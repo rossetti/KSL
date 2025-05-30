@@ -25,7 +25,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 private var countSpatialModel: Int = 0
 
 abstract class SpatialModel() : Observable<SpatialElementIfc>() {
-    protected var locationCount = 0
+    protected var locationCount : Int = 0
     var countElements: Int = 0
         internal set
 

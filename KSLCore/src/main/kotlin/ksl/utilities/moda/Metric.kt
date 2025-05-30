@@ -119,7 +119,7 @@ open class Metric(
         require(domain.width.isFinite()) { "The width of the domain for metric $name must be finite. It was $domain" }
     }
 
-    override var direction = MetricIfc.Direction.SmallerIsBetter
+    override var direction: MetricIfc.Direction = MetricIfc.Direction.SmallerIsBetter
 
     override var unitsOfMeasure: String? = null
 

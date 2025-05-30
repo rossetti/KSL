@@ -44,13 +44,13 @@ class Evaluator(
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    override var totalOracleEvaluations = 0
+    override var totalOracleEvaluations : Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    override var totalCachedEvaluations = 0
+    override var totalCachedEvaluations : Int = 0
         private set
 
     /**

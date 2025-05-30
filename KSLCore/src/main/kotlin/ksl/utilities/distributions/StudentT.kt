@@ -46,7 +46,7 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         require(theDegreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }
     }
 
-    var degreesOfFreedom = theDegreesOfFreedom
+    var degreesOfFreedom: Double = theDegreesOfFreedom
         set(value) {
             require(value >= 1) { "The degrees of freedom must be >= 1.0" }
             field = value
@@ -170,7 +170,7 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         /** A default instance for easily computing Student-T values
          *
          */
-        val defaultT = StudentT()
+        val defaultT: StudentT = StudentT()
 
         /** A convenience method that uses defaultT to
          * return the value of the CDF at the supplied x

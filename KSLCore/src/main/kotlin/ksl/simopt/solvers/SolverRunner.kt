@@ -37,13 +37,13 @@ open class SolverRunner(
      *  perform. This is determined as the maximum of the maximum number
      *  of iterations across all managed solvers.
      */
-    var maximumIterations = 0
+    var maximumIterations : Int = 0
         private set(value) {
             require(value > 0) { "maximum number of iterations must be > 0" }
             field = value
         }
 
-    var iterationCounter = 0
+    var iterationCounter : Int = 0
         private set
 
     val problemDefinition: ProblemDefinition

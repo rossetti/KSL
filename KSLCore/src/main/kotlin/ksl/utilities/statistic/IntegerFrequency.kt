@@ -388,14 +388,14 @@ class IntegerFrequency(
     /**
      * The number of observations that fell below the first bin's lower limit
      */
-    override var underFlowCount = 0
+    override var underFlowCount : Int = 0
         private set
 
     /**
      * The number of observations that fell past the last bin's upper limit
      *
      */
-    override var overFlowCount = 0
+    override var overFlowCount : Int = 0
         private set
 
     /**
@@ -867,7 +867,7 @@ class IntegerFrequency(
 
         var label: String = "label: $value"
 
-        var count = 1.0
+        var count : Double = 1.0
             private set
 
         val proportion: Double

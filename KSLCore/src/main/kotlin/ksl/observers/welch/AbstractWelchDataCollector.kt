@@ -79,13 +79,13 @@ abstract class AbstractWelchDataCollector(statisticType: StatisticType, name: St
     /**
      * The time that the last observation occurred. The last observed time.
      */
-    override var lastTime = Double.NaN
+    override var lastTime : Double = Double.NaN
         protected set
 
     /**
      * The observation at the last observed time.
      */
-    override var lastValue = Double.NaN
+    override var lastValue : Double = Double.NaN
         protected set
 
     /**

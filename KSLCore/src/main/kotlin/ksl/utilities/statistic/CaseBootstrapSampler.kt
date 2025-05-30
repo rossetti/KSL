@@ -85,7 +85,7 @@ class MatrixBootEstimator(
         }
     }
 
-    override val caseIdentifiers = List(matrix.size) { it }
+    override val caseIdentifiers: List<Int> = List(matrix.size) { it }
 
     override fun estimate(caseIndices: IntArray): DoubleArray {
         // select the rows of the matrix from the supplied indices
@@ -96,7 +96,7 @@ class MatrixBootEstimator(
 
 object OLSBootEstimator : MatrixEstimatorIfc {
 
-    val regression = OLSMultipleLinearRegression()
+    val regression: OLSMultipleLinearRegression = OLSMultipleLinearRegression()
 
     override fun estimate(matrix: Array<DoubleArray>): DoubleArray {
         require(matrix.size > 1) { "There must be at least 2 rows in the matrix" }
@@ -130,44 +130,44 @@ open class CaseBootstrapSampler(
     /**
      * @return the estimate from the supplied CaseBootEstimatorIfc based on the original data
      */
-    val originalDataEstimate = estimator.originalEstimates.copyOf()
+    val originalDataEstimate: DoubleArray = estimator.originalEstimates.copyOf()
 
     /**
      *  This represents the population to repeatedly sample from to form
      *  the bootstrap samples for the estimation process.
      */
-    protected val myOriginalPopulation = estimator.caseIdentifiers.toIntArray()
+    protected val myOriginalPopulation: IntArray = estimator.caseIdentifiers.toIntArray()
 
     /**
      *  An intermediate array to hold the sampled case indices from the original
      *  population of cases.
      */
-    protected val mySample = IntArray(myOriginalPopulation.size)
+    protected val mySample: IntArray = IntArray(myOriginalPopulation.size)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
-    protected val myAcrossBSStat = MVStatistic(estimator.names)
+    protected val myAcrossBSStat: MVStatistic = MVStatistic(estimator.names)
 
     // if requested holds the bootstrap samples
-    protected val myBSArrayList = mutableListOf<IntArray>()
+    protected val myBSArrayList: MutableList<IntArray> = mutableListOf<IntArray>()
 
     /** Holds the estimated values (for each dimension) from the bootstrap samples.
      * When the MVEstimator is applied to each bootstrap sample, it results in an array of estimates
      * from the sample. This list holds those arrays. It is cleared whenever new
      * samples are generated and then filled during the bootstrapping process.
      */
-    protected val myBSEstimates = mutableListOf<DoubleArray>()
+    protected val myBSEstimates: MutableList<DoubleArray> = mutableListOf<DoubleArray>()
 
     /**
      *  Tabulates for each bootstrap sample, the frequency of the cases
      *  selected within the sample.
      */
-    protected val myCaseFrequencies = mutableListOf<IntegerFrequency>()
+    protected val myCaseFrequencies : MutableList <IntegerFrequency> = mutableListOf<IntegerFrequency>()
 
     /**
      *  A list holding the observed frequencies of the cases within each
      *  bootstrap sample.
      */
-    val caseFrequencies
+    val caseFrequencies : List<IntegerFrequency>
         get() = myCaseFrequencies
 
     /**

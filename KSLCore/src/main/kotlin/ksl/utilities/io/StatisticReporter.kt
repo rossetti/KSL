@@ -34,9 +34,9 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.text.DecimalFormat
 import java.util.*
 
-const val DEFAULT_ROW_FORMAT = "%-70s \t %12d \t %12.4f \t %12.4f %n"
-const val DEFAULT_HEADER_FORMAT = "%-70s \t %12s \t %12s \t %12s %n"
-val D2FORMAT = DecimalFormat(".##")
+const val DEFAULT_ROW_FORMAT: String = "%-70s \t %12d \t %12.4f \t %12.4f %n"
+const val DEFAULT_HEADER_FORMAT: String = "%-70s \t %12s \t %12s \t %12s %n"
+val D2FORMAT: DecimalFormat = DecimalFormat(".##")
 
 /**
  * A class to help with making useful statistical reports. Creates summary
@@ -63,13 +63,13 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * Indicate whether to have time/date on the report
      * true means yes
      */
-    var timeDateFlag = false
+    var timeDateFlag : Boolean = false
 
     /**
      *
      * true means labeling is on report
      */
-    var reportLabelFlag = true
+    var reportLabelFlag : Boolean = true
 
     /**
      * Sets the report title. The title appears as the first line of any report.
@@ -635,7 +635,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      *  with the key being the name of the statistic
      */
     fun confidenceIntervals(level: Double = 0.95): Map<String, Interval>{
-        return StatisticReporter.confidenceIntervals(this.myStats, level)
+        return confidenceIntervals(this.myStats, level)
     }
 
     companion object{

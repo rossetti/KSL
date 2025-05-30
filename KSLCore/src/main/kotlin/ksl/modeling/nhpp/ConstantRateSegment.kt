@@ -36,40 +36,40 @@ class ConstantRateSegment(crLower: Double, tLower: Double, duration: Double, rat
     /** the lower limit of the interval on the timescale
      *
      */
-    override val timeRangeLowerLimit = tLower
+    override val timeRangeLowerLimit: Double = tLower
 
     /** the width of the interval on the timescale (tWidth = tUL - tLL)
      *
      */
-    override val timeRangeWidth = duration
+    override val timeRangeWidth : Double = duration
 
     /** the upper limit of the interval on the timescale
      *
      */
-    override val timeRangeUpperLimit
+    override val timeRangeUpperLimit: Double
         get() = timeRangeLowerLimit + timeRangeWidth
 
     /**
      * the rate for the interval
      *
      */
-    override val rateAtLowerTimeLimit = rate
+    override val rateAtLowerTimeLimit : Double = rate
 
     /** the lower limit of the interval on cumulative rate scale
      *
      */
-    override val cumulativeRateLowerLimit = crLower
+    override val cumulativeRateLowerLimit : Double = crLower
 
     /** the upper limit of the interval on the cumulative rate scale
      *
      */
-    override val cumulativeRateUpperLimit
+    override val cumulativeRateUpperLimit: Double
         get() = cumulativeRateLowerLimit + rateAtLowerTimeLimit * timeRangeWidth
 
     /** the width of the interval on the cumulative rate scale (crWidth = crUL - crLL)
      *
      */
-    override val cumulativeRateIntervalWidth
+    override val cumulativeRateIntervalWidth: Double
         get() = cumulativeRateUpperLimit - cumulativeRateLowerLimit
 
     override fun instance(): ConstantRateSegment {

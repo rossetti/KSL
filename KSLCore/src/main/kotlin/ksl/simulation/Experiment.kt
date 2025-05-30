@@ -110,14 +110,14 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
     /**
      * The current number of replications that have been run for this experiment
      */
-    override var currentReplicationNumber = 0
+    override var currentReplicationNumber : Int = 0
         protected set
 
     /**
      * The specified length of each planned replication for this experiment. The
      * default is Double.POSITIVE_INFINITY.
      */
-    override var lengthOfReplication = Double.POSITIVE_INFINITY
+    override var lengthOfReplication : Double = Double.POSITIVE_INFINITY
         set(value) {
             require(value > 0.0) { "Simulation replication length must be > 0.0" }
             field = value
@@ -127,7 +127,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
      * The length of time from the start of an individual replication to the
      * warm-up event for that replication.
      */
-    override var lengthOfReplicationWarmUp = 0.0 // zero is no warmup
+    override var lengthOfReplicationWarmUp : Double = 0.0 // zero is no warmup
         set(value) {
             require(value >= 0.0) { "Warmup time cannot be less than zero" }
             field = value

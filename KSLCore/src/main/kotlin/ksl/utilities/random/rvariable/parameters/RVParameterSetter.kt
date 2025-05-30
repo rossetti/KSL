@@ -85,7 +85,7 @@ class RVParameterSetter(private val model: Model) {
     /**
      *  The id of the associated model
      */
-    val modelId = model.id
+    val modelId: Int = model.id
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -381,7 +381,7 @@ class RVParameterSetter(private val model: Model) {
          * Assumed as "." by default
          */
  //       var rvParamConCatString = "_PARAM_"
-        var rvParamConCatChar = '.'
+        var rvParamConCatChar: Char = '.'
 
         /**
          *  Splits the key into two strings based on the [catChar] regular expression. Since the

@@ -48,10 +48,10 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
         parameters(theMean, theVariance)
     }
 
-    override var mean = theMean
+    override var mean : Double = theMean
         private set
 
-    override var variance = theVariance
+    override var variance : Double = theVariance
         private set
 
     /** Sets the parameters of a lognormal distribution to
@@ -73,35 +73,35 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
         normalStdDev = sqrt(ln(d / t))
     }
 
-    override fun mean() = mean
+    override fun mean() : Double = mean
 
-    override fun variance() = variance
+    override fun variance() : Double = variance
 
     /** The mean of the underlying normal
      *
      * @return mean of the underlying normal
      */
-    var normalMean = 0.0
+    var normalMean : Double = 0.0
         private set
 
     /** The standard deviation of the underlying normal
      *
      * @return standard deviation of the underlying normal
      */
-    var normalStdDev = 0.0
+    var normalStdDev : Double = 0.0
         private set
 
     /** The variance of the underlying normal
      *
      * @return variance of the underlying normal
      */
-    val normalVariance = normalStdDev * normalStdDev
+    val normalVariance : Double = normalStdDev * normalStdDev
 
     /** Provides a normal distribution with correct parameters
      * as related to this lognormal distribution
      * @return The Normal distribution
      */
-    fun normal() = Normal(normalMean, normalStdDev * normalStdDev)
+    fun normal() : Normal = Normal(normalMean, normalStdDev * normalStdDev)
 
     /** Constructs a lognormal distribution with
      * mean = parameters[0] and variance = parameters[1]

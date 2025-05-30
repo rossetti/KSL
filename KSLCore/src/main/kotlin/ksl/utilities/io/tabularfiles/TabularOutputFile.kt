@@ -64,7 +64,7 @@ class TabularOutputFile(
      * This may or may not provide any benefit. The static methods related to this functionality
      * can be used to recommend a reasonable batch size.
      */
-    var maxRowsInBatch = 0
+    var maxRowsInBatch : Int = 0
         set(numRows) {
             require(numRows > 0) { "The number of rows in a batch must be > 0" }
             field = numRows
@@ -296,7 +296,7 @@ class TabularOutputFile(
         /** The assumed length of the longest text column. For performance
          * optimization purposes only. Must be 0 or more
          */
-        var defaultTextSize = 32
+        var defaultTextSize : Int = 32
             set(value) {
                 require(value >= 0) { "The text size must be >= 0" }
                 field = value

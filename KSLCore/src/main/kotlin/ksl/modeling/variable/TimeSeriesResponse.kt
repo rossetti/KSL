@@ -280,7 +280,7 @@ class TimeSeriesResponse(
         controlType = ControlType.INTEGER,
         lowerBound = 1.0
     )
-    var numPeriodsToCollect = numPeriods
+    var numPeriodsToCollect : Int = numPeriods
         set(value) {
             require(value >= 1) {"The number of periods to collect must be >= 1"}
             require(model.isNotRunning) {"The model must not be running when changing the number of periods to collect."}

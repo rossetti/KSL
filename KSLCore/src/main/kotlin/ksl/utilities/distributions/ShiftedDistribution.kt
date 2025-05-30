@@ -44,7 +44,7 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
 
 //    protected var myLossFunctionDistribution: LossFunctionDistributionIfc? = null
 
-    var shift = theShift
+    var shift : Double = theShift
         set(value) {
             require(value >= 0.0) { "The shift should not be < 0.0" }
             field = value

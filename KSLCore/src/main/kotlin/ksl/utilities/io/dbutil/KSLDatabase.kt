@@ -1361,13 +1361,13 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     companion object {
-        val TableNames = listOf(
+        val TableNames: List<String> = listOf(
             "time_series_response", "frequency", "histogram",
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
             "rv_parameter", "control", "model_element", "simulation_run", "experiment"
         )
 
-        val ViewNames = listOf(
+        val ViewNames: List<String> = listOf(
             "within_rep_response_view", "within_rep_counter_view", "within_rep_view", "exp_stat_rep_view",
             "across_rep_view", "batch_stat_view", "pw_diff_within_rep_view"
         )

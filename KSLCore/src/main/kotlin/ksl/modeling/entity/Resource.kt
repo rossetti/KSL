@@ -63,7 +63,7 @@ open class Resource(
     /**
      *  Tracks which queues have requests targeting the resource
      */
-    protected val myCapacityChangeQSet = mutableSetOf<RequestQ>()
+    protected val myCapacityChangeQSet: MutableSet<RequestQ> = mutableSetOf<RequestQ>()
 
     final override var initialRequestQueueNotificationRule: RequestQueueNotificationRuleIfc = DefaultRequestQueueNotificationRule
         set(value) {
@@ -96,7 +96,7 @@ open class Resource(
      *  The key to this map represents the entities that are using the resource.
      *  The element of this map represents the list of allocations allocated to the entity.
      */
-    protected val entityAllocations: MutableMap<ProcessModel.Entity, MutableList<Allocation>> = mutableMapOf()
+    protected val entityAllocations: MutableMap<Entity, MutableList<Allocation>> = mutableMapOf()
 
     protected val allocationListeners: MutableList<AllocationListenerIfc> = mutableListOf()
 
@@ -168,7 +168,7 @@ open class Resource(
         }
     }
 
-    protected val myCapacity =
+    protected val myCapacity: TWResponse =
         TWResponse(this, name = "${this.name}:NumActiveUnits", initialValue = capacity.toDouble())
 
     val numActiveUnits: TWResponseCIfc
@@ -205,7 +205,7 @@ open class Resource(
         controlType = ControlType.INTEGER,
         lowerBound = 0.0
     )
-    override var initialCapacity = capacity
+    override var initialCapacity : Int = capacity
         set(value) {
             require(value >= 0) { "The initial capacity of the resource must be >= 0" }
             if (model.isRunning) {
@@ -229,7 +229,7 @@ open class Resource(
             }
         }
 
-    override var capacity = capacity
+    override var capacity : Int = capacity
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
@@ -245,7 +245,7 @@ open class Resource(
             instantUtilTW.value = instantaneousUtil
         }
 
-    protected val myNumBusy = TWResponse(this, "${this.name}:NumBusyUnits")
+    protected val myNumBusy: TWResponse = TWResponse(this, "${this.name}:NumBusyUnits")
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
@@ -253,7 +253,7 @@ open class Resource(
     override val scheduledUtil: ResponseCIfc
         get() = myFractionBusy
 
-    protected val mySeizeCounter = Counter(this, name = "${this.name}:SeizeCount")
+    protected val mySeizeCounter: Counter = Counter(this, name = "${this.name}:SeizeCount")
     override val seizeCounter: CounterCIfc
         get() = mySeizeCounter
 
@@ -403,7 +403,7 @@ open class Resource(
      *  Checks if the entity is using (has allocated units) of the resource.
      * @param entity the entity that might be using the resource
      */
-    fun isUsing(entity: ProcessModel.Entity): Boolean {
+    fun isUsing(entity: Entity): Boolean {
         return entityAllocations.contains(entity)
     }
 
@@ -414,7 +414,7 @@ open class Resource(
      * @param entity the entity that might be using the resource
      * @return the count of the number of distinct allocations
      */
-    fun numberOfAllocations(entity: ProcessModel.Entity): Int {
+    fun numberOfAllocations(entity: Entity): Int {
         return if (!isUsing(entity)) {
             0
         } else {
@@ -427,7 +427,7 @@ open class Resource(
      * @return the list of allocations associated with the entity's use of the resource,
      * which may be empty if the entity is not using the resource
      */
-    fun allocations(entity: ProcessModel.Entity): List<Allocation> {
+    fun allocations(entity: Entity): List<Allocation> {
         if (!isUsing(entity)) {
             return emptyList()
         }
@@ -451,7 +451,7 @@ open class Resource(
      * @param entity the entity that might be using the resource
      * @return the total amount requested over all the distinct allocations
      */
-    fun totalAmountAllocated(entity: ProcessModel.Entity): Int {
+    fun totalAmountAllocated(entity: Entity): Int {
         return if (!isUsing(entity)) {
             0
         } else {
@@ -541,7 +541,7 @@ open class Resource(
      * to this allocation is necessary in order to deallocate the allocated units.
      */
     fun allocate(
-        entity: ProcessModel.Entity,
+        entity: Entity,
         amountNeeded: Int = 1,
         queue: RequestQ,
         allocationName: String? = null
@@ -612,7 +612,7 @@ open class Resource(
         }
     }
 
-    protected var myNoticeCount = 0
+    protected var myNoticeCount : Int = 0
     protected var myCapacitySchedule: CapacitySchedule? = null
 
     protected var myCapacityChangeListener: CapacityChangeListenerIfc? = null
@@ -637,7 +637,7 @@ open class Resource(
      * allocate units when capacity changes are pending because released
      * busy units will be used to fill the capacity change.
      */
-    val isPendingCapacityChange
+    val isPendingCapacityChange : Boolean
         get() = myCurrentChangeNotice != null
 
     override fun afterReplication() {
@@ -1086,7 +1086,7 @@ open class Resource(
             require(duration > 0.0) { "The duration must be > 0.0" }
         }
 
-        val id = ++myNoticeCount
+        val id : Int = ++myNoticeCount
 
         var changeEvent: KSLEvent<CapacityChangeNotice>? = null
             internal set

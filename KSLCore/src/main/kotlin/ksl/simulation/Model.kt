@@ -18,6 +18,7 @@
 
 package ksl.simulation
 
+import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -99,7 +100,7 @@ class Model(
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
      */
-    var repLengthWarningMessageOption = true
+    var repLengthWarningMessageOption : Boolean = true
 
     /**
      *  The base time units for the simulation model. By default, this is 1.0.
@@ -1206,12 +1207,12 @@ class Model(
             myExperiment.experimentalControls = value
         }
 
-    override val currentReplicationNumber
+    override val currentReplicationNumber : Int
         get() = myExperiment.currentReplicationNumber
 
-    override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
+    override fun hasExperimentalControls() : Boolean = myExperiment.hasExperimentalControls()
 
-    override fun hasMoreReplications() = myExperiment.hasMoreReplications()
+    override fun hasMoreReplications() : Boolean = myExperiment.hasMoreReplications()
 
     override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
         myExperiment.changeRunParameters(runParameters)
@@ -1459,7 +1460,7 @@ class Model(
         /**
          * A global logger for logging
          */
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }
 

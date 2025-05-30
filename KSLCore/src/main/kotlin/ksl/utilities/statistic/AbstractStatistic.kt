@@ -17,7 +17,7 @@
  */
 package ksl.utilities.statistic
 
-const val DEFAULT_CONFIDENCE_LEVEL = 0.95
+const val DEFAULT_CONFIDENCE_LEVEL : Double = 0.95
 
 /**
  *  Statistical collection defines a datum as missing if
@@ -52,7 +52,7 @@ abstract class AbstractStatistic(name: String? = null) : Collector(name), Statis
      * resetting this value.
      *
      */
-    override var numberMissing = 0.0
+    override var numberMissing : Double = 0.0
         protected set
 
     override fun reset() {

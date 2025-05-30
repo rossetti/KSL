@@ -159,7 +159,7 @@ class Solutions(
         /**
          *  The default capacity for solutions. By default, 100.
          */
-        var defaultCapacity = 100
+        var defaultCapacity : Int = 100
             set(value) {
                 require(value >= 1) { "The minimum capacity is 1" }
                 field = value

@@ -18,6 +18,7 @@
 
 package ksl.utilities.io
 
+import io.github.oshai.kotlinlogging.KLogger
 import ksl.utilities.KSLArrays
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.Closeable
@@ -55,7 +56,7 @@ class CSVRowIterator(
  */
 object CSVUtil {
 
-    val logger = KotlinLogging.logger {}
+    val logger: KLogger = KotlinLogging.logger {}
 
     /**
      * Reads all rows from a csv file that may have the first row as a header

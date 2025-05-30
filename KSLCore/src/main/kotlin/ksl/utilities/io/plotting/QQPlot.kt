@@ -13,9 +13,9 @@ class QQPlot(
 ) : BasePlot() {
 
     var empDistType: EmpDistType = EmpDistType.Continuity1
-    val orderStats = data.orderStatistics()
+    val orderStats: DoubleArray = data.orderStatistics()
 
-    val empiricalProbabilities
+    val empiricalProbabilities: DoubleArray
         get() = Statistic.empiricalProbabilities(orderStats.size, empDistType)
 
     val empiricalQuantiles: DoubleArray

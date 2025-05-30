@@ -58,7 +58,7 @@ class RectangularGridSpatialModel2D(
         require(height > 0.0) { "The height must be > 0.0" }
     }
 
-    var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
+    var defaultLocationPrecision : Double = KSLMath.defaultNumericalPrecision
         set(precision) {
             require(precision > 0.0) { "The precision must be > 0.0." }
             field = precision
@@ -671,7 +671,7 @@ class RectangularGridSpatialModel2D(
         /**
          * The grid that this cell is from
          */
-        val grid = this@RectangularGridSpatialModel2D
+        val grid: RectangularGridSpatialModel2D = this@RectangularGridSpatialModel2D
 
         /**
          * @return Returns the cell's Row Index.

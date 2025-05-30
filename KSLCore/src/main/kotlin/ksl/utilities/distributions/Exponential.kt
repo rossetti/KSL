@@ -46,9 +46,9 @@ class Exponential(mean: Double = 1.0, name: String? = null) : Distribution(name)
     }
 
     /**
-     * mean of the distribution, must be &gt; 0.0
+     * mean of the distribution must be &gt; 0.0
      */
-    override var mean = mean
+    override var mean : Double = mean
         set(value) {
             require(value > 0.0) { "Exponential mean must be > 0.0" }
             field = value

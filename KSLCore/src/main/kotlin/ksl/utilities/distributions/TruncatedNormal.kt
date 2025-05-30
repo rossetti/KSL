@@ -40,15 +40,15 @@ class TruncatedNormal(
         setLimits(normalMean, normalVariance, interval)
     }
 
-    val lowerLimit
+    val lowerLimit : Double
         get() = myInterval.lowerLimit
 
-    val upperLimit
+    val upperLimit : Double
         get() = myInterval.upperLimit
 
-    var cdfAtLowerLimit = 0.0
+    var cdfAtLowerLimit : Double = 0.0
         private set
-    var cdfAtUpperLimit = 0.0
+    var cdfAtUpperLimit : Double = 0.0
         private set
 
     private val myDeltaFUFL
@@ -93,7 +93,7 @@ class TruncatedNormal(
         myInterval = interval.instance()
     }
 
-    val interval
+    val interval : Interval
         get() = myInterval.instance()
 
     var normalMean: Double

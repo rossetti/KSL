@@ -18,6 +18,7 @@
 
 package ksl.simulation
 
+import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.utilities.exceptions.KSLEventException
@@ -52,7 +53,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
 
     internal var endEvent: KSLEvent<Nothing>? = null
 
-    var terminationWarningMsgOption = true
+    var terminationWarningMsgOption : Boolean = true
 
     /**
      * Controls the execution of events over time
@@ -111,46 +112,46 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
         return flag
     }
 
-    val isInitialized
+    val isInitialized : Boolean
         get() = eventExecutionProcess.isInitialized
 
-    val isUnfinished
+    val isUnfinished : Boolean
         get() = eventExecutionProcess.isUnfinished
 
-    val isRunning
+    val isRunning : Boolean
         get() = eventExecutionProcess.isRunning
 
-    val isEnded
+    val isEnded : Boolean
         get() = eventExecutionProcess.isEnded
 
-    val isDone
+    val isDone : Boolean
         get() = eventExecutionProcess.isDone
 
-    val allEventsExecuted
+    val allEventsExecuted : Boolean
         get() = eventExecutionProcess.allStepsCompleted
 
-    val isEndConditionMet
+    val isEndConditionMet : Boolean
         get() = eventExecutionProcess.stoppedByCondition
 
-    val beginExecutionTime
+    val beginExecutionTime: Instant
         get() = eventExecutionProcess.beginExecutionTime
 
-    val endedExecutionTime
+    val endedExecutionTime: Instant
         get() = eventExecutionProcess.endExecutionTime
 
-    val elapsedExecutionTime
+    val elapsedExecutionTime: Duration
         get() = eventExecutionProcess.elapsedExecutionTime
 
-    var maximumAllowedExecutionTime
+    var maximumAllowedExecutionTime: Duration
         get() = eventExecutionProcess.maximumAllowedExecutionTime
         set(value) {
             eventExecutionProcess.maximumAllowedExecutionTime = value
         }
 
-    val stoppingMessage
+    val stoppingMessage : String?
         get() = eventExecutionProcess.stoppingMessage
 
-    val isExecutionTimeExceeded
+    val isExecutionTimeExceeded: Boolean
         get() = eventExecutionProcess.isExecutionTimeExceeded
 
     internal fun initialize() {

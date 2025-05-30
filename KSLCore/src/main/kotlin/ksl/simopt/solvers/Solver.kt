@@ -1,5 +1,6 @@
 package ksl.simopt.solvers
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
@@ -83,7 +84,7 @@ abstract class Solver(
     ) : this(evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
 
     /**
-     *  The outer iterative process. See [ksl.simulation.IterativeProcess] for
+     *  The outer iterative process. See [IterativeProcess] for
      *  the iterative process pattern.
      */
     private val myMainIterativeProcess = MainIterativeProcess()
@@ -192,7 +193,7 @@ abstract class Solver(
      *  The maximum number of iterations permitted for the main loop. This must be
      *  greater than 0.
      */
-    var maximumNumberIterations = maximumIterations
+    var maximumNumberIterations : Int = maximumIterations
         set(value) {
             require(value > 0) { "maximum number of main iterations must be > 0" }
             field = value
@@ -210,7 +211,7 @@ abstract class Solver(
     /**
      *  Returns how many iterations of the main loop have been executed.
      */
-    var iterationCounter = 0
+    var iterationCounter : Int = 0
         private set
 
     /**
@@ -723,6 +724,6 @@ abstract class Solver(
     }
 
     companion object {
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }
