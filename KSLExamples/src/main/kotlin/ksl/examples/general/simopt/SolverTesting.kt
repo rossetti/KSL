@@ -99,7 +99,7 @@ fun makeProblemDefinition() : ProblemDefinition {
 
 //    println("Random Starting Points:")
 //    for (i in 1..5) {
-//        val point  = problemDefinition.startingPoint()
+//        val point = problemDefinition.startingPoint()
 //        println(point)
 //    }
     return problemDefinition
