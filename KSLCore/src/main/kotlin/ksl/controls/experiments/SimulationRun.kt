@@ -63,6 +63,9 @@ class SimulationRun private constructor(
         inputs = inputs
     )
 
+    val numberOfReplications: Int
+        get() = experimentRunParameters.numberOfReplications
+
     /** Use primarily for printing out run results
      *
      * @return a StatisticReporter with the summary statistics of the run
