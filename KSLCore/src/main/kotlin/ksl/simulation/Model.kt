@@ -679,7 +679,7 @@ class Model(
                 myRandomElements.remove(modelElement as RandomElementIfc)
             }
             if (modelElement is Variable) {
-                if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
+                if (Variable::class == modelElement::class) {
                     myVariables.remove(modelElement)
                 }
             }
@@ -742,7 +742,7 @@ class Model(
         }
 
         if (modelElement is Variable) {
-            if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
+            if (Variable::class == modelElement::class) {
                 myVariables.add(modelElement)
             }
         }
