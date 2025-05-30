@@ -170,6 +170,7 @@ class SimulationProvider(
         // make an empty response map to hold the estimated responses
         val responseNames = request.responseNames
         //TODO if response names is empty this will not work!!!!
+        // if the response names is empty then return all responses in the response map
         val responseMap = ResponseMap(responseNames)
         // fill the response map
         for (name in responseNames) {
