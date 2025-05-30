@@ -130,18 +130,39 @@ class SimulationProvider(
     override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in requests) {
-            executionCounter++
-            //TODO insert logic to use the cache instead of run the simulation
-
-            executeSimulation(request, results)
+            if (cacheSimulationRuns && useCachedSimulationRuns) {
+                // use the cache instead of run the simulation
+                respondFromCache(request, results)
+            } else {
+                executeSimulation(request, results)
+            }
         }
         return results
+    }
+
+    private fun respondFromCache(
+        request: RequestData,
+        results: MutableMap<RequestData, ResponseMap>
+    ) {
+        // check if the request is in the cache
+        if (simulationRunCache.containsKey(request)) {
+            // check if it has the appropriate number of replications
+            val requestedReplications = request.numReplications
+            val simulationRun = simulationRunCache[request]!!
+            if (requestedReplications <= simulationRun.numberOfReplications) {
+                captureResults(request, results, simulationRun)
+            }
+            return
+        }
+        // if it is not in the cache, then execute the simulation
+        executeSimulation(request, results)
     }
 
     private fun executeSimulation(
         request: RequestData,
         results: MutableMap<RequestData, ResponseMap>
     ) {
+        executionCounter++
         // update experiment name on the model and number of replications
         model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
         model.numberOfReplications = request.numReplications
