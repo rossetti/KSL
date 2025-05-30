@@ -130,6 +130,7 @@ class SimulationProvider(
     override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in requests) {
+            //TODO validate request??
             if (cacheSimulationRuns && useCachedSimulationRuns) {
                 // use the cache instead of run the simulation
                 respondFromCache(request, results)
@@ -150,7 +151,7 @@ class SimulationProvider(
             val requestedReplications = request.numReplications
             val simulationRun = simulationRunCache[request]!!
             if (requestedReplications <= simulationRun.numberOfReplications) {
-                captureResults(request, results, simulationRun)
+                captureResults(request, simulationRun, results)
             }
             return
         }
@@ -179,7 +180,7 @@ class SimulationProvider(
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
         // capture the simulation results
-        captureResults(request, results, simulationRun)
+        captureResults(request, simulationRun, results)
         // add the SimulationRun to the simulation run cache
         if (cacheSimulationRuns) {
             simulationRunCache.put(request, simulationRun)
@@ -190,8 +191,8 @@ class SimulationProvider(
 
     private fun captureResults(
         request: RequestData,
-        results: MutableMap<RequestData, ResponseMap>,
-        simulationRun: SimulationRun
+        simulationRun: SimulationRun,
+        results: MutableMap<RequestData, ResponseMap>
     ) {
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
