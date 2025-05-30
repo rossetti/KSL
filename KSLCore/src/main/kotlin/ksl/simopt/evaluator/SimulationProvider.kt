@@ -42,7 +42,7 @@ class SimulationProvider(
      *
      * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
      * @param cacheSimulationRuns Indicates whether the simulation run results should be cached to improve performance during repetitive runs. Default is false.
-     * @param useDb Specifies whether a database should be utilized for storing simulation-related results. Default is false.
+     * @param useDb Specifies whether a database should be used for storing simulation-related results. Default is false.
      * @param clearDataBeforeExperimentOption If true, clears any pre-existing data before running a new experiment. Default is false.
      */
     constructor(
@@ -74,8 +74,8 @@ class SimulationProvider(
 
     /**
      *  The KSLDatabase used to capture model execution results. The names of the experiments
-     *  are based on the name of the associated ProblemDefinition, as
-     *  "ProblemDefinition.name_Exp_k", where k is the current value of the execution counter.
+     *  are based on the name of the associated RequestData, as
+     *  "request.modelIdentifier_Exp_k", where k is the current value of the execution counter.
      */
     var kslDb: KSLDatabase? = null
         private set
