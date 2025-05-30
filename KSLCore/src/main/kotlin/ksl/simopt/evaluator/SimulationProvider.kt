@@ -167,13 +167,15 @@ class SimulationProvider(
     ) {
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
+        // if the request's response name set is empty then return all responses from the simulation run
+        val responseNames = request.responseNames.ifEmpty {
+            simulationRun.results.keys
+        }
         // make an empty response map to hold the estimated responses
-        val responseNames = request.responseNames
-        //TODO if response names is empty this will not work!!!!
-        // if the response names is empty then return all responses in the response map
         val responseMap = ResponseMap(responseNames)
         // fill the response map
         for (name in responseNames) {
+            // this should have been checked when validating the request
             require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
             // get the data from the simulation
             val data = replicationData[name]!!
