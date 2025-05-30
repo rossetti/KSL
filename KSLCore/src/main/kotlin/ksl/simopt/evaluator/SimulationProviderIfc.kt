@@ -2,8 +2,6 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SimulationRunCacheIfc
 
-//typealias SimulationCases = Map<EvaluationRequest, ResponseMap>
-
 /**
  *  An interface that promises to run simulations on
  *  instances of input/output pairs. The keys of the map are
@@ -37,5 +35,26 @@ interface SimulationProviderIfc {
      */
     fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
 
+    /**
+     *  Indicates if the model identified by the modelIdentifier is valid. That is,
+     *  this provider can perform simulation runs on the model.
+     *
+     *  @param modelIdentifier the identifier of the model. This should be the unique name of the model.
+     */
+    fun isModelValid(modelIdentifier: String): Boolean
+
+    /**
+     *  Indicates if the request is valid. The request is valid if
+     *  1. The model is valid.
+     *  2. The input names
+     *  3. Response names are valid.
+     *
+     *  Empty input names and response names are valid.
+     *  Input names or response names that are not associated with the model are not valid.
+     *
+     *  @param request the request to validate. If the input names and response names are not specified,
+     *  then the current input settings of the model will be used and all responses from the simulation will be returned.
+     */
+    fun isRequestValid(request: RequestData): Boolean
 
 }
