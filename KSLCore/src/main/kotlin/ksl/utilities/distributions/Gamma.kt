@@ -49,7 +49,7 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     /**
      *  the shape must be greater than 0.0
      */
-    var shape = shape
+    var shape : Double = shape
         set(value) {
             require(value > 0) { "Shape parameter must be positive" }
             field = value
@@ -58,7 +58,7 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     /**
      *  the scale must be greater than 0.0
      */
-    var scale = scale
+    var scale : Double = scale
         set(value) {
             require(value > 0) { "Scale parameter must be positive" }
             field = value
@@ -280,22 +280,22 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     }
 
     companion object {
-        const val DEFAULT_MAX_ITERATIONS = 5000
+        const val DEFAULT_MAX_ITERATIONS : Int = 5000
 
         /**
          * The maximum number of iterations permitted for the incomplete gamma function
          * evaluation process
          */
-        const val INC_GAMMA_MAX_ITERATIONS = 5000
+        const val INC_GAMMA_MAX_ITERATIONS : Int = 5000
 
         /**
          *  The maximum number of iterations permitted in the chi-square cdf computation
          */
-        const val CHISQ_CDF_SERIES_MAX_ITERATIONS = 500
+        const val CHISQ_CDF_SERIES_MAX_ITERATIONS : Int = 500
 
         private val sqrt2Pi = sqrt(2.0 * PI)
 
-        const val X_BIG = 40.0
+        const val X_BIG : Double = 40.0
 
         private val coefficients = doubleArrayOf(
             76.18009172947146, -86.50532032941677, 24.01409824083091,

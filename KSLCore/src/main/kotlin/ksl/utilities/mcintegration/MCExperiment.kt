@@ -70,27 +70,27 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     override var printInitialOption: Boolean = false
 
-    protected val macroReplicationStatistics = Statistic()
+    protected val macroReplicationStatistics: Statistic = Statistic()
 
-    protected val replicationStatistics = Statistic()
+    protected val replicationStatistics: Statistic = Statistic()
 
-    protected val mcReplication = sampler
+    protected val mcReplication: MCReplicationIfc? = sampler
 
-    override var initialSampleSize = 30
+    override var initialSampleSize : Int = 30
         set(value) {
             require(value >= 2.0) { "The initial sample size must be >= 2" }
             field = value
         }
 
-    override var desiredHWErrorBound = 0.001
+    override var desiredHWErrorBound : Double = 0.001
         set(value) {
             require(value > 0.0) { "The desired relative precision must be > 0.0" }
             field = value
         }
 
-    override var resetStreamOption = false
+    override var resetStreamOption : Boolean = false
 
-    override var microRepSampleSize = 100
+    override var microRepSampleSize : Int = 100
         set(value) {
             require(value > 0.0) { "The micro replication sample size must be >= 1" }
             field = value

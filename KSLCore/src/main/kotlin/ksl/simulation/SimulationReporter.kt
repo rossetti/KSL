@@ -21,6 +21,10 @@
  */
 package ksl.simulation
 
+import ksl.modeling.variable.CounterCIfc
+import ksl.modeling.variable.FrequencyResponseCIfc
+import ksl.modeling.variable.HistogramResponseCIfc
+import ksl.modeling.variable.ResponseCIfc
 import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.toDataFrame
@@ -71,7 +75,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the list
      */
-    val responses
+    val responses: List<ResponseCIfc>
         get() = model.responses
 
     /**
@@ -79,7 +83,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the list
      */
-    val counters
+    val counters: List<CounterCIfc>
         get() = model.counters
 
     /**
@@ -87,7 +91,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the list
      */
-    val histograms
+    val histograms: List<HistogramResponseCIfc>
         get() = model.histograms
 
     /**
@@ -95,7 +99,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the list
      */
-    val frequencies
+    val frequencies: List<FrequencyResponseCIfc>
         get() = model.frequencies
 
     /**

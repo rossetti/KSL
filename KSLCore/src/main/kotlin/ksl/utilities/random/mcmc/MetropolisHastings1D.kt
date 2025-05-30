@@ -93,42 +93,42 @@ class MetropolisHastings1D(
      *
      * @return the current state (x) of the process
      */
-    var currentX = 0.0
+    var currentX : Double = 0.0
         protected set
 
     /**
      *
      * @return the last proposed state (y)
      */
-    var proposedY = 0.0
+    var proposedY : Double = 0.0
         protected set
 
     /**
      *
      * @return the previous state (x) of the process
      */
-    var previousX = 0.0
+    var previousX : Double = 0.0
         protected set
 
     /**
      *
      * @return the last value of the computed probability of acceptance
      */
-    var lastAcceptanceProbability = 0.0
+    var lastAcceptanceProbability : Double = 0.0
         protected set
 
     /**
      *
      * @return the last value of the target function evaluated at the proposed state (y)
      */
-    var targetFunctionAtProposedY = 0.0
+    var targetFunctionAtProposedY : Double = 0.0
         protected set
 
     /**
      *
      * @return the last value of the target function evaluated at the current state (x)
      */
-    var targetFunctionAtCurrentX = 0.0
+    var targetFunctionAtCurrentX : Double = 0.0
         protected set
 
     /**

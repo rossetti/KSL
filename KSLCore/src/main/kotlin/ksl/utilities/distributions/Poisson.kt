@@ -41,12 +41,12 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
      * done by recursive (iterative) algorithm based on logarithms
      * or via beta incomplete function and binomial coefficients.
      */
-    var useRecursiveAlgorithm = true
+    var useRecursiveAlgorithm : Boolean = true
 
     /**
      * the mean (parameter) of the poisson
      */
-    var mean = theMean
+    var mean : Double = theMean
         set(value) {
             require(value > 0.0) { "Mean must be > 0)" }
             field = value
@@ -210,7 +210,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
         /** Used in the calculation of the incomplete gamma function
          *
          */
-        const val DEFAULT_MAX_ITERATIONS = 5000
+        const val DEFAULT_MAX_ITERATIONS : Int = 5000
 
         /**
          *  @param moments the moments to check

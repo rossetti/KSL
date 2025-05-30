@@ -48,7 +48,7 @@ class StateFrequency(numStates: Int, name: String? = null) : IdentityIfc by Iden
      *
      * @return the last state number observed
      */
-    var lastValue = 0
+    var lastValue : Int = 0
         private set
 
     /**

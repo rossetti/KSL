@@ -34,7 +34,7 @@ class DoublePairArraySaver : ObserverIfc<Pair<Double, Double>> {
      * The default increment for the array size
      *
      */
-    var arraySizeIncrement = 1000
+    var arraySizeIncrement : Int = 1000
         set(value) {
             require(value > 0) { "Default array growth size must be > 0" }
             field = value

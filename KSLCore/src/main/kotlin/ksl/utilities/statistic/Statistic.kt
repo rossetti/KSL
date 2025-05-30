@@ -77,10 +77,10 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
 
     private var myMax = Double.NEGATIVE_INFINITY
 
-    override var negativeCount = 0.0
+    override var negativeCount : Double = 0.0
         private set
 
-    override var zeroCount = 0.0
+    override var zeroCount : Double = 0.0
         private set
 
     init {
@@ -244,7 +244,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the 2nd statistical raw moment (about zero)
      */
-    val rawMoment2 = myMoments[2] + average * average
+    val rawMoment2 : Double = myMoments[2] + average * average
 
     /**
      * Returns the 3rd statistical raw moment (about zero)

@@ -41,13 +41,13 @@ abstract class DistributionGOF(
 
     final override val histogram: HistogramIfc = Histogram.create(data, breakPoints)
 
-    final override val breakPoints = histogram.breakPoints
+    final override val breakPoints: DoubleArray = histogram.breakPoints
 
-    final override val binCounts = histogram.binCounts
+    final override val binCounts: DoubleArray = histogram.binCounts
 
-    final override val chiSquaredTestDOF = histogram.numberBins - 1 - numEstimatedParameters
+    final override val chiSquaredTestDOF: Int = histogram.numberBins - 1 - numEstimatedParameters
 
-    final override val chiSquaredTestStatistic
+    final override val chiSquaredTestStatistic: Double
         get() = Statistic.chiSqTestStatistic(binCounts, expectedCounts)
 
     final override val chiSquaredPValue: Double

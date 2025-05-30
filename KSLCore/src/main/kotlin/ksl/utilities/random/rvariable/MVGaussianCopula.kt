@@ -44,7 +44,7 @@ class MVGaussianCopula @JvmOverloads constructor(
     private val mvNormalRV: MVNormalRV = MVNormalRV.createStandardMVN(correlation, streamNum, streamProvider)
     private val myCorrelation = correlation
 
-    val correlations
+    val correlations: Array<DoubleArray>
         get() =  myCorrelation.copyOf()
 
     override val dimension: Int

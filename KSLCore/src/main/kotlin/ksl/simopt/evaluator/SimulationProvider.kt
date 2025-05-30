@@ -98,7 +98,7 @@ class SimulationProvider(
      *  Used to count the number of times that the simulation model is executed. Each execution can
      *  be considered a different experiment
      */
-    var executionCounter = 0
+    var executionCounter : Int = 0
         private set
 
     init {

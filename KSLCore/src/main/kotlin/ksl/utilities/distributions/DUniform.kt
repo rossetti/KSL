@@ -55,20 +55,20 @@ class DUniform(min: Int = 0, max: Int = 1, name: String? = null) :
     /** The distribution's lower limit
      * @return The lower limit
      */
-    var minimum = min
+    var minimum :Int = min
         private set
 
     /** The distribution's upper limit
      * @return The upper limit
      */
-    var maximum = max
+    var maximum : Int = max
         private set
 
     /** The discrete maximum - minimum + 1
      *
      * @return the returned range
      */
-    val range = maximum - minimum + 1
+    val range : Int = maximum - minimum + 1
 
     override fun instance(): DUniform {
         return DUniform(minimum, maximum)

@@ -88,7 +88,7 @@ object KSLRandom {
     /**
      *  The default stream number for the underlying provider
      */
-    val defaultStreamNumber
+    val defaultStreamNumber: Int
         get() = DefaultRNStreamProvider.defaultStreamNumber
 
     /**

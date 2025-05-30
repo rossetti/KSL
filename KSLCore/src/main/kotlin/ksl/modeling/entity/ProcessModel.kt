@@ -18,6 +18,7 @@
 
 package ksl.modeling.entity
 
+import io.github.oshai.kotlinlogging.KLogger
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.queue.Queue
 import ksl.simulation.KSLEvent
@@ -48,7 +49,7 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
  * the entity will try to use its sequence to run the next process (if available). Individual
  * processes can be activated for specific entities.
  *
- * See **[ksl.modeling.entity.KSLProcessBuilder]** for documentation on the functionality provided for processes.
+ * See **[KSLProcessBuilder]** for documentation on the functionality provided for processes.
  *
  * @param parent the parent model element
  * @param name an optional name for the process model
@@ -3111,70 +3112,70 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  The default queuing priority. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        const val QUEUE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val QUEUE_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for seizing resources. The default is KSLEvent.VERY_HIGH_PRIORITY
          */
-        const val SEIZE_PRIORITY = KSLEvent.HIGH_PRIORITY
+        const val SEIZE_PRIORITY : Int = KSLEvent.HIGH_PRIORITY
 
         /**
          *  The default priority for requesting movable resources. The default is KSLEvent.HIGH_PRIORITY
          */
-        const val TRANSPORT_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val TRANSPORT_REQUEST_PRIORITY : Int = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for requesting conveyor cells. The default is KSLEvent.HIGH_PRIORITY
          */
-        const val CONVEYOR_REQUEST_PRIORITY = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val CONVEYOR_REQUEST_PRIORITY : Int = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for releasing conveyor cells. The default is KSLEvent.VERY_HIGH_PRIORITY + 9.
          *  This makes the priority slightly less than very high.
          */
-        const val CONVEYOR_EXIT_PRIORITY = KSLEvent.HIGH_PRIORITY + 9
+        const val CONVEYOR_EXIT_PRIORITY : Int = KSLEvent.HIGH_PRIORITY + 9
 
         /**
          *  The default priority for time delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val DELAY_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val DELAY_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for move delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val MOVE_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val MOVE_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for queueing for signals. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        const val WAIT_FOR_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val WAIT_FOR_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_HIGH_PRIORITY - 10.
          */
-        const val RESUME_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY
+        const val RESUME_PRIORITY : Int = KSLEvent.VERY_HIGH_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_VERY_HIGH_PRIORITY - 9.
          *  This makes the priority slightly higher than VERY_VERY_HIGH.
          */
-        const val RELEASE_PRIORITY = KSLEvent.VERY_HIGH_PRIORITY - 9
+        const val RELEASE_PRIORITY : Int = KSLEvent.VERY_HIGH_PRIORITY - 9
 
         /**
          *  The default priority for interrupt delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val INTERRUPT_PRIORITY = KSLEvent.MEDIUM_PRIORITY
+        const val INTERRUPT_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for yielding control to the executive. The default is KSLEvent.LOW_PRIORITY.
          */
-        const val YIELD_PRIORITY = KSLEvent.MEDIUM_LOW_PRIORITY
+        const val YIELD_PRIORITY : Int = KSLEvent.MEDIUM_LOW_PRIORITY
 
         /**
          *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
          */
-        const val BLOCKAGE_PRIORITY = KSLEvent.HIGH_PRIORITY - 10
+        const val BLOCKAGE_PRIORITY : Int = KSLEvent.HIGH_PRIORITY - 10
 
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }

@@ -1896,7 +1896,7 @@ object KSLArrays {
      */
     fun abs(array: DoubleArray) {
         for (i in array.indices) {
-            array[i] = kotlin.math.abs(array[i])
+            array[i] = abs(array[i])
         }
     }
 
@@ -2610,7 +2610,7 @@ object KSLArrays {
  * @author rossetti@uark.edu
  */
 
-inline fun <reified T> matrixOfNulls(n: Int, m: Int) = Array(n) { arrayOfNulls<T>(m) }
+inline fun <reified T> matrixOfNulls(n: Int, m: Int): Array<Array<T?>> = Array(n) { arrayOfNulls<T>(m) }
 
 inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
     return Array(lists.size) { row -> lists[row].toTypedArray() }

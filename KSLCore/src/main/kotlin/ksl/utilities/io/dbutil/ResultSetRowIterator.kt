@@ -16,7 +16,7 @@ class ResultSetRowIterator(private val resultSet: ResultSet) : Iterator<List<Any
         private set
     private var didNext: Boolean = false
     private var hasNext: Boolean = false
-    val columnCount = resultSet.metaData?.columnCount ?: 0
+    val columnCount: Int = resultSet.metaData?.columnCount ?: 0
 
     override fun hasNext(): Boolean {
         if (!didNext) {

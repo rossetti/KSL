@@ -72,7 +72,7 @@ class TimeWeightedStatistic(
     private var myLastValue: Double
     private var myLastTime: Double
     private val myWeightedStatistic: WeightedStatistic
-    var updateTimeAtReset = true
+    var updateTimeAtReset: Boolean = true
 
     init {
         require(initialTime >= 0.0) { "The initial time must be >= 0.0" }

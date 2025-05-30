@@ -42,13 +42,13 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         require(theScale > 0) { "Scale parameter must be positive" }
     }
 
-    var shape = theShape
+    var shape : Double = theShape
         set(value) {
             require(value > 0) { "Shape parameter must be positive" }
             field = value
         }
 
-    var scale = theScale
+    var scale : Double = theScale
         set(value) {
             require(value > 0) { "Scale parameter must be positive" }
             field = value

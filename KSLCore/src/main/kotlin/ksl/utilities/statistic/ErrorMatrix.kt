@@ -22,7 +22,7 @@ data class Classification(val actual: Double, val predicted: Double) {
     constructor(actual: Int, predicted: Int) : this(actual.toDouble(), predicted.toDouble())
     constructor(actual: Boolean, predicted: Boolean) : this(actual.toDouble(), predicted.toDouble())
 
-    val classification
+    val classification : ErrorResult
         get() = ErrorMatrix.classify(actual, predicted)
 }
 

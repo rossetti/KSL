@@ -138,7 +138,7 @@ class MemorySolutionCache(
         /**
          *  The default size for caches. By default, 1000.
          */
-        var defaultCacheSize = 1000
+        var defaultCacheSize : Int = 1000
             set(value) {
                 require(value >= 2) {"The minimum cache size is 2"}
                 field = value

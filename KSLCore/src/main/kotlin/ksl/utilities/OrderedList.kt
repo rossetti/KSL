@@ -35,7 +35,7 @@ class OrderedList<T : Comparable<T>> {
 //    private val myList: MutableList<T> = LinkedList()
     private val myList: MutableList<T> = mutableListOf()
 
-    val size = myList.size
+    val size : Int = myList.size
 
     /** The elements are added and the list is changed to maintain the order
      *

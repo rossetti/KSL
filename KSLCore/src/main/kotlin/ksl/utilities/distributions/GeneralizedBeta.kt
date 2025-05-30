@@ -50,10 +50,10 @@ class GeneralizedBeta(
 
     private val myBeta = Beta(alphaShape, betaShape)
 
-    var min = minimum
+    var min : Double = minimum
         private set
 
-    var max = maximum
+    var max : Double = maximum
         private set
 
     val range: Double

@@ -1,6 +1,7 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.moda.AdditiveMODAModel
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.statistic.Statistic
 import org.jetbrains.kotlinx.dataframe.AnyFrame
@@ -16,7 +17,7 @@ data class PDFModelingResults(
     val scoringResults: List<ScoringResult>,
     val evaluationModel: AdditiveMODAModel
 ) {
-    val resultsSortedByScoring
+    val resultsSortedByScoring: List<ScoringResult>
         get() = scoringResults.sorted()
 
     /**
@@ -35,21 +36,21 @@ data class PDFModelingResults(
     /**
      *  The top result according to the scoring evaluation model.
      */
-    val topResultByScore
+    val topResultByScore: ScoringResult
         get() = resultsSortedByScoring.first()
 
     /**
      *  The top result according to the scoring evaluation model
      *  specified as the type of random variable.
      */
-    val topRVTypeByScore
+    val topRVTypeByScore: RVParametersTypeIfc
         get() = topResultByScore.rvType
 
     /**
      *  The results sorted by the average ranking of the metrics
      */
-    val resultsSortedByAvgRanking
-            get() = scoringResults.sortedBy { it.averageRanking }
+    val resultsSortedByAvgRanking: List<ScoringResult>
+        get() = scoringResults.sortedBy { it.averageRanking }
 
     /**
      *  Display all the fitting results based on the results
@@ -86,7 +87,7 @@ data class PDFModelingResults(
      *  The top result according to the average ranking of the metrics
      *  specified as the type of random variable.
      */
-    val topRVTypeByRanking
+    val topRVTypeByRanking: RVParametersTypeIfc
         get() = topResultByRanking.rvType
 
     /**

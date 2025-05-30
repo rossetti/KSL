@@ -23,7 +23,7 @@ data class ObservationDataDb(
 ) : DbTableData("tblObservations", keyFields = listOf("id"), autoIncField = false) {
 
     companion object {
-        var obsCounter = 0
+        var obsCounter : Int = 0
     }
 }
 

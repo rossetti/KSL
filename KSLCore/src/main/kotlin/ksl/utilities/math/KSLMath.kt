@@ -17,6 +17,7 @@
  */
 package ksl.utilities.math
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.distributions.Gamma
 import kotlin.math.*
@@ -34,7 +35,7 @@ object KSLMath {
     /**
      *  Use for general logging
      */
-    val logger = KotlinLogging.logger {}
+    val logger: KLogger = KotlinLogging.logger {}
 
     /**
      * holds initial factorials
@@ -67,7 +68,7 @@ object KSLMath {
      *
      *
      */
-    var maxNumIterations = 200
+    var maxNumIterations : Int = 200
         set(iterations) {
             require(iterations > 0) { "The number of iterations must be > 0, recommended at least 100." }
             field = iterations
@@ -76,12 +77,12 @@ object KSLMath {
     /**
      * Radix used by floating-point numbers.
      */
-    val radix = computeRadix()
+    val radix : Int = computeRadix()
 
     /**
      * Largest positive value which, when added to 1.0, yields 0.
      */
-    val machinePrecision = computeMachinePrecision()
+    val machinePrecision : Double= computeMachinePrecision()
 
     /**
      * The default numerical precision. This represents an estimate of the
@@ -90,39 +91,39 @@ object KSLMath {
      * between them is less than the default numerical precision. This value has
      * been defined as the square root of the machine precision
      */
-    val defaultNumericalPrecision = sqrt(machinePrecision)
+    val defaultNumericalPrecision: Double = sqrt(machinePrecision)
 
     /**
      * Largest positive value which, when subtracted to 1.0, yields 0.
      */
-    val negativeMachinePrecision = computeNegativeMachinePrecision()
+    val negativeMachinePrecision: Double = computeNegativeMachinePrecision()
 
     /**
      * Smallest number different from zero.
      */
-    val smallestNumber = computeSmallestNumber()
+    val smallestNumber: Double = computeSmallestNumber()
 
     /**
      * Largest possible number
      */
-    val largestNumber = computeLargestNumber()
+    val largestNumber: Double = computeLargestNumber()
 
     /**
      * Typical meaningful small number for numerical calculations.
      * A number that can be added to some value without noticeably
      * changing the result of the computation
      */
-    val smallNumber = sqrt(smallestNumber)
+    val smallNumber: Double = sqrt(smallestNumber)
 
     /**
      * Largest argument for an exponential
      */
-    val largestExponentialArgument = ln(largestNumber)
+    val largestExponentialArgument : Double= ln(largestNumber)
 
     /**
      * Smallest argument for the exponential
      */
-    val smallestExponentialArgument = ln(smallestNumber)
+    val smallestExponentialArgument: Double = ln(smallestNumber)
 
     private fun computeRadix(): Int {
         var a = 1.0

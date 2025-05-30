@@ -40,12 +40,12 @@ class LinearRateSegment(
     /** the rate at the lower limit of the interval
      *
      */
-    override val rateAtLowerTimeLimit = rateLL
+    override val rateAtLowerTimeLimit : Double = rateLL
 
     /**
      * the rate at the upper limit of the interval
      */
-    override val rateAtUpperTimeLimit = rateUL
+    override val rateAtUpperTimeLimit : Double = rateUL
 
     override val timeRangeLowerLimit: Double = timeLL
 
@@ -65,7 +65,7 @@ class LinearRateSegment(
     /**
      * the slope of the rate function for the interval
      */
-    val slope
+    val slope : Double
         get() = (rateAtUpperTimeLimit - rateAtLowerTimeLimit) / timeRangeWidth
 
     override fun instance(): LinearRateSegment {

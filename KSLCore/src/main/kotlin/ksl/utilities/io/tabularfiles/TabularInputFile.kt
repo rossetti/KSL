@@ -54,7 +54,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
     internal val myDb: DatabaseIfc
     private val dataTableName: String
 
-    var rowBufferSize = DEFAULT_ROW_BUFFER_SIZE // maximum number of records held inside iterators
+    var rowBufferSize : Int = DEFAULT_ROW_BUFFER_SIZE // maximum number of records held inside iterators
         set(value) {
             if (value <= 0) {
                 field = DEFAULT_ROW_BUFFER_SIZE
@@ -148,9 +148,9 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
             require(startingRowNum > 0) { "The starting row number must be > 0" }
         }
 
-        var currentRowNum = startingRowNum - 1
+        var currentRowNum : Long = startingRowNum - 1
             private set
-        var remainingNumRows = totalNumberRows - currentRowNum
+        var remainingNumRows : Long = totalNumberRows - currentRowNum
             private set
         private var myBufferedRows: List<RowGetterIfc>
         private var myRowIterator: Iterator<RowGetterIfc>
@@ -412,7 +412,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
     }
 
     companion object {
-        const val DEFAULT_ROW_BUFFER_SIZE = 100
+        const val DEFAULT_ROW_BUFFER_SIZE : Int = 100
 
         /**
          * Gets the metadata for an existing TabularInputFile.  The path must lead

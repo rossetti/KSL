@@ -56,7 +56,7 @@ class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
     /**
      * Desired precision. The default is 0.0001.
      */
-    var desiredPrecision = 0.0001
+    var desiredPrecision : Double = 0.0001
         set(value) {
             require(value > 0) { "The desired precision must be > 0: $value" }
             field = value
@@ -65,7 +65,7 @@ class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
     /**
      * Maximum allowed number of iterations. The default is 100.
      */
-    var maximumIterations = 100
+    var maximumIterations : Int = 100
         set(value) {
             require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
@@ -75,7 +75,7 @@ class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
      *  The factor used to form initial search interval around initial MOM estimate of the shape.
      *  The default is 3.0, as in a 3-sigma range.
      */
-    var intervalFactor = 3.0
+    var intervalFactor : Double = 3.0
         set(value) {
             require(value >= 1.0) { "The desired precision must be > 1.0: $value" }
             field = value
@@ -85,7 +85,7 @@ class GammaMLEParameterEstimator(name: String? = "GammaMLEParameterEstimator") :
      *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
-    var defaultZeroTolerance = 0.001
+    var defaultZeroTolerance : Double = 0.001
         set(value) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value

@@ -78,22 +78,22 @@ abstract class RootFinder(
     /**
      * Value at which the function's value is negative.
      */
-    protected var xNeg = 0.0
+    protected var xNeg : Double = 0.0
 
     /**
      * Value at which the function's value is positive.
      */
-    protected var xPos = 0.0
+    protected var xPos : Double = 0.0
 
     /**
      * The value of the function at xNeg
      */
-    protected var fNeg = 0.0
+    protected var fNeg : Double = 0.0
 
     /**
      * The value of the function at xPos
      */
-    protected var fPos = 0.0
+    protected var fPos : Double = 0.0
 
     init {
         setUpSearch(aFunction, anInterval, anInitialPoint)
@@ -188,13 +188,13 @@ abstract class RootFinder(
          * Used in the methods for finding intervals
          *
          */
-        const val numIterations = 50
+        const val numIterations : Int = 50
 
         /**
          * used in the methods for finding intervals
          *
          */
-        const val searchFactor = 1.6
+        const val searchFactor : Double = 1.6
 
         /**
          * Returns true if the supplied interval contains a root

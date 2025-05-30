@@ -21,8 +21,8 @@ package ksl.utilities.io.dbutil
 import java.sql.Types
 import javax.sql.rowset.CachedRowSet
 
-fun isEven(value: Int) = value % 2 == 0
-fun isOdd(value: Int) = value % 2 == 1
+fun isEven(value: Int) : Boolean = value % 2 == 0
+fun isOdd(value: Int) : Boolean = value % 2 == 1
 
 class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "%.3f") : Iterable<List<String>> {
 
@@ -36,14 +36,14 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
     /**
      *  the number of rows in the row set
      */
-    val numRows = rowSet.size()
+    val numRows : Int = rowSet.size()
 
     /**
      * @return the list of column names
      */
     val columnNames: List<String>
 
-    var paddingSize = DEFAULT_PADDING
+    var paddingSize: Int = DEFAULT_PADDING
 
     val rowSeparator: String
 
@@ -51,7 +51,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
 
     val header: String
 
-    val columnMetaData = DatabaseIfc.columnMetaData(rowSet)
+    val columnMetaData: List<ColumnMetaData> = DatabaseIfc.columnMetaData(rowSet)
 
     init {
         val columnCount = columnMetaData.size
@@ -218,11 +218,11 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
          * Default maximum width for text columns
          * (like a `VARCHAR`) column.
          */
-        var DEFAULT_MAX_COL_WIDTH = 32
+        var DEFAULT_MAX_COL_WIDTH : Int = 32
 
-        var DEFAULT_PADDING = 2
+        var DEFAULT_PADDING : Int = 2
 
-        var DEFAULT_MIN_COL_WIDTH = 12
+        var DEFAULT_MIN_COL_WIDTH : Int = 12
             set(value) {
                 field = if (value <= 4){
                     4
@@ -288,7 +288,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
     }
 
     inner class DbColumn(val index: Int, val name: String, val type: Int, val typeName: String) {
-        val textType = textType(type)
+        val textType: TextType = textType(type)
         val width: Int
             get() {
                 val w = name.length + 2 * paddingSize

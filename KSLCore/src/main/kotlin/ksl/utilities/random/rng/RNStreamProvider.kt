@@ -18,6 +18,7 @@
 
 package ksl.utilities.random.rng
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
@@ -46,7 +47,7 @@ class RNStreamProvider(
         }
     }
 
-    override var streamNumberWarningLimit = 5000
+    override var streamNumberWarningLimit : Int = 5000
         set(value) {
             require(value > 0) { "The stream number warning limit must be at least 1" }
             field = value
@@ -78,7 +79,7 @@ class RNStreamProvider(
         return stream
     }
 
-    override fun lastRNStreamNumber() = myStreams.size
+    override fun lastRNStreamNumber() : Int = myStreams.size
 
     override fun rnStream(i: Int): RNStreamIfc {
         if (i == 0) {
@@ -159,6 +160,6 @@ class RNStreamProvider(
     }
 
     companion object {
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }

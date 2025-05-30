@@ -36,7 +36,7 @@ data class Solution(
     val iterationNumber: Int
 ) : Comparable<Solution>, FeasibilityIfc by inputMap {
 
-    val id = solutionCounter++
+    val id : Int = solutionCounter++
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
@@ -96,13 +96,13 @@ data class Solution(
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
-    val objFuncComparator
+    val objFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
-    val penalizedObjFuncComparator
+    val penalizedObjFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.penalizedObjFncValue }
 
     /**
@@ -262,7 +262,7 @@ data class Solution(
     }
 
     companion object {
-        var solutionCounter = 0
+        var solutionCounter : Int = 0
             private set
     }
 }

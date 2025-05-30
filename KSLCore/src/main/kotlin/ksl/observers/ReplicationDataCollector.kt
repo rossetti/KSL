@@ -62,7 +62,7 @@ class ReplicationDataCollector(
     /**
      * the number of replications collected so far
      */
-    var numReplications = 0
+    var numReplications : Int = 0
         private set
     private val modelObserver: ModelObserver = ModelObserver()
 

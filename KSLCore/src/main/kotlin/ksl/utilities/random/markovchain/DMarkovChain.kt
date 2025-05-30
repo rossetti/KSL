@@ -89,16 +89,16 @@ open class DMarkovChain(
         return cdf
     }
 
-    protected val myTransProb = transMatrix.copyOf()
-    val transitionMatrix
+    protected val myTransProb: Array<DoubleArray> = transMatrix.copyOf()
+    val transitionMatrix: Array<DoubleArray>
         get() = myTransProb.copyOf()
-    val transCDF
+    val transCDF: Array<DoubleArray>
         get() = myCDFs.copyOf()
 
     /**
      *  The initial starting state of the chain
      */
-    var initialState = theInitialState
+    var initialState: Int = theInitialState
         set(value) {
             require(myStates.hasElement(value)) { " The initial state, $value is not a valid state" }
             field = value
@@ -107,7 +107,7 @@ open class DMarkovChain(
     /**
      *  The current state, with no transition implied. In other words, the last generated state
      */
-    var state = initialState
+    var state: Int = initialState
         protected set
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): DMarkovChain {

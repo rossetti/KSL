@@ -19,7 +19,7 @@ If no database name is provided then an in-memory database is created.
 class DuckDbDataSource(var databaseName: String = "") : DataSource {
 
     companion object {
-        val PREFIX = "jdbc:duckdb:"
+        val PREFIX : String = "jdbc:duckdb:"
 
         init {
             Class.forName("org.duckdb.DuckDBDriver")

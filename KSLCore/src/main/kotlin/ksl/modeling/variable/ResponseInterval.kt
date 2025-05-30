@@ -75,7 +75,7 @@ class ResponseInterval(
         /**
          * Need to ensure that end event happens before schedule end
          */
-        const val END_EVENT_PRIORITY = START_EVENT_PRIORITY - 5
+        const val END_EVENT_PRIORITY : Int = START_EVENT_PRIORITY - 5
     }
 
     /**
@@ -163,7 +163,7 @@ class ResponseInterval(
      * The repeat flag controls whether the interval will repeat after its duration has elapsed.
      * The default is false.
      */
-    var repeatFlag = false
+    var repeatFlag : Boolean = false
 
     /**
      * Adds a ResponseVariable to the interval for data collection over the

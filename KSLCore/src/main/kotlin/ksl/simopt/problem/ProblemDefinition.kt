@@ -202,7 +202,7 @@ class ProblemDefinition(
     /**
      * The maximum number of iterations when sampling for an input feasible point
      */
-    var maxFeasibleSamplingIterations = defaultMaximumFeasibleSamplingIterations
+    var maxFeasibleSamplingIterations : Int = defaultMaximumFeasibleSamplingIterations
         set(value) {
             require(value > 0) { "The maximum number of samples is $value, must be > 0" }
             field = value
@@ -840,7 +840,7 @@ class ProblemDefinition(
         /**
          *  The default maximum number of iterations for when sampling for a feasible input point
          */
-        var defaultMaximumFeasibleSamplingIterations = 10000
+        var defaultMaximumFeasibleSamplingIterations : Int = 10000
             set(value) {
                 require(value >= 1) { "The default maximum number of iterations for sampling must be > 0" }
                 field = value

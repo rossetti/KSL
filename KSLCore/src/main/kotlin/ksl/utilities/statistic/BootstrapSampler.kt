@@ -102,23 +102,23 @@ open class BootstrapSampler(
     /**
      * @return the estimate from the supplied MVBSEstimatorIfc based on the original data
      */
-    val originalDataEstimate = estimator.estimate(originalData)
+    val originalDataEstimate: DoubleArray = estimator.estimate(originalData)
 
     // use to perform the sampling from the original data
     protected val myOriginalPop: DPopulation = DPopulation(originalData, streamNumber, streamProvider)
 
     // collects statistics along each dimension of the multi-variate estimates from the bootstrap samples
-    protected val myAcrossBSStat = MVStatistic(estimator.names)
+    protected val myAcrossBSStat: MVStatistic = MVStatistic(estimator.names)
 
     // if requested holds the bootstrap samples
-    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    protected val myBSArrayList: MutableList<DoubleArraySaver> = mutableListOf<DoubleArraySaver>()
 
     /** Holds the estimated values (for each dimension) from the bootstrap samples.
      * When the MVEstimator is applied to each bootstrap sample, it results in an array of estimates
      * from the sample. This list holds those arrays. It is cleared whenever new
      * samples are generated and then filled during the bootstrapping process.
      */
-    protected val myBSEstimates = mutableListOf<DoubleArray>()
+    protected val myBSEstimates: MutableList<DoubleArray> = mutableListOf<DoubleArray>()
 
     /**
      *  Returns an 2-D array representation of the estimates from

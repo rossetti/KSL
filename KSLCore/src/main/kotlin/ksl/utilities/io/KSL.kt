@@ -18,6 +18,7 @@
 
 package ksl.utilities.io
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 import java.io.File
@@ -27,12 +28,12 @@ import java.util.*
 
 object KSL {
 
-    fun randomUUIDString() = UUID.randomUUID().toString()
+    fun randomUUIDString() : String = UUID.randomUUID().toString()
 
     /**
      * A global logger for logging
      */
-    val logger = KotlinLogging.logger {}
+    val logger: KLogger = KotlinLogging.logger {}
 
     /**
      * Used to assign unique enum constants
@@ -44,35 +45,35 @@ object KSL {
     /**
      *  Use with println(), but it goes to a file called kslOutput.txt
      */
-    val out = myOutputDir.out
+    val out: LogPrintWriter = myOutputDir.out
 
     /**
      *
      * the path to the base directory
      */
-    val outDir = myOutputDir.outDir
+    val outDir: Path = myOutputDir.outDir
 
     /**
      *
-     * the path to the default excel directory
+     * the path to the default Excel directory
      */
-    val excelDir = myOutputDir.excelDir
+    val excelDir: Path = myOutputDir.excelDir
 
     /**
      *
      * the path to the default database directory
      */
-    val dbDir = myOutputDir.dbDir
+    val dbDir: Path = myOutputDir.dbDir
 
     /**
-     *  the path to the default comma separated value file directory
+     *  the path to the default comma-separated value file directory
      */
-    val csvDir = myOutputDir.csvDir
+    val csvDir: Path = myOutputDir.csvDir
 
     /**
      *  the path to the default file directory for plotting output
      */
-    val plotDir = myOutputDir.plotDir
+    val plotDir: Path = myOutputDir.plotDir
 
     /**
      * Should be used by classes to get the next constant
