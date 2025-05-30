@@ -124,31 +124,40 @@ class SimulationProvider(
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in requests) {
             executionCounter++
-            // update experiment name on the model and number of replications
-            model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-            model.numberOfReplications = request.numReplications
-            if (request.experimentRunParameters != null) {
-                // update the name and the number of replications on the supplied parameters
-                request.experimentRunParameters.experimentName = model.experimentName
-                request.experimentRunParameters.numberOfReplications = model.numberOfReplications
-            }
-            Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
-            //run the simulation
-            val simulationRun = mySimulationRunner.simulate(
-                request.inputs,
-                request.experimentRunParameters ?: model.extractRunParameters()
-            )
-            Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
-            // capture the simulation results
-            captureResults(request, results, simulationRun)
-            // add the SimulationRun to the simulation run cache
-            if (cacheSimulationRuns) {
-                simulationRunCache.put(request, simulationRun)
-            }
-            // reset the model run parameters back to their original values
-            model.changeRunParameters(myOriginalExpRunParams)
+            //TODO insert logic to use the cache instead of run the simulation
+
+            executeSimulation(request, results)
         }
         return results
+    }
+
+    private fun executeSimulation(
+        request: RequestData,
+        results: MutableMap<RequestData, ResponseMap>
+    ) {
+        // update experiment name on the model and number of replications
+        model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
+        model.numberOfReplications = request.numReplications
+        if (request.experimentRunParameters != null) {
+            // update the name and the number of replications on the supplied parameters
+            request.experimentRunParameters.experimentName = model.experimentName
+            request.experimentRunParameters.numberOfReplications = model.numberOfReplications
+        }
+        Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
+        //run the simulation
+        val simulationRun = mySimulationRunner.simulate(
+            request.inputs,
+            request.experimentRunParameters ?: model.extractRunParameters()
+        )
+        Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
+        // capture the simulation results
+        captureResults(request, results, simulationRun)
+        // add the SimulationRun to the simulation run cache
+        if (cacheSimulationRuns) {
+            simulationRunCache.put(request, simulationRun)
+        }
+        // reset the model run parameters back to their original values
+        model.changeRunParameters(myOriginalExpRunParams)
     }
 
     private fun captureResults(
