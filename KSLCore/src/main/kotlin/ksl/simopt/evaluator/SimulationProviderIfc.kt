@@ -73,6 +73,7 @@ interface SimulationProviderIfc {
      *  @param request the request to validate. If the input names and response names are not specified,
      *  then the current input settings of the model will be used and all responses from the simulation will be returned.
      */
+    @Suppress("unused")
     fun isRequestValid(request: RequestData): Boolean {
         if (!isModelValid(request.modelIdentifier)) return false
         // check input names
