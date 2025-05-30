@@ -16,6 +16,12 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *
  *  @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
+ *  @param cacheSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
+ *  default is false.  Since the provider may execute thousands of simulations and simulation runs have significant
+ *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
+ *  access to all inputs and output responses from every execution.
+ * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding to requests. The
+ * default is false. If the simulation runs are not cached, this option has no effect.
  *  @param useDb if true, a database to capture simulation output is configured. The default is false.
  *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
  *  relevant if useDb is true. The default is false. Data will not be cleared if multiple simulations of the
@@ -24,15 +30,12 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  input execution to be captured in the database. In the context of simulation optimization, you may only want the
  *  last provided execution. In that case, set the clear option to true. Then, the database will be cleared prior
  *  to each execution, leaving only the last execution in the database.
- *  @param cacheSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
- *  default is false.  Since the provider may execute thousands of simulations and simulation runs have significant
- *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
- *  access to all inputs and output responses from every execution.
  */
 @Suppress("unused")
 class SimulationProvider(
     val model: Model,
     override var cacheSimulationRuns: Boolean = false,
+    override var useCachedSimulationRuns: Boolean = false,
     useDb: Boolean = false,
     clearDataBeforeExperimentOption: Boolean = false
 ) : SimulationProviderIfc {
@@ -42,17 +45,21 @@ class SimulationProvider(
      *
      * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
      * @param cacheSimulationRuns Indicates whether the simulation run results should be cached to improve performance during repetitive runs. Default is false.
+     * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding to requests. The
+     * default is false. If the simulation runs are not cached, this option has no effect.
      * @param useDb Specifies whether a database should be used for storing simulation-related results. Default is false.
      * @param clearDataBeforeExperimentOption If true, clears any pre-existing data before running a new experiment. Default is false.
      */
     constructor(
         modelCreator: () -> Model,
         cacheSimulationRuns: Boolean = false,
+        useCachedSimulationRuns: Boolean = false,
         useDb: Boolean = false,
         clearDataBeforeExperimentOption: Boolean = false
     ) : this(
         model = modelCreator(),
         cacheSimulationRuns = cacheSimulationRuns,
+        useCachedSimulationRuns = useCachedSimulationRuns,
         useDb = useDb,
         clearDataBeforeExperimentOption = clearDataBeforeExperimentOption
     )

@@ -15,6 +15,11 @@ import ksl.simopt.cache.SimulationRunCacheIfc
 interface SimulationProviderIfc {
 
     /**
+     *  Indicates if the simulation provider should use cached simulation runs
+     *  when responding to requests.
+     */
+    var useCachedSimulationRuns: Boolean
+    /**
      *  Indicates if the simulation provider should cache simulation runs.
      */
     var cacheSimulationRuns: Boolean
