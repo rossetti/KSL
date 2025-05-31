@@ -194,7 +194,7 @@ class SimulationRunner(
      *  experiment may have fewer than the given [size] but at least 1
      *  replication. The experiments are ordered in the list such that the replication identifiers
      *  for each experiment are ordered from 1 to the number of replications [numReplications]
-     *  @param size the number of replications in each experiment, must be positive. If greater than
+     *  @param size the number of replications in each experiment must be positive. If greater than
      *  the number of replications, there will be 1 chunk containing all replications
      */
     fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
