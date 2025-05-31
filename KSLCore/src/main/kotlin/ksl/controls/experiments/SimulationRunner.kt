@@ -79,6 +79,7 @@ class SimulationRunner(
     /**
      *  @param modelCreator a function that will create the model that will be executed
      */
+    @Suppress("unused")
     constructor(modelCreator: () -> Model) : this(modelCreator())
 
     /**
