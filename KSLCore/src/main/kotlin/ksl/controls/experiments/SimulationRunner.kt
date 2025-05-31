@@ -40,7 +40,7 @@ import java.io.StringWriter
  *  executing the simulate() function. This will facilitate the identification of the experiment
  *  associated with the simulation run within databases and other output mechanisms.
  *
- *  The second issue is the specification of the map of inputs. This map of (String, Double)
+ *  The second issue is the specification for the map of inputs. This map of (String, Double)
  *  pairs represents the inputs to the simulation model as specified by controls and the
  *  parameters of random variables within the model. The naming convention is important to note.
  *  For controls, by default, the key to associate with the value is the model element's name
@@ -68,7 +68,7 @@ import java.io.StringWriter
  *  unique name. Thus, if you plan to control a specific random variable's parameters, you
  *  should strongly consider providing an explicit name. To get the names (and current values)
  *  of the random variable parameters, you can print out the toString() method of the
- *  RVParameterSetter class after obtaining it from the model via the model's rvParameterSetter
+ *  RVParameterSetter class after getting it from the model via the model's rvParameterSetter
  *  property.
  *
  */
