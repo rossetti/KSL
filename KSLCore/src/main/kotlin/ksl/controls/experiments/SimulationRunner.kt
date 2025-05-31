@@ -197,6 +197,7 @@ class SimulationRunner(
      *  @param size the number of replications in each experiment must be positive. If greater than
      *  the number of replications, there will be 1 chunk containing all replications
      */
+    @Suppress("unused")
     fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
         require(numReplications >= 1) { "The number of replications must be >= 1" }
         // make the range for chunking
