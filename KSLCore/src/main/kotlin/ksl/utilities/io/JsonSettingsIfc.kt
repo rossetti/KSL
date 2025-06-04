@@ -13,9 +13,9 @@ interface JsonSettingsIfc<out T> {
     fun currentSettings() : T
 
     /**
-     *  Uses the supplied JSON string to configure the schedule via CapacityScheduleData
+     *  Uses the supplied JSON string to configure the object using the Json string
      *
-     *  @param json a valid JSON encoded string representing CapacityScheduleData
+     *  @param json a valid JSON encoded string representing the object
      */
     fun configureFromJson(json: String) : T
 
