@@ -965,7 +965,7 @@ class Model(
         myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
-    //called from simulation, so internal
+    //called from ReplicationProcess, so internal
     internal fun setUpExperiment() {
         logger.info { "Setting up experiment $experimentName for the simulation." }
         ModelElement.logger.info { "Setting up experiment $experimentName for the simulation." }
