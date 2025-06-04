@@ -112,7 +112,7 @@ class SimulationProvider(
      *  Causes the execution counter to be reset to 0. Care must be taken if a database is used to
      *  collect simulation results. The names of the experiments are based on the value of the counter. An
      *  error will occur if multiple experiments have the same name in the database. You will likely want
-     *  to export and clear the data from the database prior running additional simulations.
+     *  to export and clear the data from the database before running additional simulations.
      */
     @Suppress("unused")
     fun resetExecutionCounter() {
