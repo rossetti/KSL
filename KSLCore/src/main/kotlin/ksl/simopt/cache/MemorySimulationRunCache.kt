@@ -9,10 +9,10 @@ import ksl.simopt.evaluator.SolutionData
 /**
  *  A memory-based cache to hold simulation runs.  A simplified cache to avoid including
  *  more advanced caches in the dependency tree. This cache holds simulation runs
- *  in a map based on (RequestData, SimulationRun) pairs.  The cache is capacity
+ *  in a map based on (RequestData, SimulationRun) pairs.  The cache capacity is
  *  constrained to the specified capacity.  The user can supply an eviction rule that
  *  will identify a simulation run to evict when the capacity is reached. If no eviction
- *  rule is supplied, then by default the algorithm removes the oldest simulation run.
+ *  rule is supplied, then by default, the algorithm removes the oldest simulation run.
  *  @constructor Creates an empty cache with the specified capacity.
  *  The default eviction rule is the oldest simulation run.
  *  @param capacity the maximum permitted size of the cache
@@ -30,10 +30,10 @@ class MemorySimulationRunCache private constructor(
     /**
      *  A memory-based cache to hold simulation runs.  A simplified cache to avoid including
      *  more advanced caches in the dependency tree. This cache holds simulation runs
-     *  in a map based on (RequestData, SimulationRun) pairs.  The cache is capacity
+     *  in a map based on (RequestData, SimulationRun) pairs.  The cache capacity is
      *  constrained to the specified capacity.  The user can supply an eviction rule that
      *  will identify a simulation run to evict when the capacity is reached. If no eviction
-     *  rule is supplied, then by default the algorithm removes the oldest simulation run.
+     *  rule is supplied, then by default, the algorithm removes the oldest simulation run.
      *  @constructor Creates an empty cache with the specified capacity.
      *  The default eviction rule is the oldest simulation run.
      *  @param capacity the maximum permitted size of the cache
