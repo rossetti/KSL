@@ -22,6 +22,7 @@ import ksl.controls.Controls
 import ksl.observers.ReplicationDataCollector
 import ksl.observers.SimulationTimer
 import ksl.simulation.Model
+import ksl.simulation.ModelBuilder
 import ksl.utilities.KSLArrays
 import ksl.utilities.collections.KSLMaps
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
@@ -77,10 +78,10 @@ class SimulationRunner(
 ) {
 
     /**
-     *  @param modelCreator a function that will create the model that will be executed
+     *  @param modelBuilder a function that will create the model that will be executed
      */
     @Suppress("unused")
-    constructor(modelCreator: () -> Model) : this(modelCreator())
+    constructor(modelBuilder: ModelBuilder) : this(modelBuilder())
 
     /**
      *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
