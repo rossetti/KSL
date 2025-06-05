@@ -48,7 +48,7 @@ class Model(
     var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
-//TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
+
     /**
      *
      * @return the defined OutputDirectory for the simulation
@@ -59,6 +59,17 @@ class Model(
     private var myCSVExpReport: CSVExperimentReport? = null
 
     var autoPrintSummaryReport: Boolean = false
+
+    /**
+     *  If supplied, the configuration manager will be called when the model
+     *  is set up before running any replications.
+     */
+    var modelConfigurationManager: ModelConfigurationManagerIfc? = null
+
+    /**
+     *  If supplied, the configuration used by the model configuration manager.
+     */
+    var configuration: Map<String, String>? = null
 
     /**
      *
@@ -215,7 +226,7 @@ class Model(
     }
 
     /**
-     * If the model parameters change then the user is responsible for
+     * If the model parameters change, then the user is responsible for
      * calling extractParameters(model) on the returned RVParameterSetter
      *
      * @returns a RVParameterSetter configured with the parameters of the model at
@@ -425,14 +436,14 @@ class Model(
         get() = myReplicationProcess.isStepCompleted
 
     /**
-     * Checks if the simulation is in the ended state. After the simulation has been ended this property will return true
+     * Checks if the simulation is in the ended state. After the simulation has been ended, this property will return true
      */
     @Suppress("unused")
     val isEnded: Boolean
         get() = myReplicationProcess.isEnded
 
     /**
-     * The simulation may end by a variety of means, this checks
+     * The simulation may end by a variety of means. This checks
      * if the simulation ended because it ran all of its replications, true if all completed
      */
     @Suppress("unused")
@@ -511,7 +522,7 @@ class Model(
      *
      *
      * Notes: 1) This method removes from the list of model elements. Thus, if a
-     * client attempts to use this method, via code iterating the list a
+     * client attempts to use this method, via code iterating the list, a
      * concurrent modification exception will occur.
      * 2) The user is responsible for ensuring that other references to the model
      * element are correctly handled.  If references to the model element exist within
@@ -611,7 +622,7 @@ class Model(
      *
      * @param name The name of the Response model element
      *
-     * @return the associated Response. May be null if provided name
+     * @return the associated Response. May be null if the provided name
      * does not exist in the model
      */
     fun response(name: String): Response? {
@@ -629,7 +640,7 @@ class Model(
      *
      * @param name The name of the TWResponse model element
      *
-     * @return the associated TWResponse, may be null if provided name does not exist in the model
+     * @return the associated TWResponse may be null if the provided name does not exist in the model
      */
     @Suppress("unused")
     fun timeWeightedResponse(name: String): TWResponse? {
@@ -647,7 +658,7 @@ class Model(
      *
      * @param name The name of the Counter model element
      *
-     * @return the associated Counter.  May be null if provided name
+     * @return the associated Counter.  May be null if the provided name
      * does not exist in the model
      */
     fun counter(name: String): Counter? {
@@ -768,7 +779,7 @@ class Model(
      * instances for subclasses of RandomVariable.
      *
      * @param name The name of the RandomVariable model element
-     * @return the associated random variable. May be null if provided name does
+     * @return the associated random variable. May be null if the provided name does
      * not exist in the model
      */
     fun randomVariable(name: String): RandomVariable? {
@@ -921,7 +932,7 @@ class Model(
         if (antitheticOption) {
             logger.info { "Executing handleAntitheticReplications() setup" }
             if (currentReplicationNumber % 2 == 0) {
-                // even number replication
+                // even number replications
                 // return to the beginning of sub-stream
                 resetStartSubStream()
                 // turn on antithetic sampling
@@ -979,7 +990,7 @@ class Model(
         if (antitheticOption) {
             // make sure the streams are not reset after all replications are run
             setAllResetStartStreamOptions(false)
-            // make sure that streams are not advanced to next sub-streams after each replication
+            // make sure that streams are not advanced to next sub-streams after each replication.
             // the antithetic option will control this (every other replication)
             setAllAdvanceToNextSubStreamOptions(false)
         } else {
@@ -988,7 +999,6 @@ class Model(
             setAllAdvanceToNextSubStreamOptions(advanceNextSubStreamOption)
         }
 
-        //TODO need to apply generic control types here someday
         if (hasExperimentalControls()) {
             val cMap: Map<String, Double> = experimentalControls
             // extract controls and apply them
@@ -1009,6 +1019,9 @@ class Model(
             logger.info { "Resetting random number streams to the beginning of their starting stream." }
             resetStartStream()
         }
+
+        configuration?.let { modelConfigurationManager?.configure(this, it) }
+
         beforeExperimentActions()
     }
 
@@ -1368,10 +1381,10 @@ class Model(
      *   parameters).
      *
      *  For controls, by default, the key to associate with the value is the model element's name
-     *  concatenated with the property that was annotated with the control.  For example, if
-     *  the resource had name Worker and annotated property initialCapacity, then the key
+     *  concatenated with the property annotated with the control.  For example, if
+     *  the resource had the name Worker and annotated property initialCapacity, then the key
      *  will be "Worker.initialCapacity". Note the use of the "." character to separate
-     *  the model element name and the property name.  Since, the KSL model element naming
+     *  the model element name and the property name.  Since the KSL model element naming
      *  convention requires unique names for each model element, the key will be unique for the control.
      *  However, the model element name may be a very long string depending on your approach
      *  to naming the model elements. The name associated with each control can be inspected by
