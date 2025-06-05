@@ -25,6 +25,8 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.ToJSONIfc
 import ksl.utilities.statistic.Statistic
+import kotlin.String
+import kotlin.collections.Map
 
 /**
  * A SimulationRun represents the execution of a simulation with inputs (controls and parameters),
@@ -47,6 +49,7 @@ class SimulationRun private constructor(
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
+    var modelConfiguration: Map<String, String>? = null,
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
     constructor(
@@ -54,13 +57,15 @@ class SimulationRun private constructor(
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
-        runName: String? = null
+        runName: String? = null,
+        modelConfiguration: Map<String, String>? = null
     ) : this(
         id = runId ?: KSL.randomUUIDString(),
         modelIdentifier = modelIdentifier,
         name = runName ?: (experimentRunParameters.experimentName),
         experimentRunParameters = experimentRunParameters,
-        inputs = inputs
+        inputs = inputs,
+        modelConfiguration = modelConfiguration
     )
 
     val numberOfReplications: Int
@@ -98,6 +103,19 @@ class SimulationRun private constructor(
                 sb.appendLine("key = $key")
                 sb.appendLine("value = $value")
             }
+        }
+        sb.appendLine("Model Configuration:")
+        if (modelConfiguration != null){
+            if (modelConfiguration!!.isEmpty()){
+                sb.appendLine("\t {empty}")
+            } else {
+                for ((key, value) in modelConfiguration){
+                    sb.appendLine("key = $key")
+                    sb.appendLine("value = $value")
+                }
+            }
+        } else {
+            sb.appendLine("\t None")
         }
         sb.appendLine("Results:")
         if (results.isEmpty()){

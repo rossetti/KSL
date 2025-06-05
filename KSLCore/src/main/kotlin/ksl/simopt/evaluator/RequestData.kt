@@ -18,6 +18,7 @@ import ksl.controls.experiments.ExperimentRunParameters
  *  is all responses from the model.
  *  @param experimentRunParameters an optional set of simulation run parameters for application to the model.
  *  If not supplied, then the model's current (default) settings will be used.
+ *  @param requestTime the instant that the request was constructed
  */
 @Serializable
 data class RequestData(
@@ -26,6 +27,7 @@ data class RequestData(
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
     val experimentRunParameters: ExperimentRunParameters? = null,
+    val modelConfiguration: Map<String, String>? = null,
     val requestTime: Instant = Clock.System.now()
 ) {
     init {
