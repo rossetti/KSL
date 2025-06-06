@@ -1,6 +1,9 @@
 package ksl.simopt.evaluator
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.controls.experiments.SimulationRun
+import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelProvider
@@ -49,7 +52,56 @@ class SimulationProvider2(
     }
 
     fun runSimulation(request: RequestData): Result<SimulationRun> {
-        TODO("Not implemented yet")
+        if (!isModelProvided(request.modelIdentifier)){
+            val msg = "The SimulationProvide does not provide model ${request.modelIdentifier}\n" +
+                    "request: $request"
+            logger.error { msg }
+            return Result.failure(ModelNotProvidedException(msg))
+        }
+        // check the cache before working with the model
+        var simulationRun = retrieveFromCache(request)
+        if (simulationRun != null){
+            logger.info { "SimulationProvider: results for ${request.modelIdentifier} returned from the cache" }
+            return Result.success(simulationRun)
+        }
+        // not found in the cache, need to run the model
+        val modelProvider = modelProviders[request.modelIdentifier]!!
+        val model = modelProvider.invoke()
+        simulationRun = executeSimulation(request, model)
+        if (simulationRun.runErrorMsg.isNotEmpty()){
+            logger.info { "SimulationProvider: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
+            logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+            return Result.failure(SimulationRunException(simulationRun))
+        } else {
+            // only store good simulation runs in the cache
+            // add the SimulationRun to the simulation run cache
+            simulationRunCache?.put(request, simulationRun)
+            return Result.success(simulationRun)
+        }
+    }
+
+    private fun executeSimulation(request: RequestData, model: Model) : SimulationRun {
+        executionCounter++
+        val myOriginalExpRunParams= model.extractRunParameters()
+        // update experiment name on the model and number of replications
+        model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
+        model.numberOfReplications = request.numReplications
+        if (request.experimentRunParameters != null) {
+            // update the name and the number of replications on the supplied parameters
+            request.experimentRunParameters.experimentName = model.experimentName
+            request.experimentRunParameters.numberOfReplications = model.numberOfReplications
+        }
+        logger.info { "SimulationProvider: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
+        val mySimulationRunner = SimulationRunner(model)
+        //run the simulation
+        val simulationRun = mySimulationRunner.simulate(
+            request.inputs,
+            request.experimentRunParameters ?: myOriginalExpRunParams
+        )
+        logger.info { "SimulationProvider: Completed simulation for model: ${model.name} experiment: ${model.experimentName} " }
+        // reset the model run parameters back to their original values
+        model.changeRunParameters(myOriginalExpRunParams)
+        return simulationRun
     }
 
     fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
@@ -68,6 +120,25 @@ class SimulationProvider2(
 
     fun isModelProvided(modelIdentifier: String): Boolean {
         return modelProviders.containsKey(modelIdentifier)
+    }
+
+    private fun retrieveFromCache(request: RequestData) : SimulationRun? {
+        if (simulationRunCache == null){
+            return null // no cache, return null
+        }
+        if (!useCachedSimulationRuns){
+            return null // don't use the cache, return null
+        }
+        val simulationRun = simulationRunCache[request]
+        if (simulationRun == null){
+            return null // run not found in the cache, return null
+        }
+        val requestedReplications = request.numReplications
+        return if (requestedReplications <= simulationRun.numberOfReplications) {
+            simulationRun
+        } else {
+            null // not enough replications stored in the cache, return null
+        }
     }
 
     private fun respondFromCache(
@@ -146,4 +217,19 @@ class SimulationProvider2(
         results[request] = responseMap
     }
 
+    companion object {
+        val logger: KLogger = KotlinLogging.logger {}
+    }
+
 }
+
+class ModelNotProvidedException(
+    message: String? = null,
+    cause: Throwable? = null
+) : Exception(message, cause)
+
+class SimulationRunException(
+    val simulationRun: SimulationRun,
+    message: String? = simulationRun.runErrorMsg,
+    cause: Throwable? = null
+) : Exception(message, cause)
