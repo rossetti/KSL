@@ -1,6 +1,8 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SimulationRunCacheIfc
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 /**
  *  An interface that promises to run simulations on
@@ -26,6 +28,17 @@ interface SimulationProviderIfc {
      *  Use to hold executed simulation runs.
      */
     val simulationRunCache: SimulationRunCacheIfc
+
+    /**
+     *  A database to capture simulation results
+     */
+    val kslDatabase: KSLDatabase?
+
+    /**
+     *  The database observer of the model. Can be used to stop observing, etc.
+     *  The observer is created to clear data before experiments.
+     */
+    val dbObserver: KSLDatabaseObserver?
 
     /**
      *  Promises to convert evaluation requests into responses.
