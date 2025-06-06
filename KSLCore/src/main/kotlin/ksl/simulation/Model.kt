@@ -36,6 +36,8 @@ import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -1452,7 +1454,27 @@ class Model(
         return true
     }
 
+    /**
+     *  Creates a default (SQLLite) database that uses the model's name and is
+     *  created within the model's output database directory. The database can
+     *  then be used by a KSLDatabaseObserver
+     */
+    fun createDefaultDatabase() : KSLDatabase {
+        return KSLDatabase("${model.simulationName}.db".replace(" ", "_"),
+            model.outputDirectory.dbDir)
+    }
+
+    /**
+     *  Creates a KSLDatabaseObserver that uses a default (SQLLite) database
+     *  with the model's name forming the database name and placing the database
+     *  in the model's output database directory.
+     */
+    fun createDefaultDatabaseObserver(clearDataBeforeExperimentOption: Boolean = false) : KSLDatabaseObserver {
+        return KSLDatabaseObserver(model, createDefaultDatabase(), clearDataBeforeExperimentOption)
+    }
+
     companion object {
+
         /**
          * Used to assign unique enum constants
          */
