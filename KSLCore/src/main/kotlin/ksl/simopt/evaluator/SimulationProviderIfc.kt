@@ -19,26 +19,11 @@ interface SimulationProviderIfc {
      *  when responding to requests.
      */
     var useCachedSimulationRuns: Boolean
-    /**
-     *  Indicates if the simulation provider should cache simulation runs.
-     */
-    var cacheSimulationRuns: Boolean
 
     /**
      *  Use to hold executed simulation runs.
      */
-    val simulationRunCache: SimulationRunCacheIfc
-
-//    /**
-//     *  A database to capture simulation results
-//     */
-//    val kslDatabase: KSLDatabase?
-//
-//    /**
-//     *  The database observer of the model. Can be used to stop observing, etc.
-//     *  The observer is created to clear data before experiments.
-//     */
-//    val dbObserver: KSLDatabaseObserver?
+    val simulationRunCache: SimulationRunCacheIfc?
 
     /**
      *  Promises to convert evaluation requests into responses.
