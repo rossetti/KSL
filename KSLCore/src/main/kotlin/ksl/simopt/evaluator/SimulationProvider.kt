@@ -14,19 +14,16 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
- *  @param model a function that promises to create the model that will be executed. The model that is created
+ * @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
- *  @param cacheSimulationRuns indicates if the SimulationRun instances created by running the model are saved. The
- *  default is false.  Since the provider may execute thousands of simulations and simulation runs have significant
- *  associated data, caution should be considered if setting this option to true. In essence, this allows in-memory
- *  access to all inputs and output responses from every execution.
+ * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
  * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
 class SimulationProvider(
     val model: Model,
-    override var cacheSimulationRuns: Boolean = false,
+    override val simulationRunCache: SimulationRunCacheIfc? = null,
     override var useCachedSimulationRuns: Boolean = false,
 ) : SimulationProviderIfc {
 
@@ -34,18 +31,17 @@ class SimulationProvider(
      * Secondary constructor for the SimulationProvider class.
      *
      * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
-     * @param cacheSimulationRuns Indicates whether the simulation run results should be cached to improve performance during repetitive runs.
-     * Default is false.
+     * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
      * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding to requests. The
      * default is false. If the simulation runs are not cached, this option has no effect.
      */
     constructor(
         modelCreator: () -> Model,
-        cacheSimulationRuns: Boolean = false,
+        simulationRunCache: SimulationRunCacheIfc? = null,
         useCachedSimulationRuns: Boolean = false
     ) : this(
         model = modelCreator(),
-        cacheSimulationRuns = cacheSimulationRuns,
+        simulationRunCache = simulationRunCache,
         useCachedSimulationRuns = useCachedSimulationRuns
     )
 
@@ -56,11 +52,6 @@ class SimulationProvider(
      *  be restored to the original after executing a simulation
      */
     private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
-
-    /**
-     *  Used to hold executed simulation runs.
-     */
-    override val simulationRunCache: SimulationRunCacheIfc by lazy { MemorySimulationRunCache() }
 
     //TODO could add ExperimentDataCollector as an option
 
@@ -82,14 +73,6 @@ class SimulationProvider(
         executionCounter = 0
     }
 
-    /**
-     *  Causes any previous simulation runs associated with the execution of the model to be cleared.
-     */
-    @Suppress("unused")
-    fun clearSimulationRuns() {
-        simulationRunCache.clear()
-    }
-
     fun runSimulation(request: RequestData): Result<SimulationRun> {
         TODO("Not implemented yet")
     }
@@ -98,7 +81,7 @@ class SimulationProvider(
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in requests) {
             //TODO validate request??
-            if (cacheSimulationRuns && useCachedSimulationRuns) {
+            if ((simulationRunCache != null) && useCachedSimulationRuns) {
                 // use the cache instead of run the simulation
                 respondFromCache(request, results)
             } else {
@@ -124,15 +107,17 @@ class SimulationProvider(
         request: RequestData,
         results: MutableMap<RequestData, ResponseMap>
     ) {
-        // check if the request is in the cache
-        if (simulationRunCache.containsKey(request)) {
-            // check if it has the appropriate number of replications
-            val requestedReplications = request.numReplications
-            val simulationRun = simulationRunCache[request]!!
-            if (requestedReplications <= simulationRun.numberOfReplications) {
-                captureResults(request, simulationRun, results)
+        if ((simulationRunCache != null) ){
+            // check if the request is in the cache
+            if (simulationRunCache.containsKey(request)) {
+                // check if it has the appropriate number of replications
+                val requestedReplications = request.numReplications
+                val simulationRun = simulationRunCache[request]!!
+                if (requestedReplications <= simulationRun.numberOfReplications) {
+                    captureResults(request, simulationRun, results)
+                }
+                return
             }
-            return
         }
         // if it is not in the cache, then execute the simulation
         executeSimulation(request, results)
@@ -161,9 +146,7 @@ class SimulationProvider(
         // capture the simulation results
         captureResults(request, simulationRun, results)
         // add the SimulationRun to the simulation run cache
-        if (cacheSimulationRuns) {
-            simulationRunCache.put(request, simulationRun)
-        }
+        simulationRunCache?.put(request, simulationRun)
         // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
     }
