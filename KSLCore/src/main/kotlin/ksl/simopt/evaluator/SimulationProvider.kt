@@ -22,24 +22,12 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  access to all inputs and output responses from every execution.
  * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
- *  @param kslDatabase  The KSLDatabase used to capture model execution results. The names of the experiments
- *  are based on the name of the associated RequestData, as "request.modelIdentifier_Exp_k", where k is the current value
- *  of the execution counter.
- *  @param clearDataBeforeExperimentOption indicates whether database data should be cleared before each experiment. Only
- *  relevant if useDb is true. The default is false. Data will not be cleared if multiple simulations of the
- *  same model are executed within the same execution frame. An error is issued if the experiment name has not changed.
- *  The experiment names are automatically created based on the execution counter. This allows for every response and
- *  input execution to be captured in the database. In the context of simulation optimization, you may only want the
- *  last provided execution. In that case, set the clear option to true. Then, the database will be cleared prior
- *  to each execution, leaving only the last execution in the database.
  */
 @Suppress("unused")
 class SimulationProvider(
     val model: Model,
     override var cacheSimulationRuns: Boolean = false,
     override var useCachedSimulationRuns: Boolean = false,
-    override val kslDatabase: KSLDatabase? = null,
-    clearDataBeforeExperimentOption: Boolean = false
 ) : SimulationProviderIfc {
 
     /**
@@ -50,23 +38,15 @@ class SimulationProvider(
      * Default is false.
      * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding to requests. The
      * default is false. If the simulation runs are not cached, this option has no effect.
-     *  @param kslDatabase  The KSLDatabase used to capture model execution results. The names of the experiments
-     *  are based on the name of the associated RequestData, as "request.modelIdentifier_Exp_k", where k is the current value
-     *  of the execution counter.
-     * @param clearDataBeforeExperimentOption If true, clears any pre-existing data before running a new experiment. Default is false.
      */
     constructor(
         modelCreator: () -> Model,
         cacheSimulationRuns: Boolean = false,
-        useCachedSimulationRuns: Boolean = false,
-        kslDatabase: KSLDatabase? = null,
-        clearDataBeforeExperimentOption: Boolean = false
+        useCachedSimulationRuns: Boolean = false
     ) : this(
         model = modelCreator(),
         cacheSimulationRuns = cacheSimulationRuns,
-        useCachedSimulationRuns = useCachedSimulationRuns,
-        kslDatabase = kslDatabase,
-        clearDataBeforeExperimentOption = clearDataBeforeExperimentOption
+        useCachedSimulationRuns = useCachedSimulationRuns
     )
 
     private val mySimulationRunner = SimulationRunner(model)
@@ -85,24 +65,11 @@ class SimulationProvider(
     //TODO could add ExperimentDataCollector as an option
 
     /**
-     *  The database observer of the model. Can be used to stop observing, etc.
-     *  The observer is created to clear data before experiments.
-     */
-    override var dbObserver: KSLDatabaseObserver? = null
-        private set
-
-    /**
      *  Used to count the number of times that the simulation model is executed. Each execution can
      *  be considered a different experiment
      */
     var executionCounter: Int = 0
         private set
-
-    init {
-        if (kslDatabase != null) {
-            dbObserver = KSLDatabaseObserver(model, kslDatabase, clearDataBeforeExperimentOption)
-        }
-    }
 
     /**
      *  Causes the execution counter to be reset to 0. Care must be taken if a database is used to

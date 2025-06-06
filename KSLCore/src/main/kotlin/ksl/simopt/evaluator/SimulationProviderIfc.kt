@@ -29,16 +29,16 @@ interface SimulationProviderIfc {
      */
     val simulationRunCache: SimulationRunCacheIfc
 
-    /**
-     *  A database to capture simulation results
-     */
-    val kslDatabase: KSLDatabase?
-
-    /**
-     *  The database observer of the model. Can be used to stop observing, etc.
-     *  The observer is created to clear data before experiments.
-     */
-    val dbObserver: KSLDatabaseObserver?
+//    /**
+//     *  A database to capture simulation results
+//     */
+//    val kslDatabase: KSLDatabase?
+//
+//    /**
+//     *  The database observer of the model. Can be used to stop observing, etc.
+//     *  The observer is created to clear data before experiments.
+//     */
+//    val dbObserver: KSLDatabaseObserver?
 
     /**
      *  Promises to convert evaluation requests into responses.
