@@ -13,14 +13,14 @@ import ksl.simulation.ModelProvider
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
- * @param modelProviders the models that are registered with this provider
+ * @param modelProvider provides the models that are registered with this provider
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
  * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
 class SimulationProvider2(
-    val modelProviders: Map<String, ModelProvider>,
+    val modelProvider: ModelProvider,
     val simulationRunCache: SimulationRunCacheIfc? = null,
     var useCachedSimulationRuns: Boolean = false,
 ) {
@@ -65,9 +65,7 @@ class SimulationProvider2(
             return Result.success(simulationRun)
         }
         // not found in the cache, need to run the model
-        //TODO encapsulate this in a function that can be overridden 
-        val modelProvider = modelProviders[request.modelIdentifier]!!
-        val model = modelProvider.invoke()
+        val model = modelProvider.provideModel(request.modelIdentifier)
         simulationRun = executeSimulation(request, model)
         if (simulationRun.runErrorMsg.isNotEmpty()){
             logger.info { "SimulationProvider: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
@@ -120,7 +118,7 @@ class SimulationProvider2(
     }
 
     fun isModelProvided(modelIdentifier: String): Boolean {
-        return modelProviders.containsKey(modelIdentifier)
+        return modelProvider.isModelProvided(modelIdentifier)
     }
 
     private fun retrieveFromCache(request: RequestData) : SimulationRun? {
