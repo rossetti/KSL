@@ -51,9 +51,13 @@ class SimulationProvider2(
         executionCounter = 0
     }
 
+    fun isModelProvided(modelIdentifier: String): Boolean {
+        return modelProvider.isModelProvided(modelIdentifier)
+    }
+
     fun runSimulation(request: RequestData): Result<SimulationRun> {
         if (!isModelProvided(request.modelIdentifier)){
-            val msg = "The SimulationProvide does not provide model ${request.modelIdentifier}\n" +
+            val msg = "The SimulationProvider does not provide model ${request.modelIdentifier}\n" +
                     "request: $request"
             logger.error { msg }
             return Result.failure(ModelNotProvidedException(msg))
@@ -76,6 +80,25 @@ class SimulationProvider2(
             // add the SimulationRun to the simulation run cache
             simulationRunCache?.put(request, simulationRun)
             return Result.success(simulationRun)
+        }
+    }
+
+    private fun retrieveFromCache(request: RequestData) : SimulationRun? {
+        if (simulationRunCache == null){
+            return null // no cache, return null
+        }
+        if (!useCachedSimulationRuns){
+            return null // don't use the cache, return null
+        }
+        val simulationRun = simulationRunCache[request]
+        if (simulationRun == null){
+            return null // run not found in the cache, return null
+        }
+        val requestedReplications = request.numReplications
+        return if (requestedReplications <= simulationRun.numberOfReplications) {
+            simulationRun
+        } else {
+            null // not enough replications stored in the cache, return null
         }
     }
 
@@ -115,29 +138,6 @@ class SimulationProvider2(
             }
         }
         return results
-    }
-
-    fun isModelProvided(modelIdentifier: String): Boolean {
-        return modelProvider.isModelProvided(modelIdentifier)
-    }
-
-    private fun retrieveFromCache(request: RequestData) : SimulationRun? {
-        if (simulationRunCache == null){
-            return null // no cache, return null
-        }
-        if (!useCachedSimulationRuns){
-            return null // don't use the cache, return null
-        }
-        val simulationRun = simulationRunCache[request]
-        if (simulationRun == null){
-            return null // run not found in the cache, return null
-        }
-        val requestedReplications = request.numReplications
-        return if (requestedReplications <= simulationRun.numberOfReplications) {
-            simulationRun
-        } else {
-            null // not enough replications stored in the cache, return null
-        }
     }
 
     private fun respondFromCache(
