@@ -25,14 +25,6 @@ open class SimulationService(
     var useCachedSimulationRuns: Boolean = false,
 ) {
 
-//    private val mySimulationRunner = SimulationRunner(model)
-
-    /**
-     *  capture the original experiment run parameters so that they can
-     *  be restored to the original after executing a simulation
-     */
-//    private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
-
     /**
      *  Used to count the number of times that the simulation model is executed. Each execution can
      *  be considered a different experiment
@@ -112,6 +104,7 @@ open class SimulationService(
     fun runSimulations(requests:List<RequestData>) : Map<RequestData, Result<SimulationRun>> {
         require(requests.isNotEmpty()) {"The supplied list of requests was empty!"}
         val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
+        //TODO in theory these could be run "in parallel"
         for(request in requests) {
             resultMap[request] = runSimulation(request)
         }
@@ -171,6 +164,7 @@ open class SimulationService(
             request.experimentRunParameters.numberOfReplications = model.numberOfReplications
         }
         logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
+        //TODO in theory the replications might be run in parallel
         val mySimulationRunner = SimulationRunner(model)
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
@@ -202,6 +196,8 @@ open class SimulationService(
         request: RequestData,
         simulationRun: SimulationRun
     ) : Map<RequestData, ResponseMap> {
+        //TODO why ResponseMap instead of ResponseData
+
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // if the request's response name set is empty then return all responses from the simulation run

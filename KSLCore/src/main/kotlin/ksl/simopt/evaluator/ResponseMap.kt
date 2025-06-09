@@ -2,6 +2,9 @@ package ksl.simopt.evaluator
 
 //TODO Why both ResponseMap and ResponseData?
 
+//TODO needs modelIdentifier?
+//TODO needs serialization?
+
 /**
  *  A response map holds replication data from evaluations of the simulation
  *  oracle. The key to the map is the response name which should match a named
