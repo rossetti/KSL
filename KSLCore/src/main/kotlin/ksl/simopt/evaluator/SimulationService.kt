@@ -9,13 +9,13 @@ import ksl.simulation.Model
 import ksl.simulation.ModelProvider
 
 /**
- *  This simulation provider will execute evaluation requests on the same model
- *  and collect the desired responses.  This provider runs the model's replications
+ *  This simulation service will execute evaluation requests on models
+ *  and collect the desired responses.  This service runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
- * @param modelProvider provides the models that are registered with this provider
+ * @param modelProvider provides the models that are registered with this provider based on their model identifiers
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
- * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding
+ * @param useCachedSimulationRuns Indicates whether the service should use cached simulation runs when responding
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
@@ -51,10 +51,24 @@ open class SimulationService(
         executionCounter = 0
     }
 
+    /**
+     * @param modelIdentifier the string identifier for the model to be executed
+     * @return true if the service will provide results from the model
+     */
     fun isModelProvided(modelIdentifier: String): Boolean {
         return modelProvider.isModelProvided(modelIdentifier)
     }
 
+    /**
+     * Executes a simulation run based on the given request data. This method retrieves simulation results
+     * from the cache if available, or executes the simulation using the provided model. If the simulation
+     * completes successfully, the result is cached for future requests. If the simulation results
+     * in an error, an exception is returned with the error details.
+     *
+     * @param request the request data containing the model identifier, inputs, number of replications,
+     * and other parameters necessary to execute the simulation
+     * @return a result object wrapping a successful simulation run or an exception if the simulation fails
+     */
     fun runSimulation(request: RequestData): Result<SimulationRun> {
         if (!isModelProvided(request.modelIdentifier)){
             val msg = "The SimulationService does not provide model ${request.modelIdentifier}\n" +
@@ -83,6 +97,18 @@ open class SimulationService(
         }
     }
 
+    /**
+     * Executes multiple simulation runs based on the provided list of request data. Each request is
+     * processed individually, and the result is recorded and returned as a map where the key is the
+     * request and the value is the result of the simulation. If the input list of requests is empty,
+     * an exception is thrown.
+     *
+     * @param requests the list of RequestData objects, each representing a simulation request to be executed.
+     *                 The list must not be empty.
+     * @return a map where each key is a RequestData object and each value is a Result wrapping a successful
+     *         SimulationRun or an exception if the simulation for that request fails.
+     * @throws IllegalArgumentException if the input list of requests is empty.
+     */
     fun runSimulations(requests:List<RequestData>) : Map<RequestData, Result<SimulationRun>> {
         require(requests.isNotEmpty()) {"The supplied list of requests was empty!"}
         val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
@@ -92,6 +118,16 @@ open class SimulationService(
         return resultMap
     }
 
+    /**
+     * Retrieves a cached simulation run based on the provided request data.
+     * This method checks if caching is enabled and if the requested simulation run exists in the cache
+     * with the required number of replications. If any condition is not met, it returns null.
+     *
+     * @param request the request data containing the parameters to identify the desired simulation run,
+     * including the number of requested replications.
+     * @return the cached simulation run if it exists, meets the requirements, and caching is enabled;
+     * otherwise, null.
+     */
     protected fun retrieveFromCache(request: RequestData) : SimulationRun? {
         if (simulationRunCache == null){
             return null // no cache, return null
@@ -111,6 +147,18 @@ open class SimulationService(
         }
     }
 
+    /**
+     * Executes a simulation using the given request data and model. It updates the model's parameters
+     * based on the request data, runs the simulation, and resets the model's parameters to their
+     * original state after execution.
+     *
+     * @param request the request data containing the model identifier, inputs, number of replications,
+     *                and optional simulation run parameters. It specifies how the simulation should be executed.
+     * @param model the model to be used for the simulation. Includes the configuration and behavior required
+     *              for the simulation execution.
+     * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
+     *         results from the executed simulation.
+     */
     protected fun executeSimulation(request: RequestData, model: Model) : SimulationRun {
         executionCounter++
         val myOriginalExpRunParams= model.extractRunParameters()
@@ -135,68 +183,21 @@ open class SimulationService(
         return simulationRun
     }
 
-//    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
-//        val results = mutableMapOf<RequestData, ResponseMap>()
-//        for (request in requests) {
-//            //TODO validate request??
-//            if ((simulationRunCache != null) && useCachedSimulationRuns) {
-//                // use the cache instead of run the simulation
-//                respondFromCache(request, results)
-//            } else {
-//                executeSimulation(request, results)
-//            }
-//        }
-//        return results
-//    }
-
-//    private fun respondFromCache(
-//        request: RequestData,
-//        results: MutableMap<RequestData, ResponseMap>
-//    ) {
-//        if ((simulationRunCache != null) ){
-//            // check if the request is in the cache
-//            if (simulationRunCache.containsKey(request)) {
-//                // check if it has the appropriate number of replications
-//                val requestedReplications = request.numReplications
-//                val simulationRun = simulationRunCache[request]!!
-//                if (requestedReplications <= simulationRun.numberOfReplications) {
-//                    captureResults(request, simulationRun, results)
-//                }
-//                return
-//            }
-//        }
-//        // if it is not in the cache, then execute the simulation
-//        executeSimulation(request, results)
-//    }
-
-//    private fun executeSimulation(
-//        request: RequestData,
-//        results: MutableMap<RequestData, ResponseMap>
-//    ) {
-//        executionCounter++
-//        // update experiment name on the model and number of replications
-//        model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-//        model.numberOfReplications = request.numReplications
-//        if (request.experimentRunParameters != null) {
-//            // update the name and the number of replications on the supplied parameters
-//            request.experimentRunParameters.experimentName = model.experimentName
-//            request.experimentRunParameters.numberOfReplications = model.numberOfReplications
-//        }
-//        Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
-//        //run the simulation
-//        val simulationRun = mySimulationRunner.simulate(
-//            request.inputs,
-//            request.experimentRunParameters ?: model.extractRunParameters()
-//        )
-//        Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
-//        // capture the simulation results
-//        captureResults(request, simulationRun, results)
-//        // add the SimulationRun to the simulation run cache
-//        simulationRunCache?.put(request, simulationRun)
-//        // reset the model run parameters back to their original values
-//        model.changeRunParameters(myOriginalExpRunParams)
-//    }
-
+    /**
+     * Associates a given request with a ResponseMap from a simulation run.
+     * The method processes the simulation results to estimate and map the responses
+     * specified in the request. If the request specifies no response names, all
+     * responses from the simulation run are included in the result map.
+     *
+     * @param request the request data containing model identifier, inputs,
+     *                response names, and additional parameters necessary for simulation evaluation
+     * @param simulationRun the simulation execution results containing the data to be
+     *                      processed and mapped
+     * @return a map where the key is the given request and the value is a ResponseMap
+     *         containing the estimated simulation responses for the requested response names
+     * @throws IllegalArgumentException if a specified response name in the request
+     *                                  does not exist in the simulation results
+     */
     protected fun associateWithResponseMap (
         request: RequestData,
         simulationRun: SimulationRun
