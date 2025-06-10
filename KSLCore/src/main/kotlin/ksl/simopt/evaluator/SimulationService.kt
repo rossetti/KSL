@@ -133,7 +133,7 @@ open class SimulationService(
             return Result.success(simulationRun)
         }
     }
-    
+
     /**
      * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
      * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
