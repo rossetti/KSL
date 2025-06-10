@@ -163,7 +163,7 @@ class SimulationProvider(
             simulationRun.results.keys
         }
         // make an empty response map to hold the estimated responses
-        val responseMap = ResponseMap(responseNames)
+        val responseMap = ResponseMap(request.modelIdentifier, responseNames)
         // fill the response map
         for (name in responseNames) {
             // this should have been checked when validating the request
