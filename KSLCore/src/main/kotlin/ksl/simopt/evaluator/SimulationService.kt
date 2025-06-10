@@ -134,21 +134,24 @@ open class SimulationService(
         }
     }
 
+
     /**
-     * Executes a simulation run based on the provided request and returns the results as a map.
-     * If the simulation fails, the result map will contain the failure details for the given request.
+     * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
+     * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
+     * In case of a failure during the simulation, an error is returned instead.
      *
-     * @param request the request data containing the model identifier, inputs, response names,
-     *                and other parameters necessary for simulation execution
-     * @return a map where the key is the RequestData object and the value is a Result wrapping
-     *         either a successful ResponseMap or an exception if the simulation fails
+     * @param request the request data containing model identifiers, inputs, response names,
+     *                and parameters necessary to execute and evaluate the simulation
+     * @return a result wrapping a map where each key is the provided request, and the value
+     *         is the corresponding ResponseMap. If the simulation fails, the result contains an error.
      */
-    fun runSimulationAsResponseMap(request: RequestData) : Map<RequestData, Result<ResponseMap>> {
+    fun runSimulationAsResponseMap(request: RequestData) : Result<Map<RequestData, ResponseMap>> {
         val simulationRunResult = runSimulation(request)
         simulationRunResult.onFailure {
-            return mapOf(request to Result.failure(it))
+            return Result.failure(it)
         }
-        return associateWithResponseMap(request, simulationRunResult)
+        return Result.success(associateWithResponseMap(request,
+            simulationRunResult.getOrNull()!!))
     }
 
     /**
@@ -247,21 +250,19 @@ open class SimulationService(
      *
      * @param request the request data containing model identifier, inputs,
      *                response names, and additional parameters necessary for simulation evaluation
-     * @param result the simulation execution results containing the data to be
+     * @param simulationRun the simulation execution results containing the data to be
      *                      processed and mapped
      * @return a map where the key is the given request and the value is a ResponseMap
      *         containing the estimated simulation responses for the requested response names
      * @throws IllegalArgumentException if a specified response name in the request
      *                                  does not exist in the simulation results
+     *  @throws IllegalArgumentException if the provided simulation run has an error.
      */
     protected fun associateWithResponseMap (
         request: RequestData,
-        result: Result<SimulationRun>
-    ) : Map<RequestData, Result<ResponseMap>> {
-        result.onFailure {
-            return mapOf(request to Result.failure(it))
-        }
-        val simulationRun = result.getOrNull()!!
+        simulationRun: SimulationRun
+    ) : Map<RequestData, ResponseMap> {
+        require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // if the request's response name set is empty then return all responses from the simulation run
@@ -282,7 +283,7 @@ open class SimulationService(
             responseMap.add(estimatedResponse)
         }
         // return the responses for the request
-        return mapOf(request to Result.success(responseMap))
+        return mapOf(request to responseMap)
     }
 
     companion object {
