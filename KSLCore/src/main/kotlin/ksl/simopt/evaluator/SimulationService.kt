@@ -160,8 +160,8 @@ open class SimulationService(
 
     /**
      * Executes multiple simulations based on the provided list of request data and maps each request
-     * to a corresponding ResponseMap. Each request is processed individually, and the result of the
-     * simulation is stored as a key-value pair in the returned map. If the input list is empty, an
+     * to a corresponding ResponseMap. Each request is processed individually, and the results of the
+     * simulations are stored as a key-value pair in the returned map. If the input list is empty, an
      * exception is thrown.
      *
      * @param requests the list of RequestData objects representing the simulation requests to be processed.
