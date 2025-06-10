@@ -230,7 +230,7 @@ open class SimulationService(
      *
      * @param request the request data containing model identifier, inputs,
      *                response names, and additional parameters necessary for simulation evaluation
-     * @param simulationRun the simulation execution results containing the data to be
+     * @param result the simulation execution results containing the data to be
      *                      processed and mapped
      * @return a map where the key is the given request and the value is a ResponseMap
      *         containing the estimated simulation responses for the requested response names
@@ -239,8 +239,12 @@ open class SimulationService(
      */
     protected fun associateWithResponseMap (
         request: RequestData,
-        simulationRun: SimulationRun
-    ) : Map<RequestData, ResponseMap> {
+        result: Result<SimulationRun>
+    ) : Map<RequestData, Result<ResponseMap>> {
+        result.onFailure {
+            return mapOf(request to Result.failure(it))
+        }
+        val simulationRun = result.getOrNull()!!
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // if the request's response name set is empty then return all responses from the simulation run
@@ -261,7 +265,7 @@ open class SimulationService(
             responseMap.add(estimatedResponse)
         }
         // return the responses for the request
-        return mapOf(request to responseMap)
+        return mapOf(request to Result.success(responseMap))
     }
 
     companion object {
