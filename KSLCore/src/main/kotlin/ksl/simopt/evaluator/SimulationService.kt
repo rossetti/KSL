@@ -151,7 +151,7 @@ open class SimulationService(
             return Result.failure(it)
         }
         return Result.success(
-            associateWithResponseMap(
+            simulationRunToResponseMap(
                 request,
                 simulationRunResult.getOrNull()!!
             )
@@ -284,7 +284,7 @@ open class SimulationService(
      *                                  does not exist in the simulation results
      *  @throws IllegalArgumentException if the provided simulation run has an error.
      */
-    protected fun associateWithResponseMap(
+    fun simulationRunToResponseMap(
         request: RequestData,
         simulationRun: SimulationRun
     ): ResponseMap {
