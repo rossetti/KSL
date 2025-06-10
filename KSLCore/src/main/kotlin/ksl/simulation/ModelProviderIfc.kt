@@ -32,5 +32,14 @@ interface ModelProviderIfc {
     @Suppress("unused")
     fun modelIdentifiers() : List<String>
 
-
+    /**
+     * Retrieves a list of response names associated with the specified model.
+     *
+     * @param modelIdentifier the identifier of the model whose response names are to be retrieved
+     * @return a list of response names corresponding to the specified model
+     */
+    @Suppress("unused")
+    fun responseNames(modelIdentifier: String) : List<String> {
+        return provideModel(modelIdentifier).responseNames
+    }
 }
