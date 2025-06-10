@@ -189,37 +189,6 @@ class SimulationRunner(
         throw e
     }
 
-    /**
-     *  Splits the number of replications into a list of experiments
-     *  with each experiment having at most [size] replications. A resulting
-     *  experiment may have fewer than the given [size] but at least 1
-     *  replication. The experiments are ordered in the list such that the replication identifiers
-     *  for each experiment are ordered from 1 to the number of replications [numReplications]
-     *  @param size the number of replications in each experiment must be positive. If greater than
-     *  the number of replications, there will be 1 chunk containing all replications
-     */
-    @Suppress("unused")
-    fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
-        require(numReplications >= 1) { "The number of replications must be >= 1" }
-        // make the range for chunking
-        val r = 1..numReplications
-        val chunks: List<List<Int>> = r.chunked(size)
-        val eList = mutableListOf<ExperimentRunParameters>()
-        for (chunk in chunks) {
-            val s = chunk.first() // starting id of replication in chunk
-            val n = chunk.size // number of replications in the chunk
-            val runParameters = model.extractRunParameters()
-            runParameters.startingRepId = s
-            runParameters.numberOfReplications = n
-            runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
-            runParameters.resetStartStreamOption = true
-            runParameters.numChunks = chunks.size
-            runParameters.runName = IntRange(s, s + n - 1).toString()
-            eList.add(runParameters)
-        }
-        return eList
-    }
-
     companion object {
         /**
          * The string used to flatten or un-flatten random variable parameters
@@ -227,5 +196,36 @@ class SimulationRunner(
          */
         var rvParamConCatChar = RVParameterSetter.rvParamConCatChar
 
+        /**
+         *  Splits the number of replications into a list of experiments
+         *  with each experiment having at most [size] replications. A resulting
+         *  experiment may have fewer than the given [size] but at least 1
+         *  replication. The experiments are ordered in the list such that the replication identifiers
+         *  for each experiment are ordered from 1 to the number of replications [numReplications]
+         *  @param model the model on which the replications will be executed
+         *  @param size the number of replications in each experiment must be positive. If greater than
+         *  the number of replications, there will be 1 chunk containing all replications
+         */
+        @Suppress("unused")
+        fun chunkReplications(model: Model, numReplications: Int, size: Int): List<ExperimentRunParameters> {
+            require(numReplications >= 1) { "The number of replications must be >= 1" }
+            // make the range for chunking
+            val r = 1..numReplications
+            val chunks: List<List<Int>> = r.chunked(size)
+            val eList = mutableListOf<ExperimentRunParameters>()
+            for (chunk in chunks) {
+                val s = chunk.first() // starting id of replication in chunk
+                val n = chunk.size // number of replications in the chunk
+                val runParameters = model.extractRunParameters()
+                runParameters.startingRepId = s
+                runParameters.numberOfReplications = n
+                runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
+                runParameters.resetStartStreamOption = true
+                runParameters.numChunks = chunks.size
+                runParameters.runName = IntRange(s, s + n - 1).toString()
+                eList.add(runParameters)
+            }
+            return eList
+        }
     }
 }
