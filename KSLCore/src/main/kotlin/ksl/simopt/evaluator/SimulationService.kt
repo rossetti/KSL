@@ -164,7 +164,7 @@ open class SimulationService(
             request.experimentRunParameters.numberOfReplications = model.numberOfReplications
         }
         logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
-        //TODO in theory the replications might be run in parallel
+        //in theory the replications might be run in parallel
         val mySimulationRunner = SimulationRunner(model)
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
@@ -196,8 +196,6 @@ open class SimulationService(
         request: RequestData,
         simulationRun: SimulationRun
     ) : Map<RequestData, ResponseMap> {
-        //TODO why ResponseMap instead of ResponseData
-
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // if the request's response name set is empty then return all responses from the simulation run
@@ -205,7 +203,7 @@ open class SimulationService(
             simulationRun.results.keys
         }
         // make an empty response map to hold the estimated responses
-        val responseMap = ResponseMap(responseNames)
+        val responseMap = ResponseMap(request.modelIdentifier, responseNames)
         // fill the response map
         for (name in responseNames) {
             // this should have been checked when validating the request

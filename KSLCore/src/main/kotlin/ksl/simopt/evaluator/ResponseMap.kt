@@ -1,24 +1,24 @@
 package ksl.simopt.evaluator
 
-//TODO Why both ResponseMap and ResponseData?
-
-//TODO needs modelIdentifier?
-//TODO needs serialization?
+import kotlinx.serialization.Serializable
 
 /**
  *  A response map holds replication data from evaluations of the simulation
- *  oracle. The key to the map is the response name which should match a named
+ *  oracle. The key to the map is the response name, which should match a named
  *  response within the simulation model and within the problem definition.
  *  The associated list of doubles is the within replication average for
  *  each replication.
  *  @param map the map containing the output values for each response
  */
-class ResponseMap(
+@Serializable
+data class ResponseMap(
+    val modelIdentifier: String,
     val responseNames: Set<String>,
     private val map: MutableMap<String, EstimatedResponse> = mutableMapOf()
 ) : Map<String, EstimatedResponse> by map {
 
     init {
+        require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
         require(responseNames.isNotEmpty()) { "Response names cannot be empty" }
         for(name in map.keys) {
             require(responseNames.contains(name)) {"There is no response named $name"}
@@ -34,6 +34,7 @@ class ResponseMap(
     val counts: Map<String, Double>
         get() = map.mapValues { it.value.count }
 
+    @Suppress("unused")
     val stdDeviations: Map<String, Double>
         get() = map.mapValues { it.value.standardDeviation }
 
@@ -59,6 +60,7 @@ class ResponseMap(
      *  are available in the response map.  Once this is true,
      *  the response map can be converted into a solution.
      */
+    @Suppress("unused")
     fun hasRequestedReplications(numReplications: Int) : Boolean {
         if (!hasAllResponses()){
             return false

@@ -15,6 +15,6 @@ data class ResponseData(
     }
 
     fun toResponseMap(): ResponseMap {
-        return ResponseMap(responses.keys, responses.toMutableMap())
+        return ResponseMap(modelIdentifier, responses.keys, responses.toMutableMap())
     }
 }

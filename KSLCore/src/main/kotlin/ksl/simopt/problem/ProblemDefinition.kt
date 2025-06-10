@@ -1,6 +1,5 @@
 package ksl.simopt.problem
 
-import com.sun.beans.introspect.PropertyInfo
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.evaluator.Solution
@@ -53,7 +52,7 @@ class ProblemDefinition(
 
     /**
      *  The names of the input parameters over which the problem is
-     *  being optimized, i.e. the decision variable names.
+     *  being optimized, i.e., the decision variable names.
      *  These need to correspond to simulation model inputs. This
      *  list cannot be empty.
      */
@@ -87,6 +86,7 @@ class ProblemDefinition(
      *  between solutions are considered practically insignificant. The default is zero.
      *  Must be greater than or equal to zero.
      */
+    @Suppress("unused")
     var indifferenceZoneParameter: Double = indifferenceZoneParameter
         set(value) {
             require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
@@ -132,6 +132,7 @@ class ProblemDefinition(
     /**
      *  The linear constraints for the problem as a list
      */
+    @Suppress("unused")
     val linearConstraints: List<LinearConstraint>
         get() = myLinearConstraints.toList()
 
@@ -148,30 +149,35 @@ class ProblemDefinition(
     /**
      *  The functional constraints for the problem as a list
      */
+    @Suppress("unused")
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
 
     /**
      * The lower bounds for each input variable
      */
+    @Suppress("unused")
     val inputLowerBounds: DoubleArray
         get() = myInputDefinitions.values.map { it.lowerBound }.toDoubleArray()
 
     /**
      *  The upper bounds for each input variable
      */
+    @Suppress("unused")
     val inputUpperBounds: DoubleArray
         get() = myInputDefinitions.values.map { it.upperBound }.toDoubleArray()
 
     /**
      *  The intervals for each input variable
      */
+    @Suppress("unused")
     val inputIntervals: List<Interval>
         get() = myInputDefinitions.values.map { it.interval }.toList()
 
     /**
      *  The mid-point of each input variable's range
      */
+    @Suppress("unused")
     val inputMidPoints: DoubleArray
         get() = myInputDefinitions.values.map { it.interval.midPoint }.toDoubleArray()
 
@@ -184,18 +190,21 @@ class ProblemDefinition(
     /**
      *  The range (width) of each input variable's interval
      */
+    @Suppress("unused")
     val inputRanges: DoubleArray
         get() = myInputDefinitions.values.map { it.interval.width }.toDoubleArray()
 
     /**
      *  The granularity associated with each input variable as an array
      */
+    @Suppress("unused")
     val inputGranularities: DoubleArray
         get() = myInputDefinitions.values.map { it.granularity }.toDoubleArray()
 
     /**
      *  The number of input variables
      */
+    @Suppress("unused")
     val inputSize: Int
         get() = myInputDefinitions.values.size
 
@@ -213,6 +222,7 @@ class ProblemDefinition(
      *
      *  @param name the name to check
      */
+    @Suppress("unused")
     fun isValidResponse(name: String): Boolean {
         return ((name == objFnResponseName) || responseNames.contains(name))
     }
@@ -220,11 +230,11 @@ class ProblemDefinition(
     /** Returns a new empty response map to hold the responses associated with the problem
      */
     fun emptyResponseMap(): ResponseMap {
-        return ResponseMap(allResponseNames.toSet())
+        return ResponseMap(modelIdentifier, allResponseNames.toSet())
     }
 
     /**
-     *  Randomly selects from the list of valid input names with equal likelihood.
+     *  Randomly selects from the list of valid input names with an equal likelihood.
      *
      *  @param rnStream the random number stream to use for randomness
      *  @return the randomly selected name
@@ -245,6 +255,7 @@ class ProblemDefinition(
      *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
      *  default is 0.0
      */
+    @Suppress("unused")
     fun inputVariable(
         name: String,
         lowerBound: Double,
@@ -266,6 +277,7 @@ class ProblemDefinition(
      *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
      *  default is 0.0
      */
+    @Suppress("unused")
     fun inputVariable(name: String, interval: Interval, granularity: Double = 0.0): InputDefinition {
         return inputVariable(name, interval.lowerLimit, interval.upperLimit, granularity)
     }
@@ -279,6 +291,7 @@ class ProblemDefinition(
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than)
      */
+    @Suppress("unused")
     fun linearConstraint(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
@@ -298,7 +311,7 @@ class ProblemDefinition(
 
     /**
      *  Creates an [ResponseConstraint] based on the supplied response name and right-hand side value.
-     *  @param name the name of the response. Must be a pre-defined response name that is associated with
+     *  @param name the name of the response. Must be a pre-defined response name associated with
      *  the problem definition
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
@@ -308,6 +321,7 @@ class ProblemDefinition(
      *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
      *  @return the constructed response constraint
      */
+    @Suppress("unused")
     fun responseConstraint(
         name: String,
         rhsValue: Double,
@@ -329,6 +343,7 @@ class ProblemDefinition(
      *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
      *  @return the constructed functional constraint
      */
+    @Suppress("unused")
     fun functionalConstraint(
         lhsFunc: ConstraintFunctionIfc,
         rhsValue: Double = 0.0,
@@ -344,6 +359,7 @@ class ProblemDefinition(
      *  A*x < b or A*x > b, then this function returns the A matrix. The coefficients have
      *  not been adjusted for the direction of the constraints.
      */
+    @Suppress("unused")
     fun linearConstraintMatrix(): Array<DoubleArray> {
         val array = mutableListOf<DoubleArray>()
         for (constraint in myLinearConstraints) {
@@ -357,6 +373,7 @@ class ProblemDefinition(
      *  A*x < b, then this function returns the A matrix. The coefficients have
      *  been adjusted to ensure a less-than orientation for the constraints.
      */
+    @Suppress("unused")
     fun linearConstraintAdjustedMatrix(): Array<DoubleArray> {
         val array = mutableListOf<DoubleArray>()
         for (constraint in myLinearConstraints) {
@@ -372,6 +389,7 @@ class ProblemDefinition(
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *  @return the left-hand side values for each constraint.
      */
+    @Suppress("unused")
     fun linearConstraintsLHSValues(inputs: MutableMap<String, Double>): DoubleArray {
         require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         return DoubleArray(myLinearConstraints.size) { myLinearConstraints[it].computeLHS(inputs) }
@@ -381,6 +399,7 @@ class ProblemDefinition(
      *  Assume we have the constraint, A*x < b or A*x > b, then this function returns the b vector. The values have not
      *  been adjusted for the direction of the constraint.
      */
+    @Suppress("unused")
     fun linearConstraintsRHS(): DoubleArray {
         return myLinearConstraints.map { it.rhsValue }.toDoubleArray()
     }
@@ -390,6 +409,7 @@ class ProblemDefinition(
      *  A*x < b or A*x > b, then this function returns the b vector. The values have
      *  been adjusted for the direction of the constraint.
      */
+    @Suppress("unused")
     fun linearConstraintsAdjustedRHS(): DoubleArray {
         return myLinearConstraints.map { it.ltRHSValue }.toDoubleArray()
     }
@@ -397,6 +417,7 @@ class ProblemDefinition(
     /**
      *  Returns the unadjusted right-hand side values for the response constraints.
      */
+    @Suppress("unused")
     fun responseConstraintsRHS(): DoubleArray {
         return myResponseConstraints.map { it.rhsValue }.toDoubleArray()
     }
@@ -404,6 +425,7 @@ class ProblemDefinition(
     /**
      *  Returns the adjusted right-hand side values for the response constraints.
      */
+    @Suppress("unused")
     fun responseConstraintsAdjustedRHS(): DoubleArray {
         return myResponseConstraints.map { it.ltRHSValue }.toDoubleArray()
     }
@@ -415,6 +437,7 @@ class ProblemDefinition(
      *  Must have been created by this problem.
      *  @return a list of the violations, one for each response constraint in the problem
      */
+    @Suppress("unused")
     fun responseConstraintViolations(responseMap: ResponseMap): Map<String, Double> {
         val names = allResponseNames
         for(name in responseMap.keys) {
@@ -430,7 +453,7 @@ class ProblemDefinition(
      *  @param averages the map of responses filled with data for this problem.
      *  Must have been created by this problem.
      *  @return a map of the violations, one for each response constraint in the problem. The
-     *  returned map has the response name associated with the contraint and the value of the violation
+     *  returned map has the response name associated with the constraint and the value of the violation
      */
     fun responseConstraintViolations(averages: Map<String, Double>): Map<String, Double> {
         val map = mutableMapOf<String, Double>()
@@ -449,6 +472,7 @@ class ProblemDefinition(
      *  same order as the names are defined for the problem
      *  @return the returned array is the same array as the input array but mutated. It is return for convenience.
      */
+    @Suppress("unused")
     fun roundToGranularity(x: DoubleArray): DoubleArray {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
@@ -483,7 +507,7 @@ class ProblemDefinition(
     /**
      *  Ensures that the supplied map is translated to an appropriate map
      *  containing name, value pairs for this problem. The resulting InputMap
-     *  will have valid names and values that are input range feasible. The
+     *  will have valid names and values that are input-range-feasible. The
      *  values will be rounded to the appropriate granularity for the named
      *  input variable.
      *
@@ -495,7 +519,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  Creates an input map that is centered at the mid-points of
+     *  Creates an input map centered at the mid-points of
      *  all the input variables
      */
     fun midPoints() : InputMap {
@@ -505,7 +529,7 @@ class ProblemDefinition(
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
-     *  If the supplied value is outside the range of the name variable it is adjusted to the closest
+     *  If the supplied value is outside the range of the name variable, it is adjusted to the closest
      *  boundary. In addition, the granularity of the input variable is applied.
      *  @param x the supplied array.
      */
@@ -639,6 +663,7 @@ class ProblemDefinition(
      *  @param x the input values as an array. The order is used to interpret the name.
      *  @return true if the inputs are input feasible
      */
+    @Suppress("unused")
     fun isInputFeasible(x: DoubleArray): Boolean {
         return isInputFeasible(toInputMap(x))
     }
@@ -698,6 +723,7 @@ class ProblemDefinition(
      *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
      *  @return the randomly generated point.
      */
+    @Suppress("unused")
     fun randomizeInputFeasibleValue(
         map: MutableMap<String, Double>,
         rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
