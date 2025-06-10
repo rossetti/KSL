@@ -133,8 +133,7 @@ open class SimulationService(
             return Result.success(simulationRun)
         }
     }
-
-
+    
     /**
      * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
      * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
@@ -268,52 +267,52 @@ open class SimulationService(
         return simulationRun
     }
 
-    /**
-     * Associates a given request with a ResponseMap from a simulation run.
-     * The method processes the simulation results to estimate and map the responses
-     * specified in the request. If the request specifies no response names, all
-     * responses from the simulation run are included in the result map.
-     *
-     * @param request the request data containing model identifier, inputs,
-     *                response names, and additional parameters necessary for simulation evaluation
-     * @param simulationRun the simulation execution results containing the data to be
-     *                      processed and mapped
-     * @return a map where the key is the given request and the value is a ResponseMap
-     *         containing the estimated simulation responses for the requested response names
-     * @throws IllegalArgumentException if a specified response name in the request
-     *                                  does not exist in the simulation results
-     *  @throws IllegalArgumentException if the provided simulation run has an error.
-     */
-    fun simulationRunToResponseMap(
-        request: RequestData,
-        simulationRun: SimulationRun
-    ): ResponseMap {
-        require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
-        // extract the replication data for each simulation response
-        val replicationData = simulationRun.results
-        // if the request's response name set is empty then return all responses from the simulation run
-        val responseNames = request.responseNames.ifEmpty {
-            simulationRun.results.keys
-        }
-        // make an empty response map to hold the estimated responses
-        val responseMap = ResponseMap(request.modelIdentifier, responseNames)
-        // fill the response map
-        for (name in responseNames) {
-            // this should have been checked when validating the request
-            require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
-            // get the data from the simulation
-            val data = replicationData[name]!!
-            // compute the estimates from the replication data
-            val estimatedResponse = EstimatedResponse(name, data)
-            // place the estimate in the response map
-            responseMap.add(estimatedResponse)
-        }
-        // return the responses for the request
-        return responseMap
-    }
-
     companion object {
         val logger: KLogger = KotlinLogging.logger {}
+
+        /**
+         * Associates a given request with a ResponseMap from a simulation run.
+         * The method processes the simulation results to estimate and map the responses
+         * specified in the request. If the request specifies no response names, all
+         * responses from the simulation run are included in the result map.
+         *
+         * @param request the request data containing model identifier, inputs,
+         *                response names, and additional parameters necessary for simulation evaluation
+         * @param simulationRun the simulation execution results containing the data to be
+         *                      processed and mapped
+         * @return a map where the key is the given request and the value is a ResponseMap
+         *         containing the estimated simulation responses for the requested response names
+         * @throws IllegalArgumentException if a specified response name in the request
+         *                                  does not exist in the simulation results
+         *  @throws IllegalArgumentException if the provided simulation run has an error.
+         */
+        fun simulationRunToResponseMap(
+            request: RequestData,
+            simulationRun: SimulationRun
+        ): ResponseMap {
+            require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
+            // extract the replication data for each simulation response
+            val replicationData = simulationRun.results
+            // if the request's response name set is empty then return all responses from the simulation run
+            val responseNames = request.responseNames.ifEmpty {
+                simulationRun.results.keys
+            }
+            // make an empty response map to hold the estimated responses
+            val responseMap = ResponseMap(request.modelIdentifier, responseNames)
+            // fill the response map
+            for (name in responseNames) {
+                // this should have been checked when validating the request
+                require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
+                // get the data from the simulation
+                val data = replicationData[name]!!
+                // compute the estimates from the replication data
+                val estimatedResponse = EstimatedResponse(name, data)
+                // place the estimate in the response map
+                responseMap.add(estimatedResponse)
+            }
+            // return the responses for the request
+            return responseMap
+        }
     }
 
 }
