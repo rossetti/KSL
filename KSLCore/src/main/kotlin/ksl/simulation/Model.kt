@@ -1440,6 +1440,25 @@ class Model(
     }
 
     /**
+     * Combines input keys from control keys and parameter keys into a single list.
+     *
+     * @param conCatString A character used as a delimiter for concatenating parameter keys. Defaults to `rvParamConCatChar`.
+     * @return A list of strings representing combined input keys from controls and parameter keys.
+     */
+    @Suppress("unused")
+    fun inputKeys(conCatString: Char = rvParamConCatChar) : List<String> {
+        val rvs = RVParameterSetter(this)
+        val controls = Controls(this)
+        val keys = mutableListOf<String>()
+        val rvParameters = rvs.flatParametersAsDoubles(conCatString)
+        val rvKeys = rvParameters.keys
+        val inputNames = controls.controlKeys()
+        keys.addAll(inputNames)
+        keys.addAll(rvKeys)
+        return keys
+    }
+
+    /**
      * Validates the provided set of response names are associated with the model's responses
      * (Response, TWResponse or Counter).
      *
@@ -1469,6 +1488,7 @@ class Model(
      *  with the model's name forming the database name and placing the database
      *  in the model's output database directory.
      */
+    @Suppress("unused")
     fun createDefaultDatabaseObserver(clearDataBeforeExperimentOption: Boolean = false) : KSLDatabaseObserver {
         return KSLDatabaseObserver(model, createDefaultDatabase(), clearDataBeforeExperimentOption)
     }
