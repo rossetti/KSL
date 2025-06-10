@@ -6,7 +6,7 @@ import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simulation.Model
-import ksl.simulation.ModelProvider
+import ksl.simulation.ModelProviderIfc
 
 /**
  *  This simulation service will execute evaluation requests on models
@@ -20,7 +20,7 @@ import ksl.simulation.ModelProvider
  */
 @Suppress("unused")
 open class SimulationService(
-    val modelProvider: ModelProvider,
+    val modelProvider: ModelProviderIfc,
     val simulationRunCache: SimulationRunCacheIfc? = null,
     var useCachedSimulationRuns: Boolean = false,
 ) {
@@ -49,6 +49,16 @@ open class SimulationService(
      */
     fun isModelProvided(modelIdentifier: String): Boolean {
         return modelProvider.isModelProvided(modelIdentifier)
+    }
+
+    /**
+     * Retrieves a list of model identifiers provided by the service. These identifiers represent
+     * the models available for simulation runs or other operations.
+     *
+     * @return a list of strings where each string represents a unique model identifier.
+     */
+    fun providedModels(): List<String> {
+        return modelProvider.modelIdentifiers()
     }
 
     /**
