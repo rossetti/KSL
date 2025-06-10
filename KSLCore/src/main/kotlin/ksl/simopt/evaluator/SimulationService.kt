@@ -317,13 +317,3 @@ open class SimulationService(
 
 }
 
-class ModelNotProvidedException(
-    message: String? = null,
-    cause: Throwable? = null
-) : Exception(message, cause)
-
-class SimulationRunException(
-    val simulationRun: SimulationRun,
-    message: String? = simulationRun.runErrorMsg,
-    cause: Throwable? = null
-) : Exception(message, cause)
