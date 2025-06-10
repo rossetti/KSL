@@ -3,6 +3,7 @@ package ksl.simulation
 /**
  * A type alias for a function that creates and returns an instance of the `Model` class.
  */
+@Suppress("unused")
 typealias ModelCreator = () -> Model
 
 /**
