@@ -146,7 +146,7 @@ open class SimulationService(
      *         SimulationRun or an exception if the simulation for that request fails.
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
-    fun runSimulations(requests:List<RequestData>) : Map<RequestData, Result<SimulationRun>> {
+    open fun runSimulations(requests:List<RequestData>) : Map<RequestData, Result<SimulationRun>> {
         require(requests.isNotEmpty()) {"The supplied list of requests was empty!"}
         val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
         //TODO in theory these could be run "in parallel"
@@ -197,7 +197,7 @@ open class SimulationService(
      * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
      *         results from the executed simulation.
      */
-    protected fun executeSimulation(request: RequestData, model: Model) : SimulationRun {
+    protected open fun executeSimulation(request: RequestData, model: Model) : SimulationRun {
         executionCounter++
         val myOriginalExpRunParams= model.extractRunParameters()
         // update experiment name on the model and number of replications
