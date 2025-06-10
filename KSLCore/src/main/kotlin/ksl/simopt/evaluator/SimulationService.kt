@@ -2,6 +2,7 @@ package ksl.simopt.evaluator
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
@@ -59,6 +60,40 @@ open class SimulationService(
      */
     fun providedModels(): List<String> {
         return modelProvider.modelIdentifiers()
+    }
+
+    /**
+     * Retrieves a list of response names associated with the specified model.
+     *
+     * @param modelIdentifier the identifier of the model whose response names are to be retrieved
+     * @return a list of response names corresponding to the specified model
+     */
+    @Suppress("unused")
+    fun responseNames(modelIdentifier: String): List<String> {
+        return modelProvider.responseNames(modelIdentifier)
+    }
+
+    /**
+     * Retrieves the list of input names associated with the specified model.
+     *
+     * @param modelIdentifier the identifier of the model whose input names are to be retrieved
+     * @return a list of strings representing the input names corresponding to the specified model
+     */
+    @Suppress("unused")
+    fun inputNames(modelIdentifier: String): List<String> {
+        return modelProvider.inputNames(modelIdentifier)
+    }
+
+    /**
+     * Retrieves the experimental run parameters for the model identified by the given identifier.
+     * This method extracts detailed configurations and settings required to execute the experiment.
+     *
+     * @param modelIdentifier the identifier of the model whose experimental parameters are to be retrieved
+     * @return an instance of [ExperimentRunParameters] containing the run parameters for the specified model
+     */
+    @Suppress("unused")
+    fun experimentalParameters(modelIdentifier: String) : ExperimentRunParameters{
+        return modelProvider.experimentalParameters(modelIdentifier)
     }
 
     /**
