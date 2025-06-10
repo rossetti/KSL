@@ -4,7 +4,7 @@ package ksl.simulation
  *  An interface that promises to provide a model instance
  *  based on some identifier for the model.
  */
-interface ModelProvider {
+interface ModelProviderIfc {
 
     /**
      * Verifies whether a model is available based on the given identifier.
