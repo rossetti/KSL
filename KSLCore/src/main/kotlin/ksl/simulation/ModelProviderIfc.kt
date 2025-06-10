@@ -48,4 +48,6 @@ interface ModelProviderIfc {
     fun responseNames(modelIdentifier: String) : List<String> {
         return provideModel(modelIdentifier).responseNames
     }
+
+    fun inputNames(modelIdentifier: String) : List<String>
 }
