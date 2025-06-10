@@ -1,6 +1,11 @@
 package ksl.simulation
 
 /**
+ * A type alias for a function that creates and returns an instance of the `Model` class.
+ */
+typealias ModelCreator = () -> Model
+
+/**
  *  An interface that promises to provide a model instance
  *  based on some identifier for the model.
  */
