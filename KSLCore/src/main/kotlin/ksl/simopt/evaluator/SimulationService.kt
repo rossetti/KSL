@@ -164,7 +164,7 @@ open class SimulationService(
             request.experimentRunParameters.numberOfReplications = model.numberOfReplications
         }
         logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
-        //in theory the replications might be run in parallel
+        //TODO in theory the replications might be run in parallel
         val mySimulationRunner = SimulationRunner(model)
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
