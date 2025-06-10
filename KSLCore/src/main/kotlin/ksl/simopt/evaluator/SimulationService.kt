@@ -135,6 +135,23 @@ open class SimulationService(
     }
 
     /**
+     * Executes a simulation run based on the provided request and returns the results as a map.
+     * If the simulation fails, the result map will contain the failure details for the given request.
+     *
+     * @param request the request data containing the model identifier, inputs, response names,
+     *                and other parameters necessary for simulation execution
+     * @return a map where the key is the RequestData object and the value is a Result wrapping
+     *         either a successful ResponseMap or an exception if the simulation fails
+     */
+    fun runSimulationAsResponseMap(request: RequestData) : Map<RequestData, Result<ResponseMap>> {
+        val simulationRunResult = runSimulation(request)
+        simulationRunResult.onFailure {
+            return mapOf(request to Result.failure(it))
+        }
+        return associateWithResponseMap(request, simulationRunResult)
+    }
+
+    /**
      * Executes multiple simulation runs based on the provided list of request data. Each request is
      * processed individually, and the result is recorded and returned as a map where the key is the
      * request and the value is the result of the simulation. If the input list of requests is empty,
