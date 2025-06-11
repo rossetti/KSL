@@ -3,11 +3,8 @@ package ksl.simopt.evaluator
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
-import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simulation.Model
-import ksl.utilities.io.dbutil.KSLDatabase
-import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 /**
  *  This simulation provider will execute evaluation requests on the same model
@@ -73,8 +70,8 @@ class SimulationProvider(
         executionCounter = 0
     }
 
-    override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
-        val results = mutableMapOf<RequestData, ResponseMap>()
+    override fun runSimulationsForResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+        val results = mutableMapOf<RequestData, Result<ResponseMap>>()
         for (request in requests) {
             //TODO validate request??
             if ((simulationRunCache != null) && useCachedSimulationRuns) {
@@ -101,7 +98,7 @@ class SimulationProvider(
 
     private fun respondFromCache(
         request: RequestData,
-        results: MutableMap<RequestData, ResponseMap>
+        results: MutableMap<RequestData, Result<ResponseMap>>
     ) {
         if ((simulationRunCache != null) ){
             // check if the request is in the cache
@@ -121,7 +118,7 @@ class SimulationProvider(
 
     private fun executeSimulation(
         request: RequestData,
-        results: MutableMap<RequestData, ResponseMap>
+        results: MutableMap<RequestData, Result<ResponseMap>>
     ) {
         executionCounter++
         // update experiment name on the model and number of replications
@@ -151,8 +148,12 @@ class SimulationProvider(
     private fun captureResults(
         request: RequestData,
         simulationRun: SimulationRun,
-        results: MutableMap<RequestData, ResponseMap>
+        results: MutableMap<RequestData, Result<ResponseMap>>
     ) {
+        if (simulationRun.runErrorMsg.isNotEmpty()) {
+            results[request] = Result.failure(SimulationRunException(simulationRun))
+            return
+        }
         // extract the replication data for each simulation response
         val replicationData = simulationRun.results
         // if the request's response name set is empty then return all responses from the simulation run
@@ -173,7 +174,9 @@ class SimulationProvider(
             responseMap.add(estimatedResponse)
         }
         // capture the responses for each request
-        results[request] = responseMap
+        results[request] = Result.success(responseMap)
     }
+
+
 
 }

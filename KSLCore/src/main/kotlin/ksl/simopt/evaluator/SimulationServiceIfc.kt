@@ -12,7 +12,7 @@ import ksl.simulation.Model
  *  and collect the desired responses.
  *
  */
-interface SimulationServiceIfc {
+interface SimulationServiceIfc : RunSimulationsForResponseMapsIfc {
 
     /**
      * @param modelIdentifier the string identifier for the model to be executed
@@ -102,7 +102,7 @@ interface SimulationServiceIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    fun runSimulationsToResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+    override fun runSimulationsForResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
         val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
         for (request in requests) {

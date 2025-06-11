@@ -1,8 +1,6 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SimulationRunCacheIfc
-import ksl.utilities.io.dbutil.KSLDatabase
-import ksl.utilities.io.dbutil.KSLDatabaseObserver
 
 /**
  *  An interface that promises to run simulations on
@@ -12,7 +10,7 @@ import ksl.utilities.io.dbutil.KSLDatabaseObserver
  *  represents the desired responses from the simulation. It should
  *  contain the replication averages for each desired response.
  */
-interface SimulationProviderIfc {
+interface SimulationProviderIfc : RunSimulationsForResponseMapsIfc {
 
     /**
      *  Indicates if the simulation provider should use cached simulation runs
@@ -25,14 +23,14 @@ interface SimulationProviderIfc {
      */
     val simulationRunCache: SimulationRunCacheIfc?
 
-    /**
-     *  Promises to convert evaluation requests into responses.
-     *
-     * @param requests a list of evaluations
-     * @return a map of the pair of evaluation requests and the responses from the simulation
-     */
-    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
-//TODO needs to return Result
+//    /**
+//     *  Promises to convert evaluation requests into responses.
+//     *
+//     * @param requests a list of evaluations
+//     * @return a map of the pair of evaluation requests and the responses from the simulation
+//     */
+//    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
+////TODO needs to return Result
 
     /**
      *  Indicates if the model identified by the modelIdentifier is valid. That is,
