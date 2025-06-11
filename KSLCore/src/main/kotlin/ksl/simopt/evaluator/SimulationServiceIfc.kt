@@ -197,7 +197,8 @@ interface SimulationServiceIfc {
          * is used to as expIdentifier. Depending on how users might store experimental
          * results, this naming may be important, especially if a KSLDatabase is used to hold experimental results.
          * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
-         *         results from the executed simulation.
+         *         results from the executed simulation.  If the simulation run resulted in errors, the simulation run's
+         *         runErrorMsg property will not be empty (blank).
          */
         @Suppress("unused")
         fun executeSimulation(request: RequestData, model: Model, expIdentifier: String? = null): SimulationRun {
