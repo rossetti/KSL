@@ -16,6 +16,10 @@ class MapModelProvider(
 
     private val modelCache = mutableMapOf<String, Model>()
 
+    constructor(modelIdentifier: String, creator: ModelCreator) : this(
+        mutableMapOf(modelIdentifier to creator)
+    )
+
     /**
      * Adds a ModelCreator to the provider.
      *
