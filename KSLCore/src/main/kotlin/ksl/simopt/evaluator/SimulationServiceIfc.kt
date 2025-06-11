@@ -215,11 +215,14 @@ interface SimulationServiceIfc {
             }
             // ensure that the requested number of replications will be executed
             srp.numberOfReplications = request.numReplications
-            logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${srp.experimentName} " }
+            logger.info { "SimulationService: Running simulation for model: ${request.modelIdentifier} experiment: ${srp.experimentName} " }
             val mySimulationRunner = SimulationRunner(model)
             //run the simulation to produce the simulation run results
-            val simulationRun = mySimulationRunner.simulate(request.inputs, srp)
-            logger.info { "SimulationService: Completed simulation for model: ${model.name} experiment: ${srp.experimentName} " }
+            val simulationRun = mySimulationRunner.simulate(
+                modelIdentifier = request.modelIdentifier,
+                inputs = request.inputs,
+                experimentRunParameters = srp)
+            logger.info { "SimulationService: Completed simulation for model: ${request.modelIdentifier} experiment: ${srp.experimentName} " }
             // reset the model run parameters back to their original values
             model.changeRunParameters(myOriginalExpRunParams)
             return simulationRun

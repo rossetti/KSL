@@ -91,10 +91,11 @@ class SimulationRunner(
      *  associated with the simulation run.
      */
     fun simulate(
+        modelIdentifier: String = model.simulationName,
         inputs: Map<String, Double> = mapOf(),
         experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ): SimulationRun {
-        val simulationRun = SimulationRun(model.name, experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(modelIdentifier, experimentRunParameters, inputs)
         simulate(simulationRun)
         return simulationRun
     }

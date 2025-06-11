@@ -11,12 +11,12 @@ import ksl.controls.experiments.ExperimentRunParameters
  * @param modelCreators A mutable map containing model identifiers and their corresponding ModelCreator functions. Default is an empty map.
  */
 class MapModelProvider(
-    private val modelCreators: MutableMap<String, ModelCreator> = mutableMapOf()
+    private val modelCreators: MutableMap<String, ModelBuilderIfc> = mutableMapOf()
 ) : ModelProviderIfc {
 
     private val modelCache = mutableMapOf<String, Model>()
 
-    constructor(modelIdentifier: String, creator: ModelCreator) : this(
+    constructor(modelIdentifier: String, creator: ModelBuilderIfc) : this(
         mutableMapOf(modelIdentifier to creator)
     )
 
@@ -27,7 +27,7 @@ class MapModelProvider(
      * @param creator the ModelCreator function that creates the model
      */
     @Suppress("unused")
-    fun addModelCreator(modelIdentifier: String, creator: ModelCreator) {
+    fun addModelCreator(modelIdentifier: String, creator: ModelBuilderIfc) {
         modelCreators[modelIdentifier] = creator
     }
 
@@ -48,7 +48,7 @@ class MapModelProvider(
     }
 
     override fun provideModel(modelIdentifier: String): Model {
-         val model = modelCreators[modelIdentifier]?.invoke()
+         val model = modelCreators[modelIdentifier]?.build()
             ?: throw IllegalArgumentException("No model creator found for identifier: $modelIdentifier")
         if (!modelCache.containsKey(modelIdentifier)) modelCache[modelIdentifier] = model
         return model

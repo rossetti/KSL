@@ -452,7 +452,11 @@ class DesignedExperiment(
         model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
         Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
-        val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
+        val sr = mySimulationRunner.simulate(
+            modelIdentifier = model.simulationName,
+            inputs = inputs,
+            experimentRunParameters = model.extractRunParameters()
+        )
         Model.logger.info { "DesignedExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {

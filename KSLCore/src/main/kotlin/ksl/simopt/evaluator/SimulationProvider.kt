@@ -135,8 +135,9 @@ class SimulationProvider(
         Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
-            request.inputs,
-            request.experimentRunParameters ?: model.extractRunParameters()
+            modelIdentifier = request.modelIdentifier,
+            inputs = request.inputs,
+            experimentRunParameters = request.experimentRunParameters ?: model.extractRunParameters()
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
         // capture the simulation results

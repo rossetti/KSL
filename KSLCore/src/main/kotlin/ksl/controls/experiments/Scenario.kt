@@ -107,7 +107,10 @@ class Scenario(
         // change the name for the run to the name of the scenario
         model.experimentName = name
         setup?.setup(model)
-        simulationRun = simulationRunner.simulate(myInputs, model.extractRunParameters())
+        simulationRun = simulationRunner.simulate(
+            modelIdentifier = model.simulationName,
+            inputs = myInputs,
+            experimentRunParameters = model.extractRunParameters())
         // put the name back to its original value
         model.experimentName = experimentName
     }
