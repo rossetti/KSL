@@ -73,10 +73,6 @@ class SimulationProvider(
         executionCounter = 0
     }
 
-    fun runSimulation(request: RequestData): Result<SimulationRun> {
-        TODO("Not implemented yet")
-    }
-
     override fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap> {
         val results = mutableMapOf<RequestData, ResponseMap>()
         for (request in requests) {
