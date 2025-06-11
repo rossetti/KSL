@@ -9,7 +9,7 @@ import ksl.simopt.problem.ProblemDefinition
  *  solutions for requests for evaluation from solvers.
  *
  *  @param problemDefinition the problem that the evaluation of responses will be used on
- *  @param simulationProvider the provider of responses from the simulation oracle
+ *  @param simulator the provider of responses from the simulation oracle
  *  @param cache a cache that can be used instead of a costly simulation evaluation
  *  @param oracleReplicationBudget the maximum number of direct replications permitted by the evaluator.
  *  The default is Int.MAX_VALUE. This can be used to control the total number of replications executed
@@ -17,7 +17,7 @@ import ksl.simopt.problem.ProblemDefinition
  */
 class Evaluator(
     override val problemDefinition: ProblemDefinition,
-    private val simulationProvider: SimulationServiceIfc,
+    private val simulator: RunSimulationsForResponseMapsIfc,
     override val cache: SolutionCacheIfc? = null,
     oracleReplicationBudget: Int = Int.MAX_VALUE
 ) : EvaluatorIfc {
@@ -219,7 +219,7 @@ class Evaluator(
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
-        val cases = simulationProvider.runSimulationsToResponseMaps(requests)
+        val cases = simulator.runSimulationsForResponseMaps(requests)
         val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, result) in cases) {
