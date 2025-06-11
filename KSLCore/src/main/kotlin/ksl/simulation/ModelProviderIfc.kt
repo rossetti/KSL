@@ -11,23 +11,16 @@ typealias ModelCreator = () -> Model
 /**
  * An interface representing a builder for creating Model instances.
  *
- * This interface defines a single abstract method that is responsible for
+ * This interface defines an abstract method that is responsible for
  * constructing a Model object based on the provided model identifier.
  * It can be implemented to encapsulate the logic required to create
  * specific types of model instances.
  */
-interface ModelBuilderIfc {
+fun interface ModelBuilderIfc {
 
-    val modelIdentifier: String
-
-    val modelCreator: ModelCreator
+    fun build(): Model
 
 }
-
-class ModelBuilder(
-    override val modelIdentifier: String,
-    override val modelCreator: ModelCreator
-) : ModelBuilderIfc
 
 /**
  *  An interface that promises to provide a model instance
