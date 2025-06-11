@@ -9,6 +9,27 @@ import ksl.controls.experiments.ExperimentRunParameters
 typealias ModelCreator = () -> Model
 
 /**
+ * An interface representing a builder for creating Model instances.
+ *
+ * This interface defines a single abstract method that is responsible for
+ * constructing a Model object based on the provided model identifier.
+ * It can be implemented to encapsulate the logic required to create
+ * specific types of model instances.
+ */
+interface ModelBuilderIfc {
+
+    val modelIdentifier: String
+
+    val modelCreator: ModelCreator
+
+}
+
+class ModelBuilder(
+    override val modelIdentifier: String,
+    override val modelCreator: ModelCreator
+) : ModelBuilderIfc
+
+/**
  *  An interface that promises to provide a model instance
  *  based on some identifier for the model.
  */
