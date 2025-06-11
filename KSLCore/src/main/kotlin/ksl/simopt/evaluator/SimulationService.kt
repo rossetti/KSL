@@ -24,24 +24,6 @@ open class SimulationService(
 ) : SimulationServiceIfc {
 
     /**
-     *  Used to count the number of times that the simulation model is executed. Each execution can
-     *  be considered a different experiment
-     */
-    var executionCounter: Int = 0
-        private set
-
-    /**
-     *  Causes the execution counter to be reset to 0. Care must be taken if a database is used to
-     *  collect simulation results. The names of the experiments are based on the value of the counter. An
-     *  error will occur if multiple experiments have the same name in the database. You will likely want
-     *  to export and clear the data from the database before running additional simulations.
-     */
-    @Suppress("unused")
-    fun resetExecutionCounter() {
-        executionCounter = 0
-    }
-
-    /**
      * @param modelIdentifier the string identifier for the model to be executed
      * @return true if the service will provide results from the model
      */
