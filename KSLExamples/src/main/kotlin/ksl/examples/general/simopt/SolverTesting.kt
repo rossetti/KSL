@@ -2,12 +2,15 @@ package ksl.examples.general.simopt
 
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.general.models.LKInventoryModel
+import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.SimulationProvider
+import ksl.simopt.evaluator.SimulationService
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
 import ksl.utilities.Interval
 
@@ -106,7 +109,8 @@ fun makeProblemDefinition() : ProblemDefinition {
 }
 
 fun setUpEvaluator() : Evaluator {
-    val simulationProvider = SimulationProvider(buildModel())
+    // val simulationProvider = SimulationProvider(buildModel2())
+    val simulationProvider = setUpSimulationService()
     val problemDefinition = makeProblemDefinition()
     val cache = MemorySolutionCache()
     val evaluator = Evaluator(
@@ -115,4 +119,17 @@ fun setUpEvaluator() : Evaluator {
         cache
     )
     return evaluator
+}
+
+fun setUpSimulationService() : SimulationService {
+
+    val mapModelProvider = MapModelProvider()
+    mapModelProvider.addModelCreator("RQInventoryModel", { buildModel2() })
+    val simulationService = SimulationService(
+        modelProvider = mapModelProvider,
+        simulationRunCache = MemorySimulationRunCache(),
+        useCachedSimulationRuns = true
+    )
+
+    return simulationService
 }

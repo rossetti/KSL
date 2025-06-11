@@ -3,13 +3,16 @@ package ksl.examples.general.simopt
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.book.chapter7.RQInventorySystem
 import ksl.examples.general.models.LKInventoryModel
+import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.SimulationProvider
+import ksl.simopt.evaluator.SimulationService
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
 import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ConstantRV
@@ -91,17 +94,17 @@ fun buildModel2(reorderQty: Int = 2, reorderPoint: Int = 1) : Model {
     model.lengthOfReplicationWarmUp = 10000.0
     model.numberOfReplications = 40
 
-    val controls = model.controls()
-    println("Model Controls:")
-    controls.printControls()
-    println()
+//    val controls = model.controls()
+//    println("Model Controls:")
+//    controls.printControls()
+//    println()
     return model
 }
 
 fun makeProblemDefinition2() : ProblemDefinition {
     val problemDefinition = ProblemDefinition(
         problemName = "InventoryProblem",
-        modelIdentifier = "RQInventoryModel",
+        modelIdentifier = "InventoryModel",
         objFnResponseName = "RQInventoryModel:Item:OrderingAndHoldingCost",
         inputNames = listOf("RQInventoryModel:Item.initialReorderQty", "RQInventoryModel:Item.initialReorderPoint"),
         responseNames = listOf("RQInventoryModel:Item:FillRate")
@@ -126,7 +129,8 @@ fun makeProblemDefinition2() : ProblemDefinition {
 }
 
 fun setUpEvaluator2() : Evaluator {
-    val simulationProvider = SimulationProvider(buildModel2())
+   // val simulationProvider = SimulationProvider(buildModel2())
+    val simulationProvider = setUpSimulationService2()
     val problemDefinition = makeProblemDefinition2()
     val cache = MemorySolutionCache()
     val evaluator = Evaluator(
@@ -135,4 +139,17 @@ fun setUpEvaluator2() : Evaluator {
         cache
     )
     return evaluator
+}
+
+fun setUpSimulationService2() : SimulationService {
+
+    val mapModelProvider = MapModelProvider()
+    mapModelProvider.addModelCreator("InventoryModel", { buildModel2() })
+    val simulationService = SimulationService(
+        modelProvider = mapModelProvider,
+        simulationRunCache = MemorySimulationRunCache(),
+        useCachedSimulationRuns = true
+    )
+
+    return simulationService
 }

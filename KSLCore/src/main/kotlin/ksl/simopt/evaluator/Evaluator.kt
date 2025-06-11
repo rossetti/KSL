@@ -17,7 +17,7 @@ import ksl.simopt.problem.ProblemDefinition
  */
 class Evaluator(
     override val problemDefinition: ProblemDefinition,
-    private val simulationProvider: SimulationProviderIfc,
+    private val simulationProvider: SimulationServiceIfc,
     override val cache: SolutionCacheIfc? = null,
     oracleReplicationBudget: Int = Int.MAX_VALUE
 ) : EvaluatorIfc {
@@ -219,11 +219,15 @@ class Evaluator(
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
-        val cases = simulationProvider.runSimulations(requests)
+        val cases = simulationProvider.runSimulationsToResponseMaps(requests)
         val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
-        for ((request, responseMap) in cases) {
-            solutions[request] = createSolution(request, responseMap)
+        for ((request, result) in cases) {
+            solutions[request] = if (result.isFailure) {
+                problemDefinition.badSolution()
+            } else {
+                createSolution(request, result.getOrNull()!!)
+            }
         }
         return solutions
     }
