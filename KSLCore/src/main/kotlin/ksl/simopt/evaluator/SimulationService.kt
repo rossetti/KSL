@@ -24,7 +24,7 @@ open class SimulationService(
     val modelProvider: ModelProviderIfc,
     val simulationRunCache: SimulationRunCacheIfc? = null,
     var useCachedSimulationRuns: Boolean = false,
-) {
+) : SimulationServiceIfc {
 
     /**
      *  Used to count the number of times that the simulation model is executed. Each execution can
@@ -48,7 +48,7 @@ open class SimulationService(
      * @param modelIdentifier the string identifier for the model to be executed
      * @return true if the service will provide results from the model
      */
-    fun isModelProvided(modelIdentifier: String): Boolean {
+    override fun isModelProvided(modelIdentifier: String): Boolean {
         return modelProvider.isModelProvided(modelIdentifier)
     }
 
@@ -58,7 +58,7 @@ open class SimulationService(
      *
      * @return a list of strings where each string represents a unique model identifier.
      */
-    fun providedModels(): List<String> {
+    override fun providedModels(): List<String> {
         return modelProvider.modelIdentifiers()
     }
 
@@ -69,7 +69,7 @@ open class SimulationService(
      * @return a list of response names corresponding to the specified model
      */
     @Suppress("unused")
-    fun responseNames(modelIdentifier: String): List<String> {
+    override fun responseNames(modelIdentifier: String): List<String> {
         return modelProvider.responseNames(modelIdentifier)
     }
 
@@ -80,7 +80,7 @@ open class SimulationService(
      * @return a list of strings representing the input names corresponding to the specified model
      */
     @Suppress("unused")
-    fun inputNames(modelIdentifier: String): List<String> {
+    override fun inputNames(modelIdentifier: String): List<String> {
         return modelProvider.inputNames(modelIdentifier)
     }
 
@@ -92,7 +92,7 @@ open class SimulationService(
      * @return an instance of [ExperimentRunParameters] containing the run parameters for the specified model
      */
     @Suppress("unused")
-    fun experimentalParameters(modelIdentifier: String): ExperimentRunParameters {
+    override fun experimentalParameters(modelIdentifier: String): ExperimentRunParameters {
         return modelProvider.experimentalParameters(modelIdentifier)
     }
 
@@ -106,25 +106,25 @@ open class SimulationService(
      * and other parameters necessary to execute the simulation
      * @return a result object wrapping a successful simulation run or an exception if the simulation fails
      */
-    fun runSimulation(request: RequestData): Result<SimulationRun> {
+    override fun runSimulation(request: RequestData): Result<SimulationRun> {
         if (!isModelProvided(request.modelIdentifier)) {
             val msg = "The SimulationService does not provide model ${request.modelIdentifier}\n" +
                     "request: $request"
-            logger.error { msg }
+            SimulationServiceIfc.logger.error { msg }
             return Result.failure(ModelNotProvidedException(msg))
         }
         // check the cache before working with the model
         var simulationRun = retrieveFromCache(request)
         if (simulationRun != null) {
-            logger.info { "SimulationService: results for ${request.modelIdentifier} returned from the cache" }
+            SimulationServiceIfc.logger.info { "SimulationService: results for ${request.modelIdentifier} returned from the cache" }
             return Result.success(simulationRun)
         }
         // not found in the cache, need to run the model
         val model = modelProvider.provideModel(request.modelIdentifier)
         simulationRun = executeSimulation(request, model)
         if (simulationRun.runErrorMsg.isNotEmpty()) {
-            logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
-            logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+            SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
+            SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
             return Result.failure(SimulationRunException(simulationRun))
         } else {
             // only store good simulation runs in the cache
@@ -134,72 +134,72 @@ open class SimulationService(
         }
     }
 
-    /**
-     * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
-     * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
-     * In case of a failure during the simulation, an error is returned instead.
-     *
-     * @param request the request data containing model identifiers, inputs, response names,
-     *                and parameters necessary to execute and evaluate the simulation
-     * @return a result wrapping a map where each key is the provided request, and the value
-     *         is the corresponding ResponseMap. If the simulation fails, the result contains an error.
-     */
-    fun runSimulationToResponseMap(request: RequestData): Result<ResponseMap> {
-        val simulationRunResult = runSimulation(request)
-        simulationRunResult.onFailure {
-            return Result.failure(it)
-        }
-        return Result.success(
-            simulationRunToResponseMap(
-                request,
-                simulationRunResult.getOrNull()!!
-            )
-        )
-    }
+//    /**
+//     * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
+//     * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
+//     * In case of a failure during the simulation, an error is returned instead.
+//     *
+//     * @param request the request data containing model identifiers, inputs, response names,
+//     *                and parameters necessary to execute and evaluate the simulation
+//     * @return a result wrapping a map where each key is the provided request, and the value
+//     *         is the corresponding ResponseMap. If the simulation fails, the result contains an error.
+//     */
+//    fun runSimulationToResponseMap(request: RequestData): Result<ResponseMap> {
+//        val simulationRunResult = runSimulation(request)
+//        simulationRunResult.onFailure {
+//            return Result.failure(it)
+//        }
+//        return Result.success(
+//            simulationRunToResponseMap(
+//                request,
+//                simulationRunResult.getOrNull()!!
+//            )
+//        )
+//    }
 
-    /**
-     * Executes multiple simulations based on the provided list of request data and maps each request
-     * to a corresponding ResponseMap. Each request is processed individually, and the results of the
-     * simulations are stored as a key-value pair in the returned map. If the input list is empty, an
-     * exception is thrown.
-     *
-     * @param requests the list of RequestData objects representing the simulation requests to be processed.
-     *                 The list must contain at least one element.
-     * @return a map where each key is a RequestData object and each value is a Result wrapping either
-     *         a successful ResponseMap or an exception if the simulation fails for the corresponding request.
-     * @throws IllegalArgumentException if the input list of requests is empty.
-     */
-    fun runSimulationsToResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
-        require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
-        val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
-        //TODO in theory these could be run "in parallel"
-        for (request in requests) {
-            resultMap[request] = runSimulationToResponseMap(request)
-        }
-        return resultMap
-    }
+//    /**
+//     * Executes multiple simulations based on the provided list of request data and maps each request
+//     * to a corresponding ResponseMap. Each request is processed individually, and the results of the
+//     * simulations are stored as a key-value pair in the returned map. If the input list is empty, an
+//     * exception is thrown.
+//     *
+//     * @param requests the list of RequestData objects representing the simulation requests to be processed.
+//     *                 The list must contain at least one element.
+//     * @return a map where each key is a RequestData object and each value is a Result wrapping either
+//     *         a successful ResponseMap or an exception if the simulation fails for the corresponding request.
+//     * @throws IllegalArgumentException if the input list of requests is empty.
+//     */
+//    fun runSimulationsToResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+//        require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
+//        val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
+//        //TODO in theory these could be run "in parallel"
+//        for (request in requests) {
+//            resultMap[request] = runSimulationToResponseMap(request)
+//        }
+//        return resultMap
+//    }
 
-    /**
-     * Executes multiple simulation runs based on the provided list of request data. Each request is
-     * processed individually, and the result is recorded and returned as a map where the key is the
-     * request and the value is the result of the simulation. If the input list of requests is empty,
-     * an exception is thrown.
-     *
-     * @param requests the list of RequestData objects, each representing a simulation request to be executed.
-     *                 The list must not be empty.
-     * @return a map where each key is a RequestData object and each value is a Result wrapping a successful
-     *         SimulationRun or an exception if the simulation for that request fails.
-     * @throws IllegalArgumentException if the input list of requests is empty.
-     */
-    open fun runSimulations(requests: List<RequestData>): Map<RequestData, Result<SimulationRun>> {
-        require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
-        val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
-        //TODO in theory these could be run "in parallel"
-        for (request in requests) {
-            resultMap[request] = runSimulation(request)
-        }
-        return resultMap
-    }
+//    /**
+//     * Executes multiple simulation runs based on the provided list of request data. Each request is
+//     * processed individually, and the result is recorded and returned as a map where the key is the
+//     * request and the value is the result of the simulation. If the input list of requests is empty,
+//     * an exception is thrown.
+//     *
+//     * @param requests the list of RequestData objects, each representing a simulation request to be executed.
+//     *                 The list must not be empty.
+//     * @return a map where each key is a RequestData object and each value is a Result wrapping a successful
+//     *         SimulationRun or an exception if the simulation for that request fails.
+//     * @throws IllegalArgumentException if the input list of requests is empty.
+//     */
+//    open fun runSimulations(requests: List<RequestData>): Map<RequestData, Result<SimulationRun>> {
+//        require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
+//        val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
+//        //TODO in theory these could be run "in parallel"
+//        for (request in requests) {
+//            resultMap[request] = runSimulation(request)
+//        }
+//        return resultMap
+//    }
 
     /**
      * Retrieves a cached simulation run based on the provided request data.
@@ -253,7 +253,7 @@ open class SimulationService(
             request.experimentRunParameters.experimentName = model.experimentName
             request.experimentRunParameters.numberOfReplications = model.numberOfReplications
         }
-        logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
+        SimulationServiceIfc.logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
         //TODO in theory the replications might be run in parallel
         val mySimulationRunner = SimulationRunner(model)
         //run the simulation
@@ -261,59 +261,59 @@ open class SimulationService(
             request.inputs,
             request.experimentRunParameters ?: myOriginalExpRunParams
         )
-        logger.info { "SimulationService: Completed simulation for model: ${model.name} experiment: ${model.experimentName} " }
+        SimulationServiceIfc.logger.info { "SimulationService: Completed simulation for model: ${model.name} experiment: ${model.experimentName} " }
         // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
         return simulationRun
     }
 
-    companion object {
-        val logger: KLogger = KotlinLogging.logger {}
-
-        /**
-         * Associates a given request with a ResponseMap from a simulation run.
-         * The method processes the simulation results to estimate and map the responses
-         * specified in the request. If the request specifies no response names, all
-         * responses from the simulation run are included in the result map.
-         *
-         * @param request the request data containing model identifier, inputs,
-         *                response names, and additional parameters necessary for simulation evaluation
-         * @param simulationRun the simulation execution results containing the data to be
-         *                      processed and mapped
-         * @return a map where the key is the given request and the value is a ResponseMap
-         *         containing the estimated simulation responses for the requested response names
-         * @throws IllegalArgumentException if a specified response name in the request
-         *                                  does not exist in the simulation results
-         *  @throws IllegalArgumentException if the provided simulation run has an error.
-         */
-        fun simulationRunToResponseMap(
-            request: RequestData,
-            simulationRun: SimulationRun
-        ): ResponseMap {
-            require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
-            // extract the replication data for each simulation response
-            val replicationData = simulationRun.results
-            // if the request's response name set is empty then return all responses from the simulation run
-            val responseNames = request.responseNames.ifEmpty {
-                simulationRun.results.keys
-            }
-            // make an empty response map to hold the estimated responses
-            val responseMap = ResponseMap(request.modelIdentifier, responseNames)
-            // fill the response map
-            for (name in responseNames) {
-                // this should have been checked when validating the request
-                require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
-                // get the data from the simulation
-                val data = replicationData[name]!!
-                // compute the estimates from the replication data
-                val estimatedResponse = EstimatedResponse(name, data)
-                // place the estimate in the response map
-                responseMap.add(estimatedResponse)
-            }
-            // return the responses for the request
-            return responseMap
-        }
-    }
+//    companion object {
+//        val logger: KLogger = KotlinLogging.logger {}
+//
+//        /**
+//         * Associates a given request with a ResponseMap from a simulation run.
+//         * The method processes the simulation results to estimate and map the responses
+//         * specified in the request. If the request specifies no response names, all
+//         * responses from the simulation run are included in the result map.
+//         *
+//         * @param request the request data containing model identifier, inputs,
+//         *                response names, and additional parameters necessary for simulation evaluation
+//         * @param simulationRun the simulation execution results containing the data to be
+//         *                      processed and mapped
+//         * @return a map where the key is the given request and the value is a ResponseMap
+//         *         containing the estimated simulation responses for the requested response names
+//         * @throws IllegalArgumentException if a specified response name in the request
+//         *                                  does not exist in the simulation results
+//         *  @throws IllegalArgumentException if the provided simulation run has an error.
+//         */
+//        fun simulationRunToResponseMap(
+//            request: RequestData,
+//            simulationRun: SimulationRun
+//        ): ResponseMap {
+//            require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
+//            // extract the replication data for each simulation response
+//            val replicationData = simulationRun.results
+//            // if the request's response name set is empty then return all responses from the simulation run
+//            val responseNames = request.responseNames.ifEmpty {
+//                simulationRun.results.keys
+//            }
+//            // make an empty response map to hold the estimated responses
+//            val responseMap = ResponseMap(request.modelIdentifier, responseNames)
+//            // fill the response map
+//            for (name in responseNames) {
+//                // this should have been checked when validating the request
+//                require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
+//                // get the data from the simulation
+//                val data = replicationData[name]!!
+//                // compute the estimates from the replication data
+//                val estimatedResponse = EstimatedResponse(name, data)
+//                // place the estimate in the response map
+//                responseMap.add(estimatedResponse)
+//            }
+//            // return the responses for the request
+//            return responseMap
+//        }
+//    }
 
 }
 

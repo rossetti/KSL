@@ -32,6 +32,7 @@ interface SimulationProviderIfc {
      * @return a map of the pair of evaluation requests and the responses from the simulation
      */
     fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
+//TODO needs to return Result
 
     /**
      *  Indicates if the model identified by the modelIdentifier is valid. That is,
