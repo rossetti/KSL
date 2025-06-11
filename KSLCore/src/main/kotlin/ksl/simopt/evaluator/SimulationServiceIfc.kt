@@ -101,6 +101,7 @@ interface SimulationServiceIfc {
      *         a successful ResponseMap or an exception if the simulation fails for the corresponding request.
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
+    @Suppress("unused")
     fun runSimulationsToResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
         val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
@@ -123,6 +124,7 @@ interface SimulationServiceIfc {
      *         SimulationRun or an exception if the simulation for that request fails.
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
+    @Suppress("unused")
     fun runSimulations(requests: List<RequestData>): Map<RequestData, Result<SimulationRun>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
         val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
@@ -191,28 +193,31 @@ interface SimulationServiceIfc {
          *              for the simulation execution.
          * @param expIdentifier a string that is used to uniquely identify the experiment within the context
          * of multiple executions for the same model. The name of the experiment will be:
-         * "${request.modelIdentifier}_Exp_$expIdentifier". Depending on how users might store experimental
+         * "${request.modelIdentifier}_Exp_$expIdentifier". If expIdentifier is null, then the time of the request
+         * is used to as expIdentifier. Depending on how users might store experimental
          * results, this naming may be important, especially if a KSLDatabase is used to hold experimental results.
          * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
          *         results from the executed simulation.
          */
-        fun executeSimulation(request: RequestData, model: Model, expIdentifier: String): SimulationRun {
+        @Suppress("unused")
+        fun executeSimulation(request: RequestData, model: Model, expIdentifier: String? = null): SimulationRun {
             val myOriginalExpRunParams = model.extractRunParameters()
-            // update experiment name on the model and number of replications
-            model.experimentName = "${request.modelIdentifier}_Exp_$expIdentifier"
-            model.numberOfReplications = request.numReplications
-            if (request.experimentRunParameters != null) {
-                // update the name and the number of replications on the supplied parameters
-                request.experimentRunParameters.experimentName = model.experimentName
-                request.experimentRunParameters.numberOfReplications = model.numberOfReplications
+            val srp = if (request.experimentRunParameters != null) {
+                // assume that if the user supplied the parameters then the experiment name is appropriate
+                request.experimentRunParameters
+            } else {
+                // If no experiment run parameters were provided with the request, then use the model's defaults.
+                val p = model.extractRunParameters()
+                p.experimentName = if (expIdentifier != null) "${request.modelIdentifier}_Exp_$expIdentifier"
+                    else "${request.modelIdentifier}_Exp_${request.requestTime}"
+                p
             }
+            // ensure that the requested number of replications will be executed
+            srp.numberOfReplications = request.numReplications
             logger.info { "SimulationService: Running simulation for model: ${model.name} experiment: ${model.experimentName} " }
             val mySimulationRunner = SimulationRunner(model)
-            //run the simulation
-            val simulationRun = mySimulationRunner.simulate(
-                request.inputs,
-                request.experimentRunParameters ?: myOriginalExpRunParams
-            )
+            //run the simulation to produce the simulation run results
+            val simulationRun = mySimulationRunner.simulate(request.inputs, srp)
             logger.info { "SimulationService: Completed simulation for model: ${model.name} experiment: ${model.experimentName} " }
             // reset the model run parameters back to their original values
             model.changeRunParameters(myOriginalExpRunParams)
