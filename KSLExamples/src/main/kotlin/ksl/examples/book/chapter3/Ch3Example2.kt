@@ -27,7 +27,6 @@ import ksl.utilities.statistic.Histogram
  */
 fun main() {
     val d = ExponentialRV(2.0, streamNum = 1)
-
     val data = d.sample(1000)
     var bp = Histogram.recommendBreakPoints(data)
     bp = Histogram.addPositiveInfinity(bp)

@@ -32,7 +32,7 @@ fun main() {
     val u = 0.02 //salvage value
     val values = doubleArrayOf(5.0, 10.0, 40.0, 45.0, 50.0, 55.0, 60.0)
     val cdf = doubleArrayOf(0.1, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0)
-    val dCDF = DEmpiricalRV(values, cdf, streamNum = 2)
+    val dCDF = DEmpiricalRV(values, cdf, streamNum = 3)
     val stat = Statistic("Profit")
     val n = 100.0 // sample size
     var i = 1

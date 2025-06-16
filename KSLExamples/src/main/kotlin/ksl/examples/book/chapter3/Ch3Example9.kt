@@ -30,8 +30,8 @@ import ksl.utilities.statistic.Statistic
  * of winning are reported.
  */
 fun main() {
-    val d1 = DUniformRV(1, 6, streamNum = 2)
-    val d2 = DUniformRV(1, 6, streamNum = 3)
+    val d1 = DUniformRV(1, 6, streamNum = 3)
+    val d2 = DUniformRV(1, 6, streamNum = 4)
     val probOfWinning = Statistic("Prob of winning")
     val numTosses = Statistic("Number of Toss Statistics")
     val numGames = 5000

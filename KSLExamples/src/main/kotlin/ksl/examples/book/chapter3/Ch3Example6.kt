@@ -31,7 +31,7 @@ import kotlin.math.sqrt
 fun main() {
     val a = 1.0
     val b = 4.0
-    val ucdf = UniformRV(a, b, streamNum = 2)
+    val ucdf = UniformRV(a, b, streamNum = 3)
     val stat = Statistic("Area Estimator")
     val n = 100 // sample size
     for (i in 1..n) {
