@@ -32,7 +32,7 @@ import ksl.utilities.statistic.BootstrapSampler
  */
 fun main() {
     val d = Exponential(10.0)
-    val e = d.randomVariable(1)
+    val e = d.randomVariable(3)
     e.advanceToNextSubStream()
     val n = 1000
     val data = e.sample(n)

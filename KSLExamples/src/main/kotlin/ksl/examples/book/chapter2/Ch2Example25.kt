@@ -35,7 +35,7 @@ import ksl.utilities.statistic.BootstrapSampler
  */
 fun main() {
     val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
-    val rv = dist.randomVariable(streamNumber = 2)
+    val rv = dist.randomVariable(streamNumber = 3)
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
     val breakPoints = PMFModeler.makeZeroToInfinityBreakPoints(data.size, dist)
