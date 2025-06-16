@@ -32,7 +32,7 @@ import ksl.utilities.statistic.Statistic
  */
 fun main() {
     // create a normal mean = 20.0, variance = 4.0 random variable
-    val n = NormalRV(20.0, 4.0, streamNum = 1)
+    val n = NormalRV(20.0, 4.0, streamNum = 3)
     // create a Statistic to observe the values
     val stat = Statistic("Normal Stats")
     val pGT20 = Statistic("P(X>=20")

@@ -14,7 +14,7 @@ fun main() {
 
     val f = SinFunc()
 
-    val mc = MC1DIntegration(f, UniformRV(0.0, Math.PI, streamNum = 2))
+    val mc = MC1DIntegration(f, UniformRV(0.0, Math.PI, streamNum = 3))
     println()
     mc.runSimulation()
     println(mc)

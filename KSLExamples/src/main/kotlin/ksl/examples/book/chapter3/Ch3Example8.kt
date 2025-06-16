@@ -29,7 +29,7 @@ import ksl.utilities.statistic.Statistic
  *  sample size needed to meet a desired half-width requirement.
  */
 fun main() {
-    val rv = NormalRV(10.0, 16.0, streamNum = 2)
+    val rv = NormalRV(10.0, 16.0, streamNum = 3)
     val estimateX = Statistic("Estimated X")
     val estOfProb = Statistic("Pr(X>8)")
     val r = StatisticReporter(mutableListOf(estOfProb, estimateX))
