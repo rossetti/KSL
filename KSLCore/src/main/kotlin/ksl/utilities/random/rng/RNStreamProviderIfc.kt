@@ -91,10 +91,10 @@ interface RNStreamProviderIfc : IdentityIfc {
      * then no new streams are created, lastRNStreamNumber() stays at its current value and the ith
      * stream is returned.
      *
-     * @param i the ith stream in the sequence of provided streams, must be 1, 2, 3 ...
-     * @return the ith RNStreamIfc provided in the sequence of streams
+     * @param streamNum the stream number in the sequence of provided streams. Must be 1, 2, 3 ...
+     * @return the streamNum RNStreamIfc provided in the sequence of streams
      */
-    fun rnStream(i: Int): RNStreamIfc
+    fun rnStream(streamNum: Int): RNStreamIfc
 
     /**
      *

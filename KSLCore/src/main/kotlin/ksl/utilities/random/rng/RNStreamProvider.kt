@@ -21,8 +21,6 @@ package ksl.utilities.random.rng
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
-import ksl.utilities.random.rvariable.BernoulliRV
-import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.abs
 
 //private val logger = KotlinLogging.logger {}
@@ -80,26 +78,26 @@ class RNStreamProvider(
 
     override fun lastRNStreamNumber() = myStreams.size
 
-    override fun rnStream(i: Int): RNStreamIfc {
-        if (i == 0) {
+    override fun rnStream(streamNum: Int): RNStreamIfc {
+        if (streamNum == 0) {
             //logger.info { "RNStreamProvider($name) : requested next stream."}
             return nextRNStream()
         }
-        val k = abs(i)
+        val k = abs(streamNum)
         if (k > lastRNStreamNumber()) {
             var stream: RNStreamIfc? = null
             for (j in lastRNStreamNumber()..<k) {
                 stream = nextRNStream()
             }
             //logger.info { "RNStreamProvider($name) : retrieving stream $i"}
-            return if (i < 0) {
+            return if (streamNum < 0) {
                 stream!!.antitheticInstance()
             } else {
                 stream!!
             }
         }
        // logger.info { "RNStreamProvider($name) : retrieving stream $i"}
-        return if (i < 0) {
+        return if (streamNum < 0) {
             myStreams[k - 1].antitheticInstance()
         } else {
             myStreams[k - 1]
