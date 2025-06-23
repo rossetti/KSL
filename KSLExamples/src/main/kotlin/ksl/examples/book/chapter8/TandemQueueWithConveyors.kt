@@ -68,17 +68,17 @@ class TandemQueueWithConveyors(
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
-            val conveyorRequest = requestConveyor(conveyor, enter, 1)
-            rideConveyor(conveyorRequest, station1)
+            val conveyorRequest = requestConveyor(conveyor = conveyor, entryLocation = enter, numCellsNeeded = 1)
+            rideConveyor(conveyorRequest = conveyorRequest, destination = station1)
             exitConveyor(conveyorRequest)
-            use(worker1, delayDuration = st1)
-            val conveyorRequest2 = requestConveyor(conveyor, station1, 1)
-            rideConveyor(conveyorRequest2, station2)
-            exitConveyor(conveyorRequest2)
-            use(worker2, delayDuration = st2)
-            val conveyorRequest3 = requestConveyor(conveyor, station2, 1)
-            rideConveyor(conveyorRequest3, exit)
-            exitConveyor(conveyorRequest3)
+            use(resource = worker1, delayDuration = st1)
+            val conveyorRequest2 = requestConveyor(conveyor = conveyor, entryLocation = station1, numCellsNeeded = 1)
+            rideConveyor(conveyorRequest = conveyorRequest2, destination = station2)
+            exitConveyor(conveyorRequest = conveyorRequest2)
+            use(resource = worker2, delayDuration = st2)
+            val conveyorRequest3 = requestConveyor(conveyor = conveyor, entryLocation = station2, numCellsNeeded = 1)
+            rideConveyor(conveyorRequest = conveyorRequest3, destination = exit)
+            exitConveyor(conveyorRequest = conveyorRequest3)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
@@ -88,11 +88,11 @@ class TandemQueueWithConveyors(
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
-            convey(conveyor, enter, station1)
-            use(worker1, delayDuration = st1)
-            convey(conveyor, station1, station2)
-            use(worker2, delayDuration = st2)
-            convey(conveyor, station2, exit)
+            convey(conveyor = conveyor, entryLocation = enter, destination = station1)
+            use(resource = worker1, delayDuration = st1)
+            convey(conveyor = conveyor, entryLocation = station1, destination = station2)
+            use(resource = worker2, delayDuration = st2)
+            convey(conveyor = conveyor, entryLocation = station2, destination = exit)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
