@@ -68,13 +68,13 @@ class TandemQueueWithWorkOnConveyors(
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
-            val conveyorRequest = requestConveyor(conveyor, enter, 1)
-            rideConveyor(conveyorRequest, station1)
-            use(worker1, delayDuration = st1)
-            rideConveyor(conveyorRequest, station2)
-            use(worker2, delayDuration = st2)
-            rideConveyor(conveyorRequest, exit)
-            exitConveyor(conveyorRequest)
+            val conveyorRequest = requestConveyor(conveyor = conveyor, entryLocation = enter, numCellsNeeded = 1)
+            rideConveyor(conveyorRequest = conveyorRequest, destination = station1)
+            use(resource = worker1, delayDuration = st1)
+            rideConveyor(conveyorRequest = conveyorRequest, destination = station2)
+            use(resource = worker2, delayDuration = st2)
+            rideConveyor(conveyorRequest = conveyorRequest, destination = exit)
+            exitConveyor(conveyorRequest = conveyorRequest)
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
