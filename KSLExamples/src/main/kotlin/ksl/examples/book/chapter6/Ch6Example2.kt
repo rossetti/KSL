@@ -49,16 +49,19 @@ class EntityGeneratorExample(
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private val worker: ResourceWithQ = ResourceWithQ(this, "${this.name}:Worker")
+    private val worker: ResourceWithQ = ResourceWithQ(parent = this, name = "${this.name}:Worker")
+    private val st = RandomVariable(parent = this, rSource = ExponentialRV(3.0, 2))
+    private val wip = TWResponse(parent = this, name = "${this.name}:WIP")
+    private val tip = Response(parent = this, name = "${this.name}:TimeInSystem")
     private val tba = ExponentialRV(6.0, 1)
-    private val st = RandomVariable(this, ExponentialRV(3.0, 2))
-    private val wip = TWResponse(this, "${this.name}:WIP")
-    private val tip = Response(this, "${this.name}:TimeInSystem")
-    private val generator = EntityGenerator(::Customer, tba, tba)
-    private val counter = Counter(this, "${this.name}:NumServed")
+    private val generator = EntityGenerator(
+        entityCreator = ::Customer,
+        timeUntilTheFirstEntity = tba,
+        timeBtwEvents = tba
+    )
+    private val counter = Counter(parent = this, name = "${this.name}:NumServed")
 
     private inner class Customer : Entity() {
-
         val pharmacyProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time

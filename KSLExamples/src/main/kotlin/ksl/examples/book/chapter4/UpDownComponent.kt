@@ -23,9 +23,6 @@ import ksl.modeling.variable.Response
 import ksl.modeling.variable.TWResponse
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.RVariableIfc
-
 
 /**
  * An UpDownComponent is a model element that has two states UP = 1 and DOWN = 0.
@@ -36,6 +33,10 @@ import ksl.utilities.random.rvariable.RVariableIfc
  */
 class UpDownComponent (parent: ModelElement, name: String? = null) :
     ModelElement(parent, name) {
+    companion object {
+        const val UP = 1.0
+        const val DOWN = 0.0
+    }
     private val myUpTime: RandomVariable
     private val myDownTime: RandomVariable
     private val myState: TWResponse
@@ -46,10 +47,8 @@ class UpDownComponent (parent: ModelElement, name: String? = null) :
     private var myTimeLastUp = 0.0
 
     init {
-        val utd: RVariableIfc = ExponentialRV(1.0, streamNum = 1)
-        val dtd: RVariableIfc = ExponentialRV(2.0, streamNum = 2)
-        myUpTime = RandomVariable(this, utd, "up time")
-        myDownTime = RandomVariable(this, dtd, "down time")
+        myUpTime = RandomVariable(parent = this, rSource = ExponentialRV(1.0, streamNum = 1), name = "up time")
+        myDownTime = RandomVariable(parent = this, rSource = ExponentialRV(2.0, streamNum = 2), name = "down time")
         myState = TWResponse(this, name = "state")
         myCycleLength = Response(this, name = "cycle length")
         myCountFailures = Counter(this, name = "count failures")
@@ -88,8 +87,4 @@ class UpDownComponent (parent: ModelElement, name: String? = null) :
         }
     }
 
-    companion object {
-        const val UP = 1.0
-        const val DOWN = 0.0
-    }
 }

@@ -54,52 +54,61 @@ fun main(){
 class DriveThroughPharmacy(
     parent: ModelElement,
     numPharmacists: Int = 1,
-    ad: RVariableIfc = ExponentialRV(1.0, 1),
-    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ProcessModel(parent, name) {
     init {
         require(numPharmacists > 0) { "The number of pharmacists must be >= 1" }
     }
 
-    private val pharmacists: ResourceWithQ = ResourceWithQ(this, "Pharmacists", numPharmacists)
+    private val pharmacists: ResourceWithQ = ResourceWithQ(
+        parent = this,
+        name = "Pharmacists",
+        capacity = numPharmacists
+    )
 
-    private val serviceTime: RandomVariable = RandomVariable(this, sd)
+    private val serviceTime: RandomVariable = RandomVariable(parent = this, rSource = ExponentialRV(0.5, 2))
     val serviceRV: RandomVariableCIfc
         get() = serviceTime
-    private val timeBetweenArrivals: RandomVariable = RandomVariable(parent, ad)
+    private val timeBetweenArrivals: RandomVariable = RandomVariable(
+        parent = parent,
+        rSource = ExponentialRV(1.0, 1)
+    )
     val arrivalRV: RandomVariableCIfc
         get() = timeBetweenArrivals
-    private val wip: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
+    private val wip: TWResponse = TWResponse(parent = this, name = "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = wip
-    private val timeInSystem: Response = Response(this, "${this.name}:TimeInSystem")
+    private val timeInSystem: Response = Response(parent = this, name = "${this.name}:TimeInSystem")
     val systemTime: ResponseCIfc
         get() = timeInSystem
-    private val numCustomers: Counter = Counter(this, "${this.name}:NumServed")
+    private val numCustomers: Counter = Counter(parent = this, name = "${this.name}:NumServed")
     val numCustomersServed: CounterCIfc
         get() = numCustomers
-    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, timeInSystem, "SysTime > 4.0 minutes")
+    private val mySTGT4: IndicatorResponse = IndicatorResponse(
+        predicate = { x -> x >= 4.0 },
+        observedResponse = timeInSystem,
+        name = "SysTime > 4.0 minutes"
+    )
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 
     override fun initialize() {
-        schedule(this::arrival, timeBetweenArrivals)
+        schedule(eventAction = this::arrival, timeToEvent = timeBetweenArrivals)
     }
 
     private fun arrival(event: KSLEvent<Nothing>) {
         val c = Customer()
         activate(c.pharmacyProcess)
-        schedule(this::arrival, timeBetweenArrivals)
+        schedule(eventAction = this::arrival, timeToEvent = timeBetweenArrivals)
     }
 
     private inner class Customer : Entity() {
         val pharmacyProcess: KSLProcess = process {
             wip.increment()
             timeStamp = time
-            val a = seize(pharmacists)
-            delay(serviceTime)
-            release(a)
+            val a = seize(resource = pharmacists)
+            delay(delayDuration = serviceTime)
+            release(allocation = a)
             timeInSystem.value = time - timeStamp
             wip.decrement()
             numCustomers.increment()

@@ -23,39 +23,43 @@ import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.station.*
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
-import ksl.utilities.random.rvariable.ExponentialRV
-import ksl.utilities.random.rvariable.RVariableIfc
 
 class TandemQueue(
     parent: ModelElement,
-    ad: RVariableIfc = ExponentialRV(6.0, 1),
-    sd1: RVariableIfc = ExponentialRV(4.0, 2),
-    sd2: RVariableIfc = ExponentialRV(3.0, 3),
     name: String? = null
 ) : ModelElement(parent, name) {
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NS")
+    private val myNS: TWResponse = TWResponse(parent = this, name = "${this.name}:NS")
     val numInSystem: TWResponseCIfc
         get() = myNS
 
-    private val mySysTime: Response = Response(this, "${this.name}:TotalSystemTime")
+    private val mySysTime: Response = Response(parent = this, name = "${this.name}:TotalSystemTime")
     val totalSystemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumProcessed: Counter = Counter(this, "${this.name}:TotalProcessed")
+    private val myNumProcessed: Counter = Counter(parent = this, name = "${this.name}:TotalProcessed")
     val totalProcessed: CounterCIfc
         get() = myNumProcessed
 
+    private val ad = ExponentialRV(6.0, 1)
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        this,
-        this::arrivalEvent, ad, ad
+        parent = this,
+        generateAction = this::arrivalEvent, timeUntilFirstRV = ad, timeBtwEventsRV = ad
     )
 
-    private val myStation1: SingleQStation = SingleQStation(this, sd1, name = "${this.name}:Station1")
+    private val myStation1: SingleQStation = SingleQStation(
+        parent = this,
+        activityTime = ExponentialRV(4.0, 2),
+        name = "${this.name}:Station1"
+    )
     val station1: SingleQStationCIfc
         get() = myStation1
 
-    private val myStation2: SingleQStation = SingleQStation(this, sd2, name = "${this.name}:Station2")
+    private val myStation2: SingleQStation = SingleQStation(
+        parent = this,
+        activityTime = ExponentialRV(3.0, 3),
+        name = "${this.name}:Station2"
+    )
     val station2: SingleQStationCIfc
         get() = myStation2
 
