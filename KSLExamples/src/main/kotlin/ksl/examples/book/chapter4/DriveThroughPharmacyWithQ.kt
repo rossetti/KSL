@@ -43,8 +43,6 @@ import ksl.utilities.statistic.HistogramIfc
 class DriveThroughPharmacyWithQ(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RVariableIfc = ExponentialRV(1.0, 1),
-    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -60,43 +58,53 @@ class DriveThroughPharmacyWithQ(
             field = value
         }
 
-    private var myServiceRV: RandomVariable = RandomVariable(this, sd)
+    private var myServiceRV: RandomVariable = RandomVariable(this, rSource = ExponentialRV(0.5, 2))
     val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
-    private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
+    private val myNumBusy: TWResponse = TWResponse(parent = this, name = "NumBusy")
     val numBusyPharmacists: TWResponseCIfc
         get() = myNumBusy
 
-    private val myNS: TWResponse = TWResponse(this, "Num in System")
+    private val myNS: TWResponse = TWResponse(parent = this, name = "Num in System")
     val numInSystem: TWResponseCIfc
         get() = myNS
-    private val mySysTime: Response = Response(this, "System Time")
+    private val mySysTime: Response = Response(parent = this, name = "System Time")
     val systemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumCustomers: Counter = Counter(this, "Num Served")
+    private val myNumCustomers: Counter = Counter(parent = this, name = "Num Served")
     val numCustomersServed: CounterCIfc
         get() = myNumCustomers
-    private val myWaitingQ: Queue<QObject> = Queue(this, "PharmacyQ")
+    private val myWaitingQ: Queue<QObject> = Queue(parent = this, name = "PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(mySysTime)
+    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(theResponse = mySysTime)
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
-    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime >= 4 minutes")
+    private val mySTGT4: IndicatorResponse = IndicatorResponse(
+        predicate = { x -> x >= 4.0 },
+        observedResponse = mySysTime,
+        name = "SysTime >= 4 minutes"
+    )
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
+    private val ad = ExponentialRV(1.0, 1)
+    private val myArrivalGenerator: EventGenerator = EventGenerator(
+        parent = this,
+        generateAction = Arrivals(),
+        timeUntilFirstRV = ad,
+        timeBtwEventsRV = ad
+    )
     val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
 
     private val endServiceEvent = this::endOfService
 
-    private val myInQ = IntegerFrequencyResponse(this, "NQ Upon Arrival")
+    private val myInQ = IntegerFrequencyResponse(parent = this, name = "NQ Upon Arrival")
 
     private inner class Arrivals : GeneratorActionIfc {
         override fun generate(generator: EventGeneratorIfc) {

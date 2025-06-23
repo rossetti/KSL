@@ -40,8 +40,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
  */
 class SimplePoissonProcess (parent: ModelElement, name: String? = null) :
     ModelElement(parent, name) {
-    private val myTBE: RandomVariable = RandomVariable(this, ExponentialRV(1.0, streamNum = 1))
-    private val myCount: Counter = Counter(this, name = "Counts events")
+    private val myTBE: RandomVariable = RandomVariable(parent = this, rSource = ExponentialRV(1.0, streamNum = 1))
+    private val myCount: Counter = Counter(parent = this, name = "Counts events")
     private val myEventHandler: EventHandler = EventHandler()
 
     override fun initialize() {

@@ -59,48 +59,55 @@ fun main() {
 class DriveThroughPharmacyWithResource(
     parent: ModelElement,
     numServers: Int = 1,
-    ad: RVariableIfc = ExponentialRV(1.0, 1),
-    sd: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ModelElement(parent, name = name) {
 
-    private val myPharmacists: SResource = SResource(this, numServers, "${this.name}:Pharmacists")
+    private val myPharmacists: SResource = SResource(
+        parent = this,
+        capacity = numServers,
+        name = "${this.name}:Pharmacists"
+    )
     val resource: SResourceCIfc
         get() = myPharmacists
 
-    private var myServiceRV: RandomVariable = RandomVariable(this, sd)
+    private var myServiceRV: RandomVariable = RandomVariable(parent = this, rSource = ExponentialRV(0.5, 2))
     val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
-    private val myNS: TWResponse = TWResponse(this, "${this.name}:NumInSystem")
+    private val myNS: TWResponse = TWResponse(parent = this, name = "${this.name}:NumInSystem")
     val numInSystem: TWResponseCIfc
         get() = myNS
-    private val mySysTime: Response = Response(this, "${this.name}:SystemTime")
+    private val mySysTime: Response = Response(parent = this, name = "${this.name}:SystemTime")
     val systemTime: ResponseCIfc
         get() = mySysTime
 
-    private val myNumCustomers: Counter = Counter(this, "${this.name}:NumServed")
+    private val myNumCustomers: Counter = Counter(parent = this, name = "${this.name}:NumServed")
     val numCustomersServed: CounterCIfc
         get() = myNumCustomers
 
-    private val myWaitingQ: Queue<QObject> = Queue(this, "${this.name}:PharmacyQ")
+    private val myWaitingQ: Queue<QObject> = Queue(parent = this, name = "${this.name}:PharmacyQ")
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val mySTGT4: IndicatorResponse = IndicatorResponse({ x -> x >= 4.0 }, mySysTime, "SysTime >= 4 minutes")
+    private val mySTGT4: IndicatorResponse = IndicatorResponse(
+        predicate = { x -> x >= 4.0 },
+        observedResponse = mySysTime,
+        name = "SysTime >= 4 minutes"
+    )
     val probSystemTimeGT4Minutes: ResponseCIfc
         get() = mySTGT4
 
-    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(mySysTime)
+    private val mySysTimeHistogram: HistogramResponse = HistogramResponse(theResponse = mySysTime)
     val systemTimeHistogram: HistogramIfc
         get() = mySysTimeHistogram.histogram
 
-    private val myInQ = IntegerFrequencyResponse(this, "${this.name}:NQUponArrival")
+    private val myInQ = IntegerFrequencyResponse(parent = this, name = "${this.name}:NQUponArrival")
 
     private val endServiceEvent = this::endOfService
 
+    private val ad  = ExponentialRV(1.0, 1)
     private val myArrivalGenerator: EventGenerator = EventGenerator(
-        this, this::arrival, ad, ad
+        parent = this, generateAction = this::arrival, timeUntilFirstRV = ad, timeBtwEventsRV = ad
     )
     val arrivalGenerator: EventGeneratorRVCIfc
         get() = myArrivalGenerator
@@ -109,12 +116,12 @@ class DriveThroughPharmacyWithResource(
         myNS.increment() // new customer arrived
         myInQ.value = myWaitingQ.numInQ.value.toInt()
         val arrivingCustomer = QObject()
-        myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
+        myWaitingQ.enqueue(qObject = arrivingCustomer) // enqueue the newly arriving customer
         if (myPharmacists.hasAvailableUnits) {
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service, include the customer as the event's message
-            schedule(endServiceEvent, myServiceRV, customer)
+            schedule(eventAction = endServiceEvent, timeToEvent = myServiceRV, message = customer)
         }
     }
 
@@ -124,9 +131,9 @@ class DriveThroughPharmacyWithResource(
             myPharmacists.seize()
             val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
             // schedule end of service
-            schedule(endServiceEvent, myServiceRV, customer)
+            schedule(eventAction = endServiceEvent, timeToEvent = myServiceRV, message = customer)
         }
-        departSystem(event.message!!)
+        departSystem(departingCustomer = event.message!!)
     }
 
     private fun departSystem(departingCustomer: QObject) {

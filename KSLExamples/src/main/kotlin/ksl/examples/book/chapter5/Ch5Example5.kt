@@ -2,7 +2,6 @@ package ksl.examples.book.chapter5
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.simulation.Model
-import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.ExponentialRV
 
 /**
@@ -20,7 +19,6 @@ fun main(){
     model.lengthOfReplication = 1000000.0
     model.lengthOfReplicationWarmUp = 100000.0
     val batchingElement = model.statisticalBatching()
-//    val kslDatabaseObserver = KSLDatabaseObserver(model)
     model.simulate()
     val sr = batchingElement.statisticReporter
     println(sr.halfWidthSummaryReport())

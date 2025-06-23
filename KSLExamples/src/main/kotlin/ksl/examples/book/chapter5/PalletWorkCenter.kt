@@ -15,9 +15,6 @@ import ksl.utilities.random.rvariable.TriangularRV
 class PalletWorkCenter(
     parent: ModelElement,
     numWorkers: Int = 2,
-    numPallets: RVariableIfc = BinomialRV(0.8, 100, 1),
-    transportTime: RVariableIfc = ExponentialRV(5.0, 2),
-    processingTime: RVariableIfc = TriangularRV(8.0, 12.0, 15.0, 3),
     name: String? = null
 ) :
     ModelElement(parent, name = name) {
@@ -37,37 +34,53 @@ class PalletWorkCenter(
             field = value
         }
 
-    private val myProcessingTimeRV: RandomVariable = RandomVariable(this, processingTime, name = "ProcessingTimeRV")
+    private val myProcessingTimeRV: RandomVariable = RandomVariable(
+        parent = this,
+        rSource = TriangularRV(min = 8.0, mode = 12.0, max = 15.0, streamNum = 3), name = "ProcessingTimeRV"
+    )
     val processingTimeRV: RandomVariableCIfc
         get() = myProcessingTimeRV
-    private val myTransportTimeRV: RandomVariable = RandomVariable(parent, transportTime, name = "TransportTimeRV")
+    private val myTransportTimeRV: RandomVariable = RandomVariable(
+        parent = parent,
+        rSource = ExponentialRV(5.0, 2), name = "TransportTimeRV"
+    )
     val transportTimeRV: RandomVariableCIfc
         get() = myTransportTimeRV
-    private val myNumPalletsRV: RandomVariable = RandomVariable(parent, numPallets, name = "NumPalletsRV")
+    private val myNumPalletsRV: RandomVariable = RandomVariable(
+        parent = parent,
+        rSource = BinomialRV(0.8, 100, 1), name = "NumPalletsRV"
+    )
     val numPalletsRV: RandomVariableCIfc
         get() = myNumPalletsRV
-    private val myNumBusy: TWResponse = TWResponse(this, "NumBusyWorkers")
+    private val myNumBusy: TWResponse = TWResponse(parent = this, name = "NumBusyWorkers")
     val numBusyWorkers: TWResponseCIfc
         get() = myNumBusy
-    private val myUtil: TWResponseFunction = TWResponseFunction({x -> x/(this.numWorkers) }, myNumBusy, "Worker Utilization")
+    private val myUtil: TWResponseFunction = TWResponseFunction(
+        function = { x -> x/(this.numWorkers) },
+        observedResponse = myNumBusy, name = "Worker Utilization"
+    )
     val workerUtilization: TWResponseCIfc
         get() = myUtil
-    private val myPalletQ: Queue<QObject> = Queue(this, "PalletQ")
+    private val myPalletQ: Queue<QObject> = Queue(parent = this, name = "PalletQ")
     val palletQ: QueueCIfc<QObject>
         get() = myPalletQ
-    private val myNS: TWResponse = TWResponse(this, "Num Pallets at WC")
+    private val myNS: TWResponse = TWResponse(parent = this, name = "Num Pallets at WC")
     val numInSystem: TWResponseCIfc
         get() = myNS
-    private val mySysTime: Response = Response(this, "System Time")
+    private val mySysTime: Response = Response(parent = this, name = "System Time")
     val systemTime: ResponseCIfc
         get() = mySysTime
-    private val myNumProcessed: Counter = Counter(this, "Num Processed")
+    private val myNumProcessed: Counter = Counter(parent = this, name = "Num Processed")
     val numPalletsProcessed: CounterCIfc
         get() = myNumProcessed
-    private val myTotalProcessingTime = Response(this, "Total Processing Time")
+    private val myTotalProcessingTime = Response(parent = this, name = "Total Processing Time")
     val totalProcessingTime: ResponseCIfc
         get() = myTotalProcessingTime
-    private val myOverTime: IndicatorResponse = IndicatorResponse({ x -> x >= 480.0 }, myTotalProcessingTime, "P{total time > 480 minutes}")
+    private val myOverTime: IndicatorResponse = IndicatorResponse(
+        predicate = { x -> x >= 480.0 },
+        observedResponse = myTotalProcessingTime,
+        name = "P{total time > 480 minutes}"
+    )
     val probOfOverTime: ResponseCIfc
         get() = myOverTime
 
@@ -78,12 +91,12 @@ class PalletWorkCenter(
 
     override fun initialize() {
         numToProcess = myNumPalletsRV.value.toInt()
-        schedule(endTransportEvent, myTransportTimeRV)
+        schedule(eventAction = endTransportEvent, timeToEvent = myTransportTimeRV)
     }
 
     private fun endTransport(event: KSLEvent<Nothing>) {
         if (numToProcess >= 1) {
-            schedule(endTransportEvent, myTransportTimeRV)
+            schedule(eventAction = endTransportEvent, timeToEvent = myTransportTimeRV)
             numToProcess = numToProcess - 1
         }
         val pallet = QObject()
@@ -97,7 +110,7 @@ class PalletWorkCenter(
             myNumBusy.increment() // make server busy
             val nextPallet: QObject? = myPalletQ.removeNext() //remove the next pallet
             // schedule end of service, include the pallet as the event's message
-            schedule(endServiceEvent, myProcessingTimeRV, nextPallet)
+            schedule(eventAction = endServiceEvent, timeToEvent = myProcessingTimeRV, message = nextPallet)
         }
     }
 
@@ -107,9 +120,9 @@ class PalletWorkCenter(
             val nextPallet: QObject? = myPalletQ.removeNext() //remove the next pallet
             myNumBusy.increment() // make server busy
             // schedule end of service
-            schedule(endServiceEvent, myProcessingTimeRV, nextPallet)
+            schedule(eventAction = endServiceEvent, timeToEvent = myProcessingTimeRV, message = nextPallet)
         }
-        departSystem(event.message!!)
+        departSystem(completedPallet = event.message!!)
     }
 
     private fun departSystem(completedPallet: QObject) {

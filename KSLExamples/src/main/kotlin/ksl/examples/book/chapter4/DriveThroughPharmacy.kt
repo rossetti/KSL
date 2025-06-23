@@ -34,8 +34,6 @@ import ksl.utilities.random.rvariable.RVariableIfc
  */
 class DriveThroughPharmacy(
     parent: ModelElement, numServers: Int = 1,
-    timeBtwArrivals: RVariableIfc = ExponentialRV(1.0, 1),
-    serviceTime: RVariableIfc = ExponentialRV(0.5, 2),
     name: String? = null
 ) : ModelElement(parent, name) {
     init{
@@ -48,22 +46,28 @@ class DriveThroughPharmacy(
             field = value
         }
 
-    private val myServiceRV: RandomVariable = RandomVariable(this, serviceTime, "ServiceRV")
+    private val myServiceRV: RandomVariable = RandomVariable(
+        parent = this,
+        rSource = ExponentialRV(mean = 0.5, streamNum = 2), name = "ServiceRV"
+    )
     val serviceRV: RandomVariableCIfc
         get() = myServiceRV
 
-    private val myArrivalRV: RandomVariable = RandomVariable(this, timeBtwArrivals, "ArrivalRV")
+    private val myArrivalRV: RandomVariable = RandomVariable(
+        parent = this,
+        rSource = ExponentialRV(1.0, 1), name = "ArrivalRV"
+    )
     val arrivalRV: RandomVariableCIfc
         get() = myArrivalRV
 
-    private val myNumInQ: TWResponse = TWResponse(this, "NumInQ")
+    private val myNumInQ: TWResponse = TWResponse(parent = this, name = "PharmacyQ")
     val numInQ: TWResponseCIfc
         get() = myNumInQ
 
-    private val myNumBusy: TWResponse = TWResponse(this, "NumBusy")
-    private val myNS: TWResponse = TWResponse(this, "# in System")
-    private val myNumCustomers: Counter = Counter(this, name = "Num Served")
-    private val myTotal: AggregateTWResponse = AggregateTWResponse(this, "aggregate # in system")
+    private val myNumBusy: TWResponse = TWResponse(parent = this, name = "NumBusy")
+    private val myNS: TWResponse = TWResponse(parent = this, name = "# in System")
+    private val myNumCustomers: Counter = Counter(parent = this, name = "Num Served")
+    private val myTotal: AggregateTWResponse = AggregateTWResponse(parent = this, name = "aggregate # in system")
     private val myArrivalEventAction: ArrivalEventAction = ArrivalEventAction()
     private val myEndServiceEventAction: EndServiceEventAction = EndServiceEventAction()
 
