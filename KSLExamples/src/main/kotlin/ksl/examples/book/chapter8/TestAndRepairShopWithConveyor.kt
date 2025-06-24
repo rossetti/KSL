@@ -1,4 +1,4 @@
-package ksl.examples.general.models.conveyors
+package ksl.examples.book.chapter8
 
 import ksl.modeling.elements.EventGeneratorRVCIfc
 import ksl.modeling.elements.REmpiricalList
@@ -7,10 +7,7 @@ import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.*
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
-import ksl.utilities.io.KSL
-import ksl.utilities.io.MarkDown
 
 class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) : ProcessModel(parent, name) {
 
@@ -123,15 +120,20 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
             wip.increment()
             timeStamp = time
             //every part goes to diagnostics
-            use(myDiagnostics, delayDuration = diagnosticTime)
+            use(resource = myDiagnostics, delayDuration = diagnosticTime)
             // get the iterator
             val itr = plan.iterator()
             // iterate through the plan
             var entryLocation = myDiagnostics.name
             while (itr.hasNext()) {
                 val tp = itr.next()
-                convey(loopConveyor, entryLocation, tp.resource.name, cellsNeeded)
-                use(tp.resource, delayDuration = tp.processTime)
+                convey(
+                    conveyor = loopConveyor,
+                    entryLocation = entryLocation,
+                    destination = tp.resource.name,
+                    numCellsNeeded = cellsNeeded
+                )
+                use(resource = tp.resource, delayDuration = tp.processTime)
                 entryLocation = tp.resource.name
             }
             timeInSystem.value = time - timeStamp
@@ -139,18 +141,4 @@ class TestAndRepairShopWithConveyor(parent: ModelElement, name: String? = null) 
         }
     }
 
-}
-
-fun main() {
-    val m = Model()
-    val tq = TestAndRepairShopWithConveyor(m, name = "TestAndRepairWithConveyor")
-
-    m.numberOfReplications = 10
-    m.lengthOfReplication = 52.0 * 5.0 * 2.0 * 480.0
-//        m.numberOfReplications = 1
-//    m.lengthOfReplication = 1000000.0
-    m.simulate()
-    m.print()
-    val r = m.simulationReporter
-    r.writeHalfWidthSummaryReportAsMarkDown(KSL.out, df = MarkDown.D3FORMAT)
 }

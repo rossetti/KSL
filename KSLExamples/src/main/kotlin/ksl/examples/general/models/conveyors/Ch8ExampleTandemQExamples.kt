@@ -1,10 +1,15 @@
-package ksl.examples.book.chapter8
+package ksl.examples.general.models.conveyors
 
+import ksl.examples.book.chapter8.TandemQueueWithConveyors
+import ksl.examples.book.chapter8.TandemQueueWithConveyorsViaDelay
+import ksl.examples.book.chapter8.TandemQueueWithWorkOnConveyors
 import ksl.modeling.entity.Conveyor
 import ksl.simulation.Model
-import ksl.utilities.io.KSL
 import ksl.utilities.io.MarkDown
 
+/**
+ *
+ */
 fun main() {
 //    conveyorViaDelays()
     tandemQViaConveyors(Conveyor.Type.NON_ACCUMULATING)

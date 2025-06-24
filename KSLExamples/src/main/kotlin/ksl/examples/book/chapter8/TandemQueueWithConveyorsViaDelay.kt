@@ -59,11 +59,11 @@ class TandemQueueWithConveyorsViaDelay(parent: ModelElement, name: String? = nul
         val tandemQProcess: KSLProcess = process(isDefaultProcess = true) {
             wip.increment()
             timeStamp = time
-            delay(70.0/30.0) // 30 fpm for 70 ft
-            use(worker1, delayDuration = st1)
-            delay(40.0/30.0) // 30 fpm for 40 ft
-            use(worker2, delayDuration = st2)
-            delay(60.0/30.0) // 30 fpm for 60 ft
+            delay(delayDuration = 70.0/30.0) // 30 fpm for 70 ft
+            use(resource = worker1, delayDuration = st1)
+            delay(delayDuration = 40.0/30.0) // 30 fpm for 40 ft
+            use(resource = worker2, delayDuration = st2)
+            delay(delayDuration = 60.0/30.0) // 30 fpm for 60 ft
             timeInSystem.value = time - timeStamp
             wip.decrement()
         }
