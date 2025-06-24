@@ -37,7 +37,7 @@ fun main() {
     val p2 = RNStreamProvider()
     // Thus, the first streams returned are identical
     val p2s1 = p2.rnStream(streamNum = 1)
-    print(String.format("%3s %15s %15s %n", "n", "p1s1", "p2s2"))
+    print(String.format("%3s %15s %15s %n", "n", "p1s1", "p2s1"))
     for (i in 1..5) {
         print(String.format("%3d %15f %15f %n", i, p1s1.randU01(), p2s1.randU01()))
     }
