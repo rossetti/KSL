@@ -1,7 +1,6 @@
 package ksl.simopt.problem
 
 import ksl.simopt.evaluator.EstimatedResponse
-import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.evaluator.Solution
 import ksl.simulation.Model
