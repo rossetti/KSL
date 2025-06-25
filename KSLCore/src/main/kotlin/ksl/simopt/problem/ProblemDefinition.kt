@@ -493,7 +493,7 @@ class ProblemDefinition(
     fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
         for ((name, inputDefinition) in myInputDefinitions) {
-            require(name in map) { "The input name $name does not exist in the map" }
+            require(name in map) { "The problem definition input name $name does not exist in the supplied input map $map" }
             val value = map[name]!!
             map[name] = if (value < inputDefinition.lowerBound){
                 inputDefinition.lowerBound
