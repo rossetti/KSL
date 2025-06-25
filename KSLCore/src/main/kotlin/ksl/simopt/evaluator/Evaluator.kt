@@ -344,6 +344,8 @@ class Evaluator(
          *              the details about the system being simulated.
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
+         * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible
+         * use ProblemDefinition.validateProblemDefinition to check.
          */
         fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
