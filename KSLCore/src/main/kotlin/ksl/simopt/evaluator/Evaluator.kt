@@ -1,6 +1,5 @@
 package ksl.simopt.evaluator
 
-import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
@@ -108,7 +107,7 @@ class Evaluator(
      *  evaluation run.
      */
     override fun resetEvaluationCounts() {
-        EvaluatorIfc.logger.info { "Resetting evaluator counts" }
+        EvaluatorIfc.logger.trace { "Resetting evaluator counts" }
         totalEvaluations = 0
         totalOracleEvaluations = 0
         totalCachedEvaluations = 0
@@ -130,7 +129,7 @@ class Evaluator(
      *  @return a list containing a solution for each request
      */
     override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
-        EvaluatorIfc.logger.info { "Evaluating ${rawRequests.size} requests" }
+        EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
         EvaluatorIfc.logger.trace { "Total Evaluations $totalEvaluations, total requests received $totalRequestsReceived" }
@@ -141,18 +140,18 @@ class Evaluator(
         // check with the cache for solutions
         //TODO this is the check of the cache, what if the cache does not hold solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
-        EvaluatorIfc.logger.info { "Solutions found in the cache: ${solutionMap.size}" }
+        EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
         // update the requests based on the replications in the solutions
         updateRequestReplicationData(solutionMap, uniqueRequests)
         // filter requests that no longer need replications
         val requestsToSimulate = uniqueRequests.filter { it.numReplications > 0 }
-        EvaluatorIfc.logger.info { "Requests to simulate: ${requestsToSimulate.size}" }
+        EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
         // evaluate remaining requests and update solutions
         if (requestsToSimulate.isNotEmpty()) {
             //TODO since Solution contains InputMap, the association with EvaluationRequest may not be needed
             val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
-            EvaluatorIfc.logger.info { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
+            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
             // since some requests could have needed additional replications, we may need to merge solutions
             // from the cache with solutions performed by the oracle
             for ((request, simulatedSolution) in simulatedSolutions) {
@@ -168,7 +167,7 @@ class Evaluator(
             }
             // update the cache with any new solutions after possible merging
             if (cache != null){
-                EvaluatorIfc.logger.info { "Updating cache with ${solutionMap.size} solutions" }
+                EvaluatorIfc.logger.trace { "Updating cache with ${solutionMap.size} solutions" }
                 for((inputMap, solution) in solutionMap){
                     cache[inputMap] = solution
                 }
@@ -180,7 +179,7 @@ class Evaluator(
         for(request in rawRequests){
             solutions.add(solutionMap[request]!!)
         }
-        EvaluatorIfc.logger.info { "Packaged ${solutions.size} solutions for return" }
+        EvaluatorIfc.logger.trace { "Packaged ${solutions.size} solutions for return" }
         return solutions
     }
 
@@ -340,7 +339,7 @@ class Evaluator(
          * Creates an instance of an `Evaluator` for a given problem definition and simulation model
          * which uses a memory-based solution cache to improve the efficiency of evaluations.
          *
-         * @param problemDefinition Represents the definition of the problem, including objectives,
+         * @param problemDefinition Represents the definition of the problem, including the objectives,
          *                          constraints, and other domain-specific configurations required for evaluation.
          * @param model The simulation model used to perform evaluations. This model encapsulates
          *              the details about the system being simulated.
@@ -349,6 +348,7 @@ class Evaluator(
          * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible
          * use ProblemDefinition.validateProblemDefinition to check.
          */
+        @Suppress("unused")
         fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model)
@@ -368,6 +368,7 @@ class Evaluator(
          * @return an `Evaluator` instance configured with the given problem definition and simulation environment.
          * @throws IllegalArgumentException if the problem definition and model are not input/response compatible.
          */
+        @Suppress("unused")
         fun createSimulationServiceProblemEvaluator(
             problemDefinition: ProblemDefinition,
             modelIdentifier: String,
