@@ -20,32 +20,36 @@ import ksl.utilities.random.rvariable.ExponentialRV
 
 fun main() {
 
-//    simulationRunner2()
-    //buildModel2()
-//    val problemDefinition = makeProblemDefinition2()
-//    println(problemDefinition)
-
-   runSolverTest2()
-
-   // testRunning2(4, 1)
-
+  //  val modelIdentifier = "RQInventoryModel"
+    val modelIdentifier = "LKInventoryModel"
+    runSolver(modelIdentifier)
 
 }
 
-fun runSolverTest2() {
-    val evaluator = setUpEvaluator2()
-    val shc = StochasticHillClimber(evaluator, maxIterations = 100, replicationsPerEvaluation = 50)
-    shc.emitter.attach { printSolution2(it) }
-    val inputs = mutableMapOf(
-        "RQInventoryModel:Item.initialReorderPoint" to 1.0,
-        "RQInventoryModel:Item.initialReorderQty" to 4.0)
-    shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
+fun configureStochasticHillClimber(
+    evaluator: Evaluator,
+    maxIterations: Int = 100,
+    replicationsPerEvaluation: Int = 50,
+    printer: ((Solution) -> Unit)? = null
+): StochasticHillClimber {
+    val shc = StochasticHillClimber(
+        evaluator,
+        maxIterations = maxIterations, replicationsPerEvaluation = replicationsPerEvaluation
+    )
+    printer?.let { shc.emitter.attach(it) }
+    return shc
+}
 
-    println()
-    println("Objective Function \t Q \t\t r \t\t fillRate \t\t\t Penalized Objective Function")
+fun runStochasticHillClimber(
+    evaluator: Evaluator,
+    inputs: MutableMap<String, Double>,
+    maxIterations: Int = 100,
+    replicationsPerEvaluation: Int = 50,
+    printer: ((Solution) -> Unit)? = null
+) {
+    val shc = configureStochasticHillClimber(evaluator, maxIterations, replicationsPerEvaluation, printer)
+    shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
     shc.runAllIterations()
-    println()
-    println(evaluator)
     println()
     println("Solver Results:")
     println(shc)
@@ -54,46 +58,54 @@ fun runSolverTest2() {
     println(shc.bestSolution.asString())
 }
 
-fun printSolution2(solution: Solution) {
-    val q = solution.inputMap["RQInventoryModel:Item.initialReorderQty"]
-    val rp = solution.inputMap["RQInventoryModel:Item.initialReorderPoint"]
-    val fillRate = solution.responseEstimatesMap["RQInventoryModel:Item:FillRate"]!!.average
-  //  println(solution)
-    println("${solution.estimatedObjFncValue} \t $q \t $rp \t $fillRate \t ${solution.penalizedObjFncValue}")
+fun runSolver(modelIdentifier: String) {
+    val inputs = createInputs(modelIdentifier)
+    val evaluator = makeEvaluator(modelIdentifier)
+    val printer = if (modelIdentifier == "RQInventoryModel") ::printRQInventoryModel else ::printLKInventoryModel
+    runStochasticHillClimber(evaluator, inputs, printer = printer)
 }
 
-fun basicRunning2(){
-    val m = buildModel2()
-    m.simulate()
-    m.print()
+fun createInputs(modelIdentifier: String): MutableMap<String, Double> {
+    return when (modelIdentifier) {
+        "LKInventoryModel" -> {
+            mutableMapOf(
+                "Inventory.reorderPoint" to 1.0,
+                "Inventory.orderQuantity" to 4.0
+            )
+        }
+        "RQInventoryModel" -> {
+            mutableMapOf(
+                "Inventory:Item.initialReorderPoint" to 1.0,
+                "Inventory:Item.initialReorderQty" to 4.0
+            )
+        }
+
+        else -> {throw Exception("Unknown model identifier")}
+    }
 }
 
-fun simulationRunner2(){
-    //val m = buildModel()
-    val sim = SimulationRunner(buildModel2())
-    val sr = sim.simulate()
-    val reporter = sr.statisticalReporter()
-    reporter.printHalfWidthSummaryReport()
+fun printLKInventoryModel(solution: Solution) {
+    val q = solution.inputMap["Inventory.orderQuantity"]
+    val rp = solution.inputMap["Inventory.reorderPoint"]
+    println("id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
-fun testRunning2(orderQuantity: Int, reorderPoint: Int){
-    val model = buildModel2(orderQuantity, reorderPoint)
-    model.simulate()
-    model.print()
+fun printRQInventoryModel(solution: Solution) {
+    val q = solution.inputMap["Inventory:Item.initialReorderQty"]
+    val rp = solution.inputMap["Inventory:Item.initialReorderPoint"]
+    val fillRate = solution.responseEstimatesMap["Inventory:Item:FillRate"]!!.average
+    println("id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
-fun buildModel2(reorderQty: Int = 2, reorderPoint: Int = 1) : Model {
-    val model = Model("InventoryModel")
-    val rqModel = RQInventorySystem(model, reorderPoint, reorderQty, "RQInventoryModel")
+fun buildRQInventoryModel(reorderQty: Int = 2, reorderPoint: Int = 1): Model {
+    val model = Model("RQInventoryModel")
+    val rqModel = RQInventorySystem(model, reorderPoint, reorderQty, "Inventory")
     rqModel.initialOnHand = 0
     rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
-
-    //model.lengthOfReplication = 110000.0
     model.lengthOfReplication = 20000.0
     model.lengthOfReplicationWarmUp = 10000.0
     model.numberOfReplications = 40
-
 //    val controls = model.controls()
 //    println("Model Controls:")
 //    controls.printControls()
@@ -101,55 +113,120 @@ fun buildModel2(reorderQty: Int = 2, reorderPoint: Int = 1) : Model {
     return model
 }
 
-fun makeProblemDefinition2() : ProblemDefinition {
+fun buildLKInventoryModel(orderQuantity: Int = 20, reorderPoint: Int = 20): Model {
+    val model = Model("LKInventoryModel")
+    val lkInventoryModel = LKInventoryModel(model, "Inventory")
+    model.lengthOfReplication = 120.0
+    model.numberOfReplications = 1000
+    model.lengthOfReplicationWarmUp = 20.0
+    lkInventoryModel.orderQuantity = orderQuantity
+    lkInventoryModel.reorderPoint = reorderPoint
+//    val controls = model.controls()
+//    println("Model Controls:")
+//    controls.printControls()
+//    println()
+    return model
+}
+
+fun makeEvaluator(modelIdentifier: String): Evaluator {
+    return when (modelIdentifier) {
+        "LKInventoryModel" -> {
+            Evaluator.createSimulationServiceProblemEvaluator(
+                makeLKInventoryModelProblemDefinition(),
+                modelIdentifier, { buildLKInventoryModel() }
+            )
+        }
+        "RQInventoryModel" -> {
+            Evaluator.createSimulationServiceProblemEvaluator(
+                makeRQInventoryModelProblemDefinition(),
+                modelIdentifier, { buildRQInventoryModel() }
+            )
+        }
+
+        else -> {
+            throw Exception("Unknown model identifier")
+        }
+    }
+}
+
+fun makeRQInventoryModelProblemDefinition(): ProblemDefinition {
     val problemDefinition = ProblemDefinition(
         problemName = "InventoryProblem",
-        modelIdentifier = "InventoryModel",
-        objFnResponseName = "RQInventoryModel:Item:OrderingAndHoldingCost",
-        inputNames = listOf("RQInventoryModel:Item.initialReorderQty", "RQInventoryModel:Item.initialReorderPoint"),
-        responseNames = listOf("RQInventoryModel:Item:FillRate")
+        modelIdentifier = "RQInventoryModel",
+        objFnResponseName = "Inventory:Item:OrderingAndHoldingCost",
+        inputNames = listOf("Inventory:Item.initialReorderQty", "Inventory:Item.initialReorderPoint"),
+        responseNames = listOf("Inventory:Item:FillRate")
     )
-   problemDefinition.inputVariable(
-       name = "RQInventoryModel:Item.initialReorderQty",
-       interval = Interval(1.0, 100.0),
-       granularity = 1.0
-   )
     problemDefinition.inputVariable(
-        name = "RQInventoryModel:Item.initialReorderPoint",
+        name = "Inventory:Item.initialReorderQty",
+        interval = Interval(1.0, 100.0),
+        granularity = 1.0
+    )
+    problemDefinition.inputVariable(
+        name = "Inventory:Item.initialReorderPoint",
         interval = Interval(1.0, 100.0),
         granularity = 1.0
     )
     problemDefinition.responseConstraint(
-        name = "RQInventoryModel:Item:FillRate",
+        name = "Inventory:Item:FillRate",
         rhsValue = 0.90,
         inequalityType = InequalityType.GREATER_THAN
     )
-
     return problemDefinition
 }
 
-fun setUpEvaluator2() : Evaluator {
-   // val simulationProvider = SimulationProvider(buildModel2())
-    val simulationProvider = setUpSimulationService2()
-    val problemDefinition = makeProblemDefinition2()
-    val cache = MemorySolutionCache()
-    val evaluator = Evaluator(
-        problemDefinition,
-        simulationProvider,
-        cache
+fun makeLKInventoryModelProblemDefinition(): ProblemDefinition {
+    val problemDefinition = ProblemDefinition(
+        problemName = "InventoryProblem",
+        modelIdentifier = "LKInventoryModel",
+        objFnResponseName = "TotalCost",
+        inputNames = listOf("Inventory.orderQuantity", "Inventory.reorderPoint"),
     )
-    return evaluator
+    problemDefinition.inputVariable(
+        name = "Inventory.orderQuantity",
+        interval = Interval(1.0, 100.0),
+        granularity = 1.0
+    )
+    problemDefinition.inputVariable(
+        name = "Inventory.reorderPoint",
+        interval = Interval(1.0, 100.0),
+        granularity = 1.0
+    )
+    return problemDefinition
 }
 
-fun setUpSimulationService2() : SimulationService {
+fun makeSimulationService(modelIdentifier: String): SimulationService {
+    return when (modelIdentifier) {
+        "LKInventoryModel" -> {
+            SimulationService.createCachedSimulationServiceForModel(
+                modelIdentifier,
+                { buildLKInventoryModel() })
+        }
 
-    val mapModelProvider = MapModelProvider()
-    mapModelProvider.addModelCreator("InventoryModel", { buildModel2() })
-    val simulationService = SimulationService(
-        modelProvider = mapModelProvider,
-        simulationRunCache = MemorySimulationRunCache(),
-        useCachedSimulationRuns = true
-    )
+        "RQInventoryModel" -> {
+            SimulationService.createCachedSimulationServiceForModel(
+                modelIdentifier,
+                { buildRQInventoryModel() })
+        }
 
-    return simulationService
+        else -> {
+            throw Exception("Unknown model identifier")
+        }
+    }
+}
+
+fun makeProblemDefinition(modelIdentifier: String): ProblemDefinition {
+    return when (modelIdentifier) {
+        "LKInventoryModel" -> {
+            makeLKInventoryModelProblemDefinition()
+        }
+
+        "RQInventoryModel" -> {
+            makeRQInventoryModelProblemDefinition()
+        }
+
+        else -> {
+            throw Exception("Unknown model identifier")
+        }
+    }
 }

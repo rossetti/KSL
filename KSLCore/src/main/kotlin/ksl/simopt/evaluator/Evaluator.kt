@@ -5,7 +5,9 @@ import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
+import ksl.simulation.ModelBuilderIfc
 
 /**
  *  An evaluator should communicate with the simulation oracle to determine
@@ -351,6 +353,31 @@ class Evaluator(
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
+        }
+
+        /**
+         * Creates an instance of `Evaluator` for managing simulation service problem evaluation.
+         * The method validates the compatibility of the problem definition with the provided model,
+         * constructs a simulator using the model, and initializes the evaluator with a solution cache.
+         *
+         * @param problemDefinition the definition of the problem being evaluated; must be compatible
+         *                          with the provided model.
+         * @param modelIdentifier an identifier used to distinguish between different simulation models.
+         * @param modelBuilder a builder instance responsible for constructing the simulation model
+         *                     used during problem evaluation.
+         * @return an `Evaluator` instance configured with the given problem definition and simulation environment.
+         * @throws IllegalArgumentException if the problem definition and model are not input/response compatible.
+         */
+        fun createSimulationServiceProblemEvaluator(
+            problemDefinition: ProblemDefinition,
+            modelIdentifier: String,
+            modelBuilder: ModelBuilderIfc
+        ): Evaluator {
+            val model = modelBuilder.build()
+            require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
+            val mapModelProvider = MapModelProvider(modelIdentifier, modelBuilder)
+            val simulator = SimulationService(mapModelProvider)
+            return Evaluator(problemDefinition, simulator, MemorySolutionCache())
         }
 
     }

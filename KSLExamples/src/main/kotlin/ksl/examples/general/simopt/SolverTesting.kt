@@ -124,7 +124,7 @@ fun setUpEvaluator() : Evaluator {
 fun setUpSimulationService() : SimulationService {
 
     val mapModelProvider = MapModelProvider()
-    mapModelProvider.addModelCreator("RQInventoryModel", { buildModel2() })
+    mapModelProvider.addModelCreator("RQInventoryModel", { buildModel() })
     val simulationService = SimulationService(
         modelProvider = mapModelProvider,
         simulationRunCache = MemorySimulationRunCache(),
