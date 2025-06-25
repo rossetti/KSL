@@ -1,8 +1,11 @@
 package ksl.simopt.evaluator
 
+import ksl.simopt.cache.MemorySimulationRunCache
+import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simulation.Model
 
 /**
  *  An evaluator should communicate with the simulation oracle to determine
@@ -329,6 +332,22 @@ class Evaluator(
                 }
             }
             return uniqueRequests.toList()
+        }
+
+        /**
+         * Creates an instance of an `Evaluator` for a given problem definition and simulation model
+         * which uses a memory-based solution cache to improve the efficiency of evaluations.
+         *
+         * @param problemDefinition Represents the definition of the problem, including objectives,
+         *                          constraints, and other domain-specific configurations required for evaluation.
+         * @param model The simulation model used to perform evaluations. This model encapsulates
+         *              the details about the system being simulated.
+         * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
+         *         and a memory-based solution cache.
+         */
+        fun createEvaluatorForModelWithSolutionCache(problemDefinition: ProblemDefinition, model: Model): Evaluator {
+            val simulationProvider = SimulationProvider(model)
+            return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
         }
 
     }
