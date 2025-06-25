@@ -84,6 +84,7 @@ class DesignedExperiment(
      *  be contained in the factor settings.
      *  @param kslDb a KSLDatabase that will hold the data from the experiment.
      */
+    @Suppress("unused")
     constructor(
         name: String,
         model: Model,
@@ -102,6 +103,7 @@ class DesignedExperiment(
      *  @param design The design that will be simulated. The factors specified in the design must
      *  be contained in the factor settings.
      */
+    @Suppress("unused")
     constructor(
         name: String,
         modelCreator: () -> Model,

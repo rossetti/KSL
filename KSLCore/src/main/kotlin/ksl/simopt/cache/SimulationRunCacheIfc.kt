@@ -37,6 +37,7 @@ interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
     /**
      *  Places all input-solution pairs into the cache
      */
+    @Suppress("unused")
     fun putAll(from: Map<out RequestData, SimulationRun>) {
         for ((input, simulationRun) in from) {
             put(input, simulationRun)
@@ -55,6 +56,7 @@ interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
     /**
      *  Retrieves the simulation runs associated with the requests
      */
+    @Suppress("unused")
     fun retrieveSimulationRuns(requests: List<RequestData>): MutableMap<RequestData, SimulationRun> {
         val mm = mutableMapOf<RequestData, SimulationRun>()
         for (request in requests) {

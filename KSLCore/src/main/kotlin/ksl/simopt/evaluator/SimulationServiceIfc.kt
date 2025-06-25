@@ -5,9 +5,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
-import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simulation.Model
-import ksl.simulation.ModelProviderIfc
 
 /**
  *  This simulation service will execute evaluation requests on models
