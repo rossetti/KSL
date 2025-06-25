@@ -1,8 +1,10 @@
 package ksl.simopt.problem
 
 import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.evaluator.Solution
+import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
@@ -799,6 +801,20 @@ class ProblemDefinition(
             list.add(er)
         }
         return Solution(inputMap, 1, objFunc, list, 1)
+    }
+
+    /**
+     * Validates whether the provided model has the input and response names required by the problem.
+     *
+     * @param model the model against which the problem definition will be validated
+     * @return true if the input names and response names in the problem definition are valid for the model; false otherwise
+     */
+    fun validateProblemDefinition(model: Model) : Boolean {
+        val inputs = inputNames.toSet()
+        val responses = responseNames.toSet()
+        if (!model.validateInputKeys(inputs)) return false
+        if (!model.validateResponseNames(responses)) return false
+        return true
     }
 
     override fun toString(): String {
