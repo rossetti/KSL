@@ -2,8 +2,11 @@ package ksl.simopt.evaluator
 
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
+import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.evaluator.SimulationServiceIfc.Companion.executeSimulation
+import ksl.simulation.MapModelProvider
+import ksl.simulation.ModelBuilderIfc
 import ksl.simulation.ModelProviderIfc
 
 /**
@@ -142,6 +145,35 @@ open class SimulationService(
             simulationRun
         } else {
             null // not enough replications stored in the cache, return null
+        }
+    }
+
+    companion object {
+
+        /**
+         * Creates a cached simulation service instance using the provided model identifier and model builder.
+         *
+         * @param modelIdentifier the unique identifier for the model to be used in the simulation service
+         * @param modelBuilder the builder responsible for constructing the model associated with the given identifier
+         * @return a new instance of [SimulationService] configured with the specified model provider and cache settings
+         */
+        fun createCachedSimulationServiceForModel(modelIdentifier: String, modelBuilder: ModelBuilderIfc) : SimulationService {
+            return createCachedSimulationService(MapModelProvider(modelIdentifier, modelBuilder))
+        }
+
+        /**
+         * Creates a new instance of a `SimulationService` with a memory-based cache for simulation runs.
+         * This service uses the model provider and enables caching for simulation runs.
+         *
+         * @param modelProvider an instance of `ModelProviderIfc` responsible for providing models for simulation
+         * @return an instance of [SimulationService] configured with a memory-based simulation run cache and caching enabled
+         */
+        fun createCachedSimulationService(modelProvider: ModelProviderIfc) : SimulationService {
+            return SimulationService(
+                modelProvider = modelProvider,
+                simulationRunCache = MemorySimulationRunCache(),
+                useCachedSimulationRuns = true
+            )
         }
     }
 
