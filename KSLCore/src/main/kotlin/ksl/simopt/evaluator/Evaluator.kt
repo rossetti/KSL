@@ -346,6 +346,7 @@ class Evaluator(
          *         and a memory-based solution cache.
          */
         fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
+            require(problemDefinition.modelIdentifier == model.simulationName) { "The model identifier must match the problem definition model identifier" }
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
         }
