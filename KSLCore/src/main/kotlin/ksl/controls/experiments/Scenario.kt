@@ -21,8 +21,6 @@ package ksl.controls.experiments
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import ksl.utilities.Identity
-import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.OutputDirectory
 
 /**
  *  A scenario represents the specification of a model to run, with some
@@ -63,6 +61,7 @@ class Scenario(
      *  set of scenario being executed by a ScenarioRunner.
      *  @param inputs The map of inputs (based on control names) to apply to the model.
      */
+    @Suppress("unused")
     constructor(
         modelCreator: () -> Model,
         name: String,

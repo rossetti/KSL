@@ -23,15 +23,6 @@ interface SimulationProviderIfc : RunSimulationsForResponseMapsIfc {
      */
     val simulationRunCache: SimulationRunCacheIfc?
 
-//    /**
-//     *  Promises to convert evaluation requests into responses.
-//     *
-//     * @param requests a list of evaluations
-//     * @return a map of the pair of evaluation requests and the responses from the simulation
-//     */
-//    fun runSimulations(requests: List<RequestData>): Map<RequestData, ResponseMap>
-////TODO needs to return Result
-
     /**
      *  Indicates if the model identified by the modelIdentifier is valid. That is,
      *  this provider can perform simulation runs on the model.

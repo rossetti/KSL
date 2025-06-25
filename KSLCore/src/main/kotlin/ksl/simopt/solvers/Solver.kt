@@ -357,6 +357,7 @@ abstract class Solver(
      *   Causes the solver to run all iterations until its stopping
      *   criteria is met or the maximum number of iterations has been reached.
      */
+    @Suppress("unused")
     fun runAllIterations() {
         myMainIterativeProcess.run()
     }
@@ -544,6 +545,7 @@ abstract class Solver(
      * @return An input feasible point representing a random neighbor of the given point.
      * @throws IllegalStateException If a feasible neighbor cannot be generated within the allowed iterations.
      */
+    @Suppress("unused")
     fun generateInputFeasibleNeighbor(currentPoint: InputMap, rnStream: RNStreamIfc): InputMap {
         var nextPoint = currentPoint.randomizeInputVariable(rnStream)
         var count = 0
