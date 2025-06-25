@@ -345,7 +345,7 @@ class Evaluator(
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
          */
-        fun createEvaluatorForModelWithSolutionCache(problemDefinition: ProblemDefinition, model: Model): Evaluator {
+        fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
         }
