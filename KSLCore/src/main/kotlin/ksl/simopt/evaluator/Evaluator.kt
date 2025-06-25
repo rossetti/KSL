@@ -346,24 +346,9 @@ class Evaluator(
          *         and a memory-based solution cache.
          */
         fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
-            require(validateProblemDefinition(problemDefinition, model)) { "The problem definition is invalid for the model." }
+            require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
-        }
-
-        /**
-         * Validates whether the provided problem definition matches the structure required by the model.
-         *
-         * @param problemDefinition the definition of the problem, containing input and response names
-         * @param model the model against which the problem definition will be validated
-         * @return true if the input names and response names in the problem definition are valid for the model; false otherwise
-         */
-        fun validateProblemDefinition(problemDefinition: ProblemDefinition, model: Model) : Boolean {
-            val inputs = problemDefinition.inputNames.toSet()
-            val responses = problemDefinition.responseNames.toSet()
-            if (!model.validateInputKeys(inputs)) return false
-            if (!model.validateResponseNames(responses)) return false
-            return true
         }
 
     }
