@@ -40,8 +40,8 @@ fun runSolverTest() {
 }
 
 fun printSolution(solution: Solution) {
-    val q = solution.inputMap["InventoryModel.orderQuantity"]
-    val rp = solution.inputMap["InventoryModel.reorderPoint"]
+    val q = solution.inputMap["Inventory.orderQuantity"]
+    val rp = solution.inputMap["Inventory.reorderPoint"]
     println("${solution.estimatedObjFncValue} \t $q \t $rp")
 }
 
@@ -67,7 +67,7 @@ fun testRunning(orderQuantity: Int, reorderPoint: Int){
 
 fun buildModel(orderQuantity: Int = 20, reorderPoint: Int = 20) : Model {
     val model = Model("LKInventoryModel")
-    val lkInventoryModel = LKInventoryModel(model, "InventoryModel")
+    val lkInventoryModel = LKInventoryModel(model, "Inventory")
     model.lengthOfReplication = 120.0
     model.numberOfReplications = 1000
     model.lengthOfReplicationWarmUp = 20.0
@@ -85,15 +85,15 @@ fun makeProblemDefinition() : ProblemDefinition {
         problemName = "InventoryProblem",
         modelIdentifier = "LKInventoryModel",
         objFnResponseName = "TotalCost",
-        inputNames = listOf("InventoryModel.orderQuantity", "InventoryModel.reorderPoint"),
+        inputNames = listOf("Inventory.orderQuantity", "Inventory.reorderPoint"),
     )
    problemDefinition.inputVariable(
-       name = "InventoryModel.orderQuantity",
+       name = "Inventory.orderQuantity",
        interval = Interval(1.0, 100.0),
        granularity = 1.0
    )
     problemDefinition.inputVariable(
-        name = "InventoryModel.reorderPoint",
+        name = "Inventory.reorderPoint",
         interval = Interval(1.0, 100.0),
         granularity = 1.0
     )
@@ -124,7 +124,7 @@ fun setUpEvaluator() : Evaluator {
 fun setUpSimulationService() : SimulationService {
 
     val mapModelProvider = MapModelProvider()
-    mapModelProvider.addModelCreator("RQInventoryModel", { buildModel2() })
+    mapModelProvider.addModelCreator("LKInventoryModel", { buildModel() })
     val simulationService = SimulationService(
         modelProvider = mapModelProvider,
         simulationRunCache = MemorySimulationRunCache(),
