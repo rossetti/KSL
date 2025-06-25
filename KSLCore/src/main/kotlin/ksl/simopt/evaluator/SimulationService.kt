@@ -109,6 +109,9 @@ open class SimulationService(
             // only store good simulation runs in the cache
             // add the SimulationRun to the simulation run cache
             simulationRunCache?.put(request, simulationRun)
+            if (simulationRunCache != null) {
+                SimulationServiceIfc.logger.info { "SimulationService: results for ${request.modelIdentifier} added to the cache" }
+            }
             return Result.success(simulationRun)
         }
     }
