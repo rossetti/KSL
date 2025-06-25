@@ -94,7 +94,7 @@ class ProblemDefinition(
         }
 
     /**
-     *  Returns a list of the names of all the responses referenced in the problem
+     *  Returns a list of the names for all the responses referenced in the problem
      *  in the order in which they are specified in the problem creation.
      *  The first name will be the name of the response associated with the objective
      *  function, then each response name from the provided set of response names.
