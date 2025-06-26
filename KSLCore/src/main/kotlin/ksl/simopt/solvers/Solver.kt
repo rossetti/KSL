@@ -728,6 +728,17 @@ abstract class Solver(
     }
 
     companion object {
+
+        /**
+         * Represents the default maximum number of iterations to be executed
+         * in a given process or algorithm. This value acts as a safeguard
+         * to prevent indefinite looping or excessive computation.
+         *
+         * The default value is set to 1000, but it can be modified based
+         * on specific requirements or constraints.
+         */
+        var defaultMaxNumberIterations = 1000
+
         val logger: KLogger = KotlinLogging.logger {}
 
         /**
