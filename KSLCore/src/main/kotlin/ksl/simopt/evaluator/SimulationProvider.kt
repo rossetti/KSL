@@ -11,6 +11,11 @@ import ksl.simulation.Model
  *  and collect the desired responses.  This provider runs the model's replications
  *  locally and sequentially in the same execution thread as the requests.
  *
+ *  Note that the model is reused.  This may cause issues in a parallel execution environment or
+ *  if the model is mutated externally.  The secondary constructor will create a new model instance
+ *  for use by the provider.  Use the primary constructor if you are certain that there are no issues with
+ *  sharing the model instance.
+ *
  * @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
@@ -18,8 +23,8 @@ import ksl.simulation.Model
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
-class SimulationProvider(
-    val model: Model,
+class SimulationProvider internal constructor(
+    private val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
     override var useCachedSimulationRuns: Boolean = false,
 ) : SimulationProviderIfc {
