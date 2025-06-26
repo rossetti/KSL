@@ -39,16 +39,7 @@ class SimulatedAnnealing(
             require(value > 0.0) { "The final temperature must be positive" }
             field = value
         }
-
-    /**
-     * Constructs an instance of StochasticHillClimber with specified parameters.
-     *
-     * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
-     * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
-     * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
-     * @param rnStream The random number stream used during the hill climbing process. Defaults to KSLRandom's default RNStream implementation.
-     * @param name Optional name identifier for this instance of StochasticHillClimber.
-     */
+    
     constructor(
         evaluator: EvaluatorIfc,
         initialTemperature: Double,
