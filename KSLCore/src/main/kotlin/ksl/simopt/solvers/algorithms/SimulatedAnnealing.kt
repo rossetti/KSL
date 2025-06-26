@@ -39,7 +39,7 @@ class SimulatedAnnealing(
             require(value > 0.0) { "The final temperature must be positive" }
             field = value
         }
-    
+
     constructor(
         evaluator: EvaluatorIfc,
         initialTemperature: Double,
