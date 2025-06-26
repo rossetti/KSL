@@ -337,19 +337,25 @@ class Evaluator(
 
         /**
          * Creates an instance of an `Evaluator` for a given problem definition and simulation model
-         * which uses a memory-based solution cache to improve the efficiency of evaluations.
+         * which uses a memory-based solution cache to improve the efficiency of evaluations. The
+         * simulation execution is based on a SimulationProvider, which runs locally in the same
+         * thread as the evaluator.  During the evaluation process the same model is used repeatedly.
          *
          * @param problemDefinition Represents the definition of the problem, including the objectives,
          *                          constraints, and other domain-specific configurations required for evaluation.
-         * @param model The simulation model used to perform evaluations. This model encapsulates
-         *              the details about the system being simulated.
+         * @param modelBuilder a builder instance responsible for constructing the simulation model
+         *                     used during problem evaluation.
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
          * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible
          * use ProblemDefinition.validateProblemDefinition to check.
          */
         @Suppress("unused")
-        fun createProblemEvaluator(problemDefinition: ProblemDefinition, model: Model): Evaluator {
+        fun createProblemEvaluator(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc
+        ): Evaluator {
+            val model = modelBuilder.build()
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())

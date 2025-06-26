@@ -6,8 +6,10 @@ import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
+import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
+import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamIfc
@@ -193,7 +195,7 @@ abstract class Solver(
      *  The maximum number of iterations permitted for the main loop. This must be
      *  greater than 0.
      */
-    var maximumNumberIterations : Int = maximumIterations
+    var maximumNumberIterations: Int = maximumIterations
         set(value) {
             require(value > 0) { "maximum number of main iterations must be > 0" }
             field = value
@@ -211,7 +213,7 @@ abstract class Solver(
     /**
      *  Returns how many iterations of the main loop have been executed.
      */
-    var iterationCounter : Int = 0
+    var iterationCounter: Int = 0
         private set
 
     /**
@@ -727,5 +729,40 @@ abstract class Solver(
 
     companion object {
         val logger: KLogger = KotlinLogging.logger {}
+
+        /**
+         * Creates and configures a stochastic hill climber to solve the given problem definition using
+         * a simulation-based evaluation approach. The default configuration has the evaluator
+         * configured to use a solution cache.
+         *
+         * @param problemDefinition The definition of the optimization problem to solve, including parameters and constraints.
+         * @param modelBuilder An interface for building the simulation model required for evaluations.
+         * @param startingPoint An optional initial solution to start the search from. If null, a default starting point
+         * is randomly generated from the problem definition.
+         * @param maxIterations The maximum number of hill climbing iterations to perform.
+         * @param replicationsPerEvaluation The number of simulations or evaluations performed per solution to estimate its quality.
+         * @param printer An optional function to receive updates about solutions found during the search.
+         * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
+         */
+        fun stochasticHillClimber(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = 100,
+            replicationsPerEvaluation: Int = 50,
+            printer: ((Solution) -> Unit)? = null
+        ) : StochasticHillClimber {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+            val shc = StochasticHillClimber(
+                evaluator = evaluator,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation
+            )
+            printer?.let { shc.emitter.attach(it) }
+            return shc
+        }
     }
 }
