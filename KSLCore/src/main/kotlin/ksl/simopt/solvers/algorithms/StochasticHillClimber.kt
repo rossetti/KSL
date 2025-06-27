@@ -52,4 +52,18 @@ open class StochasticHillClimber(
         name: String? = null
     ) : this(evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), rnStream, name)
 
+    /**  Randomly generates the next point using nextPoint().
+     *   Evaluates the point and gets the solution.
+     *   If the solution is better than the current solution, it becomes the current solution.
+     *
+     */
+    override fun mainIteration() {
+        // generate a random neighbor of the current solution
+        val nextPoint = nextPoint()
+        // evaluate the solution
+        val nextSolution = requestEvaluation(nextPoint)
+        if (compare(nextSolution, currentSolution) < 0) {
+            currentSolution = nextSolution
+        }
+    }
 }
