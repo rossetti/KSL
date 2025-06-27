@@ -13,8 +13,6 @@ import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rng.RNStreamIfc
-import ksl.utilities.statistic.Statistic
-import ksl.utilities.statistic.StatisticIfc
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -33,7 +31,7 @@ import ksl.utilities.statistic.StatisticIfc
  *  In addition, because of the stochastic nature of the evaluation, the solver may request one or more replications
  *  for its evaluation requests. The number of replications may dynamically change, and thus the user needs to
  *  supply a function to determine the number of replications per evaluation.  Within the framework of the
- *  hooks for subclasses the user could specify more complex procedures for determining the number of replications per
+ *  hooks for subclasses, the user could specify more complex procedures for determining the number of replications per
  *  evaluation.
  *
  *  @param maximumIterations the maximum number of iterations permitted for the main loop. This must be
@@ -70,7 +68,7 @@ abstract class Solver(
      *  In addition, because of the stochastic nature of the evaluation, the solver may request one or more replications
      *  for its evaluation requests. The number of replications may dynamically change, and thus the user needs to
      *  supply a function to determine the number of replications per evaluation.  Within the framework of the
-     *  hooks for subclasses the user could specify more complex procedures for determining the number of replications per
+     *  hooks for subclasses, the user could specify more complex procedures for determining the number of replications per
      *  evaluation.
      *
      *  @param maximumIterations the maximum number of iterations permitted for the main loop. This must be
@@ -92,30 +90,13 @@ abstract class Solver(
     private val myMainIterativeProcess = MainIterativeProcess()
 
     /**
-     * Statistic object to track the fraction of iterations in which the solver
-     * successfully improves upon the current solution using an iterative process.
-     * This metric helps evaluate the effectiveness of the solver's approach in
-     * generating better solutions over time.
-     */
-    private val myImprovingStepFraction = Statistic("ImprovingStepFraction")
-
-    /**
-     * Statistic object to track the fraction of iterations in which the solver
-     * successfully improves upon the current solution using an iterative process.
-     * This metric helps evaluate the effectiveness of the solver's approach in
-     * generating better solutions over time.
-     */
-    val improvingStepFraction: StatisticIfc
-        get() = myImprovingStepFraction
-
-    /**
-     * Represents the count of successfully improving steps achieved during the solver's iterative process.
-     * This value is calculated based on the sum of improving step fractions, converted to an integer.
-     * It is used to track the progress and effectiveness of the solver in generating better solutions.
+     * Counts the number of times that a new current solution replaced the current
+     * best solution. This can be used to measure how often an iteration results in
+     * a better solution being found.
      */
     @Suppress("unused")
-    val successCount: Int
-        get() = myImprovingStepFraction.sum.toInt()
+    var numTimesBestSolutionUpdated: Int = 0
+        private set
 
     /**
      *  Allow the status of the iterative process to be accessible
@@ -126,7 +107,7 @@ abstract class Solver(
 
     /**
      *  A solver may be controlled by a solver runner with other solvers.
-     *  This provides an internal reference to solver runner
+     *  This provides an internal reference to the solver runner
      */
     internal var mySolverRunner: SolverRunner? = null
 
@@ -182,7 +163,6 @@ abstract class Solver(
      *  developing subclasses.
      */
     var neighborGenerator: GenerateNeighborIfc? = null
-
 
     /**
      * A variable representing an instance of the `SolutionQualityEvaluatorIfc` interface.
@@ -290,7 +270,9 @@ abstract class Solver(
      */
     var currentSolution: Solution = problemDefinition.badSolution()
         protected set(value) {
+            // save the previous solution
             previousSolution = field
+            // update the current solution
             field = value
             penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
             unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
@@ -301,6 +283,7 @@ abstract class Solver(
             // capture the best solution
             if (compare(field, bestSolution) < 0) {
                 bestSolution = field
+                numTimesBestSolutionUpdated++
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
         }
@@ -365,7 +348,7 @@ abstract class Solver(
     }
 
     /**
-     *  Causes a graceful stopping of the iterative processes of the solver.
+     *  Causes a graceful stopping of the iterative processes for the solver.
      *  The inner process will complete its current iteration, and then
      *  no more outer iterations will start.
      *  @param msg a message can be captured concerning why the stoppage occurred.
@@ -394,28 +377,11 @@ abstract class Solver(
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
-     * @return -1 if first is less than the second solution, 0 if the solutions are to be considered
+     * @return -1 if the first solution is less than the second solution, 0 if the solutions are to be considered
      *   equivalent, and 1 if the first is larger than the second solution.
      */
     override fun compare(first: Solution, second: Solution): Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
-    }
-
-    /**
-     * Updates the current solution based on a new solution. If the new solution
-     * is determined to be better than the current solution, the current solution
-     * is updated, and the improving step fraction is updated accordingly.
-     *
-     * @param newSolution the new solution to be compared with the current solution
-     */
-    protected fun updateCurrentSolution(newSolution: Solution) {
-        if (compare(newSolution, currentSolution) < 0) {
-            currentSolution = newSolution
-            myImprovingStepFraction.collect(1.0)
-            logger.trace { "Solver: $name : solution improved to $newSolution" }
-        } else {
-            myImprovingStepFraction.collect(0.0)
-        }
     }
 
     /**
@@ -439,6 +405,17 @@ abstract class Solver(
     protected abstract fun nextPoint(): InputMap
 
     /**
+     *  This function should contain the logic that iteratively executes until the
+     *  maximum number of iterations is reached or until the stopping
+     *  criteria is met.  The base implementation calls nextPoint()
+     *  to determine the next point to evaluate, requests an evaluation
+     *  of the point, and then updates the current solution if the
+     *  resulting solution is better than the current solution. Generally,
+     *  implementing startingPoint() and nextPoint() should be adequate.
+     */
+    protected abstract fun mainIteration()
+
+    /**
      *  Subclasses may implement this function to prepare the solver
      *  before running the first iteration. Generally, it is sufficient
      *  to just implement the startingPoint() function.
@@ -450,31 +427,14 @@ abstract class Solver(
     }
 
     /**
-     *  This function should contain the logic that iteratively executes until the
-     *  maximum number of iterations is reached or until the stopping
-     *  criteria is met.  The base implementation calls nextPoint()
-     *  to determine the next point to evaluate, requests an evaluation
-     *  of the point, and then updates the current solution if the
-     *  resulting solution is better than the current solution. Generally,
-     *  implementing startingPoint() and nextPoint() should be adequate.
-     */
-    protected open fun mainIteration() {
-        // generate a random neighbor of the current solution
-        val nextPoint = nextPoint()
-        // evaluate the solution
-        val nextSolution = requestEvaluation(nextPoint)
-        updateCurrentSolution(nextSolution)
-    }
-
-    /**
      *  Subclasses should implement this function to determine if the solver
      *  should continue running iterations. This will likely include some
      *  implementation of stopping criteria. This function should implement
      *  stopping criteria based on the quality of the solution. The number
-     *  of iterations, compared to the maximum number of iterations is automatically
+     *  of iterations, compared to the maximum number of iterations, is automatically
      *  checked after each step in the iterative process. Unless overridden, this
      *  function returns false by default, which indicates that the solution
-     *  quality criteria has not been satisfied.  This will cause the solver
+     *  quality criteria have not been satisfied.  This will cause the solver
      *  to iterate through all iterations of the solution process up to the
      *  maximum number of iterations. Alternatively, the user can specify
      *  an instance of the SolutionQualityEvaluatorIfc interface to
@@ -584,7 +544,7 @@ abstract class Solver(
         }
         // the input map will be range-feasible but may not be problem-feasible.
         val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
-        // since the input map is immutable so is the RequestData instance
+        // since the input map is immutable, so is the RequestData instance
         return RequestData(
             problemDefinition.modelIdentifier,
             numReps,
@@ -659,7 +619,7 @@ abstract class Solver(
             appendLine("$currentSolution")
             appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
             appendLine("Penalized Solution Gap = $penalizedSolutionGap")
-            appendLine("Fraction of Improving Step Statistics = ${improvingStepFraction.average}")
+            appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
             appendLine("Number of Iterations Completed = $iterationCounter")
             appendLine("Best Solution:")
             appendLine("$bestSolution")
@@ -672,8 +632,8 @@ abstract class Solver(
 
         override fun initializeIterations() {
             super.initializeIterations()
-            myImprovingStepFraction.reset()
             iterationCounter = 0
+            numTimesBestSolutionUpdated = 0
             logger.info { "Resetting solver $name's evaluation counters in solver $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.trace { "Initializing solver $name" }
@@ -755,6 +715,7 @@ abstract class Solver(
          * @param printer An optional function to receive updates about solutions found during the search.
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
+        @Suppress("unused")
         fun stochasticHillClimber(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
@@ -772,6 +733,7 @@ abstract class Solver(
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
+            shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
             printer?.let { shc.emitter.attach(it) }
             return shc
         }
