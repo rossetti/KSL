@@ -258,7 +258,7 @@ data class Solution(
     }
 
     override fun toString(): String {
-        return "Obj. Function: $penalizedObjFncValue Inputs: $inputMap"
+        return "id: $id : Obj. Function: $penalizedObjFncValue Inputs: $inputMap"
     }
 
     companion object {
