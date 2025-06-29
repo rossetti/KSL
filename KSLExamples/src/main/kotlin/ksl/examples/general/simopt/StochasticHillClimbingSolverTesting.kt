@@ -17,7 +17,7 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runSolver(modelIdentifier, maxIterations = 1000)
+    runSolver(modelIdentifier, maxIterations = 10)
 
 }
 

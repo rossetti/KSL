@@ -7,13 +7,13 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
 
-//TODO initial temperature, cooling schedule, override stopping criteria
+//TODO default initial temperature
 
 class SimulatedAnnealing(
     evaluator: EvaluatorIfc,
     initialTemperature: Double,
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
-    finalTemperature: Double = 0.001,
+    stoppingTemperature: Double = 0.001,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
@@ -22,7 +22,7 @@ class SimulatedAnnealing(
 
     init {
         require(initialTemperature > 0.0) { "The initial temperature must be positive" }
-        require(finalTemperature > 0.0) { "The final temperature must be positive" }
+        require(stoppingTemperature > 0.0) { "The final temperature must be positive" }
     }
 
     /**
@@ -35,13 +35,64 @@ class SimulatedAnnealing(
             coolingSchedule.initialTemperature = value
         }
 
-    var finalTemperature: Double = finalTemperature
+    /**
+     * Represents the temperature threshold at which the simulated annealing algorithm will stop iterating.
+     * The stopping temperature serves as a termination criterion, ensuring the optimization process concludes
+     * when the system has sufficiently cooled.
+     *
+     * This value must always be positive. An exception will be thrown if a non-positive temperature is set.
+     *
+     * @property stoppingTemperature The target temperature below which the optimization process should stop.
+     *                                Must be greater than 0.0.
+     * @throws IllegalArgumentException if a value less than or equal to 0.0 is assigned.
+     */
+    var stoppingTemperature: Double = stoppingTemperature
         set(value) {
             require(value > 0.0) { "The final temperature must be positive" }
             field = value
         }
 
+    /**
+     * Represents the current temperature in the simulated annealing process.
+     * It is initialized to the value of `initialTemperature` and dynamically
+     * updated during each iteration of the algorithm based on the cooling schedule.
+     *
+     * The temperature is used to control the probability of accepting worse solutions
+     * as the optimization progresses. A higher temperature allows more flexibility
+     * in solution acceptance, promoting exploration, while a lower temperature
+     * emphasizes exploitation.
+     *
+     * This property is private-set, meaning it can only be modified internally
+     * within the class, ensuring controlled updates adhering to the optimization logic.
+     */
     var currentTemperature = initialTemperature
+        private set
+
+    /**
+     * Tracks the last computed acceptance probability in the simulated annealing process.
+     *
+     * This value represents the probability of accepting a new solution during the most recent
+     * iteration of the algorithm, based on the current temperature and the difference in cost
+     * between the current and new solutions. It is initially set to 1.0 and is updated internally
+     * during each iteration.
+     *
+     * The property is immutable from outside the class to ensure the integrity of the algorithm's
+     * state. It serves as a diagnostic tool for understanding the behavior of the acceptance
+     * step in the optimization process.
+     */
+    var lastAcceptanceProbability = 1.0
+        private set
+
+    /**
+     * Represents the difference in cost between the current solution and a potential new solution
+     * in the simulated annealing process. This value directly influences the acceptance probability
+     * of new solutions as the algorithm progresses.
+     *
+     * The value is initialized to `Double.NaN` and updated during the computation of the algorithm.
+     * It can only be modified internally within the containing class to ensure controlled updates with
+     * calculated values.
+     */
+    var costDifference: Double = Double.NaN
         private set
 
     constructor(
@@ -57,12 +108,24 @@ class SimulatedAnnealing(
         evaluator = evaluator,
         initialTemperature = initialTemperature,
         coolingSchedule = coolingSchedule,
-        finalTemperature = finalTemperature,
+        stoppingTemperature = finalTemperature,
         maxIterations = maxIterations,
         replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         rnStream = rnStream, name = name
     )
 
+    /**
+     * Calculates the probability of accepting a new solution in the simulated annealing algorithm.
+     * The probability is determined based on the difference in cost between the current and new solutions,
+     * as well as the current temperature of the system.
+     *
+     * @param costDifference The difference in cost between the current solution and the new solution.
+     *                       A positive value indicates the new solution is worse, and a negative value indicates it is better.
+     * @param temperature The current temperature in the simulated annealing process. Must be greater than zero.
+     * @return The acceptance probability, which is a value between 0.0 and 1.0. A higher probability indicates a greater likelihood of accepting the new solution.
+     *         If `costDifference` is less than or equal to 0, the probability is 1.0. Otherwise, it is calculated as `exp(-costDifference / temperature)`.
+     * @throws IllegalArgumentException If the `temperature` is not positive.
+     */
     fun acceptanceProbability(costDifference: Double, temperature: Double) : Double {
         require(temperature > 0.0) { "The temperature must be positive" }
         return if (costDifference <= 0.0) {
@@ -72,22 +135,32 @@ class SimulatedAnnealing(
         }
     }
 
+    override fun initializeIterations() {
+        super.initializeIterations()
+        currentTemperature = initialTemperature
+        lastAcceptanceProbability = 1.0
+        costDifference = Double.NaN
+        logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
+    }
+
     override fun mainIteration() {
         // generate a random neighbor of the current solution
         val nextPoint = nextPoint()
         // evaluate the point to get the next solution
         val nextSolution = requestEvaluation(nextPoint)
         // calculate the cost difference
-        val costDifference = nextSolution.penalizedObjFncValue - currentSolution.penalizedObjFncValue
+        costDifference = nextSolution.penalizedObjFncValue - currentSolution.penalizedObjFncValue
         // if the cost difference is negative, it is automatically an acceptance
         if (costDifference < 0.0) {
             // no need to generate a random variate
             currentSolution = nextSolution
+            lastAcceptanceProbability = 1.0
             logger.trace { "Solver: $name : solution improved to $nextSolution" }
         } else {
             // decide whether an increased cost should be accepted
             val u = rnStream.randU01()
-            if (u < acceptanceProbability(costDifference, currentTemperature)) {
+            lastAcceptanceProbability = acceptanceProbability(costDifference, currentTemperature)
+            if (u < lastAcceptanceProbability) {
                 currentSolution = nextSolution
                 logger.trace { "Solver: $name : non-improving solution was accepted: $nextSolution" }
             } else {
@@ -104,7 +177,17 @@ class SimulatedAnnealing(
     }
 
     private fun checkTemperature() : Boolean {
-        return currentTemperature < finalTemperature
+        return currentTemperature < stoppingTemperature
+    }
+
+    override fun toString(): String {
+        val sb = StringBuilder("Simulated Annealing solver with parameters: \n")
+        sb.append(super.toString())
+        sb.append("Initial temperature: $initialTemperature\n")
+        sb.append("Stopping temperature: $stoppingTemperature\n")
+        sb.append("Current temperature: $currentTemperature\n")
+        sb.append("Last acceptance probability: $lastAcceptanceProbability\n")
+        return sb.toString()
     }
 
 
