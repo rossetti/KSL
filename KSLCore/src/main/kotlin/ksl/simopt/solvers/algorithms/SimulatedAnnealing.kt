@@ -65,7 +65,7 @@ class SimulatedAnnealing(
 
     fun acceptanceProbability(costDifference: Double, temperature: Double) : Double {
         require(temperature > 0.0) { "The temperature must be positive" }
-        return if (costDifference < 0.0) {
+        return if (costDifference <= 0.0) {
             1.0
         } else {
             exp(-costDifference / temperature)
@@ -98,5 +98,14 @@ class SimulatedAnnealing(
         // update the current temperature based on the cooling schedule
         currentTemperature = coolingSchedule.nextTemperature(iterationCounter)
     }
+
+    override fun isStoppingCriteriaSatisfied(): Boolean {
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkTemperature()
+    }
+
+    private fun checkTemperature() : Boolean {
+        return currentTemperature < finalTemperature
+    }
+
 
 }
