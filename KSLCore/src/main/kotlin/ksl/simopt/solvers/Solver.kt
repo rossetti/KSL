@@ -191,7 +191,7 @@ abstract class Solver(
         }
 
     /**
-     *  Returns how many iterations of the main loop have been executed.
+     *  Returns the number of times the main iteration function was called.
      */
     var iterationCounter: Int = 0
         private set
@@ -634,11 +634,11 @@ abstract class Solver(
             super.initializeIterations()
             iterationCounter = 0
             numTimesBestSolutionUpdated = 0
-            logger.info { "Resetting solver $name's evaluation counters in solver $name" }
+            logger.info { "Resetting solver evaluation counters for solver: $name" }
             mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.trace { "Initializing solver $name" }
             this@Solver.initializeIterations()
-            logger.info { "Initialized solver $name" }
+            logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
             logger.trace { "Initial solution = $initialSolution" }
         }
 
@@ -669,10 +669,10 @@ abstract class Solver(
             myCurrentStep = nextStep()
             logger.trace { "Executing beforeMainIteration(): iteration = $iterationCounter of solver $name" }
             beforeMainIteration()
-            logger.trace { "Running: iteration = $iterationCounter of solver $name" }
-            mainIteration()
             iterationCounter++
-            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations for solver $name" }
+            logger.info { "Running: iteration = $iterationCounter of solver name: $name" }
+            mainIteration()
+            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }

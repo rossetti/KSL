@@ -106,7 +106,7 @@ class ExponentialCoolingSchedule(
     }
 
     override fun nextTemperature(iteration: Int): Double {
-        require(iteration > 0) { "The iteration must be positive" }
+        require(iteration > 0) { "The iteration must be positive. It was $iteration." }
         return initialTemperature * coolingRate.pow(iteration)
     }
 }
