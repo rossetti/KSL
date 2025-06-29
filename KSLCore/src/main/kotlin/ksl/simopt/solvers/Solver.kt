@@ -613,7 +613,7 @@ abstract class Solver(
             appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
             appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
-            appendLine("Initial Solution:")
+            appendLine("Initial Solution: $initialSolution")
             appendLine("$initialSolution")
             appendLine("Current Solution:")
             appendLine("$currentSolution")
