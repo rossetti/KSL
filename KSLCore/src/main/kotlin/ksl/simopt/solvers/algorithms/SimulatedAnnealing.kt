@@ -9,6 +9,29 @@ import kotlin.math.exp
 
 //TODO default initial temperature
 
+/**
+ * A class that implements the simulated annealing optimization algorithm for solving stochastic or deterministic problems.
+ * Simulated annealing is an iterative optimization method inspired by the physical process of annealing in metallurgy.
+ * It uses a probabilistic approach to escape local optima by accepting worse solutions with a certain probability, which decreases
+ * over time according to a cooling schedule.
+ *
+ * @constructor
+ * Constructs a SimulatedAnnealing solver with the specified parameters.
+ *
+ * @param evaluator The evaluator responsible for calculating the objective function value of a solution.
+ *                  It must implement the [EvaluatorIfc] interface.
+ * @param initialTemperature The starting temperature for the simulated annealing algorithm. Must be greater than 0.0.
+ * @param coolingSchedule the cooling schedule for the annealing process
+ * @param stoppingTemperature the temperature used to stop the annealing process. If the current temperature goes
+ * below this temperature, the search process stops.
+ * @param maxIterations the maximum number of iterations permitted for the search process
+ * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
+ * defining the strategy for determining the number of replications per evaluation.
+ * @param rnStream An optional random number stream used for stochastic behavior.
+ * Defaults to `KSLRandom.defaultRNStream()`.
+ * @param name An optional name for this solver instance.
+ *
+ */
 class SimulatedAnnealing(
     evaluator: EvaluatorIfc,
     initialTemperature: Double,
