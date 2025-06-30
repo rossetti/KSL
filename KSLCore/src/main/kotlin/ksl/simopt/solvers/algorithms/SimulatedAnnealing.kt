@@ -4,6 +4,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
 
@@ -39,9 +40,10 @@ class SimulatedAnnealing(
     stoppingTemperature: Double = 0.001,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
-    rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, rnStream, name) {
+) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
         require(initialTemperature > 0.0) { "The initial temperature must be positive" }
@@ -118,6 +120,23 @@ class SimulatedAnnealing(
     var costDifference: Double = Double.NaN
         private set
 
+    /**
+     * Secondary constructor for the SimulatedAnnealing class. This constructor provides a simplified way
+     * to initialize the Simulated Annealing algorithm with configurable parameters, while delegating
+     * certain default parameters to their respective values or functional objects.
+     *
+     * @param evaluator An implementation of the EvaluatorIfc interface, used to evaluate candidate solutions.
+     * @param initialTemperature The starting temperature for the simulated annealing process. Must be a positive value.
+     * @param coolingSchedule Defines the cooling mechanism to reduce the temperature during the iteration process.
+     * Defaults to an ExponentialCoolingSchedule with the specified initialTemperature.
+     * @param finalTemperature The temperature at which the simulated annealing process stops. Defaults to 0.001.
+     * @param maxIterations The maximum number of iterations for the simulated annealing process. Defaults to a predefined constant.
+     * @param replicationsPerEvaluation The number of replications to be performed for each evaluation of the objective function.
+     * Ensures robustness in the evaluation process.
+     * @param streamNum The stream number used for managing random number generation streams. Defaults to 0.
+     * @param streamProvider Provides the random number generator streams. Defaults to the KSLRandom.DefaultRNStreamProvider.
+     * @param name An optional name for the simulated annealing process, useful for identification or debugging. Defaults to null.
+     */
     constructor(
         evaluator: EvaluatorIfc,
         initialTemperature: Double,
@@ -125,7 +144,8 @@ class SimulatedAnnealing(
         finalTemperature: Double = 0.001,
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int,
-        rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
     ) : this(
         evaluator = evaluator,
@@ -134,7 +154,7 @@ class SimulatedAnnealing(
         stoppingTemperature = finalTemperature,
         maxIterations = maxIterations,
         replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
-        rnStream = rnStream, name = name
+       streamNum, streamProvider, name = name
     )
 
     /**

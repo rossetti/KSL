@@ -4,6 +4,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
@@ -23,17 +24,18 @@ import ksl.utilities.random.rvariable.KSLRandom
  * to execute.
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
- * @param rnStream An optional random number stream used for stochastic behavior.
- * Defaults to `KSLRandom.defaultRNStream()`.
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name An optional name for this solver instance.
  */
 open class StochasticHillClimber(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
-    rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+    streamNum: Int = 0,
+    streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, rnStream, name) {
+) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     /**
      * Constructs an instance of StochasticHillClimber with specified parameters.
@@ -41,16 +43,19 @@ open class StochasticHillClimber(
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
-     * @param rnStream The random number stream used during the hill climbing process. Defaults to KSLRandom's default RNStream implementation.
+     * @param streamNum the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @param name Optional name identifier for this instance of StochasticHillClimber.
      */
     constructor(
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int,
-        rnStream: RNStreamIfc = KSLRandom.defaultRNStream(),
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), rnStream, name)
+    ) : this(evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+        streamNum, streamProvider, name)
 
     /**  Randomly generates the next point using nextPoint().
      *   Evaluates the point and gets the solution.
