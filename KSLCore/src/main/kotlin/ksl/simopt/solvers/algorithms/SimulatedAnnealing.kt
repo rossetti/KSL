@@ -3,7 +3,6 @@ package ksl.simopt.solvers.algorithms
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
@@ -35,9 +34,9 @@ import kotlin.math.exp
  */
 class SimulatedAnnealing(
     evaluator: EvaluatorIfc,
-    initialTemperature: Double,
+    initialTemperature: Double = defaultInitialTemperature,
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
-    stoppingTemperature: Double = 0.001,
+    stoppingTemperature: Double = defaultStoppingTemperature,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
@@ -129,7 +128,7 @@ class SimulatedAnnealing(
      * @param initialTemperature The starting temperature for the simulated annealing process. Must be a positive value.
      * @param coolingSchedule Defines the cooling mechanism to reduce the temperature during the iteration process.
      * Defaults to an ExponentialCoolingSchedule with the specified initialTemperature.
-     * @param finalTemperature The temperature at which the simulated annealing process stops. Defaults to 0.001.
+     * @param stoppingTemperature The temperature at which the simulated annealing process stops. Defaults to 0.001.
      * @param maxIterations The maximum number of iterations for the simulated annealing process. Defaults to a predefined constant.
      * @param replicationsPerEvaluation The number of replications to be performed for each evaluation of the objective function.
      * Ensures robustness in the evaluation process.
@@ -139,9 +138,9 @@ class SimulatedAnnealing(
      */
     constructor(
         evaluator: EvaluatorIfc,
-        initialTemperature: Double,
+        initialTemperature: Double = defaultInitialTemperature,
         coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
-        finalTemperature: Double = 0.001,
+        stoppingTemperature: Double = defaultStoppingTemperature,
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int,
         streamNum: Int = 0,
@@ -151,7 +150,7 @@ class SimulatedAnnealing(
         evaluator = evaluator,
         initialTemperature = initialTemperature,
         coolingSchedule = coolingSchedule,
-        stoppingTemperature = finalTemperature,
+        stoppingTemperature = stoppingTemperature,
         maxIterations = maxIterations,
         replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
        streamNum, streamProvider, name = name
@@ -231,6 +230,28 @@ class SimulatedAnnealing(
         sb.append("Current temperature: $currentTemperature\n")
         sb.append("Last acceptance probability: $lastAcceptanceProbability\n")
         return sb.toString()
+    }
+
+    companion object {
+
+        var defaultInitialTemperature = 1000.0
+            set(value) {
+                require(value > 0.0) { "The initial temperature must be positive" }
+                field = value
+            }
+
+        var defaultCoolingRate = 0.95
+            set(value) {
+                require(value > 0.0 && value < 1.0) { "The cooling rate must be in (0,1)" }
+                field = value
+            }
+
+        var defaultStoppingTemperature = 0.001
+            set(value) {
+                require(value > 0.0) { "The default stopping temperature must be positive" }
+                field = value
+            }
+
     }
 
 
