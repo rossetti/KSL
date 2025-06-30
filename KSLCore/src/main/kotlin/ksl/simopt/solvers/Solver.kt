@@ -755,6 +755,7 @@ abstract class Solver(
          * observe the optimization process.
          * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
          */
+        @Suppress("unused")
         fun simulatedAnnealer(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
