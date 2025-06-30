@@ -699,6 +699,16 @@ abstract class Solver(
          * on specific requirements or constraints.
          */
         var defaultMaxNumberIterations = 1000
+            set(value) {
+                require(value > 0) { "The default maximum number of iterations must be a positive value." }
+                field = value
+            }
+
+        var defaultReplicationsPerEvaluation = 30
+            set(value) {
+                require(value > 0) { "The default replications per evaluation must be a positive value." }
+                field = value
+            }
 
         val logger: KLogger = KotlinLogging.logger {}
 
@@ -721,7 +731,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = 100,
+            maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = 50,
             printer: ((Solution) -> Unit)? = null
         ) : StochasticHillClimber {
@@ -761,7 +771,7 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
             initialTemperature: Double = 1000.0,
-            maxIterations: Int = 100,
+            maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = 50,
             printer: ((Solution) -> Unit)? = null
         ) : SimulatedAnnealing {

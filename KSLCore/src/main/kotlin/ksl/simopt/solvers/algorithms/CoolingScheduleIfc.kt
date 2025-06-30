@@ -1,5 +1,9 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.simopt.solvers.Solver.Companion.defaultMaxNumberIterations
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultCoolingRate
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultStoppingTemperature
 import kotlin.math.ln
 import kotlin.math.pow
 
@@ -51,7 +55,7 @@ abstract class CoolingSchedule(initialTemperature: Double) : CoolingScheduleIfc 
  *
  * @constructor Initializes a LinearCoolingSchedule instance with the given parameters.
  * @param initialTemperature The starting temperature for the cooling schedule. Must be positive and greater than the final temperature.
- * @param finalTemperature The minimum temperature to which the schedule decreases. Must be positive and less than the initial temperature.
+ * @param stoppingTemperature The minimum temperature to which the schedule decreases. Must be positive and less than the initial temperature.
  * @param maxIterations The total number of iterations over which the temperature decreases. Must be positive.
  *
  * @throws IllegalArgumentException if maxIterations is not positive,
@@ -59,14 +63,14 @@ abstract class CoolingSchedule(initialTemperature: Double) : CoolingScheduleIfc 
  * or if finalTemperature is not less than initialTemperature.
  */
 class LinearCoolingSchedule(
-    initialTemperature: Double,
-    val finalTemperature: Double,
-    val maxIterations: Int
+    initialTemperature: Double = defaultInitialTemperature,
+    val stoppingTemperature: Double = defaultStoppingTemperature,
+    val maxIterations: Int = defaultMaxNumberIterations,
 ) : CoolingSchedule (initialTemperature) {
     init {
         require(maxIterations > 0) { "The maximum number of iterations must be positive" }
-        require(finalTemperature > 0.0) { "The initial temperature must be positive" }
-        require(finalTemperature < initialTemperature) { "The final temperature must be less than the initial temperature" }
+        require(stoppingTemperature > 0.0) { "The initial temperature must be positive" }
+        require(stoppingTemperature < initialTemperature) { "The final temperature must be less than the initial temperature" }
     }
 
     override var initialTemperature: Double = initialTemperature
@@ -76,11 +80,11 @@ class LinearCoolingSchedule(
         }
 
     val temperatureDecreasePerIteration
-        get() = (initialTemperature - finalTemperature) / maxIterations
+        get() = (initialTemperature - stoppingTemperature) / maxIterations
 
     override fun nextTemperature(iteration: Int): Double {
         require(iteration > 0) { "The iteration must be positive" }
-        if (iteration >= maxIterations) return finalTemperature
+        if (iteration >= maxIterations) return stoppingTemperature
         return initialTemperature - (temperatureDecreasePerIteration * iteration)
     }
 }
@@ -98,7 +102,7 @@ class LinearCoolingSchedule(
  */
 class ExponentialCoolingSchedule(
     initialTemperature: Double,
-    val coolingRate: Double = 0.95
+    val coolingRate: Double = defaultCoolingRate
 ) : CoolingSchedule (initialTemperature)  {
     init {
         require(coolingRate > 0.0) { "Cooling rate must be positive" }
