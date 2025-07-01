@@ -245,7 +245,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  Defines an input variable for the problem. The order of specification of the input variables
+     *  Defines an input variable for the problem. The order of specification for the input variables
      *  defines the order when interpreting an array of inputs.
      *
      *  @param name the name of the input variable. Must be in the set of names supplied when the problem was created.
@@ -270,7 +270,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  Defines an input variable for the problem. The order of specification of the input variables
+     *  Defines an input variable for the problem. The order of specification for the input variables
      *  defines the order when interpreting an array of inputs.
      *
      *  @param name the name of the input variable. Must be in the set of names supplied when the problem was created.
@@ -316,7 +316,7 @@ class ProblemDefinition(
      *  the problem definition
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than). The default is less than
-     *  @param target the constraint's target. A parameter often used by solver methods that behaves
+     *  @param target the constraint's target. A parameter is often used by solver methods that behave
      *  as a cut-off point between desirable and unacceptable systems
      *  @param tolerance the constraint's tolerance. A parameter often used by solver methods that
      *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
@@ -471,7 +471,7 @@ class ProblemDefinition(
      *
      *  @param x the values of the inputs as an array. Assumes that the values are ordered in the
      *  same order as the names are defined for the problem
-     *  @return the returned array is the same array as the input array but mutated. It is return for convenience.
+     *  @return the returned array is the same array as the input array but mutated. It is returned for convenience.
      */
     @Suppress("unused")
     fun roundToGranularity(x: DoubleArray): DoubleArray {
@@ -487,7 +487,7 @@ class ProblemDefinition(
      *
      *  @param map the values of the inputs as map (name, value) pairs. The names in the map must be defined
      *  input names.
-     *  @return the returned map is the same map as the input map but mutated. It is return for convenience.
+     *  @return the returned map is the same map as the input map but mutated. It is returned for convenience.
      */
     fun roundToGranularity(map: MutableMap<String, Double>): MutableMap<String, Double> {
         require(map.size == myInputDefinitions.size) { "The size of the input map is ${map.size}, but the number of inputs is ${myInputDefinitions.size}" }
@@ -617,7 +617,7 @@ class ProblemDefinition(
     /**
      *  Checks if the names in the map are valid for the problem definition
      *  @param inputs the input values as a map containing the (name, value) of the inputs
-     *  @return ture if all names are valid
+     *  @return true if all names are valid
      */
     fun validateNames(inputs: Map<String, Double>): Boolean {
         return validate(inputs, inputNames)
@@ -647,7 +647,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  The supplied input is considered input-feasible if it is feasible with respect to
      *  the defined input parameter ranges, the linear constraints, and the functional constraints.
      *  @param inputs the input values as a map containing the (name, value) of the inputs
      *  @return true if the inputs are input feasible
@@ -659,7 +659,7 @@ class ProblemDefinition(
     }
 
     /**
-     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  The supplied input is considered input-feasible if it is feasible with respect to
      *  the defined input parameter ranges, the linear constraints, and the functional constraints.
      *  @param x the input values as an array. The order is used to interpret the name.
      *  @return true if the inputs are input feasible

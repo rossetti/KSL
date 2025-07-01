@@ -49,16 +49,17 @@ class InputMap internal constructor(
      *  is randomly increased or decreased by the step size. The likelihood of increasing
      *  or decreasing the value is equally likely.
      *
-     *  If the perturbation will cause the value to be outside the defined input range, then the closest
+     *  If the perturbation causes the value to be outside the defined input range, then the closest
      *  bound is used as the value. If the step size is less than the granularity
      *  for the input, then the granularity is used as the step size.  The returned InputMap should be
-     *  input range feasible, but may not be feasible with respect to linear or functional
+     *  input range-feasible but may not be feasible with respect to linear or functional
      *  constraints.
      *
      *  @param stepSize the amount of the perturbation. Must be greater than 0.0
      *  @param rnStream the stream to use in randomly choosing the direction of the step
      *  @return a new InputMap based on the current input map
      */
+    @Suppress("unused")
     fun perturbedBy(stepSize: Double, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): InputMap {
         require(stepSize > 0.0) { "The step size must be > 0.0" }
         val cm = HashMap(map)
@@ -97,6 +98,7 @@ class InputMap internal constructor(
      *  named input
      *  @return the newly created instance
      */
+    @Suppress("unused")
     fun changeInputVariable(inputName: String, value: Double): InputMap {
         require(map.containsKey(inputName)) { "The key ($inputName) is not in the map!" }
         require(validateInputVariable(inputName, value)) {"The supplied value ($value) is not in the defined input range ${problemDefinition.inputDefinitions[inputName]!!.interval}"}
@@ -144,9 +146,9 @@ class InputMap internal constructor(
         get() = map.values.toDoubleArray()
 
     /**
-     *  The supplied input is considered input feasible if it is feasible with respect to
+     *  The supplied input is considered input-feasible if it is feasible with respect to
      *  the defined input parameter ranges, the linear constraints, and the functional constraints.
-     *  @return true if the inputs are input feasible
+     *  @return true if the inputs are input-feasible
      */
     override fun isInputFeasible(): Boolean{
         return problemDefinition.isInputFeasible(this)

@@ -142,7 +142,7 @@ class SimulatedAnnealing(
         coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
         stoppingTemperature: Double = defaultStoppingTemperature,
         maxIterations: Int = defaultMaxNumberIterations,
-        replicationsPerEvaluation: Int,
+        replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null

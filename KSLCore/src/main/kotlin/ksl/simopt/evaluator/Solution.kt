@@ -72,6 +72,7 @@ data class Solution(
     /**
      *  The standard deviations of the estimated responses
      */
+    @Suppress("unused")
     val stdDeviations: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
 
@@ -96,12 +97,14 @@ data class Solution(
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
+    @Suppress("unused")
     val objFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.estimatedObjFnc.average }
 
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
+    @Suppress("unused")
     val penalizedObjFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.penalizedObjFncValue }
 
@@ -179,6 +182,7 @@ data class Solution(
      *
      *  @param overallCILevel the overall confidence across all response constraints.
      */
+    @Suppress("unused")
     fun responseConstraintOneSidedIntervals(overallCILevel: Double = 0.99): List<Interval> {
         require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
         val intervals = mutableListOf<Interval>()
