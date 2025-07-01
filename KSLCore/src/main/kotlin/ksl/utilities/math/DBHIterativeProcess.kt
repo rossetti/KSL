@@ -33,7 +33,7 @@ abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSL
     /**
      * Maximum allowed number of iterations.
      */
-    var maximumIterations = maxIter
+    var maximumIterations : Int = maxIter
         set(value) {
             require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
@@ -42,7 +42,7 @@ abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSL
     /**
      * Desired precision.
      */
-    var desiredPrecision = desiredPrec
+    var desiredPrecision : Double = desiredPrec
         set(value) {
             require(value > 0) { "The desired precision must be > 0: $value" }
             field = value
@@ -51,20 +51,20 @@ abstract class DBHIterativeProcess(maxIter: Int = 100, desiredPrec: Double = KSL
     /**
      * Number of iterations performed.
      */
-    var iterationsExecuted = 0
+    var iterationsExecuted : Int = 0
         private set
 
     /**
      * The achieved precision.
      */
-    var achievedPrecision = Double.MAX_VALUE
+    var achievedPrecision : Double = Double.MAX_VALUE
         private set
 
     /**
      * Check to see if the result has been attained.
      * @return boolean
      */
-    fun hasConverged() = achievedPrecision < desiredPrecision
+    fun hasConverged() : Boolean = achievedPrecision < desiredPrecision
 
     /**
      * @param epsilon double

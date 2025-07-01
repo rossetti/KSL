@@ -50,7 +50,7 @@ open class BatchStatisticObserver (
     /**
      * false means no warm up event in parent hierarchy
      */
-    var warmUpEventCheckFlag = false //TODO not sure what to do with this
+    var warmUpEventCheckFlag : Boolean = false //TODO not sure what to do with this
         private set
 
     /**

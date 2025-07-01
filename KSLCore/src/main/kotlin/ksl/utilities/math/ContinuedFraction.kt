@@ -29,13 +29,13 @@ abstract class ContinuedFraction(maxIter: Int = 100, desiredPrec: Double = KSLMa
     /**
      * Best approximation of the fraction.
      */
-    var result = 0.0
+    var result : Double = 0.0
         private set
 
     /**
      * Fraction's argument.
      */
-    protected var x = 0.0
+    protected var x : Double = 0.0
 
     /**
      * @param r double	the value of the series argument.
@@ -57,7 +57,7 @@ abstract class ContinuedFraction(maxIter: Int = 100, desiredPrec: Double = KSLMa
     /**
      * Fraction's next factors.
      */
-    protected var factors = DoubleArray(2)
+    protected var factors: DoubleArray = DoubleArray(2)
 
     /**
      * Compute the pair numerator/denominator for iteration n.

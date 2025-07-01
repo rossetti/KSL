@@ -18,6 +18,7 @@
 
 package ksl.utilities.io
 
+import io.github.oshai.kotlinlogging.KLogger
 import ksl.utilities.KSLArrays
 import ksl.utilities.toCSVString
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -42,12 +43,12 @@ object KSLFileUtil {
     /**
      *  Use for general logging
      */
-    val logger = KotlinLogging.logger {}
+    val logger: KLogger = KotlinLogging.logger {}
 
     /**
      * System.out as a PrintWriter
      */
-    val SOUT = PrintWriter(System.out)
+    val SOUT: PrintWriter = PrintWriter(System.out)
 
     /**
      * Returns the directory that the program was launched from on the OS

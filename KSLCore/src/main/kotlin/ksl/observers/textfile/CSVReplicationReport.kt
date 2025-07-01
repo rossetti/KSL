@@ -44,7 +44,7 @@ class CSVReplicationReport(
     /**
      * @return The number of times afterReplication was called
      */
-    var replicationCount = 0
+    var replicationCount : Int = 0
         protected set
 
     override fun beforeExperiment(modelElement: ModelElement) {

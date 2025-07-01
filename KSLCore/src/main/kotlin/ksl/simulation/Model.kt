@@ -18,6 +18,7 @@
 
 package ksl.simulation
 
+import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
@@ -29,14 +30,14 @@ import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
 import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
-import ksl.utilities.random.rvariable.UniformRV
 import ksl.utilities.statistic.StatisticIfc
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.observers.textfile.CSVExperimentReport
 import ksl.observers.textfile.CSVReplicationReport
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -49,7 +50,7 @@ class Model(
     var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
-//TODO what are the public methods/properties of ModelElement and are they all appropriate for Model
+
     /**
      *
      * @return the defined OutputDirectory for the simulation
@@ -60,6 +61,17 @@ class Model(
     private var myCSVExpReport: CSVExperimentReport? = null
 
     var autoPrintSummaryReport: Boolean = false
+
+    /**
+     *  If supplied, the configuration manager will be called when the model
+     *  is set up before running any replications.
+     */
+    var modelConfigurationManager: ModelConfigurationManagerIfc? = null
+
+    /**
+     *  If supplied, the configuration used by the model configuration manager.
+     */
+    var configuration: Map<String, String>? = null
 
     /**
      *
@@ -101,7 +113,7 @@ class Model(
     /** A flag to control whether a warning is issued if the user does not
      * set the replication run length
      */
-    var repLengthWarningMessageOption = true
+    var repLengthWarningMessageOption : Boolean = true
 
     /**
      *  The base time units for the simulation model. By default, this is 1.0.
@@ -194,6 +206,7 @@ class Model(
      * @param name the name of the model element
      * @return the StatisticalBatchingElement
      */
+    @Suppress("unused")
     fun statisticalBatching(batchingInterval: Double = 0.0, name: String? = null): StatisticalBatchingElement {
         if (batchingElement == null) {
             batchingElement = StatisticalBatchingElement(this, batchingInterval, name)
@@ -215,7 +228,7 @@ class Model(
     }
 
     /**
-     * If the model parameters change then the user is responsible for
+     * If the model parameters change, then the user is responsible for
      * calling extractParameters(model) on the returned RVParameterSetter
      *
      * @returns a RVParameterSetter configured with the parameters of the model at
@@ -296,11 +309,11 @@ class Model(
 
     /**
      * Tells the model to capture statistical output for within replication
-     * and across replication responses to comma separated value files. If you do not
+     * and across replication responses to comma-separated value files. If you do not
      * want both turned on, or you want to control the reporting more directly then use the
-     * individual functions for this purpose.  Turning on the reporting only effects the next simulation run. So,
+     * individual functions for this purpose.  Turning on the reporting only affects the next simulation run. So,
      * turn on the reporting before you simulate.  If you want the reporting all the time, then
-     * just supply the autoCSVReports option as true when you create the model.
+     * supply the autoCSVReports option as true when you create the model.
      */
     fun turnOnCSVStatisticalReports() {
         turnOnReplicationCSVStatisticReporting()
@@ -319,11 +332,12 @@ class Model(
     /**
      * A flag to indicate whether the simulation is done A simulation can be done if:
      * 1) it ran all of its replications 2) it was ended by a
-     * client prior to completing all of its replications 3) it ended because it
+     * client before completing all of its replications 3) it ended because it
      * exceeded its maximum allowable execution time before completing all of
      * its replications. 4) its end condition was satisfied
      *
      */
+    @Suppress("unused")
     val isDone: Boolean
         get() = myReplicationProcess.isDone
 
@@ -332,12 +346,14 @@ class Model(
      * Only true if the maximum was set and elapsed time is greater than or
      * equal to maximumAllowedExecutionTime
      */
+    @Suppress("unused")
     val isExecutionTimeExceeded: Boolean
         get() = myReplicationProcess.isExecutionTimeExceeded
 
     /**
      * Returns system time in nanoseconds that the simulation started
      */
+    @Suppress("unused")
     val beginExecutionTime: Instant
         get() = myReplicationProcess.beginExecutionTime
 
@@ -345,12 +361,14 @@ class Model(
      * Gets the clock time in nanoseconds since the simulation was
      * initialized
      */
+    @Suppress("unused")
     val elapsedExecutionTime: Duration
         get() = myReplicationProcess.elapsedExecutionTime
 
     /**
      * Returns system time in nanoseconds that the simulation ended
      */
+    @Suppress("unused")
     val endExecutionTime: Instant
         get() = myReplicationProcess.endExecutionTime
 
@@ -358,7 +376,7 @@ class Model(
      * The maximum allotted (suggested) execution (real) clock for the
      * entire iterative process in nanoseconds. This is a suggested time because the execution
      * time requirement is only checked after the completion of an individual
-     * step After it is discovered that cumulative time for executing the step
+     * step. After it is discovered that cumulative time for executing the step
      * has exceeded the maximum time, then the iterative process will be ended
      * (perhaps) not completing other steps.
      */
@@ -379,10 +397,11 @@ class Model(
 
     /**
      * Checks if the simulation is in the created state. If the
-     * simulation is in the created execution state this method will return true
+     * simulation is in the created execution state, this method will return true.
      *
      * @return true if in the created state
      */
+    @Suppress("unused")
     val isCreated: Boolean
         get() = myReplicationProcess.isCreated
 
@@ -392,11 +411,12 @@ class Model(
      *
      * @return true if initialized
      */
+    @Suppress("unused")
     val isInitialized: Boolean
         get() = myReplicationProcess.isInitialized
 
     /**
-     * A model is running if it has been told to simulate (i.e.
+     * A model is running if it has been told to simulate (i.e.,
      * simulate() or runNextReplication()) but has not yet been told to end().
      *
      */
@@ -411,21 +431,24 @@ class Model(
 
     /**
      * Checks if the simulation is in the completed step state After the
-     * simulation has successfully completed a replication this property will be true
+     * simulation has successfully completed a replication, this property will be true.
      */
+    @Suppress("unused")
     val isReplicationCompleted: Boolean
         get() = myReplicationProcess.isStepCompleted
 
     /**
-     * Checks if the simulation is in the ended state. After the simulation has been ended this property will return true
+     * Checks if the simulation is in the ended state. After the simulation has been ended, this property will return true
      */
+    @Suppress("unused")
     val isEnded: Boolean
         get() = myReplicationProcess.isEnded
 
     /**
-     * The simulation may end by a variety of means, this  checks
+     * The simulation may end by a variety of means. This checks
      * if the simulation ended because it ran all of its replications, true if all completed
      */
+    @Suppress("unused")
     val allReplicationsCompleted: Boolean
         get() = myReplicationProcess.allStepsCompleted
 
@@ -433,6 +456,7 @@ class Model(
      * The simulation may end by a variety of means, this method checks
      * if the simulation ended because it was stopped, true if it was stopped via stop()
      */
+    @Suppress("unused")
     val stoppedByCondition: Boolean
         get() = myReplicationProcess.stoppedByCondition
 
@@ -440,6 +464,7 @@ class Model(
      * The simulation may end by a variety of means, this method checks
      * if the simulation ended but was unfinished, not all replications were completed.
      */
+    @Suppress("unused")
     val isUnfinished: Boolean
         get() = myReplicationProcess.isUnfinished
 
@@ -455,6 +480,7 @@ class Model(
      *
      * @param model the spatial model
      */
+    @Suppress("unused")
     fun setSpatialModelForAllElements(model: SpatialModel) {
         //set the model's spatial model
         spatialModel = model
@@ -486,30 +512,31 @@ class Model(
      * connected. In other words, there is no longer a parent/child relationship
      * between the model element and its former children.
      * 4) This model element and all of its children will no longer belong to a model.
-     * 5) The removed elements are no longer part of their former model's model element map
-     * 6) Warm up and timed update listeners are set to null
-     * 7) Any reference to a spatial model is set to null
-     * 8) All observers of the model element are detached
+     * 5) The removed elements are no longer part of their former model's model element map.
+     * 6) Warm up and timed update listeners are set to null.
+     * 7) Any reference to a spatial model is set to null.
+     * 8) All observers of the model element are detached.
      * 9) All child model elements are removed. It will no longer have any children.
      *
      * Since it has been removed from the model, it and its children will no
-     * longer participate in any of the standard model element actions, e.g.
+     * longer participate in any of the standard model element actions, e.g.,
      * initialize(), afterReplication(), etc.
      *
      *
      * Notes: 1) This method removes from the list of model elements. Thus, if a
-     * client attempts to use this method, via code that is iterating the list a
+     * client attempts to use this method, via code iterating the list, a
      * concurrent modification exception will occur.
      * 2) The user is responsible for ensuring that other references to the model
      * element are correctly handled.  If references to the model element exist within
-     * other data structures/collections then the user is responsible for appropriately
+     * other data structures/collections, then the user is responsible for appropriately
      * addressing those references. This is especially important for any observers
      * of the removed model element.  The observers will be notified that the model
      * element is being removed. It is up to the observer to correctly react to
-     * the removal. If the observer is a subclass of ModelElementObserver then
+     * the removal. If the observer is a subclass of ModelElementObserver, then
      * implementing the removedFromModel() method can be used. If the observer is a
      * general Observer, then use REMOVED_FROM_MODEL to check if the element is being removed.
      */
+    @Suppress("unused")
     fun removeFromModel(element: ModelElement) {
         element.removeFromModel()
     }
@@ -531,6 +558,7 @@ class Model(
         if (n <= 0) {
             return
         }
+        @Suppress("unused")
         for (i in 1..n) {
             advanceToNextSubStream()
         }
@@ -573,14 +601,30 @@ class Model(
         return myControls
     }
 
+//    /**
+//     *  Checks if the supplied string is a valid name for a control
+//     *  or random variable parameter
+//     */
+//    @Suppress("unused")
+//    fun validateInputNames(inputNames: Set<String>) : Boolean {
+//        for (inputName in inputNames) {
+//            if (!controls().hasControl(inputName)) { return false }
+//        }
+//        val rvp = rvParameterSetter.flatParametersAsDoubles
+//        for (inputName in inputNames) {
+//            if (!rvp.containsKey(inputName)) { return false }
+//        }
+//        return true
+//    }
+
     /**
-     * Returns the response  associated with the name or null if named
-     * element is not in the model. Note that this will also return ANY
-     * instances of subclasses of Response (i.e. including TWResponse)
+     * Returns the response associated with the name or null if the named
+     * element is not in the model. Note that this will also return any
+     * instances for subclasses of Response (i.e., including TWResponse)
      *
      * @param name The name of the Response model element
      *
-     * @return the associated Response, may be null if provided name
+     * @return the associated Response. May be null if the provided name
      * does not exist in the model
      */
     fun response(name: String): Response? {
@@ -588,42 +632,35 @@ class Model(
             return null
         }
         val v = myModelElementMap[name]
-        return if (v is Response) {
-            v
-        } else {
-            null
-        }
+        return v as? Response
     }
 
     /**
-     * Returns the TWResponse associated with the name or null if named
-     * element is not in the model. Note that this will also return ANY
-     * instances of subclasses of TWResponse
+     * Returns the TWResponse associated with the name or null if the named
+     * element is not in the model. Note that this will also return any
+     * instances for subclasses of TWResponse.
      *
      * @param name The name of the TWResponse model element
      *
-     * @return the associated TWResponse, may be null if provided name does not exist in the model
+     * @return the associated TWResponse may be null if the provided name does not exist in the model
      */
+    @Suppress("unused")
     fun timeWeightedResponse(name: String): TWResponse? {
         val r = response(name)
-        if (r == null) {
-            return null
+        return if (r == null) {
+            null
         } else {
-            return if (r is TWResponse) {
-                r
-            } else {
-                null
-            }
+            r as? TWResponse
         }
     }
 
     /**
-     * Returns the counter associated with the name or null if named
+     * Returns the counter associated with the name or null if the named
      * element is not in the model.
      *
      * @param name The name of the Counter model element
      *
-     * @return the associated Counter, may be null if provided name
+     * @return the associated Counter.  May be null if the provided name
      * does not exist in the model
      */
     fun counter(name: String): Counter? {
@@ -631,11 +668,7 @@ class Model(
             return null
         }
         val v = myModelElementMap[name]
-        return if (v is Counter) {
-            v
-        } else {
-            null
-        }
+        return v as? Counter
     }
 
     /**
@@ -660,7 +693,7 @@ class Model(
                 myRandomElements.remove(modelElement as RandomElementIfc)
             }
             if (modelElement is Variable) {
-                if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
+                if (Variable::class == modelElement::class) {
                     myVariables.remove(modelElement)
                 }
             }
@@ -718,12 +751,12 @@ class Model(
         }
 
         if (modelElement is RandomElementIfc) {
-            //TODO can't add stream control here. why? causes NullPointerException when trying to access the stream
+            //can't add stream control here. why? causes NullPointerException when trying to access the stream
             myRandomElements.add(modelElement as RandomElementIfc)
         }
 
         if (modelElement is Variable) {
-            if (Variable::class == modelElement::class) {//TODO not 100% sure if only super type is removed
+            if (Variable::class == modelElement::class) {
                 myVariables.add(modelElement)
             }
         }
@@ -743,12 +776,12 @@ class Model(
     }
 
     /**
-     * Returns the random variable associated with the name or null if named
+     * Returns the random variable associated with the name or null if the named
      * element is not in the model. Note that this will also return ANY
-     * instances of subclasses of RandomVariable
+     * instances for subclasses of RandomVariable.
      *
      * @param name The name of the RandomVariable model element
-     * @return the associated random variable, may be null if provided name does
+     * @return the associated random variable. May be null if the provided name does
      * not exist in the model
      */
     fun randomVariable(name: String): RandomVariable? {
@@ -756,11 +789,7 @@ class Model(
             return null
         }
         val v: ModelElement? = myModelElementMap[name]
-        return if (v is RandomVariable) {
-            v
-        } else {
-            null
-        }
+        return v as? RandomVariable
     }
 
     /**
@@ -800,6 +829,7 @@ class Model(
      * @param id the identifier getId() of the desired ModelElement
      * @return the ModelElement
      */
+    @Suppress("unused")
     fun getModelElement(id: Int): ModelElement? {
         for (entry in myModelElementMap.entries.iterator()) {
             if (entry.value.id == id) {
@@ -822,7 +852,7 @@ class Model(
     /**
      * Schedules the ending of the executive at the provided time
      *
-     * @param time the time of the ending event, must be &gt; 0
+     * @param time the time of the ending event. Must be &gt; 0
      */
     internal fun scheduleEndOfReplicationEvent(time: Double) {
         require(time > 0.0) { "The time must be > 0.0" }
@@ -851,7 +881,7 @@ class Model(
         }
     }
 
-    /** Counts the number of pre-order traversals of the model element tree and
+    /** Counts the number of pre-order traversals for the model element tree and
      * labels each model element with the appropriate left and right traversal
      * count.  Called from Simulation in ReplicationExecutionProcess.initializeIterations()
      *
@@ -866,10 +896,10 @@ class Model(
         // remove any marked model elements were added during previous replication
 //        removeMarkedModelElements();
 
-        // setup warm up period for the model
+        // setup warm-up period for the model
         individualElementWarmUpLength = lengthOfReplicationWarmUp
 
-        // control streams for antithetic option
+        // control streams for the antithetic option
         handleAntitheticReplications()
 
         // do all model element beforeReplication() actions
@@ -890,9 +920,9 @@ class Model(
         logger.info { "Registering conditional actions for model elements" }
         registerConditionalActionsWithExecutive()
 
-        // if monte carlo option is on, call the model element's monteCarlo() methods
+        // if the monte carlo option is on, call the model element's monteCarlo() methods
         if (monteCarloOption) {
-            // since monte carlo option was turned on, assume everyone wants to listen
+            // since the monte carlo option was turned on, assume everyone wants to listen
             setMonteCarloOptionForModelElements(true)
             logger.info { "Executing monteCarloActions() actions for model elements" }
             monteCarloActions()
@@ -904,8 +934,8 @@ class Model(
         if (antitheticOption) {
             logger.info { "Executing handleAntitheticReplications() setup" }
             if (currentReplicationNumber % 2 == 0) {
-                // even number replication
-                // return to beginning of sub-stream
+                // even number replications
+                // return to the beginning of sub-stream
                 resetStartSubStream()
                 // turn on antithetic sampling
                 antitheticOption(true)
@@ -948,7 +978,7 @@ class Model(
         myRNStreamProvider.setAllAdvanceToNextSubStreamOption(option)
     }
 
-    //called from simulation, so internal
+    //called from ReplicationProcess, so internal
     internal fun setUpExperiment() {
         logger.info { "Setting up experiment $experimentName for the simulation." }
         ModelElement.logger.info { "Setting up experiment $experimentName for the simulation." }
@@ -962,8 +992,8 @@ class Model(
         if (antitheticOption) {
             // make sure the streams are not reset after all replications are run
             setAllResetStartStreamOptions(false)
-            // make sure that streams are not advanced to next sub-streams after each replication
-            // antithetic option will control this (every other replication)
+            // make sure that streams are not advanced to next sub-streams after each replication.
+            // the antithetic option will control this (every other replication)
             setAllAdvanceToNextSubStreamOptions(false)
         } else {
             // tell the model to use the specifications from the experiment
@@ -971,7 +1001,6 @@ class Model(
             setAllAdvanceToNextSubStreamOptions(advanceNextSubStreamOption)
         }
 
-        //TODO need to apply generic control types here someday
         if (hasExperimentalControls()) {
             val cMap: Map<String, Double> = experimentalControls
             // extract controls and apply them
@@ -992,6 +1021,9 @@ class Model(
             logger.info { "Resetting random number streams to the beginning of their starting stream." }
             resetStartStream()
         }
+
+        configuration?.let { modelConfigurationManager?.configure(this, it) }
+
         beforeExperimentActions()
     }
 
@@ -1190,12 +1222,12 @@ class Model(
             myExperiment.experimentalControls = value
         }
 
-    override val currentReplicationNumber
+    override val currentReplicationNumber : Int
         get() = myExperiment.currentReplicationNumber
 
-    override fun hasExperimentalControls() = myExperiment.hasExperimentalControls()
+    override fun hasExperimentalControls() : Boolean = myExperiment.hasExperimentalControls()
 
-    override fun hasMoreReplications() = myExperiment.hasMoreReplications()
+    override fun hasMoreReplications() : Boolean = myExperiment.hasMoreReplications()
 
     override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
         myExperiment.changeRunParameters(runParameters)
@@ -1208,6 +1240,7 @@ class Model(
      *
      * @return true if additional replications need to be run
      */
+    @Suppress("unused")
     fun hasNextReplication(): Boolean {
         return myReplicationProcess.hasNextStep()
     }
@@ -1215,6 +1248,7 @@ class Model(
     /**
      * Initializes the simulation in preparation for running
      */
+    @Suppress("unused")
     fun initializeReplications() {
         myReplicationProcess.initialize()
     }
@@ -1222,6 +1256,7 @@ class Model(
     /**
      * Runs the next replication if there is one
      */
+    @Suppress("unused")
     fun runNextReplication() {
         myReplicationProcess.runNext()
     }
@@ -1233,6 +1268,7 @@ class Model(
      * @param runLength the length of the simulation replication
      * @param warmUp the length of the warmup period
      */
+    @Suppress("unused")
     fun simulate(numReps: Int = 1, runLength: Double, warmUp: Double = 0.0, expName: String? = null) {
         if (expName != null) {
             experimentName = expName
@@ -1347,11 +1383,11 @@ class Model(
      *   parameters).
      *
      *  For controls, by default, the key to associate with the value is the model element's name
-     *  concatenated with the property that was annotated with the control.  For example, if
-     *  the resource had name Worker and annotated property initialCapacity, then the key
+     *  concatenated with the property annotated with the control.  For example, if
+     *  the resource had the name Worker and annotated property initialCapacity, then the key
      *  will be "Worker.initialCapacity". Note the use of the "." character to separate
-     *  the model element name and the property name.  Since, the KSL model element naming
-     *  convention require unique names for each model element, the key will be unique for the control.
+     *  the model element name and the property name.  Since the KSL model element naming
+     *  convention requires unique names for each model element, the key will be unique for the control.
      *  However, the model element name may be a very long string depending on your approach
      *  to naming the model elements. The name associated with each control can be inspected by
      *  asking the model for its controls via model.controls() and then using the methods on the Controls
@@ -1359,19 +1395,19 @@ class Model(
      *  for this purpose.
      *
      *  For the parameters associated with random variables, the naming convention is different.
-     *  Again, the model element name is used as part of the identifier, then the value of
+     *  Again, the model element name is used as part of the identifier. Then the value of
      *  rvParamConCatString from the companion object is concatenated between the name of the
      *  model element and the name of its parameter.  For example, suppose there is a
      *  random variable that has been named ServiceTimeRV that is exponentially distributed.
      *  Also assume that rvParamConCatString is ".", which is its default value. Then,
      *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
      *  Thus, it is important to note the name of the random variable within the model and the
-     *  default names used by the KSL for the random variable parameters.  When random variables are
-     *  not explicitly named by the modeler, the KSL will automatically provide a default
+     *  default names used by the KSL for the random variable parameters.  When the modeler does
+     *  not explicitly name random variables, the KSL will automatically provide a default
      *  unique name. Thus, if you plan to control a specific random variable's parameters, you
      *  should strongly consider providing an explicit name. To get the names (and current values)
      *  of the random variable parameters, you can print out the toString() method of the
-     *  RVParameterSetter class after obtaining it from the model via the model's rvParameterSetter
+     *  RVParameterSetter class after getting it from the model via the model's rvParameterSetter
      *  property.
      *
      *  @param inputKeys the set of keys to check
@@ -1394,7 +1430,7 @@ class Model(
                     continue
                 } else {
                     // not a control and not a parameter
-                    logger.info { "The input key '$key' was not a valid control or rv parameter" }
+                    logger.trace { "The input key '$key' was not a valid control or rv parameter" }
                     return false
                 }
             }
@@ -1403,12 +1439,68 @@ class Model(
         return true
     }
 
+    /**
+     * Combines input keys from control keys and parameter keys into a single list.
+     *
+     * @param conCatString A character used as a delimiter for concatenating parameter keys. Defaults to `rvParamConCatChar`.
+     * @return A list of strings representing combined input keys from controls and parameter keys.
+     */
+    @Suppress("unused")
+    fun inputKeys(conCatString: Char = rvParamConCatChar) : List<String> {
+        val rvs = RVParameterSetter(this)
+        val controls = Controls(this)
+        val keys = mutableListOf<String>()
+        val rvParameters = rvs.flatParametersAsDoubles(conCatString)
+        val rvKeys = rvParameters.keys
+        val inputNames = controls.controlKeys()
+        keys.addAll(inputNames)
+        keys.addAll(rvKeys)
+        return keys
+    }
+
+    /**
+     * Validates the provided set of response names are associated with the model's responses
+     * (Response, TWResponse or Counter).
+     *
+     * @param responseNames the set of response names to be validated
+     * @return true if all names in the set are valid, false otherwise
+     */
+    fun validateResponseNames(responseNames: Set<String>): Boolean {
+        val names = responseNames
+        for(rsn in responseNames){
+            if (rsn !in names) return false
+        }
+        return true
+    }
+
+    /**
+     *  Creates a default (SQLLite) database that uses the model's name and is
+     *  created within the model's output database directory. The database can
+     *  then be used by a KSLDatabaseObserver
+     */
+    fun createDefaultDatabase() : KSLDatabase {
+        return KSLDatabase("${model.simulationName}.db".replace(" ", "_"),
+            model.outputDirectory.dbDir)
+    }
+
+    /**
+     *  Creates a KSLDatabaseObserver that uses a default (SQLLite) database
+     *  with the model's name forming the database name and placing the database
+     *  in the model's output database directory.
+     */
+    @Suppress("unused")
+    fun createDefaultDatabaseObserver(clearDataBeforeExperimentOption: Boolean = false) : KSLDatabaseObserver {
+        return KSLDatabaseObserver(model, createDefaultDatabase(), clearDataBeforeExperimentOption)
+    }
+
     companion object {
+
         /**
          * Used to assign unique enum constants
          */
         private var myEnumCounter_ = 0
 
+        @Suppress("unused")
         val nextEnumConstant: Int
             get() = ++myEnumCounter_
 
@@ -1416,13 +1508,14 @@ class Model(
          *
          * @return a comparator that compares based on getId()
          */
+        @Suppress("unused")
         val modelElementComparator: Comparator<ModelElement>
             get() = ModelElementComparator()
 
         /**
          * A global logger for logging
          */
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 }
 

@@ -26,8 +26,8 @@ package ksl.simulation
  * @author rossetti
  */
 abstract class ConditionalAction : Comparable<ConditionalAction> {
-    var priority = 0
-    var id = 0
+    var priority : Int = 0
+    var id : Int = 0
     abstract fun testCondition(): Boolean
     abstract fun action()
 

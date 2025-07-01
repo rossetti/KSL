@@ -50,14 +50,14 @@ class PearsonType5(shape: Double = 1.0, scale: Double = 1.0, name: String? = nul
      *
      * @return the shape parameter
      */
-    var shape = shape
+    var shape : Double = shape
         private set
 
     /** Gets the scale parameter
      *
      * @return the scale parameter
      */
-    var scale = scale
+    var scale : Double = scale
         private set
 
     private var myGammaCDF: Gamma = Gamma(this.shape, 1.0 / this.scale)

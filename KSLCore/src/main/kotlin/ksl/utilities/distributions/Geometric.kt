@@ -49,7 +49,7 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
     /**
      * The probability of success on a trial
      */
-    var pSuccess = successProb
+    var pSuccess : Double = successProb
         set(probability) {
             require(!(probability < 0.0 || probability > 1.0)) { "Probability must be [0,1]" }
             field = probability

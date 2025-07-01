@@ -77,13 +77,13 @@ interface RegressionResultsIfc {
      *  This is the sum of squares of the regression (SSR)
      *  SST = SSR + SSE. Thus, SSR = SST - SSE
      */
-    val regressionSumOfSquares
+    val regressionSumOfSquares : Double
         get() = totalSumOfSquares - residualSumOfSquares
 
     /**
      *  The degrees of freedom for the regression (numParameters - 1)
      */
-    val regressionDoF
+    val regressionDoF : Double
         get() = numParameters - 1.0
 
     /**
@@ -95,7 +95,7 @@ interface RegressionResultsIfc {
     /**
      *  This is MSR/MSE
      */
-    val fStatistic
+    val fStatistic : Double
         get() = meanSquaredOfRegression / meanSquaredError
 
     val fPValue: Double
@@ -114,7 +114,7 @@ interface RegressionResultsIfc {
     /**
      *  The degrees of freedom for the total error
      */
-    val totalDoF
+    val totalDoF : Double
         get() = numObservations - 1.0
 
     /**
@@ -125,7 +125,7 @@ interface RegressionResultsIfc {
     /**
      *   The degrees of freedom for the error
      */
-    val errorDoF
+    val errorDoF : Double
         get() = (numObservations - numParameters).toDouble()
 
     /**
@@ -136,7 +136,7 @@ interface RegressionResultsIfc {
     /**
      *   A pseudonym for error variance (MSE)
      */
-    val meanSquaredError
+    val meanSquaredError : Double
         get() = errorVariance
 
     /**

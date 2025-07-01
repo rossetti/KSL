@@ -44,14 +44,14 @@ class Interval(xLower: Double = Double.NEGATIVE_INFINITY, xUpper: Double = Doubl
      *
      * @return the lower limit of the interval
      */
-    var lowerLimit = xLower
+    var lowerLimit : Double = xLower
         private set
 
     /**
      *
      * @return The upper limit of the interval
      */
-    var upperLimit = xUpper
+    var upperLimit: Double  = xUpper
         private set
 
     /** The width of the interval

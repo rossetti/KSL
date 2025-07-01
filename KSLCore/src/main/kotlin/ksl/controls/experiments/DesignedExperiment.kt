@@ -84,6 +84,7 @@ class DesignedExperiment(
      *  be contained in the factor settings.
      *  @param kslDb a KSLDatabase that will hold the data from the experiment.
      */
+    @Suppress("unused")
     constructor(
         name: String,
         model: Model,
@@ -102,6 +103,7 @@ class DesignedExperiment(
      *  @param design The design that will be simulated. The factors specified in the design must
      *  be contained in the factor settings.
      */
+    @Suppress("unused")
     constructor(
         name: String,
         modelCreator: () -> Model,
@@ -452,7 +454,11 @@ class DesignedExperiment(
         model.experimentName = baseExperimentName
         // use SimulationRunner to run the simulation
         Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
-        val sr = mySimulationRunner.simulate(inputs, model.extractRunParameters())
+        val sr = mySimulationRunner.simulate(
+            modelIdentifier = model.simulationName,
+            inputs = inputs,
+            experimentRunParameters = model.extractRunParameters()
+        )
         Model.logger.info { "DesignedExperiment: Completed design point $designPoint for experiment: ${model.experimentName} " }
         // add SimulationRun to simulation run list
         if (addRuns) {

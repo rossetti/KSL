@@ -51,7 +51,7 @@ class ExceedanceEstimator(thresholds: DoubleArray = doubleArrayOf(1.0), name: St
      */
     private var num = 0.0
 
-    val numThresholds = myThresholds.size
+    val numThresholds : Int = myThresholds.size
 
     constructor(vararg thresholds: Double) : this(thresholds, null)
 

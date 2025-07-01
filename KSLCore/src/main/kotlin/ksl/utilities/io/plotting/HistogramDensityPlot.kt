@@ -37,7 +37,7 @@ class HistogramDensityPlot(data: DoubleArray, binWidth: Double? = null) : BasePl
     private val myBinWidth: Double
 
     var densityFillColor: Int = 0xFF6666
-    var densityAlpha = 0.2
+    var densityAlpha : Double = 0.2
 
     init {
         title = "Histogram with Density Plot"

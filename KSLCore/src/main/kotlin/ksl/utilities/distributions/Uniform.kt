@@ -35,10 +35,10 @@ class Uniform (minimum: Double = 0.0, maximum: Double = 1.0, name: String? = nul
         require(minimum < maximum) { "Lower limit must be < upper limit. lower limit = $minimum upper limit = $maximum" }
     }
 
-    var minimum = minimum
+    var minimum : Double = minimum
         private set
 
-    var maximum = maximum
+    var maximum : Double = maximum
         private set
 
     val range : Double

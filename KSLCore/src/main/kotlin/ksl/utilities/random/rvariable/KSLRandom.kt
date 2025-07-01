@@ -88,11 +88,11 @@ object KSLRandom {
     /**
      *  The default stream number for the underlying provider
      */
-    val defaultStreamNumber
+    val defaultStreamNumber: Int
         get() = DefaultRNStreamProvider.defaultStreamNumber
 
     /**
-     * @param pSuccess  the probability of success, must be in (0,1)
+     * @param pSuccess  the probability of success must be in (0,1)
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -101,7 +101,7 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess the probability of success, must be in (0,1)
+     * @param pSuccess the probability of success must be in (0,1)
      * @param stream the random number stream
      * @return the random value
      */
@@ -111,7 +111,7 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess the probability of success, must be in (0,1)
+     * @param pSuccess the probability of success must be in (0,1)
      * @param stream the random number stream
      * @return the random value as a Boolean value
      */
@@ -121,8 +121,8 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess  the probability of success, must be in (0,1)
-     * @param nTrials   the number of trials, must be greater than 0
+     * @param pSuccess  the probability of success must be in (0,1)
+     * @param nTrials   the number of trials must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -131,8 +131,8 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess the probability of success, must be in (0,1)
-     * @param nTrials  the number of trials, must be greater than 0
+     * @param pSuccess the probability of success must be in (0,1)
+     * @param nTrials  the number of trials must be greater than 0
      * @param stream   the random number stream
      * @return the random value
      */
@@ -143,7 +143,7 @@ object KSLRandom {
     }
 
     /**
-     * @param mean      the mean of the Poisson, must be greater than 0
+     * @param mean      the mean of the Poisson must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -152,7 +152,7 @@ object KSLRandom {
     }
 
     /**
-     * @param mean the mean of the Poisson, must be greater than 0
+     * @param mean the mean of the Poisson must be greater than 0
      * @param stream  the random number stream
      * @return the random value
      */
@@ -189,7 +189,7 @@ object KSLRandom {
      * Generates a discrete uniform over the range
      *
      * @param range the range of the random variate
-     * @param stream     the random number stream
+     * @param streamNum     the random number stream
      * @return the random value
      */
     fun rDUniform(range: IntRange, streamNum: Int): Int {
@@ -208,7 +208,7 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess  the probability of success, must be in (0,1)
+     * @param pSuccess  the probability of success must be in (0,1)
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -217,7 +217,7 @@ object KSLRandom {
     }
 
     /**
-     * @param pSuccess the probability of success, must be in (0,1)
+     * @param pSuccess the probability of success must be in (0,1)
      * @param stream      the random number stream
      * @return the random value
      */
@@ -274,7 +274,7 @@ object KSLRandom {
     /**
      * Generates a continuous uniform over the range
      *
-     * @param minimum   the minimum of the range, must be less than maximum
+     * @param minimum   the minimum of the range must be less than the maximum
      * @param maximum   the maximum of the range
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
@@ -286,7 +286,7 @@ object KSLRandom {
     /**
      * Generates a continuous uniform over the range
      *
-     * @param minimum the minimum of the range, must be less than maximum
+     * @param minimum the minimum of the range must be less than the maximum
      * @param maximum the maximum of the range
      * @param stream     the random number stream
      * @return the random value
@@ -322,7 +322,7 @@ object KSLRandom {
 
     /**
      * @param mean      the mean of the normal
-     * @param variance  the variance of the normal, must be greater than 0
+     * @param variance  the variance of the normal must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -332,7 +332,7 @@ object KSLRandom {
 
     /**
      * @param mean     the mean of the normal
-     * @param variance the variance of the normal, must be greater than 0
+     * @param variance the variance of the normal must be greater than 0
      * @param stream      the random number stream
      * @return the random value
      */
@@ -350,7 +350,7 @@ object KSLRandom {
     /** Generated a pair of normal random variates via the Box-Muller transform method
      *  The user can use destructuring to access the individual values
      * @param mean     the mean of the normal
-     * @param variance the variance of the normal, must be greater than 0
+     * @param variance the variance of the normal must be greater than 0
      * @param stream      the random number stream
      * @return the pair of random values
      */
@@ -374,7 +374,7 @@ object KSLRandom {
     /** Generated a pair of normal random variates via the Box-Muller transform method
      *  The user can use destructuring to access the individual values
      * @param mean     the mean of the normal
-     * @param variance the variance of the normal, must be greater than 0
+     * @param variance the variance of the normal must be greater than 0
      * @param streamNum      the random number stream number
      * @return the pair of random values
      */
@@ -389,7 +389,7 @@ object KSLRandom {
     /** Generated a pair of normal random variates via the Box-Muller transform method
      *  The user can use destructuring to access the individual values
      * @param mean     the mean of the normal
-     * @param variance the variance of the normal, must be greater than 0
+     * @param variance the variance of the normal must be greater than 0
      * @param stream      the random number stream
      * @return the pair of random values
      */
@@ -419,7 +419,7 @@ object KSLRandom {
     /** Generated a pair of normal random variates via the Box-Muller transform method
      *  The user can use destructuring to access the individual values
      * @param mean     the mean of the normal
-     * @param variance the variance of the normal, must be greater than 0
+     * @param variance the variance of the normal must be greater than 0
      * @param streamNum      the random number stream number
      * @return the pair of random values
      */
@@ -432,8 +432,8 @@ object KSLRandom {
     }
 
     /**
-     * @param mean      the mean of the lognormal, must be greater than 0
-     * @param variance  the variance of the lognormal, must be greater than 0
+     * @param mean      the mean of the lognormal must be greater than 0
+     * @param variance  the variance of the lognormal must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -442,8 +442,8 @@ object KSLRandom {
     }
 
     /**
-     * @param mean     the mean of the lognormal, must be greater than 0
-     * @param variance the variance of the lognormal, must be greater than 0
+     * @param mean     the mean of the lognormal must be greater than 0
+     * @param variance the variance of the lognormal must be greater than 0
      * @param stream      the random number stream
      * @return the random value
      */
@@ -464,8 +464,8 @@ object KSLRandom {
     }
 
     /**
-     * @param shape     the shape, must be greater than 0
-     * @param scale     the scale, must be greater than 0
+     * @param shape     the shape must be greater than 0
+     * @param scale     the scale must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -474,8 +474,8 @@ object KSLRandom {
     }
 
     /**
-     * @param shape the shape, must be greater than 0
-     * @param scale the scale, must be greater than 0
+     * @param shape the shape must be greater than 0
+     * @param scale the scale must be greater than 0
      * @param stream   the random number stream
      * @return the random value
      */
@@ -488,8 +488,8 @@ object KSLRandom {
     /**
      * Throws an exception if shape or scale are invalid
      *
-     * @param shape the shape, must be greater than 0
-     * @param scale the scale, must be greater than 0
+     * @param shape the shape must be greater than 0
+     * @param scale the scale must be greater than 0
      */
     private fun checkShapeAndScale(shape: Double, scale: Double) {
         require(shape > 0) { "Shape parameter must be > 0" }
@@ -497,7 +497,7 @@ object KSLRandom {
     }
 
     /**
-     * @param mean      the mean, must be greater than 0
+     * @param mean      the mean must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -506,7 +506,7 @@ object KSLRandom {
     }
 
     /**
-     * @param mean the mean, must be greater than 0
+     * @param mean the mean must be greater than 0
      * @param stream  the random number stream
      * @return the random value
      */
@@ -519,7 +519,7 @@ object KSLRandom {
     /**
      * @param alpha1    alpha1 parameter
      * @param alpha2    alpha2 parameter, must be greater than zero
-     * @param min       the min, must be less than max
+     * @param min       the min must be less than max
      * @param max       the max
      * @param streamNum the stream number from the stream provider to use
      * @return the generated value
@@ -534,7 +534,7 @@ object KSLRandom {
     /**
      * @param alpha1 alpha1 parameter
      * @param alpha2 alpha2 parameter, must be greater than zero
-     * @param min    the min, must be less than max
+     * @param min    the min must be less than max
      * @param max    the max
      * @param stream    the random number stream
      * @return the generated value
@@ -563,8 +563,8 @@ object KSLRandom {
 
     /**
      * @param location the location a real number
-     * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param scale the scale must be greater than 0
+     * @param rng   the RNStreamIfc must not be null
      * @return the generated value
      */
     fun rLogistic(
@@ -579,8 +579,8 @@ object KSLRandom {
     }
 
     /**
-     * @param shape     the shape, must be greater than 0
-     * @param scale     the scale, must be greater than 0
+     * @param shape     the shape must be greater than 0
+     * @param scale     the scale must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the generated value
      */
@@ -589,9 +589,9 @@ object KSLRandom {
     }
 
     /**
-     * @param shape the shape, must be greater than 0
-     * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param shape the shape must be greater than 0
+     * @param scale the scale must be greater than 0
+     * @param rng   the RNStreamIfc must not be null
      * @return the generated value
      */
     fun rLogLogistic(
@@ -606,8 +606,8 @@ object KSLRandom {
     }
 
     /**
-     * @param min       the min, must be less than or equal to mode
-     * @param mode      the mode, must be less than or equal to max
+     * @param min       the min must be less than or equal to mode
+     * @param mode      the mode must be less than or equal to max
      * @param max       the max
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
@@ -652,10 +652,10 @@ object KSLRandom {
     }
 
     /**
-     * @param shape     the shape, must be greater than 0.0
-     * @param scale     the scale, must be greater than 0.0
+     * @param shape     the shape must be greater than 0.0
+     * @param scale     the scale must be greater than 0.0
      * @param streamNum the stream number from the stream provider to use
-     * @param type,     must be appropriate algorithm type, if null then inverse transform is the default
+     * @param type,     must be an appropriate algorithm type, if null then inverse transform is the default
      * @return the generated value
      */
     fun rGamma(
@@ -668,10 +668,10 @@ object KSLRandom {
     }
 
     /**
-     * @param shape the shape, must be greater than 0.0
-     * @param scale the scale, must be greater than 0.0
-     * @param rng   the RNStreamIfc, must not null
-     * @param type, must be appropriate algorithm type, if null then inverse transform is the default
+     * @param shape the shape must be greater than 0.0
+     * @param scale the scale must be greater than 0.0
+     * @param rng   the RNStreamIfc must not null
+     * @param type, must be an appropriate algorithm type, if null then inverse transform is the default
      * @return the generated value
      */
     fun rGamma(
@@ -690,9 +690,9 @@ object KSLRandom {
     /**
      * Uses the inverse transform technique for generating from the gamma
      *
-     * @param shape the shape, must be greater than 0.0
-     * @param scale the scale, must be greater than 0.0
-     * @param rng   the RNStreamIfc, must not null
+     * @param shape the shape must be greater than 0.0
+     * @param scale the scale must be greater than 0.0
+     * @param rng   the RNStreamIfc must not null
      * @return the generated value
      */
     private fun rInvGamma(shape: Double, scale: Double, rng: RNStreamIfc): Double {
@@ -717,9 +717,9 @@ object KSLRandom {
     /**
      * Uses the acceptance-rejection technique for generating from the gamma
      *
-     * @param shape the shape, must be greater than 0.0
-     * @param scale the scale, must be greater than 0.0
-     * @param rng   the RNStreamIfc, must not null
+     * @param shape the shape must be greater than 0.0
+     * @param scale the scale must be greater than 0.0
+     * @param rng   the RNStreamIfc must not null
      * @return the generated value
      */
     private fun rARGamma(shape: Double, scale: Double, rng: RNStreamIfc): Double {
@@ -735,8 +735,8 @@ object KSLRandom {
      * Ahrens and Dieter (1974) for shape between 0 and 1 and uses Marsaglia and Tsang (2000) for
      * shape greater than 1
      *
-     * @param shape the shape, must be positive
-     * @param rng   the random number stream, must not be null
+     * @param shape the shape must be positive
+     * @param rng   the random number stream must not be null
      * @return the randomly generated value
      */
     private fun rARGammaScaleEQ1(shape: Double, rng: RNStreamIfc): Double {
@@ -754,8 +754,8 @@ object KSLRandom {
      * Generates a gamma(shape, scale=1) random variable via acceptance rejection. Uses
      * Ahrens and Dieter (1974)
      *
-     * @param shape the shape, must be in (0,1)
-     * @param rng   the random number stream, must not be null
+     * @param shape the shape must be in (0,1)
+     * @param rng   the random number stream must not be null
      * @return the randomly generated value
      */
     private fun rARGammaScaleEQ1ShapeBTW01(shape: Double, rng: RNStreamIfc): Double {
@@ -783,8 +783,8 @@ object KSLRandom {
      * Generates a gamma(shape, scale=1) random variable via acceptance rejection. Uses
      * the algorithm in Marsaglia and Tsang (2000) for shape greater than 1
      *
-     * @param shape the shape, must be greater than 1
-     * @param rng   the random number stream, must not be null
+     * @param shape the shape must be greater than 1
+     * @param rng   the random number stream must not be null
      * @return the randomly generated value
      */
     private fun rARGammaScaleEQ1ShapeGT1(shape: Double, rng: RNStreamIfc): Double {
@@ -805,7 +805,7 @@ object KSLRandom {
     }
 
     /**
-     * @param dof       degrees of freedom, must be greater than 0
+     * @param dof       degrees of freedom must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -814,8 +814,8 @@ object KSLRandom {
     }
 
     /**
-     * @param dof degrees of freedom, must be greater than 0
-     * @param rng the RNStreamIfc, must not be null
+     * @param dof degrees of freedom must be greater than 0
+     * @param rng the RNStreamIfc must not be null
      * @return the random value
      */
     fun rChiSquared(dof: Double, rng: RNStreamIfc = defaultRNStream()): Double {
@@ -826,8 +826,8 @@ object KSLRandom {
     }
 
     /**
-     * @param shape     the shape, must be greater than 0
-     * @param scale     the scale, must be greater than 0
+     * @param shape     the shape must be greater than 0
+     * @param scale     the scale must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the generated value
      */
@@ -836,9 +836,9 @@ object KSLRandom {
     }
 
     /**
-     * @param shape the shape, must be greater than 0
-     * @param scale the scale, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param shape the shape must be greater than 0
+     * @param scale the scale must be greater than 0
+     * @param rng   the RNStreamIfc must not be null
      * @return the generated value
      */
     fun rPearsonType5(
@@ -878,11 +878,11 @@ object KSLRandom {
     }
 
     /**
-     * This beta is restricted to the range of (minimum,maximum)
+     * This beta is restricted to the range of (minimum, maximum)
      *
      * @param alpha  alpha (first shape) parameter
      * @param beta  beta (second shape) parameter
-     * @param minimum   the minimum of the range, must be less than maximum
+     * @param minimum   the minimum of the range must be less than the maximum
      * @param maximum   the maximum of the range
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
@@ -899,7 +899,7 @@ object KSLRandom {
      *
      * @param alpha  alpha (first shape) parameter
      * @param beta  beta (second shape) parameter
-     * @param minimum the minimum of the range, must be less than maximum
+     * @param minimum the minimum of the range must be less than the maximum
      * @param maximum the maximum of the range
      * @param rng     the RNStreamIfc
      * @return the random value
@@ -923,7 +923,7 @@ object KSLRandom {
      *
      * @param alpha1    alpha1 parameter
      * @param alpha2    alpha2 parameter
-     * @param beta      the beta parameter, must be greater than 0
+     * @param beta      the beta parameter must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -939,8 +939,8 @@ object KSLRandom {
      *
      * @param alpha1 alpha1 parameter
      * @param alpha2 alpha2 parameter
-     * @param beta   the beta parameter, must be greater than 0
-     * @param rng    the RNStreamIfc, must not be null
+     * @param beta   the beta parameter must be greater than 0
+     * @param rng    the RNStreamIfc must not be null
      * @return the random value
      */
     fun rPearsonType6(
@@ -958,7 +958,7 @@ object KSLRandom {
      * Generates according to a Laplace(location, scale)
      *
      * @param location      mean or location parameter
-     * @param scale     scale parameter, must be greater than 0
+     * @param scale     scale parameter must be greater than 0
      * @param streamNum the stream number from the stream provider to use
      * @return the random value
      */
@@ -970,8 +970,8 @@ object KSLRandom {
      * Generates according to a Laplace(location, scale)
      *
      * @param location  mean or location parameter
-     * @param scale scale parameter, must be greater than 0
-     * @param rng   the RNStreamIfc, must not be null
+     * @param scale scale parameter must be greater than 0
+     * @param rng   the RNStreamIfc must not be null
      * @return the random value
      */
     fun rLaplace(location: Double, scale: Double, rng: RNStreamIfc = defaultRNStream()): Double {
@@ -1042,7 +1042,7 @@ object KSLRandom {
      *
      * @param array     array to select from
      * @param cdf       the cumulative probability associated with each element of
-     * array
+     * the array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
      */
@@ -1100,7 +1100,7 @@ object KSLRandom {
      * Randomly selects from the array using the supplied cdf, NO checking of arrays
      *
      * @param array array to select from
-     * @param cdf   the cumulative probability associated with each element of array
+     * @param cdf   the cumulative probability associated with each element of the array
      * @param stream   the source of randomness
      * @return the randomly selected value
      */
@@ -1124,7 +1124,7 @@ object KSLRandom {
      *
      * @param array     array to select from
      * @param cdf       the cumulative probability associated with each element of
-     * array
+     * the array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
      */
@@ -1136,7 +1136,7 @@ object KSLRandom {
      * Randomly selects from the array using the supplied cdf
      *
      * @param array array to select from
-     * @param cdf   the cumulative probability associated with each element of array
+     * @param cdf   the cumulative probability associated with each element of the array
      * @param stream   the source of randomness
      * @return the randomly selected value
      */
@@ -1170,7 +1170,7 @@ object KSLRandom {
      * @param T       the type returned
      * @param list      list to select from
      * @param cdf       the cumulative probability associated with each element of
-     * array
+     * the array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
     */
@@ -1184,7 +1184,7 @@ object KSLRandom {
      * @param T  the type returned
      * @param list list to select from
      * @param cdf  the cumulative probability associated with each element of
-     * array
+     * the array
      * @param stream  the source of randomness
      * @return the randomly selected value
     */
@@ -1214,7 +1214,7 @@ object KSLRandom {
 
     /**
      * @param cdf the probability array. must have valid probability elements
-     * and last element equal to 1. Every element must be greater than or equal
+     * and last element is equal to 1. Every element must be greater than or equal
      * to the previous element. That is, monotonically increasing.
      * @return true if valid cdf
      */
@@ -1239,7 +1239,7 @@ object KSLRandom {
     }
 
     /**
-     * Each element must be in (0,1) and sum of elements must be less than or equal to 1.0.
+     * Each element must be in (0,1), and the sum of elements must be less than or equal to 1.0.
      *
      * Note: This function does not permit mass points with 0.0 probability, and it does
      * not permit a mass point with probability 1.0.

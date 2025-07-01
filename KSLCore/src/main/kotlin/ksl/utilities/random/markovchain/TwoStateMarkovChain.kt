@@ -53,17 +53,17 @@ class TwoStateMarkovChain(
         return TwoStateMarkovChain(initialState, p01, p11, streamNum, rnStreamProvider)
     }
 
-    var initialState = theInitialState
+    var initialState: Int = theInitialState
         set(value) {
             require((value == 0) || (value == 1)) { "The initial state must be 0 or 1" }
             field = value
         }
 
-    val p0 = 1.0 - (p01 / (1.0 - p11 + p01))
+    val p0 : Double = 1.0 - (p01 / (1.0 - p11 + p01))
 
-    val p1 = 1.0 - p0
+    val p1 : Double = 1.0 - p0
 
-    var state = initialState
+    var state: Int = initialState
         private set(value) {
             require((value == 0) || (value == 1)) { "The state must be 0 or 1" }
             field = value

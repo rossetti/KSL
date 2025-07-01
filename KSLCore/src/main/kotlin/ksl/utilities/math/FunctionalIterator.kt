@@ -38,7 +38,7 @@ abstract class FunctionalIterator(
      * Returns the result (assuming convergence has been attained).
      *
      */
-    var result = Double.NaN // a public getter and a protected setter
+    var result : Double = Double.NaN // a public getter and a protected setter
         protected set
 
     /**

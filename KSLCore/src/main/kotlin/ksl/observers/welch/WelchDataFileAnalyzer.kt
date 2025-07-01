@@ -110,7 +110,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
      *
      * @return the last data point
      */
-    var lastDataPoint = Double.NaN
+    var lastDataPoint : Double = Double.NaN
         private set
 
     private var myLastObsIndex = Long.MIN_VALUE
@@ -659,8 +659,8 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
     }
 
     companion object {
-        const val NUMBYTES = 8
-        const val MIN_BATCH_SIZE = 10
+        const val NUMBYTES : Int = 8
+        const val MIN_BATCH_SIZE : Int = 10
 
         /**
          *

@@ -54,25 +54,25 @@ class Triangular(
     /**
      * myMin the minimum value of the distribution
      */
-    var minimum = theMin
+    var minimum : Double = theMin
         private set
 
     /**
      * myMax the maximum value of the distribution
      */
-    var maximum = theMax
+    var maximum : Double = theMax
         private set
 
     /**
      * myMax the maximum value of the distribution
      */
-    var mode = theMode
+    var mode : Double = theMode
         private set
 
     /**
      * myRange = myMax - myMin
      */
-    val range
+    val range : Double
         get() = maximum - minimum
 
     /** Constructs a Triangular distribution with

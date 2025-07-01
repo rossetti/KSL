@@ -47,13 +47,13 @@ class MovableResourceWithQ(
     init {
         registerCapacityChangeQueue(myWaitingQ)
     }
-    override val waitingQ: QueueCIfc<ProcessModel.Entity.Request>
+    override val waitingQ: QueueCIfc<Entity.Request>
         get() = myWaitingQ
 
     /**
      *  The number waiting plus number in service: Q(t) + B(t)
      */
-    protected val myWIP = AggregateTWResponse(this, "${this.name}:WIP")
+    protected val myWIP: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:WIP")
 
     override val wip: TWResponseCIfc
         get() = myWIP

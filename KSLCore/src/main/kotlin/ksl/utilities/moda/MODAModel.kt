@@ -39,7 +39,7 @@ abstract class MODAModel(
      *  For rank based evaluation, this specifies the default parameter value
      *  for those methods the perform rank based evaluation calculations.
      */
-    var defaultRankingMethod = Statistic.Companion.Ranking.Ordinal
+    var defaultRankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
 
     /**
      *  The list of metrics defined for the model. The order of the metrics
@@ -945,7 +945,7 @@ data class ScoreData(
 ) : DbTableData("tblScores", listOf("id")) {
 
     companion object {
-        var scoreDataCounter = 0
+        var scoreDataCounter : Int = 0
     }
 }
 
@@ -959,7 +959,7 @@ data class ValueData(
 ) : DbTableData("tblValues", listOf("id")) {
 
     companion object {
-        var valueDataCounter = 0
+        var valueDataCounter : Int = 0
     }
 }
 
@@ -973,7 +973,7 @@ data class OverallValueData(
 ) : DbTableData("tblOverall", listOf("id")) {
 
     companion object {
-        var overallValueDataCounter = 0
+        var overallValueDataCounter : Int = 0
     }
 }
 
@@ -988,6 +988,6 @@ data class AlternativeRankFrequencyData(
 ) : DbTableData("tblRankFrequency", listOf("id")) {
 
     companion object {
-        var altRankFreqDataCounter = 0
+        var altRankFreqDataCounter : Int = 0
     }
 }

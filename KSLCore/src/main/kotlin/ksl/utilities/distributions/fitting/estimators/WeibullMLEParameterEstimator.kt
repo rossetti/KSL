@@ -53,7 +53,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
     /**
      * Desired precision. The default is 0.0001.
      */
-    var desiredPrecision = 0.0001
+    var desiredPrecision : Double = 0.0001
         set(value) {
             require(value > 0) { "The desired precision must be > 0: $value" }
             field = value
@@ -62,7 +62,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
     /**
      * Maximum allowed number of iterations. The default is 100
      */
-    var maximumIterations = 100
+    var maximumIterations : Int = 100
         set(value) {
             require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
@@ -72,7 +72,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
      *  The default number of Newton steps.  The default is 10. On average 3.5 steps
      *  should provide 4 digit accuracy.
      */
-    var defaultNumNewtonSteps = 10
+    var defaultNumNewtonSteps : Int = 10
         set(value) {
             require(value >= 1) { "The maximum number of iterations must be >= 1: $value" }
             field = value
@@ -82,7 +82,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
      *  Default size of the bi-section search interval around the initial Newton
      *  refined estimate. The default is 10.0.
      */
-    var defaultBiSectionSearchIntervalWidth = 10.0
+    var defaultBiSectionSearchIntervalWidth : Double = 10.0
         set(value) {
             require(value > 0) { "The search interval width must be > 0: $value" }
             field = value
@@ -92,7 +92,7 @@ class WeibullMLEParameterEstimator(name: String? = "WeibullMLEParameterEstimator
      *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
-    var defaultZeroTolerance = 0.001
+    var defaultZeroTolerance : Double = 0.001
         set(value) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value

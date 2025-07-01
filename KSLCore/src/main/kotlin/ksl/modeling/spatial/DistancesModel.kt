@@ -162,7 +162,7 @@ class DistancesModel() : SpatialModel(), DistancesCIfc {
     /**
      * The default distance from a location to itself must be greater than or equal to 0.0
      */
-    var defaultSameLocationDistance = 0.0
+    var defaultSameLocationDistance : Double = 0.0
         set(value) {
             require(value >= 0.0) { "The default distance to/from same location must be >= 0.0" }
             field = value

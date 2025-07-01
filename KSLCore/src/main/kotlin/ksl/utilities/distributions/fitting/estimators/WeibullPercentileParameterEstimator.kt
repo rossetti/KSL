@@ -61,8 +61,8 @@ class WeibullPercentileParameterEstimator(name: String? = "WeibullPercentilePara
 
     override val checkRange: Boolean = true
 
-    val reducedPercentileSet = doubleArrayOf(0.1, 0.2, 0.3, 0.4)
-    val expandedPercentileSet = doubleArrayOf(0.05, 0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.40, 0.45)
+    val reducedPercentileSet: DoubleArray = doubleArrayOf(0.1, 0.2, 0.3, 0.4)
+    val expandedPercentileSet: DoubleArray = doubleArrayOf(0.05, 0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.40, 0.45)
 
     /**
      *   Use to specify the set of percentiles that will be used during the estimation
@@ -70,7 +70,7 @@ class WeibullPercentileParameterEstimator(name: String? = "WeibullPercentilePara
      *   with their complement values to form the pairs used to estimate shape and
      *   scale.  For example 0.1 and 0.9 are a common pair used.
      */
-    var percentileSet = expandedPercentileSet
+    var percentileSet: DoubleArray = expandedPercentileSet
 
     /**
      *  Holds the estimated shape parameters from the percentile method.

@@ -41,7 +41,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
 
     /** the probability of success, p
      */
-    var probOfSuccess = theProbSuccess
+    var probOfSuccess : Double = theProbSuccess
         set(prob) {
             require(!(prob <= 0.0 || prob >= 1.0)) { "Probability must be in (0,1)" }
             field = prob
@@ -49,7 +49,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
 
     /** the probability of failure, 1-p
      */
-    val probOfFailure = 1.0 - probOfSuccess
+    val probOfFailure : Double = 1.0 - probOfSuccess
 
     /** the desired number of successes to wait for
      */
@@ -64,7 +64,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      * or via beta incomplete function and binomial coefficients.
      *
      */
-    var recursiveAlgorithmFlag = true
+    var recursiveAlgorithmFlag : Boolean = true
 
     /**
      * Constructs a NegativeBinomial using the supplied parameters

@@ -32,7 +32,7 @@ import java.io.StringWriter
 /**
  *  The purpose of this class is to facilitate the running of a simulation model based
  *  on some inputs and experimental run parameters. The simulate() functions take in
- *  the inputs and the experimental run parameters and after execution return an
+ *  the inputs and the experimental run parameters, and after execution return an
  *  instance of SimulationRun.
  *
  *  There are two key issues to note when using this class. First, you should strongly
@@ -40,15 +40,15 @@ import java.io.StringWriter
  *  executing the simulate() function. This will facilitate the identification of the experiment
  *  associated with the simulation run within databases and other output mechanisms.
  *
- *  The second issue is the specification of the map of inputs. This map of (String, Double)
+ *  The second issue is the specification for the map of inputs. This map of (String, Double)
  *  pairs represents the inputs to the simulation model as specified by controls and the
  *  parameters of random variables within the model. The naming convention is important to note.
  *  For controls, by default, the key to associate with the value is the model element's name
  *  concatenated with the property that was annotated with the control.  For example, if
- *  the resource had name Worker and annotated property initialCapacity, then the key
+ *  the resource had the name Worker and annotated property initialCapacity, then the key
  *  will be "Worker.initialCapacity". Note the use of the "." character to separate
- *  the model element name and the property name.  Since, the KSL model element naming
- *  convention require unique names for each model element, the key will be unique for the control.
+ *  the model element name and the property name.  Since the KSL model element naming
+ *  convention requires unique names for each model element, the key will be unique for the control.
  *  However, the model element name may be a very long string depending on your approach
  *  to naming the model elements. The name associated with each control can be inspected by
  *  asking the model for its controls via model.controls() and then using the methods on the Controls
@@ -56,19 +56,19 @@ import java.io.StringWriter
  *  for this purpose.
  *
  *  For the parameters associated with random variables, the naming convention is different.
- *  Again, the model element name is used as part of the identifier, then the value of
+ *  Again, the model element name is used as part of the identifier then the value of
  *  rvParamConCatString from the companion object is concatenated between the name of the
  *  model element and the name of its parameter.  For example, suppose there is a
  *  random variable that has been named ServiceTimeRV that is exponentially distributed.
  *  Also assume that rvParamConCatString is ".", which is its default value. Then,
  *  to access the mean of the service time random variable, we use "ServiceTimeRV.mean".
  *  Thus, it is important to note the name of the random variable within the model and the
- *  KSL's default names for the random variable parameters.  When random variables are
- *  not explicitly named by the modeler, the KSL will automatically provide a default
+ *  KSL's default names for the random variable parameters.  When the modeler does
+ *  not explicitly name random variables, the KSL will automatically provide a default
  *  unique name. Thus, if you plan to control a specific random variable's parameters, you
  *  should strongly consider providing an explicit name. To get the names (and current values)
  *  of the random variable parameters, you can print out the toString() method of the
- *  RVParameterSetter class after obtaining it from the model via the model's rvParameterSetter
+ *  RVParameterSetter class after getting it from the model via the model's rvParameterSetter
  *  property.
  *
  */
@@ -77,9 +77,10 @@ class SimulationRunner(
 ) {
 
     /**
-     *  @param modelCreator a function that will create the model that will be executed
+     *  @param modelProvider a function that will create the model that will be executed
      */
-    constructor(modelCreator: () -> Model) : this(modelCreator())
+    @Suppress("unused")
+    constructor(modelProvider: () -> Model) : this(modelProvider())
 
     /**
      *  The model will be run with the [experimentRunParameters] and the provided [inputs]. The inputs
@@ -90,10 +91,11 @@ class SimulationRunner(
      *  associated with the simulation run.
      */
     fun simulate(
+        modelIdentifier: String = model.simulationName,
         inputs: Map<String, Double> = mapOf(),
         experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ): SimulationRun {
-        val simulationRun = SimulationRun(experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(modelIdentifier, experimentRunParameters, inputs)
         simulate(simulationRun)
         return simulationRun
     }
@@ -145,7 +147,7 @@ class SimulationRunner(
             // get the random variable parameters
             val tmpSetter = RVParameterSetter(model)
             val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
-            // now check supplied input key is a control or a rv parameter
+            // now check if the supplied input key is a control or a rv parameter
             // and save them for application to the model
             val controlsMap = mutableMapOf<String, Double>()
             val rvParamMap = mutableMapOf<String, Double>()
@@ -159,12 +161,12 @@ class SimulationRunner(
                 }
             }
             if (controlsMap.isNotEmpty()) {
-                // controls were found, tell model to use controls when it is simulated
+                // controls were found, tell the model to use controls when it is simulated
                 model.experimentalControls = controlsMap
                 Model.logger.info { "SimulationRunner: ${controlsMap.size} controls out of ${controls.size} were applied." }
             }
             if (rvParamMap.isNotEmpty()) {
-                // convert to form used by RVParameterSetter
+                // convert to the form used by RVParameterSetter
                 val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
                 // tell the model to use the supplied parameter values
                 model.rvParameterSetter.changeParameters(unflattenMap)
@@ -188,36 +190,6 @@ class SimulationRunner(
         throw e
     }
 
-    /**
-     *  Splits the number of replications into a list of experiments
-     *  with each experiment having at most [size] replications. A resulting
-     *  experiment may have fewer than the given [size] but at least 1
-     *  replication. The experiments are ordered in the list such that the replication identifiers
-     *  for each experiment are ordered from 1 to the number of replications [numReplications]
-     *  @param size the number of replications in each experiment, must be positive. If greater than
-     *  the number of replications, there will be 1 chunk containing all replications
-     */
-    fun chunkReplications(numReplications: Int, size: Int): List<ExperimentRunParameters> {
-        require(numReplications >= 1) { "The number of replications must be >= 1" }
-        // make the range for chunking
-        val r = 1..numReplications
-        val chunks: List<List<Int>> = r.chunked(size)
-        val eList = mutableListOf<ExperimentRunParameters>()
-        for (chunk in chunks) {
-            val s = chunk.first() // starting id of replication in chunk
-            val n = chunk.size // number of replications in the chunk
-            val runParameters = model.extractRunParameters()
-            runParameters.startingRepId = s
-            runParameters.numberOfReplications = n
-            runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
-            runParameters.resetStartStreamOption = true
-            runParameters.numChunks = chunks.size
-            runParameters.runName = IntRange(s, s + n - 1).toString()
-            eList.add(runParameters)
-        }
-        return eList
-    }
-
     companion object {
         /**
          * The string used to flatten or un-flatten random variable parameters
@@ -225,5 +197,36 @@ class SimulationRunner(
          */
         var rvParamConCatChar = RVParameterSetter.rvParamConCatChar
 
+        /**
+         *  Splits the number of replications into a list of experiments
+         *  with each experiment having at most [size] replications. A resulting
+         *  experiment may have fewer than the given [size] but at least 1
+         *  replication. The experiments are ordered in the list such that the replication identifiers
+         *  for each experiment are ordered from 1 to the number of replications [numReplications]
+         *  @param model the model on which the replications will be executed
+         *  @param size the number of replications in each experiment must be positive. If greater than
+         *  the number of replications, there will be 1 chunk containing all replications
+         */
+        @Suppress("unused")
+        fun chunkReplications(model: Model, numReplications: Int, size: Int): List<ExperimentRunParameters> {
+            require(numReplications >= 1) { "The number of replications must be >= 1" }
+            // make the range for chunking
+            val r = 1..numReplications
+            val chunks: List<List<Int>> = r.chunked(size)
+            val eList = mutableListOf<ExperimentRunParameters>()
+            for (chunk in chunks) {
+                val s = chunk.first() // starting id of replication in chunk
+                val n = chunk.size // number of replications in the chunk
+                val runParameters = model.extractRunParameters()
+                runParameters.startingRepId = s
+                runParameters.numberOfReplications = n
+                runParameters.numberOfStreamAdvancesPriorToRunning = s - 1
+                runParameters.resetStartStreamOption = true
+                runParameters.numChunks = chunks.size
+                runParameters.runName = IntRange(s, s + n - 1).toString()
+                eList.add(runParameters)
+            }
+            return eList
+        }
     }
 }

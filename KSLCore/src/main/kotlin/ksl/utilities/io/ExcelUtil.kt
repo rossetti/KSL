@@ -18,6 +18,7 @@
 
 package ksl.utilities.io
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.ResultSetRowIterator
@@ -49,11 +50,11 @@ import java.util.*
 
 object ExcelUtil  {
 
-    val logger = KotlinLogging.logger {}
+    val logger: KLogger = KotlinLogging.logger {}
 
-    const val DEFAULT_MAX_CHAR_IN_CELL = 512
+    const val DEFAULT_MAX_CHAR_IN_CELL : Int = 512
 
-    val DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    val DATE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         .withZone(ZoneId.systemDefault())
 
     /** Creates a sheet within the workbook with the name.  If a sheet already exists with the
@@ -552,7 +553,7 @@ object ExcelUtil  {
             val list = iterator.next()
             val row = sheet.createRow(rowCnt)
             for (col in list.indices) {
-                ExcelUtil.writeCell(row.createCell(col), list[col])
+                writeCell(row.createCell(col), list[col])
             }
             rowCnt++
         }
@@ -583,8 +584,8 @@ object ExcelUtil  {
                 val rs = db.selectAllIntoOpenResultSet(tableName, schemaName)
                 if (rs != null) {
                     // write result set to workbook
-                    val sheet = ExcelUtil.createSheet(workbook, tableName)
-                    ExcelUtil.exportAsWorkSheet(rs, sheet)
+                    val sheet = createSheet(workbook, tableName)
+                    exportAsWorkSheet(rs, sheet)
                     // close result set
                     rs.close()
                 }
@@ -706,7 +707,7 @@ object ExcelUtil  {
                 var cntGood = 0
                 while (rowIterator.hasNext()) {
                     val row = rowIterator.next()
-                    val rowData = ExcelUtil.readRowAsObjectList(row, numColumns)
+                    val rowData = readRowAsObjectList(row, numColumns)
                     rowCnt++
                     DatabaseIfc.logger.trace { "Read ${rowData.size} elements from sheet ${sheet.sheetName}" }
                     DatabaseIfc.logger.trace { "Sheet Data: $rowData" }

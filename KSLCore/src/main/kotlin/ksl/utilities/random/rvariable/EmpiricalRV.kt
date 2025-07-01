@@ -45,7 +45,7 @@ class EmpiricalRV @JvmOverloads constructor(
     /**
      * A copy of the data array is returned
      */
-    val values
+    val values: DoubleArray
         get() = data.copyOf()
 
     /**

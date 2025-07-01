@@ -16,8 +16,8 @@ open class SpatialModelElement(
     defaultVelocity: RVariableIfc,
     aName: String? = null
 ) : ProcessModel(parent, aName), SpatialElementIfc, VelocityIfc {
-    protected val mySpatialElement = SpatialElement(this, initLocation, aName)
-    protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
+    protected val mySpatialElement: SpatialElement = SpatialElement(this, initLocation, aName)
+    protected val myVelocity: RandomVariable = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
     val velocityRV: RandomVariableCIfc
         get() = myVelocity
     override val velocity: GetValueIfc

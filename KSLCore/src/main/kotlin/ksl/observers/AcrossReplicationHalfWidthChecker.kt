@@ -41,7 +41,7 @@ class AcrossReplicationHalfWidthChecker(response: ResponseCIfc, desiredHalfWidth
             field = value
         }
 
-    var desiredHalfWidth = desiredHalfWidth
+    var desiredHalfWidth : Double = desiredHalfWidth
         set(value) {
             require(value > 0.0) {"The desired half-width must be > 0"}
             field = value

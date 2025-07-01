@@ -7,7 +7,7 @@ class CashFlow(rate: Double = 0.1, cashFlows: DoubleArray) {
         require(rate > -1.0) { "invalid interest rate" }
     }
 
-    var interestRate = rate
+    var interestRate : Double = rate
         set(value) {
             require(value > -1.0) { "invalid interest rate" }
             field = value

@@ -3,15 +3,15 @@ package ksl.controls
 /**
  *   A control represents an element within a model that can be changed by the user.
  *   Every control has a type (DOUBLE, INTEGER, LONG, FLOAT, SHORT, BYTE, BOOLEAN).
- *   The value of the control can be set by the user.  If the supplied value is
+ *   The user can set the value of the control.  If the supplied value is
  *   not within the allowed range of the control, the value will be limited to
  *   within the range.  If the user assigns the value of the control to less
  *   than the lower bound, then the value is set to the lower bound. If the user
  *   assigns the value greater than the upper bound, then the value is set
  *   at the upper bound. For example, suppose the lower bound of the control is 1.0
- *   and the upper bound is 10.0.  Setting the control value to 0.0, will set the
- *   control to 1.0. Setting the control value to 12.0, will set the control
- *   to 10.0. Thus, out of range values are not permitted and corrected (silently).
+ *   and the upper bound is 10.0.  Setting the control value to 0.0 will set the
+ *   control to 1.0. Setting the control value to 12.0 will set the control
+ *   to 10.0. Thus, out-of-range values are not permitted and corrected (silently).
  *   The limitToRange() function can be used to inspect the value that will result
  *   if the control is set to the supplied value.
  */
@@ -103,17 +103,4 @@ interface ControlIfc {
         return values.map { value -> limitToRange(value) }.toDoubleArray()
     }
 
-//    /**
-//     *  Creates a factor having the levels for this control
-//     */
-//    fun factor(levels: DoubleArray) : Factor {
-//        return Factor.create(this, levels)
-//    }
-//
-//    /**
-//     *  Creates a two level factor for this control
-//     */
-//    fun factor(low: Double, high: Double) : Factor {
-//        return Factor.create(this, low, high)
-//    }
 }

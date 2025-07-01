@@ -24,10 +24,10 @@ abstract class PiecewiseRateFunction : InvertibleCumulativeRateFunctionIfc {
 
     protected var myRateSegments: MutableList<RateSegmentIfc> = mutableListOf()
 
-    override var maximumRate = Double.NEGATIVE_INFINITY
+    override var maximumRate : Double = Double.NEGATIVE_INFINITY
         protected set
 
-    override var minimumRate = Double.POSITIVE_INFINITY
+    override var minimumRate : Double = Double.POSITIVE_INFINITY
         protected set
 
     /** Searches for the interval that the supplied time

@@ -223,13 +223,13 @@ class KSLEvent<out T> internal constructor(
 
     companion object {
 
-        const val VERY_HIGH_PRIORITY = 1
-        const val HIGH_PRIORITY = 100
-        const val MEDIUM_HIGH_PRIORITY = 1000
-        const val MEDIUM_PRIORITY = 10000
-        const val MEDIUM_LOW_PRIORITY = 100000
-        const val LOW_PRIORITY = 1000000
-        const val VERY_LOW_PRIORITY = 10000000
+        const val VERY_HIGH_PRIORITY : Int = 1
+        const val HIGH_PRIORITY : Int = 100
+        const val MEDIUM_HIGH_PRIORITY : Int = 1000
+        const val MEDIUM_PRIORITY : Int = 10000
+        const val MEDIUM_LOW_PRIORITY : Int = 100000
+        const val LOW_PRIORITY : Int = 1000000
+        const val VERY_LOW_PRIORITY : Int = 10000000
 
         /**
          * Represents the default priority for events within the Executive
@@ -242,27 +242,27 @@ class KSLEvent<out T> internal constructor(
          * have the event have a higher priority than the default.
          * The default is specified relative to value of the MEDIUM_PRIORITY constant.
          */
-        const val DEFAULT_PRIORITY = MEDIUM_PRIORITY
+        const val DEFAULT_PRIORITY : Int = MEDIUM_PRIORITY
 
         /**
          * Default event priority for the end replication event
          */
-        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY = VERY_LOW_PRIORITY
+        const val DEFAULT_END_REPLICATION_EVENT_PRIORITY : Int = VERY_LOW_PRIORITY
 
         /**
          * A constant for the default warm up event priority
          */
-        const val DEFAULT_WARMUP_EVENT_PRIORITY = LOW_PRIORITY
+        const val DEFAULT_WARMUP_EVENT_PRIORITY : Int = LOW_PRIORITY
 
         /**
          * A constant for the default batch priority
          */
-        const val DEFAULT_BATCH_PRIORITY = MEDIUM_LOW_PRIORITY
+        const val DEFAULT_BATCH_PRIORITY : Int = MEDIUM_LOW_PRIORITY
 
         /**
          * A constant for the default timed update priority
          */
-        const val DEFAULT_TIMED_EVENT_PRIORITY = MEDIUM_HIGH_PRIORITY
+        const val DEFAULT_TIMED_EVENT_PRIORITY : Int = MEDIUM_HIGH_PRIORITY
 
     }
 }

@@ -27,7 +27,7 @@ import ksl.utilities.observers.Observable
 abstract class Collector(name: String? = null) : CollectorIfc, IdentityIfc by Identity(name), Observable<Double>(),
     DoubleEmitterIfc by DoubleEmitter() {
 
-    override var lastValue = Double.NaN
+    override var lastValue : Double = Double.NaN
         protected set
 
     override var value: Double

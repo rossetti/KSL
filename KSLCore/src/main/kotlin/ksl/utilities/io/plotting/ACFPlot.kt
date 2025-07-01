@@ -23,8 +23,8 @@ class ACFPlot(
 //            this(data.toDoubles(), maxLag, dataName)
 
     private val dataMap: Map<String, List<Number>>
-    val acf = Statistic.autoCorrelations(data, maxLag)
-    val ci = Interval(-2.0 / sqrt(data.size.toDouble()), 2.0 / sqrt(data.size.toDouble()))
+    val acf: DoubleArray = Statistic.autoCorrelations(data, maxLag)
+    val ci : Interval = Interval(-2.0 / sqrt(data.size.toDouble()), 2.0 / sqrt(data.size.toDouble()))
 
     companion object {
         fun defaultMaxLag(size: Int): Int {

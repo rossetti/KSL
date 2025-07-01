@@ -85,7 +85,7 @@ class SResource(
         controlType = ControlType.INTEGER,
         lowerBound = 1.0
     )
-    override var initialCapacity = capacity
+    override var initialCapacity : Int = capacity
         set(value) {
             require(value >= 1) { "The initial capacity of the resource must be >= 1" }
             if (model.isRunning) {

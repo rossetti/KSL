@@ -24,7 +24,7 @@ package ksl.utilities.observers
 class Emitter<TType> {
     class Connection
     private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
-    var emissionsOn = true
+    var emissionsOn : Boolean = true
 
     fun emit(newValue: TType) {
         if (!emissionsOn){

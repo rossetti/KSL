@@ -45,6 +45,7 @@ abstract class Inventory(
     var initialOnHand: Int
         get() = myOnHand.initialValue.toInt()
         set(amount) {
+            require(model.isNotRunning) { "The initial on-hand cannot be changed while the model is running."}
             require(amount >= 0) { "The initial amount on hand must be >= 0" }
             myOnHand.initialValue = amount.toDouble()
         }

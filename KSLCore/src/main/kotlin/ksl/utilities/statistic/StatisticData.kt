@@ -86,7 +86,7 @@ data class StatisticDataDb(
 ) : DbTableData("tblStatistic", keyFields = listOf("id"), autoIncField = false) {
 
     companion object {
-        var statDataCounter = 0
+        var statDataCounter : Int = 0
     }
 }
 

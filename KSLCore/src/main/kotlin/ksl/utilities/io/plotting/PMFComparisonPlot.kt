@@ -20,8 +20,8 @@ class PMFComparisonPlot(
 ) : BasePlot() {
 
     private val dataMap: Map<String, List<Any>>
-    val frequency = IntegerFrequency(data = data)
-    var dodge = 0.4
+    val frequency : IntegerFrequency = IntegerFrequency(data = data)
+    var dodge : Double = 0.4
         set(value) {
             require(!(value <= 0.0 || value >= 1.0)) { "nudge should be in (0,1)" }
             field = value

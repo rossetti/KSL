@@ -40,7 +40,7 @@ class ResourcePoolAllocation(
         require(theAmount >= 1) { "The initial allocation must be >= 1 " }
     }
 
-    val id = allocationCounter++
+    val id : Int = allocationCounter++
 
     var allocationPriority: Int = KSLEvent.DEFAULT_PRIORITY - 8
 
