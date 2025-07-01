@@ -95,12 +95,12 @@ dependencies {
     implementation(group = "org.apache.derby", name = "derbyclient", version = "10.17.1.0")
     implementation(group = "org.apache.derby", name = "derbytools", version = "10.17.1.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.5")
+    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.7")
 
-    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.49.1.0")
+    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.50.2.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
-    implementation("org.duckdb:duckdb_jdbc:1.2.2.0")
+    implementation("org.duckdb:duckdb_jdbc:1.3.1.0")
     implementation(group = "com.zaxxer", name = "HikariCP", version = "6.3.0")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
