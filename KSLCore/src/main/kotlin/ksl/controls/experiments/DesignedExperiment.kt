@@ -15,6 +15,7 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.writeCSV
+import org.jetbrains.kotlinx.dataframe.io.writeCsv
 import java.nio.file.Path
 
 data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int)
@@ -484,13 +485,13 @@ class DesignedExperiment(
     ) {
         val df = replicatedDesignPointsWithResponses(coded = coded)
         val out = KSLFileUtil.createPrintWriter(directory.resolve(fileName))
-        df.writeCSV(out)
+        df.writeCsv(writer = out)
     }
 
     companion object {
 
         /**
-         *  Converts a two level factor setting map to a standard factor setting map
+         *  Converts a two-level factor setting map to a standard factor setting map
          */
         fun twoLevelFactorSetting(twoLevelSettings: Map<TwoLevelFactor, String>): Map<Factor, String> {
             val map = mutableMapOf<Factor, String>()

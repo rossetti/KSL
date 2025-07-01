@@ -28,7 +28,9 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
 import ksl.utilities.toMapOfRows
+import org.jetbrains.kotlinx.dataframe.DataColumn
 import org.jetbrains.kotlinx.dataframe.api.column
+import org.jetbrains.kotlinx.dataframe.api.describe
 
 val testData = doubleArrayOf(
     9.57386907765005, 12.2683505035727, 9.57737208532118, 9.46483590382401, 10.7426270820019, 13.6417539779286,
@@ -107,7 +109,8 @@ fun demoDataFrame() {
     println(df.boxPlotSummaryData())
     println()
     val weight by column<Double>()
-    val dataColumn = df[weight].statistics().toStatDataFrame()
+    val wdc= df.get { weight }
+    val dataColumn = wdc.statistics().toStatDataFrame()
     println(dataColumn)
 }
 

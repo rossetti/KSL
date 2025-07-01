@@ -41,7 +41,7 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.remove
 import org.jetbrains.kotlinx.dataframe.api.rename
 import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
-import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHtml
 
 /**
  *  Can be used to indicate if the recommended distribution should be
@@ -532,19 +532,19 @@ class PDFModeler(
             appendLine("<h2>")
             appendLine("Scores:")
             appendLine("</h2>")
-            appendLine(scores.toStandaloneHTML(configuration))
+            appendLine(scores.toStandaloneHtml(configuration))
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h2>")
             appendLine("Metric Evaluations:")
             appendLine("</h2>")
-            appendLine(values.toStandaloneHTML(configuration))
+            appendLine(values.toStandaloneHtml(configuration))
             appendLine("</div>")
             appendLine("<div>")
             appendLine("<h2>")
             appendLine("Rank Evaluations:")
             appendLine("</h2>")
-            appendLine(ranks.toStandaloneHTML(configuration))
+            appendLine(ranks.toStandaloneHtml(configuration))
             appendLine("</div>")
         }
         return sb.toString()

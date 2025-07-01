@@ -24,8 +24,8 @@ plugins {
     `maven-publish`
     // uncomment for signing the jars during publishing task
     signing
-    kotlin("jvm") version "2.1.21"
-    kotlin("plugin.serialization") version "2.1.21"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
  //   id("org.jetbrains.kotlinx.dataframe") version "0.11.0"
     id("org.jetbrains.dokka") version "2.0.0"
 }
@@ -52,12 +52,12 @@ dependencies {
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
 //    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
-    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.24.3")
+    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.0")
 
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") // 0.7.0 has code breaking changes
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.8.1")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
     api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3")
@@ -73,11 +73,11 @@ dependencies {
     api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1")
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-//    api("org.jetbrains.kotlinx:dataframe-core:0.12.0")
-    api("org.jetbrains.kotlinx:dataframe-core:0.15.0")
+//    api("org.jetbrains.kotlinx:dataframe-core:0.15.0")
+    api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")
 
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.20")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
 
     // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
 //    implementation("org.ktorm:ktorm-core:3.5.0")

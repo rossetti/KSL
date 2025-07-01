@@ -571,11 +571,11 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      */
     fun withinRepViewStatistics(responseName: String): AnyFrame {
         val stat_name by column<String>()
-        var dm = withinRepViewStatistics.filter { stat_name() == responseName }
+        var dm = withinRepViewStatistics.filter { stat_name.name() == responseName }
         val rep_value by column<Double>()
         val exp_name by column<String>()
         val rep_id by column<Int>()
-        dm = dm.select(exp_name, rep_id, rep_value)
+        dm = dm.select(exp_name.name(), rep_id.name(), rep_value.name())
         dm = dm.rename { rep_value }.into { responseName }
         return dm
     }

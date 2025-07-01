@@ -31,6 +31,7 @@ import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.jetbrains.kotlinx.dataframe.io.ColType
 import org.jetbrains.kotlinx.dataframe.io.readCSV
+import org.jetbrains.kotlinx.dataframe.io.readCsv
 
 fun main() {
     val data = readCountData()
@@ -61,17 +62,18 @@ fun readCountData(): IntArray {
     // choose file: KSL/KSLExamples/chapterFiles/Appendix-Distribution Fitting/PoissonCountData.csv
     val file = KSLFileUtil.chooseFile()
     if (file != null) {
-        val df = DataFrame.readCSV(
-            file,
-            colTypes = mapOf(
+        val df = DataFrame.readCsv(
+            file = file,
+            delimiter = ',', header = listOf(), colTypes = mapOf(
                 "week" to ColType.Int,
                 "period" to ColType.Int,
                 "day" to ColType.String,
                 "count" to ColType.Int
-            )
+            ),
+            skipLines = 0, readLines = null, allowMissingColumns = true, parserOptions = null
         )
         val count by column<Int>()
-        val countData: DataColumn<Int> = df[count]
+        val countData: DataColumn<Int> = df.get { count}
         return countData.toIntArray()
     }
     return IntArray(0)

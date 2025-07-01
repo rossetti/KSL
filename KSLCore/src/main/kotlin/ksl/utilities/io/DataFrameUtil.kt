@@ -464,7 +464,7 @@ fun AnyFrame.hasAllNamedColumns(columnNames: List<String>): Boolean {
  */
 fun AnyFrame.hasAllColumns(list: List<AnyCol>): Boolean {
     for (col in list) {
-        if (!this.containsColumn(col)) return false
+        if (!this.containsColumn(col.name())) return false
     }
     return true
 }
@@ -534,7 +534,8 @@ fun AnyFrame.multiply(columns: List<DataColumn<Double>>): AnyFrame {
     for (row in this) {
         var p = 1.0
         for (col in columns) {
-            p = p * row[col]
+            val r = row.getValueOrNull(col.name()) ?: Double.NaN
+            p = p * r
         }
         list.add(p)
     }
