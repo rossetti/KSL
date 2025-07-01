@@ -30,7 +30,7 @@ plugins {
     id("org.jetbrains.dokka") version "2.0.0"
 }
 group = "io.github.rossetti"
-version = "R1.2.0"
+version = "R1.2.1"
 
 repositories {
 
@@ -148,8 +148,8 @@ publishing {
         create<MavenPublication>("KSLCore") {
             groupId = "io.github.rossetti"
             artifactId = "KSLCore"
-            // update this field when generating new release
-            version = "R1.2.0"
+            // update this field when generating a new release
+            version = "R1.2.1"
             from(components["java"])
             versionMapping {
                 usage("java-api") {
