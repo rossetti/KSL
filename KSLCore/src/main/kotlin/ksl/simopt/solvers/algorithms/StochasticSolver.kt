@@ -2,7 +2,6 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.InputMap
-import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamControlIfc

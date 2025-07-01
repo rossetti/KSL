@@ -3,7 +3,6 @@ package ksl.simopt.solvers.algorithms
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
@@ -50,7 +49,7 @@ open class StochasticHillClimber(
     constructor(
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,
-        replicationsPerEvaluation: Int,
+        replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null

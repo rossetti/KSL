@@ -7,6 +7,7 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
@@ -80,7 +81,7 @@ abstract class Solver(
     constructor(
         evaluator: EvaluatorIfc,
         maximumIterations: Int,
-        replicationsPerEvaluation: Int,
+        replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
     ) : this(evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
 
@@ -105,12 +106,6 @@ abstract class Solver(
     @Suppress("unused")
     val iterativeProcess: IterativeProcessStatusIfc
         get() = myMainIterativeProcess
-
-    /**
-     *  A solver may be controlled by a solver runner with other solvers.
-     *  This provides an internal reference to the solver runner
-     */
-    internal var mySolverRunner: SolverRunner? = null
 
     /**
      *  The evaluator used by the solver.
@@ -327,6 +322,7 @@ abstract class Solver(
      *  quality or convergence. This is about how many iterations have been
      *  executed from the maximum specified.
      */
+    @Suppress("unused")
     fun hasNextIteration(): Boolean {
         return myMainIterativeProcess.hasNextStep()
     }
@@ -335,6 +331,7 @@ abstract class Solver(
      *  Runs the next iteration. Only valid if the solver has been
      *  initialized and there are additional iterations to run.
      */
+    @Suppress("unused")
     fun runNextIteration() {
         myMainIterativeProcess.runNext()
     }
@@ -365,6 +362,7 @@ abstract class Solver(
      *  completion of inner and outer iterations.
      *  @param msg a message to capture for why the iterations were ended
      */
+    @Suppress("unused")
     fun endIterations(msg: String? = null) {
         myMainIterativeProcess.end(msg)
     }
@@ -601,8 +599,7 @@ abstract class Solver(
 
     private fun requestEvaluations(requests: List<RequestData>): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
-        //TODO get rid of mySolverRunner
-        return mySolverRunner?.receiveEvaluationRequests(this, requests) ?: myEvaluator.evaluate(requests)
+        return myEvaluator.evaluate(requests)
     }
 
     override fun toString(): String {
@@ -636,7 +633,6 @@ abstract class Solver(
             iterationCounter = 0
             numTimesBestSolutionUpdated = 0
             logger.info { "Resetting solver evaluation counters for solver: $name" }
-            mySolverRunner?.resetEvaluator() ?: myEvaluator.resetEvaluationCounts()
             logger.trace { "Initializing solver $name" }
             this@Solver.initializeIterations()
             logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
@@ -704,12 +700,29 @@ abstract class Solver(
                 field = value
             }
 
+        /**
+         * Represents the default number of replications to be performed during an evaluation.
+         *
+         * This parameter defines the number of times a specific evaluation process should be repeated
+         * to ensure consistency and reliability of the results. The value must always be a positive
+         * integer greater than zero.
+         *
+         * A change to this value will affect all subsequent evaluations relying on
+         * the default replication count.
+         *
+         * @throws IllegalArgumentException if the value set is not greater than zero.
+         */
+        @Suppress("unused")
         var defaultReplicationsPerEvaluation = 30
             set(value) {
                 require(value > 0) { "The default replications per evaluation must be a positive value." }
                 field = value
             }
 
+        /**
+         * Logger instance used for logging messages.
+         * Utilizes the KotlinLogging framework to facilitate structured and leveled logging.
+         */
         val logger: KLogger = KotlinLogging.logger {}
 
         /**
@@ -732,7 +745,7 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
-            replicationsPerEvaluation: Int = 50,
+            replicationsPerEvaluation: Int =defaultReplicationsPerEvaluation,
             printer: ((Solution) -> Unit)? = null
         ) : StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
@@ -770,9 +783,9 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
-            initialTemperature: Double = 1000.0,
+            initialTemperature: Double = defaultInitialTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
-            replicationsPerEvaluation: Int = 50,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             printer: ((Solution) -> Unit)? = null
         ) : SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(

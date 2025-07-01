@@ -62,6 +62,7 @@ abstract class CoolingSchedule(initialTemperature: Double) : CoolingScheduleIfc 
  * if finalTemperature is not positive,
  * or if finalTemperature is not less than initialTemperature.
  */
+@Suppress("unused")
 class LinearCoolingSchedule(
     initialTemperature: Double = defaultInitialTemperature,
     val stoppingTemperature: Double = defaultStoppingTemperature,
@@ -90,7 +91,7 @@ class LinearCoolingSchedule(
 }
 
 /**
- * Represents a cooling schedule where temperature decreases exponentially
+ * Represents a cooling schedule where the temperature decreases exponentially
  * at each iteration according to a specified cooling rate.
  *
  * @constructor Creates an exponential cooling schedule with the provided initial temperature and cooling rate.
@@ -98,7 +99,7 @@ class LinearCoolingSchedule(
  * @param coolingRate The rate at which the temperature decreases in each iteration. Defaults to 0.95.
  * Must be a value between 0.0 (exclusive) and 1.0 (exclusive).
  *
- * @throws IllegalArgumentException if the cooling rate is not between 0.0 and 1.0 or if the initial temperature is not positive.
+ * @throws IllegalArgumentException if the cooling rate is not between 0.0 and 1.0, or if the initial temperature is not positive.
  */
 class ExponentialCoolingSchedule(
     initialTemperature: Double,
@@ -117,13 +118,14 @@ class ExponentialCoolingSchedule(
 
 /**
  * Implements a logarithmic cooling schedule for optimization algorithms such as simulated annealing.
- * The temperature decreases proportional to the inverse of the natural logarithm of the iteration number.
+ * The temperature decreases proportionally to the inverse of the natural logarithm of the iteration number.
  *
  * @constructor Creates a logarithmic cooling schedule with the specified initial temperature.
  * @param initialTemperature The starting temperature for the cooling schedule. Must be positive.
  *
  * @throws IllegalArgumentException if the provided initial temperature is not positive.
  */
+@Suppress("unused")
 class LogarithmicCoolingSchedule(
     initialTemperature: Double,
 ) : CoolingSchedule (initialTemperature) {
