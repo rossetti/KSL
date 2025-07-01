@@ -12,7 +12,7 @@ import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.Statistic
-import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHtml
 
 fun main() {
     val normalRV = NormalRV()
@@ -23,7 +23,7 @@ fun main() {
     println(statistics)
     val sr = StatisticReporter(mutableListOf(statistics))
     println(sr.halfWidthSummaryReport())
-    statistics.toStatDataFrame().toStandaloneHTML().openInBrowser()
+    statistics.toStatDataFrame().toStandaloneHtml().openInBrowser()
 //    makeAndDisplayPlots(data, dof)
     data.writeToFile("TheChiSquares.txt")
 }

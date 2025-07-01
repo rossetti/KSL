@@ -13,7 +13,7 @@ import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.BoxPlotSummary
 import ksl.utilities.statistic.CachedHistogram
 import ksl.utilities.statistic.Statistic
-import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHtml
 
 fun main(){
     val normalRV = NormalRV(mean = 0.0, variance = 1.0)
@@ -24,7 +24,7 @@ fun main(){
     println(statistic)
     val sr = StatisticReporter(mutableListOf(statistic, statistic))
     println(sr.halfWidthSummaryReport())
-    statistic.toStatDataFrame().toStandaloneHTML().openInBrowser()
+    statistic.toStatDataFrame().toStandaloneHtml().openInBrowser()
     makeAndDisplayPlots(data, dof)
     fitDistribution(data)
     data.writeToFile("TheData.txt")

@@ -91,7 +91,7 @@ object DBExamples {
         val stat_name by column<String>()
         val exp_name by column<String>()
         println(exp_name.name())
-        val filter = df.filter { exp_name().equals("Experiment_1") }.values { stat_name }
+        val filter = df.filter { exp_name.name() == "Experiment_1" }.values { stat_name }
 
         println("Found = " + filter.count())
 

@@ -371,7 +371,7 @@ abstract class MODAModel(
         val rankAvgCol = rankAvgs.values.toColumn("Avg Rank")
         columns.add(countsCol)
         columns.add(rankAvgCol)
-        return dataFrameOf(columns).sortBy(rankAvgCol)
+        return dataFrameOf(columns).sortBy(rankAvgCol.name())
     }
 
     /**
@@ -398,7 +398,7 @@ abstract class MODAModel(
         val valuesByAlternative = multiObjectiveValuesByAlternative()
         val overallValue = valuesByAlternative.values.toColumn("Overall Value")
         columns.add(overallValue)
-        return dataFrameOf(columns).sortByDesc(overallValue)
+        return dataFrameOf(columns).sortByDesc(overallValue.name())
     }
 
     override fun toString(): String {
@@ -454,7 +454,7 @@ abstract class MODAModel(
         columns.add(altCol)
         columns.add(countsCol)
         columns.add(rankAvgCol)
-        return dataFrameOf(columns).sortBy(rankAvgCol)
+        return dataFrameOf(columns).sortBy(rankAvgCol.name())
     }
 
     /**

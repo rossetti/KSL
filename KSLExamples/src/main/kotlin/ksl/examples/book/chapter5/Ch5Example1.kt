@@ -8,7 +8,7 @@ import ksl.simulation.Model
 import ksl.utilities.io.asMarkDownTable
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import org.jetbrains.kotlinx.dataframe.api.describe
-import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHtml
 
 /**
  *  Example 5.1
@@ -37,18 +37,18 @@ fun main() {
 
     val expDataCollector = ExperimentDataCollector(model)
 
-    // demonstrate capturing data to database with an observer
+    // demonstrate capturing data to a database with an observer
     val kslDatabaseObserver = KSLDatabaseObserver(model)
     val derby = KSLDatabaseObserver.createDerbyKSLDatabaseObserver(model)
 
     // simulate the model
     model.simulate()
 
-    // demonstrate that reports can have specified confidence level
+    // demonstrate that reports can have a specified confidence level
     val sr = model.simulationReporter
     sr.printHalfWidthSummaryReport(confLevel = .99)
 
-    // show that report can be written to MarkDown as a table in the output directory
+    // show that reports can be written to a Markdown file as a table in the output directory
     var out = model.outputDirectory.createPrintWriter("hwSummary.md")
     sr.writeHalfWidthSummaryReportAsMarkDown(out)
     println()
@@ -65,7 +65,7 @@ fun main() {
     println(dataFrame)
     println()
     println(dataFrame.asMarkDownTable())
-    dataFrame.toStandaloneHTML().openInBrowser()
+    dataFrame.toStandaloneHtml().openInBrowser()
 
     model.experimentName = "Three Workers"
     palletWorkCenter.numWorkers = 3

@@ -15,6 +15,7 @@ import org.jetbrains.kotlinx.dataframe.api.toColumn
 import org.jetbrains.kotlinx.dataframe.io.DisplayConfiguration
 import org.jetbrains.kotlinx.dataframe.io.toHTML
 import org.jetbrains.kotlinx.dataframe.io.toStandaloneHTML
+import org.jetbrains.kotlinx.dataframe.io.toStandaloneHtml
 import java.util.*
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -336,7 +337,7 @@ interface RegressionResultsIfc {
             config.rowsLimit = pr.rowsCount() + 1
             config.cellContentLimit = 72
             appendLine("<div>")
-            appendLine(pr.toStandaloneHTML(configuration = config))
+            appendLine(pr.toStandaloneHtml(configuration = config))
             appendLine("</div>")
             appendLine("<div>")
             appendLine(htmlDiagnosticPlots())
