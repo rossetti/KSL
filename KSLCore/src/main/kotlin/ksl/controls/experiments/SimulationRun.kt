@@ -19,12 +19,13 @@
 package ksl.controls.experiments
 
 import kotlinx.datetime.Instant
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.ToJSONIfc
 import ksl.utilities.statistic.Statistic
+import kotlin.String
+import kotlin.collections.Map
 
 /**
  * A SimulationRun represents the execution of a simulation with inputs (controls and parameters),
@@ -33,32 +34,41 @@ import ksl.utilities.statistic.Statistic
  * each replication. The main purpose of SimulationRun is to transfer data about the execution
  * of a simulation. It acts as a data transfer class.
  *
- * After the simulation run is executed, the results property will hold pairs (response name, array)
- * where the response name is the name of the model element associated with the response and
+ * After the simulation run is executed, the 'results' property will hold pairs (response name, array).
+ * The response name is the name of the model element associated with the response, and
  * the array contains the observations of the response for each replication.
  */
 @kotlinx.serialization.Serializable
 class SimulationRun private constructor(
     val id: String,
+    val modelIdentifier: String,
     var name: String,
     val experimentRunParameters: ExperimentRunParameters,
     var runErrorMsg: String = "",
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
+    var modelConfiguration: Map<String, String>? = null,
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
     constructor(
+        modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
         runId: String? = null,
-        runName: String? = null
+        runName: String? = null,
+        modelConfiguration: Map<String, String>? = null
     ) : this(
         id = runId ?: KSL.randomUUIDString(),
+        modelIdentifier = modelIdentifier,
         name = runName ?: (experimentRunParameters.experimentName),
         experimentRunParameters = experimentRunParameters,
-        inputs = inputs
+        inputs = inputs,
+        modelConfiguration = modelConfiguration
     )
+
+    val numberOfReplications: Int
+        get() = experimentRunParameters.numberOfReplications
 
     /** Use primarily for printing out run results
      *
@@ -79,6 +89,7 @@ class SimulationRun private constructor(
         val sb = StringBuilder()
         sb.appendLine("id = $id")
         sb.appendLine("name = $name")
+        sb.appendLine("model identifier = $modelIdentifier")
         sb.appendLine(experimentRunParameters)
         sb.appendLine("functionError $runErrorMsg")
         sb.appendLine("beginExecutionTime = $beginExecutionTime")
@@ -91,6 +102,19 @@ class SimulationRun private constructor(
                 sb.appendLine("key = $key")
                 sb.appendLine("value = $value")
             }
+        }
+        sb.appendLine("Model Configuration:")
+        if (modelConfiguration != null){
+            if (modelConfiguration!!.isEmpty()){
+                sb.appendLine("\t {empty}")
+            } else {
+                for ((key, value) in modelConfiguration){
+                    sb.appendLine("key = $key")
+                    sb.appendLine("value = $value")
+                }
+            }
+        } else {
+            sb.appendLine("\t None")
         }
         sb.appendLine("Results:")
         if (results.isEmpty()){

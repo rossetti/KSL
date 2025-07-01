@@ -56,7 +56,7 @@ data class MCBResultData(
 ) : DbTableData("tblMCBResults", listOf("id"), autoIncField = false) {
 
     companion object {
-        var mcbResultDataCounter = 0
+        var mcbResultDataCounter : Int = 0
     }
 }
 
@@ -85,7 +85,7 @@ data class MCBIntervalData(
 ) : DbTableData("tblMCBIntervals", listOf("id"), autoIncField = false) {
 
     companion object {
-        var mcbIntervalDataCounter = 0
+        var mcbIntervalDataCounter : Int = 0
     }
 }
 
@@ -114,7 +114,7 @@ data class MCBScreeningIntervalData(
 ) : DbTableData("tblMCBScreeningIntervals", listOf("id"), autoIncField = false) {
 
     companion object {
-        var mcbScreeningIntervalCounter = 0
+        var mcbScreeningIntervalCounter : Int = 0
     }
 }
 
@@ -150,7 +150,7 @@ class MultipleComparisonAnalyzer(
      *  The default level to use for confidence intervals and for probability of
      *  correct selection.
      */
-    var defaultLevel = 0.95
+    var defaultLevel : Double = 0.95
         set(value) {
             require((0.0 < value) && (value < 1.0)) { "The default level must be in (0,1)" }
             field = value
@@ -318,7 +318,7 @@ class MultipleComparisonAnalyzer(
 
     /**
      * The paired differences as an array for the pair of data names given by the
-     * strings. If the data names don't exist then an error occurs. The paired
+     * strings. If the data names don't exist, then an error occurs. The paired
      * difference is assumed to be named "$s1 - $s2$". If the named difference
      * is not found an empty array is returned.
      *

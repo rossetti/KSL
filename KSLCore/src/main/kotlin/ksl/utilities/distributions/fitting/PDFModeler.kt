@@ -62,8 +62,8 @@ class PDFModeler(
 ) {
     private val myData: DoubleArray = observations.copyOf()
 
-    val originalData
-         get() = myData.copyOf()
+    val originalData: DoubleArray
+        get() = myData.copyOf()
 
     private val myHistogram: Histogram by lazy {
         Histogram.create(myData, name = "PDF Modeler Default Histogram")
@@ -85,7 +85,7 @@ class PDFModeler(
      *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
-    var defaultZeroTolerance = PDFModeler.defaultZeroTolerance
+    var defaultZeroTolerance : Double = PDFModeler.defaultZeroTolerance
         set(value) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
@@ -174,7 +174,7 @@ class PDFModeler(
         if (automaticShifting) {
             val minCI = confidenceIntervalForMinimum()
             if (defaultZeroTolerance < minCI.lowerLimit) {
-                shiftedData = PDFModeler.leftShiftData(myData)
+                shiftedData = leftShiftData(myData)
             }
         }
         val shiftedStats = shiftedData?.shiftedData?.statistics()
@@ -713,13 +713,13 @@ class PDFModeler(
             Linear, Logistic
         }
 
-        var defaultScalingFunction = DefaultScalingFunction.Linear
+        var defaultScalingFunction: DefaultScalingFunction = DefaultScalingFunction.Linear
 
         /**
          *  For rank based evaluation, this specifies the default parameter value
          *  for those methods the perform rank based evaluation calculations.
          */
-        var defaultRankingMethod = Statistic.Companion.Ranking.Ordinal
+        var defaultRankingMethod: Statistic.Companion.Ranking = Statistic.Companion.Ranking.Ordinal
 
         /**
          *  This set contains all the known estimators for estimating continuous
@@ -818,7 +818,7 @@ class PDFModeler(
             return model
         }
 
-        var defaultLogisticFunctionFactor = 0.25
+        var defaultLogisticFunctionFactor : Double = 0.25
             set(value) {
                 require((0.0 < value) && (value < 1.0)) { "The factor must be within (0,1)" }
                 field = value
@@ -865,7 +865,7 @@ class PDFModeler(
          *  How close we consider a double is to 0.0 to consider it 0.0
          *  Default is 0.95
          */
-        var defaultConfidenceLevel = 0.95
+        var defaultConfidenceLevel : Double = 0.95
             set(level) {
                 require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
                 field = level
@@ -875,7 +875,7 @@ class PDFModeler(
          *  How close we consider a double is to 0.0 to consider it 0.0
          *  Default is 0.001
          */
-        var defaultZeroTolerance = 0.001
+        var defaultZeroTolerance : Double = 0.001
             set(value) {
                 require(value > 0.0) { "The default zero precision must be > 0.0" }
                 field = value

@@ -51,7 +51,7 @@ open class State(
      * Indicates whether statistics should be collected on
      * time spent in the state. The default is false
      */
-    var sojournTimeCollectionFlag = useStatistic
+    var sojournTimeCollectionFlag : Boolean = useStatistic
          set(value) {
             if (value) {
                 if (sojournTimeStatistic == null) {
@@ -77,44 +77,44 @@ open class State(
     /**
      * indicates whether currently in the state
      */
-    override var isEntered = false
+    override var isEntered : Boolean = false
         protected set
 
     /**
      * number of times the state was entered
      */
-    override var numberOfTimesEntered = 0.0
+    override var numberOfTimesEntered : Double = 0.0
         protected set
 
     /**
      * number of times the state was exited
      */
-    override var numberOfTimesExited = 0.0
+    override var numberOfTimesExited : Double = 0.0
         protected set
 
     /**
      * time the state was last entered
      */
-    override var timeStateEntered = Double.NaN
+    override var timeStateEntered : Double = Double.NaN
         protected set
 
     /**
      * time that the state was entered for the first time
      */
-    override var timeFirstEntered = Double.NaN
+    override var timeFirstEntered : Double = Double.NaN
         protected set
 
     /**
      * time the state was last exited
      */
-    override var timeStateExited = Double.NaN
+    override var timeStateExited : Double = Double.NaN
         protected set
 
     /**
      * Total time spent in state based on exits.  Does not
      * include time in state if not exited.
      */
-    override var totalTimeInState = 0.0
+    override var totalTimeInState : Double = 0.0
         protected set
 
 //    override fun toString(): String {

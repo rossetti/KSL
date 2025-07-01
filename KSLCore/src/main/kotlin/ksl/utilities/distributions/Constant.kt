@@ -97,22 +97,22 @@ class Constant (var value: Double = 0.0, name: String? = null) : Distribution(na
         /**
          * A constant to represent zero for sharing
          */
-        val ZERO = Constant(0.0)
+        val ZERO : Constant = Constant(0.0)
 
         /**
          * A constant to represent one for sharing
          */
-        val ONE = Constant(1.0)
+        val ONE : Constant = Constant(1.0)
 
         /**
          * A constant to represent two for sharing
          */
-        val TWO = Constant(2.0)
+        val TWO : Constant = Constant(2.0)
 
         /**
          * A constant to represent positive infinity for sharing
          */
-        val POSITIVE_INFINITY = Constant(Double.POSITIVE_INFINITY)
+        val POSITIVE_INFINITY : Constant = Constant(Double.POSITIVE_INFINITY)
     }
 
 }

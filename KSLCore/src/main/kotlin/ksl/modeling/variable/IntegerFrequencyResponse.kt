@@ -81,7 +81,7 @@ class IntegerFrequencyResponse(
         get() = myIntegerFrequency
 
     @set:KSLControl(controlType = ControlType.BOOLEAN)
-    var collectionOn = true
+    var collectionOn : Boolean = true
 
     var value: Int = 0
         set(value) {

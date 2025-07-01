@@ -14,9 +14,9 @@ class PPPlot(
 ) : BasePlot() {
 
     var empDistType: EmpDistType = EmpDistType.Continuity1
-    val orderStats = data.orderStatistics()
+    val orderStats: DoubleArray = data.orderStatistics()
 
-    val empProbabilities
+    val empProbabilities: DoubleArray
         get() = Statistic.empiricalProbabilities(orderStats.size, empDistType)
 
     val theoreticalProbabilities: DoubleArray

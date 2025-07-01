@@ -31,7 +31,7 @@ class TruncatedNormalRV @JvmOverloads constructor(
 
     private val myInterval = interval.instance()
 
-    val interval
+    val interval : Interval
         get() = myInterval.instance()
 
     private val myTN = TruncatedRV(

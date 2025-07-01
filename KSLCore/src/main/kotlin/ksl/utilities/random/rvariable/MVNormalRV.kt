@@ -42,16 +42,16 @@ class MVNormalRV  @JvmOverloads constructor(
         normalRV = NormalRV(0.0, 1.0, streamNum, streamProvider)
     }
 
-    val means
+    val means: DoubleArray
         get() = myMeans.copyOf()
 
-    val covariances
+    val covariances: Array<DoubleArray>
         get() = KSLArrays.copy2DArray(myCovariances)
 
-    val correlations
+    val correlations: Array<DoubleArray>
         get() = convertToCorrelation(myCovariances)
 
-    val choleskyDecomposition
+    val choleskyDecomposition: Array<DoubleArray>
         get() = KSLArrays.copy2DArray(cfL)
 
 

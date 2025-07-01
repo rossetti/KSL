@@ -16,7 +16,7 @@ class StateVariablePlot(
 ) : BasePlot() {
     private val data: Map<String, DoubleArray>
 
-    val timeWeightedStatistic = TimeWeightedStatistic(values, times)
+    val timeWeightedStatistic: TimeWeightedStatistic = TimeWeightedStatistic(values, times)
 
     /**
      *  Constructs a plot that has the times and values for the provided replication [repNum]

@@ -93,7 +93,7 @@ class TWBatchingElement(
      * The starting number of batches for time weighted batching. Used in
      * approximating a batch interval size
      */
-    var timeWeightedStartingNumberOfBatches = DEFAULT_NUM_TW_BATCHES
+    var timeWeightedStartingNumberOfBatches : Double = DEFAULT_NUM_TW_BATCHES
         set(numBatches){
             require(numBatches > 0) { "The number of batches must be > 0" }
             if (numBatches < 10) {
@@ -416,7 +416,7 @@ class TWBatchingElement(
          * time interval between batches will be equal to this value. The default
          * value is 10.0
          */
-        const val DEFAULT_BATCH_INTERVAL = 10.0
+        const val DEFAULT_BATCH_INTERVAL : Double = 10.0
 
         /**
          * A constant for the default number of batches for TimeWeighted variables.
@@ -434,6 +434,6 @@ class TWBatchingElement(
          * DEFAULT_NUM_TW_BATCHES = 512.0
          *
          */
-        const val DEFAULT_NUM_TW_BATCHES = 512.0
+        const val DEFAULT_NUM_TW_BATCHES : Double = 512.0
     }
 }

@@ -134,7 +134,7 @@ open class NHPPEventGenerator (
      * Determines the priority of the event generator's events The default is
      * DEFAULT_PRIORITY - 1 A lower number implies higher priority.
      */
-    var eventPriority = EVENT_PRIORITY
+    var eventPriority : Int = EVENT_PRIORITY
 
     /**
      * The time to stop generating for the current replication
@@ -179,14 +179,14 @@ open class NHPPEventGenerator (
         controlType = ControlType.BOOLEAN,
         name = "startOnInitializeOption",
     )
-    override var startOnInitializeOption = true
+    override var startOnInitializeOption : Boolean = true
 
     private val myEventHandler: EventHandler = EventHandler()
 
     /**
      * indicates whether the generator has been started (turned on)
      */
-    override var isStarted = false
+    override var isStarted : Boolean = false
         protected set
 
     // now set the time to turn off

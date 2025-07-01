@@ -23,7 +23,7 @@ class Laplace(
         require(scale > 0.0) { "The scale must be > 0.0" }
     }
 
-    var scale = scale
+    var scale : Double = scale
         set(value) {
             require(value > 0.0) { "The scale must be > 0.0" }
             field = value

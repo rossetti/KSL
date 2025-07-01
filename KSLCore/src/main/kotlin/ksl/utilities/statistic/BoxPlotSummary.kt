@@ -59,31 +59,31 @@ class BoxPlotSummary(
     /**
      * @return the estimated median
      */
-    override var median = 0.0
+    override var median : Double = 0.0
         private set
 
     /**
      * @return the estimated 1st quartile
      */
-    override var firstQuartile = 0.0
+    override var firstQuartile : Double = 0.0
         private set
 
     /**
      * @return the estimated 3rd quartile
      */
-    override var thirdQuartile = 0.0
+    override var thirdQuartile : Double = 0.0
         private set
 
     /**
      * @return the minimum value in the data
      */
-    override var min = 0.0
+    override var min : Double = 0.0
         private set
 
     /**
      * @return the maximum value of the data
      */
-    override var max = 0.0
+    override var max : Double = 0.0
         private set
 
     private val orderStatistics: DoubleArray
@@ -205,32 +205,32 @@ class BoxPlotSummary(
     /**
      * @return the difference between 3rd quartile and 1st quartile
      */
-    val interQuartileRange = thirdQuartile - firstQuartile
+    val interQuartileRange : Double  = thirdQuartile - firstQuartile
 
     /**
      * @return the difference between max and min
      */
-    val range = max - min
+    val range: Double = max - min
 
     /**
      * @return the 1st quartile minus 1.5 times the inter-quartile range
      */
-    val lowerInnerFence = firstQuartile - 1.5 * interQuartileRange
+    val lowerInnerFence : Double = firstQuartile - 1.5 * interQuartileRange
 
     /**
      * @return the 1st quartile minus 3 times the inter-quartile range
      */
-    val lowerOuterFence = firstQuartile - 3.0 * interQuartileRange
+    val lowerOuterFence : Double = firstQuartile - 3.0 * interQuartileRange
 
     /**
      * @return the 3rd quartile plus 1.5 times the inter-quartile range
      */
-    val upperInnerFence = thirdQuartile + 1.5 * interQuartileRange
+    val upperInnerFence : Double = thirdQuartile + 1.5 * interQuartileRange
 
     /**
      * @return the 3rd quartile plus 3 times the inter-quartile range
      */
-    val upperOuterFence = thirdQuartile + 3.0 * interQuartileRange
+    val upperOuterFence: Double = thirdQuartile + 3.0 * interQuartileRange
 
     /**
      *  The largest data point that is less than or equal to the upperInnerFence

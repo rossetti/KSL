@@ -18,6 +18,7 @@
 
 package ksl.simulation
 
+import io.github.oshai.kotlinlogging.KLogger
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.SpatialModel
@@ -120,56 +121,56 @@ abstract class ModelElement internal constructor(
     /**
      * the left traversal count for pre-order traversal of the model element tree
      */
-    var leftTraversalCount = 0
+    var leftTraversalCount : Int = 0
         protected set
 
     /**
      * the right traversal count for pre-order traversal of the model element tree
      */
-    var rightTraversalCount = 0
+    var rightTraversalCount : Int = 0
         protected set
 
     /**
      * A flag to control if the model element reacts to before
      * experiment actions.
      */
-    var beforeExperimentOption = true
+    var beforeExperimentOption : Boolean = true
 
     /**
      * A flag to control if the model element reacts to before
      * replication actions.
      */
-    var beforeReplicationOption = true
+    var beforeReplicationOption : Boolean = true
 
     /**
      * A flag to control if the model element participates in monte
      * carlo actions.
      */
-    var monteCarloOption = false
+    var monteCarloOption : Boolean = false
 
     /**
      * A flag to control if the model element reacts to
      * initialization actions
      */
-    var initializationOption = true
+    var initializationOption : Boolean = true
 
     /**
      * A flag to control if the model element reacts to end
      * replication actions.
      */
-    var replicationEndedOption = true
+    var replicationEndedOption : Boolean = true
 
     /**
      * A flag to control whether the model element reacts to after
      * replication actions.
      */
-    var afterReplicationOption = true
+    var afterReplicationOption : Boolean = true
 
     /**
      * A flag to control if the model element reacts to after
      * experiment actions.
      */
-    var afterExperimentOption = true
+    var afterExperimentOption : Boolean = true
 
     /**
      * Specifies if this model element is warmed up when the warmup action
@@ -184,13 +185,13 @@ abstract class ModelElement internal constructor(
      * through the use of the lengthOfWarmUp property, have its own warm-up
      * event and action.
      */
-    var warmUpOption = true
+    var warmUpOption : Boolean = true
 
     /**
      * Specifies whether this model element participates in time update
      * event specified by its parent
      */
-    var timedUpdateOption = true
+    var timedUpdateOption : Boolean = true
 
     /**
      * A collection containing the first level children of this model element
@@ -210,7 +211,7 @@ abstract class ModelElement internal constructor(
     /**
      *  the parent of this model element
      */
-    protected val parent
+    protected val parent: ModelElement?
         get() = myParentModelElement
 
     override val parentName: String?
@@ -219,7 +220,7 @@ abstract class ModelElement internal constructor(
     /**
      * the model that contains this element
      */
-    val model
+    val model : Model
         get() = myModel
 
     val streamProvider: RNStreamProvider
@@ -280,13 +281,13 @@ abstract class ModelElement internal constructor(
      * Indicates whether the warm-up action occurred sometime during the
      * simulation for this model element. False indicates that the warm-up action has not occurred
      */
-    var warmUpIndicator = false
+    var warmUpIndicator : Boolean = false
         protected set
 
     /**
      * Specifies the priority of this model element's warm up event.
      */
-    var warmUpPriority = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
+    var warmUpPriority : Int = KSLEvent.DEFAULT_WARMUP_EVENT_PRIORITY
 
     /**
      * The length of time from the start of the simulation to the warm-up event.
@@ -340,13 +341,13 @@ abstract class ModelElement internal constructor(
     /**
      * Specifies the havingPriority of this model element's timed update event.
      */
-    var timedUpdatePriority = KSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
+    var timedUpdatePriority : Int = KSLEvent.DEFAULT_TIMED_EVENT_PRIORITY
 
     /**
      * The time interval between TimedUpdate events. The default is zero,
      * indicating no timed update
      */
-    var timedUpdateInterval = 0.0
+    var timedUpdateInterval : Double = 0.0
         set(value) {
             require(value > 0.0) { "Time update interval must be > 0.0" }
             field = value
@@ -1896,7 +1897,7 @@ abstract class ModelElement internal constructor(
         /**
          * A global logger for logging of model elements
          */
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
     }
 
     fun attachModelElementObserver(observer: ModelElementObserver) {
@@ -2054,7 +2055,7 @@ abstract class ModelElement internal constructor(
         /**
          * The time that the QObject was created
          */
-        final override val createTime = time
+        final override val createTime : Double = time
 
         /**
          * A state representing when the QObject was queued
@@ -2289,7 +2290,7 @@ abstract class ModelElement internal constructor(
 
     @Suppress("unused")
     fun ConstantRV(value: Double, name: String? = null): ConstantRV {
-        return ConstantRV(value, name)
+        return ksl.utilities.random.rvariable.ConstantRV(value, name)
     }
 
     @Suppress("unused")

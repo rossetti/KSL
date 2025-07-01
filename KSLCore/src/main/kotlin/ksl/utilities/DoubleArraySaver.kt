@@ -29,7 +29,7 @@ class DoubleArraySaver : ObserverIfc<Double> {
      * The default increment for the array size
      *
      */
-    var arraySizeIncrement = 1000
+    var arraySizeIncrement : Int = 1000
         set(value) {
             require(value > 0) { "Default array growth size must be > 0" }
             field = value
@@ -52,7 +52,7 @@ class DoubleArraySaver : ObserverIfc<Double> {
     /**
      * Counts the number of data points that were saved to the save array
      */
-    var saveCount = 0
+    var saveCount : Int = 0
         private set
 
     /**

@@ -41,7 +41,7 @@ class ConditionalActionProcessor {
      * the maximum number of scans is monitored during
      * the c phase
      */
-    var maxScanFlag = true
+    var maxScanFlag : Boolean= true
 
     private var myActions: OrderedList<ConditionalAction> = OrderedList()
 
@@ -126,7 +126,7 @@ class ConditionalActionProcessor {
 
     companion object {
         private var myActionCounter = 0
-        const val DEFAULT_MAX_SCANS = 1000
-        const val DEFAULT_PRIORITY = 1
+        const val DEFAULT_MAX_SCANS : Int = 1000
+        const val DEFAULT_PRIORITY : Int = 1
     }
 }

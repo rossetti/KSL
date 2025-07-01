@@ -31,7 +31,7 @@ import kotlin.math.*
 class GreatCircleBasedSpatialModel () : SpatialModel() {
     override var defaultLocation: LocationIfc = GPSCoordinate(latitude(), longitude(), "Greenwich")
 
-    var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
+    var defaultLocationPrecision : Double = KSLMath.defaultNumericalPrecision
         set(precision) {
             require(precision > 0.0) { "The precision must be > 0.0." }
             field = precision
@@ -51,7 +51,7 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
      * circuity of the road/rail network, by default 1.0
      *
      */
-    var circuityFactor = 1.0
+    var circuityFactor : Double = 1.0
         set(value) {
             require(value > 0.0){"The circuity factor must be > 0.0"}
             field = value
@@ -121,20 +121,20 @@ class GreatCircleBasedSpatialModel () : SpatialModel() {
          * The circuity factor for road networks, see pg 559 of Ballou
          *
          */
-        const val ROADS = 1.17
+        const val ROADS : Double = 1.17
 
         /**
          * The circuity factor for rail networks, see pg 559 of Ballou
          *
          */
-        const val RAIL = 1.20
+        const val RAIL : Double = 1.20
 
         /**
          * The default radius for the earth, @see
          * (http://en.wikipedia.org/wiki/Great_circle_distance)
          *
          */
-        const val DEFAULT_EARTH_RADIUS = 6372.795
+        const val DEFAULT_EARTH_RADIUS : Double = 6372.795
 
         /**
          * Returns a latitude in degrees

@@ -87,7 +87,7 @@ class Controls(aModel: Model) {
     private fun extractControls(modelElement: ModelElement) {
         val cls: KClass<out ModelElement> = modelElement::class
         val properties: Collection<KProperty1<out ModelElement, *>> = cls.memberProperties
-        logger.info { "Extracting controls for model element: ${modelElement.name}" }
+        logger.trace { "Extracting controls for model element: ${modelElement.name}" }
         for (property in properties) {
             logger.trace { "Reviewing member property: ${property.name}" }
             if (modelElement::class == Response::class) {
@@ -98,16 +98,16 @@ class Controls(aModel: Model) {
                 // cause intricate refactoring because TWResponse inherits from Response and TWResponse
                 // needs an initialValue property. Thus, I'm handling this edge case during annotation processing.
                 if (property.name == "initialValue") {
-                    logger.info { "Skipping inherited property: ${property.name} for model element: ${modelElement.name}" }
+                    logger.trace { "Skipping inherited property: ${property.name} for model element: ${modelElement.name}" }
                     continue
                 }
             }
             if (property is KMutableProperty<*>) {
                 logger.trace { "Member property, ${property.name}, is mutable property" }
                 if (hasControlAnnotation(property.setter)) {
-                    logger.info { "Member property, ${property.name}, setter has control annotations" }
+                    logger.trace { "Member property, ${property.name}, setter has control annotations" }
                     val kslControl: KSLControl = controlAnnotation(property.setter)!!
-                    logger.info { "Extracted annotation: $kslControl" }
+                    logger.trace { "Extracted annotation: $kslControl" }
                     // check if property type is consistent with annotation type
                     if (ControlType.validType(property.returnType)) {
                         logger.trace { "Setter has valid type: ${property.returnType}" }
@@ -115,7 +115,7 @@ class Controls(aModel: Model) {
                             logger.trace { "Controls will include annotated setter: ${property.setter.name}" }
                             val control = Control(modelElement, property, kslControl)
                             store(control)
-                            logger.info { "Control ${control.keyName} for property ${property.name} was extracted and added to controls" }
+                            logger.trace { "Control ${control.keyName} for property ${property.name} was extracted and added to controls" }
                         } else {
                             logger.trace { "Control ${kslControl.name} from property ${property.setter.name} was excluded during extraction." }
                         }
@@ -223,7 +223,7 @@ class Controls(aModel: Model) {
     /**
      * Gets a control of the supplied key name or null
      *
-     * @param controlKey the key for the control, must not be null
+     * @param controlKey the key for the control must not be null
      */
     fun control(controlKey: String): ControlIfc? {
         return myControls[controlKey]
@@ -241,8 +241,17 @@ class Controls(aModel: Model) {
     }
 
     /**
+     *  Basic printing of the controls as (name, value) pairs
+     */
+    fun printControls(){
+        for ((_, control) in myControls) {
+            println("${control.keyName}  = ${control.value}")
+        }
+    }
+
+    /**
      * Generate a "flat" map (String, Double) for communication
-     * outside this class. The key is the control key and the
+     * outside this class. The key is the control key, and the
      * number is the last double value assigned to the control.
      * Any controls that cannot be translated to Double are ignored.
      *
@@ -259,7 +268,7 @@ class Controls(aModel: Model) {
     /**
      * Sets all the contained control values using the supplied flat map
      *
-     * @param controlMap a flat map of control keys and values, must not be null
+     * @param controlMap a flat map of control keys and values must not be null
      * @return the number of control (key, value) pairs that were successfully set
      */
     fun setControlsFromMap(controlMap: Map<String, Double>): Int {

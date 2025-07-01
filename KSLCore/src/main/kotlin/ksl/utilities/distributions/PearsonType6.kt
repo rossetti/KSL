@@ -46,16 +46,16 @@ class PearsonType6 (
         require(theScale > 0.0) { "The scale parameter must be > 0.0" }
     }
 
-    var shape1 = theShape1
+    var shape1 : Double = theShape1
         private set
 
-    var shape2 = theShape2
+    var shape2 : Double = theShape2
         private set
 
     /**
      * the scale must be greater than 0.0
      */
-    var scale = theScale
+    var scale : Double = theScale
      set(value) {
          require(value > 0.0) { "The scale parameter must be > 0.0" }
          field = value

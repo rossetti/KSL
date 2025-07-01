@@ -38,7 +38,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
     /** The probability of success
      *
      */
-    var probOfSuccess = pSuccess
+    var probOfSuccess : Double = pSuccess
         set(prob) {
             require(!(prob <= 0.0 || prob >= 1.0)) { "Probability must be (0,1)" }
             field = prob
@@ -47,7 +47,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
     /** The number of trials
      *
      */
-    var numTrials = nTrials
+    var numTrials: Int = nTrials
         set(value) {
             require(value > 0) { "Number of trials must be >= 1" }
             field = value
@@ -58,7 +58,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * or via beta incomplete function and binomial coefficients.
      *
      */
-    var useRecursiveAlgorithm = true
+    var useRecursiveAlgorithm : Boolean = true
 
     override fun instance(): Binomial {
         return Binomial(probOfSuccess, numTrials)

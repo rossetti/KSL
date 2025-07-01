@@ -24,7 +24,7 @@ import kotlin.math.sqrt
 class Euclidean2DPlane() : SpatialModel() {
     override var defaultLocation: LocationIfc = Point(0.0, 0.0, "defaultLocation")
 
-    var defaultLocationPrecision = KSLMath.defaultNumericalPrecision
+    var defaultLocationPrecision : Double = KSLMath.defaultNumericalPrecision
         set(precision) {
             require(precision > 0.0) { "The precision must be > 0.0." }
             field = precision

@@ -67,14 +67,14 @@ class SpatialElement(
     override val observableComponent: ObservableComponent<SpatialElementIfc> = ObservableComponent()
 ) : ObservableIfc<SpatialElementIfc> by observableComponent, SpatialElementIfc {
     override val spatialModel : SpatialModel = modelElement.spatialModel
-    override val spatialID = ++spatialModel.countElements
-    override val spatialName = aName ?: ("ID_$spatialID")
-    override var status = SpatialModel.Status.NONE
+    override val spatialID : Int = ++spatialModel.countElements
+    override val spatialName: String = aName ?: ("ID_$spatialID")
+    override var status: SpatialModel.Status = SpatialModel.Status.NONE
     override var isTracked: Boolean = false
         internal set
     override var isMoving: Boolean = false
 
-    override var initialLocation = initLocation
+    override var initialLocation: LocationIfc = initLocation
         set(location) {
             require(spatialModel.isValid(location)) { "The location ${location.name} is not valid for spatial model ${spatialModel.name}" }
             field = location

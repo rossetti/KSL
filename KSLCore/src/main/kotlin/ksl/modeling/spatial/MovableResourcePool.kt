@@ -41,7 +41,7 @@ open class MovableResourcePool(
         get() = myResourcesByName
 
     //TODO RandomVariable does not implement RVariableIfc
-    protected val myVelocity = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
+    protected val myVelocity: RandomVariable = RandomVariable(this, defaultVelocity, name = "${this.name}:VelocityRV")
 
     val velocityRV: RandomVariableCIfc
         get() = myVelocity

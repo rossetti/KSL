@@ -34,9 +34,9 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 import java.text.DecimalFormat
 import java.util.*
 
-const val DEFAULT_ROW_FORMAT = "%-70s \t %12d \t %12.4f \t %12.4f %n"
-const val DEFAULT_HEADER_FORMAT = "%-70s \t %12s \t %12s \t %12s %n"
-val D2FORMAT = DecimalFormat(".##")
+const val DEFAULT_ROW_FORMAT: String = "%-70s \t %12d \t %12.4f \t %12.4f %n"
+const val DEFAULT_HEADER_FORMAT: String = "%-70s \t %12s \t %12s \t %12s %n"
+val D2FORMAT: DecimalFormat = DecimalFormat(".##")
 
 /**
  * A class to help with making useful statistical reports. Creates summary
@@ -63,13 +63,13 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * Indicate whether to have time/date on the report
      * true means yes
      */
-    var timeDateFlag = false
+    var timeDateFlag : Boolean = false
 
     /**
      *
      * true means labeling is on report
      */
-    var reportLabelFlag = true
+    var reportLabelFlag : Boolean = true
 
     /**
      * Sets the report title. The title appears as the first line of any report.
@@ -116,6 +116,11 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         myStats.add(statistic)
     }
 
+    /**
+     * Adds a list of statistics to the reporter
+     *
+     * @param stats a list of statistics to add
+     */
     fun <T: StatisticIfc> addStatistics(stats: List<T>) {
         stats.forEach { addStatistic(it) }
     }
@@ -125,6 +130,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      *
      * @return number of characters
      */
+    @Suppress("unused")
     fun findSizeOfLongestName(): Int {
         var max = Int.MIN_VALUE
         var stat: StatisticIfc? = null
@@ -143,6 +149,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      *
      * @param n must be between 10 and 99
      */
+    @Suppress("unused")
     fun setNameFieldSize(n: Int) {
         require(n >= 10) { "The number of decimal places must be >=10" }
         require(n <= 99) { "The number of decimal places must be <=99" }
@@ -153,14 +160,23 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
     /**
      * Changes the number of decimal places in the average reporting.
      *
-     *
      * @param n must be between 0 and 9
      */
+    @Suppress("unused")
     fun decimalPlaces(n: Int) {
         require(n >= 0) { "The number of decimal places must be >=0" }
         require(n <= 9) { "The number of decimal places must be <=9" }
         myRowFormat.replace(19, 20, n.toString())
         myRowFormat.replace(28, 29, n.toString())
+    }
+
+
+    /**
+     * The summary statistics are presented with half-widths
+     */
+    @Suppress("unused")
+    fun printHalfWidthSummaryReport(title: String? = null, level: Double = 0.95){
+        println(halfWidthSummaryReport(title, level).toString())
     }
 
     /**
@@ -202,6 +218,14 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return sb
     }
 
+    /**
+     * Gets the summary report as a MarkDown string
+     *
+     * @param title an optional title for the report
+     * @param df a DecimalFormat for formatting the numbers
+     * @return the string builder containing the report
+     */
+    @Suppress("unused")
     fun summaryReportAsMarkDown(title: String? = null, df: DecimalFormat?): StringBuilder {
         val sb = StringBuilder()
         val formatter = Formatter(sb)
@@ -226,6 +250,12 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return sb
     }
 
+    /**
+     * Gets the summary report as headers as a list of strings
+     *
+     * @return the list of strings containing the report headers
+     */
+    @Suppress("unused")
     fun summaryReportHeader(): List<String> {
         val list: MutableList<String> = ArrayList()
         list.add("Name")
@@ -235,6 +265,9 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return list
     }
 
+    /**
+     * Gets the summary report rows as a list of strings
+     */
     fun summaryReportRow(statistic: StatisticIfc, df: DecimalFormat? = null): List<String> {
         val list: MutableList<String> = ArrayList()
         list.add(statistic.name)
@@ -247,6 +280,15 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return list
     }
 
+    /**
+     * Gets the half-width summary report as a MarkDown string
+     *
+     * @param title an optional title for the report
+     * @param df a DecimalFormat for formatting the numbers
+     * @param level the confidence level for the half-width calculation
+     * @return the string builder containing the report
+     */
+    @Suppress("unused")
     fun halfWidthSummaryReportAsMarkDown(
         title: String? = null,
         level: Double = 0.95,
@@ -275,6 +317,12 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return sb
     }
 
+    /**
+     * Gets the half-width summary report as headers as a list of strings
+     *
+     * @return the list of strings containing the report headers
+     */
+    @Suppress("unused")
     fun getHalfWidthSummaryReportHeader(): List<String> {
         val list: MutableList<String> = ArrayList()
         list.add("Name")
@@ -284,6 +332,11 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         return list
     }
 
+    /**
+     * Gets the half-width summary report rows as a list of strings
+     */
+    @Suppress("unused")
+    @JvmOverloads
     fun getHalfWidthSummaryReportRow(
         statistic: StatisticIfc,
         level: Double = 0.95,
@@ -298,6 +351,15 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
         )
         list.addAll(KSLArrays.toStrings(data, df).toList())
         return list
+    }
+
+    /**
+     * Prints the summary report to standard out
+     *
+     * @param title an optional title for the report
+     */
+    fun printSummaryReport(title: String? = null){
+        println(summaryReport(title).toString())
     }
 
     /**
@@ -419,7 +481,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * Response Name Average Half-width
      *
      *
-     * Note: If the name has any special LaTeX characters the resulting tabular
+     * Note: If the name has any special LaTeX characters, the resulting tabular
      * may not compile.
      *
      * @param maxRows maximum number of rows in each tabular
@@ -573,7 +635,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      *  with the key being the name of the statistic
      */
     fun confidenceIntervals(level: Double = 0.95): Map<String, Interval>{
-        return StatisticReporter.confidenceIntervals(this.myStats, level)
+        return confidenceIntervals(this.myStats, level)
     }
 
     companion object{

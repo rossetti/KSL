@@ -41,9 +41,9 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         require(theVariance > 0) { "Variance must be positive" }
     }
 
-    override var mean = theMean
+    override var mean : Double = theMean
 
-    override var variance = theVariance
+    override var variance : Double = theVariance
         set(value) {
             require(value > 0) { "Variance must be positive" }
             field = value

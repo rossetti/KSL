@@ -37,7 +37,7 @@ class FitDistPlot(
     dataName: String? = null
 ) {
     var defaultPlotDir: Path = KSL.plotDir
-    var title = if (dataName != null) "Fit Distribution Plot for $dataName" else "Fit Distribution Plot"
+    var title : String = if (dataName != null) "Fit Distribution Plot for $dataName" else "Fit Distribution Plot"
     val densityPlot: DensityPlot
     val ecdfPlot: ECDFPlot
     val qqPlot: QQPlot = QQPlot(data, quantileFun)

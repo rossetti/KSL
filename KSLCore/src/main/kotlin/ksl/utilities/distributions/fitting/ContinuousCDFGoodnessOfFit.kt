@@ -19,9 +19,9 @@ class ContinuousCDFGoodnessOfFit(
     breakPoints: DoubleArray = suggestBreakPoints(data, distribution),
 ) : DistributionGOF(data, numEstimatedParameters, breakPoints) {
 
-    override val binProbabilities = histogram.binProbabilities(distribution)
+    override val binProbabilities: DoubleArray = histogram.binProbabilities(distribution)
 
-    override val expectedCounts = histogram.expectedCounts(distribution)
+    override val expectedCounts: DoubleArray = histogram.expectedCounts(distribution)
 
     companion object{
         fun suggestBreakPoints(data: DoubleArray, distribution: ContinuousDistributionIfc): DoubleArray {

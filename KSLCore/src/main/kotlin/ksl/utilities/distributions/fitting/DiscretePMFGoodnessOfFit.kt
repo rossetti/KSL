@@ -14,9 +14,9 @@ open class DiscretePMFGoodnessOfFit(
     breakPoints: DoubleArray = PMFModeler.makeZeroToInfinityBreakPoints(data.size, distribution),
 ) : DistributionGOF(data, numEstimatedParameters, breakPoints), DiscreteDistributionGOFIfc {
 
-    final override val binProbabilities = histogram.binProbabilities(distribution)
+    final override val binProbabilities: DoubleArray = histogram.binProbabilities(distribution)
 
-    final override val expectedCounts = histogram.expectedCounts(distribution)
+    final override val expectedCounts: DoubleArray = histogram.expectedCounts(distribution)
 
     override fun toString(): String {
         val sb = StringBuilder().apply {

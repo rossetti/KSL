@@ -40,7 +40,7 @@ abstract class PDFScoringModel(
     allowUpperLimitAdjustment: Boolean = true
 ) {
 
-    val metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
+    val metric: Metric = Metric(name, domain, allowLowerLimitAdjustment, allowUpperLimitAdjustment)
     val domain: Interval = metric.domain
 
     // for possible extensions that use the number of parameters as part of the scoring
@@ -92,10 +92,10 @@ abstract class PDFScoringModel(
 
     companion object{
 
-        var LOWER_LIMIT = -10000000.0
-        var UPPER_LIMIT =  10000000.0
+        var LOWER_LIMIT : Double = -10000000.0
+        var UPPER_LIMIT : Double =  10000000.0
 
-        val DEFAULT_BIG_RANGE
+        val DEFAULT_BIG_RANGE : Interval
             get () = Interval(LOWER_LIMIT, UPPER_LIMIT)
 
         // for possible extensions that use the number of parameters as part of the scoring

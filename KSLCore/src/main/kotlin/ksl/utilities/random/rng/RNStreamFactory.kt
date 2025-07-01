@@ -210,7 +210,7 @@ class RNStreamFactory {
         /**
          * The id of this object
          */
-        override val id = ++myStreamCounter
+        override val id : Int = ++myStreamCounter
 
         /**
          * Describes the stream (for writing the state, error messages, etc.).
@@ -222,12 +222,12 @@ class RNStreamFactory {
         /**
          * This stream generates antithetic variates if and only if {\tt antithetic = true}.
          */
-        override var antithetic = false
+        override var antithetic : Boolean = false
 
         /**
          * The previous U generated (returned) by randU01()
          */
-        override var previousU = Double.NaN
+        override var previousU : Double = Double.NaN
             private set
 
         override val antitheticValue: Double

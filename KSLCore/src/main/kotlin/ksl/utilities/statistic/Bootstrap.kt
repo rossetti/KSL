@@ -272,10 +272,10 @@ open class Bootstrap(
     protected val myOriginalData: DoubleArray = originalData.copyOf()
     protected val myOriginalPop: DPopulation = DPopulation(originalData, streamNumber, streamProvider)
     protected val myAcrossBSStat: Statistic = Statistic("Across Bootstrap Statistics")
-    protected val myBSArrayList = mutableListOf<DoubleArraySaver>()
+    protected val myBSArrayList: MutableList<DoubleArraySaver> = mutableListOf<DoubleArraySaver>()
     protected val myOriginalPopStat: Statistic = Statistic("Original Pop Statistics", originalData)
-    protected val myBSEstimates = DoubleArraySaver()
-    protected val myStudentizedTValues = DoubleArraySaver()
+    protected val myBSEstimates: DoubleArraySaver = DoubleArraySaver()
+    protected val myStudentizedTValues: DoubleArraySaver = DoubleArraySaver()
 
     override val streamNumber: Int
         get() = myOriginalPop.streamNumber
@@ -293,19 +293,19 @@ open class Bootstrap(
     /**
      * @return the number of requested bootstrap samples
      */
-    var numBootstrapSamples = 0
+    var numBootstrapSamples : Int = 0
         private set
 
     /**
      * @return the estimate from the supplied EstimatorIfc based on the original data
      */
-    override var originalDataEstimate = 0.0
+    override var originalDataEstimate : Double = 0.0
         protected set
 
     /**
      *  The size of the original population of data from which to sample
      */
-    override val originalDataSampleSize = originalData.size
+    override val originalDataSampleSize : Int = originalData.size
 
     /**
      * the default confidence interval level
@@ -564,7 +564,7 @@ open class Bootstrap(
      *  and the original estimated quantity.
      */
     fun biasCorrectionFactor(): Double {
-        return Companion.biasCorrectionFactor(bootstrapEstimates, originalDataEstimate)
+        return biasCorrectionFactor(bootstrapEstimates, originalDataEstimate)
     }
 
     /**
@@ -575,7 +575,7 @@ open class Bootstrap(
      *  and the original estimated quantity using jackknifing.
      */
     fun accelerationFactor(): Double {
-        return Companion.accelerationFactor(originalData, estimator)
+        return accelerationFactor(originalData, estimator)
     }
 
     /**

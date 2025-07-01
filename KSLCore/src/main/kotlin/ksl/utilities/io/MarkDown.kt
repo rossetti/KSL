@@ -28,8 +28,8 @@ import kotlin.collections.ArrayList
  * A class to facilitate construction of markdown elements
  */
 object MarkDown {
-    val D2FORMAT = DecimalFormat("0.##")
-    val D3FORMAT = DecimalFormat("0.###")
+    val D2FORMAT: DecimalFormat = DecimalFormat("0.##")
+    val D3FORMAT: DecimalFormat = DecimalFormat("0.###")
     fun header(header: String?, hLevel: Int): String {
         var level = hLevel
         if (level <= 0) {

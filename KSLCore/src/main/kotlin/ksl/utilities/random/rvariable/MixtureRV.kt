@@ -34,7 +34,7 @@ class MixtureRV @JvmOverloads constructor(
     name: String? = null
 ) : RVariable(streamNum, streamProvider, name) {
 
-    val cdf = cdf.copyOf()
+    val cdf: DoubleArray = cdf.copyOf()
         get() = field.copyOf()
 
     private val myRVList = list

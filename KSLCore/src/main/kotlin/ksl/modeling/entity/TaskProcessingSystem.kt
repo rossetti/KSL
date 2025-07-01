@@ -125,13 +125,13 @@ open class TaskProcessingSystem(
         discipline: Discipline = Discipline.FIFO
     ) : ModelElement(parent, name) {
 
-        protected val myProcessors = mutableListOf<TaskProcessorIfc>()
+        protected val myProcessors: MutableList<TaskProcessorIfc> = mutableListOf<TaskProcessorIfc>()
         val processors: List<TaskProcessorIfc>
             get() = myProcessors
         protected val myTaskQueue: Queue<Task> = Queue(this, name = "${this.name}:TaskQ", discipline)
         val queue: QueueCIfc<Task>
             get() = myTaskQueue
-        protected val myTransientPerformance = mutableMapOf<String, TaskProcessorPerformance>()
+        protected val myTransientPerformance: MutableMap<String, TaskProcessorPerformance> = mutableMapOf<String, TaskProcessorPerformance>()
 
         /**
          *  Receives tasks and attempts to dispatch them. Selects a processor
@@ -1044,7 +1044,7 @@ open class TaskProcessingSystem(
         /**
          *  Indicates if the processor is shutdown and will no longer process tasks.
          */
-        var shutdown = false
+        var shutdown : Boolean = false
             private set
 
         final override fun isShutDown(): Boolean {

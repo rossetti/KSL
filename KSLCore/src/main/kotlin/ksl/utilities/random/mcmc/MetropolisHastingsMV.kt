@@ -58,17 +58,17 @@ open class MetropolisHastingsMV(
 
     override val dimension: Int = initialX.size
 
-    var initialX = initialX.copyOf()
+    var initialX: DoubleArray = initialX.copyOf()
         //       get() = field.copyOf()
         set(value) {
             require(value.size == field.size) { "The supplied initial state array size must be = ${field.size}" }
             field = value.copyOf()
         }
 
-    var isInitialized = false
+    var isInitialized : Boolean = false
         protected set
 
-    var isWarmedUp = false
+    var isWarmedUp : Boolean = false
         protected set
 
     private val myAcceptanceStatistics = Statistic("Acceptance Statistics")
@@ -90,13 +90,13 @@ open class MetropolisHastingsMV(
 
     protected var previousX: DoubleArray = DoubleArray(initialX.size)
 
-    var lastAcceptanceProbability = Double.NaN
+    var lastAcceptanceProbability : Double = Double.NaN
         protected set
 
-    var targetFunctionAtProposedY = Double.NaN
+    var targetFunctionAtProposedY : Double = Double.NaN
         protected set
 
-    var targetFunctionAtCurrentX = Double.NaN
+    var targetFunctionAtCurrentX : Double = Double.NaN
         protected set
 
     fun currentX(): DoubleArray = currentX.copyOf()

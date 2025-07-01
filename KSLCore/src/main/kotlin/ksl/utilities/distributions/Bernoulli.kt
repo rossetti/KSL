@@ -45,7 +45,7 @@ class Bernoulli(successProb: Double= 0.5, name: String? = null) :
     constructor(params: DoubleArray, name: String?) : this(params[0], name)
 
     // private data members
-    var probOfSuccess = successProb
+    var probOfSuccess : Double = successProb
         set(prob) {
             require(!(prob <= 0.0 || prob >= 1.0)) { "Probability must be (0,1)" }
             field = prob

@@ -87,13 +87,13 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
     val closedIntRange: IntRange
         get() = lowerLimit.toInt().rangeTo(upperLimit.toInt())
 
-    val width
+    val width : Double
         get() = upperLimit - lowerLimit
 
-    val midPoint
+    val midPoint : Double
         get() = (upperLimit - lowerLimit)/2.0
 
-    var count = 0
+    var count : Int = 0
         private set
 
     /**

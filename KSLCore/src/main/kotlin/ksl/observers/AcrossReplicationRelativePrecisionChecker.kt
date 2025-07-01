@@ -40,7 +40,7 @@ class AcrossReplicationRelativePrecisionChecker(response: ResponseCIfc, desiredR
             field = value
         }
 
-    var desiredRelativePrecision = desiredRelativePrecision
+    var desiredRelativePrecision : Double = desiredRelativePrecision
         set(value) {
             require(value > 0.0) {"The desired half-width must be > 0"}
             field = value

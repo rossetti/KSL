@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.dbutil
 
+import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -109,7 +110,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * are defined within the schema.
      */
     fun tableNames(schemaName: String?): List<String> {
-        return Companion.tableNames(longLastingConnection, schemaName)
+        return tableNames(longLastingConnection, schemaName)
     }
 
     /**
@@ -124,7 +125,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * are defined within the schema.
      */
     fun viewNames(schemaName: String?): List<String> {
-        return Companion.viewNames(longLastingConnection, schemaName)
+        return viewNames(longLastingConnection, schemaName)
     }
 
     /**
@@ -167,7 +168,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the database contains a schema with the provided name
      */
     fun containsSchema(schemaName: String): Boolean {
-        return Companion.containsSchema(longLastingConnection, schemaName)
+        return containsSchema(longLastingConnection, schemaName)
     }
 
     /**
@@ -181,7 +182,7 @@ interface DatabaseIfc : DatabaseIOIfc {
         viewName: String,
         schemaName: String? = defaultSchemaName
     ): Boolean {
-        return Companion.containsView(longLastingConnection, viewName, schemaName)
+        return containsView(longLastingConnection, viewName, schemaName)
     }
 
     /**
@@ -206,7 +207,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if it exists
      */
     fun containsTable(tableName: String, schemaName: String? = defaultSchemaName): Boolean {
-        return Companion.containsTable(longLastingConnection, tableName, schemaName)
+        return containsTable(longLastingConnection, tableName, schemaName)
     }
 
     /**
@@ -749,7 +750,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if the command executed without an SQLException
      */
     fun executeCommand(command: String): Boolean {
-        return Companion.executeCommand(longLastingConnection, command)
+        return executeCommand(longLastingConnection, command)
     }
 
     /**
@@ -762,7 +763,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return true if all commands were executed
      */
     fun executeCommands(commands: List<String>): Boolean {
-        return Companion.executeCommands(longLastingConnection, commands)
+        return executeCommands(longLastingConnection, commands)
     }
 
     /**
@@ -790,7 +791,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the results of the query or null if there was a problem
      */
     fun fetchCachedRowSet(sql: String): CachedRowSet? {
-        return Companion.fetchCachedRowSet(longLastingConnection, sql)
+        return fetchCachedRowSet(longLastingConnection, sql)
     }
 
     /** A simple wrapper to ease the use of JDBC for novices. Returns the results of a query in the
@@ -805,7 +806,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the results of the query or null
      */
     fun fetchOpenResultSet(sql: String): ResultSet? {
-        return Companion.fetchOpenResultSet(longLastingConnection, sql)
+        return fetchOpenResultSet(longLastingConnection, sql)
     }
 
     /**
@@ -816,7 +817,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return the number of rows in the table
      */
     fun numRows(tableName: String, schemaName: String? = defaultSchemaName): Long {
-        return Companion.numRows(longLastingConnection, tableName, schemaName)
+        return numRows(longLastingConnection, tableName, schemaName)
     }
 
     /**
@@ -1242,9 +1243,9 @@ interface DatabaseIfc : DatabaseIOIfc {
 
     companion object {
 
-        val logger = KotlinLogging.logger {}
+        val logger: KLogger = KotlinLogging.logger {}
 
-        const val DEFAULT_DELIMITER = ";"
+        const val DEFAULT_DELIMITER : String = ";"
 
         val NEW_DELIMITER_PATTERN: Pattern = Pattern.compile("(?:--|\\/\\/|\\#)?!DELIMITER=(.+)")
 

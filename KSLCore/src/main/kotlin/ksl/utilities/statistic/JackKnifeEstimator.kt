@@ -43,7 +43,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
      *
      * @return the jackknife estimate of the standard error
      */
-    var jackKnifeEstimateOfSE = 0.0
+    var jackKnifeEstimateOfSE : Double = 0.0
         private set
 
     /**
