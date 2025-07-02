@@ -106,13 +106,14 @@ version = "R1.2.1"
 ## Release Notes
 Latest Release R1.2.1
 * Updated Kotlin complier to version 2.2.0
+  * This significantly improves compilation and build times.
 * Updated Java compatibility to version 21
 * Revised KSLCore build script to use gradle tool chain support and new publishing plugin for Maven
-* Updated dependencies to later versions
+* Updated build dependencies to later versions
 	* Removed dependency on guava
-	* Updated dependency on Kotlin Dataframe for 1.0.0-Beta2, which may cause breaking changes for clients that use the api
-	* Updated derby, Postgres, sqlite
-    * no dependency vulnerabilities are reported
+	* Updated dependency on Kotlin Dataframe for 1.0.0-Beta2, which may cause breaking changes for clients that use the api through the KSL.
+	* Updated derby, Postgres, sqlite to latest releases.
+    * No dependency vulnerabilities are reported.
 * Added interfaces to support Json string configuration of model elements
 * Revised random variable classes to require specification of the stream provider via StreamProviderIfc interface
 	* Users specify streams primarily via the stream number not a specific stream instance.  This permits models to not share stream providers, which is essential for simulation optimization.
@@ -137,7 +138,7 @@ Release R1.2.0
 
 Release R1.1.9
 - fixed entity size issue for conveyors
-- added ability to transfer from one conveyor to another
+- added the ability to transfer from one conveyor to another
 - refactored interfaces in station package
 - added additional constructors to DEmpirical and DEmpiricalRV
 - allow Signal to signal based on a predicate
@@ -209,7 +210,7 @@ Release: R1.1.0
 	- Improved defintion of metrics and support for database of results.
 	- New MODAAnalyzer class to analyze simulation output based on MODA principles.
 - Enhancements to MultipleComparisonAnalyzer
-	- Save analysis to database
+	- Save analysis to a database
 - Statistics
 	- Data classes for saving observations, statistics, histogram, frequencies to database
 	- Bug fix for Beta pdf calculation
@@ -222,12 +223,12 @@ Release: R1.0.9
 - Bug fixes and improvements in ksl.utilities.distributions.fitting package
   - fixed Weibull estimation edge cases
   - added additional output to html distribution fitting results
-- Added capability in ksl.controls.experiments package to run many scenarios and perform designed experiments
+- Added the capability in the ksl.controls.experiments package to run many scenarios and perform designed experiments
 - Improved support for data frame processing
 - Updates to documentation and examples to be consistent with textbook
 
 Release: R1.0.8
-- Addressed new issue with search interval for MLE computation of gamma shape parameter
+- Addressed new issue with the search interval for MLE computation of gamma shape parameter
 
 Release: R1.0.7
 - Fixed natural logarithm compute issue in Anderson-Darling test statistic
@@ -250,13 +251,13 @@ Release: R1.0.4
 - Added examples for bootstrapping, VRT, and MCMC
 - New classes for multi-variate copulas, minor revisions in mcmc package
 - New regression functionality
-- New case based bootstrap sampling functionality
+- New case-based bootstrap sampling functionality
 - Improved control variate implementation
 
 Release: R1.0.3
 
 - fixed issue with PMFModeler that caused bin probabilities to be incorrectly updated
-- added ability to save plots to PDFModeler
+- added the ability to save plots to PDFModeler
 
 Release: R1.0.2
 
