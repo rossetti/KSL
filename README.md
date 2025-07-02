@@ -8,7 +8,7 @@ The KSL has the following functionality:
 - Discrete and continuous random variate generation
   - Bernoulli, Beta, ChiSquared, Binomial, Constant, DUniform, Exponential, Gamma, GeneralizedBeta, Geometric, JohnsonB, Laplace, LogLogistic, Lognormal, NegativeBinomial, Normal, PearsonType5, PearsonType6, Poisson, ShiftedGeometric, Triangular, Uniform, Weibull, DEmpirical, Empirical, AR1Normal
 - Statistical summary collection including histograms and box plots
-- Probability distribution modeling
+- Automated probability distribution modeling
 - Monte Carlo simulation
 - Event view modeling
 - Process view modeling
@@ -17,6 +17,10 @@ The KSL has the following functionality:
   - resources, mobile resources
   - conveyors
 - Simulation data collection to Excel, CSV, databases, and data frames
+- Support for multiple comparison with the best
+- Framework for defining multiple objective decision analysis (MODA) based simulation analysis
+- Framework for performing simulation optimization
+- Framework for performing designed simulation experiments
 - Utility extensions for working with arrays and files
 
 ## Licensing
@@ -97,10 +101,34 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.0"
+version = "R1.2.1"
 
 ## Release Notes
-Latest Release R1.2.0
+Latest Release R1.2.1
+* Updated Kotlin complier to version 2.2.0
+* Updated Java compatibility to version 21
+* Revised KSLCore build script to use gradle tool chain support and new publishing plugin for Maven
+* Updated dependencies to later versions
+	* Removed dependency on guava
+	* Updated dependency on Kotlin Dataframe for 1.0.0-Beta2, which may cause breaking changes for clients that use the api
+	* Updated derby, Postgres, sqlite
+    * no dependency vulnerabilities are reported
+* Added interfaces to support Json string configuration of model elements
+* Revised random variable classes to require specification of the stream provider via StreamProviderIfc interface
+	* Users specify streams primarily via the stream number not a specific stream instance.  This permits models to not share stream providers, which is essential for simulation optimization.
+	* This may cause some code revisions that directly used or supplied the stream via RNStreamIfc
+	* Revised book and other examples to illustrate the new approach. See chapter 2 of the textbook.
+* Improved interfaces and implementation of non-homogeneous random variables and generators
+* Created the `ksl.simopt` package. This purpose of this package is to facilitate the modeling and usage of simulation optimization algorithms with KSL models. This is the first iteration of the package and the API may change.
+	* `cache` This package implements basic memory caches for holding simulation results to avoid the repeated execution of simulation models with the same configuration parameters. This avoids long-running execution.
+	* `evaluator` This package implements in general form the evaluation of simulation models based on requests from solvers which produce solutions
+	* `problem` This package facilitates the defining of simulation optimization problems that can be solved via solvers. 
+      - The general form of the optimization problem is a penalty-based constrained optimization problem. 
+      - Constraints can be linear, functional, and may include responses that are stochastic.
+      - The objective function is specified by a response from the model.
+	* `solvers` This package holds simulation optimization algorithms in the form of solvers. This facilitates the definition of search neighborhoods and stopping criteria.
+
+Release R1.2.0
 - Updated BlockingQueue to enhance notification of waiting senders and receivers
   - Allows new rules to be used for notification
   - Corrected call for filling AmountRequests
@@ -175,7 +203,7 @@ Release: R1.1.0
 - Enhancements to database utilities
 	- Support for DuckDb database
 	- Creation of simple databases based on data classes
-	- Improved creation of SQLite, Derby and DuckDb databases
+	- Improved creation of SQLite, Derby, and DuckDb databases
 	- Improved database connection usage
 - Enhancements to MODA (multi-objective decision analysis) package. 
 	- Improved defintion of metrics and support for database of results.
