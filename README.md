@@ -23,6 +23,14 @@ The KSL has the following functionality:
 - Framework for performing designed simulation experiments
 - Utility extensions for working with arrays and files
 
+## KSL Road Map
+Who knows what the future may bring! The KSL is a complex and extremely useful library for performing Monte Carlo and discrete event
+simulation experiments.  Here is some planned and potential future functionality.
+
+- Release 1.2.1 provides simulation optimization functionality. Future releases will extend this with additional solvers and the ability to execution models as a service. That is software as a service in the cloud.
+- A GUI-based simulation application framework is planned to enable the development of KSL based applications.
+- Preliminary work has been performed to add animation capabilities. This is still under active investigation.
+
 ## Licensing
 
 The KSL is licensed under the [GPL 3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
