@@ -4,7 +4,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.9.20"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
+    id("org.jetbrains.dokka") version "2.0.0"
 }
 
 group = "io.github.rossetti"
@@ -21,8 +23,6 @@ dependencies {
     // this permits changes to the KSLCore to be immediately reflected in KSLExtensions
     api(project(":KSLCore"))
     api(project(":KSLExamples"))
-//TODO uncomment when extensions are done
-//    implementation(project(":KSLExtensions"))
 
     implementation("org.junit.jupiter:junit-jupiter:5.9.0")
 
@@ -36,29 +36,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "17"
-}
-
 // this is supposed to exclude the logback.xml resource file from the generated jar
-// this is good because user can then provide their own logging specification
-// TODO need reference to why this is good
+// this is good because the user can then provide their own logging specification
 tasks.jar {
-//    manifest {
-//        attributes(
-//                "Implementation-Title" to project.name,
-//                "Implementation-Version" to project.version
-//        )
-//    }
     exclude("logback.xml")
 }
 
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "17"
-}
-
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "17"
+kotlin {
+    jvmToolchain(21)
 }

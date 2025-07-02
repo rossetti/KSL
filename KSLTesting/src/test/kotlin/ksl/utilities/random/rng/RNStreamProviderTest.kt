@@ -104,7 +104,8 @@ internal class RNStreamProviderTest {
         }
         s.appendLine("Notice that they are the same as the first 3.")
         s.appendLine("Get another random number stream")
-        val s2 = provider.nextRNStream()
+        //val s2 = provider.nextRNStream()
+        val s2 = provider.rnStream(3)
         s.appendLine("2nd stream")
         for (i in 1..3) {
             s.appendLine("u = " + s2.randU01())
@@ -286,7 +287,7 @@ internal class RNStreamProviderTest {
         println("Current state of f1")
         println(f1)
         println("Clone the stream")
-        val rngf2 = rngf1.instance("clone of rngf1") as RNStreamFactory.RNStream
+        val rngf2 = rngf1.crnInstance("clone of rngf1") as RNStreamFactory.RNStream
         println(rngf2)
         val s1 = rngf1.state()
         val s2 = rngf2.state()
