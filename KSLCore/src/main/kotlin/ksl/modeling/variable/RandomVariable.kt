@@ -169,6 +169,19 @@ class RandomVariable(
         }
 
     /**
+     * @param numInSum the number of values to sum. Must be 1 or more
+     * @return the sum of [numInSum] values of value()
+     */
+    fun sum(numInSum: Int) : Double {
+        require(numInSum >= 1) {"There must be 1 or more in the requested sum"}
+        var sum = 0.0
+        for (i in 1..numInSum) {
+            sum = sum + value
+        }
+        return sum
+    }
+
+    /**
      * before any replications make sure that the random source is using the initial random source
      */
     override fun beforeExperiment() {

@@ -52,8 +52,8 @@ interface RandomIfc : SampleIfc, GetValueIfc, RNStreamControlIfc, StreamNumberIf
     val streamProvider: RNStreamProviderIfc
 
     /**
-     * @param n the number of values to sum, must be 1 or more
-     * @return the sum of n values of getValue()
+     * @param numInSum the number of values to sum. Must be 1 or more
+     * @return the sum of [numInSum] values of value()
      */
     fun sum(numInSum: Int) : Double {
         require(numInSum >= 1) {"There must be 1 or more in the requested sum"}
