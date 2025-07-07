@@ -18,6 +18,7 @@
 package ksl.modeling.elements
 
 import ksl.utilities.GetValueIfc
+import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 
 interface EventGeneratorTimeBtwEventsIfc {
@@ -85,7 +86,7 @@ interface EventGeneratorTimeBtwEventsRVIfc {
  *
  * @author rossetti
  */
-interface EventGeneratorIfc {
+interface EventGeneratorIfc : IdentityIfc {
     /**
      * If the generator was not started upon initialization at the beginning of
      * a replication, then this method can be used to start the generator
