@@ -103,8 +103,8 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
      * @param map A map where keys are parameter names and values are arrays of type `DoubleArray`.
      *            Each array must satisfy specific size constraints depending on the parameter type:
      *            - For `doubleParameterNames` and `integerParameterNames`, the array size must be 1.
-     *            - For `doubleArrayParameterNames`, the array size must match the expected size of the parameter.
-     *            Values in the arrays are used to set or modify the respective parameters.
+     *            - For `doubleArrayParameterNames`, the array size may be different from the
+     *            original settings to allow the entire array to be changed, including its size.
      *            An exception is thrown if any size constraint is violated.
      */
     fun fillFromDoubleArrayMap(map: Map<String, DoubleArray>) {
@@ -120,9 +120,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
         }
         for (k in this.doubleArrayParameterNames) {
             val v = map[k] ?: continue
-      //      val arraySize = this.doubleArrayParameter(k).size
- //           require(v.size == arraySize) {"The size (${v.size}) of the double array ${k} in the supplied map does not match the size ($arraySize) of the parameter."}
-            changeDoubleArrayParameter(k, v)
+             changeDoubleArrayParameter(k, v)
         }
     }
 
@@ -345,7 +343,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * Changes the value associated with the parameterName to the supplied value.
+     * Changes the value associated with the parameterName with the supplied value.
      * The supplied array is copied.
      *
      * @param parameterName parameterName with which the double array is to be associated
