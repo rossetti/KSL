@@ -79,6 +79,10 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
         override val rvParameters: RVParameters
             get() = GeometricRVParameters()
     },
+    Hyper2Exponential(Hyper2ExponentialRV::class){
+        override val rvParameters: RVParameters
+            get() = Hyper2ExponentialRVParameters()
+    },
     JohnsonB(JohnsonBRV::class) {
         override val rvParameters: RVParameters
             get() = JohnsonBRVParameters()
@@ -176,6 +180,7 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
             DEmpiricalRV::class to DEmpirical,
             GeneralizedBetaRV::class to GeneralizedBeta,
             GeometricRV::class to Geometric,
+            Hyper2ExponentialRV::class to Hyper2Exponential,
             JohnsonBRV::class to JohnsonB,
             LaplaceRV::class to Laplace,
             LogisticRV::class to Logistic,

@@ -19,6 +19,9 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.parameters.ExponentialRVParameters
+import ksl.utilities.random.rvariable.parameters.Hyper2ExponentialRVParameters
+import ksl.utilities.random.rvariable.parameters.RVParameters
 
 /**
  * Two exponential random variables mixed to get a hyper-exponential. For higher
@@ -38,7 +41,7 @@ class Hyper2ExponentialRV @JvmOverloads constructor(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : RVariable(streamNum, streamProvider, name) {
+) : ParameterizedRV(streamNum, streamProvider, name) {
 
     init {
         require(!(mixingProb < 0.0 || mixingProb > 1.0)) { "Mixing Probability must be [0,1]" }
@@ -62,4 +65,13 @@ class Hyper2ExponentialRV @JvmOverloads constructor(
     override fun toString(): String {
         return "Hyper2ExponentialRV(mixingProb=$mixingProb, mean1=$mean1, mean2=$mean2)"
     }
+
+    override val parameters: RVParameters
+        get() {
+            val parameters: RVParameters = Hyper2ExponentialRVParameters()
+            parameters.changeDoubleParameter("mean1", mean1)
+            parameters.changeDoubleParameter("mean2", mean2)
+            parameters.changeDoubleParameter("mixingProb", mixingProb)
+            return parameters
+        }
 }
