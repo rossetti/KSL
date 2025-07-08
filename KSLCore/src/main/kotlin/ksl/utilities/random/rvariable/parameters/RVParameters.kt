@@ -18,11 +18,9 @@
 package ksl.utilities.random.rvariable.parameters
 
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 import kotlin.collections.set
 import kotlin.reflect.KClass
 
@@ -48,6 +46,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
         /**
          * @return the class associated with this type
          */
+        @Suppress("unused")
         fun asClass(): KClass<*> {
             return clazz
         }
@@ -238,7 +237,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * Checks if key is not defined as a parameter
+     * Checks if the key is not defined as a parameter
      *
      * @param key name of the parameter
      */
@@ -249,6 +248,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     /**
      * @return an unmodifiable Set view of the parameter names
      */
+    @Suppress("unused")
     val parameterNames: Set<String>
         get() = (dataTypes.keys)
 
@@ -258,6 +258,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
      * @param name the name of the parameter
      * @return the Class type of the parameter
      */
+    @Suppress("unused")
     fun parameterDataType(name: String): DataType? {
         return dataTypes[name]
     }
@@ -277,10 +278,10 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     /**
      * A convenience method to change the named parameter to the supplied value.
      * This will work with either double or integer parameters.
-     * Integer parameters are coerced to the rounded up value of the supplied double,
+     * Integer parameters are coerced to the rounded-up value of the supplied double,
      * provided that the integer can hold the supplied value.  If the named
      * parameter is not associated with the parameters, then no change occurs.
-     * In other words, the action fails, silently by returning false.
+     * In other words, the action fails silently by returning false.
      *
      * @param parameterName the name of the parameter to change
      * @param value the value to change to
@@ -290,7 +291,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
         if (!containsParameter(parameterName)) {
             return false
         }
-        // either double, integer or double array
+        // either double, integer or a double array
         // try double first, then integer
         if (doubleParameters.containsKey(parameterName)) {
             changeDoubleParameter(parameterName, value)
@@ -300,7 +301,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
             changeIntegerParameter(parameterName, iValue)
             return true
         }
-        // must be double[] array, cannot do the setting, just return false
+        // must be double[] array, cannot do the setting, return false
         return false
     }
 
@@ -337,6 +338,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
      * @param parameterName the name of the parameter
      * @return the size of the array
      */
+    @Suppress("unused")
     fun doubleArrayParameterSize(parameterName: String): Int {
         checkKey(parameterName)
         return doubleArrayParameters[parameterName]!!.size
@@ -484,16 +486,17 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * Copies from the supplied parameters into this parameters
+     * Copies from the supplied parameters into the parameters
      *
      * @param rvParameters the parameters to copy from
      */
+    @Suppress("unused")
     fun copyFrom(rvParameters: RVParameters) {
         require(!(rvType !== rvParameters.rvType)) { "Cannot copy into with different parameter types" }
         if (this == rvParameters) {
             return
         }
-        // not equal copy over, will have same keys
+        // not equal copy over will have the same keys
         doubleParameters.putAll(rvParameters.doubleParameters)
         integerParameters.putAll(rvParameters.integerParameters)
         for ((key, value) in rvParameters.doubleArrayParameters) {
