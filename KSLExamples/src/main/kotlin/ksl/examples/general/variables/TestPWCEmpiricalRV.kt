@@ -56,4 +56,22 @@ fun testPWCEmpiricalCDF() {
 
     println()
     println(pwc)
+    println()
+    println("Make a RV")
+    val rv = pwc.randomVariable()
+    println(rv)
+    println()
+    println("Sample")
+    for (i in 1..5) {
+        println(rv.value)
+    }
+    println()
+    println("RVData")
+    val rvData = rv.toRVData()
+    println(rvData)
+    println()
+    println("JSON")
+    val js = rvData.toJson()
+    println(js)
+    println()
 }

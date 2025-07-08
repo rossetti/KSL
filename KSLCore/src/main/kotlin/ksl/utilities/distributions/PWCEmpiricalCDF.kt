@@ -1,6 +1,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.copyWithout
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -60,7 +61,7 @@ class PWCEmpiricalCDF(
     }
 
     override fun instance(): PWCEmpiricalCDF {
-        return PWCEmpiricalCDF(myBreakPoints, myProportions, name)
+        return PWCEmpiricalCDF(myBreakPoints, myProportions.copyWithout(0), name)
     }
 
     override fun cdf(x: Double): Double {
@@ -172,7 +173,7 @@ class PWCEmpiricalCDF(
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): PWCEmpiricalRV {
-        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNumber, streamProvider)
+        return PWCEmpiricalRV(myBreakPoints, myProportions.copyWithout(0), streamNumber, streamProvider)
     }
 
     override fun toString(): String {
