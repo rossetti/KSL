@@ -35,7 +35,11 @@ interface RVParametersTypeIfc {
 }
 
 /**
- * The set of pre-defined types of random variables
+ * Represents the different types of random variables (RVs) available in the simulation framework.
+ *
+ * Each enum constant corresponds to a specific random variable type and provides an implementation
+ * of its parameters via the `rvParameters` property. This enum is used to map random variable classes
+ * to their respective types and facilitate their usage in modeling and simulation processes.
  */
 enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
 
@@ -127,6 +131,11 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
         override val rvParameters: RVParameters
             get() = PoissonRVParameters()
     },
+    PWCEmpirical(PWCEmpiricalRV::class){
+        override val rvParameters: RVParameters
+            get() = PWCEmpiricalRVParameters()
+
+    },
     ShiftedGeometric(ShiftedGeometricRV::class) {
         override val rvParameters: RVParameters
             get() = ShiftedGeometricRVParameters()
@@ -191,6 +200,9 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
             PearsonType5RV::class to PearsonType5,
             PearsonType6RV::class to PearsonType6,
             PoissonRV::class to Poisson,
+            PWCEmpiricalRV::class to PWCEmpirical,
+            ShiftedGeometricRV::class to ShiftedGeometric,
+            TruncatedNormalRV::class to TruncatedNormal,
             TriangularRV::class to Triangular,
             UniformRV::class to Uniform,
             WeibullRV::class to Weibull,

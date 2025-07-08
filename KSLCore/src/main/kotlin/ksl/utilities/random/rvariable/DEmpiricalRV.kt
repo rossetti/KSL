@@ -50,6 +50,27 @@ class DEmpiricalRV @JvmOverloads constructor(
         require(KSLRandom.isValidCDF(cdf)) { "The supplied cdf was not valid." }
     }
 
+    /**
+     * Represents a list of `ProbPoint` objects that encapsulates the value,
+     * probability, and cumulative probability information for a discrete
+     * empirical random variable.
+     *
+     * This property computes the list based on the set of values
+     * for the random variable and the corresponding cumulative
+     * distribution function values. Each `ProbPoint` contains:
+     * - `value`: A particular value of the random variable.
+     * - `prob`: The probability of the value occurring within the range defined
+     *           by the cumulative distribution function.
+     * - `cumProb`: The cumulative probability up to and including the value.
+     *
+     * The property is read-only and is computed dynamically upon access.
+     *
+     * The probabilities and cumulative probabilities are validated to ensure
+     * they fall within the range [0, 1].
+     *
+     * @return A list of `ProbPoint` objects that define the probability
+     *         distribution for the random variable.
+     */
     val probabilityPoints: List<ProbPoint>
         get() {
             val list = mutableListOf<ProbPoint>()
@@ -64,14 +85,41 @@ class DEmpiricalRV @JvmOverloads constructor(
 
     private val myValues: DoubleArray = values.copyOf()
 
+    /**
+     * Retrieves a copy of the internal array of values associated with the empirical random variable.
+     *
+     * This property provides access to the underlying array of values in a safe manner, ensuring that
+     * modifications to the returned array do not affect the internal state of the class. Each call
+     * returns a new copy of the array containing the values.
+     *
+     * @return A copy of the array holding the empirical random variable's values.
+     */
     val values: DoubleArray
         get() = myValues.copyOf()
 
     private val myCDF: DoubleArray = cdf.copyOf()
 
+    /**
+     * Provides a copy of the cumulative distribution function (CDF) array associated with the discrete empirical
+     * random variable. The CDF represents the cumulative probabilities corresponding to the defined probability points
+     * and values of the random variable.
+     */
     val cdf: DoubleArray
         get() = myCDF.copyOf()
 
+    /**
+     * Secondary constructor for the DEmpiricalRV class. This constructor initializes the
+     * object using a list of `ProbPoint` instances, representing the possible values and
+     * their associated probabilities, as well as their cumulative probabilities.
+     *
+     * @param probData A list of `ProbPoint` objects that encapsulate the possible values,
+     * their probabilities, and cumulative probabilities.
+     * @param streamNumber The number identifying the random number stream to be used. Defaults to 0.
+     * @param streamProvider A provider interface for random number streams, defaults to
+     * `KSLRandom.DefaultRNStreamProvider`.
+     * @param name Optional name for the instance, providing a descriptive identifier.
+     */
+    @JvmOverloads
     constructor(
         probData: List<ProbPoint>,
         streamNumber: Int = 0,
@@ -79,11 +127,16 @@ class DEmpiricalRV @JvmOverloads constructor(
         name: String? = null
     ) : this(probData.values(), probData.cdf(), streamNumber, streamProvider, name)
 
+
     /**
+     * Secondary constructor for the DEmpiricalRV class, allowing initialization using a histogram and optional parameters.
      *
-     * @param histogram a histogram specifying the midpoints and bin fractions
-     * @param streamNum the stream number
+     * @param histogram An instance of HistogramIfc providing midpoints and bin fractions for initialization.
+     * @param streamNumber An optional stream number used for identifying the random number stream, defaulting to 0.
+     * @param streamProvider A random number stream provider of type RNStreamProviderIfc, with a default value of KSLRandom.DefaultRNStreamProvider.
+     * @param name An optional name for this random variable instance, defaulting to null.
      */
+    @JvmOverloads
     constructor(
         histogram: HistogramIfc,
         streamNumber: Int = 0,
