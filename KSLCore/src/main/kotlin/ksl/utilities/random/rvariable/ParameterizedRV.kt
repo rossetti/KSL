@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.parameters.RVData
 import ksl.utilities.random.rvariable.parameters.RVParametersIfc
 
 /**
@@ -30,4 +31,12 @@ abstract class ParameterizedRV (
     streamNum: Int,
     streamProvider: RNStreamProviderIfc,
     name: String? = null
-) : RVariable(streamNum, streamProvider, name), RVParametersIfc
+) : RVariable(streamNum, streamProvider, name), RVParametersIfc {
+
+    val rvType: RVType = RVType.classToTypeMap[this::class]!!
+
+    @Suppress("unused")
+    fun toRVData(): RVData {
+        return RVData(rvType, parameters.asDoubleArrayMap())
+    }
+}
