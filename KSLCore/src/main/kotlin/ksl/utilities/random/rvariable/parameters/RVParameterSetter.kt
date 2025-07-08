@@ -46,7 +46,7 @@ data class RVParameterData(
 /**
  *  The purpose of this class is to work with a model instance to
  *  facilitate the changes of parameters associated with random variables.
- *  The parameters of random variables can be changes and then applied
+ *  The parameters of random variables can be changed and then applied
  *  to the model. A change in the underlying data is not applied to the
  *  associated model until explicitly applied to the model.
  *
@@ -59,7 +59,7 @@ class RVParameterSetter(private val model: Model) {
      *  RVParameters, which can be used to get the associated parameters
      *  and to change the parameter values.
      *  The map cannot be modified, but the values can be retrieved and changed
-     *  as needed. Changing the values havs no effect within the model until they are applied.
+     *  as needed. Changing the values has no effect within the model until they are applied.
      *
      * @return parameters for every parameterized random variable within the model
     */
@@ -105,7 +105,7 @@ class RVParameterSetter(private val model: Model) {
      *   by the model element name that contains the random variables.  The inner map
      *   holds the pairs (random variable name, RVParameters). That is, the inner map
      *   is keyed by the name of the random variable, with the associated datum as
-     *   an instance of RVParameters.  From the RVParameters instance clients can inspect and set
+     *   an instance of RVParameters.  From the RVParameters instance, clients can inspect and set
      *   the parameters of the random variable. The inner map will hold only those
      *   random variables that are parameterized, i.e., ParameterizedRV descended.
      */

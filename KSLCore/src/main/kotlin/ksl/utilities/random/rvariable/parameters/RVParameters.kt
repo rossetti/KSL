@@ -23,6 +23,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+import kotlin.collections.set
 import kotlin.reflect.KClass
 
 /**
@@ -54,9 +55,9 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
 
     /**
      *  Returns a map containing the double and integer valued
-     *  parameters. The key to the map is the name of the parameter
+     *  parameters. The key to the map is the name of the parameter,
      *  and the value is the current value of the parameter. If the
-     *  parameter is integer value, it is converted to a double value.
+     *  parameter is integer valued, it is converted to a double value.
      */
     fun asDoubleMap(): Map<String, Double> {
         val map = mutableMapOf<String, Double>()
@@ -70,11 +71,67 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
+     * Creates a map where the keys are parameter names and the values are the corresponding parameter
+     * values as a DoubleArray.
+     *
+     * Double parameters are included as a single-element DoubleArray.
+     * Integer parameters are converted to double and included as a single-element DoubleArray.
+     * DoubleArray parameters are included directly.
+     *
+     * @return a map of parameter names associated with their associated DoubleArray values
+     */
+    fun asDoubleArrayMap(): Map<String, DoubleArray> {
+        val map = mutableMapOf<String, DoubleArray>()
+        for (k in this.doubleParameterNames) {
+            map[k] = doubleArrayOf(this.doubleParameter(k))
+        }
+        for (k in this.integerParameterNames) {
+            map[k] = doubleArrayOf(this.integerParameter(k).toDouble())
+        }
+        for (k in this.doubleArrayParameterNames) {
+            map[k] = this.doubleArrayParameter(k)
+        }
+        return map
+    }
+
+    /**
+     * Populates the parameters of the current object using values from the supplied map.
+     * The map associates parameter names with `DoubleArray` values.  If the parameter name
+     * in the map is not associated with a name of the random variable's parameters, then
+     * no change occurs.
+     *
+     * @param map A map where keys are parameter names and values are arrays of type `DoubleArray`.
+     *            Each array must satisfy specific size constraints depending on the parameter type:
+     *            - For `doubleParameterNames` and `integerParameterNames`, the array size must be 1.
+     *            - For `doubleArrayParameterNames`, the array size must match the expected size of the parameter.
+     *            Values in the arrays are used to set or modify the respective parameters.
+     *            An exception is thrown if any size constraint is violated.
+     */
+    fun fillFromDoubleArrayMap(map: Map<String, DoubleArray>) {
+        for (k in this.doubleParameterNames) {
+            val v = map[k] ?: continue
+            require(v.size == 1) {"The size of the double array must be 1 for the double parameter $k."}
+            changeDoubleParameter(k, v[0])
+        }
+        for (k in this.integerParameterNames) {
+            val v = map[k] ?: continue
+            require(v.size == 1) {"The size of the double array must be 1 for the integer parameter $k."}
+            changeIntegerParameter(k, KSLMath.toIntValue(v[0]))
+        }
+        for (k in this.doubleArrayParameterNames) {
+            val v = map[k] ?: continue
+            val arraySize = this.doubleArrayParameter(k).size
+            require(v.size == arraySize) {"The size of the double array ${k} in the supplied map does not match the size of the parameter."}
+            changeDoubleArrayParameter(k, v)
+        }
+    }
+
+    /**
      *  Returns an array containing the double and integer valued
      *  parameters. The elements of the array are the parameter values
      *  based on the order of their names in doubleParameterNames
      *  and integerParameterNames. If the
-     *  parameter is integer value, it is converted to a double value.
+     *  parameter is integer valued, it is converted to a double value.
      */
     fun asDoubleArray(): DoubleArray {
         val list = mutableListOf<Double>()
@@ -146,7 +203,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * @param parameterName the name of the parameter, must not be null, must not already have been added
+     * @param parameterName the name of the parameter. Must not be null and must not yet have been added
      * @param value         the value of the parameter
      */
     protected fun addDoubleParameter(parameterName: String, value: Double) {
@@ -155,7 +212,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * @param parameterName the name of the parameter, must not be null, must not already have been added
+     * @param parameterName the name of the parameter. Must not be null and must not yet have been added
      * @param value         the value of the parameter
      */
     protected fun addIntegerParameter(parameterName: String, value: Int) {
@@ -164,7 +221,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
     }
 
     /**
-     * @param parameterName the name of the parameter, must not be null, must not already have been added
+     * @param parameterName the name of the parameter. Must not be null and must not yet have been added
      * @param value         the value of the parameter
      */
     protected fun addDoubleArrayParameter(parameterName: String, value: DoubleArray) {
