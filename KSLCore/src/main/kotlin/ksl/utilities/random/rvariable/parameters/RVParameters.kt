@@ -120,8 +120,8 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
         }
         for (k in this.doubleArrayParameterNames) {
             val v = map[k] ?: continue
-            val arraySize = this.doubleArrayParameter(k).size
-            require(v.size == arraySize) {"The size of the double array ${k} in the supplied map does not match the size of the parameter."}
+      //      val arraySize = this.doubleArrayParameter(k).size
+ //           require(v.size == arraySize) {"The size (${v.size}) of the double array ${k} in the supplied map does not match the size ($arraySize) of the parameter."}
             changeDoubleArrayParameter(k, v)
         }
     }
@@ -349,8 +349,7 @@ abstract class RVParameters(val rvClassName: String, val rvType: RVParametersTyp
      * The supplied array is copied.
      *
      * @param parameterName parameterName with which the double array is to be associated
-     * @param value         the double array to be associated with parameterName, cannot be null,
-     * must be same size as the original double array
+     * @param value         the double array to be associated with parameterName
      * @return the previous double array that was associated with the parameterName
      */
     fun changeDoubleArrayParameter(parameterName: String, value: DoubleArray): DoubleArray? {

@@ -134,7 +134,6 @@ enum class RVType(rvClass: KClass<out ParameterizedRV>) : RVParametersTypeIfc {
     PWCEmpirical(PWCEmpiricalRV::class){
         override val rvParameters: RVParameters
             get() = PWCEmpiricalRVParameters()
-
     },
     ShiftedGeometric(ShiftedGeometricRV::class) {
         override val rvParameters: RVParameters

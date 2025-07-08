@@ -44,6 +44,15 @@ data class RVData(
         return format.encodeToString(this)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder("Random Variable Type: $rvType\n")
+        for ((key, array) in parameters) {
+            sb.append("Parameter: $key = ${array.contentToString()}\n")
+        }
+        return sb.toString()
+    }
+
+
     companion object {
 
         /**
