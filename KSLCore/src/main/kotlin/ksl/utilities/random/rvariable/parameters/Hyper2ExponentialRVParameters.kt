@@ -6,8 +6,8 @@ import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
 class Hyper2ExponentialRVParameters : RVParameters (
-    rvClassName = RVType.Laplace.parametrizedRVClass.simpleName!!,
-    rvType = (RVType.Laplace)
+    rvClassName = RVType.Hyper2Exponential.parametrizedRVClass.simpleName!!,
+    rvType = (RVType.Hyper2Exponential)
 ){
     override fun fillParameters() {
         addDoubleParameter("mixingProb", 0.5)

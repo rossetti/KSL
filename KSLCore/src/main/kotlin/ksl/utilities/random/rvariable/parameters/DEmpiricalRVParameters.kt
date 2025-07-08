@@ -7,6 +7,14 @@ import ksl.utilities.random.rvariable.DEmpiricalRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.RVariableIfc
 
+/**
+ * Represents the parameters required for creating a discrete empirical random variable (DEmpiricalRV).
+ *
+ * This class provides mechanisms to define and manage the parameter values for
+ * the DEmpiricalRV type, such as an array of values and their corresponding cumulative
+ * distribution function (CDF). It also supports creating the random variable instance
+ * or its associated empirical distribution based on the defined parameters.
+ */
 class DEmpiricalRVParameters : RVParameters(
     rvClassName = RVType.DEmpirical.parametrizedRVClass.simpleName!!,
     rvType = (RVType.DEmpirical)
