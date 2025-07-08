@@ -21,7 +21,7 @@ import ksl.utilities.statistic.HistogramIfc
  *  @param proportions A double array holding the proportion associated with the intervals defined
  *  by the breakpoints. All proportions must be strictly greater than 0 and strictly
  *  less than 1. If not supplied, the default is intervals with equal probability. That is,
- *  with proportion equal to 1.0/(n - 1).
+ *  with a proportion equal to (1.0/(n - 1.0)).
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
