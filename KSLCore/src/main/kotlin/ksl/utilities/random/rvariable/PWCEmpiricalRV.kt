@@ -1,5 +1,6 @@
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.copyWithout
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
@@ -102,19 +103,25 @@ class PWCEmpiricalRV @JvmOverloads constructor(
         return i
     }
 
+    val proportions: DoubleArray
+        get() = myProportions.copyWithout(0)
+
+    val breakPoints: DoubleArray
+        get() = myBreakPoints.copyOf()
+
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): PWCEmpiricalRV {
-        return PWCEmpiricalRV(myProportions, myBreakPoints, streamNum, rnStreamProvider, name)
+        return PWCEmpiricalRV(myBreakPoints, proportions, streamNum, rnStreamProvider, name)
     }
 
     override fun toString(): String {
-        return "PWCEmpiricalRV(proportions=${myProportions.contentToString()}, breakPoints=${myBreakPoints.contentToString()})"
+        return "PWCEmpiricalRV(proportions=${proportions.contentToString()}, breakPoints=${myBreakPoints.contentToString()})"
     }
 
     override val parameters: RVParameters
         get() {
             val parameters: RVParameters = PWCEmpiricalRVParameters()
             parameters.changeDoubleArrayParameter("breakPoints", myBreakPoints)
-            parameters.changeDoubleArrayParameter("proportions", myProportions)
+            parameters.changeDoubleArrayParameter("proportions", proportions)
             return parameters
         }
 }

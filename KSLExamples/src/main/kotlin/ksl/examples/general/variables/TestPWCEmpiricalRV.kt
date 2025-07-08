@@ -2,6 +2,7 @@ package ksl.examples.general.variables
 
 import ksl.utilities.distributions.PWCEmpiricalCDF
 import ksl.utilities.random.rvariable.PWCEmpiricalRV
+import ksl.utilities.random.rvariable.parameters.RVData
 
 fun main() {
     testPWCEmpiricalRV()
@@ -11,8 +12,28 @@ fun main() {
 fun testPWCEmpiricalRV() {
     val b = doubleArrayOf(0.0, 0.8, 1.24, 1.45, 1.83, 2.76)
     val rv = PWCEmpiricalRV(b)
-    for (i in 1..20) {
+    println("RV")
+    println(rv)
+    println()
+    println("Sample")
+    for (i in 1..5) {
         println(rv.value)
+    }
+    println()
+    println("RVData")
+    val rvData = rv.toRVData()
+    println(rvData)
+    println()
+    println("JSON")
+    val js = rvData.toJson()
+    println(js)
+    println()
+    println("Make a rv from json")
+    val r2 = RVData.fromJsonToRVariable(js)
+    println(r2)
+    println("Sample")
+    for (i in 1..5) {
+        println(r2.value)
     }
 }
 

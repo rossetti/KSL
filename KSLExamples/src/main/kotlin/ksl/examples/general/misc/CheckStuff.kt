@@ -50,6 +50,8 @@ fun testRV(){
     for (i in 1..5){
         println("ad = ${ad.value}    ad2 = ${ad2.value}")
     }
+
+
 }
 
 fun testMRound(){
