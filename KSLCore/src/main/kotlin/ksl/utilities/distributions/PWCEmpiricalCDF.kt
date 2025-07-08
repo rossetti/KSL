@@ -11,6 +11,27 @@ import ksl.utilities.random.rvariable.PWCEmpiricalRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.toCSVString
 
+/**
+ * Represents a piecewise constant empirical cumulative distribution function (CDF).
+ *
+ * This class defines a distribution based on breakpoints and proportions,
+ * where the breakpoints represent partitioned intervals of the distribution
+ * and the proportions define the probability mass assigned to each corresponding interval.
+ *
+ * @constructor Creates an instance of `PWCEmpiricalCDF`.
+ *
+ * @param breakPoints Array of doubles representing the breakpoints. The array must be sorted and values must be finite.
+ *                    There must be at least two breakpoints, and the values must strictly increase.
+ *                    These define the boundaries of the distribution's intervals.
+ * @param proportions Optional array of proportions corresponding to each interval between breakpoints.
+ *                    The array size should be one less than the size of the breakPoints array.
+ *                    By default, all intervals are assigned equal portions of probability.
+ *                    The proportions must form a valid probability distribution and be in the range (0,1).
+ * @param name Optional name for the distribution, defaulting to `null` if not provided.
+ *
+ * @throws IllegalArgumentException If the input parameters do not adhere to the necessary constraints
+ *                                  (e.g., invalid proportions, breakpoints not sorted, etc.).
+ */
 class PWCEmpiricalCDF(
     breakPoints: DoubleArray,
     proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
