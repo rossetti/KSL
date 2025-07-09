@@ -5,7 +5,6 @@ import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.MapModelProvider
-import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 
 /**
@@ -174,7 +173,7 @@ class Evaluator(
             }
         }
         // package the solutions up for each request in the order that was requested
-        // handle duplicate input requests by grabbing from the solution map based on the input of the request
+        // handle the duplicate input requests by grabbing from the solution map based on the input of the request
         val solutions = mutableListOf<Solution>()
         for(request in rawRequests){
             solutions.add(solutionMap[request]!!)
@@ -314,7 +313,7 @@ class Evaluator(
         /**
          *  The list of requests may come from different solvers. The requests may have the
          *  same design point (inputs). If so, we need to remove any requests for
-         *  the same inputs, and keep the duplicate that has the maximum number of replications.
+         *  the same inputs and keep the duplicate that has the maximum number of replications.
          *  This ensures that the evaluation covers any request with fewer replications and
          *  does not repeat expensive simulation evaluations on the same input values.
          *
@@ -345,17 +344,19 @@ class Evaluator(
          *                          constraints, and other domain-specific configurations required for evaluation.
          * @param modelBuilder a builder instance responsible for constructing the simulation model
          *                     used during problem evaluation.
+         * @param jsonModelConfiguration an optional JSON string that can be used during the model building process
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
-         * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible
+         * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible,
          * use ProblemDefinition.validateProblemDefinition to check.
          */
         @Suppress("unused")
         fun createProblemEvaluator(
             problemDefinition: ProblemDefinition,
-            modelBuilder: ModelBuilderIfc
+            modelBuilder: ModelBuilderIfc,
+            jsonModelConfiguration: String? = null
         ): Evaluator {
-            val model = modelBuilder.build()
+            val model = modelBuilder.build(jsonModelConfiguration)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model)
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
@@ -371,6 +372,7 @@ class Evaluator(
          * @param modelIdentifier an identifier used to distinguish between different simulation models.
          * @param modelBuilder a builder instance responsible for constructing the simulation model
          *                     used during problem evaluation.
+         * @param jsonModelConfiguration an optional JSON string that can be used during the model building process
          * @return an `Evaluator` instance configured with the given problem definition and simulation environment.
          * @throws IllegalArgumentException if the problem definition and model are not input/response compatible.
          */
@@ -378,9 +380,10 @@ class Evaluator(
         fun createSimulationServiceProblemEvaluator(
             problemDefinition: ProblemDefinition,
             modelIdentifier: String,
-            modelBuilder: ModelBuilderIfc
+            modelBuilder: ModelBuilderIfc,
+            jsonModelConfiguration: String? = null
         ): Evaluator {
-            val model = modelBuilder.build()
+            val model = modelBuilder.build(jsonModelConfiguration)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val mapModelProvider = MapModelProvider(modelIdentifier, modelBuilder)
             val simulator = SimulationService(mapModelProvider)

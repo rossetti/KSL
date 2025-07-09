@@ -44,7 +44,7 @@ import kotlin.time.Duration
 
 private var simCounter: Int = 0
 
-class Model(
+class Model @JvmOverloads constructor(
     val simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     var autoCSVReports: Boolean = false,
@@ -79,6 +79,12 @@ class Model(
      */
     val out: LogPrintWriter
         get() = outputDirectory.out
+
+    /**
+     * Java-friendly getter for the out property
+     * @return the pre-defined default text output file for the simulation
+     */
+    fun out(): LogPrintWriter = out
 
     /**
      *  Controls the execution of events
@@ -125,11 +131,23 @@ class Model(
         get() = myResponses
 
     /**
+     * Java-friendly getter for the responses property
+     * @return a list of all the Responses within the model
+     */
+    fun getResponses(): List<ResponseCIfc> = responses
+
+    /**
      * A list of all the Counters within the model
      */
     private var myCounters: MutableList<Counter> = ArrayList()
     val counters: List<CounterCIfc>
         get() = myCounters
+
+    /**
+     * Java-friendly getter for the counters property
+     * @return a list of all the Counters within the model
+     */
+    fun getCounters(): List<CounterCIfc> = counters
 
     /**
      * A list of all the HistogramResponses within the model
@@ -139,11 +157,23 @@ class Model(
         get() = myHistograms
 
     /**
+     * Java-friendly getter for the histograms property
+     * @return a list of all the HistogramResponses within the model
+     */
+    fun getHistograms(): List<HistogramResponseCIfc> = histograms
+
+    /**
      * A list of all the IntegerFrequencyResponses within the model
      */
     private var myFrequencies: MutableList<IntegerFrequencyResponse> = ArrayList()
     val frequencies: List<FrequencyResponseCIfc>
         get() = myFrequencies
+
+    /**
+     * Java-friendly getter for the frequencies property
+     * @return a list of all the IntegerFrequencyResponses within the model
+     */
+    fun getFrequencies(): List<FrequencyResponseCIfc> = frequencies
 
     /**
      *  A list of the TimeSeriesResponse model elements in the model
@@ -160,6 +190,12 @@ class Model(
         }
 
     /**
+     * Java-friendly getter for the timeSeriesResponses property
+     * @return a list of all the TimeSeriesResponse model elements in the model
+     */
+    fun getTimeSeriesResponses(): List<TimeSeriesResponseCIfc> = timeSeriesResponses
+
+    /**
      *  The names of all the response variables and counters in the model
      */
     val responseNames: List<String>
@@ -173,11 +209,23 @@ class Model(
         }
 
     /**
+     * Java-friendly getter for the responseNames property
+     * @return the names of all the response variables and counters in the model
+     */
+    fun getResponseNames(): List<String> = responseNames
+
+    /**
      * A list of all the Variables within the model
      */
     private var myVariables: MutableList<Variable> = ArrayList()
     val variables: List<VariableIfc>
         get() = myVariables
+
+    /**
+     * Java-friendly getter for the variables property
+     * @return a list of all the Variables within the model
+     */
+    fun getVariables(): List<VariableIfc> = variables
 
     /**
      * A list of all random elements within the model
@@ -207,6 +255,7 @@ class Model(
      * @return the StatisticalBatchingElement
      */
     @Suppress("unused")
+    @JvmOverloads
     fun statisticalBatching(batchingInterval: Double = 0.0, name: String? = null): StatisticalBatchingElement {
         if (batchingElement == null) {
             batchingElement = StatisticalBatchingElement(this, batchingInterval, name)
@@ -1269,6 +1318,7 @@ class Model(
      * @param warmUp the length of the warmup period
      */
     @Suppress("unused")
+    @JvmOverloads
     fun simulate(numReps: Int = 1, runLength: Double, warmUp: Double = 0.0, expName: String? = null) {
         if (expName != null) {
             experimentName = expName
@@ -1299,6 +1349,7 @@ class Model(
      *  @param histAndFreq If true, any histogram and integer frequency results are also printed.
      *  The default is true.
      */
+    @JvmOverloads
     fun print(histAndFreq: Boolean = true) {
         println()
         println(this)
@@ -1316,6 +1367,7 @@ class Model(
      *
      * @param msg A message to indicate why the simulation was stopped
      */
+    @JvmOverloads
     fun endSimulation(msg: String? = null) {
         myReplicationProcess.end(msg)
     }
@@ -1415,6 +1467,7 @@ class Model(
      *  By default, this is "."
      *  @return true if all provided input keys are valid
      */
+    @JvmOverloads
     fun validateInputKeys(inputKeys: Set<String>, conCatString: Char = rvParamConCatChar): Boolean {
         val rvs = RVParameterSetter(this)
         val controls = Controls(this)
@@ -1446,6 +1499,7 @@ class Model(
      * @return A list of strings representing combined input keys from controls and parameter keys.
      */
     @Suppress("unused")
+    @JvmOverloads
     fun inputKeys(conCatString: Char = rvParamConCatChar) : List<String> {
         val rvs = RVParameterSetter(this)
         val controls = Controls(this)
@@ -1489,6 +1543,7 @@ class Model(
      *  in the model's output database directory.
      */
     @Suppress("unused")
+    @JvmOverloads
     fun createDefaultDatabaseObserver(clearDataBeforeExperimentOption: Boolean = false) : KSLDatabaseObserver {
         return KSLDatabaseObserver(model, createDefaultDatabase(), clearDataBeforeExperimentOption)
     }
@@ -1501,6 +1556,7 @@ class Model(
         private var myEnumCounter_ = 0
 
         @Suppress("unused")
+        @JvmStatic
         val nextEnumConstant: Int
             get() = ++myEnumCounter_
 
@@ -1509,13 +1565,14 @@ class Model(
          * @return a comparator that compares based on getId()
          */
         @Suppress("unused")
+        @JvmStatic
         val modelElementComparator: Comparator<ModelElement>
             get() = ModelElementComparator()
 
         /**
          * A global logger for logging
          */
+        @JvmStatic
         val logger: KLogger = KotlinLogging.logger {}
     }
 }
-
