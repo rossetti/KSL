@@ -214,6 +214,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the 2nd statistical central moment
      */
+    @Suppress("unused")
     val centralMoment2 = myMoments[2]
 
     /**
@@ -236,6 +237,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return an array holding the central moments, 0, 1, 2, 3, 4
      */
+    @Suppress("unused")
     val centralMoments: DoubleArray
         get() = myMoments.copyOf()
 
@@ -264,6 +266,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the 4th statistical raw moment (about zero)
      */
+    @Suppress("unused")
     val rawMoment4: Double
         get() {
             val m4 = centralMoment4
@@ -291,6 +294,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
     /**
      * @return the p-value associated with the current Von Neumann Lag 1 Test Statistic, or Double.NaN
      */
+    @Suppress("unused")
     fun vonNeumannLag1TestStatisticPValue(): Double {
         if (vonNeumannLag1TestStatistic.isNaN()) {
             return Double.NaN
@@ -304,6 +308,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the observation weighted sum of the data
      */
+    @Suppress("unused")
     val obsWeightedSum: Double = myJsum
 
     override var value: Double
@@ -469,6 +474,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the string of summary statistics
      */
+    @Suppress("unused")
     val summaryStatistics: String
         get() {
             val format = "%-50s \t %12d \t %12f \t %12f"
@@ -485,6 +491,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the header
      */
+    @Suppress("unused")
     val summaryStatisticsHeader: String
         get() = String.format("%-50s \t %12s \t %12s \t %12s", "Name", "Count", "Average", "Std. Dev.")
 
@@ -504,6 +511,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param p the percentile, must be within (0, 1)
          * @return the quantile
          */
+        @JvmStatic
         fun quantile(unsortedData: DoubleArray, p: Double): Double {
             require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
             val n = unsortedData.size
@@ -522,6 +530,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @return the quantiles associated with each value of [p]. The default values for p
          * are 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95
          */
+        @JvmStatic
+        @JvmOverloads
         fun quantiles(
             unsortedData: DoubleArray,
             p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
@@ -540,6 +550,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @return the quantiles associated with each value of [p]. The default values for p
          * are 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95
          */
+        @JvmStatic
+        @JvmOverloads
         fun quantilesFromSortedData(
             sortedData: DoubleArray,
             p: DoubleArray = doubleArrayOf(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
@@ -556,6 +568,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param p the percentile, must be within (0, 1)
          * @return the quantile associated with the value of [p]
          */
+        @JvmStatic
         fun quantileFromSortedData(sortedData: DoubleArray, p: Double): Double {
             require(sortedData.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
             val n = sortedData.size
@@ -585,6 +598,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param p the percentile, must be within (0, 1)
          * @return the percentile
          */
+        @JvmStatic
         fun percentile(data: DoubleArray, p: Double): Double {
             require(data.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
             require((p <= 0.0) || (p < 1.0)) { "Percentile value must be (0,1)" }
@@ -613,6 +627,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param data the array of data
          * @return the median of the data
          */
+        @JvmStatic
         fun median(data: DoubleArray): Double {
             require(data.isNotEmpty()) { "There were no observations in the provided data. The array was empty" }
             if (data.size == 1) {
@@ -641,6 +656,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param level     the confidence level (must be between 0 and 1)
          * @return the estimated sample size
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun estimateProportionSampleSize(desiredHW: Double, pEst: Double = 0.5, level: Double = 0.95): Long {
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(!(pEst <= 0.0 || pEst >= 1.0)) { "Estimated proportion must be (0,1)" }
@@ -660,6 +678,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param level     the confidence level (must be between 0 and 1)
          * @return the estimated sample size
          */
+        @JvmStatic
         fun estimateSampleSize(desiredHW: Double, stdDev: Double, level: Double = 0.95): Long {
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(stdDev >= 0.0) { "The desired std. dev. must be >= 0" }
@@ -680,6 +699,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param level     the confidence level (must be between 0 and 1)
          * @return the estimated sample size
          */
+        @JvmStatic
         fun estimateSampleSizeViaStudentT(desiredHW: Double, initStdDevEst: Double, level: Double = 0.95): Long {
             require(desiredHW > 0.0) { "The desired half-width must be > 0" }
             require(initStdDevEst >= 0.0) { "The desired std. dev. must be >= 0" }
@@ -704,6 +724,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  The default [type] is Continuity1.
          *  @return the empirical probabilities
          */
+        @JvmStatic
+        @JvmOverloads
         fun empiricalProbabilities(n: Int, type: EmpDistType = EmpDistType.Continuity1): DoubleArray {
             require(n >= 1) { "The number of observations must be >=1" }
             return when (type) {
@@ -719,6 +741,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  CDF. The [type] represents the continuity type as per the empiricalProbabilities()
          *  function.
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun empiricalQuantiles(
             n: Int,
             quantileFunction: InverseCDFIfc,
@@ -733,6 +758,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  or equal to the supplied value of x. If the array is empty,
          *  then 0.0 is returned.
          */
+        @JvmStatic
         fun empiricalCDF(data: DoubleArray, x: Double): Double {
             if (data.isEmpty())
                 return 0.0
@@ -743,6 +769,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         /**
          *  Computes the box plot summaries for the data within the map
          */
+        @JvmStatic
         fun boxPlotSummaries(dataMap: Map<String, DoubleArray>): Map<String, BoxPlotSummary> {
             val m = mutableMapOf<String, BoxPlotSummary>()
             for ((name, data) in dataMap) {
@@ -754,6 +781,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         /**
          *  Computes the statistical summaries for the data within the map
          */
+        @JvmStatic
         fun statisticalSummaries(dataMap: Map<String, DoubleArray>): Map<String, StatisticIfc> {
             val m = mutableMapOf<String, StatisticIfc>()
             for ((name, data) in dataMap) {
@@ -765,6 +793,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
         /**
          *  Computes the confidence intervals for the data in the map
          */
+        @JvmStatic
+        @JvmOverloads
         fun confidenceIntervals(dataMap: Map<String, DoubleArray>, level: Double = 0.95): Map<String, Interval> {
             val m = mutableMapOf<String, Interval>()
             val s = statisticalSummaries(dataMap)
@@ -783,6 +813,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param bm The BatchStatistic
          * @return n array of the partial sums
          */
+        @JvmStatic
         fun partialSums(bm: BatchStatistic): DoubleArray {
             val avg: Double = bm.average
             val data: DoubleArray = bm.batchMeans
@@ -798,6 +829,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param data the data
          * @return the array of partial sums
          */
+        @JvmStatic
         fun partialSums(avg: Double, data: DoubleArray): DoubleArray {
             val n = data.size
             val s = DoubleArray(n + 1)
@@ -825,6 +857,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param bm the BatchStatistic
          * @return the positive bias test statistic
          */
+        @JvmStatic
+        @Suppress("unused")
         fun positiveBiasTestStatistic(bm: BatchStatistic): Double {
             val data: DoubleArray = bm.batchMeans
             return positiveBiasTestStatistic(data)
@@ -838,6 +872,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param data the data
          * @return test statistic to be compared with F distribution
          */
+        @JvmStatic
         fun positiveBiasTestStatistic(data: DoubleArray): Double {
             //find min and max of partial sum series!
             val n = data.size / 2
@@ -872,6 +907,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param bm the BatchStatistic
          * @return the computed test statistic
          */
+        @JvmStatic
+        @Suppress("unused")
         fun negativeBiasTestStatistic(bm: BatchStatistic): Double {
             val data: DoubleArray = bm.batchMeans
             return negativeBiasTestStatistic(data)
@@ -885,6 +922,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param data the data to test
          * @return test statistic to be compared with F distribution
          */
+        @JvmStatic
         fun negativeBiasTestStatistic(data: DoubleArray): Double {
             //find min and max of partial sum series!
             val n = data.size / 2
@@ -935,6 +973,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  based on n = min(x.size, y.size) elements.  There must be at
          *  least two elements in each array.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun pearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
             val n = min(x.size, y.size)
             require(n > 2) { "There must be at least two elements in each array" }
@@ -949,6 +989,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  Computes the covariance between the two arrays based on n = min(x.size, y.size) elements.
          *  There must be at least two elements in each array.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun covariance(x: DoubleArray, y: DoubleArray): Double {
             val n = min(x.size, y.size)
             require(n > 2) { "There must be at least two elements in each array" }
@@ -964,6 +1006,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  that each row has the same number of elements. That is,
          *  the matrix must be rectangular.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun covariances(matrix: Array<DoubleArray>): Array<DoubleArray> {
             require(matrix.isRectangular()) { "The supplied matrix was not rectangular" }
             require(matrix.size > 1) { "The number of rows must be > 1" }
@@ -1000,6 +1044,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  If you need multiple values for different lags, then using
          *  autoCorrelations() is more efficient.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun autoCorrelation(x: DoubleArray, lag: Int): Double {
             require(x.size >= 2) { " There must be 2 or more elements in the array" }
             require(lag >= 0) { "The lag must be >= 0" }
@@ -1022,6 +1068,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  The returned array is zero based indexed such that, ac[0] is the lag-1
          *  lag-0 is not returned because it is always 1.0
          */
+        @JvmStatic
         fun autoCorrelations(x: DoubleArray, maxLag: Int): DoubleArray {
             require(x.size >= 2) { " There must be 2 or more elements in the array" }
             require(maxLag >= 1) { "The number of lags requested must be >= 1" }
@@ -1053,6 +1100,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  and the [expected] counts. The [expected] counts must not contain a zero
          *  value.  The size of the arrays must match.
          */
+        @JvmStatic
         fun chiSqTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
             require(counts.size == expected.size) { "The size of the counts and expected value array must match." }
             require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
@@ -1068,6 +1116,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *   and hypothesized distribution function, [fn].  The break points [breakPoints]
          *   are used to define the binning and tabulation of the counts for the data.
          */
+        @JvmStatic
         fun chiSqTestStatistic(
             data: DoubleArray,
             breakPoints: DoubleArray,
@@ -1084,6 +1133,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  and the [expected] counts. The [expected] counts must not contain a zero
          *  value.  The size of the arrays must match.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun gTestStatistic(counts: DoubleArray, expected: DoubleArray): Double {
             require(counts.size == expected.size) { "The size of the counts and expected value array must match." }
             require(!expected.hasZero()) { "The expected array contains a 0.0 value" }
@@ -1099,6 +1150,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  test statistic.  No adjustments for parameter estimation are performed.
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun andersonDarlingTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
             val orderStats = data.orderStatistics()
@@ -1136,6 +1189,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  test statistic
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun cramerVonMisesTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
             val orderStats = data.orderStatistics()
@@ -1155,6 +1210,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  test statistic
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun watsonTestStatistic(data: DoubleArray, fn: CDFIfc): Double {
             require(data.isNotEmpty()) { "The data array must have at least one observation" }
             val orderStats = data.orderStatistics()
@@ -1177,6 +1234,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  estimated for the model [numParameters], and the maximized value [lnMax] of the log-likelihood
          *  function of the model.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun bayesianInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
@@ -1192,6 +1251,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  function of the model.
          *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
          */
+        @JvmStatic
+        @Suppress("unused")
         fun akaikeInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
@@ -1212,6 +1273,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  function of the model.
          *  Implementation based on [Vose](https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=19631811c7fd08cac567a4ee886acae6d82e8f3f)
          */
+        @JvmStatic
+        @Suppress("unused")
         fun hannanQuinnInfoCriterion(sampleSize: Int, numParameters: Int, lnMax: Double): Double {
             require(sampleSize > 0) { "The size of the sample must be > 0" }
             require(numParameters >= 0) { "The number of parameters estimated must be >= 0" }
@@ -1234,6 +1297,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  @return the ranks returned in an array, where element k of the array holds the rank
          *  of element k in the [data] array
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun ranks(
             data: DoubleArray,
             method: Ranking = Ranking.Ordinal,
@@ -1257,6 +1323,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *   @param largestToSmallest if true the rankings are largest to smallest. The default
          *   is false (smallest to largest).
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun fractionalRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
@@ -1302,6 +1371,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *   @param largestToSmallest if true the rankings are largest to smallest. The default
          *   is false (smallest to largest).
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun ordinalRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
@@ -1330,6 +1402,9 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *   @param largestToSmallest if true the rankings are largest to smallest. The default
          *   is false (smallest to largest).
          */
+        @JvmStatic
+        @Suppress("unused")
+        @JvmOverloads
         fun denseRanks(data: DoubleArray, largestToSmallest: Boolean = false): DoubleArray {
             // create the ranks array
             val ranks = DoubleArray(data.size) { 0.0 }
@@ -1360,6 +1435,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun estimateStdDevFromRange(range: Double, n: Double): Double {
             require(n >= 2) { "There must be at least two observations" }
             val z = 2.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
@@ -1373,6 +1450,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun estimateStdDevFromRangeAndIQR(range: Double, iqr: Double, n: Double): Double {
             require(n >= 2) { "There must be at least two observations" }
             val z1 = 4.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
@@ -1387,6 +1466,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
          *
          */
+        @JvmStatic
+        @Suppress("unused")
         fun estimateStdDevFromIQR(iqr: Double, n: Double): Double {
             require(n >= 2) { "There must be at least two observations" }
             val z2 = 2.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))

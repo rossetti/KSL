@@ -60,10 +60,10 @@ import kotlin.math.pow
  * do not include missing, underflow, and overflow observations. Statistics are only computed
  * on those observations that were placed (counted) within some bin.
  *
- * @param breakPoints the break points for the histogram, must be strictly increasing
+ * @param breakPoints the break points for the histogram and must be strictly increasing
  * @param name an optional name for the histogram
  */
-class Histogram(
+class Histogram @JvmOverloads constructor(
     breakPoints: DoubleArray,
     name: String? = null
 ) : AbstractStatistic(name), HistogramIfc {
@@ -337,12 +337,13 @@ class Histogram(
 
     companion object {
         /**
-         * Create a histogram with lower limit set to zero
+         * Create a histogram with the lower limit set to zero
          *
          * @param upperLimit the upper limit of the last bin cannot be positive infinity
          * @param numBins    the number of bins to create must be greater than 0
          * @return the histogram
          */
+        @JvmStatic
         fun create(upperLimit: Double, numBins: Int): HistogramIfc {
             return create(0.0, upperLimit, numBins, null)
         }
@@ -355,6 +356,7 @@ class Histogram(
          * @param numBins    the number of bins to create must be greater than 0
          * @return the histogram
          */
+        @JvmStatic
         fun create(lowerLimit: Double, upperLimit: Double, numBins: Int): HistogramIfc {
             return create(lowerLimit, upperLimit, numBins, null)
         }
@@ -368,6 +370,7 @@ class Histogram(
          * @param name       the name of the histogram
          * @return the histogram
          */
+        @JvmStatic
         fun create(lowerLimit: Double, upperLimit: Double, numBins: Int, name: String?): HistogramIfc {
             return Histogram(createBreakPoints(lowerLimit, upperLimit, numBins), name)
         }
@@ -378,6 +381,7 @@ class Histogram(
          * @param width      the width of each bin must be greater than zero
          * @return the created histogram
          */
+        @JvmStatic
         fun create(lowerLimit: Double, numBins: Int, width: Double): HistogramIfc {
             return Histogram(createBreakPoints(lowerLimit, numBins, width))
         }
@@ -390,6 +394,7 @@ class Histogram(
          * @param numBins    the number of bins to create must be greater than zero
          * @return the break points
          */
+        @JvmStatic
         fun createBreakPoints(lowerLimit: Double, upperLimit: Double, numBins: Int): DoubleArray {
             require(!lowerLimit.isInfinite()) { "The lower limit of the range cannot be infinite." }
             require(!upperLimit.isInfinite()) { "The upper limit of the range cannot be infinite." }
@@ -412,6 +417,7 @@ class Histogram(
          * @param width      the width of each bin must be greater than 0
          * @return the constructed break points
          */
+        @JvmStatic
         fun createBreakPoints(lowerLimit: Double, numBins: Int, width: Double): DoubleArray {
             require(!lowerLimit.isInfinite()) { "The lower limit of the range cannot be infinite." }
             require(numBins > 0) { "The number of bins must be > 0" }
@@ -432,6 +438,8 @@ class Histogram(
          * @param breakPoints the break points w/o negative infinity
          * @return the break points with Double.NEGATIVE_INFINITY as the first break point
          */
+        @JvmStatic
+        @Suppress("unused")
         fun addNegativeInfinity(breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             val b = DoubleArray(breakPoints.size + 1)
@@ -443,8 +451,9 @@ class Histogram(
         /**
          * @param lowerLimit the lower limit to add to the break points
          * @param breakPoints the break points w/o a lower limit
-         * @return the break points with lower limit as the first break point
+         * @return the break points with the lower limit as the first break point
          */
+        @JvmStatic
         fun addLowerLimit(lowerLimit: Double, breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             if (lowerLimit >= breakPoints[0]) {
@@ -459,6 +468,7 @@ class Histogram(
          * @param breakPoints the current break points
          * @return the break points with [upperLimit] as the last break point
          */
+        @JvmStatic
         fun addUpperLimit(upperLimit: Double, breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             if (upperLimit <= breakPoints.last()) {
@@ -472,6 +482,7 @@ class Histogram(
          * @param breakPoints the break points w/o positive infinity
          * @return the break points with Double.POSITIVE_INFINITY as the last break point
          */
+        @JvmStatic
         fun addPositiveInfinity(breakPoints: DoubleArray): DoubleArray {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             val b = breakPoints.copyOf(breakPoints.size + 1)
@@ -485,6 +496,7 @@ class Histogram(
          * @param observations observations for a histogram
          * @return a set of break points based on some theory
          */
+        @JvmStatic
         fun recommendBreakPoints(observations: DoubleArray): DoubleArray {
             require(observations.isNotEmpty()) { "The supplied observations array was empty" }
             if (observations.size == 1) {
@@ -503,6 +515,7 @@ class Histogram(
          * @param statistic the statistics associated with the data are used to form the breakpoints
          * @return the set of break points
          */
+        @JvmStatic
         fun recommendBreakPoints(statistic: StatisticIfc): DoubleArray {
             if (statistic.count == 1.0) {
                 val b = DoubleArray(1)
@@ -530,6 +543,12 @@ class Histogram(
             return createBreakPoints(floor(LL), numBins, binWidth)
         }
 
+        /**
+         *  Recommends a histogram bin width based on this [paper](http://www.fmrib.ox.ac.uk/analysis/techrep/tr00mj2/tr00mj2/node24.html)
+         *  @param numObs the number of observations
+         *  @param stdDev the standard deviation of the observations
+         */
+        @JvmStatic
         fun recommendBinWidth(numObs: Double, stdDev: Double): Double {
             require(numObs > 1.0) { "The number of observations must be > 1" }
             require(stdDev > 0.0) { "The standard deviation must be > 0.0" }
@@ -549,6 +568,8 @@ class Histogram(
          *  @param range the estimated range of the data, range = min - max. Must be
          *  greater than 0.0.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun approximateStdDev(numObs: Double, range: Double) : Double {
             require(numObs > 1.0) { "The number of observations must be > 1" }
             require(range > 0.0) { "The range must be > 0.0" }
@@ -564,6 +585,8 @@ class Histogram(
          *  @param max the maximum of the data's observations
          *  @param stdDev an estimate of the standard deviation of the observations
          */
+        @JvmStatic
+        @Suppress("unused")
         fun recommendNumBins(numObs: Double, min: Double, max: Double, stdDev: Double): Int {
             require(min.isFinite()) { "The minimum must be finite" }
             require(max.isFinite()) { "The maximum must be finite" }
@@ -581,6 +604,7 @@ class Histogram(
          * @param breakPoints the break points
          * @return the list of histogram bins
          */
+        @JvmStatic
         fun makeBins(breakPoints: DoubleArray): List<HistogramBin> {
             require(breakPoints.isNotEmpty()) { "The break points array was empty" }
             val binList: MutableList<HistogramBin> = ArrayList()
@@ -611,6 +635,8 @@ class Histogram(
         /**
          *  Creates a default histogram based on default break points for the supplied data
          */
+        @JvmStatic
+        @JvmOverloads
         fun create(
             array: DoubleArray,
             breakPoints: DoubleArray = recommendBreakPoints(array),
