@@ -1088,6 +1088,7 @@ abstract class ModelElement internal constructor(
          * @param name a name to associate with the event for the action
          * @return the scheduled event
          */
+        @JvmOverloads
         fun schedule(
             timeToEvent: Double,
             message: T? = null,
@@ -1097,6 +1098,7 @@ abstract class ModelElement internal constructor(
             return schedule(this, timeToEvent, message, priority, name)
         }
 
+        @JvmOverloads
         fun schedule(
             timeToEvent: GetValueIfc,
             message: T? = null,
@@ -1116,6 +1118,7 @@ abstract class ModelElement internal constructor(
     protected abstract inner class TimedEventAction<T>(theTimeBtwEvents: GetValueIfc) : EventAction<T>() {
         protected var timeBetweenEvents: GetValueIfc = theTimeBtwEvents
 
+        @JvmOverloads
         fun schedule(
             message: T? = null,
             priority: Int = KSLEvent.DEFAULT_PRIORITY,
@@ -1134,6 +1137,7 @@ abstract class ModelElement internal constructor(
      * @param name a name to associate with the event for the action
      * @return the scheduled event
      */
+    @JvmOverloads
     protected fun <T> schedule(
         eventAction: EventActionIfc<T>,
         timeToEvent: GetValueIfc,
@@ -1153,6 +1157,7 @@ abstract class ModelElement internal constructor(
      * @param name a name to associate with the event for the action
      * @return the scheduled event
      */
+    @JvmOverloads
     protected fun <T> schedule(
         eventAction: EventActionIfc<T>,
         timeToEvent: Double,
@@ -1908,6 +1913,7 @@ abstract class ModelElement internal constructor(
         private var qObjCounter: Long = 0
 
         @Suppress("unused")
+        @JvmStatic
         fun nextEnumConstant() : Int {
             return ++enumCounter
         }
@@ -1915,6 +1921,7 @@ abstract class ModelElement internal constructor(
         /**
          * A global logger for logging of model elements
          */
+        @JvmStatic
         val logger: KLogger = KotlinLogging.logger {}
     }
 
@@ -2050,7 +2057,7 @@ abstract class ModelElement internal constructor(
      *
      * @param aName The name of the QObject
      */
-    open inner class QObject(aName: String? = null) : Comparable<QObject>, QObjectIfc {
+    open inner class QObject @JvmOverloads constructor(aName: String? = null) : Comparable<QObject>, QObjectIfc {
         init {
             qObjCounter++
         }
@@ -2292,131 +2299,157 @@ abstract class ModelElement internal constructor(
     // defines functions for creating random variables that use the model's stream provider
 
     @Suppress("unused")
+    @JvmOverloads
     fun BernoulliRV(probOfSuccess: Double, streamNum : Int = 0, name: String? = null) : BernoulliRV {
         return BernoulliRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun BetaRV(alpha1: Double, alpha2: Double, streamNum: Int = 0, name: String? = null) : BetaRV {
         return BetaRV(alpha1, alpha2, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun BinomialRV(pSuccess: Double, numTrials: Int, streamNum: Int = 0, name: String? = null) : BinomialRV {
         return BinomialRV(pSuccess, numTrials, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun ConstantRV(value: Double, name: String? = null): ConstantRV {
         return ksl.utilities.random.rvariable.ConstantRV(value, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun DEmpiricalRV(values: DoubleArray, cdf: DoubleArray, streamNum: Int = 0, name: String? = null) : DEmpiricalRV {
         return DEmpiricalRV(values, cdf, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun DUniformRV(min: Int, max: Int, streamNum: Int = 0, name: String? = null) : DUniformRV {
         return DUniformRV(min, max, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun DUniformRV(range: IntRange, streamNum: Int = 0, name: String? = null) : DUniformRV {
         return DUniformRV(range, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun EmpiricalRV(data: DoubleArray, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(data, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun EmpiricalRV(lowerLimit: Double, numPoints: Int, width: Double, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(lowerLimit, numPoints, width, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun EmpiricalRV(interval: Interval, numPoints: Int, streamNum: Int = 0, name: String? = null) : EmpiricalRV {
         return EmpiricalRV(interval, numPoints, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun ExponentialRV(mean: Double, streamNum : Int = 0, name: String? = null) : ExponentialRV {
         return ExponentialRV(mean, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun GammaRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : GammaRV {
         return GammaRV(shape, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun GeneralizedBetaRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : GeneralizedBetaRV {
         return GeneralizedBetaRV(alpha, beta, min, max, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun GeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : GeometricRV {
         return GeometricRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun Hyper2ExponentialRV(mixingProb: Double, mean1: Double, mean2: Double, streamNum: Int = 0, name: String? = null): Hyper2ExponentialRV{
         return Hyper2ExponentialRV(mixingProb, mean1, mean2, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun JohnsonBRV(alpha: Double, beta: Double, min: Double, max: Double, streamNum: Int = 0, name: String? = null) : JohnsonBRV {
         return JohnsonBRV(alpha, beta, min, max, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun LaplaceRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LaplaceRV {
         return LaplaceRV(location, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun LogisticRV(location: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogisticRV {
         return LogisticRV(location, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun LogLogisticRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : LogLogisticRV {
         return LogLogisticRV(shape, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun LognormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): LognormalRV {
         return LognormalRV(mean, variance, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun MixtureRV(list: List<RVariableIfc>, cdf: DoubleArray, streamNum: Int = 0, name: String? = null): MixtureRV {
         return MixtureRV(list, cdf, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun NormalRV(mean: Double, variance: Double, streamNum: Int = 0, name: String? = null): NormalRV {
         return NormalRV(mean, variance, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun PearsonType5RV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : PearsonType5RV {
         return PearsonType5RV(shape, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun PearsonType6RV(alpha1: Double, alpha2: Double, beta: Double, streamNum: Int = 0, name: String? = null) : PearsonType6RV {
         return PearsonType6RV(alpha1, alpha2, beta, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun PoissonRV(mean: Double, streamNum : Int = 0, name: String? = null) : PoissonRV {
         return PoissonRV(mean, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun PWCEmpiricalRV(
         breakPoints: DoubleArray,
         proportions: DoubleArray = DoubleArray(breakPoints.size - 1) { 1.0 / (breakPoints.size - 1) },
@@ -2427,6 +2460,7 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun PWCEmpiricalRV(
         histogram: HistogramIfc,
         streamNum: Int = 0,
@@ -2436,21 +2470,25 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun ShiftedGeometricRV(probOfSuccess: Double, streamNum: Int = 0, name: String? = null) : ShiftedGeometricRV {
         return ShiftedGeometricRV(probOfSuccess, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun ShiftedRV(shift: Double, rv: RVariableIfc, streamNum: Int = 0, name: String? = null) : ShiftedRV {
         return ShiftedRV(shift, rv, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun TriangularRV(min: Double, mode: Double, max: Double, streamNum: Int = 0, name: String? = null) : TriangularRV {
         return TriangularRV(min, mode, max, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun TruncatedNormalRV(
         mean: Double,
         variance: Double,
@@ -2462,6 +2500,7 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun TruncatedRV(
         distribution: InvertibleCDFIfc,
         cdfLL: Double,
@@ -2475,21 +2514,25 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun UniformRV(min: Double, max: Double, streamNum: Int = 0, name: String? = null) : UniformRV {
         return UniformRV(min, max, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun UniformRV(interval: Interval, streamNum: Int = 0, name: String? = null) : UniformRV {
         return UniformRV(interval, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun WeibullRV(shape: Double, scale: Double, streamNum: Int = 0, name: String? = null) : WeibullRV {
         return WeibullRV(shape, scale, streamNum, streamProvider, name)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun <T> DUniformList(
         elements: MutableList<T> = mutableListOf(),
         streamNum: Int = 0
@@ -2498,6 +2541,7 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun <T> DEmpiricalList(
         elements: List<T>,
         theCDF: DoubleArray,
@@ -2507,11 +2551,13 @@ abstract class ModelElement internal constructor(
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun DPopulation(elements: DoubleArray, streamNum: Int = 0) : DPopulation {
         return DPopulation(elements, streamNum, streamProvider)
     }
 
     @Suppress("unused")
+    @JvmOverloads
     fun <T> BernoulliPicker(
         successProbability: Double,
         successOption: T,
