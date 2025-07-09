@@ -20,10 +20,10 @@ import ksl.simulation.ModelProviderIfc
  * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
-open class SimulationService(
+open class SimulationService @JvmOverloads constructor(
     val modelProvider: ModelProviderIfc,
     val simulationRunCache: SimulationRunCacheIfc? = null,
-    var useCachedSimulationRuns: Boolean = false,
+    var useCachedSimulationRuns: Boolean = false
 ) : SimulationServiceIfc {
 
     /**
@@ -157,6 +157,7 @@ open class SimulationService(
          * @param modelBuilder the builder responsible for constructing the model associated with the given identifier
          * @return a new instance of [SimulationService] configured with the specified model provider and cache settings
          */
+        @JvmStatic
         fun createCachedSimulationServiceForModel(modelIdentifier: String, modelBuilder: ModelBuilderIfc) : SimulationService {
             return createCachedSimulationService(MapModelProvider(modelIdentifier, modelBuilder))
         }
@@ -168,6 +169,7 @@ open class SimulationService(
          * @param modelProvider an instance of `ModelProviderIfc` responsible for providing models for simulation
          * @return an instance of [SimulationService] configured with a memory-based simulation run cache and caching enabled
          */
+        @JvmStatic
         fun createCachedSimulationService(modelProvider: ModelProviderIfc) : SimulationService {
             return SimulationService(
                 modelProvider = modelProvider,

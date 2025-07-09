@@ -18,7 +18,7 @@ import ksl.simulation.ModelBuilderIfc
  *  The default is Int.MAX_VALUE. This can be used to control the total number of replications executed
  *  by the simulation oracle.
  */
-class Evaluator(
+class Evaluator @JvmOverloads constructor(
     override val problemDefinition: ProblemDefinition,
     private val simulator: RunSimulationsForResponseMapsIfc,
     override val cache: SolutionCacheIfc? = null,
@@ -320,6 +320,7 @@ class Evaluator(
          * @param requests a list of evaluation requests
          * @return a list of evaluation requests that are unique
          */
+        @JvmStatic
         fun filterToUniqueRequests(requests: List<RequestData>): List<RequestData> {
             val uniqueRequests = mutableSetOf<RequestData>()
             // Since requests are the same based on the values of their input maps,
@@ -351,6 +352,8 @@ class Evaluator(
          * use ProblemDefinition.validateProblemDefinition to check.
          */
         @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
         fun createProblemEvaluator(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
@@ -377,6 +380,8 @@ class Evaluator(
          * @throws IllegalArgumentException if the problem definition and model are not input/response compatible.
          */
         @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
         fun createSimulationServiceProblemEvaluator(
             problemDefinition: ProblemDefinition,
             modelIdentifier: String,
