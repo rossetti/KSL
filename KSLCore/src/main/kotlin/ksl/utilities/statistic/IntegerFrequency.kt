@@ -349,6 +349,7 @@ class IntegerFrequency(
 
     companion object {
 
+        @JvmStatic
         fun create(
             data: Array<Int>? = null,
             name: String? = null,
@@ -358,6 +359,7 @@ class IntegerFrequency(
             return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
         }
 
+        @JvmStatic
         fun create(
             data: Array<Int>? = null,
             name: String? = null,
@@ -366,6 +368,7 @@ class IntegerFrequency(
             return IntegerFrequency(data?.toIntArray(), name, intRange)
         }
 
+        @JvmStatic
         fun create(
             data: Collection<Int>? = null,
             name: String? = null,
@@ -375,6 +378,7 @@ class IntegerFrequency(
             return IntegerFrequency(data?.toIntArray(), name, lowerLimit, upperLimit)
         }
 
+        @JvmStatic
         fun create(
             data: Collection<Int>? = null,
             name: String? = null,
