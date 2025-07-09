@@ -74,6 +74,15 @@ class Model @JvmOverloads constructor(
     var configuration: Map<String, String>? = null
 
     /**
+     *  Indicates if a configuration has been applied. If you supply a configuration
+     *  and a model configuration manager, then during the execution of the setUpExperiment() function,
+     *  the model will be configured and this property will then report true.
+     *  No future configurations will be applied while this property is set to true. If you want
+     *  future experiments to apply a configuration, then this property should be set to false.
+     */
+    var isConfigured: Boolean = false
+
+    /**
      *
      * @return the pre-defined default text output file for the simulation
      */
@@ -1055,7 +1064,15 @@ class Model @JvmOverloads constructor(
             resetStartStream()
         }
 
-        configuration?.let { modelConfigurationManager?.configure(this, it) }
+        if (!isConfigured && (configuration != null)) {
+            configuration?.let {
+                modelConfigurationManager?.configure(this, it)
+                if (modelConfigurationManager != null){
+                    logger.info { "Model $name has been configured." }
+                    isConfigured = true
+                }
+            }
+        }
 
         beforeExperimentActions()
     }
