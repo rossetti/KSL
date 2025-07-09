@@ -80,6 +80,7 @@ abstract class ModelElement internal constructor(
     override val id: Int = elementCounter
 
     final override val name: String = makeName(name)
+
     private fun makeName(str: String?): String {
         return if (str == null) {
             // no name is being passed, construct a default name
@@ -188,7 +189,7 @@ abstract class ModelElement internal constructor(
     var warmUpOption : Boolean = true
 
     /**
-     * Specifies whether this model element participates in time update
+     * Specifies whether this model element participates in the time update
      * event specified by its parent
      */
     var timedUpdateOption : Boolean = true
@@ -299,7 +300,7 @@ abstract class ModelElement internal constructor(
      * This is based on the assumption that a zero-length warm-up implies that
      * the model element's parent warm-up event will take care of the warm-up
      * action. If this is not the case, then setting the warmUpOption to false after
-     * setting the length of the warm-up to 0.0, will cause the model element to
+     * setting the length of the warm-up to 0.0 will cause the model element to
      * not have a warm-up.
      * <p>
      * In general, there is not a need to set the length of the warm-up to zero
@@ -312,7 +313,7 @@ abstract class ModelElement internal constructor(
      * Setting the length of the warm-up &gt; 0.0, will set the warm-up option
      * flag to false.
      * <p>
-     * Prior to each replication the specified warm-up length will be checked to
+     * Prior to each replication, the specified warm-up length will be checked to
      * see if it is greater than zero. If the length of the warm-up is greater
      * than zero, it is checked to see if it is less than the simulation run
      * length. If so, it is assumed that the model element wants its own warm-up
@@ -353,6 +354,10 @@ abstract class ModelElement internal constructor(
             field = value
         }
 
+    /**
+     *
+     */
+    @JvmOverloads
     constructor(parent: ModelElement, name: String? = null) : this(name) {
         // should not be leaking this
         // adds the model element to the parent and also set this element's parent
@@ -446,7 +451,7 @@ abstract class ModelElement internal constructor(
     }
 
     /**
-     *  Checks if current status is the supplied status
+     *  Checks if the current status is the supplied status
      */
     @Suppress("unused")
     fun isStatus(status: Status): Boolean {
@@ -664,7 +669,7 @@ abstract class ModelElement internal constructor(
             }
         }
 
-        // check if I'm a response variable, if so add me
+        // check if I'm a response variable, if so, add me
         if (this is Response) {
             c.add(this)
         }
@@ -702,7 +707,7 @@ abstract class ModelElement internal constructor(
             }
         }
 
-        // check if I'm a Counter, if so add me
+        // check if I'm a Counter, if so, add me
         if (this is Counter) {
             c.add(this)
         }
@@ -728,7 +733,7 @@ abstract class ModelElement internal constructor(
     /**
      * Fills up the provided collection carrying all the RandomElementIfc and
      * subclasses of RandomElementIfc that are contained by any model elements
-     * within this model element. In other words, any RandomElementIfc that are
+     * within this model element. In other words, any RandomElementIfc instances that are
      * in the model element hierarchy below this model element.
      *
      * @param c The collection to be filled.
@@ -740,7 +745,7 @@ abstract class ModelElement internal constructor(
             }
         }
 
-        //	check if I'm a random variable, if so add me
+        //	check if I'm a random variable, if so, add me
         if (this is RandomElementIfc) {
             c.add(this as RandomElementIfc)
         }
@@ -798,7 +803,7 @@ abstract class ModelElement internal constructor(
             }
         }
 
-        //	check if I'm a variable, if so add me
+        //	check if I'm a variable, if so, add me
         if (this is Variable) {
             if (Variable::class == this::class) {
                 c.add(this)
@@ -834,7 +839,7 @@ abstract class ModelElement internal constructor(
      * return 0.0166 (TIME_UNIT_MINUTE/TIME_UNIT_HOUR)
      *
      *
-     * Thus, if base time unit is set to hours, then 5*minute() represents 5
+     * Thus, if the base time unit is set to hours, then 5*minute() represents 5
      * minutes (5.0/60) and 2*day() represents 2 days. Use these methods to
      * convert timeUnits to the base time unit when scheduling events or
      * defining time parameters.
@@ -907,7 +912,7 @@ abstract class ModelElement internal constructor(
         // check if it’s parent does, and so on, until
         // reaching the Model
         if (!isWarmUpEventScheduled()) {
-            // if it has a parent check it
+            // if it has a parent, then check it
             if (parent != null) {
                 return parent!!.isAnyWarmUpEventScheduled()
             } else {
@@ -915,7 +920,7 @@ abstract class ModelElement internal constructor(
                 // stop checking
             }
         }
-        // current element has warm-up scheduled, return that fact
+        // if the current element has a warm-up scheduled, return that fact
         return true
     }
 
@@ -939,7 +944,7 @@ abstract class ModelElement internal constructor(
         return if (!isWarmUpEventScheduled()) {
             // doesn't have a warm-up event
             if (parent != null) {
-                // check if parent exists and has a warm-up event
+                // check if the parent exists and has a warm-up event
                 parent!!.findModelElementWithWarmUpEvent()
             } else {
                 // parent does not exist, and there is no warm up event
@@ -986,14 +991,14 @@ abstract class ModelElement internal constructor(
      * warm-up action. False means this element or some parent does not
      * participate in the warm-up action
      *
-     * @return true if this and every parent participates in the warm-up action
+     * @return true if this and all higher parent elements participate in the warm-up action
      */
     fun checkWarmUpOption(): Boolean {
         // if this model element participates in the warm-up
         // check if it’s parent does, and so on, until
         // reaching the Model
         if (warmUpOption) {
-            // if it has a parent check it
+            // if it has a parent, then check it
             if (parent != null) {
                 return parent!!.checkWarmUpOption()
             } else {
@@ -1001,7 +1006,7 @@ abstract class ModelElement internal constructor(
                 // stop checking
             }
         }
-        // current element does not participate, return that fact
+        // if the current element does not participate, return that fact
         return false
     }
 
@@ -1041,7 +1046,7 @@ abstract class ModelElement internal constructor(
     /** An interface used to implement the actions associated with
      * event logic within the simulation.
      *
-     * Implementor's of this interface should define a class that has concrete
+     * Implementors of this interface should define a class that has a concrete
      * specification for the type T. If the event message is not used, then
      * specify the type as Nothing.
      *
@@ -1063,7 +1068,7 @@ abstract class ModelElement internal constructor(
 
         /**
          * Allows event actions to more conveniently schedule themselves
-         * @param timeToEvent the time to the next action
+         * @param timeToEvent the time until the next action
          * @param priority the priority of the action
          * @param message a general object to attach to the action
          * @param name a name to associate with the event for the action
@@ -1109,7 +1114,7 @@ abstract class ModelElement internal constructor(
     /**
      * Allows event actions to be scheduled by model elements
      * @param eventAction the event action to schedule
-     * @param timeToEvent the time to the next action
+     * @param timeToEvent the time until the next action
      * @param priority the priority of the action
      * @param message a general object to attach to the action
      * @param name a name to associate with the event for the action
@@ -1128,7 +1133,7 @@ abstract class ModelElement internal constructor(
     /**
      * Allows event actions to be scheduled by model elements
      * @param eventAction the event action to schedule
-     * @param timeToEvent the time to the next action
+     * @param timeToEvent the time until the next action
      * @param priority the priority of the action
      * @param message a general object to attach to the action
      * @param name a name to associate with the event for the action
@@ -1208,10 +1213,10 @@ abstract class ModelElement internal constructor(
     }
 
     /**
-     * Uses the builder pattern to create and schedule the event and the action
-     * associated carrying the event
+     * Uses the builder pattern to create and schedule the event and the action that is
+     * associated with the event
      *
-     * @param <T> the type associated carrying the messages on the event */
+     * @param <T> the type associated with the messages on the event */
     protected inner class EventScheduler<T>(action: EventActionIfc<T>) : EventBuilderIfc<T>, TimeUnitIfc<T> {
         private var time = 0.0
         private var name: String? = null
@@ -1288,7 +1293,7 @@ abstract class ModelElement internal constructor(
     }
 
     /**
-     * A Tagging interface to force builder to specify time timeUnits after
+     * A Tagging interface to force the builder to specify time timeUnits after
      * calling the in() method.
      *
      * Converts the time within EventScheduler to timeUnits for scheduling the
@@ -1347,9 +1352,8 @@ abstract class ModelElement internal constructor(
         fun milliseconds(): KSLEvent<T>
 
         /**
-         * Creates and schedules the event reactingWith the base time timeUnits
-         * associated
-         * carrying the model
+         * Creates and schedules the event reacting with the base time units
+         * associated with the model
          *
          * @return the event that was scheduled
          */
@@ -1453,7 +1457,7 @@ abstract class ModelElement internal constructor(
      * method called and that any observers will be notified of this action
      */
     internal fun initializeActions() {
-        // first initialize any children associated carrying this model element
+        // first initialize any children associated with this model element
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.initializeActions()
@@ -1477,7 +1481,7 @@ abstract class ModelElement internal constructor(
     protected open fun registerConditionalActions() {}
 
     /**
-     * The registerConditionalActionsWithExecutive() method allows model elements to be
+     * The registerConditionalActionsWithExecutive() method allows model elements to
      * register any conditional actions after initialization.
      *
      * It is called by default before each replication, right after the method initialize() is invoked
@@ -1488,7 +1492,7 @@ abstract class ModelElement internal constructor(
      *
      */
     internal fun registerConditionalActionsWithExecutive() {
-        // first initialize any children associated carrying this model element
+        // first initialize any children associated with this model element
         if (myModelElements.isNotEmpty()) {
             for (m in myModelElements) {
                 m.registerConditionalActionsWithExecutive()
@@ -1518,7 +1522,7 @@ abstract class ModelElement internal constructor(
             myWarmUpEventAction = WarmUpEventAction()
             Model.logger.trace { "$name scheduling warm up event for time $individualElementWarmUpLength" }
             warmUpEvent = myWarmUpEventAction!!.schedule()
-            warmUpOption = false // no longer depends on parent's warm-up
+            warmUpOption = false // no longer depends on the parent's warm-up
         }
         if (timedUpdateInterval > 0.0) {
             // the timed update is > 0, ==> the element wants a timed update event,
@@ -1946,7 +1950,7 @@ abstract class ModelElement internal constructor(
         override val name: String
 
         /**
-         *  The current simulation time. Attached to the queue object for convenience
+         *  The current simulation time. Attached to the queue object for the convenience
          *  of checking time outside of model element instances.
          */
         val currentTime: Double
@@ -2027,7 +2031,7 @@ abstract class ModelElement internal constructor(
      * An arbitrary object can be associated with the QObject. The user is
      * responsible for managing the type of the attached object.
      *
-     * Creates an QObject with the given name and the creation time set to the
+     * Creates a QObject with the given name and the creation time set to the
      * supplied value
      *
      * @param aName The name of the QObject
@@ -2085,10 +2089,10 @@ abstract class ModelElement internal constructor(
             set(value) {
                 field = value // always make the change
                 if (isQueued) {
-                    //change the priority here
+                    //change the priority here,
                     // then just tell the queue that there was a change that needs handling
                     //myQueue.priorityChanged(this)
-                    queue?.priorityChanged()//removed qObject argument which needed type info but could not supply it
+                    queue?.priorityChanged()//removed the qObject argument which needed type info but could not supply it
                 }
             }
 
@@ -2260,7 +2264,7 @@ abstract class ModelElement internal constructor(
                 return 1
             }
 
-            // if the ids are equal then the object references must be equal
+            // if the ids are equal, then the object references must be equal
             // if this is not the case there is a problem
             return if (this == other) {
                 0
