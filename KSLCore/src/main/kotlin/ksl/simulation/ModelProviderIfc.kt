@@ -6,7 +6,7 @@ import ksl.controls.experiments.ExperimentRunParameters
  * A type alias for a function that creates and returns an instance of the `Model` class.
  */
 @Suppress("unused")
-typealias ModelCreator = () -> Model
+typealias ModelCreator = (jsonModelConfig: String) -> Model
 
 /**
  * An interface representing a builder for creating Model instances.
@@ -18,7 +18,14 @@ typealias ModelCreator = () -> Model
  */
 fun interface ModelBuilderIfc {
 
-    fun build(): Model
+    /**
+     * Constructs a `Model` instance based on the provided JSON configuration string.
+     *
+     * @param jsonModelConfig A JSON string representing the model configuration. This string
+     * should contain the necessary data and parameters required for building the `Model` instance.
+     * @return A `Model` object constructed using the provided JSON configuration.
+     */
+    fun build(jsonModelConfig: String?): Model
 
 }
 
@@ -42,9 +49,10 @@ interface ModelProviderIfc {
      * this method returns the instance of the model.
      *
      * @param modelIdentifier the identifier of the model to retrieve
+     * @param jsonModelConfiguration an optional JSON string that can be used during the model building process
      * @return the model instance corresponding to the provided identifier
      */
-    fun provideModel(modelIdentifier: String): Model
+    fun provideModel(modelIdentifier: String, jsonModelConfiguration: String? = null): Model
 
     /**
      * Retrieves a list of model identifiers that are available.

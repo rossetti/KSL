@@ -20,7 +20,6 @@ package ksl.utilities.distributions
 import kotlinx.serialization.Serializable
 import ksl.utilities.column
 import ksl.utilities.isAllDifferent
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 
@@ -62,22 +61,23 @@ fun List<ProbPoint>.cdf() : DoubleArray {
 }
 
 /**
- * Provides a representation for a discrete distribution with
+ * This class provides a representation for a discrete distribution with
  * arbitrary values and assigned probabilities to each value.
  * Allows the specification of the distribution via a pair of arrays containing the
- * values = {v1, v2, ... , vn} and the cumulative probabilities cdf = {c1, c2, ... , 1.0}
+ * values = {v1, v2, ..., vn} and the cumulative probabilities cdf = {c1, c2, ..., 1.0}
  *
  * where if p1 is the probability associated with v1, p2 with v2, etc.
- * then c1 = p1, c2 = p1 + p2, c3 = p1 + p2 + p3, etc,
+ * then c1 = p1, c2 = p1 + p2, c3 = p1 + p2 + p3, etc.,
  * with cn = 1.0 (the sum of all the probabilities). If cn is not 1.0, then
  * an exception is thrown.
- * @param values an array of values that will be drawn from, must have distinct values
+ * @param values an array of values that will be drawn from, which must have distinct values
  * @param cdf    a cdf corresponding to the values
  * @param name   an optional name/label
  */
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
     Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
 
+        @Suppress("unused")
         constructor(
             data: List<ProbPoint>,
             name: String? = null
@@ -87,6 +87,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
      * Holds the list of probability points
      */
     private val myProbabilityPoints = mutableListOf<ProbPoint>()
+    @Suppress("unused")
     val probabilityPoints: List<ProbPoint>
         get() = myProbabilityPoints
 
@@ -175,7 +176,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
 
     /**
      * The probability mass function for this discrete distribution.
-     * Returns the same as pdf.
+     * Returns the same as PDF.
      *
      * @param x The point to get the probability for
      * @return The probability associated with x
@@ -235,7 +236,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
 
     /**
      * Sets the parameters for the distribution. Array of probability points
-     * (value, cumulative probability), Eg. X[] = [v1, cp1, v2, cp2, ..., vn, cpn],
+     * (value, cumulative probability), e.g., X[] = [v1, cp1, v2, cp2, ..., vn, cpn],
      * as the input parameters.
      *
      * @param params an array of doubles representing the parameters for
@@ -250,7 +251,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         require(valArray.isAllDifferent()) { "The values in the supplied parameters array were not distinct!" }
         val cdfArray = splitParamArr.column(1)
         require(KSLRandom.isValidCDF(cdfArray)) { "The supplied CDF in the parameters array was not a CDF!" }
-        val pmf = KSLRandom.makePMF(cdfArray);
+        val pmf = KSLRandom.makePMF(cdfArray)
         myProbabilityPoints.clear()
         for (i in valArray.indices) {
             myProbabilityPoints.add(ProbPoint(valArray[i], pmf[i], cdfArray[i]))
@@ -259,7 +260,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
 
     /**
      * Gets the parameters for the distribution as an array of paired parameters
-     * (value, cumulative probability), Eg. X[] = [v1, cp1, v2, cp2, ..., vn, cpn],
+     * (value, cumulative probability), e.g., X[] = [v1, cp1, v2, cp2, ..., vn, cpn].
      *
      * @return Returns an array of the parameters for the distribution
      */
@@ -307,22 +308,23 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
          * Assigns the probability associated with each cdf value
          * to the integers starting at 0.
          *
-         * @param cdf the probability array. must have valid probability elements
-         * and last element equal to 1. Every element must be greater than or equal
+         * @param cdf the probability array. Must have valid probability elements
+         * and the last element must be equal to 1. Every element must be greater than or equal
          * to the previous element. That is, monotonically increasing.
          * @return the pairs
          */
+        @Suppress("unused")
         fun makeParameterArray(cdf: DoubleArray): DoubleArray {
             return makeParameterArray(0, cdf)
         }
 
         /**
          * Assigns the probability associated with each cdf value
-         * to the integers starting at start.
+         * with the integers starting at the start value.
          *
-         * @param start place to start assignment
-         * @param cdf   the probability array. must have valid probability elements
-         * and last element equal to 1. Every element must be greater than or equal
+         * @param start place to start the assignment
+         * @param cdf   the probability array. Must have valid probability elements
+         * and the last element must be equal to 1. Every element must be greater than or equal
          * to the previous element. That is, monotonically increasing.
          * @return the pairs as an array[] = {v1, cp1, v2, cp2, ...},
          */
@@ -340,7 +342,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
 
         /**
          * This method takes in an Array of probability points
-         * (value, cumulative probability), Eg. X[] = {v1, cp1, v2, cp2, ...},
+         * (value, cumulative probability), e.g., X[] = {v1, cp1, v2, cp2, ...},
          * as the input parameter and makes a 2D array of the value/prob pairs
          *
          * @param pairs An array holding the value, cumulative probability pairs.
@@ -362,6 +364,7 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
          * @param cdf    a cdf corresponding to the values
          * @return a properly configured array of pairs for the DEmpiricalCDF distribution
          */
+        @Suppress("unused")
         fun makeParameterArray(values: DoubleArray, cdf: DoubleArray): DoubleArray {
             require(values.size == cdf.size) { "The values array was not the same size as the CDF array1" }
             require(KSLRandom.isValidCDF(cdf)) { "The supplied CDF array was not a CDF!" }
