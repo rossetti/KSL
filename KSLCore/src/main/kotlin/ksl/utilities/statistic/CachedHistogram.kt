@@ -12,7 +12,7 @@ import ksl.utilities.random.rvariable.NormalRV
  *   is permanently configured based on all data in the cache.
  *   The default cache size [cacheSize] is 512 observations.
  */
-class CachedHistogram(
+class CachedHistogram @JvmOverloads constructor(
     val cacheSize: Int = 512,
     name: String? = null,
 ) : AbstractStatistic(name), HistogramIfc {
@@ -27,6 +27,8 @@ class CachedHistogram(
      * @param cacheSize the size of the cache used to configure the bins of the histogram. The default is 512.
      * @param name an optional name for the histogram
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(data: DoubleArray, cacheSize: Int = 512, name: String? = null) : this(cacheSize, name) {
         collect(data)
     }
