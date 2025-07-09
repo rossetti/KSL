@@ -40,11 +40,19 @@ import ksl.utilities.random.robj.DUniformList
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.HistogramIfc
 
+/**
+ *  The internal constructor for creating model elements. A model element is some
+ *  construct that is an element of a model. Model elements are added to the main model
+ *  when they are constructed by supplying a [parent] model element. The constructed
+ *  model element becomes a child to the parent in the model element hierarchy. This
+ *  constructor is internal because of the interaction with the class Model, which serves
+ *  as the parent to all model elements.
+
+ *  @param name an optional name.  If not provided, then a name is provided automatically by
+ *  using the class type of the element and a unique number.
+ */
 abstract class ModelElement internal constructor(
     name: String? = null) : IdentityIfc, ParentNameIfc, GetTimeIfc {
-
-    //TODO spatial model stuff
-    //TODO change parent model element method, was in JSL, can/should it be in KSL?
 
     /**
      * A set of constants for indicating model element status to observers of
@@ -355,7 +363,13 @@ abstract class ModelElement internal constructor(
         }
 
     /**
-     *
+     *  The main constructor for creating model elements. A model element is some
+     *  construct that is an element of a model. Model elements are added to the main model
+     *  when they are constructed by supplying a [parent] model element. The constructed
+     *  model element becomes a child to the parent in the model element hierarchy.
+     *  @param parent the parent to this model element
+     *  @param name an optional name.  If not provided, then a name is provided automatically by
+     *  using the class type of the element and a unique number.
      */
     @JvmOverloads
     constructor(parent: ModelElement, name: String? = null) : this(name) {
