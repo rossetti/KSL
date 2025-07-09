@@ -81,12 +81,6 @@ class Model @JvmOverloads constructor(
         get() = outputDirectory.out
 
     /**
-     * Java-friendly getter for the out property
-     * @return the pre-defined default text output file for the simulation
-     */
-    fun out(): LogPrintWriter = out
-
-    /**
      *  Controls the execution of events
      */
     internal val myExecutive: Executive = Executive(eventCalendar)
@@ -131,23 +125,12 @@ class Model @JvmOverloads constructor(
         get() = myResponses
 
     /**
-     * Java-friendly getter for the responses property
-     * @return a list of all the Responses within the model
-     */
-    fun getResponses(): List<ResponseCIfc> = responses
-
-    /**
      * A list of all the Counters within the model
      */
     private var myCounters: MutableList<Counter> = ArrayList()
     val counters: List<CounterCIfc>
         get() = myCounters
 
-    /**
-     * Java-friendly getter for the counters property
-     * @return a list of all the Counters within the model
-     */
-    fun getCounters(): List<CounterCIfc> = counters
 
     /**
      * A list of all the HistogramResponses within the model
@@ -157,23 +140,11 @@ class Model @JvmOverloads constructor(
         get() = myHistograms
 
     /**
-     * Java-friendly getter for the histograms property
-     * @return a list of all the HistogramResponses within the model
-     */
-    fun getHistograms(): List<HistogramResponseCIfc> = histograms
-
-    /**
      * A list of all the IntegerFrequencyResponses within the model
      */
     private var myFrequencies: MutableList<IntegerFrequencyResponse> = ArrayList()
     val frequencies: List<FrequencyResponseCIfc>
         get() = myFrequencies
-
-    /**
-     * Java-friendly getter for the frequencies property
-     * @return a list of all the IntegerFrequencyResponses within the model
-     */
-    fun getFrequencies(): List<FrequencyResponseCIfc> = frequencies
 
     /**
      *  A list of the TimeSeriesResponse model elements in the model
@@ -190,12 +161,6 @@ class Model @JvmOverloads constructor(
         }
 
     /**
-     * Java-friendly getter for the timeSeriesResponses property
-     * @return a list of all the TimeSeriesResponse model elements in the model
-     */
-    fun getTimeSeriesResponses(): List<TimeSeriesResponseCIfc> = timeSeriesResponses
-
-    /**
      *  The names of all the response variables and counters in the model
      */
     val responseNames: List<String>
@@ -209,23 +174,11 @@ class Model @JvmOverloads constructor(
         }
 
     /**
-     * Java-friendly getter for the responseNames property
-     * @return the names of all the response variables and counters in the model
-     */
-    fun getResponseNames(): List<String> = responseNames
-
-    /**
      * A list of all the Variables within the model
      */
     private var myVariables: MutableList<Variable> = ArrayList()
     val variables: List<VariableIfc>
         get() = myVariables
-
-    /**
-     * Java-friendly getter for the variables property
-     * @return a list of all the Variables within the model
-     */
-    fun getVariables(): List<VariableIfc> = variables
 
     /**
      * A list of all random elements within the model
@@ -260,7 +213,8 @@ class Model @JvmOverloads constructor(
         if (batchingElement == null) {
             batchingElement = StatisticalBatchingElement(this, batchingInterval, name)
         }
-        return batchingElement!!
+        // We know it's not null at this point
+        return batchingElement as StatisticalBatchingElement
     }
 
     /**
@@ -288,7 +242,8 @@ class Model @JvmOverloads constructor(
             if (myRVParameterSetter == null) {
                 myRVParameterSetter = RVParameterSetter(this)
             }
-            return myRVParameterSetter!!
+            // We know it's not null at this point
+            return myRVParameterSetter as RVParameterSetter
         }
 
     /**
@@ -314,8 +269,10 @@ class Model @JvmOverloads constructor(
         if (myCSVRepReport == null) {
             myCSVRepReport = CSVReplicationReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVRepReport!!)) {
-            attachModelElementObserver(myCSVRepReport!!)
+        // Use a local variable to avoid repeated non-null assertions
+        val report = myCSVRepReport
+        if (report != null && !isModelElementObserverAttached(report)) {
+            attachModelElementObserver(report)
         }
     }
 
@@ -324,10 +281,12 @@ class Model @JvmOverloads constructor(
      *
      */
     fun turnOffReplicationCSVStatisticReporting() {
-        if (myCSVRepReport == null) {
+        // Use a local variable to avoid non-null assertion
+        val report = myCSVRepReport
+        if (report == null) {
             return
         }
-        detachModelElementObserver(myCSVRepReport!!)
+        detachModelElementObserver(report)
         myCSVRepReport = null
     }
 
@@ -339,8 +298,10 @@ class Model @JvmOverloads constructor(
         if (myCSVExpReport == null) {
             myCSVExpReport = CSVExperimentReport(model)
         }
-        if (!isModelElementObserverAttached(myCSVExpReport!!)) {
-            attachModelElementObserver(myCSVExpReport!!)
+        // Use a local variable to avoid repeated non-null assertions
+        val report = myCSVExpReport
+        if (report != null && !isModelElementObserverAttached(report)) {
+            attachModelElementObserver(report)
         }
     }
 
@@ -349,10 +310,12 @@ class Model @JvmOverloads constructor(
      *
      */
     fun turnOffAcrossReplicationStatisticReporting() {
-        if (myCSVExpReport == null) {
+        // Use a local variable to avoid non-null assertion
+        val report = myCSVExpReport
+        if (report == null) {
             return
         }
-        detachModelElementObserver(myCSVExpReport!!)
+        detachModelElementObserver(report)
         myCSVExpReport = null
     }
 
@@ -456,7 +419,7 @@ class Model @JvmOverloads constructor(
 
     /**
      * Checks if the simulation is in the initialized state After the
-     * simulation has been initialized this method will return true
+     * simulation has been initialized, this method will return true
      *
      * @return true if initialized
      */
@@ -509,6 +472,7 @@ class Model @JvmOverloads constructor(
     val stoppedByCondition: Boolean
         get() = myReplicationProcess.stoppedByCondition
 
+
     /**
      * The simulation may end by a variety of means, this method checks
      * if the simulation ended but was unfinished, not all replications were completed.
@@ -516,6 +480,7 @@ class Model @JvmOverloads constructor(
     @Suppress("unused")
     val isUnfinished: Boolean
         get() = myReplicationProcess.isUnfinished
+
 
     private fun addDefaultElements() {
 
@@ -675,6 +640,8 @@ class Model @JvmOverloads constructor(
      *
      * @return the associated Response. May be null if the provided name
      * does not exist in the model
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun response(name: String): Response? {
         if (!myModelElementMap.containsKey(name)) {
@@ -692,6 +659,8 @@ class Model @JvmOverloads constructor(
      * @param name The name of the TWResponse model element
      *
      * @return the associated TWResponse may be null if the provided name does not exist in the model
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     @Suppress("unused")
     fun timeWeightedResponse(name: String): TWResponse? {
@@ -711,6 +680,8 @@ class Model @JvmOverloads constructor(
      *
      * @return the associated Counter.  May be null if the provided name
      * does not exist in the model
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun counter(name: String): Counter? {
         if (!myModelElementMap.containsKey(name)) {
@@ -832,6 +803,8 @@ class Model @JvmOverloads constructor(
      * @param name The name of the RandomVariable model element
      * @return the associated random variable. May be null if the provided name does
      * not exist in the model
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun randomVariable(name: String): RandomVariable? {
         if (!myModelElementMap.containsKey(name)) {
@@ -864,6 +837,8 @@ class Model @JvmOverloads constructor(
      * @param name The name of the model element, the name must not be null
      * @return The named ModelElement if it exists in the model by the supplied
      * name, null otherwise
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     fun getModelElement(name: String): ModelElement? {
         return if (!myModelElementMap.containsKey(name)) {
@@ -877,6 +852,8 @@ class Model @JvmOverloads constructor(
      *
      * @param id the identifier getId() of the desired ModelElement
      * @return the ModelElement
+     * 
+     * Note for Java users: This method may return null. Always check for null before using the result.
      */
     @Suppress("unused")
     fun getModelElement(id: Int): ModelElement? {
@@ -906,9 +883,13 @@ class Model @JvmOverloads constructor(
     internal fun scheduleEndOfReplicationEvent(time: Double) {
         require(time > 0.0) { "The time must be > 0.0" }
         if (executive.isEndEventScheduled()) {
-            logger.info { "Already scheduled end of replication event for time = ${executive.endEvent!!.time} is being cancelled" }
-            // already scheduled end event, cancel it
-            executive.endEvent!!.cancel = true
+            // Use a local variable to avoid repeated non-null assertions
+            val endEvent = executive.endEvent
+            if (endEvent != null) {
+                logger.info { "Already scheduled end of replication event for time = ${endEvent.time} is being cancelled" }
+                // already scheduled end event, cancel it
+                endEvent.cancel = true
+            }
         }
         // schedule the new time
         if (time.isFinite()) {
@@ -917,7 +898,6 @@ class Model @JvmOverloads constructor(
         } else {
             logger.info { "Did not schedule end of replication event because time was $time" }
         }
-
     }
 
     private inner class EndEventAction : EventAction<Nothing>() {
@@ -1061,8 +1041,12 @@ class Model @JvmOverloads constructor(
         // thus apply the possibly new parameters to set up the model
         if (myRVParameterSetter != null) {
             logger.info { "Parameters may have changed. Apply the parameters to the model." }
-            myRVParameterSetter!!.applyParameterChanges(this)
-            logger.info { "The parameter setter applied the parameter changes." }
+            // Use a local variable to avoid non-null assertion
+            val parameterSetter = myRVParameterSetter
+            if (parameterSetter != null) {
+                parameterSetter.applyParameterChanges(this)
+                logger.info { "The parameter setter applied the parameter changes." }
+            }
         }
 
         // do all model element beforeExperiment() actions
