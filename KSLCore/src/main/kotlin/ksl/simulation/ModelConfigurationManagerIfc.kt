@@ -11,9 +11,17 @@ package ksl.simulation
  *  is that the key indicates what will be done or changed and the associated value can be used
  *  to make the change. For example, a key could be a model element name and the value could be a JSON string
  *  that can be deserialized to required inputs for the change.
+ *
+ *  The changes are applied when the model's setUpExperiment() function is executed. These changes
+ *  are applied after the model is constructed but prior to any replications. The changes remain for all
+ *  later replications.
  */
 fun interface ModelConfigurationManagerIfc {
 
+    /**
+     *  @param model the model to which the configuration changes will be applied
+     *  @param configuration the map of named configurations
+     */
     fun configure(model: Model, configuration: Map<String, String>)
 
 }
