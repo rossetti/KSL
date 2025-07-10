@@ -25,7 +25,9 @@ import ksl.utilities.exceptions.KSLEventException
 import ksl.utilities.observers.Observable
 import kotlin.time.Duration
 
-class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()) : Observable<KSLEvent<*>?>(){
+class Executive @JvmOverloads constructor(
+    private val myEventCalendar: CalendarIfc = PriorityQueueEventCalendar()
+) : Observable<KSLEvent<*>?>(){
 
     enum class Status {
         CREATED, INITIALIZED, BEFORE_EVENT, AFTER_EVENT, AFTER_EXECUTION
@@ -204,13 +206,13 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
      *
      * @param T the type of the event message
      * @param eventAction represents an ActionListener that will handle the change of state logic, cannot be null
-     * @param interEventTime represents the inter-event time, i.e. the interval from the
+     * @param interEventTime represents the inter-event time, i.e., the interval from the
      * current time to when the event will need to occur, Cannot be negative
      * @param priority is used to influence the ordering of events
      * @param message is a generic Object that may represent data to be
      * transmitted with the event, may be null
-     * @param name the name of the event, can be null
-     * @param theElementScheduling the element doing the scheduling, cannot be null
+     * @param name the name of the event. Can be null
+     * @param theElementScheduling the element doing the scheduling cannot be null
      * @return a valid JSLEvent
      */
     internal fun <T> scheduleEvent(
@@ -254,7 +256,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
             val sb = StringBuilder()
             sb.append("Attempted to schedule an event, $event, after the scheduled simulation end time: ${scheduledEndTime()} the event was not scheduled and will not execute")
-            Model.logger.trace { "${sb.toString()}" }
+            Model.logger.trace { sb.toString() }
             return event
         }
     }
@@ -269,7 +271,7 @@ class Executive(private val myEventCalendar: CalendarIfc = PriorityQueueEventCal
             // the event is no longer scheduled
             event.isScheduled = false
             if (!event.cancel) {
-                // event was not cancelled
+                // event was not canceled
                 // update the current simulation time to the event time
                 currentTime = event.time
                 status = Status.BEFORE_EVENT

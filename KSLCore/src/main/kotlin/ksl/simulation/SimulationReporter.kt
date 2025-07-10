@@ -41,21 +41,20 @@ import java.util.*
  * This class facilitates simulation output reporting. There are two main
  * reporting functions: within replication statistics and across replication
  * statistics.  The class automatically reports within replication and across
- * replication statistics to comma separated value files by attaching
+ * replication statistics to comma-separated value files by attaching
  * observers to the model.  If you do not want this automated output, then
  * you should use the appropriate turnOffXXX methods.
  *
  * This class attaches a CSVReplicationReport to the model for collection purposes. If the simulation
  * is run multiple times, then statistical data continues to be observed by the
  * CSVReplicationReport, unless it is turned off. Thus, data across many experiments can be captured in
- * this manner. This produces a comma separated value file containing all end of
- * replication statistical summaries for every counter and response variable in
+ * this manner. This produces a comma-separated value file containing all the end-of- * replication statistical summaries for every counter and response variable in
  * the model.
  *
  * There are a number of options available if you want to capture across
  * replication statistics.
  *
- * The class uses a CSVExperimentReport to observe the model. This produces a comma separated value file containing all across
+ * The class uses a CSVExperimentReport to observe the model. This produces a comma-separated value file containing all across
  * replication statistical summaries for every counter and response variable in the model.
  *
  * Use any of the writeAcrossReplicationX() methods. These methods
@@ -128,10 +127,11 @@ class SimulationReporter(theModel: Model) {
 
     /**
      * Uses a StringBuilder to hold the across replication statistics formatted
-     * as a comma separated values with an appropriate header
+     * as comma-separated values with an appropriate header
      *
      * @return the string builder
      */
+    @Suppress("unused")
     fun acrossReplicationCSVStatistics(): StringBuilder {
         val sb = StringBuilder()
         var header = true
@@ -194,7 +194,7 @@ class SimulationReporter(theModel: Model) {
 
     /**
      * Writes the across replication statistics to the supplied PrintWriter as
-     * comma separated value output
+     * comma-separated value output
      *
      * @param out the PrintWriter
      */
@@ -387,6 +387,8 @@ class SimulationReporter(theModel: Model) {
      *
      * @param sb the StringBuilder to fill
      */
+    @Suppress("unused")
+    @JvmOverloads
     fun acrossReplicationStatistics(sb: StringBuilder = StringBuilder()) : StringBuilder {
         sb.append(Date())
         sb.append(System.lineSeparator())
@@ -417,6 +419,7 @@ class SimulationReporter(theModel: Model) {
      * Prints the across replication statistics as comma separated values
      *
      */
+    @Suppress("unused")
     fun printAcrossReplicationCSVStatistics() {
         writeAcrossReplicationCSVStatistics(PrintWriter(System.out, true))
     }
@@ -441,6 +444,8 @@ class SimulationReporter(theModel: Model) {
      * @param fName the file name
      * @return the PrintWriter so that additional information can be written to the file
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun writeAcrossReplicationCSVStatistics(fName: String = model.simulationName + "_AcrossRepCSVStatistics.csv"): PrintWriter {
         val path = model.outputDirectory.outDir.resolve(fName)
         return writeAcrossReplicationCSVStatistics(path)
@@ -468,6 +473,8 @@ class SimulationReporter(theModel: Model) {
      * @param fName the file name
      * @return the PrintWriter so that additional information can be written to the file
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun writeFullAcrossReplicationStatistics(fName: String = model.simulationName + "_FullAcrossRepStatistics.txt"): PrintWriter {
         val path = model.outputDirectory.outDir.resolve(fName)
         return writeFullAcrossReplicationStatistics(path)
@@ -477,6 +484,7 @@ class SimulationReporter(theModel: Model) {
      * Writes the across replication statistics as text values to System.out
      *
      */
+    @Suppress("unused")
     fun printFullAcrossReplicationStatistics() {
         writeFullAcrossReplicationStatistics(PrintWriter(System.out, true))
     }
@@ -485,6 +493,7 @@ class SimulationReporter(theModel: Model) {
      * Writes the across replication statistics as text values to System.out
      *
      */
+    @Suppress("unused")
     fun printAcrossReplicationSummaryStatistics() {
         writeAcrossReplicationSummaryStatistics(PrintWriter(System.out, true))
     }
@@ -509,6 +518,8 @@ class SimulationReporter(theModel: Model) {
      * @param fName the file name
      * @return the PrintWriter
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun writeAcrossReplicationSummaryStatistics(fName: String = model.simulationName + "_SummaryStatistics.txt"): PrintWriter {
         val path = model.outputDirectory.outDir.resolve(fName)
         return writeAcrossReplicationSummaryStatistics(path)
@@ -589,6 +600,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return the PrintWriter
      */
+    @Suppress("unused")
     fun writeAcrossReplicationSummaryStatisticsAsLaTeX(): PrintWriter {
         val fName = model.simulationName + "_LaTeX_Across_Replication_Summary.tex"
         return writeAcrossReplicationSummaryStatisticsAsLaTeX(fName)
@@ -600,6 +612,7 @@ class SimulationReporter(theModel: Model) {
      * @param maxRows the maximum number of rows
      * @return the tables as StringBuilders
      */
+    @JvmOverloads
     fun acrossReplicationStatisticsAsLaTeXTables(maxRows: Int = 60): List<StringBuilder> {
         val list = acrossReplicationStatisticsAsLaTeXTabular(maxRows)
         val caption = """
@@ -638,6 +651,7 @@ class SimulationReporter(theModel: Model) {
      * @param maxRows maximum number of rows in each table
      * @return the StringBuilder
      */
+    @JvmOverloads
     fun acrossReplicationStatisticsAsLaTeXDocument(maxRows: Int = 60): StringBuilder {
         val docClass = "\\documentclass[11pt]{article} \n"
         val beginDoc = "\\begin{document} \n"
@@ -663,6 +677,7 @@ class SimulationReporter(theModel: Model) {
      * @param maxRows maximum number of rows in each tabular
      * @return a List of StringBuilders
      */
+    @JvmOverloads
     fun acrossReplicationStatisticsAsLaTeXTabular(maxRows: Int = 60): List<StringBuilder> {
         val builders: MutableList<StringBuilder> = ArrayList()
         val stats = model.listOfAcrossReplicationStatistics
@@ -725,6 +740,7 @@ class SimulationReporter(theModel: Model) {
      *
      * @return a StatisticReporter holding the across replication statistics for reporting
      */
+    @Suppress("unused")
     fun acrossReplicationStatisticReporter(): StatisticReporter {
         val list = acrossReplicationStatisticsList().toMutableList()
         return StatisticReporter(list)
@@ -735,6 +751,7 @@ class SimulationReporter(theModel: Model) {
      * @param confLevel the confidence level
      * @return a StringBuilder representation of the half-width summary report
      */
+    @JvmOverloads
     fun halfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95): StringBuilder {
         val list = acrossReplicationStatisticsList().toMutableList()
         val sr = StatisticReporter(list)
@@ -745,6 +762,7 @@ class SimulationReporter(theModel: Model) {
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
+    @JvmOverloads
     fun printHalfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95) {
         writeHalfWidthSummaryReport(PrintWriter(System.out), title, confLevel)
     }
@@ -754,6 +772,7 @@ class SimulationReporter(theModel: Model) {
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
+    @JvmOverloads
     fun writeHalfWidthSummaryReport(
         out: PrintWriter = PrintWriter(System.out),
         title: String? = null,
@@ -768,6 +787,8 @@ class SimulationReporter(theModel: Model) {
      * @param title     the title of the report
      * @param confLevel the confidence level of the report
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun writeHalfWidthSummaryReportAsMarkDown(
         out: PrintWriter = PrintWriter(System.out),
         title: String? = null,
@@ -784,6 +805,8 @@ class SimulationReporter(theModel: Model) {
      *  Returns the across replication statistics as a data frame
      *  with confidence intervals specified by the provided [level].
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun acrossReplicationStatisticsAsDataFrame(level: Double = 0.95): DataFrame<StatisticData> {
         val list = acrossReplicationStatisticsList().toMutableList()
         val sr = StatisticReporter(list)

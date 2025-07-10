@@ -12,7 +12,7 @@ typealias ModelCreator = (jsonModelConfig: String) -> Model
  * An interface representing a builder for creating Model instances.
  *
  * This interface defines an abstract method that is responsible for
- * constructing a Model object based on the provided model identifier.
+ * constructing a Model object.
  * It can be implemented to encapsulate the logic required to create
  * specific types of model instances.
  */

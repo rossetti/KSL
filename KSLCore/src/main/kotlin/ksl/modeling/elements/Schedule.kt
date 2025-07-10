@@ -18,7 +18,6 @@
 package ksl.modeling.elements
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
@@ -27,7 +26,7 @@ import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
 @Serializable
-data class ScheduleItemData(
+data class ScheduleItemData @JvmOverloads constructor(
     val name: String,
     var startTime: Double = 0.0,
     var duration: Double,
@@ -53,6 +52,9 @@ data class ScheduleItemData(
          *  @param startTime the start time of the first item, zero by default
          *  @return the list of items
          */
+        @JvmOverloads
+        @Suppress("unused")
+        @JvmStatic
         fun createConsecutiveScheduleItems(
             duration: Double,
             numItems: Int,
@@ -73,7 +75,7 @@ data class ScheduleItemData(
 }
 
 @Serializable
-data class ScheduleData(
+data class ScheduleData @JvmOverloads constructor(
     var initialStartTime: Double = 0.0,
     var scheduleLength: Double = Double.POSITIVE_INFINITY,
     var isAutoStartFlag: Boolean = true,
@@ -190,7 +192,7 @@ interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
 
     /**
      *  Adds the item to the schedule
-     *  @param item the item to add. The item's end time must be less than or equal to
+     *  @param scheduleItemData the item to add. The item's end time must be less than or equal to
      *  the schedule's initial start time plus the schedule length
      */
     fun addItem(scheduleItemData: ScheduleItemData): Schedule.ScheduleItem
@@ -202,7 +204,7 @@ interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
     fun addItems(items: List<ScheduleItemData>)
 
     /** Removes the item from the schedule. If the item is null or not on this
-     * schedule nothing happens.
+     * schedule, nothing happens.
      *
      * @param item the item to remove
      */
@@ -230,7 +232,7 @@ interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
         /**
          *  Clears the current settings of the schedule and
          *  reconfigures the schedule's settings based on the provided schedule data
-         *  @param settings the new settings to apply to the schedule
+         *  from the new settings to apply to the schedule
          */
         set(settings) {
             isAutoStartFlag = settings.isAutoStartFlag
@@ -305,7 +307,7 @@ interface ScheduleCIfc : JsonSettingsIfc<ScheduleData> {
  *
  * @author rossetti
  */
-class Schedule(
+class Schedule @JvmOverloads constructor(
     parent: ModelElement,
     startTime: Double = 0.0,
     length: Double = Double.POSITIVE_INFINITY,
@@ -321,6 +323,8 @@ class Schedule(
         require(length > 0.0) { "The length must be > 0" }
     }
 
+    @Suppress("unused")
+    @JvmOverloads
     constructor(
         parent: ModelElement,
         scheduleData: ScheduleData,
@@ -425,6 +429,7 @@ class Schedule(
     /**
      * If scheduled to start, this cancels the start of the schedule.
      */
+    @Suppress("unused")
     fun cancelScheduleStart() {
         if (myStartScheduleEvent != null) {
             myStartScheduleEvent?.cancel = true
@@ -489,7 +494,7 @@ class Schedule(
             myItemNames.add(item.name)
             return
         }
-        // might as well check for worse case, if larger than the largest
+        // might as well check for the worse case, if larger than the largest
         // then put it at the end and return
         if (item.compareTo(myItems[myItems.size - 1]) >= 0) {
             myItems.add(item)
@@ -531,7 +536,7 @@ class Schedule(
         message: String? = null,
         datum: Double? = null
     ): ScheduleItem {
-        val aItem: ScheduleItem = ScheduleItem(name, startTime, duration, priority, message, datum)
+        val aItem = ScheduleItem(name, startTime, duration, priority, message, datum)
         addItem(aItem)
         return aItem
     }

@@ -22,18 +22,29 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.robj.DUniformList
 import ksl.utilities.random.robj.RElementIfc
 
-class RandomList<T : Any>(
+/**
+ *  Provides a model element representation for a [DUniformList]
+ */
+class RandomList<T : Any> private constructor(
     parent: ModelElement,
     private val dUniformList: DUniformList<T>,
     name: String? = null
 ) : ModelElement(parent, name), RElementIfc<T> by dUniformList, RandomElementIfc {
 
-    //TODO how to ensure dUniformList uses the model's stream provider
-
     init {
         warmUpOption = false
     }
 
+    /**
+     *  Allows randomly selecting with equal probability from the elements of the list.
+     *  @param parent the parent of this element
+     *  @param elements the elements in the list
+     *  @param streamNum the stream number to use from the provider. The default is 0, which
+     *  is the next stream.
+     *  @param name the optional name of the model element
+     */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         elements: MutableList<T>,

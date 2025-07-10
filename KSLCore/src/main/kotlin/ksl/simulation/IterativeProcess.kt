@@ -31,7 +31,9 @@ import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
-abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identity(name),
+abstract class IterativeProcess<T> @JvmOverloads constructor(
+    name: String? = null
+) : IdentityIfc by Identity(name),
     IterativeProcessIfc, Observable<T>() {
 
     /**
@@ -49,8 +51,8 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
     protected val myInitializedState: Initialized = Initialized()
 
     /**
-     * A reference to the step completed state of the iterative process A
-     * iterative process is in the step completed state after the runNext method
+     * A reference to the step-completed state of the iterative process A
+     * iterative process is in the step-completed state after the runNext method
      * is called from a proper state
      */
     protected val myStepCompletedState: StepCompleted = StepCompleted()
@@ -71,7 +73,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
      * A reference to the current state of the iterative process
      */
     protected var state: IterativeProcess<T>.IterativeState = Created()
-        protected set(value) {
+        set(value) {
             logger.trace { "current state = $field, transitioning to state = $value" }
             field = value
             myCurrentStep?.let { notifyObservers(it) }
@@ -219,7 +221,7 @@ abstract class IterativeProcess<T>(name: String? = null) : IdentityIfc by Identi
             isDone = true
             endingStatus = MET_STOPPING_CONDITION
             if (stoppingMessage == null) {
-                // user message not available, set message to default
+                // user message was not available, set the message to default
                 stoppingMessage = endingStatus.msg
             }
         } else {
