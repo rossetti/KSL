@@ -11,7 +11,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class PartialSumsPlot(partialSums: DoubleArray, dataName: String? = null) : BasePlot() {
+class PartialSumsPlot @JvmOverloads constructor(partialSums: DoubleArray, dataName: String? = null) : BasePlot() {
 
     private val data: Map<String, List<Number>>
 

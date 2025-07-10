@@ -8,7 +8,7 @@ import org.jetbrains.letsPlot.geom.geomABLine
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class PPPlot(
+class PPPlot (
     data: DoubleArray,
     private val cdfFunction: CDFIfc
 ) : BasePlot() {

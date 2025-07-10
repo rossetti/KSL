@@ -9,7 +9,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class IntegerFrequencyPlot(
+class IntegerFrequencyPlot @JvmOverloads constructor(
     private val frequency: IntegerFrequency,
     proportions: Boolean = false
 ) : BasePlot() {

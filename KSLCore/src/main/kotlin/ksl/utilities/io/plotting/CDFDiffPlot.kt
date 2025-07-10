@@ -9,7 +9,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class CDFDiffPlot(
+class CDFDiffPlot @JvmOverloads constructor(
     private val data: DoubleArray,
     private val cdf: CDFIfc,
     numPoints: Int = 512

@@ -30,7 +30,7 @@ import java.nio.file.Path
  * @param quantileFun The inverse CDF interface providing quantile functions.
  * @param dataName Optional name for the data being analyzed, used in the plot title.
  */
-class FitDistPlot(
+class FitDistPlot @JvmOverloads constructor(
     data: DoubleArray,
     private val cdfFunction: ContinuousDistributionIfc,
     private val quantileFun: InverseCDFIfc,

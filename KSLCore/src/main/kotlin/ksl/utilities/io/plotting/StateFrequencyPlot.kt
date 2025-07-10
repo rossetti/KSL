@@ -8,7 +8,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class StateFrequencyPlot(private val frequency: StateFrequency, proportions: Boolean = false) : BasePlot() {
+class StateFrequencyPlot @JvmOverloads constructor(private val frequency: StateFrequency, proportions: Boolean = false) : BasePlot() {
 
     private val data: MutableMap<String, List<Any>> = mutableMapOf()
     private var dataType: String

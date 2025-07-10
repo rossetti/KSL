@@ -27,7 +27,7 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.scale.scaleYContinuous
 
-class DotPlot(data: DoubleArray, binWidth: Double? = null) : BasePlot() {
+class DotPlot @JvmOverloads constructor(data: DoubleArray, binWidth: Double? = null) : BasePlot() {
 
     private val myData: Map<String, DoubleArray> = mapOf(
         "data" to data

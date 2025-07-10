@@ -12,7 +12,7 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 import org.jetbrains.letsPlot.scale.ylim
 
-class DiscreteCDFPlot(
+class DiscreteCDFPlot @JvmOverloads constructor(
     private val pmf: DEmpiricalCDF,
     dataName: String? = null
 ) : BasePlot() {

@@ -13,7 +13,7 @@ import org.jetbrains.letsPlot.pos.positionDodge
 import org.jetbrains.letsPlot.scale.scaleColorManual
 import org.jetbrains.letsPlot.themes.theme
 
-class PMFComparisonPlot(
+class PMFComparisonPlot @JvmOverloads constructor(
     data: IntArray,
     df: DiscreteDistributionIfc,
     dataName: String? = null

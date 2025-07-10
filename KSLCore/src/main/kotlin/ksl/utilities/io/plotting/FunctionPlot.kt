@@ -7,7 +7,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class FunctionPlot(
+class FunctionPlot @JvmOverloads constructor(
     private val function: ((Double) -> Double),
     private val interval: Interval,
     numPoints: Int = 512

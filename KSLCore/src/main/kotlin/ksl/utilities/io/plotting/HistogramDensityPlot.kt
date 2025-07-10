@@ -28,7 +28,7 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.ylab
 
-class HistogramDensityPlot(data: DoubleArray, binWidth: Double? = null) : BasePlot() {
+class HistogramDensityPlot @JvmOverloads constructor(data: DoubleArray, binWidth: Double? = null) : BasePlot() {
 
     private val myData: Map<String, DoubleArray> = mapOf(
         "data" to data
