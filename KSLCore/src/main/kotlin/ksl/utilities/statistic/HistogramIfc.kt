@@ -19,18 +19,11 @@
 package ksl.utilities.statistic
 
 import ksl.utilities.IdentityIfc
-import ksl.utilities.KSLArrays
-import ksl.utilities.distributions.CDFIfc
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.ProbInRangeIfc
 import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.isAllEqual
-import ksl.utilities.math.KSLMath
 import ksl.utilities.multiplyConstant
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.pow
-
 
 interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisticIfc,
     Comparable<AbstractStatistic> {
@@ -44,7 +37,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
      * Bins are numbered starting at 1 through the number of bins
      *
      * @param x double
-     * @return int    the number of the bin where x is located
+     * @return the number of the bin where x is located
      */
     fun binNumber(x: Double): Int
 
@@ -173,6 +166,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     /**
      * @return the area associated with the bin, width*count
      */
+    @Suppress("unused")
     val binAreas: DoubleArray
         get() {
             val m = DoubleArray(bins.size)
@@ -330,7 +324,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
 
     /**
      *  Returns the probability for each bin of the histogram based on an open
-     *  integer range interpretation of the bin .
+     *  integer range interpretation of the bin.
      *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
      */
     fun binProbabilities(discreteCDF : ProbInRangeIfc) : DoubleArray {
@@ -343,7 +337,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
 
     /**
      *  Returns the probability for each bin of the histogram based on a continuous interval
-     *  interpretation of the bin .
+     *  interpretation of the bin.
      *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
      */
     fun binProbabilities(cdf : ContinuousDistributionIfc) : DoubleArray {
@@ -356,7 +350,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
 
     /**
      *  Returns the expected count for each bin of the histogram based on a continuous interval
-     *  interpretation of the bin .
+     *  interpretation of the bin.
      *  The discrete distribution, [discreteCDF] must implement the ProbInRangeIfc interface
      */
     fun expectedCounts(discreteCDF : ProbInRangeIfc): DoubleArray{
@@ -365,7 +359,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
 
     /**
      *  Returns the expected count for each bin of the histogram based on a continuous interval
-     *  interpretation of the bin .
+     *  interpretation of the bin.
      *  The distribution, [cdf] must implement the ContinuousDistributionIfc interface
      */
     fun expectedCounts(cdf : ContinuousDistributionIfc): DoubleArray{
