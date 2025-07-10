@@ -20,7 +20,7 @@ interface FrequencyResponseCIfc : IdentityIfc, ParentNameIfc {
  * the number of different values presented is large.
  * Use lowerLimit and upperLimit to limit the values
  * that can be observed. Values lower than the lower limit
- * are counted as underflow and values greater than the upper limit
+ * are counted as underflow, and values greater than the upper limit
  * are counted as overflow.
  *
  * The frequency tabulates all within replication observations regardless of replication.
@@ -37,9 +37,9 @@ interface FrequencyResponseCIfc : IdentityIfc, ParentNameIfc {
  * @param name a name for the instance
  * @author rossetti
  */
-class IntegerFrequencyResponse(
+class IntegerFrequencyResponse @JvmOverloads constructor(
     parent: ModelElement,
-    name: String,
+    name: String? = null,
     lowerLimit: Int = Int.MIN_VALUE,
     upperLimit: Int = Int.MAX_VALUE
 ) : ModelElement(parent, name), FrequencyResponseCIfc {
@@ -53,7 +53,7 @@ class IntegerFrequencyResponse(
      * the number of different values presented is large.
      * Use [intRange] to limit the values within the specified range
      * that can be observed. Values lower than the lower limit
-     * are counted as underflow and values greater than the upper limit
+     * are counted as underflow, and values greater than the upper limit
      * are counted as overflow.
      *
      * The frequency tabulates all within replication observations regardless of replication.
@@ -66,9 +66,10 @@ class IntegerFrequencyResponse(
      * @param name a name for the instance
      * @author rossetti
      */
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
-        name: String,
+        name: String? = null,
         intRange: IntRange = Int.MIN_VALUE..Int.MAX_VALUE
     ) : this(parent, name, intRange.first, intRange.last)
 
@@ -95,6 +96,10 @@ class IntegerFrequencyResponse(
         this.value = value
     }
 
+    /**
+     *  Converts the double to an integer by truncating (toInt())
+     *  before the collection
+     */
     fun collect(value: Double) {
         this.value = value.toInt()
     }

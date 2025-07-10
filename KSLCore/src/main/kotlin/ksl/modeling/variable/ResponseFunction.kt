@@ -10,12 +10,14 @@ import ksl.simulation.ModelElement
  *  @param observedResponse the response that is being observed
  *  @param name the name of the functional response
  */
-class ResponseFunction(
+class ResponseFunction @JvmOverloads constructor(
     function: (Double) -> Double,
     observedResponse: Response,
     name: String? = null
 ) : Response(observedResponse, name) {
 
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         function: (Double) -> Double,
         observedResponse: ResponseCIfc,

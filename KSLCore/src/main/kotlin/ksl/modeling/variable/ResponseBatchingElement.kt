@@ -31,7 +31,10 @@ import ksl.utilities.statistic.BatchStatisticIfc
  *
  * @author rossetti
  */
-class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) : ModelElement(modelElement, name) {
+class ResponseBatchingElement @JvmOverloads constructor(
+    modelElement: ModelElement,
+    name: String? = null
+) : ModelElement(modelElement, name) {
     /**
      * Holds the statistics across the time scheduled batches for the time
      * weighted variables
@@ -49,6 +52,7 @@ class ResponseBatchingElement(modelElement: ModelElement, name: String? = null) 
      * @param name name for BatchStatistic
      * @return the BatchStatisticObserver
      */
+    @JvmOverloads
     fun add(response: ResponseCIfc,
             minNumBatches: Int = BatchStatistic.MIN_NUM_BATCHES,
             minBatchSize: Int = BatchStatistic.MIN_NUM_OBS_PER_BATCH,

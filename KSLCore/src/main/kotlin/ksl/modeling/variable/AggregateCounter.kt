@@ -20,9 +20,8 @@ package ksl.modeling.variable
 
 import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
-import kotlin.math.abs
 
-/** An aggregate time-weighted response observes many other time weighted response variables. Whenever any
+/** An aggregate time-weighted response observes many other time-weighted response variables. Whenever any
  * variable that it observes changes, it is incremented by or decremented by the amount of the change.
  * Thus, the resulting response is the total (aggregate) of all the underlying observed responses
  * at any time.
@@ -30,7 +29,11 @@ import kotlin.math.abs
  * @param parent the parent model element
  * @param name the name of the aggregate response
  */
-class AggregateCounter(parent: ModelElement, name : String? = null) : Counter(parent, name) {
+@Suppress("unused")
+class AggregateCounter @JvmOverloads constructor(
+    parent: ModelElement,
+    name : String? = null
+) : Counter(parent, name) {
 
     private val responses = mutableSetOf<Counter>()
     private val myObserver = CounterObserver()

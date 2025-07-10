@@ -11,12 +11,14 @@ import ksl.simulation.ModelElement
  *  @param observedResponse the response that is being observed
  *  @param name the name of the functional response
  */
-class TWResponseFunction(
+class TWResponseFunction @JvmOverloads constructor(
     function: (Double) -> Double,
     observedResponse: TWResponse,
     name: String? = null
 ) : TWResponse(observedResponse, name) {
 
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         function: (Double) -> Double,
         observedResponse: TWResponseCIfc,
@@ -34,6 +36,7 @@ class TWResponseFunction(
     /**
      *  Detaches the functional from observing the response.
      */
+    @Suppress("unused")
     fun detach() {
         myObservedResponse.detachModelElementObserver(myObserver)
     }

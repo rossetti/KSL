@@ -27,6 +27,7 @@ import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayList
 
+@Suppress("unused")
 fun interface StopActionIfc {
     fun stopAction(historicalVariable: HistoricalVariable)
 }
@@ -81,7 +82,7 @@ enum class StoppingOption {
  *   a default value is optional.
  *
  */
-class HistoricalVariable(
+class HistoricalVariable @JvmOverloads constructor(
     parent: ModelElement,
     val pathToFile: Path,
     val arrayOption: Boolean = true,
@@ -98,6 +99,8 @@ class HistoricalVariable(
      * @param data an array of the data (instead of a path to a file)
      * @param fileName the file name to use to represent the file
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         data: DoubleArray,
@@ -191,7 +194,7 @@ class HistoricalVariable(
 
     private fun nextValue(): Double {
         if (arrayOption) {
-            // use array
+            // use the array
             if (arrayIterator.hasNext()) {
                 return arrayIterator.next()
             } else {

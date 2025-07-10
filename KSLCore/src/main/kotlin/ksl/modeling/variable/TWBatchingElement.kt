@@ -31,7 +31,7 @@ import ksl.utilities.statistic.BatchStatisticIfc
 import ksl.utilities.statistic.WeightedStatistic
 
 /**
- * This class controls the batching of time weighted variables within the Model.
+ * This class controls the batching of time-weighted variables within the Model.
  *
  * The batch interval is used to schedule events during a replication and must
  * be the same throughout the replication. If the supplied interval is 0.0, then
@@ -41,17 +41,17 @@ import ksl.utilities.statistic.WeightedStatistic
  * Time-based variables (TimeWeighted) are first discretized based on a batching
  * interval. The default batching interval is based on the value of the initial
  * number of batches. This is by default set to DEFAULT_NUM_TW_BATCHES = 512.
- * These initial batches are then rebatched according to the procedures within
+ * These initial batches are then rebatched, according to the procedures within
  * BatchStatistic
  *
  * Use addTimeWeighted(TimeWeighted tw) to add TimeWeighted variables to the
  * batching.
  * @param modelElement the model element
- * @param batchingInterval the batching interval, must be greater than 0
+ * @param batchingInterval the batching interval and must be greater than 0
  * @param name a name for the element
  * @author rossetti
  */
-class TWBatchingElement(
+class TWBatchingElement @JvmOverloads constructor(
     modelElement: ModelElement,
     batchingInterval: Double = 0.0,
     name: String? = null
@@ -81,7 +81,7 @@ class TWBatchingElement(
      * supplied interval is 0.0, then the method getApproximateBatchInterval()
      * will be used to determine the interval for the replication
      *
-     * The batch interval size in time units must be &gt;=0, if it is larger than run length it will not occur
+     * The batch interval size in time units must be &gt;=0, if it is larger than run length, it will not occur
      */
     var batchInterval: Double  = batchingInterval
         set(batchInterval) {
@@ -90,7 +90,7 @@ class TWBatchingElement(
         }
 
     /**
-     * The starting number of batches for time weighted batching. Used in
+     * The starting number of batches for time-weighted batching. Used in
      * approximating a batch interval size
      */
     var timeWeightedStartingNumberOfBatches : Double = DEFAULT_NUM_TW_BATCHES
@@ -109,8 +109,7 @@ class TWBatchingElement(
         }
 
     /**
-     * Holds the statistics across the time scheduled batches for the time
-     * weighted variables
+     * Holds the statistics across the time scheduled for batches for the time-weighted variables.
      *
      */
     private val myBatchStatsMap: MutableMap<TWResponse, TWBatchStatisticObserver> = mutableMapOf()
@@ -225,6 +224,7 @@ class TWBatchingElement(
      *
      * @return True means that it has been scheduled.
      */
+    @Suppress("unused")
     val isBatchEventScheduled: Boolean
         get() = if (myBatchEvent == null) {
             false
@@ -243,17 +243,17 @@ class TWBatchingElement(
 
     /**
      * This method returns a suggested batching interval based on the length of
-     * the replication and warm up length for TimeWeighted variables.
+     * the replication and warm-up length for TimeWeighted variables.
      *
      * This value is used in the calculation of the approximate batching
      * interval if batching is turned on and there is a finite run length.
      *
      * If the run length is finite, then the batch interval is approximated as
      * follows:
-     *
-     * t = length of replication - length of warm up n =
+     * ```
+     * t = length of replication - length of warmup n =
      * getTimeWeightedStartingNumberOfBatches()
-     *
+     * ```
      * batching interval = t/n
      *
      * DEFAULT_NUM_TW_BATCHES = 512.0
@@ -290,10 +290,10 @@ class TWBatchingElement(
 
     /**
      * The batch method is called during each replication when the batching
-     * event occurs This method ensures that each time weighted variable gets
+     * event occurs This method ensures that each time-weighted variable gets
      * within replication batch statistics collected across batches
      */
-    protected fun batch() {
+    private fun batch() {
         for (tw in myBatchStatsMap.keys) {
             tw.value = tw.value
             val bo = myBatchStatsMap[tw]
@@ -339,6 +339,7 @@ class TWBatchingElement(
      * @param tw
      * @return the data as a string
      */
+    @Suppress("unused")
     fun getCSVRow(tw: TWResponseCIfc): String {
         val row = StringBuilder()
         row.append(model.name)
@@ -356,6 +357,7 @@ class TWBatchingElement(
      * @param tw the time weighted variable
      * @return the header
      */
+    @Suppress("unused")
     fun getCSVHeader(tw: TWResponse): String {
         val header = StringBuilder()
         header.append("Model,")
@@ -379,6 +381,7 @@ class TWBatchingElement(
         /**
          * Returns the observed TimeWeighted
          */
+        @Suppress("unused")
        val timeWeighted: TWResponseCIfc
                 get() = myTW
 
@@ -426,7 +429,7 @@ class TWBatchingElement(
          * If the run length is finite, then the batch interval is approximated as
          * follows:
          *
-         * t = length of replication - length of warm up
+         * t = length of replication - length of warmup
          * n = getTimeWeightedStartingNumberOfBatches()
          *
          * batching interval = t/n

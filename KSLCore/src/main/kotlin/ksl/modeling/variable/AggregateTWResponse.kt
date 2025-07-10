@@ -22,7 +22,7 @@ import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import kotlin.math.abs
 
-/** An aggregate time-weighted response observes many other time weighted response variables. Whenever any
+/** An aggregate time-weighted response observes many other time-weighted response variables. Whenever any
  * variable that it observes changes, it is incremented by or decremented by the amount of the change.
  * Thus, the resulting response is the total (aggregate) of all the underlying observed responses
  * at any time.
@@ -30,7 +30,10 @@ import kotlin.math.abs
  * @param parent the parent model element
  * @param name the name of the aggregate response
  */
-class AggregateTWResponse(parent: ModelElement, name : String? = null) : TWResponse(parent, name) {
+class AggregateTWResponse @JvmOverloads constructor(
+    parent: ModelElement,
+    name : String? = null
+) : TWResponse(parent, name) {
 
     private val responses = mutableSetOf<TWResponse>()
     private val myObserver = ResponseObserver()
@@ -74,6 +77,7 @@ class AggregateTWResponse(parent: ModelElement, name : String? = null) : TWRespo
     /**
      *  Causes all the responses to be observed
      */
+    @Suppress("unused")
     fun observeAll(responses: Collection<TWResponse>){
         for(response in responses){
             observe(response)
@@ -105,6 +109,7 @@ class AggregateTWResponse(parent: ModelElement, name : String? = null) : TWRespo
      *  Causes all the responses to stop being observed
      *  @param responses the responses to stop observing
      */
+    @Suppress("unused")
     fun removeAll(responses: Collection<TWResponse>){
         for(response in responses){
             remove(response)

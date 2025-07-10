@@ -62,7 +62,7 @@ import ksl.simulation.ModelElement
  * @param repeatSchedule Whether the schedule will repeat
  * @param name           the name of the model element
  */
-class ResponseSchedule(
+class ResponseSchedule @JvmOverloads constructor(
     parent: ModelElement,
     theScheduleStartTime: Double = 0.0,
     repeatSchedule: Boolean = true,
@@ -238,7 +238,7 @@ class ResponseSchedule(
      *
      * @param startTime must be greater than or equal to zero. Represents start time relative to start of schedule
      * @param theLabel     the label associated with the interval, must not be null
-     * @param duration  duration of the interval, must be finite and strictly positive
+     * @param duration  duration of the interval and must be finite and strictly positive
      * @return the ResponseScheduleItem
      */
     fun addResponseInterval(

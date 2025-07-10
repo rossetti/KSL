@@ -30,7 +30,9 @@ import ksl.simulation.ModelElement
  * @param parent the parent model element
  * @param name the name of the aggregate response
  */
-class WeightedResponse(parent: ModelElement, name : String? = null
+class WeightedResponse @JvmOverloads constructor(
+    parent: ModelElement,
+    name : String? = null
 ) : Response(parent, name) {
 
     private val responses = mutableSetOf<Response>()
@@ -70,6 +72,7 @@ class WeightedResponse(parent: ModelElement, name : String? = null
     /**
      *  Causes all the responses to be observed
      */
+    @Suppress("unused")
     fun observeAll(responses: Collection<Response>){
         for(response in responses){
             observe(response)
@@ -101,6 +104,7 @@ class WeightedResponse(parent: ModelElement, name : String? = null
      *  Causes all the responses to stop being observed
      *  @param responses the responses to stop observing
      */
+    @Suppress("unused")
     fun removeAll(responses: Collection<Response>){
         for(response in responses){
             remove(response)
