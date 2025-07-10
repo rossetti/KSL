@@ -12,7 +12,7 @@ import org.jetbrains.letsPlot.label.labs
 /**
  *   Plots a probability mass function as represented by a DEmpirical.
  */
-class PMFPlot(
+class PMFPlot @JvmOverloads constructor(
     val dEmpiricalCDF: DEmpiricalCDF,
     dataName: String? = null
 ) : BasePlot() {

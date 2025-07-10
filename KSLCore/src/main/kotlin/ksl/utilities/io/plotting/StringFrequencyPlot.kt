@@ -9,7 +9,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class StringFrequencyPlot(
+class StringFrequencyPlot @JvmOverloads constructor(
     private val frequency: StringFrequency,
     proportions: Boolean = false
 ) : BasePlot() {

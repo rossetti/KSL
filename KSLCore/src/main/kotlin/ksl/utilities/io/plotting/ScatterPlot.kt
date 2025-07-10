@@ -8,7 +8,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class ScatterPlot(
+class ScatterPlot @JvmOverloads constructor(
     x: DoubleArray,
     y: DoubleArray,
     private val horizontalReference: Double? = null,

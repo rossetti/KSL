@@ -13,7 +13,7 @@ import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
-class ConfidenceIntervalsPlot(
+class ConfidenceIntervalsPlot @JvmOverloads constructor(
     private val intervals: Map<String, Interval>,
     private val referencePoint: Double? = null
 ) : BasePlot() {

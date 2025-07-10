@@ -13,7 +13,7 @@ import org.jetbrains.letsPlot.label.labs
 import kotlin.math.log10
 import kotlin.math.sqrt
 
-class ACFPlot(
+class ACFPlot @JvmOverloads constructor(
     data: DoubleArray,
     private val maxLag: Int = defaultMaxLag(data.size),
     dataName: String? = null

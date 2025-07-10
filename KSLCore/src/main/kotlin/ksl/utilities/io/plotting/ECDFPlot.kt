@@ -15,7 +15,7 @@ import org.jetbrains.letsPlot.stat.statECDF
 import kotlin.math.ceil
 import kotlin.math.floor
 
-class ECDFPlot(
+class ECDFPlot @JvmOverloads constructor(
     data: DoubleArray,
     var cdf: ((Double) -> Double)? = null,
     dataName: String? = null

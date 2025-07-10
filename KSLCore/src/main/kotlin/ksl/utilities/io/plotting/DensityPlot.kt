@@ -32,7 +32,7 @@ import org.jetbrains.letsPlot.tooltips.layerTooltips
 /**
  *  The histogram must have bins that all have the same bin width
  */
-class DensityPlot(
+class DensityPlot (
     private val histogram: HistogramIfc,
     val density: ((Double) -> Double)
 ) : BasePlot() {

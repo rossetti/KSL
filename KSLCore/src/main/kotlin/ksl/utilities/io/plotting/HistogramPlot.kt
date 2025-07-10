@@ -28,7 +28,7 @@ import org.jetbrains.letsPlot.label.ggtitle
 import org.jetbrains.letsPlot.label.ylab
 import org.jetbrains.letsPlot.tooltips.layerTooltips
 
-class HistogramPlot(
+class HistogramPlot @JvmOverloads constructor(
     private val histogram: HistogramIfc,
     var proportions: Boolean = false
 ) : BasePlot() {

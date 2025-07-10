@@ -18,7 +18,7 @@ import org.jetbrains.letsPlot.label.labs
  *  @param data the data to plot
  *  @param interval the interval to show on the plot
  */
-class ObservationsPlot(
+class ObservationsPlot @JvmOverloads constructor(
     data: DoubleArray,
     var interval: Interval? = null,
     dataName: String? = null
