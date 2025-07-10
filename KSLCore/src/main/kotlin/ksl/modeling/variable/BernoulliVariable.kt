@@ -43,11 +43,11 @@ interface BernoulliVariableCIfc {
  *   by a Bernoulli random variable
  *   @param parent the parent model element
  *   @param bernoulliRV the Bernoulli random variable with success probability mapped to [success].
- *   @param success the thing associated with success, must have the same type as failure
- *   @param failure the thing associated with failure, must have the same type as success
+ *   @param success the thing associated with success. Must have the same type as failure.
+ *   @param failure the thing associated with failure. Must have the same type as success.
  *   @param name the name of the model element
  */
-class BernoulliVariable<T>(
+class BernoulliVariable<T> @JvmOverloads constructor(
     parent: ModelElement,
     bernoulliRV: BernoulliRV,
     override val success: T,
@@ -65,11 +65,13 @@ class BernoulliVariable<T>(
      *   by a Bernoulli random variable
      *   @param parent the parent model element
      *   @param successProbability the success probability mapped to [success].
-     *   @param success the thing associated with success, must have the same type as failure
-     *   @param failure the thing associated with failure, must have the same type as success
+     *   @param success the thing associated with success. Must have the same type as failure.
+     *   @param failure the thing associated with failure. Must have the same type as success.
      *   @param streamNumber the desired stream number from the model's provider
      *   @param name the name of the model element
      */
+    @Suppress("unused")
+    @JvmOverloads
     constructor(
         parent: ModelElement,
         successProbability: Double,
@@ -83,7 +85,7 @@ class BernoulliVariable<T>(
      * Provides a reference to the underlying source of randomness during the replication.
      * Controls the underlying BernoulliRV source.  This
      * changes the source for the current replication only. The random
-     * variable will start to use this source immediately; however if
+     * variable will start to use this source immediately; however, if
      * a replication is started after this method is called, the random source
      * will be reassigned to the initial random source before the next replication
      * is executed.
@@ -170,8 +172,8 @@ class BernoulliVariable<T>(
     }
 
     /**
-     * after each replication check if random source changed during the replication and
-     * if so, provide information to the user
+     * After each replication, check if the random source changed during the replication and
+     * if so, provide information to the user.
      */
     override fun afterReplication() {
         super.afterReplication()

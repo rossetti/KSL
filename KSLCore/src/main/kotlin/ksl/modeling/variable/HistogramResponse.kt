@@ -51,7 +51,7 @@ interface HistogramResponseCIfc : IdentityIfc, ParentNameIfc {
  * @param cacheSize the minimum amount of data needed to configure the break points
  * @param name the name of the model element
  */
-class HistogramResponse(
+class HistogramResponse @JvmOverloads constructor(
     theResponse: Response,
     val cacheSize: Int = 512,
     name: String? = "${theResponse.name}:Histogram",
@@ -79,6 +79,7 @@ class HistogramResponse(
      *  Causes the histogram response to stop observing the underlying
      *  response.
      */
+    @Suppress("unused")
     fun stopCollecting(){
         myResponse.detachModelElementObserver(myObserver)
     }
@@ -86,6 +87,7 @@ class HistogramResponse(
     /**
      *  Causes the histogram response to start observing the underlying response
      */
+    @Suppress("unused")
     fun startCollecting(){
         if (!myResponse.isModelElementObserverAttached(myObserver)){
             myResponse.attachModelElementObserver(myObserver)

@@ -236,7 +236,7 @@ interface TimeSeriesResponseCIfc : ParentNameIfc {
  * each period for each response. The default is false.
  * @param name the name of the model element
  */
-class TimeSeriesResponse(
+class TimeSeriesResponse @JvmOverloads constructor(
     parent: ModelElement,
     periodLength: Double,
     numPeriods: Int,
@@ -248,6 +248,9 @@ class TimeSeriesResponse(
     init {
         require(numPeriods >= 1) {"The number of periods to collect must be >= 1"}
     }
+
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         periodLength: Double,
@@ -257,6 +260,8 @@ class TimeSeriesResponse(
         name: String? = null
     ) : this(parent, periodLength, numPeriods, setOf(response), emptySet(), acrossRepStatisticsOption, name)
 
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         periodLength: Double,

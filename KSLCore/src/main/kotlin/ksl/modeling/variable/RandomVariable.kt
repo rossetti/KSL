@@ -71,7 +71,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
  * be advanced to its next sub-stream after each replication.  This occurs by default unless the resetNextSubStreamOption
  * is set to false.
  */
-class RandomVariable(
+class RandomVariable @JvmOverloads constructor(
     parent: ModelElement,
     rSource: RVariableIfc,
     name: String? = null

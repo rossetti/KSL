@@ -147,6 +147,7 @@ open class Response internal constructor(
      *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
      *  when the limit is reached.
      */
+    @JvmOverloads
     constructor(
         parent: ModelElement,
         name: String? = null,
@@ -170,7 +171,7 @@ open class Response internal constructor(
     init {
         require(countLimit >= 0) { "The initial count limit value $countLimit must be >= 0" }
     }
-    
+
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next

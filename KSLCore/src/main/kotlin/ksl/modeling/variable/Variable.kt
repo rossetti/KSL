@@ -27,12 +27,12 @@ import ksl.utilities.Interval
 /**
  *  Simulation models may use many variables that define the state of the component/system being modeled.
  *  Within the context of stochastic simulation the values of the variables may change during the
- *  execution of a replication (i.e. the generation of a sample path). It is important to ensure that
- *  each replication starts in the same state (i.e. with the same initial conditions).  Thus, if variable
+ *  execution of a replication (i.e., the generation of a sample path). It is important to ensure that
+ *  each replication starts in the same state (i.e., with the same initial conditions).  Thus, if variable
  *  values change during the replication, the value of the variable must be returned to its initial
  *  value prior to the execution of the next replication. The purpose of this class is to facilitate
  *  the specification of the initial value and the resetting to the initial value prior to the experiments and
- *  the subsequent replications.  Additionally, the value of a variable might need to be constrained to
+ *  the future replications.  Additionally, the value of a variable might need to be constrained to
  *  a legally specified range or interval.  Because of the random nature of simulation, model logic
  *  might attempt to set the value of a variable outside its legal set of values.  This class allows
  *  the specification of a valid interval for the variable.  If the user attempts to set the value outside
@@ -41,9 +41,9 @@ import ksl.utilities.Interval
  *  @param parent the parent (containing) model element for this variable
  *  @param theInitialValue the initial value, defaults to 0.0
  *  @param allowedDomain the validity interval, defaults to [NEGATIVE_INFINITY, POSITIVE_INFINITY]
- *  @param name the name of the variable, will be auto-defined if null
+ *  @param name The name of the variable will be auto-defined if null.
  */
-open class Variable(
+open class Variable @JvmOverloads constructor(
     parent: ModelElement,
     theInitialValue: Double = 0.0,
     allowedDomain: Interval = Interval(),

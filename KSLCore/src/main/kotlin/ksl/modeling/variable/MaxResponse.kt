@@ -18,6 +18,11 @@
 
 package ksl.modeling.variable
 
+/**
+ *  This response collects statistics across replications by observing
+ *  the maximum of the supplied response.
+ *  @param observedResponse the response to be observed
+ */
 class MaxResponse(
     observedResponse: Response
 ) : Response(observedResponse, name = "${observedResponse.name}:Max") {

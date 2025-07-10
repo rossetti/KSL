@@ -30,22 +30,24 @@ import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.StatisticIfc
 
 /**
- *  While Counter instances should in general be declared as private within model
- *  elements, this interface provides the modeler the ability to declare a public property
- *  that returns an instance with limited ability to change and use the underlying Counter,
- *  prior to running the model.
+ *  A Counter instance should, in general, be declared as private within model
+ *  elements. This interface provides the modeler the ability to declare a public property
+ *  that returns an instance with the limited ability to change and use the underlying Counter,
+ *  before running the model.
  *
  *  For example:
  *
+ *   ```
  *   private val myC = Counter(this, "something cool")
  *   val counter: CounterCIfc
  *      get() = myC
+ *   ```
  *
  *   Then users of the public property can change the response and do other
  *   controlled changes without fully exposing the private variable.  The implementer of the
  *   model element that contains the private counter does not have to write additional
  *   functions to control the counter and can use this strategy to expose what is needed.
- *   This is most relevant to setting up the model elements prior to running the model or
+ *   This is most relevant to setting up the model elements before running the model or
  *   accessing information after the model has been executed. Changes or use during a model
  *   run is readily available through the general interface presented by Counter.
  *
@@ -55,7 +57,7 @@ import ksl.utilities.statistic.StatisticIfc
 interface CounterCIfc : ValueIfc, IdentityIfc {
 
     /**
-     *  If true, the response will emit pairs Pair(time, value) every time
+     *  If true, the response will emit a pair `Pair(time, value)` every time
      *  a new value is assigned
      */
     val emissionsOn: Boolean
@@ -79,7 +81,7 @@ interface CounterCIfc : ValueIfc, IdentityIfc {
     fun addCountLimitStoppingAction(initialCountLimit: Int): CountActionIfc
 }
 
-open class Counter(
+open class Counter @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     initialValue: Double = 0.0,
@@ -150,6 +152,7 @@ open class Counter(
             }
         }
 
+    @Suppress("unused")
     val isLimitReached: Boolean
         get() = myValue >= replicationCountLimit
 
@@ -187,6 +190,7 @@ open class Counter(
      *
      * @param increase The amount to increase by. Must be non-negative.
      */
+    @JvmOverloads
     fun increment(increase: Double = 1.0) {
         require(increase >= 0) { "Invalid argument. Attempted an negative increment." }
         value = value + increase

@@ -22,12 +22,23 @@ import ksl.observers.ModelElementObserver
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.toDouble
 
-class IndicatorResponse(
+/**
+ *  An IndicatorResponse implements the concept of an indicator variable.
+ *  This facilitates the collection and reporting of probability estimates
+ *  based on the observed response.
+ *  @param predicate the predicate indicating true or false based on the
+ *  double value of the response when it changes value.
+ *  @param observedResponse the response variable that will be observed for changes
+ *  @param name a name for the indicator variable that will appear on statistical reporting.
+ */
+class IndicatorResponse @JvmOverloads constructor(
     predicate: (Double) -> Boolean,
     observedResponse: Response,
     name: String? = null
 ) : Response(observedResponse, name) {
 
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         predicate: (Double) -> Boolean,
         observedResponse: ResponseCIfc,
@@ -42,6 +53,7 @@ class IndicatorResponse(
         myObservedResponse.attachModelElementObserver(myObserver)
     }
 
+    @Suppress("unused")
     fun detach() {
         myObservedResponse.detachModelElementObserver(myObserver)
     }

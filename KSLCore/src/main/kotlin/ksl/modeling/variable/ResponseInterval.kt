@@ -45,7 +45,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  * be repeated. In which case, the statistics are collected across the
  * intervals. A repeated interval starts immediately after the previous
  * duration. Note that for ResponseVariables that are observed, if there
- * are no observations during the interval then the average response during
+ * are no observations during the interval, then the average response during
  * the interval is undefined (and thus not observed). Therefore, interval
  * statistics for ResponseVariables are conditional on the occurrence of at least
  * one observation.  This is most relevant when the interval is repeated because
@@ -53,7 +53,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  *
  * @author rossetti
  */
-class ResponseInterval(
+class ResponseInterval @JvmOverloads constructor(
     parent: ModelElement,
     theDuration: Double,
     label: String?,
@@ -174,6 +174,7 @@ class ResponseInterval(
      * the interval is empty when observed
      * @return a Response for the interval
      */
+    @JvmOverloads
     fun addResponseToInterval(theResponse: ResponseCIfc, intervalEmptyStatOption: Boolean = false): Response {
         return addResponseToInterval(theResponse as Response, intervalEmptyStatOption)
     }
@@ -187,6 +188,7 @@ class ResponseInterval(
      * the interval is empty when observed
      * @return a Response for the interval
      */
+    @JvmOverloads
     fun addResponseToInterval(
         theResponse: Response,
         intervalEmptyStatOption: Boolean = false

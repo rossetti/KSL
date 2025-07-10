@@ -20,7 +20,6 @@ package ksl.modeling.variable
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
 
@@ -43,18 +42,18 @@ interface TWResponseCIfc : ResponseCIfc {
  *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
  *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
  *  the context of the parent. For example, "${this.name}:SomeResponseName", where "this" refers to the parent.
- *  @param initialValue this is the intial value of the response variable. It is only used internally.
+ *  @param initialValue this is the initial value of the response variable. It is only used internally.
  *  @param allowedDomain This is an interval that defines the set of legal values for the response. By default, this is
  *  [0, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
  *  assigned to the response. For example, if the response represents time, you might want to change the
  *  allowed domain to not include negative values.
- *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+ *  @param countLimit specifies a limit that when reached will cause counter-actions to be invoked. By default, this is
  *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
  *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
  *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
  *  when the limit is reached.
  */
-open class TWResponse(
+open class TWResponse @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     initialValue: Double = 0.0,
@@ -143,6 +142,7 @@ open class TWResponse(
      *
      * @param increase The amount to increase by. Must be non-negative.
      */
+    @JvmOverloads
     fun increment(increase: Double = 1.0) {
         require(increase >= 0) { "Invalid argument. Attempted an negative increment." }
         value = value + increase
@@ -154,6 +154,7 @@ open class TWResponse(
      *
      * @param decrease The amount to decrease by. Must be non-negative.
      */
+    @JvmOverloads
     fun decrement(decrease: Double = 1.0) {
         require(decrease >= 0) { "Invalid argument. Attempted an negative decrement." }
         value = value - decrease
@@ -172,7 +173,7 @@ open class TWResponse(
     override fun initialize() {
         super.initialize()
         // this is so at least two changes are recorded on the variable
-        // to properly account for variables that have zero area throughout the replication
+        // to properly account for variables that have zero-valued area throughout the replication
         value = value
     }
 
@@ -185,7 +186,7 @@ open class TWResponse(
     override fun warmUp() {
         super.warmUp()
         // this is so at least two changes are recorded on the variable
-        // to properly account for variables that have zero area throughout the replication
+        // to properly account for variables that have zero-valued area throughout the replication
         // make it think that it changed at the warm-up time to the same value
         timeOfChange = time
         value = value
@@ -193,7 +194,7 @@ open class TWResponse(
 
     override fun replicationEnded() {
         super.replicationEnded()
-        // this allows time weighted to be collected all the way to end of the replication
+        // this allows the time-weighted variable's value to be collected all the way until the end of the replication
         value = value
     }
 }

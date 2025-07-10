@@ -27,16 +27,36 @@ import ksl.utilities.statistic.StateFrequency
 
 /**
  * Collects statistics on whether a specific level associated with a variable is
- * maintained.
+ * maintained.  Basic statistics collected include:
+ *  - StateFrequency above and below the level
+ *  - time spent above and below the level
+ *  - the distance above and below the level
+ *  - the time-weighted deviation above and below the level
+ *  - the time-weighted deviation from the level
+ *  - the maximum deviation above and below the level
+ *  - the percentage of time above and below the level
+ *  - the total time above and below the level
+ *  - the total absolute deviation from the level
+ *  - the proportion of the deviation above and below the level
+ *  - the relative positive and negative deviation from the level
+ *
+ *  Extra statistics collected if the statistics option is true:
+ *
+ *  - the average time spent above and below the level
+ *  - the maximum time spent above and below the level
+ *  - the probability transitions from above to below, above to above, below to above, and below to below
+ *  - the number of transitions from above to below, above to above, below to above, and below to below
+ *
  * @param variable the response to observe
  * @param theLevel    the level to associate with the response
  * @param stats    whether detailed state change statistics are collected
  * @param theName     the name of the response
  */
-class LevelResponse(variable: Variable,
-                    theLevel: Double,
-                    stats: Boolean = true,
-                    theName: String? = null
+class LevelResponse @JvmOverloads constructor(
+    variable: Variable,
+    theLevel: Double,
+    stats: Boolean = true,
+    theName: String? = null
 ) : ModelElement(variable, theName) {
 
     init {
@@ -46,8 +66,10 @@ class LevelResponse(variable: Variable,
 
     private val myObserver: ModelElementObserver = TheObserver()
 
-    //TODO should be VariableIfc
     private val myVariable: Variable = variable
+    val variable: VariableIfc
+        get() = myVariable
+
     val level: Double = theLevel
 
     /**
@@ -74,53 +96,129 @@ class LevelResponse(variable: Variable,
 
     // collected during the replication
     private val myDistanceAbove = Response(this, "${myVariable.name}:$name:DistAboveLevel:${D2FORMAT.format(theLevel)}")
+    val distanceAboveLevel: ResponseCIfc
+        get() = myDistanceAbove
     private val myDistanceBelow = Response(this, "${myVariable.name}:$name:DistBelowLevel:${D2FORMAT.format(theLevel)}")
+    val distanceBelowLevel: ResponseCIfc
+        get() = myDistanceBelow
+
     private val myDevAboveLevel =
         TWResponse(this, name = "${myVariable.name}:$name:DevAboveLevel:${D2FORMAT.format(theLevel)}")
+    val deviationAboveLevel: TWResponseCIfc
+        get() = myDevAboveLevel
     private val myDevBelowLevel =
         TWResponse(this, name = "${myVariable.name}:$name:DevBelowLevel:${D2FORMAT.format(theLevel)}")
+    val deviationBelowLevel: TWResponseCIfc
+        get() = myDevBelowLevel
+
     private val myDeviationFromLevel =
         TWResponse(
             this,
             allowedDomain = Interval(),
             name = "${myVariable.name}:$name:DevFromLevel:${D2FORMAT.format(theLevel)}"
         )
+    val deviationFromLevel: TWResponseCIfc
+        get() = myDeviationFromLevel
+
     private val myMaxDistanceAbove =
         Response(this, "${myVariable.name}:$name:MaxDistAboveLevel:${D2FORMAT.format(theLevel)}")
+    val maxDistanceAboveLevel: ResponseCIfc
+        get() = myMaxDistanceAbove
+
     private val myMaxDistanceBelow =
         Response(this, "${myVariable.name}:$name:MaxDistBelowLevel:${D2FORMAT.format(theLevel)}")
+    val maxDistanceBelowLevel: ResponseCIfc
+        get() = myMaxDistanceBelow
+
     private val myPctTimeAbove = Response(this, "${myVariable.name}:$name:PctTimeAbove:${D2FORMAT.format(theLevel)}")
+    val percentTimeAboveLevel: ResponseCIfc
+        get() = myPctTimeAbove
+
     private val myPctTimeBelow = Response(this, "${myVariable.name}:$name:PctTimeBelow:${D2FORMAT.format(theLevel)}")
+    val percentTimeBelowLevel: ResponseCIfc
+        get() = myPctTimeBelow
+
     private val myTotalTimeAbove =
         Response(this, "${myVariable.name}:$name:TotalTimeAbove:${D2FORMAT.format(theLevel)}")
+    val totalTimeAboveLevel: ResponseCIfc
+        get() = myTotalTimeAbove
+
     private val myTotalTimeBelow =
         Response(this, "${myVariable.name}:$name:TotalTimeBelow:${D2FORMAT.format(theLevel)}")
+    val totalTimeBelowLevel: ResponseCIfc
+        get() = myTotalTimeBelow
+
     private val myTotalAbsDeviationFromLevel =
         Response(this, "${myVariable.name}:$name:TotalAbsDevFromLevel:${D2FORMAT.format(theLevel)}")
+    val totalAbsoluteDeviationFromLevel: ResponseCIfc
+        get() = myTotalAbsDeviationFromLevel
+
     private val myProportionDevFromAboveLevel =
         Response(this, "${myVariable.name}:$name:PctDevAboveLevel:${D2FORMAT.format(theLevel)}")
+    val proportionDeviationFromAboveLevel: ResponseCIfc
+        get() = myProportionDevFromAboveLevel
+
     private val myProportionDevFromBelowLevel =
         Response(this, "${myVariable.name}:$name:PctDevBelowLevel:${D2FORMAT.format(theLevel)}")
+    val proportionDeviationFromBelowLevel: ResponseCIfc
+        get() = myProportionDevFromBelowLevel
+
     private val myRelDevFromLevel =
         Response(this, "${myVariable.name}:$name:RelDevFromLevel:${D2FORMAT.format(theLevel)}")
+    val relativeDeviationFromLevel: ResponseCIfc
+        get() = myRelDevFromLevel
+
     private val myRelPosDevFromLevel =
         Response(this, "${myVariable.name}:$name:RelPosDevFromLevel:${D2FORMAT.format(theLevel)}")
+    val relativePositiveDeviationFromLevel: ResponseCIfc
+        get() = myRelPosDevFromLevel
+
     private val myRelNegDevFromLevel =
         Response(this, "${myVariable.name}:$name:RelNegDevFromLevel:${D2FORMAT.format(theLevel)}")
+    val relativeNegativeDeviationFromLevel: ResponseCIfc
+        get() = myRelNegDevFromLevel
 
     // all these are collected within replicationEnded()
     private var myAvgTimeAbove: Response? = null
+    val averageTimeAboveLevel: ResponseCIfc?
+        get() = myAvgTimeAbove
+
     private var myAvgTimeBelow: Response? = null
+    val averageTimeBelowLevel: ResponseCIfc?
+        get() = myAvgTimeBelow
     private var myMaxTimeAbove: Response? = null
+    val maximumTimeAboveLevel: ResponseCIfc?
+        get() = myMaxTimeAbove
     private var myMaxTimeBelow: Response? = null
+    val maximumTimeBelowLevel: ResponseCIfc?
+        get() = myMaxTimeBelow
+
     private var myPAA: Response? = null
+    val probabilityFromAboveToAboveLevel: ResponseCIfc?
+        get() = myPAA
+
     private var myPAB: Response? = null
+    val probabilityFromAboveToBelowLevel: ResponseCIfc?
+        get() = myPAB
+
     private var myPBB: Response? = null
+    val probabilityFromBelowToBelowLevel: ResponseCIfc?
+        get() = myPBB
     private var myPBA: Response? = null
+    val probabilityFromBelowToAboveLevel: ResponseCIfc?
+        get() = myPBA
     private var myNAA: Response? = null
+    val numberOfTimesAboveToAboveLevel: ResponseCIfc?
+        get() = myNAA
     private var myNAB: Response? = null
+    val numberOfTimesAboveToBelowLevel: ResponseCIfc?
+        get() = myNAB
     private var myNBB: Response? = null
+    val numberOfTimesBelowToBelowLevel: ResponseCIfc?
+        get() = myNBB
     private var myNBA: Response? = null
+    val numberOfTimesBelowToAboveevel: ResponseCIfc?
+        get() = myNBA
 
     init {
         // collected after the replication ends
