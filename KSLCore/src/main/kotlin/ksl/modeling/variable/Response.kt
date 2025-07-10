@@ -29,22 +29,24 @@ import ksl.utilities.statistic.WeightedStatistic
 import ksl.utilities.statistic.WeightedStatisticIfc
 
 /**
- *  While Response instances should in general be declared as private within model
- *  elements, this interface provides the modeler the ability to declare a public property
- *  that returns an instance with limited ability to change and use the underlying Response,
- *  prior to running the model.
+ *  Response instances should, in general, be declared as private within model
+ *  elements. This interface provides the modeler the ability to declare a public property,
+ *  which returns an instance with the limited ability to change and use the underlying Response,
+ *  before running the model.
  *
  *  For example:
  *
+ *   ```
  *   private val myR = Response(this, "something cool")
  *   val response: ResponseCIfc
  *      get() = myR
+ *   ```
  *
  *   Then users of the public property can change the response and do other
  *   controlled changes without fully exposing the private variable.  The implementer of the
  *   model element that contains the private response does not have to write additional
  *   functions to control the response and can use this strategy to expose what is needed.
- *   This is most relevant to setting up the model elements prior to running the model or
+ *   This is most relevant to setting up the model elements before running the model or
  *   accessing information after the model has been executed. Changes or use during a model
  *   run is readily available through the general interface presented by Response.
  *
@@ -53,7 +55,7 @@ import ksl.utilities.statistic.WeightedStatisticIfc
  */
 interface ResponseCIfc : ResponseIfc {
     /**
-     *  If true, the response will emit pairs Pair(time, value) every time
+     *  If true, the response will emit a pair `Pair(time, value)` every time
      *  a new value is assigned
      */
     val emissionsOn: Boolean
@@ -104,12 +106,12 @@ interface ResponseCIfc : ResponseIfc {
  *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
  *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
  *  the context of the parent. For example, "${this.name}:SomeResponseName", where "this" refers to the parent.
- *  @param initialValue this is the intial value of the response variable. It is only used internally.
+ *  @param initialValue this is the initial value of the response variable. It is only used internally.
  *  @param allowedDomain This is an interval that defines the set of legal values for the response. By default, this is
  *  (NEGATIVE_INFINITY, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
  *  assigned to the response. For example, if the response represents time, you might want to change the
  *  allowed domain to not include negative values.
- *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+ *  @param countLimit specifies a limit that when reached will cause counter-actions to be invoked. By default, this is
  *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
  *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
  *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
@@ -137,7 +139,7 @@ open class Response internal constructor(
      *  (NEGATIVE_INFINITY, POSITIVE_INFINITY). If supplied, this provides a method to check if invalid values are
      *  assigned to the response. For example, if the response represents time, you might want to change the
      *  allowed domain to not include negative values.
-     *  @param countLimit specifies a limit that when reached will cause counter actions to be invoked. By default, this is
+     *  @param countLimit specifies a limit that when reached will cause counter-actions to be invoked. By default, this is
      *  POSITIVE_INFINITY. A common count action would be to stop the simulation when a particular number of observations
      *  have been reached.  By default, there are no count actions. Thus, if a count limit is specified, the user
      *  is responsible for providing what to do via the functions that add count actions. Otherwise, no actions occur
@@ -254,6 +256,7 @@ open class Response internal constructor(
 
     override var defaultReportingOption: Boolean = true
 
+    @Suppress("unused")
     fun attachIndicator(predicate: (Double) -> Boolean, name: String? = null): IndicatorResponse {
         return IndicatorResponse(predicate, this, name)
     }
