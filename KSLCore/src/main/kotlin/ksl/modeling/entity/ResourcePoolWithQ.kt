@@ -21,7 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.QueueCIfc
 import ksl.simulation.ModelElement
 
-class ResourcePoolWithQ(
+class ResourcePoolWithQ @JvmOverloads constructor(
     parent: ModelElement,
     resources: List<Resource>,
     queue: RequestQ? = null,

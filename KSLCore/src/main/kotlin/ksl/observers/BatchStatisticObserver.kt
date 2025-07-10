@@ -36,7 +36,7 @@ import ksl.utilities.statistic.BatchStatisticIfc
  * minimum number of batches.
  * @author rossetti
  */
-open class BatchStatisticObserver (
+open class BatchStatisticObserver @JvmOverloads constructor(
     minNumBatches: Int = BatchStatistic.MIN_NUM_BATCHES,
     minBatchSize: Int = BatchStatistic.MIN_NUM_OBS_PER_BATCH,
     maxNBMultiple: Int = BatchStatistic.MAX_BATCH_MULTIPLE,

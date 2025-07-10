@@ -67,7 +67,7 @@ data class DesignPointInfo(val point: Int, val exp_name: String, val rep_id: Int
  *  be contained in the factor settings.
  *  @param kslDb a KSLDatabase that will hold the data from the experiment.
  */
-class DesignedExperiment(
+class DesignedExperiment @JvmOverloads constructor(
     name: String,
     private val model: Model,
     private val factorSettings: Map<Factor, String>,

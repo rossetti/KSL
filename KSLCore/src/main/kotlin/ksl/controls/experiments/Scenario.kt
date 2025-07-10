@@ -42,7 +42,7 @@ import ksl.utilities.Identity
  *  @param lengthOfReplicationWarmUp the length of the warmup period for each replication for the scenario. By default,
  *  this is the current setting of the model.
  */
-class Scenario(
+class Scenario @JvmOverloads constructor(
     val model: Model,
     name: String,
     inputs: Map<String, Double> = emptyMap(),
@@ -62,6 +62,7 @@ class Scenario(
      *  @param inputs The map of inputs (based on control names) to apply to the model.
      */
     @Suppress("unused")
+    @JvmOverloads
     constructor(
         modelCreator: () -> Model,
         name: String,

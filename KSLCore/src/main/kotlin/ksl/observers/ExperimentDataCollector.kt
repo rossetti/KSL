@@ -47,7 +47,11 @@ import org.jetbrains.kotlinx.dataframe.impl.asList
  * then the startObserving() function needs to be called before running the model.
  * @author rossetti
  */
-class ExperimentDataCollector(model: Model, autoAttach: Boolean = true) {
+@Suppress("unused")
+class ExperimentDataCollector @JvmOverloads constructor(
+    model: Model,
+    autoAttach: Boolean = true
+) {
     /**
      * First key, is for the experiment. The value holds the collected replication data
      */

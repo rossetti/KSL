@@ -32,7 +32,7 @@ import org.jetbrains.kotlinx.dataframe.Predicate
  * @param name the name of this signal
  * @param discipline the queue discipline for the internal queue that holds the waiting entities
  */
-class Signal(
+class Signal @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     discipline: Queue.Discipline = Queue.Discipline.FIFO

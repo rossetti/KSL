@@ -16,7 +16,7 @@ The client should set the databaseName property appropriately before establishin
 The databaseName property should be a path to the file that represents the database on disk.
 If no database name is provided then an in-memory database is created.
  */
-class DuckDbDataSource(var databaseName: String = "") : DataSource {
+class DuckDbDataSource @JvmOverloads constructor(var databaseName: String = "") : DataSource {
 
     companion object {
         val PREFIX : String = "jdbc:duckdb:"

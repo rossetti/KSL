@@ -26,6 +26,10 @@ import ksl.utilities.DoubleArraySaver
 import ksl.utilities.statistic.Statistic
 import kotlin.time.Duration
 
+/**
+ *  Provides the ability to time the execution of a model.
+ *  @param model the model to observe
+ */
 class SimulationTimer(private val model: Model) {
     private val simObserver = SimObserver()
     init {

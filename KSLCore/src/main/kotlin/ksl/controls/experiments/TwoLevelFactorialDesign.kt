@@ -4,7 +4,7 @@ import ksl.utilities.math.KSLMath
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
-class TwoLevelFactorialDesign(
+class TwoLevelFactorialDesign @JvmOverloads constructor(
     factors: Set<TwoLevelFactor>,
     name: String? = null
 ) : FactorialDesign(factors, name) {
@@ -16,6 +16,8 @@ class TwoLevelFactorialDesign(
      *  Must be greater or equal to 1. If null, then the current value for the
      *  number of replications of each design point is used. Null is the default.
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun halfFractionIterator(half: Double = 1.0, numReps: Int? = null): TwoLevelFractionalIterator {
         val rs = (1..numFactors).toList().toSet()
         return TwoLevelFractionalIterator(setOf(rs), numReps, half)
@@ -40,6 +42,8 @@ class TwoLevelFactorialDesign(
      *  number of replications of each design point is used. Null is the default.
      *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun fractionalIterator(
         relation: Set<Set<Int>>,
         numReps: Int? = null,
@@ -67,7 +71,7 @@ class TwoLevelFactorialDesign(
      *  number of replications of each design point is used. Null is the default.
      *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
      */
-    inner class TwoLevelFractionalIterator(
+    inner class TwoLevelFractionalIterator @JvmOverloads constructor(
         private val relation: Set<Set<Int>>,
         numReps: Int? = null,
         val sign: Double = 1.0
@@ -140,6 +144,8 @@ class TwoLevelFactorialDesign(
          *  or equal to the number of factors.
          *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
          */
+        @JvmStatic
+        @JvmOverloads
         fun inDesignWord(
             dp: DesignPoint,
             word: Set<Int>,
@@ -175,6 +181,8 @@ class TwoLevelFactorialDesign(
          *  @param relation the set of words for the defining relation.
          *  @param sign the sign of the generator 1.0 = I, -1.0 = -I. The default is 1.0.
          */
+        @JvmStatic
+        @JvmOverloads
         fun inDesignRelation(
             dp: DesignPoint,
             relation: Set<Set<Int>>,

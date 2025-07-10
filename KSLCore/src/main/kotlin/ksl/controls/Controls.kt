@@ -354,12 +354,15 @@ class Controls(aModel: Model) {
         /**
          * A global logger for logging of model elements
          */
+        @JvmStatic
         val logger = KotlinLogging.logger {}
 
+        @JvmStatic
         fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? {
             return setter.annotations.filterIsInstance<KSLControl>().firstOrNull()
         }
 
+        @JvmStatic
         fun <T> hasControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean {
             return setter.annotations.filterIsInstance<KSLControl>().isNotEmpty()
         }

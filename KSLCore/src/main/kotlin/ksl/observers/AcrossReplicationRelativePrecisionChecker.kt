@@ -23,8 +23,20 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
-class AcrossReplicationRelativePrecisionChecker(response: ResponseCIfc, desiredRelativePrecision: Double = 1.0, name: String? = null) :
-    ModelElementObserver(name) {
+/**
+ *  This class will stop the simulation when the desired relative precision half-width criterion is
+ *  met for the supplied response variable.
+ *  @param response the response to observe
+ *  @param desiredRelativePrecision the desired relative precision for the half-width. It must be positive.
+ *  @param name an optional name
+ */
+@Suppress("unused")
+class AcrossReplicationRelativePrecisionChecker(
+    response: ResponseCIfc,
+    desiredRelativePrecision: Double = 1.0,
+    name: String? = null
+) : ModelElementObserver(name) {
+
     init {
         require(desiredRelativePrecision > 0.0) {"The desired half-width must be > 0"}
     }

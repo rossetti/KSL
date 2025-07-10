@@ -49,7 +49,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  * then the startObserving() function needs to be called before running the model.
  * model will be automatically added to the data collector. The default is false.
  */
-class ReplicationDataCollector(
+class ReplicationDataCollector @JvmOverloads constructor (
     model: Model,
     addAll: Boolean = false,
     autoAttach: Boolean = true

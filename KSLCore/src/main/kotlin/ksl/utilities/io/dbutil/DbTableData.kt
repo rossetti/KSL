@@ -317,6 +317,7 @@ abstract class DbTableData(
          *  Any other KType is returned as "VARCHAR($defaultVarCharLength)"
          *  The default VARCHAR size is 512.
          */
+        @JvmStatic
         fun toSQLTypeString(kType: KType, defaultVarCharLength: Int = 512): String {
             if (kType.classifier == Double::class) {
                 return "DOUBLE"

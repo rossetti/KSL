@@ -24,7 +24,13 @@ import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
-class CounterTraceCSV(
+/**
+ *  Provides the ability to trace the value of a counter during replications.
+ *  @param theCounter the counter to trace
+ *  @param pathToFile the path to the file to store the trace
+ */
+@Suppress("unused")
+class CounterTraceCSV @JvmOverloads constructor(
     theCounter: Counter,
     pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(
         theCounter.name.replace(':', '_') + "_Trace.csv"),

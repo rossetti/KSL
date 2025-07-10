@@ -49,7 +49,7 @@ fun interface EntitySelectorIfc {
  * @param capacity the capacity of the queue, by default Int.MAX_VALUE (infinite)
  * @param name the name of the queue
  */
-class BlockingQueue<T : ModelElement.QObject>(
+class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     parent: ModelElement,
     capacity: Int = Int.MAX_VALUE,
     name: String? = null

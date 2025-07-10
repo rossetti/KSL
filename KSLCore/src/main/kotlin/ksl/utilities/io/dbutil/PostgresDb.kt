@@ -11,6 +11,8 @@ object PostgresDb {
      * @param pWord  the password
      * @return the DataSource for getting connections
      */
+    @JvmOverloads
+    @JvmStatic
     fun createDataSourceWithLocalHost(
         dbName: String,
         user: String = "",
@@ -28,6 +30,8 @@ object PostgresDb {
      * @param portNumber   a valid port number
      * @return the DataSource for getting connections
      */
+    @JvmOverloads
+    @JvmStatic
     fun createDataSource(
         dbServerName: String = "localhost",
         dbName: String,
@@ -46,6 +50,8 @@ object PostgresDb {
      * @param pWord        the password, must not be null
      * @return the Properties instance
      */
+    @JvmOverloads
+    @JvmStatic
     fun createProperties(
         dbServerName: String,
         dbName: String,

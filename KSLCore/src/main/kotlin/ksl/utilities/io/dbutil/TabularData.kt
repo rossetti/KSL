@@ -259,6 +259,7 @@ abstract class TabularData(tableName: String) {
          *  Checks if the KType can be converted to a numeric value.  For the purposes
          *  of this method, Boolean can be converted to number 1 = true and 0 = false
          */
+        @JvmStatic
         fun isNumericConvertable(kType: KType): Boolean {
             when (kType.classifier) {
                 Double::class -> {
@@ -292,6 +293,7 @@ abstract class TabularData(tableName: String) {
          *  For the purposes of this method, Double, Int, Float, Long, Short, Byte,
          *  and Boolean are all numerically convertable
          */
+        @JvmStatic
         fun isNumericConvertable(value: Any): Boolean {
             return TabularFile.isNumeric(value)
         }
@@ -310,6 +312,7 @@ abstract class TabularData(tableName: String) {
             return isNumericConvertable(kType) && isNumericConvertable(value)
         }
 
+        @JvmStatic
         fun convertToNonNullableType(kType: KType, value: Any): Any {
             if (kType.classifier == value::class) {
                 // same type, no conversion needed

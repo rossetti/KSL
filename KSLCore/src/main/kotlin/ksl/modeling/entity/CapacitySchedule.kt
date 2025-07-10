@@ -55,7 +55,7 @@ data class CapacityItemData(
 }
 
 @Serializable
-data class CapacityScheduleData(
+data class CapacityScheduleData @JvmOverloads constructor(
     var initialStartTime: Double = 0.0,
     var isScheduleRepeatable: Boolean = false,
     var isAutoStartFlag: Boolean = true,
@@ -269,7 +269,7 @@ interface CapacityScheduleCIfc : JsonSettingsIfc<CapacityScheduleData> {
  * @param name an optional name for the schedule
  * @author rossetti
  */
-class CapacitySchedule(
+class CapacitySchedule @JvmOverloads constructor(
     parent: ModelElement,
     startTime: Double = 0.0,
     autoStartOption: Boolean = true,
@@ -290,6 +290,7 @@ class CapacitySchedule(
      * @param name an optional name for the schedule
      * @author rossetti
      */
+    @JvmOverloads
     constructor(
         parent: ModelElement,
         capacityScheduleData: CapacityScheduleData,

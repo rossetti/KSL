@@ -44,7 +44,7 @@ import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Timestamp
 
-class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
+class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
@@ -54,6 +54,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
      * @param clearDataOption indicates if the data should be cleared. The default is true.
      * @return an empty embedded SQLite database configured to hold KSL simulation results
      */
+    @JvmOverloads
     constructor(dbName: String, dbDirectory: Path = dbDir, clearDataOption: Boolean = true) : this(
         createSQLiteKSLDatabase(dbName, dbDirectory), clearDataOption
     )
@@ -1361,12 +1362,14 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
     }
 
     companion object {
+        @JvmStatic
         val TableNames: List<String> = listOf(
             "time_series_response", "frequency", "histogram",
             "batch_stat", "within_rep_counter_stat", "across_rep_stat", "within_rep_stat",
             "rv_parameter", "control", "model_element", "simulation_run", "experiment"
         )
 
+        @JvmStatic
         val ViewNames: List<String> = listOf(
             "within_rep_response_view", "within_rep_counter_view", "within_rep_view", "exp_stat_rep_view",
             "across_rep_view", "batch_stat_view", "pw_diff_within_rep_view"
@@ -1374,7 +1377,10 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
 
         private const val SCHEMA_NAME = "KSL_DB"
 
+        @JvmStatic
         val dbDir: Path = KSL.dbDir
+
+        @JvmStatic
         val dbScriptsDir: Path = KSL.createSubDirectory("dbScript")
 
         init {
@@ -1423,6 +1429,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
          * @return an empty embedded SQLite database configured to hold KSL simulation results
          */
+        @JvmStatic
+        @JvmOverloads
         fun createSQLiteKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             DatabaseIfc.logger.info { "Create SQLite Database for KSLDatabase: $dbName at path $dbDirectory" }
             val database = SQLiteDb.createDatabase(dbName, dbDirectory)
@@ -1460,6 +1468,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          *
          * @return an empty embedded SQLite database configured to hold KSL simulation results
          */
+        @JvmStatic
+        @JvmOverloads
         fun createKSLDatabase(dbName: String, dbDirectory: Path = dbDir): KSLDatabase {
             val db = createSQLiteKSLDatabase(dbName, dbDirectory)
             return KSLDatabase(db)
@@ -1471,6 +1481,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param dbDirectory the directory containing the database. By default, KSL.dbDir.
          * @return an empty embedded Derby database configured to hold KSL simulation results
          */
+        @JvmStatic
+        @JvmOverloads
         fun createEmbeddedDerbyKSLDatabase(dbName: String, dbDirectory: Path = dbDir): Database {
             DatabaseIfc.logger.info { "Create Derby Database for KSLDatabase: $dbName at path $dbDirectory" }
             val derbyDatabase = DerbyDb.createDatabase(dbName, dbDirectory)
@@ -1486,6 +1498,7 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          *
          * @param db the database
          */
+        @JvmStatic
         fun executeKSLDbCreationScriptOnDatabase(db: Database) {
             if (!db.containsSchema(SCHEMA_NAME)) {
                 DatabaseIfc.logger.warn { "The database ${db.label} does not contain schema $SCHEMA_NAME" }
@@ -1513,6 +1526,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param pWord           the password
          * @return a reference to a KSLDatabase
          */
+        @JvmStatic
+        @JvmOverloads
         fun createPostgreSQLKSLDatabase(
             dbName: String,
             dbServerName: String = "localhost",
@@ -1541,6 +1556,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param pWord           the password
          * @return a reference to a KSLDatabase
          */
+        @JvmStatic
+        @JvmOverloads
         fun connectPostgresKSLDatabase(
             clearDataOption: Boolean = false,
             dbName: String,
@@ -1564,6 +1581,8 @@ class KSLDatabase(private val db: Database, clearDataOption: Boolean = false) : 
          * @param dBProperties    appropriately configured HikariCP datasource properties
          * @return a reference to a KSLDatabase
          */
+        @JvmStatic
+        @JvmOverloads
         fun connectKSLDatabase(
             clearDataOption: Boolean = false,
             dBProperties: Properties,

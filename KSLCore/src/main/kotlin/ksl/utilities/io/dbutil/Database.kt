@@ -29,7 +29,7 @@ import java.sql.Connection
 import java.util.*
 import javax.sql.DataSource
 
-open class Database(
+open class Database @JvmOverloads constructor(
     final override val dataSource: DataSource,
     final override var label: String,
     final override var defaultSchemaName: String? = null
@@ -70,6 +70,8 @@ open class Database(
          * @param dbType The type of database (SQLite, Derby, DuckDb). The default is SQLite.
          * @return a database
          */
+        @JvmOverloads
+        @JvmStatic
         fun createSimpleDb(
             tableDefinitions: Set<DbTableData>,
             dbName: String,
@@ -95,6 +97,7 @@ open class Database(
          * @param dBProperties the properties, must not be null
          * @return the created database
          */
+        @JvmStatic
         fun createDatabaseFromProperties(dBProperties: Properties): Database {
             val ds: DataSource = dataSource(dBProperties)
             val user = dBProperties.getProperty("dataSource.user")
@@ -110,6 +113,7 @@ open class Database(
          * @param properties the properties
          * @return a pooled connection DataSource
          */
+        @JvmStatic
         fun dataSource(properties: Properties): DataSource {
             val config = HikariConfig(properties)
             return HikariDataSource(config)
@@ -119,6 +123,7 @@ open class Database(
          * @param pathToPropertiesFile must not be null
          * @return a DataSource for making a database
          */
+        @JvmStatic
         fun dataSource(pathToPropertiesFile: Path): DataSource {
             val config = HikariConfig(pathToPropertiesFile.toString())
             return HikariDataSource(config)

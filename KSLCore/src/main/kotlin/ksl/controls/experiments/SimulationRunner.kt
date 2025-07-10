@@ -90,6 +90,7 @@ class SimulationRunner(
      *  @return returns an instance of SimulationRun that holds the experiment, inputs, and results
      *  associated with the simulation run.
      */
+    @JvmOverloads
     fun simulate(
         modelIdentifier: String = model.simulationName,
         inputs: Map<String, Double> = mapOf(),
@@ -195,6 +196,7 @@ class SimulationRunner(
          * The string used to flatten or un-flatten random variable parameters
          * Assumed as "." by default
          */
+        @JvmStatic
         var rvParamConCatChar = RVParameterSetter.rvParamConCatChar
 
         /**
@@ -208,6 +210,7 @@ class SimulationRunner(
          *  the number of replications, there will be 1 chunk containing all replications
          */
         @Suppress("unused")
+        @JvmStatic
         fun chunkReplications(model: Model, numReplications: Int, size: Int): List<ExperimentRunParameters> {
             require(numReplications >= 1) { "The number of replications must be >= 1" }
             // make the range for chunking

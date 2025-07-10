@@ -76,7 +76,7 @@ object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
  * @param name the name of the queue
  * @param discipline the queue discipline for ordering the queue
  */
-class RequestQ(
+class RequestQ @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO
