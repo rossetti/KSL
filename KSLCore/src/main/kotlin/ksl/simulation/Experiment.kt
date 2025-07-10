@@ -62,7 +62,10 @@ private var myCounter_: Int = 0
  * @param name The name of the experiment
  */
 
-open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myCounter_}") : ExperimentIfc {
+open class Experiment @JvmOverloads constructor(
+    startingRepId: Int = 1,
+    name: String = "Experiment_${++myCounter_}"
+) : ExperimentIfc {
     init {
         require(startingRepId >= 1) { "The starting replication id number must be >= 1" }
     }
@@ -71,6 +74,7 @@ open class Experiment(startingRepId: Int = 1, name: String = "Experiment_${++myC
      * Creates an experiment based on the supplied run parameters
      * @param runParameters the parameters to use
      */
+    @Suppress("unused")
     constructor(runParameters: ExperimentRunParametersIfc) : this() {
         changeRunParameters(runParameters)
     }

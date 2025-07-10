@@ -22,18 +22,26 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.robj.DEmpiricalList
 import ksl.utilities.random.robj.RElementIfc
 
-class REmpiricalList<T>(
+class REmpiricalList<T> private constructor(
     parent: ModelElement,
     private val dEmpiricalList: DEmpiricalList<T>,
     name: String? = null
 ) : ModelElement(parent, name), RElementIfc<T> by dEmpiricalList, RandomElementIfc {
 
-    //TODO how to ensure dEmpiricalList uses the model's stream provider
-
     init {
         warmUpOption = false
     }
-
+    /**
+     *  Allows randomly selecting using the CDF probability from the elements of the list.
+     *  @param parent the parent of this element
+     *  @param elements the elements in the list
+     * @param theCDF the CDF for the elements in the list
+     *  @param streamNum the stream number to use from the provider. The default is 0, which
+     *  is the next stream.
+     *  @param name the optional name of the model element
+     */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         elements: List<T>,

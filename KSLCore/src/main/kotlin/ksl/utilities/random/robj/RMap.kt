@@ -5,9 +5,9 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 
 /**
- *  Permits random sampling of the elements of the map.
+ *  Permits random sampling of the elements from the map.
  *  Elements are randomly sampled with equal probability based on the
- *  number of element in the map. There must be at least one element
+ *  number of elements in the map. There must be at least one element
  *  to permit random sampling.
  */
 class RMap<K, V>(

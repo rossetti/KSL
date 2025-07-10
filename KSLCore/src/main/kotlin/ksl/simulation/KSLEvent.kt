@@ -238,7 +238,7 @@ class KSLEvent<out T> internal constructor(
          * The best practice when using this constant is to set the priority
          * relative to the default value when scheduling events. For example,
          * since smaller values have higher priority, set the priority
-         * in the schedule() call to priority = DEFAULT_PRIORITY - 1 to
+         * in the schedule() function to have priority = DEFAULT_PRIORITY - 1 to
          * have the event have a higher priority than the default.
          * The default is specified relative to value of the MEDIUM_PRIORITY constant.
          */
@@ -250,7 +250,7 @@ class KSLEvent<out T> internal constructor(
         const val DEFAULT_END_REPLICATION_EVENT_PRIORITY : Int = VERY_LOW_PRIORITY
 
         /**
-         * A constant for the default warm up event priority
+         * A constant for the default warm-up event priority
          */
         const val DEFAULT_WARMUP_EVENT_PRIORITY : Int = LOW_PRIORITY
 

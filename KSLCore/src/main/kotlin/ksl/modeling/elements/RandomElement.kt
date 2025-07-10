@@ -24,7 +24,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.StreamNumberIfc
 
-abstract class RandomElement(
+abstract class RandomElement @JvmOverloads constructor (
     parent: ModelElement,
     rSource: RandomIfc,
     name: String? = null

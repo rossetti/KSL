@@ -35,7 +35,7 @@ import ksl.utilities.statistic.StatisticIfc
  * functionality.
  *
  * Time weighted variables are first discretized using a supplied batch interval. Then,
- * observation based batching is applied to the discretized batches.  Response variables
+ * observation-based batching is applied to the discretized batches.  Response variables
  * are batched by observation number.
  *
  * @param model the model for the batching
@@ -43,7 +43,7 @@ import ksl.utilities.statistic.StatisticIfc
  * @param name the name of the model element
  * @author rossetti
  */
-class StatisticalBatchingElement(
+class StatisticalBatchingElement @JvmOverloads constructor(
     model: Model,
     batchInterval: Double = 0.0,
     name: String? = null
@@ -72,6 +72,7 @@ class StatisticalBatchingElement(
      * @param response the ResponseVariable to look up
      * @return the BatchStatisticObserver
      */
+    @Suppress("unused")
     fun batchStatisticObserverFor(response: ResponseCIfc): BatchStatisticObserver? {
         return if (response is TWResponse) {
             twBatchingElement.timeWeightedBatchObserverFor(response)
@@ -110,6 +111,7 @@ class StatisticalBatchingElement(
      * @param response the Response to look up
      * @return the returned BatchStatisticIfc
      */
+    @Suppress("unused")
     fun batchStatisticFor(response: ResponseCIfc): BatchStatisticIfc {
         return if (response is TWResponse) {
             twBatchingElement.batchStatisticFor(response)
@@ -122,7 +124,7 @@ class StatisticalBatchingElement(
      * Returns a list of summary statistics on all Response variables
      * The list is a copy of originals.
      */
-    val allBatchStatistcs: List<BatchStatisticIfc>
+    val allBatchStatistics: List<BatchStatisticIfc>
         get() {
             val list: MutableList<BatchStatisticIfc> = mutableListOf()
             list.addAll(twBatchingElement.allBatchStatistics)
@@ -137,13 +139,14 @@ class StatisticalBatchingElement(
     val allStatistics: List<StatisticIfc>
         get() {
             val list: MutableList<StatisticIfc> = mutableListOf()
-            list.addAll(allBatchStatistcs)
+            list.addAll(allBatchStatistics)
             return list
         }
 
     /**
      * Returns a StatisticReporter for reporting the statistics across the batches.
      */
+    @Suppress("unused")
     val statisticReporter: StatisticReporter
         get() {
             val list: MutableList<StatisticIfc> = mutableListOf()

@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
 
-open class EventGenerator(
+open class EventGenerator @JvmOverloads constructor(
     parent: ModelElement,
     generateAction: GeneratorActionIfc?,
     timeUntilFirstRV: RVariableIfc,
@@ -81,6 +81,8 @@ open class EventGenerator(
      * default is Double.POSITIVE_INFINITY.
      * @param name the name of the generator
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         generateAction: GeneratorActionIfc?,
@@ -484,6 +486,7 @@ open class EventGenerator(
          */
         const val EVENT_PRIORITY: Int = KSLEvent.DEFAULT_PRIORITY - 1
 
+        @JvmStatic
         fun builder(parent: ModelElement): ActionStepIfc {
             return EventGeneratorBuilder(parent)
         }

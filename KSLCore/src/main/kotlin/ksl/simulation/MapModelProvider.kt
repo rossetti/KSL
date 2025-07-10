@@ -63,7 +63,7 @@ class MapModelProvider(
 
     override fun provideModel(modelIdentifier: String, jsonModelConfiguration: String?): Model {
          val model = modelBuilders[modelIdentifier]?.build(jsonModelConfiguration)
-            ?: throw IllegalArgumentException("No model creator found for identifier: $modelIdentifier")
+            ?: throw IllegalArgumentException("No model builder found for identifier: $modelIdentifier")
         if (!modelCache.containsKey(modelIdentifier)) modelCache[modelIdentifier] = model
         return model
     }
