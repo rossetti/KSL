@@ -18,6 +18,8 @@
 
 package ksl.modeling.variable
 
+import ksl.controls.ControlType
+import ksl.controls.KSLControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.Interval
@@ -168,13 +170,15 @@ open class Response internal constructor(
     init {
         require(countLimit >= 0) { "The initial count limit value $countLimit must be >= 0" }
     }
-
-    //TODO initialCountLimit is a candidate control, but isn't annotated because it is not used often
+    
     /**
      * Sets the initial value of the count limit. Only relevant prior to each
      * replication. Changing during a replication has no effect until the next
      * replication.
      */
+    @set:KSLControl(
+        controlType = ControlType.DOUBLE
+    )
     override var initialCountLimit: Double = countLimit
         set(value) {
             require(value >= 0) { "The initial count stop limit, when set, must be >= 0" }
