@@ -21,7 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.simulation.ModelElement
 
-class ConveyorQ(
+class ConveyorQ @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO

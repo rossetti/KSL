@@ -16,7 +16,7 @@ import ksl.utilities.KSLArrays
  *  @param name an optional name for the design
  *
  */
-open class FactorialDesign(
+open class FactorialDesign @JvmOverloads constructor(
     factors: Set<Factor>,
     name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
@@ -94,7 +94,9 @@ open class FactorialDesign(
      *  @param numReps the number of replications for the design points.
      *  Must be greater or equal to 1.
      */
-    open inner class FactorialDesignIterator(val numReps: Int? = null) : DesignPointIteratorIfc {
+    open inner class FactorialDesignIterator @JvmOverloads constructor(
+        val numReps: Int? = null
+    ) : DesignPointIteratorIfc {
 
         override val design: FactorialDesign = this@FactorialDesign
 
@@ -158,6 +160,7 @@ open class FactorialDesign(
 
     companion object {
 
+        @JvmStatic
         var defaultNumReplications: Int = 1
             set(value) {
                 require(value > 0) { "Default number of replications must be greater than 0" }
@@ -169,6 +172,7 @@ open class FactorialDesign(
          *  based on the supplied [names] for each factor. There must
          *  be at least 2 names supplied.
          */
+        @JvmStatic
         fun twoToKDesign(names: Set<String>): TwoLevelFactorialDesign {
             require(names.size > 2) { "There must be at least 2 factors in the design" }
             val set = mutableSetOf<TwoLevelFactor>()
@@ -184,6 +188,7 @@ open class FactorialDesign(
          *  @param numFactors the number of factors in the design
          *  @return the 2d design matrix
          */
+        @JvmStatic
         fun fullFactorial2Levels(numFactors: Int): Array<DoubleArray> {
             require(numFactors >= 2) { "There must be at least 2 factors" }
             // make the names

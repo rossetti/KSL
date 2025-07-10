@@ -27,7 +27,7 @@ import javax.sql.DataSource
  * the same name will be deleted and an empty database will be constructed.
  * @return a DuckDb configured database
  */
-class DuckDb(
+class DuckDb @JvmOverloads constructor(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
     deleteIfExists: Boolean = true
@@ -55,6 +55,7 @@ class DuckDb(
      * the same name will be deleted and an empty database will be constructed.
      * @return an embedded DuckDb database
      */
+    @JvmOverloads
     constructor(
         tableDefinitions: Set<DbTableData>,
         dbName: String,
@@ -69,6 +70,7 @@ class DuckDb(
      *  The data in the list must be associated with the named table. The table must
      *  be within the named schema. The data must not have an auto-increment field.
      */
+    @JvmOverloads
     fun <T : DbTableData> appendDbDataToTable(
         data: List<T>,
         tableName: String,
@@ -145,6 +147,7 @@ class DuckDb(
      * @param tableName      a string representing the unqualified name of the table
      * @return the summary result set
      */
+    @JvmOverloads
     fun summarize(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
         require(
             containsTable(
@@ -177,6 +180,7 @@ class DuckDb(
      *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
      *  @param exportDir the path to the export directory
      */
+    @JvmOverloads
     fun exportAsLoadableCSV(exportDir: Path = KSL.dbDir) {
         val exportCmd = "EXPORT DATABASE '$exportDir'"
         executeCommand(exportCmd)
@@ -201,6 +205,7 @@ class DuckDb(
      *  format. See DuckDb [documentation](https://duckdb.org/docs/sql/statements/export).
      *  @param exportDir the path to the export directory
      */
+    @JvmOverloads
     fun exportAsLoadableParquetFiles(exportDir: Path = KSL.dbDir) {
         val exportCmd = "EXPORT DATABASE '$exportDir' (FORMAT PARQUET)"
         executeCommand(exportCmd)
@@ -220,6 +225,9 @@ class DuckDb(
          * the same name will be deleted and an empty database will be constructed. The default is true.
          * @return a DuckDb configured database
          */
+        @JvmOverloads
+        @Suppress("unused")
+        @JvmStatic
         fun convertFromSQLiteToDuckDb(
             pathToSQLiteFile: Path,
             dbName: String,
@@ -251,6 +259,9 @@ class DuckDb(
          * the same name will be deleted and an empty database will be constructed.
          * @return a DuckDb configured database
          */
+        @JvmOverloads
+        @Suppress("unused")
+        @JvmStatic
         fun importFromLoadableCSV(
             exportedDbDir: Path,
             dbName: String,
@@ -278,6 +289,9 @@ class DuckDb(
          * the same name will be deleted and an empty database will be constructed.
          * @return a DuckDb configured database
          */
+        @JvmOverloads
+        @Suppress("unused")
+        @JvmStatic
         fun importFromLoadableParquetFiles(
             exportedDbDir: Path,
             dbName: String,
@@ -303,6 +317,8 @@ class DuckDb(
          * @param path the path to the database file, must not be null
          * @return true if the path points to a valid DuckDb database file
          */
+        @Suppress("unused")
+        @JvmStatic
         override fun isDatabase(path: Path): Boolean {
             // the path itself must be a directory or a file, i.e. it must exist
             if (!Files.exists(path)) {
@@ -335,6 +351,8 @@ class DuckDb(
          *
          * @param pathToDb the path to the database file, must not be null
          */
+        @Suppress("unused")
+        @JvmStatic
         override fun deleteDatabase(pathToDb: Path) {
             try {
                 Files.deleteIfExists(pathToDb)
@@ -349,6 +367,7 @@ class DuckDb(
          * @param pathToDb the path to the database file, must not be null
          * @return the data source
          */
+        @JvmStatic
         override fun createDataSource(pathToDb: Path): DuckDbDataSource {
             val ds = DuckDbDataSource(pathToDb.toString())
             DatabaseIfc.logger.info { "Created DuckDb data source $pathToDb" }
@@ -362,6 +381,7 @@ class DuckDb(
          * @param dbDir  a path to the directory to hold the database. Must not be null
          * @return the created database
          */
+        @JvmStatic
         override fun createDatabase(dbName: String, dbDir: Path): Database {
             val pathToDb = dbDir.resolve(dbName)
             // if it exists, delete it
@@ -378,6 +398,7 @@ class DuckDb(
          * @param pathToDb the path to the database file, must not be null
          * @return the database
          */
+        @JvmStatic
         override fun openDatabase(pathToDb: Path): Database {
             check(isDatabase(pathToDb)) { "The path does represent a valid DuckDb database $pathToDb" }
             // must exist and be at path

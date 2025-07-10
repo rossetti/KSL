@@ -38,7 +38,7 @@ import ksl.simulation.ModelElement
  * @param name the name of the pool
  * @author rossetti
  */
-open class ResourcePool(
+open class ResourcePool @JvmOverloads constructor(
     parent: ModelElement,
     poolResources: List<Resource>,
     name: String? = null

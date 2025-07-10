@@ -13,7 +13,12 @@ import java.nio.file.Path
 import java.sql.PreparedStatement
 import java.sql.SQLException
 
-class ResponseTrace(
+/**
+ *  Provides the ability to trace the values of a response during replications.
+ *  @param theResponse the response to trace
+ *  @param pathToFile the path to the file to store the trace
+ */
+class ResponseTrace @JvmOverloads constructor(
     theResponse: Response,
     val pathToFile: Path = theResponse.myModel.outputDirectory.outDir.resolve(
         theResponse.name.replace(':', '_') + "_Trace"),

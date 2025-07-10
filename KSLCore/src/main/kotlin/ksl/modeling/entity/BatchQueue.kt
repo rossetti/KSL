@@ -48,7 +48,7 @@ import ksl.simulation.ModelElement
  * @param T the type of batching entity being held in the queue. A batching entity has
  * additional functionality to hold the formed batches.
  */
-class BatchQueue<T : ProcessModel.BatchingEntity<T>>(
+class BatchQueue<T : ProcessModel.BatchingEntity<T>> @JvmOverloads constructor(
     parent: ModelElement,
     defaultBatchSize: Int = 1,
     defaultPredicate: (T) -> Boolean = Companion::alwaysTrueFunction,

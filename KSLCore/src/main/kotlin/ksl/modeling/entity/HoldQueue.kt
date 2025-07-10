@@ -26,7 +26,7 @@ import ksl.simulation.ModelElement
  * This class is designed to hold entities that are waiting within a process.
  *
  */
-class HoldQueue(
+class HoldQueue @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     discipline: Discipline = Discipline.FIFO

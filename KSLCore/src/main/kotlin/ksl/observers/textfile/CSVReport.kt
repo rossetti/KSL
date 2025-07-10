@@ -29,7 +29,7 @@ import java.nio.file.Path
  * @param reportName the name of the report
  * @param directoryPath the path to the directory that will contain the report
  */
-abstract class CSVReport(
+abstract class CSVReport @JvmOverloads constructor(
     theModel: Model,
     reportName: String = theModel.name.replace(':', '_') + "_CSVReport",
     directoryPath: Path = theModel.outputDirectory.outDir,

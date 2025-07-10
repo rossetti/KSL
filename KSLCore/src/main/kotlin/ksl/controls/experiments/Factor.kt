@@ -10,7 +10,7 @@ import ksl.utilities.math.KSLMath
  *  That is, they must be unique and increasing in value.
  *  @param values the value for each level as an array. There must be 2 or more values supplied.
  */
-open class Factor(
+open class Factor @JvmOverloads constructor(
     name: String,
     values: DoubleArray = doubleArrayOf(-1.0, 1.0),
 ) : Identity(name) {

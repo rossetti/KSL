@@ -39,7 +39,10 @@ import org.jetbrains.kotlinx.dataframe.AnyFrame
  * Must be created prior to running the simulation to actually
  * collect any data. Uses a ReplicationDataCollector
  */
-class ControlVariateDataCollector(model: Model, name: String? = null) : ModelElement(model, name) {
+class ControlVariateDataCollector @JvmOverloads constructor(
+    model: Model,
+    name: String? = null
+) : ModelElement(model, name) {
     /**
      *  Collects the responses, including the responses created for each control
      */

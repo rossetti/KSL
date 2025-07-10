@@ -2,7 +2,13 @@ package ksl.controls.experiments
 
 import ksl.utilities.Identity
 
-class ExperimentalDesign(
+/**
+ *  An experimental design represents a set of factors with design points.
+ *  This permits the execution of a model using the factors and their levels
+ *  @param factors the factors for the experiment
+ *  @param name an optional name for the experiment
+ */
+class ExperimentalDesign @JvmOverloads constructor(
     factors: Set<Factor>,
     name: String? = null,
 //    numReps: Int = 1
@@ -33,6 +39,8 @@ class ExperimentalDesign(
      *  used in the validation check. Not enforcing the range check allows settings
      *  that may be out of range limits for the factors. The default is true.
      */
+    @Suppress("unused")
+    @JvmOverloads
     fun addDesignPoint(
         values: DoubleArray,
         numReps: Int = 1,
@@ -55,6 +63,7 @@ class ExperimentalDesign(
      *  used in the validation check. Not enforcing the range check allows settings
      *  that may be out of range limits for the factors.  The default is true.
      */
+    @JvmOverloads
     fun addDesignPoint(
         settings: Map<Factor, Double>,
         numReps: Int = 1,

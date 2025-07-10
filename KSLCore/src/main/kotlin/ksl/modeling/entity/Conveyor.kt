@@ -129,7 +129,7 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
  * @param maxEntityCellsAllowed the maximum number of cells that an entity can occupy while riding on the conveyor
  * @param name the name of the conveyor
  */
-class Conveyor(
+class Conveyor @JvmOverloads constructor(
     parent: ModelElement,
     segmentData: ConveyorSegments,
     conveyorType: Type = Type.ACCUMULATING,

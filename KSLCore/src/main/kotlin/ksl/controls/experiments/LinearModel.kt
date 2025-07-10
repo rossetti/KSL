@@ -19,7 +19,7 @@ import ksl.utilities.collections.Sets
  *   @param type the type of model to start with. The default is first order terms (main effects)
  *   as define by the provided set of main effects.
  */
-class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
+class LinearModel @JvmOverloads constructor(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
 
     enum class Type {
         FirstOrder, FirstAndSecond, AllTerms
@@ -204,6 +204,7 @@ class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
          *
          *  "A B C A*B A*C B*C A*B*C" represents a full order linear model
          */
+        @JvmStatic
         fun parse(model: String): List<List<String>> {
             val list = model.split(" ")
             val m = mutableListOf<List<String>>()
@@ -223,6 +224,7 @@ class LinearModel(val mainEffects: Set<String>, type: Type = Type.FirstOrder) {
          *  Forms a model specification with all first order,
          *  2nd order, 3rd order, etc. interactions
          */
+        @JvmStatic
         fun allTerms(set: Set<String>): List<List<String>> {
             val m = mutableListOf<List<String>>()
             val ps  = Sets.powerSet(set)

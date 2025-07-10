@@ -218,10 +218,21 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
          * Default maximum width for text columns
          * (like a `VARCHAR`) column.
          */
+        @JvmStatic
         var DEFAULT_MAX_COL_WIDTH : Int = 32
+            set(value) {
+                require(value > 0) { "Padding DEFAULT_MAX_COL_WIDTH be positive" }
+                field = value
+            }
 
+        @JvmStatic
         var DEFAULT_PADDING : Int = 2
+            set(value) {
+                require(value > 0) { "DEFAULT_PADDING must be positive" }
+                field = value
+            }
 
+        @JvmStatic
         var DEFAULT_MIN_COL_WIDTH : Int = 12
             set(value) {
                 field = if (value <= 4){
@@ -235,6 +246,7 @@ class DbResultsAsText(private val rowSet: CachedRowSet, var dFormat: String? = "
          * @param type the SQL type via java.sql.Types
          * @return the corresponding type for text printing conversion
          */
+        @JvmStatic
         fun textType(type: Int): TextType {
             return when (type) {
                 Types.BIGINT, Types.TINYINT, Types.SMALLINT, Types.INTEGER -> TextType.INTEGER

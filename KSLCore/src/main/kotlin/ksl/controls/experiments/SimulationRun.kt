@@ -51,6 +51,8 @@ class SimulationRun private constructor(
     var modelConfiguration: Map<String, String>? = null,
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
+
+    @JvmOverloads
     constructor(
         modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,

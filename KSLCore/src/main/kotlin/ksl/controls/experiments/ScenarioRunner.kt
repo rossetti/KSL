@@ -23,7 +23,7 @@ import kotlin.io.path.deleteRecursively
  *  @param scenarioList a list of scenarios to execute
  *  @param kslDb the KSLDatabase that will hold the results from the scenarios
  */
-class ScenarioRunner(
+class ScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
@@ -33,7 +33,7 @@ class ScenarioRunner(
     private val myScenarios = mutableListOf<Scenario>()
 
     /**
-     *  A read only list of the scenarios to be run.
+     *  A read-only list of the scenarios to be run.
      */
     val scenarioList: List<Scenario>
         get() = myScenarios
@@ -90,6 +90,8 @@ class ScenarioRunner(
      *  The name of the scenario (based on the model's experiment) must be
      *  unique within the context of the list of scenarios to run.
      */
+    @JvmOverloads
+    @Suppress("unused")
     fun addScenario(
         model: Model,
         name: String,
@@ -134,6 +136,7 @@ class ScenarioRunner(
      *  If the user doesn't change any scenario experiment names, then re-running will result in
      *  an error to prevent unplanned loss of data.
      */
+    @JvmOverloads
     fun simulate(scenarios: IntProgression = myScenarios.indices, clearAllData: Boolean = true) {
         if (clearAllData) {
             kslDb.clearAllData()
@@ -167,6 +170,7 @@ class ScenarioRunner(
      *  Writes basic half-width summary reports to the provided PrintWriter
      *  @param out The print writer. By default, this is KSL.out
      */
+    @JvmOverloads
     fun write(out: PrintWriter = KSL.out) {
         for(s in scenarioList) {
             val sr = s.simulationRun?.statisticalReporter()

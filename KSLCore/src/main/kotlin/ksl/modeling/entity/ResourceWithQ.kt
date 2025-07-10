@@ -91,7 +91,7 @@ object DefaultRequestQueueNotificationRule : RequestQueueNotificationRuleIfc {
  * the request waits.  If a queue is not supplied, a default queue will be created.  Supplying a queue allows
  * resources to share request queues.
  */
-open class ResourceWithQ(
+open class ResourceWithQ @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1,

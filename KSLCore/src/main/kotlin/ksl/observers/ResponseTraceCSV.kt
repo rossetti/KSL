@@ -25,7 +25,13 @@ import ksl.utilities.io.KSLFileUtil
 import java.io.PrintWriter
 import java.nio.file.Path
 
-class ResponseTraceCSV(
+/**
+ *  Provides the ability to trace the values of a response during replications.
+ *  @param theResponse the response to trace
+ *  @param pathToFile the path to the file to store the trace
+ */
+@Suppress("unused")
+class ResponseTraceCSV @JvmOverloads constructor(
     theResponse: Response,
     val pathToFile: Path = theResponse.myModel.outputDirectory.csvDir.resolve(
         theResponse.name.replace(':', '_') + "_Trace.csv"),

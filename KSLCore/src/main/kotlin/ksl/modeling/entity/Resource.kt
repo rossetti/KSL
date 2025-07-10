@@ -50,7 +50,7 @@ import ksl.utilities.statistic.StateAccessorIfc
  *  @param name the name of the resource
  *  @param capacity the initial capacity of the resource.  Cannot be changed during a replication. The default capacity is 1.
  */
-open class Resource(
+open class Resource @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     capacity: Int = 1

@@ -23,7 +23,7 @@ import javax.sql.DataSource
  * @return an SQLite configured database
  */
 @Suppress("LeakingThis")
-open class SQLiteDb(
+open class SQLiteDb @JvmOverloads constructor(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
     deleteIfExists: Boolean = true
@@ -50,6 +50,7 @@ open class SQLiteDb(
      * the same name will be deleted and an empty database will be constructed.
      * @return an empty embedded SQLite database
      */
+    @JvmOverloads
     constructor(
         tableDefinitions: Set<DbTableData>,
         dbName: String,
@@ -71,6 +72,7 @@ open class SQLiteDb(
          * @param path the path to the database file, must not be null
          * @return true if the path points to a valid SQLite database file
          */
+        @JvmStatic
         override fun isDatabase(path: Path): Boolean {
             // the path itself must be a directory or a file, i.e. it must exist
             if (!Files.exists(path)) {
@@ -104,6 +106,7 @@ open class SQLiteDb(
          *
          * @param pathToDb the path to the database file, must not be null
          */
+        @JvmStatic
         override fun deleteDatabase(pathToDb: Path) {
             try {
                 Files.deleteIfExists(pathToDb)
@@ -118,6 +121,7 @@ open class SQLiteDb(
          * @param pathToDb the path to the database file, must not be null
          * @return the data source
          */
+        @JvmStatic
         override fun createDataSource(pathToDb: Path): DataSource {
             val ds = SQLiteDataSource()
             ds.databaseName = pathToDb.toString()
@@ -135,6 +139,8 @@ open class SQLiteDb(
          * @param readOnly indicates read only mode
          * @return the configuration
          */
+        @JvmStatic
+        @JvmOverloads
         fun createDefaultConfiguration(readOnly: Boolean = false): SQLiteConfig {
             val config = SQLiteConfig()
             val cacheSize = 1000
@@ -164,6 +170,7 @@ open class SQLiteDb(
          * @param dbDir  a path to the directory to hold the database. Must not be null
          * @return the created database
          */
+        @JvmStatic
         override fun createDatabase(dbName: String, dbDir: Path): Database {
             val pathToDb = dbDir.resolve(dbName)
             // if it exists, delete it
@@ -180,6 +187,7 @@ open class SQLiteDb(
          * @param pathToDb the path to the database file, must not be null
          * @return the database
          */
+        @JvmStatic
         fun openDatabaseReadOnly(pathToDb: Path): Database {
             check(isDatabase(pathToDb)) { "The path does represent a valid SQLite database $pathToDb" }
             // must exist and be at path
@@ -194,6 +202,7 @@ open class SQLiteDb(
          * @param pathToDb the path to the database file, must not be null
          * @return the database
          */
+        @JvmStatic
         override fun openDatabase(pathToDb: Path): Database {
             check(isDatabase(pathToDb)) { "The path does represent a valid SQLite database $pathToDb" }
             // must exist and be at path

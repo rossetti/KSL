@@ -26,7 +26,8 @@ import kotlin.math.sqrt
  *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
  *  that determines the quality of the design.
  */
-open class CentralCompositeDesign(
+@Suppress("unused")
+open class CentralCompositeDesign @JvmOverloads constructor(
     protected val twoLevelDesignItr: FactorialDesign.FactorialDesignIterator,
     val numFactorialReps: Int = 1,
     val numAxialReps: Int = 1,
@@ -57,6 +58,7 @@ open class CentralCompositeDesign(
      *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
      *  that determines the quality of the design.
      */
+    @JvmOverloads
     constructor(
         twoLevelFactorialDesign: TwoLevelFactorialDesign,
         numFactorialReps: Int = 1,
@@ -89,6 +91,8 @@ open class CentralCompositeDesign(
      *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
      *  that determines the quality of the design.
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         factors: Set<TwoLevelFactor>,
         numFactorialReps: Int = 1,
@@ -109,6 +113,7 @@ open class CentralCompositeDesign(
 
     val numFactorialPoints: Int
 
+    @Suppress("unused")
     val numAxialPoints: Int
         get() = 2 * numFactors
 
@@ -175,6 +180,8 @@ open class CentralCompositeDesign(
          *  be greater than 0.0. The user is responsible for selecting an appropriate axial spacing value
          *  that determines the quality of the design.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun rotatableAxialSpacing(
             numFactors: Int,
             fraction: Int = 0,

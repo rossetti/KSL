@@ -24,7 +24,7 @@ import javax.sql.DataSource
  * @return an embedded Derby database
  */
 @Suppress("LeakingThis")
-open class DerbyDb(
+open class DerbyDb @JvmOverloads constructor(
     dbName: String,
     dbDirectory: Path = KSL.dbDir,
     create: Boolean = true
@@ -45,6 +45,7 @@ open class DerbyDb(
      * the same name will be deleted and an empty database will be constructed.
      * @return an embedded Derby database
      */
+    @JvmOverloads
     constructor(
         tableDefinitions: Set<DbTableData>,
         dbName: String,
@@ -62,6 +63,7 @@ open class DerbyDb(
          * @param dbDir  a path to the directory to hold the database. Must not be null
          * @return the created database
          */
+        @JvmStatic
         override fun createDatabase(dbName: String, dbDir: Path): Database {
             val pathToDb = dbDir.resolve(dbName)
             deleteDatabase(pathToDb)
@@ -78,6 +80,7 @@ open class DerbyDb(
          * @param dbDir  a path to the directory that holds the database, must not be null
          * @return the created database
          */
+        @JvmStatic
         fun openDatabase(dbName: String, dbDir: Path): Database {
             val pathToDb = dbDir.resolve(dbName)
             check(databaseExists(dbName, dbDir)) { "The database does not exist at location $pathToDb" }
@@ -93,6 +96,7 @@ open class DerbyDb(
          * @param pathToDb the full path to the directory that is the database, must not be null
          * @return the database
          */
+        @JvmStatic
         override fun openDatabase(pathToDb: Path): Database {
             check(databaseExists(pathToDb)) { "The database does not exist at location $pathToDb" }
             val ds = createDataSource(pathToDb, create = false)
@@ -106,6 +110,7 @@ open class DerbyDb(
          * @param dbDir  the directory to the database
          * @return true if it exists false if not
          */
+        @JvmStatic
         fun databaseExists(dbName: String, dbDir: Path): Boolean {
             val pathToDb = dbDir.resolve(dbName)
             return databaseExists(pathToDb)
@@ -116,6 +121,7 @@ open class DerbyDb(
          * stores the database in a directory
          * @return true if it exists
          */
+        @JvmStatic
         fun databaseExists(fullPath: Path): Boolean {
             return Files.exists(fullPath)
         }
@@ -126,6 +132,7 @@ open class DerbyDb(
          *
          * @param pathToDb the path to the embedded database on disk
          */
+        @JvmStatic
         override fun deleteDatabase(pathToDb: Path) {
             val b: Boolean = KSLFileUtil.deleteDirectory(pathToDb.toFile())
             if (b) {
@@ -135,6 +142,14 @@ open class DerbyDb(
             }
         }
 
+        /**
+         * This does not check if the database is shutdown.  It simply removes the
+         * database from the file system.  If it doesn't exist, then nothing happens.
+         *
+         * @param pathToDb the path to the embedded database on disk
+         * @return the data source
+         */
+        @JvmStatic
         override fun createDataSource(pathToDb: Path): DataSource {
             return createDataSource(pathToDb, null, null, false)
         }
@@ -146,6 +161,7 @@ open class DerbyDb(
          * @param create   a flag to indicate if the database should be created upon first connection
          * @return the created DataSource
          */
+        @JvmStatic
         fun createDataSource(
             dbName: String,
             dbDir: Path = KSL.dbDir,
@@ -164,6 +180,7 @@ open class DerbyDb(
          * @param create a flag to indicate if the database should be created upon first connection
          * @return the created DataSource
          */
+        @JvmStatic
         fun createDataSource(
             pathToDb: Path,
             user: String? = null,
@@ -195,6 +212,7 @@ open class DerbyDb(
          * @param pWord    a password, can be null
          * @return true if successfully shutdown
          */
+        @JvmStatic
         fun shutDownDatabase(pathToDb: Path, user: String? = null, pWord: String? = null): Boolean {
             val dataSource = shutDownDataSource(pathToDb, user, pWord)
             try {
@@ -218,6 +236,7 @@ open class DerbyDb(
          * @param pWord    a password, can be null
          * @return the created DataSource
          */
+        @JvmStatic
         fun shutDownDataSource(pathToDb: Path, user: String? = null, pWord: String? = null): DataSource {
             return shutDownDataSource(pathToDb.toString(), user, pWord)
         }
@@ -231,6 +250,7 @@ open class DerbyDb(
          * @param pWord  a password, can be null
          * @return the created DataSource
          */
+        @JvmStatic
         fun shutDownDataSource(dbName: String, user: String? = null, pWord: String? = null): DataSource {
             val ds = EmbeddedDataSource()
             ds.databaseName = dbName
@@ -248,6 +268,7 @@ open class DerbyDb(
          * @param create a flag to indicate if the database should be created upon first connection
          * @return the created DataSource
          */
+        @JvmStatic
         fun createClientDataSourceWithLocalHost(
             dbName: String,
             user: String?,
@@ -275,6 +296,7 @@ open class DerbyDb(
          * @param dupName   the name of the duplicate database
          * @param directory the directory to place the database in
          */
+        @JvmStatic
         fun copyDatabase(sourceDB: Path, dupName: String, directory: Path) {
             require(Files.isDirectory(directory)) { "The directory path was not a directory!" }
             require(!Files.exists(directory.resolve(dupName))) { "A database with the supplied name already exists in the directory! db name = $dupName" }
@@ -296,6 +318,7 @@ open class DerbyDb(
          * @throws SQLException thrown if the derby commands fail
          * @throws IOException  thrown if the system file copy commands fail
          */
+        @JvmStatic
         fun copyDatabase(ds: DataSource, sourceDB: Path, dupName: String, directory: Path) {
             require(Files.isDirectory(directory)) { "The directory path was not a directory!" }
             require(!Files.exists(directory.resolve(dupName))) { "A database with the supplied name already exists in the directory! db name = $dupName" }
@@ -322,6 +345,7 @@ open class DerbyDb(
          * @param path the path to check, must not be null
          * @return true if it could be an embedded derby database
          */
+        @JvmStatic
         override fun isDatabase(path: Path): Boolean {
             // the path itself must be a directory not a file
             if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {

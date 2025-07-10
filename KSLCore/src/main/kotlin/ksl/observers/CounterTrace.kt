@@ -15,7 +15,12 @@ import java.nio.file.Path
 import java.sql.PreparedStatement
 import java.sql.SQLException
 
-class CounterTrace(
+/**
+ *  Provides the ability to trace the value of a counter during replications.
+ *  @param theCounter the counter to trace
+ *  @param pathToFile the path to the file to store the trace
+ */
+class CounterTrace @JvmOverloads constructor(
     theCounter: Counter,
     val pathToFile: Path = theCounter.myModel.outputDirectory.outDir.resolve(
         theCounter.name.replace(':', '_') + "_Trace"),
@@ -46,6 +51,7 @@ class CounterTrace(
     private var myRepObservationCount: Int = 0
     private var myRepNum = 0.0
 
+    @JvmOverloads
     constructor(
         theCounter: CounterCIfc,
         pathToFile: Path = (theCounter as Response).myModel.outputDirectory.outDir.resolve(
