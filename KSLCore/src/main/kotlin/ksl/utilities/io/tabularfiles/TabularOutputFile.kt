@@ -296,6 +296,7 @@ class TabularOutputFile(
         /** The assumed length of the longest text column. For performance
          * optimization purposes only. Must be 0 or more
          */
+        @JvmStatic
         var defaultTextSize : Int = 32
             set(value) {
                 require(value >= 0) { "The text size must be >= 0" }
@@ -309,6 +310,7 @@ class TabularOutputFile(
          * @param maxTextLength the length of the longest text column
          * @return the number of bytes on such a row
          */
+        @JvmStatic
         fun numRowBytes(numNumericColumns: Int, numTextColumns: Int, maxTextLength: Int): Int {
             require(numNumericColumns >= 0) { "The number of numeric columns must be >= 0" }
             require(numTextColumns >= 0) { "The number of text columns must be >= 0" }
@@ -324,6 +326,7 @@ class TabularOutputFile(
          * @param rowByteSize the number of bytes in a row, must be greater than 0
          * @return the recommended number of rows in a batch, given the row byte size
          */
+        @JvmStatic
         fun recommendedRowBatchSize(rowByteSize: Int): Int {
             require(rowByteSize > 0) { "The row byte size must be > 0" }
             return Math.floorDiv(DEFAULT_PAGE_SIZE, rowByteSize)

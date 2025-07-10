@@ -26,7 +26,6 @@ import java.io.FileReader
 import java.io.FileWriter
 import java.io.IOException
 import java.nio.file.Path
-import java.util.*
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVParser
 import org.apache.commons.csv.CSVRecord
@@ -45,7 +44,7 @@ import org.apache.commons.csv.CSVRecord
  *
  * @param pathToFile the path to the file
  */
-class CSVRowIterator(
+class CSVRowIterator @JvmOverloads constructor(
     val pathToFile: Path,
     private val csvParser: CSVParser = CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT),
 ) : Iterator<CSVRecord> by csvParser.iterator(), Closeable by csvParser
@@ -56,6 +55,7 @@ class CSVRowIterator(
  */
 object CSVUtil {
 
+    @JvmStatic
     val logger: KLogger = KotlinLogging.logger {}
 
     /**
@@ -73,6 +73,8 @@ object CSVUtil {
      * @param pathToFile the path to the file
      * @return the filled list
      */
+    @JvmStatic
+    @JvmOverloads
     fun readRows(pathToFile: Path, skipLines: Int = 0): List<CSVRecord> {
         try {
             val parser = CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT)
@@ -106,6 +108,8 @@ object CSVUtil {
      * @param pathToFile the path to the file
      * @return the filled list
      */
+    @JvmStatic
+    @JvmOverloads
     fun readRowsToListOfStringArrays(pathToFile: Path, skipLines: Int = 0): List<Array<String>> {
         return readRows(pathToFile, skipLines).toListOfStringArrays()
     }
@@ -113,6 +117,7 @@ object CSVUtil {
     /**
      *  For compatibility purposes converts the list of CSV records to a list of string arrays
      */
+    @JvmStatic
     fun List<CSVRecord>.toListOfStringArrays(): List<Array<String>> {
         val list = mutableListOf<Array<String>>()
         for (record in this) {
@@ -124,6 +129,7 @@ object CSVUtil {
     /**
      *  Returns a CSVParser based on CSVFormat.DEFAULT. If there is a problem (e.g. IOException) null is returned.
      */
+    @JvmStatic
     fun csvReader(pathToFile: Path): CSVParser? {
         try {
             return CSVParser(FileReader(pathToFile.toFile()), CSVFormat.DEFAULT)
@@ -151,6 +157,7 @@ object CSVUtil {
      * @param pathToFile the path to the file
      * @return the filled array of arrays
      */
+    @JvmStatic
     fun readToRows(names: MutableList<String>, pathToFile: Path): Array<DoubleArray> {
         names.clear()
         val entries = readRows(pathToFile)
@@ -189,6 +196,7 @@ object CSVUtil {
      * @param pathToFile the path to the file
      * @return the filled array of arrays
      */
+    @JvmStatic
     fun readToColumns(names: MutableList<String>, pathToFile: Path): Array<DoubleArray> {
         val data = readToRows(names, pathToFile)
         return KSLArrays.transpose(data)
@@ -202,6 +210,8 @@ object CSVUtil {
      * @param applyQuotesToData if true the numeric data will be surrounded by quotes
      * @param pathToFile        the path to the file
      */
+    @JvmStatic
+    @JvmOverloads
     fun writeArrayToCSVFile(
         array: Array<DoubleArray>,
         header: MutableList<String> = mutableListOf(),

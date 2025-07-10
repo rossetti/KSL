@@ -356,6 +356,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param name the name of the column, must not be null
          * @return the created column
          */
+        @JvmStatic
         fun numericColumn(name: String): ColumnType {
             return ColumnType(name, DataType.NUMERIC)
         }
@@ -366,6 +367,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param name the name of the column, must not be null
          * @return the created column
          */
+        @JvmStatic
         fun textColumn(name: String): ColumnType {
             return ColumnType(name, DataType.TEXT)
         }
@@ -377,6 +379,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param dataType the type of the column, must not be null
          * @return the created column
          */
+        @JvmStatic
         fun column(name: String, dataType: DataType): ColumnType {
             return ColumnType(name, dataType)
         }
@@ -388,6 +391,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param number the number of names, must be 1 or more
          * @return the list of names
          */
+        @JvmStatic
+        @JvmOverloads
         fun columnNames(number: Int, prefix: String = "C"): List<String> {
             require(number > 0) { "The number of names must be > 0" }
             val names = mutableListOf<String>()
@@ -404,6 +409,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param dataType the data type to associated with each column
          * @return a map with the column names all assigned the same data type
          */
+        @JvmStatic
         fun columns(names: List<String>, dataType: DataType): Map<String, DataType> {
             require(names.isNotEmpty()) { "The number of names must be > 0" }
             val nameSet: Set<String> = HashSet(names)
@@ -422,6 +428,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param dataType   the type of all  the columns
          * @return a map with the column names all assigned the same data type
          */
+        @JvmStatic
         fun columns(numColumns: Int, dataType: DataType): Map<String, DataType> {
             require(numColumns > 0) { "The number of columns must be > 0" }
             return columns(columnNames(numColumns), dataType)
@@ -434,6 +441,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          *  then it is NUMERIC otherwise it is considered TEXT.
          *
          */
+        @JvmStatic
         fun toDataTypes(types: List<KType>): List<DataType> {
             val list = mutableListOf<DataType>()
             for (type in types) {
@@ -446,6 +454,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          *  If the [kType] is {Double, Long, Integer, Boolean, Float, Short, Byte}
          *  then it is NUMERIC otherwise it is considered TEXT.
          */
+        @JvmStatic
         fun toDataType(kType: KType): DataType {
             if (kType.classifier == Double::class) {
                 return DataType.NUMERIC
@@ -472,6 +481,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param element the element to test
          * @return true if it is numeric
          */
+        @JvmStatic
         fun isNumeric(element: Any?): Boolean {
             if (element == null) {
                 return false
@@ -498,6 +508,7 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          * @param element the element to convert
          * @return the element as a double, the element must be numeric
          */
+        @JvmStatic
         fun asDouble(element: Any?): Double {
             require(isNumeric(element)) { "The element was not of numeric type" }
             return if (element is Double) {
@@ -533,6 +544,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          *  The default is true to skip the header. The column names become the names of the columns in the tabular output file.
          *  @return the created tabular output file
          */
+        @JvmStatic
+        @JvmOverloads
         fun createFromCSVFile(
             pathToCSVFile: Path,
             columnTypes: Map<String, DataType>,
@@ -556,6 +569,8 @@ abstract class TabularFile(columns: Map<String, DataType>, val path: Path) {
          *  The default is true to skip the header. The column names become the names of the columns in the tabular output file.
          *  @return the created tabular output file
          */
+        @JvmStatic
+        @JvmOverloads
         fun createFromCSVFile(
             pathToCSVFile: Path,
             columnTypes: Map<String, DataType>,

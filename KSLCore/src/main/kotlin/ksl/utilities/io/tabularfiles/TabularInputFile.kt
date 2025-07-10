@@ -92,6 +92,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param startingRow the starting row for the iteration
      * @return an iterator for moving through the rows
      */
+    @JvmOverloads
     fun iterator(startingRow: Long = 1): RowIterator {
         return RowIterator(startingRow)
     }
@@ -143,7 +144,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
         return rows
     }
 
-    inner class RowIterator(startingRowNum: Long = 1) : Iterator<RowGetterIfc> {
+    inner class RowIterator @JvmOverloads constructor(startingRowNum: Long = 1) : Iterator<RowGetterIfc> {
         init {
             require(startingRowNum > 0) { "The starting row number must be > 0" }
         }
@@ -212,6 +213,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return a map of the data keyed by column name
      */
+    @JvmOverloads
     fun numericColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, DoubleArray> {
         val map = mutableMapOf<String, DoubleArray>()
         val names = numericColumnNames
@@ -227,6 +229,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return a map of the data keyed by column name
      */
+    @JvmOverloads
     fun textColumns(maxRows: Int = 0, removeMissing: Boolean = false): Map<String, Array<String?>> {
         val map = mutableMapOf<String, Array<String?>>()
         val names = textColumnNames
@@ -245,6 +248,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return the array of values
      */
+    @JvmOverloads
     fun fetchNumericColumn(columnName: String, maxRows: Int = 0, removeMissing: Boolean = false): DoubleArray {
         val columnNum = columnIndex(columnName)
         if (columnNum == -1) {
@@ -261,6 +265,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (NaN values) are removed
      * @return the array of values
      */
+    @JvmOverloads
     fun fetchNumericColumn(columnNum: Int, maxRows: Int = 0, removeMissing: Boolean = false): DoubleArray {
         require((columnNum >= 0) && (columnNum < numberColumns)) { "The supplied column number was out of range" }
         if (!isNumeric(columnNum)) {
@@ -303,6 +308,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (null values) are removed
      * @return the array of values
      */
+    @JvmOverloads
     fun fetchTextColumn(columnName: String, maxRows: Int = 0, removeMissing: Boolean = false): Array<String?> {
         val columnNum = columnIndex(columnName)
         if (columnNum == -1) {
@@ -319,6 +325,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param removeMissing if true, then missing (null values) are removed
      * @return the array of values
      */
+    @JvmOverloads
     fun fetchTextColumn(columnNum: Int, maxRows: Int = 0, removeMissing: Boolean = false): Array<String?> {
         require((columnNum >= 0) && (columnNum < numberColumns)) { "The supplied column number was out of range" }
         if (!isText(columnNum)) {
@@ -373,6 +380,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param minRowNum the row to start the printing
      * @param maxRowNum the row to end the printing
      */
+    @JvmOverloads
     fun printAsText(minRowNum: Long = 1, maxRowNum: Long = minRowNum + 10){
         val resultSet = selectRows(minRowNum, maxRowNum)
         DatabaseIfc.writeAsText(DatabaseIfc.createCachedRowSet(resultSet), PrintWriter(System.out, true))
@@ -384,6 +392,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param minRowNum the row to start the printing
      * @param maxRowNum the row to end the printing
      */
+    @JvmOverloads
     fun writeAsText(out: PrintWriter, minRowNum: Long = 1, maxRowNum: Long = totalNumberRows){
         val resultSet = selectRows(minRowNum, maxRowNum)
         DatabaseIfc.writeAsText(DatabaseIfc.createCachedRowSet(resultSet), out)
@@ -394,6 +403,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
      * @param out the print write to write the data to
      * @param header true means the file will contain a header of column names
      */
+    @JvmOverloads
     fun exportToCSV(out: PrintWriter, header: Boolean = true){
         myDb.exportTableAsCSV(dataTableName, schemaName = null, out, header)
     }
@@ -422,6 +432,7 @@ class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, 
          * @param pathToFile the path to the input file, must not be null
          * @return the metadata for the file column names and data type
          */
+        @JvmStatic
         fun columnTypes(pathToFile: Path): Map<String, DataType> {
             check(SQLiteDb.isDatabase(pathToFile)) { "The path does represent a valid TabularInputFile $pathToFile" }
             // determine the name of the data table
