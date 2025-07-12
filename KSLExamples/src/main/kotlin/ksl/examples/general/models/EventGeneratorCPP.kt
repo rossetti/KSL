@@ -72,4 +72,8 @@ fun main() {
     m.numberOfReplications = 50
     m.simulate()
     m.print()
+
+    println()
+    val c  = m.controls()
+    println(c)
 }
