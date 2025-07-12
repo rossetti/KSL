@@ -1088,7 +1088,6 @@ abstract class ModelElement internal constructor(
          * @param name a name to associate with the event for the action
          * @return the scheduled event
          */
-        @JvmOverloads
         fun schedule(
             timeToEvent: Double,
             message: T? = null,
@@ -1098,7 +1097,6 @@ abstract class ModelElement internal constructor(
             return schedule(this, timeToEvent, message, priority, name)
         }
 
-        @JvmOverloads
         fun schedule(
             timeToEvent: GetValueIfc,
             message: T? = null,
@@ -1118,7 +1116,6 @@ abstract class ModelElement internal constructor(
     protected abstract inner class TimedEventAction<T>(theTimeBtwEvents: GetValueIfc) : EventAction<T>() {
         protected var timeBetweenEvents: GetValueIfc = theTimeBtwEvents
 
-        @JvmOverloads
         fun schedule(
             message: T? = null,
             priority: Int = KSLEvent.DEFAULT_PRIORITY,
@@ -1137,7 +1134,6 @@ abstract class ModelElement internal constructor(
      * @param name a name to associate with the event for the action
      * @return the scheduled event
      */
-    @JvmOverloads
     protected fun <T> schedule(
         eventAction: EventActionIfc<T>,
         timeToEvent: GetValueIfc,
@@ -1157,7 +1153,6 @@ abstract class ModelElement internal constructor(
      * @param name a name to associate with the event for the action
      * @return the scheduled event
      */
-    @JvmOverloads
     protected fun <T> schedule(
         eventAction: EventActionIfc<T>,
         timeToEvent: Double,
