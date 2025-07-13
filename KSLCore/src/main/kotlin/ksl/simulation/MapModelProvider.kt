@@ -61,8 +61,8 @@ class MapModelProvider(
         return modelBuilders.containsKey(modelIdentifier)
     }
 
-    override fun provideModel(modelIdentifier: String, jsonModelConfiguration: String?): Model {
-         val model = modelBuilders[modelIdentifier]?.build(jsonModelConfiguration)
+    override fun provideModel(modelIdentifier: String, modelConfiguration: Map<String, String>?): Model {
+         val model = modelBuilders[modelIdentifier]?.build(modelConfiguration)
             ?: throw IllegalArgumentException("No model builder found for identifier: $modelIdentifier")
         if (!modelCache.containsKey(modelIdentifier)) modelCache[modelIdentifier] = model
         return model

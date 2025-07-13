@@ -19,13 +19,17 @@ typealias ModelCreator = (jsonModelConfig: String) -> Model
 fun interface ModelBuilderIfc {
 
     /**
-     * Constructs a `Model` instance based on the provided JSON configuration string.
+     * Constructs a `Model` instance based on the provided configuration strings.
      *
-     * @param jsonModelConfig A JSON string representing the model configuration. This string
-     * should contain the necessary data and parameters required for building the `Model` instance.
-     * @return A `Model` object constructed using the provided JSON configuration.
+     * @param modelConfiguration A map of strings representing the model configuration. The key string
+     * should contain the necessary information for being able to use the paired string value.
+     * The stored string values could be anything. For example, the value could be a JSON
+     * string and the key provides information about how to process the JSON.
+     * The intent is that the map should be sufficient to build an appropriate `Model` instance.
+     * The map is optional. The function should return a model that is usable.
+     * @return A `Model` object constructed using the provided configuration information.
      */
-    fun build(jsonModelConfig: String?): Model
+    fun build(modelConfiguration: Map<String, String>?): Model
 
 }
 
@@ -49,10 +53,15 @@ interface ModelProviderIfc {
      * this method returns the instance of the model.
      *
      * @param modelIdentifier the identifier of the model to retrieve
-     * @param jsonModelConfiguration an optional JSON string that can be used during the model building process
+     * @param modelConfiguration A map of strings representing the model configuration. The key string
+     * should contain the necessary information for being able to use the paired string value.
+     * The stored string values could be anything. For example, the value could be a JSON
+     * string and the key provides information about how to process the JSON.
+     * The intent is that the map should be sufficient to build an appropriate `Model` instance.
+     * The map is optional. The function should return a model that is usable.
      * @return the model instance corresponding to the provided identifier
      */
-    fun provideModel(modelIdentifier: String, jsonModelConfiguration: String? = null): Model
+    fun provideModel(modelIdentifier: String, modelConfiguration: Map<String, String>? = null): Model
 
     /**
      * Retrieves a list of model identifiers that are available.
