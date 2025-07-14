@@ -109,10 +109,17 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.1"
+version = "R1.2.2"
 
 ## Release Notes
-Latest Release R1.2.1
+Latest Release R1.2.2
+* Added jvmOverloads and started changes to improve usage from java
+* Improved RandomElement and interaction with new `RNStreamProvider` usage
+* Revised JSON configuration for `ModelBuilderIfc`
+* Created `RVType` class to make it easier to specify random variable parameters and configure from JSON
+* Added sum() function to `RandomVariable` class
+
+Release R1.2.1
 * Updated Kotlin complier to version 2.2.0
   * This significantly improves compilation and build times.
 * Updated Java compatibility to version 21
