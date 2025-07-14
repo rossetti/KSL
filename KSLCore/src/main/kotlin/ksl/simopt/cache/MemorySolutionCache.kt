@@ -7,16 +7,16 @@ import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 
 /**
- *  A memory based cache to hold solutions.  A simplified cache to avoid including
+ *  A memory-based cache to hold solutions.  A simplified cache to avoid including
  *  more advanced caches in the dependency tree. This cache holds solutions
- *  in a map based on (InputMap, Solution) pairs.  The cache is capacity
+ *  in a map based on (RequestData, Solution) pairs.  The cache is capacity
  *  constrained to the specified capacity.  The user can supply an eviction rule that
  *  will identify a solution to evict when the capacity is reached. If no eviction
  *  rule is supplied, then by default the algorithm removes the first solution that
  *  is deterministically infeasible, infinite, or undefined in some manner. Then, it will
  *  identify the oldest solution with the largest penalized objective function for removal.
  *  @param capacity the maximum permitted size of the cache
- *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
+ *  @param allowInfeasibleSolutions if true, the input infeasible solutions are allowed to be
  *  saved in the cache. If false, input-infeasible solutions are silently ignored.
  *  The default is false (do not allow input infeasible solutions to be saved)
  */
@@ -80,10 +80,11 @@ class MemorySolutionCache(
     }
 
     /**
-     *  By default, the eviction candidate will be the first deterministically infeasible solution,
-     *  or the first solution with an infinite (or NaN) penalized objective function, or
-     *  the first solution with an infinite (or NaN) objective function or the first solution (oldest) with the
-     *  maximum penalized objective function.
+     *  By default, the eviction candidate will be:
+     *   - the first deterministically infeasible solution, or
+     *   - the first solution with an infinite (or NaN) penalized objective function, or
+     *   - the first solution with an infinite (or NaN) objective function or
+     *   - the first solution (oldest) with the maximum penalized objective function.
      */
     fun findEvictionCandidate(): RequestData {
         if (size == 1) {
@@ -107,8 +108,8 @@ class MemorySolutionCache(
                 return requestData
             }
         }
-        // if here then solutions were deterministically feasible, with non-problematic objective function values
-        // find the oldest, largest solution to evict
+        // If here, then solutions were deterministically feasible with non-problematic objective function values.
+        // Find the oldest, largest solution to evict.
         var largestSolValue = Double.MAX_VALUE
         var candidate: RequestData? = null
         for((inputMap, solution) in map) {
@@ -129,7 +130,7 @@ class MemorySolutionCache(
     fun toSolutionData() : List<SolutionData> {
         val list = mutableListOf<SolutionData>()
         for(solution in map.values){
-            list.addAll(toSolutionData())
+            list.addAll(solution.toSolutionData())
         }
         return list
     }

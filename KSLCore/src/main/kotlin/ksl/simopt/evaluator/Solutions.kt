@@ -10,7 +10,7 @@ import java.util.PriorityQueue
  * @param capacity the capacity for the solutions. Constrains the total number of solutions in-memory.
  * The default capacity is 100. Oldest solutions are evicted first.
  *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
- *  saved. If false, input infeasible solutions are silently ignored.
+ *  saved. If false, input-infeasible solutions are silently ignored.
  *  The default is false (do not allow input infeasible solutions to be saved)
  */
 class Solutions(
