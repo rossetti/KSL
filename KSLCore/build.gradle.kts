@@ -106,7 +106,7 @@ dependencies {
     // https://mvnrepository.com/artifact/org.apache.poi/poi
     api(group = "org.apache.poi", name = "poi", version = "5.4.1")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.4.1")// this vulnerability is not on maven
+    implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.4.1")
     // required POI to update their dependencies to remove the vulnerability
 
 //    implementation(kotlin("stdlib-jdk8"))
