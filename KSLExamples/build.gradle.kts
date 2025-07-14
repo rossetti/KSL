@@ -33,19 +33,8 @@ repositories {
 }
 
 dependencies {
-
     implementation(project(":KSLCore"))
-    
-    // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-//    api(group = "io.github.microutils", name = "kotlin-logging-jvm", version = "2.1.21")
-
-    // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-//    api(group = "ch.qos.logback", name = "logback-classic", version = "1.2.10")
-    // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-//    api(group = "ch.qos.logback", name = "logback-core", version = "1.2.10")
-
     testImplementation(kotlin("test"))
-//    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks.test {
