@@ -1,5 +1,8 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.utilities.random.rng.RNStreamControlIfc
+import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.MVSampleIfc
 
 /**
@@ -10,7 +13,19 @@ import ksl.utilities.random.rvariable.MVSampleIfc
  *  the elite samples, and determining if the sampling distribution
  *  has degenerated (converged).
  */
-interface CESamplerIfc : MVSampleIfc {
+interface CESamplerIfc : MVSampleIfc, RNStreamControlIfc {
+
+    val streamProvider: RNStreamProviderIfc
+
+    /**
+     * rnStream provides a reference to the underlying stream of random numbers.
+     */
+    val rnStream: RNStreamIfc
+
+    /**
+     *  The assigned stream number for the generation process
+     */
+    val streamNumber: Int
 
     /** The underlying parameters of the sampling mechanism should be updated.
      *
@@ -32,4 +47,34 @@ interface CESamplerIfc : MVSampleIfc {
      *  parameters.
      */
     fun hasConverged(): Boolean
+
+    override var advanceToNextSubStreamOption: Boolean
+        get() = rnStream.advanceToNextSubStreamOption
+        set(value) {
+            rnStream.advanceToNextSubStreamOption = value
+        }
+
+    override var resetStartStreamOption: Boolean
+        get() = rnStream.resetStartStreamOption
+        set(value) {
+            rnStream.resetStartStreamOption = value
+        }
+
+    override fun resetStartStream() {
+        rnStream.resetStartStream()
+    }
+
+    override fun resetStartSubStream() {
+        rnStream.resetStartSubStream()
+    }
+
+    override fun advanceToNextSubStream() {
+        rnStream.advanceToNextSubStream()
+    }
+
+    override var antithetic: Boolean
+        get() = rnStream.antithetic
+        set(value) {
+            rnStream.antithetic = value
+        }
 }

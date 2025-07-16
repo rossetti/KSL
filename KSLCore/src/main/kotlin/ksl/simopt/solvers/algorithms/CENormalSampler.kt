@@ -12,7 +12,7 @@ class CENormalSampler(
     sdSmoother: Double = 1.0,
     sdThreshold: Double = 0.001,
     streamNum: Int = 0,
-    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : CESamplerIfc {
     init {
         require(dimension > 0) { "Dimension must be greater than zero." }
@@ -56,12 +56,12 @@ class CENormalSampler(
     /**
      * rnStream provides a reference to the underlying stream of random numbers.
      */
-    val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+    override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
 
     /**
      *  The assigned stream number for the generation process
      */
-    val streamNumber: Int
+    override val streamNumber: Int
         get() = streamProvider.streamNumber(rnStream)
 
     override fun sample(array: DoubleArray) {
