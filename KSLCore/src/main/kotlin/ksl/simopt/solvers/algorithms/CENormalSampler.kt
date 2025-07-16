@@ -6,8 +6,8 @@ import ksl.utilities.random.rvariable.KSLRandom
 
 class CENormalSampler(
     override val dimension: Int,
-    initialMean: DoubleArray = DoubleArray(dimension) { 0.0 },
-    initialSd: DoubleArray = DoubleArray(dimension) { 1.0 },
+    initialMean: DoubleArray,
+    initialSd: DoubleArray,
     meanSmoother: Double = 1.0,
     sdSmoother: Double = 1.0,
     sdThreshold: Double = 0.001,
