@@ -20,10 +20,16 @@ package ksl.utilities.statistic
 
 import ksl.utilities.IdentityIfc
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.DEmpiricalCDF
+import ksl.utilities.distributions.PWCEmpiricalCDF
 import ksl.utilities.distributions.ProbInRangeIfc
 import ksl.utilities.io.plotting.HistogramPlot
 import ksl.utilities.isAllEqual
 import ksl.utilities.multiplyConstant
+import ksl.utilities.random.rng.RNStreamProviderIfc
+import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.random.rvariable.PWCEmpiricalRV
+import ksl.utilities.toDoubles
 
 interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisticIfc,
     Comparable<AbstractStatistic> {
@@ -389,6 +395,31 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
                 c, ct, c / n, ct/n))
         }
         return list
+    }
+
+    /**
+     *  The breakpoints must be finite.
+     *
+     * @return a PWCEmpiricalCDF based on the breakpoints and bin fractions
+     */
+    fun createPWCEmpiricalCDF(name: String? = null): PWCEmpiricalCDF{
+        return PWCEmpiricalCDF(breakPoints, binFractions, name)
+    }
+
+    /**
+     *  The breakpoints must be finite.
+     *
+     * @param streamNum the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+     * @param name an optional name
+     * @return a PWCEmpiricalRV based on the breakpoints and bin fractions
+     */
+    fun createPWCEmpiricalRV(
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ): PWCEmpiricalRV {
+        return PWCEmpiricalRV(breakPoints, binFractions, streamNum, streamProvider, name)
     }
 
     fun asString() : String{
