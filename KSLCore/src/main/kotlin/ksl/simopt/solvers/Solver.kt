@@ -611,8 +611,10 @@ abstract class Solver(
             appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
             appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
-            appendLine("Initial Solution: $initialSolution")
-            appendLine("$initialSolution")
+            if (::initialSolution.isInitialized){
+                appendLine("Initial Solution: $initialSolution")
+                appendLine("$initialSolution")
+            }
             appendLine("Current Solution:")
             appendLine("$currentSolution")
             appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
@@ -635,8 +637,10 @@ abstract class Solver(
             logger.info { "Resetting solver evaluation counters for solver: $name" }
             logger.trace { "Initializing solver $name" }
             this@Solver.initializeIterations()
-            logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
-            logger.trace { "Initial solution = $initialSolution" }
+            if (::initialSolution.isInitialized) {
+                logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
+                logger.trace { "Initial solution = $initialSolution" }
+            }
         }
 
         override fun hasNextStep(): Boolean {

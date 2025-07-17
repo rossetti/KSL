@@ -5,10 +5,24 @@ import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import kotlin.math.ceil
 
+/**
+ *  If supplied, this function will be used to determine the size of the elite sample
+ *  during the cross-entropy process. Supplying a function can permit dynamic changes
+ *  when determining the elite sample.
+ */
 fun interface EliteSizeIfc {
 
     fun eliteSize(ceSolver: CrossEntropySolver): Int
 
+}
+
+/**
+ *  If supplied, this function will be used to determine the size of the cross-entropy
+ *  sample during the cross-entropy process. Supplying a function can permit dynamic
+ *  changes when determining the size of the cross-entropy sample (population).
+ */
+fun interface SampleSizeFnIfc {
+    fun sampleSize(ceSolver: CrossEntropySolver): Int
 }
 
 /**
@@ -54,9 +68,17 @@ class CrossEntropySolver(
 
     /**
      *  If supplied, this function will be used to determine the size of the elite sample
-     *  during the cross-entropy process.
+     *  during the cross-entropy process. Supplying a function can permit dynamic changes
+     *  when determining the elite sample.
      */
     var eliteSizeFn: EliteSizeIfc? = null
+
+    /**
+     *  If supplied, this function will be used to determine the size of the cross-entropy
+     *  sample during the cross-entropy process. Supplying a function can permit dynamic
+     *  changes when determining the size of the cross-entropy sample (population).
+     */
+    var sampleSizeFn: SampleSizeFnIfc? = null
 
     /**
      * A value between 0 and 1 that represents the proportion of the CE sample
@@ -100,13 +122,41 @@ class CrossEntropySolver(
         return eliteSizeFn?.eliteSize(this) ?: ceil(elitePct * ceSampleSize).toInt()
     }
 
+    /** If [sampleSizeFn] is supplied it will be used; otherwise, the value of [ceSampleSize] is used
+     * to determine the size of the cross-entropy sample (population).
+     *
+     *  @return determines the size of the cross-entropy sample (population).
+     */
+    fun sampleSize(): Int {
+        return sampleSizeFn?.sampleSize(this) ?: ceSampleSize
+    }
+
     override fun initializeIterations() {
-       // super.initializeIterations()
-        TODO("Not yet implemented")
-       // logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
+        val initialPoint = startingPoint ?: startingPoint()
+        ceSampler.initializeParameters(initialPoint.inputValues)
+        logger.trace { "Solver: $name : initialized with CE Sampler's parameters" }
+        logger.trace { "Initial parameters = $initialPoint" }
     }
 
     override fun mainIteration() {
+        // generate the sample
+        val points = ceSampler.sample(sampleSize())
+        // convert the points to be able to evaluate
+
+        // determine the elite sample
+
+        // update the sampler's parameters
+
+        // specify the current solution
+
+        TODO("Not yet implemented")
+    }
+
+    override fun isStoppingCriteriaSatisfied(): Boolean {
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkForNoImprovement()
+    }
+
+    private fun checkForNoImprovement() : Boolean {
         TODO("Not yet implemented")
     }
 
