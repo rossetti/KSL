@@ -8,9 +8,9 @@ import kotlin.isFinite
 
 class CENormalSampler(
     override val problemDefinition: ProblemDefinition,
-    meanSmoother: Double = 1.0,
-    sdSmoother: Double = 1.0,
-    sdThreshold: Double = 0.001,
+    meanSmoother: Double = defaultMeanSmoother,
+    sdSmoother: Double = defaultStdDevSmoother,
+    sdThreshold: Double = defaultStdDevThreshold,
     streamNum: Int = 0,
     override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : CESamplerIfc {
@@ -103,8 +103,12 @@ class CENormalSampler(
         return mean.copyOf()
     }
 
+    /**
+     *  The sampler is considered to be converged if the maximum of the underlying standard deviations
+     *  is less than or equal to [sdThreshold]
+     */
     override fun hasConverged(): Boolean {
-        TODO("Not yet implemented")
+        return sd.max() <= sdThreshold
     }
 
     companion object {
@@ -117,6 +121,25 @@ class CENormalSampler(
         var defaultVariabilityFactor: Double = 1.0
             set(value) {
                 require(value > 0) { "The default variability factor must be greater than zero." }
+                field = value
+            }
+
+        var defaultMeanSmoother: Double = 0.85
+            set(value) {
+                require(value > 0) { "Mean smoother must be greater than zero." }
+                require(value <= 1) { "Mean smoother must be less than or equal to one." }
+                field = value
+            }
+
+        var defaultStdDevSmoother: Double = 0.85
+            set(value) {
+                require(value > 0) { "Standard deviation smoother must be greater than zero." }
+                require(value <= 1) { "Standard deviation smoother must be less than or equal to one." }
+            }
+
+        var defaultStdDevThreshold: Double = 0.001
+            set(value) {
+                require(value > 0) { "Standard deviation threshold must be greater than zero." }
                 field = value
             }
     }
