@@ -1,20 +1,23 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.isFinite
 
 class CENormalSampler(
-    override val dimension: Int,
+    override val problemDefinition: ProblemDefinition,
     meanSmoother: Double = 1.0,
     sdSmoother: Double = 1.0,
     sdThreshold: Double = 0.001,
     streamNum: Int = 0,
     override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : CESamplerIfc {
+
+    override val dimension: Int = problemDefinition.inputSize
+
     init {
-        require(dimension > 0) { "Dimension must be greater than zero." }
         require(meanSmoother > 0) { "Mean smoother must be greater than zero." }
         require(meanSmoother <= 1) { "Mean smoother must be less than or equal to one." }
         require(sdSmoother > 0) { "Standard deviation smoother must be greater than zero." }
@@ -23,7 +26,11 @@ class CENormalSampler(
     }
 
     private val mean: DoubleArray = DoubleArray(dimension) { 1.0 }
-    private val sd: DoubleArray = DoubleArray(dimension) { 10.0 }
+    private val sd: DoubleArray = DoubleArray(dimension) { 1.0 }
+
+    init {
+        initializeParameters(problemDefinition.inputMidPoints)
+    }
 
     var meanSmoother: Double = meanSmoother
         set(value) {
@@ -45,6 +52,17 @@ class CENormalSampler(
         }
 
     /**
+     *  This can be used to increase/decrease the variability associated with the initial parameter setting.
+     *  For example, a value of 1.1 increases the starting standard deviation by 10%. The setting
+     *  must be a positive value.  The default value is specified by [defaultVariabilityFactor].
+     */
+    var variabilityFactor: Double = defaultVariabilityFactor
+        set(value) {
+            require(value > 0) { "The default variance factor must be greater than zero." }
+            field = value
+        }
+
+    /**
      * rnStream provides a reference to the underlying stream of random numbers.
      */
     override val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
@@ -62,24 +80,18 @@ class CENormalSampler(
         }
     }
 
-    /**
-     * @param parameters the supplied parameter array must be size 2*d, where
-     * d is the dimension. The first d elements represent the mean values and the second
-     * d values represent the standard deviations. All elements must be finite and the
-     * standard deviations must all be strictly positive.
-     */
-    override fun initialize(parameters: DoubleArray) {
-        require(parameters.size == 2 * dimension) { "The size of the parameters array must be 2*dimension = (${2 * dimension})" }
-        val m = parameters.copyOfRange(0, dimension - 1)
-        val s = parameters.copyOfRange(dimension, 2 * dimension - 1)
-        require(m.size == dimension) { "Mean vector must have length equal to the dimension." }
-        require(s.size == dimension) { "Standard deviation vector must have length equal to the dimension." }
-        for (i in m.indices) {
-            require(m[i].isFinite()) { "Mean vector must contain only finite values." }
-            require(s[i].isFinite()) { "Standard deviation vector must contain only finite values." }
-            require(s[i] > 0) { "Standard deviation vector must contain only positive values." }
-            mean[i] = m[i]
-            sd[i] = s[i]
+    override fun initializeParameters(values: DoubleArray) {
+        require(values.size == dimension) { "The size of the parameters array must be equal to the dimension." }
+        // first assign the means
+        for (i in values.indices) {
+            require(values[i].isFinite()) { "Mean vector must contain only finite values." }
+            mean[i] = values[i]
+        }
+        // now assign the standard deviations
+        val ranges = problemDefinition.inputRanges
+        for (i in values.indices) {
+            sd[i] = (ranges[i] / 4.0) * variabilityFactor
+            require(sd[i] > sdThreshold) { "The initial standard deviation for parameter (${problemDefinition.inputNames[i]}) was set less than the stopping standard deviation threshold ($sdThreshold)." }
         }
     }
 
@@ -87,7 +99,7 @@ class CENormalSampler(
         TODO("Not yet implemented")
     }
 
-    override fun solution(): DoubleArray {
+    override fun parameters(): DoubleArray {
         return mean.copyOf()
     }
 
@@ -95,5 +107,18 @@ class CENormalSampler(
         TODO("Not yet implemented")
     }
 
+    companion object {
+
+        /**
+         *  This can be used to globally increase/decrease the variability associated with the initial parameter setting.
+         *  For example, a value of 1.1 increases the starting standard deviation by 10%. The setting
+         *  must be a positive value.  The default value is specified as 1.0.
+         */
+        var defaultVariabilityFactor: Double = 1.0
+            set(value) {
+                require(value > 0) { "The default variability factor must be greater than zero." }
+                field = value
+            }
+    }
 
 }

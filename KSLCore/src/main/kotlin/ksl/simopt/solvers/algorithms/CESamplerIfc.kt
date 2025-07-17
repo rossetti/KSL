@@ -1,5 +1,6 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -15,35 +16,46 @@ import ksl.utilities.random.rvariable.MVSampleIfc
  */
 interface CESamplerIfc : MVSampleIfc, RNStreamControlIfc {
 
+    /**
+     *  The problem definition associated with the sampling process.
+     */
+    val problemDefinition: ProblemDefinition
+
+    /**
+     *  The stream provider associated with the sampling process.
+     */
     val streamProvider: RNStreamProviderIfc
 
     /**
-     * rnStream provides a reference to the underlying stream of random numbers.
+     * The random number stream associated with the sampling process.
      */
     val rnStream: RNStreamIfc
 
     /**
-     *  The assigned stream number for the generation process
+     *  The assigned stream number associated with the sampling process.
      */
     val streamNumber: Int
 
     /** The underlying parameters of the sampling mechanism should be updated.
      *
-     *  @param elites a sample containing the generated decision variables
+     *  @param elites a sample containing the generated population
      *  that meet what is considered elite performance.
      */
     fun updateParameters(elites: List<DoubleArray>)
 
     /**
-     *  @return the current values of the solution associated with the
+     *  @return the current values of the parameters associated with the
      *  sampling mechanism
      */
-    fun solution(): DoubleArray
+    fun parameters(): DoubleArray
 
     /**
-     *  Sets the initial value of the parameters for the sampler.
+     * This function should be used to specify the initial values
+     * of the underlying sampling mechanism.
+     * @param values the initial values of the parameters for the underlying sampling
+     * mechanism.
      */
-    fun initialize(parameters: DoubleArray)
+    fun initializeParameters(values: DoubleArray)
 
     /**
      *  @return true if the parameters of the underlying sampling mechanism
