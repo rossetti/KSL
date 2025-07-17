@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
@@ -114,6 +115,8 @@ class CrossEntropySolver(
             field = value
         }
 
+    private val myElites: Solutions = Solutions()
+
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
      * to determine the size of the elite sample.
      *
@@ -145,8 +148,24 @@ class CrossEntropySolver(
         // convert the points to be able to evaluate
         val inputs = convertPointsToInputs()
         // request evaluations for solutions
-        val solutions = requestEvaluations(inputs)
+        val results = requestEvaluations(inputs)
+        val solutions = Solutions(capacity = results.size)
+        solutions.addAll(results)
         // determine the elite sample
+        myElites.clear()
+        val n = eliteSize()
+        if (solutions.size <= n) {
+            myElites.addAll(solutions)
+        } else {
+            for (i in 0 until n) {
+                val best = solutions.peekBest()
+                if (best != null) {
+                    solutions.remove(best)
+                    myElites.add(best)
+                }
+            }
+        }
+        solutions.clear()
 
         // update the sampler's parameters
 
