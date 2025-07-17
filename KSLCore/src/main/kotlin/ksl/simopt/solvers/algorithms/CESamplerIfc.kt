@@ -35,16 +35,21 @@ interface CESamplerIfc : MVSampleIfc, RNStreamControlIfc {
     fun updateParameters(elites: List<DoubleArray>)
 
     /**
-     *  @return the current values of the parameters associated with the
+     *  @return the current values of the solution associated with the
      *  sampling mechanism
      */
-    fun parameters(): DoubleArray
+    fun solution(): DoubleArray
+
+    /**
+     *  Sets the initial value of the parameters for the sampler.
+     */
+    fun initialize(parameters: DoubleArray)
 
     /**
      *  @return true if the parameters of the underlying sampling mechanism
      *  are considered converged (i.e., that the cross-entropy distribution
      *  has converged to a degenerate distribution centered on the recommended
-     *  parameters.
+     *  parameters, which represent the solution.
      */
     fun hasConverged(): Boolean
 

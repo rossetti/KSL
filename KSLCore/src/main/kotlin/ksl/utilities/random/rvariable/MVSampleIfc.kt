@@ -59,7 +59,7 @@ interface MVSampleIfc {
      *
      * @param sampleSize the amount to fill
      * @return A list holding the generated arrays. There will be [sampleSize]
-     * arrays, each of size dimension
+     * arrays, each having the size of dimension.
      */
     fun sample(sampleSize: Int): List<DoubleArray> {
         val list: MutableList<DoubleArray> = ArrayList()
