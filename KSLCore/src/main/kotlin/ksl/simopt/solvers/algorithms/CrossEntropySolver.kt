@@ -103,6 +103,12 @@ class CrossEntropySolver(
             return ceil(elitePct * ceSampleSize).toInt()
         }
 
+    override fun initializeIterations() {
+       // super.initializeIterations()
+        TODO("Not yet implemented")
+       // logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
+    }
+
     override fun mainIteration() {
         TODO("Not yet implemented")
     }
