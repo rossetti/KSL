@@ -4,6 +4,7 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
+import ksl.utilities.statistic.Statistic
 import kotlin.isFinite
 
 class CENormalSampler(
@@ -27,6 +28,7 @@ class CENormalSampler(
 
     private val mean: DoubleArray = DoubleArray(dimension) { 1.0 }
     private val sd: DoubleArray = DoubleArray(dimension) { 1.0 }
+    private val stats = List(dimension) { Statistic() }
 
     init {
         initializeParameters(problemDefinition.inputMidPoints)
@@ -86,6 +88,7 @@ class CENormalSampler(
         for (i in values.indices) {
             require(values[i].isFinite()) { "Mean vector must contain only finite values." }
             mean[i] = values[i]
+            stats[i].reset()
         }
         // now assign the standard deviations
         val ranges = problemDefinition.inputRanges
@@ -96,7 +99,19 @@ class CENormalSampler(
     }
 
     override fun updateParameters(elites: List<DoubleArray>) {
-        TODO("Not yet implemented")
+        // estimate the mean and standard deviation for the elite samples for each dimension
+        stats.forEach { it.reset() }
+        for (array in elites) {
+            require(array.size == dimension) { "The arrays within the elite sample must have length equal to the dimension." }
+            for (i in array.indices) {
+                stats[i].collect(array[i])
+            }
+        }
+        // update the parameter vectors based on smoothing
+        for (i in mean.indices) {
+            mean[i] = meanSmoother * mean[i] + (1.0 - meanSmoother) * stats[i].average
+            sd[i] = sdSmoother * sd[i] + (1.0 - sdSmoother) * stats[i].standardDeviation
+        }
     }
 
     override fun parameters(): DoubleArray {
