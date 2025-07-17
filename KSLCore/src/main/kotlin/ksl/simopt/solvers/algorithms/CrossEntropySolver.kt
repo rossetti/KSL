@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import kotlin.math.ceil
@@ -139,10 +140,12 @@ class CrossEntropySolver(
     }
 
     override fun mainIteration() {
-        // generate the sample
+        // generate the sample population
         val points = ceSampler.sample(sampleSize())
         // convert the points to be able to evaluate
-
+        val inputs = convertPointsToInputs()
+        // request evaluations for solutions
+        val solutions = requestEvaluations(inputs)
         // determine the elite sample
 
         // update the sampler's parameters
@@ -157,6 +160,10 @@ class CrossEntropySolver(
     }
 
     private fun checkForNoImprovement() : Boolean {
+        TODO("Not yet implemented")
+    }
+
+    private fun convertPointsToInputs() : Set<InputMap> {
         TODO("Not yet implemented")
     }
 
