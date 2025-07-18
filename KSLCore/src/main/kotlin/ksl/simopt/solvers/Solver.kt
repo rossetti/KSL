@@ -783,7 +783,7 @@ abstract class Solver(
          * provided by the problem definition.
          * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
          * accepting worse solutions at the start of the process. Defaults to 1000.0.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
@@ -825,7 +825,7 @@ abstract class Solver(
          * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
          * provided by the problem definition.
          * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
