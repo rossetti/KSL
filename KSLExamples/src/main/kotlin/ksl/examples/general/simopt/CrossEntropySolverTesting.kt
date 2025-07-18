@@ -10,7 +10,7 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runCESolverTest(modelIdentifier, maxIterations = 100)
+    runCESolverTest(modelIdentifier, maxIterations = 10)
 }
 
 fun configureCrossEntropySolver(

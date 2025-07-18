@@ -463,7 +463,7 @@ abstract class Solver(
      *  function.
      */
     protected open fun afterMainIteration() {
-
+        println("After Main Iteration: Iteration: $iterationCounter solution: $currentSolution")
     }
 
     /**
@@ -644,6 +644,7 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $initialSolution" }
             }
+            println("Initializing Solver: Iteration: $iterationCounter ")
         }
 
         override fun hasNextStep(): Boolean {

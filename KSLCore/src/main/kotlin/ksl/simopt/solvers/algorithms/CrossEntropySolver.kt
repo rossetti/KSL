@@ -184,7 +184,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         currentSolution = myEliteSolutions.first()
         // capture the last solution
         myLastSolutions.addLast(currentSolution)
-        println("Iteration: $iterationCounter  CE: $currentSolution")
+      //  println("Iteration: $iterationCounter  CE: $currentSolution")
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
