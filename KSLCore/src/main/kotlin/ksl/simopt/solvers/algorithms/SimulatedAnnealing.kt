@@ -235,18 +235,31 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     companion object {
 
+        /**
+         *  The default initial temperature for the annealing process. The default value is 1000.0
+         */
+        @JvmStatic
         var defaultInitialTemperature = 1000.0
             set(value) {
                 require(value > 0.0) { "The initial temperature must be positive" }
                 field = value
             }
 
+        /**
+         * The default cooling rate used during the annealing process. The default value is 0.95.
+         */
+        @JvmStatic
         var defaultCoolingRate = 0.95
             set(value) {
                 require(value > 0.0 && value < 1.0) { "The cooling rate must be in (0,1)" }
                 field = value
             }
 
+        /**
+         * The default temperature used to stop the annealing process. If the current temperature goes
+         *  * below this temperature, the search process stops. The default value is 0.001.
+         */
+        @JvmStatic
         var defaultStoppingTemperature = 0.001
             set(value) {
                 require(value > 0.0) { "The default stopping temperature must be positive" }

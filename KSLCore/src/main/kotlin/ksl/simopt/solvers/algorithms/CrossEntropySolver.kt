@@ -233,6 +233,7 @@ class CrossEntropySolver @JvmOverloads constructor(
          * A value between 0 and 1 that represents the default proportion of the CE sample
          * that determines the elite sample. By default, this is 0.1.
          */
+        @JvmStatic
         var defaultElitePct: Double = 0.1
             set(value) {
                 require(value > 0) { "The default elite percentage must be greater than 0" }
@@ -244,6 +245,7 @@ class CrossEntropySolver @JvmOverloads constructor(
          * This value is used as the default termination threshold for the largest number of iterations during which no
          * improvement of the best function value is found. By default, set to 5.
          */
+        @JvmStatic
         var defaultNoImproveThreshold: Int = 5
             set(value) {
                 require(value > 0) { "The default no improvement threshold must be greater than 0" }
@@ -255,6 +257,7 @@ class CrossEntropySolver @JvmOverloads constructor(
          *  processed to determine the elite sample. By default, this value is 10. This value is
          *  used to set the default sample size based on the dimension of the problem.
          */
+        @JvmStatic
         var defaultCESampleSizeFactor: Int = 10
             set(value) {
                 require(value >= 1) { "The default CE sample size factor must be >= 1" }

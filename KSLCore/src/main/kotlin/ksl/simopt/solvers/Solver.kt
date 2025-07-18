@@ -698,6 +698,7 @@ abstract class Solver(
          * The default value is set to 1000, but it can be modified based
          * on specific requirements or constraints.
          */
+        @JvmStatic
         var defaultMaxNumberIterations = 1000
             set(value) {
                 require(value > 0) { "The default maximum number of iterations must be a positive value." }
@@ -716,6 +717,7 @@ abstract class Solver(
          *
          * @throws IllegalArgumentException if the value set is not greater than zero.
          */
+        @JvmStatic
         @Suppress("unused")
         var defaultReplicationsPerEvaluation = 30
             set(value) {
@@ -727,6 +729,7 @@ abstract class Solver(
          * Logger instance used for logging messages.
          * Utilizes the KotlinLogging framework to facilitate structured and leveled logging.
          */
+        @JvmStatic
         val logger: KLogger = KotlinLogging.logger {}
 
         /**
@@ -744,6 +747,8 @@ abstract class Solver(
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
         @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
         fun stochasticHillClimber(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
@@ -783,6 +788,8 @@ abstract class Solver(
          * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
          */
         @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
         fun simulatedAnnealer(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
