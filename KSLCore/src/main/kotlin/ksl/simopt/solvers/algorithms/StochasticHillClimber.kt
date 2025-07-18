@@ -27,7 +27,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name An optional name for this solver instance.
  */
-open class StochasticHillClimber(
+open class StochasticHillClimber @JvmOverloads constructor(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
@@ -46,6 +46,7 @@ open class StochasticHillClimber(
      * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @param name Optional name identifier for this instance of StochasticHillClimber.
      */
+    @JvmOverloads
     constructor(
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,

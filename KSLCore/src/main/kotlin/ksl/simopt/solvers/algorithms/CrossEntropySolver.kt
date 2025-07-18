@@ -6,7 +6,6 @@ import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.utilities.collections.CircularQueue
 import kotlin.math.ceil
 
 /**
@@ -38,7 +37,7 @@ fun interface SampleSizeFnIfc {
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
  * @param name Optional name identifier for this instance of StochasticHillClimber.
  */
-class CrossEntropySolver(
+class CrossEntropySolver @JvmOverloads constructor(
     evaluator: EvaluatorIfc,
     val ceSampler: CESamplerIfc,
     maxIterations: Int = defaultMaxNumberIterations,
@@ -59,6 +58,8 @@ class CrossEntropySolver(
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
      * @param name Optional name identifier for this instance of StochasticHillClimber.
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         evaluator: EvaluatorIfc,
         ceSampler: CESamplerIfc,
@@ -123,12 +124,16 @@ class CrossEntropySolver(
      */
     private val myElites = mutableListOf<Solution>()
 
-    private val myLastSolutions = CircularQueue<Solution>(noImproveThreshold)
-
     /**
      *  The current list of elite solutions ordered from the best
      */
+    @Suppress("unused")
     val elites: List<Solution> get() = myElites
+
+    private lateinit var myLastSolutions : ArrayDeque<Solution>
+    @Suppress("unused")
+    val lastSolutions : List<Solution>
+        get() = myLastSolutions.toList()
 
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
      * to determine the size of the elite sample.
@@ -151,6 +156,8 @@ class CrossEntropySolver(
     override fun initializeIterations() {
         val initialPoint = startingPoint ?: startingPoint()
         ceSampler.initializeParameters(initialPoint.inputValues)
+        myElites.clear()
+        myLastSolutions = ArrayDeque(noImproveThreshold)
         logger.trace { "Solver: $name : initialized with CE Sampler's parameters" }
         logger.trace { "Initial parameters = $initialPoint" }
     }
@@ -195,8 +202,14 @@ class CrossEntropySolver(
         return inputs
     }
 
+    private fun findEliteSolutions(results: List<Solution>): List<Solution> {
+        results.sorted()
+        return results.take(eliteSize())
+    }
+
     private fun processResultsToEliteSample(results: List<Solution>) : List<DoubleArray> {
         // fill the solutions with all the results
+        //TODO do this by sorting
         val solutions = Solutions(capacity = results.size)
         solutions.addAll(results)
         // clear the current held elites for the elites from the new sample

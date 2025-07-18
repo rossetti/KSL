@@ -42,7 +42,7 @@ import ksl.utilities.random.rvariable.randomlySelect
  *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
  *  between solutions are considered practically insignificant. The default is zero.
  */
-class ProblemDefinition(
+class ProblemDefinition @JvmOverloads constructor(
     problemName: String? = null,
     val modelIdentifier: String,
     val objFnResponseName: String,
