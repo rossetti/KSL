@@ -850,7 +850,9 @@ abstract class Solver(
             //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val ce = CrossEntropySolver(
                 evaluator = evaluator,
-                ceSampler = ceSampler
+                ceSampler = ceSampler,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation
             )
             if (startingPoint != null) {
                 ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
