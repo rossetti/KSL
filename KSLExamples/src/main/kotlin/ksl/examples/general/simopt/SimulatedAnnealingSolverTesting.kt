@@ -11,7 +11,7 @@ fun main() {
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
     val initialTemperature = 1000.0
-    runSASolverTest(modelIdentifier, initialTemperature, maxIterations = 1000)
+    runSASolverTest(modelIdentifier, initialTemperature, maxIterations = 10)
 }
 
 fun configureSimulatedAnnealingSolver(
