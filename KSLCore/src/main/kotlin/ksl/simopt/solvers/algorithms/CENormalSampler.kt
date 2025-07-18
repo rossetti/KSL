@@ -5,6 +5,7 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import kotlin.isFinite
 
 class CENormalSampler(
@@ -26,9 +27,17 @@ class CENormalSampler(
         require(sdThreshold > 0) { "Standard deviation threshold must be greater than zero." }
     }
 
-    private val mean: DoubleArray = DoubleArray(dimension) { 1.0 }
-    private val sd: DoubleArray = DoubleArray(dimension) { 1.0 }
-    private val stats = List(dimension) { Statistic() }
+    private val myMeans: DoubleArray = DoubleArray(dimension) { 1.0 }
+    val means: DoubleArray
+        get() = myMeans.copyOf()
+
+    private val myStdDevs: DoubleArray = DoubleArray(dimension) { 1.0 }
+    val stdDeviations: DoubleArray
+        get() = myStdDevs.copyOf()
+
+    private val myEliteStats = List(dimension) { Statistic() }
+    val eliteStatistics: List<StatisticIfc>
+        get() = myEliteStats.toList()
 
     init {
         initializeParameters(problemDefinition.inputMidPoints)
@@ -78,7 +87,7 @@ class CENormalSampler(
     override fun sample(array: DoubleArray) {
         require(array.size == dimension) { "Array must have length equal to the dimension." }
         for (i in array.indices) {
-            array[i] = rnStream.rNormal(mean[i], sd[i] * sd[i])
+            array[i] = rnStream.rNormal(myMeans[i], myStdDevs[i] * myStdDevs[i])
         }
     }
 
@@ -87,35 +96,39 @@ class CENormalSampler(
         // first assign the means
         for (i in values.indices) {
             require(values[i].isFinite()) { "Mean vector must contain only finite values." }
-            mean[i] = values[i]
-            stats[i].reset()
+            myMeans[i] = values[i]
+            myEliteStats[i].reset()
         }
         // now assign the standard deviations
         val ranges = problemDefinition.inputRanges
         for (i in values.indices) {
-            sd[i] = (ranges[i] / 4.0) * variabilityFactor
-            require(sd[i] > sdThreshold) { "The initial standard deviation for parameter (${problemDefinition.inputNames[i]}) was set less than the stopping standard deviation threshold ($sdThreshold)." }
+            myStdDevs[i] = (ranges[i] / 4.0) * variabilityFactor
+            require(myStdDevs[i] > sdThreshold) { "The initial standard deviation for parameter (${problemDefinition.inputNames[i]}) was set less than the stopping standard deviation threshold ($sdThreshold)." }
         }
     }
 
     override fun updateParameters(elites: List<DoubleArray>) {
+        require(elites.isNotEmpty()) { "The elite sample must not be empty." }
         // estimate the mean and standard deviation for the elite samples for each dimension
-        stats.forEach { it.reset() }
+        myEliteStats.forEach { it.reset() }
         for (array in elites) {
             require(array.size == dimension) { "The arrays within the elite sample must have length equal to the dimension." }
             for (i in array.indices) {
-                stats[i].collect(array[i])
+                myEliteStats[i].collect(array[i])
             }
         }
         // update the parameter vectors based on smoothing
-        for (i in mean.indices) {
-            mean[i] = meanSmoother * mean[i] + (1.0 - meanSmoother) * stats[i].average
-            sd[i] = sdSmoother * sd[i] + (1.0 - sdSmoother) * stats[i].standardDeviation
+        for (i in myMeans.indices) {
+            myMeans[i] = meanSmoother * myMeans[i] + (1.0 - meanSmoother) * myEliteStats[i].average
+            if (myEliteStats[i].count >= 2) {
+                // Only update if there was enough data to estimate the standard deviation.
+                myStdDevs[i] = sdSmoother * myStdDevs[i] + (1.0 - sdSmoother) * myEliteStats[i].standardDeviation
+            }
         }
     }
 
     override fun parameters(): DoubleArray {
-        return mean.copyOf()
+        return myMeans.copyOf()
     }
 
     /**
@@ -123,7 +136,7 @@ class CENormalSampler(
      *  is less than or equal to [sdThreshold]
      */
     override fun hasConverged(): Boolean {
-        return sd.max() <= sdThreshold
+        return myStdDevs.max() <= sdThreshold
     }
 
     companion object {
