@@ -17,7 +17,7 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runSolver(modelIdentifier, maxIterations = 10)
+    runSHCSolver(modelIdentifier, maxIterations = 10)
 
 }
 
@@ -53,7 +53,7 @@ fun runStochasticHillClimber(
     println(shc.bestSolution.asString())
 }
 
-fun runSolver(modelIdentifier: String, maxIterations: Int = 100) {
+fun runSHCSolver(modelIdentifier: String, maxIterations: Int = 100) {
     val inputs = createInputs(modelIdentifier)
     val evaluator = makeEvaluator(modelIdentifier)
     val printer = if (modelIdentifier == "RQInventoryModel") ::printRQInventoryModel else ::printLKInventoryModel
