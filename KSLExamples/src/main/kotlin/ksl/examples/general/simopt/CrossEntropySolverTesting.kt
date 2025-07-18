@@ -1,45 +1,48 @@
 package ksl.examples.general.simopt
 
-
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.Solution
-import ksl.simopt.solvers.algorithms.SimulatedAnnealing
-
+import ksl.simopt.solvers.algorithms.CENormalSampler
+import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CrossEntropySolver
 
 fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    val initialTemperature = 1000.0
-    runSASolverTest(modelIdentifier, initialTemperature, maxIterations = 1000)
+    runCESolverTest(modelIdentifier, maxIterations = 100)
 }
 
-fun configureSimulatedAnnealingSolver(
+fun configureCrossEntropySolver(
     evaluator: Evaluator,
-    initialTemperature: Double,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
+    startingPoint: MutableMap<String, Double>? = null,
     printer: ((Solution) -> Unit)? = null
-): SimulatedAnnealing {
-    val shc = SimulatedAnnealing(
-        evaluator,
-        initialTemperature,
-        maxIterations = maxIterations, replicationsPerEvaluation = replicationsPerEvaluation
+): CrossEntropySolver {
+    val ceSampler: CESamplerIfc = CENormalSampler(evaluator.problemDefinition)
+    val ce = CrossEntropySolver(
+        evaluator = evaluator,
+        ceSampler = ceSampler,
+        maxIterations = maxIterations,
+        replicationsPerEvaluation = replicationsPerEvaluation
     )
-    printer?.let { shc.emitter.attach(it) }
-    return shc
+    if (startingPoint != null) {
+        ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+    }
+    printer?.let { ce.emitter.attach(it) }
+    return ce
 }
 
-fun runSimulatedAnnealingSolver(
+fun runCrossEntropySolver(
     evaluator: Evaluator,
-    initialTemperature: Double,
     inputs: MutableMap<String, Double>,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
     printer: ((Solution) -> Unit)? = null
 ) {
-    val shc = configureSimulatedAnnealingSolver(evaluator, initialTemperature,
-        maxIterations, replicationsPerEvaluation, printer)
+    val shc = configureCrossEntropySolver(evaluator,
+        maxIterations, replicationsPerEvaluation, inputs, printer)
     shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
     shc.runAllIterations()
     println()
@@ -50,15 +53,13 @@ fun runSimulatedAnnealingSolver(
     println(shc.bestSolution.asString())
 }
 
-fun runSASolverTest(
+fun runCESolverTest(
     modelIdentifier: String,
-    initialTemperature: Double,
     maxIterations: Int = 100
 ) {
     val inputs = createInputs(modelIdentifier)
     val evaluator = makeEvaluator(modelIdentifier)
     val printer = if (modelIdentifier == "RQInventoryModel") ::printRQInventoryModel else ::printLKInventoryModel
-    runSimulatedAnnealingSolver(evaluator, initialTemperature,
-        inputs, maxIterations, printer = printer)
+    runCrossEntropySolver(evaluator, inputs, maxIterations, printer = printer)
 }
 
