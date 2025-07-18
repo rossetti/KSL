@@ -4,6 +4,7 @@ import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rvariable.toDouble
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
@@ -143,12 +144,32 @@ data class Solution(
         get() = if (estimatedObjFnc.average.isNaN()) Double.MAX_VALUE else estimatedObjFnc.average
 
     /**
+     *  The estimated (average) value of the objective function but rounded to the problem's
+     *  granularity for the objective function
+     */
+    val granularObjFncValue: Double
+        get() {
+            if (estimatedObjFnc.average.isNaN()) return Double.MAX_VALUE
+            return KSLMath.mround(estimatedObjFncValue, problemDefinition.objFnGranularity)
+        }
+
+    /**
      *  The penalized objective function.  That is, the estimated objective function plus
      *  the total penalty associated with violating the response constraints.
      */
     val penalizedObjFncValue: Double
         get() = estimatedObjFncValue + responseConstraintViolationPenalty
 
+    /**
+     *  The estimated (average) value of the objective function but rounded to the problem's
+     *  granularity for the objective function
+     */
+    val granularPenalizedObjFncValue: Double
+        get() {
+            if (granularObjFncValue.isNaN() || (granularObjFncValue == Double.MAX_VALUE)) return Double.MAX_VALUE
+            return KSLMath.mround(penalizedObjFncValue, problemDefinition.objFnGranularity)
+        }
+    
     /**
      *  Tests if each response constraint is feasible.  If all test feasible, then the
      *  solution is considered response feasible.

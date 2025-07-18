@@ -49,6 +49,7 @@ class ProblemDefinition(
     inputNames: List<String>,
     responseNames: List<String> = emptyList(),
     indifferenceZoneParameter: Double = 0.0,
+    objFnGranularity: Double = 0.0
 ) : IdentityIfc by Identity(problemName) {
 
     /**
@@ -91,6 +92,23 @@ class ProblemDefinition(
     var indifferenceZoneParameter: Double = indifferenceZoneParameter
         set(value) {
             require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            field = value
+        }
+
+    /**
+     *  The specified granularity indicates the acceptable precision for the objective function's value
+     *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
+     *  when evaluating the objective function. Granularity defines the level of precision for variable
+     *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
+     *  should attempt to find a solution to the level of machine precision. For any positive granularity value,
+     *  the solution will be found to some multiple of that granularity. As a special case, setting granularity to 1
+     *  implies an integer-ordered input variable. The specification of granularity reflects a reality for the
+     *  decision maker that there is a level of precision beyond which it is not practical to implement a solution.
+     */
+    @Suppress("unused")
+    var objFnGranularity: Double = objFnGranularity
+        set(value) {
+            require(value >= 0.0) { "Objective function granularity must be >=  0.0" }
             field = value
         }
 

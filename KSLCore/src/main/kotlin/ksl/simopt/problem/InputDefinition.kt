@@ -66,6 +66,16 @@ class InputDefinition(
     val interval: Interval
         get() = Interval(lowerBound, upperBound)
 
+    /**
+     *  The specified granularity indicates the acceptable precision for the variable's value
+     *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
+     *  when evaluating the variable. Granularity defines the level of precision for an input variable
+     *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
+     *  will attempt to find a solution to the level of machine precision. For any positive granularity value,
+     *  the solution will be found to some multiple of that granularity. As a special case, setting granularity to 1
+     *  implies an integer-ordered input variable. The specification of granularity reflects a reality for the
+     *  decision maker that there is a level of precision beyond which it is not practical to implement a solution.
+     */
     var granularity: Double = granularity
         set(value) {
             require(value >= 0.0) { "granularity must be >=  0.0" }
