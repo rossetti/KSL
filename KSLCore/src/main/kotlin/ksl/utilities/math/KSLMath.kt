@@ -289,7 +289,7 @@ object KSLMath {
     /**
      * Contributed by Andrew Gibson
      * round a scalar double to a multiple of granularity
-     * note that 0 a  granularity value is interpreted as "no rounding"
+     * note that 0 for a granularity value is interpreted as "no rounding"
      *
      * Granularity represents the finest division of the measurement scale.
      * For example, a 12-inch rule that has inches divided into 4 quarters has
@@ -309,7 +309,7 @@ object KSLMath {
      * @return x rounded to granularity
      */
     fun mround(x: Double, granularity: Double): Double {
-        // interpret 0 and null  granularity as "no rounding"
+        // interpret 0 as "no rounding"
         return if (granularity.compareTo(0.0) < 1) {
             x
         } else {
