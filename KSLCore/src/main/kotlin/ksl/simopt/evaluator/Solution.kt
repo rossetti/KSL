@@ -169,7 +169,7 @@ data class Solution(
             if (granularObjFncValue.isNaN() || (granularObjFncValue == Double.MAX_VALUE)) return Double.MAX_VALUE
             return KSLMath.mround(penalizedObjFncValue, problemDefinition.objFnGranularity)
         }
-    
+
     /**
      *  Tests if each response constraint is feasible.  If all test feasible, then the
      *  solution is considered response feasible.
