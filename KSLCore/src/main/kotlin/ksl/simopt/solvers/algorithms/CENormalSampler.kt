@@ -25,7 +25,39 @@ class CENormalSampler(
         require(sdSmoother > 0) { "Standard deviation smoother must be greater than zero." }
         require(sdSmoother <= 1) { "Standard deviation smoother must be less than or equal to one." }
         require(sdThreshold > 0) { "Standard deviation threshold must be greater than zero." }
+        println("CENormalSampler: meanSmoother=$meanSmoother, sdSmoother=$sdSmoother, sdThreshold=$sdThreshold")
     }
+
+    /**
+     *  This can be used to increase/decrease the variability associated with the initial parameter setting.
+     *  For example, a value of 1.1 increases the starting standard deviation by 10%. The setting
+     *  must be a positive value.  The default value is specified by [defaultVariabilityFactor].
+     */
+    var variabilityFactor: Double = defaultVariabilityFactor
+        set(value) {
+            require(value > 0) { "The default variance factor must be greater than zero." }
+            field = value
+        }
+
+    var meanSmoother: Double = meanSmoother
+        set(value) {
+            require(value > 0) { "Mean smoother must be greater than zero." }
+            require(value <= 1) { "Mean smoother must be less than or equal to one." }
+            field = value
+        }
+
+    var sdSmoother: Double = sdSmoother
+        set(value) {
+            require(value > 0) { "Standard deviation smoother must be greater than zero." }
+            require(value <= 1) { "Standard deviation smoother must be less than or equal to one." }
+            field = value
+        }
+
+    var sdThreshold: Double = sdThreshold
+        set(value) {
+            require(value > 0) { "Standard deviation threshold must be greater than zero." }
+            field = value
+        }
 
     private val myMeans: DoubleArray = DoubleArray(dimension) { 1.0 }
     val means: DoubleArray
@@ -42,36 +74,6 @@ class CENormalSampler(
     init {
         initializeParameters(problemDefinition.inputMidPoints)
     }
-
-    var meanSmoother: Double = meanSmoother
-        set(value) {
-            require(value > 0) { "Mean smoother must be greater than zero." }
-            require(value <= 1) { "Mean smoother must be less than or equal to one." }
-            field = value
-        }
-
-    var sdSmoother: Double = sdSmoother
-        set(value) {
-            require(value > 0) { "Standard deviation smoother must be greater than zero." }
-            require(value <= 1) { "Standard deviation smoother must be less than or equal to one." }
-        }
-
-    var sdThreshold: Double = sdThreshold
-        set(value) {
-            require(value > 0) { "Standard deviation threshold must be greater than zero." }
-            field = value
-        }
-
-    /**
-     *  This can be used to increase/decrease the variability associated with the initial parameter setting.
-     *  For example, a value of 1.1 increases the starting standard deviation by 10%. The setting
-     *  must be a positive value.  The default value is specified by [defaultVariabilityFactor].
-     */
-    var variabilityFactor: Double = defaultVariabilityFactor
-        set(value) {
-            require(value > 0) { "The default variance factor must be greater than zero." }
-            field = value
-        }
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers.
@@ -100,10 +102,11 @@ class CENormalSampler(
             myEliteStats[i].reset()
         }
         // now assign the standard deviations
+       // println("CENormalSampler: meanSmoother=$meanSmoother, sdSmoother=$sdSmoother, sdThreshold=$sdThreshold")
         val ranges = problemDefinition.inputRanges
         for (i in values.indices) {
             myStdDevs[i] = (ranges[i] / 4.0) * variabilityFactor
-            require(myStdDevs[i] > sdThreshold) { "The initial standard deviation for parameter (${problemDefinition.inputNames[i]}) was set less than the stopping standard deviation threshold ($sdThreshold)." }
+            require(myStdDevs[i] > sdThreshold) { "The initial standard deviation (${myStdDevs[i]}) for parameter (${problemDefinition.inputNames[i]}) was set less than the stopping standard deviation threshold ($sdThreshold)." }
         }
     }
 
