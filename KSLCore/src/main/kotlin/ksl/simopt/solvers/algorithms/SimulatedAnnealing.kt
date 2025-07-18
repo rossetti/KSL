@@ -32,7 +32,7 @@ import kotlin.math.exp
  * @param name An optional name for this solver instance.
  *
  */
-class SimulatedAnnealing(
+class SimulatedAnnealing @JvmOverloads constructor(
     evaluator: EvaluatorIfc,
     initialTemperature: Double = defaultInitialTemperature,
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
@@ -136,6 +136,7 @@ class SimulatedAnnealing(
      * @param streamProvider Provides the random number generator streams. Defaults to the KSLRandom.DefaultRNStreamProvider.
      * @param name An optional name for the simulated annealing process, useful for identification or debugging. Defaults to null.
      */
+    @JvmOverloads
     constructor(
         evaluator: EvaluatorIfc,
         initialTemperature: Double = defaultInitialTemperature,
