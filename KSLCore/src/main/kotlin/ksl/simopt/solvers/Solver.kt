@@ -6,6 +6,9 @@ import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
+import ksl.simopt.solvers.algorithms.CENormalSampler
+import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -749,7 +752,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun stochasticHillClimber(
+        fun stochasticHillClimbingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
@@ -790,7 +793,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun simulatedAnnealer(
+        fun simulatedAnnealingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
@@ -812,6 +815,49 @@ abstract class Solver(
             shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
             printer?.let { shc.emitter.attach(it) }
             return shc
+        }
+
+        /**
+         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
+         * provided by the problem definition.
+         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
+         * accepting worse solutions at the start of the process. Defaults to 1000.0.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 100.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun crossEntropySolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            printer: ((Solution) -> Unit)? = null
+        ) : CrossEntropySolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+            val ce = CrossEntropySolver(
+                evaluator = evaluator,
+                ceSampler = ceSampler
+            )
+            if (startingPoint != null) {
+                ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+            }
+            printer?.let { ce.emitter.attach(it) }
+            return ce
         }
     }
 }
