@@ -37,6 +37,7 @@ interface CESamplerIfc : MVSampleIfc, RNStreamControlIfc {
     val streamNumber: Int
 
     /** The underlying parameters of the sampling mechanism should be updated.
+     *  Implementors need to handle the edge case of less than 2 elites.
      *
      *  @param elites a sample containing the generated population
      *  that meet what is considered elite performance.

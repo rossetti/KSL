@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
@@ -115,7 +116,16 @@ class CrossEntropySolver(
             field = value
         }
 
-    private val myElites: Solutions = Solutions()
+    /**
+     *  Holds the solutions that are considered the most recent
+     *  set of elite solutions ordered from the best.
+     */
+    private val myElites = mutableListOf<Solution>()
+
+    /**
+     *  The current list of elite solutions ordered from the best
+     */
+    val elites: List<Solution> get() = myElites
 
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
      * to determine the size of the elite sample.
@@ -143,47 +153,71 @@ class CrossEntropySolver(
     }
 
     override fun mainIteration() {
-        // generate the sample population
+        // Generate the cross-entropy sample population
         val points = ceSampler.sample(sampleSize())
-        // convert the points to be able to evaluate
-        val inputs = convertPointsToInputs()
+        // Convert the points to be able to evaluate.
+        val inputs = convertPointsToInputs(points)
         // request evaluations for solutions
         val results = requestEvaluations(inputs)
-        val solutions = Solutions(capacity = results.size)
-        solutions.addAll(results)
-        // determine the elite sample
-        myElites.clear()
-        val n = eliteSize()
-        if (solutions.size <= n) {
-            myElites.addAll(solutions)
-        } else {
-            for (i in 0 until n) {
-                val best = solutions.peekBest()
-                if (best != null) {
-                    solutions.remove(best)
-                    myElites.add(best)
-                }
-            }
+        if (results.isEmpty()) {
+            // Returning will cause no updating on this iteration.
+            // New points will be generated for another try on next iteration.
+            return
         }
-        solutions.clear()
-
+        // At least one result, so proceed with processing.
+        // Process the results to find the elites, this should fill myElites.
+        val elitePoints = processResultsToEliteSample(results)
         // update the sampler's parameters
-
+        ceSampler.updateParameters(elitePoints)
         // specify the current solution
 
         TODO("Not yet implemented")
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
-        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkForNoImprovement()
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkForConvergence()
     }
 
-    private fun checkForNoImprovement() : Boolean {
+    private fun checkForConvergence() : Boolean {
+        // need to check for convergence of sampler
+        // need to check for no solution improvement
         TODO("Not yet implemented")
     }
 
-    private fun convertPointsToInputs() : Set<InputMap> {
-        TODO("Not yet implemented")
+    private fun convertPointsToInputs(points: List<DoubleArray>) : Set<InputMap> {
+        val inputs = mutableSetOf<InputMap>()
+        for (point in points) {
+            inputs.add(problemDefinition.toInputMap(point))
+        }
+        return inputs
+    }
+
+    private fun processResultsToEliteSample(results: List<Solution>) : List<DoubleArray> {
+        // fill the solutions with all the results
+        val solutions = Solutions(capacity = results.size)
+        solutions.addAll(results)
+        // clear the current held elites for the elites from the new sample
+        myElites.clear()
+        // get the size of the desired elite sample
+        val n = eliteSize()
+        for(i in 1..n) {
+            val best = solutions.peekBest()
+            if (best != null) {
+                solutions.remove(best)
+                myElites.add(best)
+            } else {
+                // no more solutions, must stop even if less than requested number
+                break
+            }
+        }
+        solutions.clear()
+        // myElites should contain the ordered best
+        val eliteInputs = mutableListOf<DoubleArray>()
+        // convert to arrays for parameter updating
+        for (s in myElites) {
+            eliteInputs.add(s.inputMap.inputValues)
+        }
+        return eliteInputs
     }
 
     companion object {
