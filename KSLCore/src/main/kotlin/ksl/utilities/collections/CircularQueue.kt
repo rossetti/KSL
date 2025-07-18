@@ -43,4 +43,13 @@ class CircularQueue<T>(private val maxSize: Int) {
     fun size(): Int {
         return currentSize
     }
+
+    fun clear() {
+        for (i in 0 until maxSize) {
+            elements[i] = null
+        }
+        front = 0
+        rear = -1
+        currentSize = 0
+    }
 }

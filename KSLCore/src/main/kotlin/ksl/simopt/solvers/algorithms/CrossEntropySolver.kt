@@ -6,6 +6,7 @@ import ksl.simopt.evaluator.Solutions
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.collections.CircularQueue
 import kotlin.math.ceil
 
 /**
@@ -122,6 +123,8 @@ class CrossEntropySolver(
      */
     private val myElites = mutableListOf<Solution>()
 
+    private val myLastSolutions = CircularQueue<Solution>(noImproveThreshold)
+
     /**
      *  The current list of elite solutions ordered from the best
      */
@@ -170,7 +173,7 @@ class CrossEntropySolver(
         // update the sampler's parameters
         ceSampler.updateParameters(elitePoints)
         // specify the current solution
-
+        currentSolution = myElites.first()
         TODO("Not yet implemented")
     }
 
