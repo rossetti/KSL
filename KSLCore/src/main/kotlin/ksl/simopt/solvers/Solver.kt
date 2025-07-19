@@ -285,6 +285,7 @@ abstract class Solver(
                 numTimesBestSolutionUpdated++
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
+            emitter.emit(field)
         }
 
     /**
@@ -463,7 +464,6 @@ abstract class Solver(
      *  function.
      */
     protected open fun afterMainIteration() {
-        println("After Main Iteration: Iteration: $iterationCounter solution: $currentSolution")
     }
 
     /**
@@ -582,7 +582,6 @@ abstract class Solver(
         val solutions = requestEvaluations(requests)
         val solution = solutions.first()
         logger.trace { "Solver: $name : requested evaluation of $input and received $solution" }
-        emitter.emit(solution)
         return solution
     }
 
@@ -644,7 +643,6 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $initialSolution" }
             }
-            println("Initializing Solver: Iteration: $iterationCounter ")
         }
 
         override fun hasNextStep(): Boolean {

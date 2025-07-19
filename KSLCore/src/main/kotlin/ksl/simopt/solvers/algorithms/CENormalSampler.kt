@@ -142,6 +142,22 @@ class CENormalSampler(
         return myStdDevs.max() <= sdThreshold
     }
 
+    override fun toString(): String {
+        return buildString {
+            appendLine("CENormalSampler")
+            appendLine("streamNumber = $streamNumber")
+            appendLine("dimension = $dimension")
+            appendLine("variabilityFactor = $variabilityFactor")
+            appendLine("meanSmoother = $meanSmoother")
+            appendLine("sdSmoother = $sdSmoother")
+            appendLine("sdThreshold = $sdThreshold")
+            appendLine("mean values = ${myMeans.contentToString()}")
+            appendLine("standard deviations = ${myStdDevs.contentToString()}")
+            appendLine("hasConverged = ${hasConverged()}")
+        }
+    }
+
+
     companion object {
 
         /**

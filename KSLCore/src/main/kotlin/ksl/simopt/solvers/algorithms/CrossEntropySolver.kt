@@ -32,14 +32,14 @@ fun interface SampleSizeFnIfc {
  *
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
  * @param ceSampler the cross-entropy sampler for the cross-entropy distribution
- * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
+ * @param maxIterations The maximum number of iterations allowed for the search process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
- * @param name Optional name identifier for this instance of StochasticHillClimber.
+ * @param name Optional name identifier for this instance of solver.
  */
 class CrossEntropySolver @JvmOverloads constructor(
     evaluator: EvaluatorIfc,
     val ceSampler: CESamplerIfc,
-    maxIterations: Int = defaultMaxNumberIterations,
+    maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
 ) : StochasticSolver(
@@ -53,16 +53,16 @@ class CrossEntropySolver @JvmOverloads constructor(
      *
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param ceSampler the cross-entropy sampler for the cross-entropy distribution
-     * @param maxIterations The maximum number of iterations allowed for the hill climbing process.
+     * @param maxIterations The maximum number of iterations allowed for the search process.
      * @param replicationsPerEvaluation The number of replications to perform for each evaluation of a solution.
-     * @param name Optional name identifier for this instance of StochasticHillClimber.
+     * @param name Optional name identifier for this instance of the solver.
      */
     @JvmOverloads
     @Suppress("unused")
     constructor(
         evaluator: EvaluatorIfc,
         ceSampler: CESamplerIfc,
-        maxIterations: Int = defaultMaxNumberIterations,
+        maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
     ) : this(
@@ -228,6 +228,19 @@ class CrossEntropySolver @JvmOverloads constructor(
         return results.sorted().take(eliteSize()).toMutableList()
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder("Cross-Entropy Solver with parameters: \n")
+        sb.appendLine("CE Sampler: $ceSampler")
+        sb.appendLine("Elite Pct: $elitePct")
+        sb.appendLine("No improvement threshold: $noImproveThreshold")
+        sb.appendLine("CE Sample Size: $ceSampleSize")
+        sb.appendLine("Elite Size: ${eliteSize()}")
+        sb.appendLine("CE Sampler:")
+        sb.appendLine("$ceSampler")
+        sb.append(super.toString())
+        return sb.toString()
+    }
+
     companion object {
 
         /**
@@ -265,6 +278,16 @@ class CrossEntropySolver @JvmOverloads constructor(
                 field = value
             }
 
+        /**
+         *  The maximum number of iterations permitted for the main loop for the Cross-Entropy method. This must be
+         *   greater than 0.
+         */
+        @JvmStatic
+        var ceDefaultMaxIterations: Int = 10
+            set(value) {
+                require(value >= 1) { "The default CE maximum number of iterations must be >= 1" }
+                field = value
+            }
     }
 
 }
