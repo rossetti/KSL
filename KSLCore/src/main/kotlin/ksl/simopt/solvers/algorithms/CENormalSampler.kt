@@ -153,7 +153,7 @@ class CENormalSampler(
             appendLine("sdThreshold = $sdThreshold")
             appendLine("mean values = ${myMeans.contentToString()}")
             appendLine("standard deviations = ${myStdDevs.contentToString()}")
-            appendLine("hasConverged = ${hasConverged()}")
+            append("hasConverged = ${hasConverged()}")
         }
     }
 

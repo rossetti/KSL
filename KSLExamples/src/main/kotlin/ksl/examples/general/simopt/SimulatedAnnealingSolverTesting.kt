@@ -3,6 +3,7 @@ package ksl.examples.general.simopt
 
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 
 
@@ -19,7 +20,7 @@ fun configureSimulatedAnnealingSolver(
     initialTemperature: Double,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ): SimulatedAnnealing {
     val shc = SimulatedAnnealing(
         evaluator,
@@ -36,7 +37,7 @@ fun runSimulatedAnnealingSolver(
     inputs: MutableMap<String, Double>,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ) {
     val shc = configureSimulatedAnnealingSolver(evaluator, initialTemperature,
         maxIterations, replicationsPerEvaluation, printer)

@@ -2,6 +2,7 @@ package ksl.examples.general.simopt
 
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
@@ -18,7 +19,7 @@ fun configureCrossEntropySolver(
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
     startingPoint: MutableMap<String, Double>? = null,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ): CrossEntropySolver {
     val ceSampler: CESamplerIfc = CENormalSampler(evaluator.problemDefinition)
     val ce = CrossEntropySolver(
@@ -39,7 +40,7 @@ fun runCrossEntropySolver(
     inputs: MutableMap<String, Double>,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ) {
     val shc = configureCrossEntropySolver(evaluator,
         maxIterations, replicationsPerEvaluation, inputs, printer)

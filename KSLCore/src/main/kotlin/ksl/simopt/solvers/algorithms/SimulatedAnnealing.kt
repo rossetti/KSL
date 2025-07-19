@@ -225,9 +225,9 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     override fun toString(): String {
         val sb = StringBuilder("Simulated Annealing solver with parameters: \n")
-        sb.append(super.toString())
         sb.append("Initial temperature: $initialTemperature\n")
         sb.append("Stopping temperature: $stoppingTemperature\n")
+        sb.append(super.toString())
         sb.append("Current temperature: $currentTemperature\n")
         sb.append("Last acceptance probability: $lastAcceptanceProbability\n")
         return sb.toString()
