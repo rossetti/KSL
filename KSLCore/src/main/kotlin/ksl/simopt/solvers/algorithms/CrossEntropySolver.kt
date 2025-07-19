@@ -5,6 +5,7 @@ import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.math.KSLMath
 import kotlin.math.ceil
 
 /**
@@ -157,8 +158,8 @@ class CrossEntropySolver @JvmOverloads constructor(
         ceSampler.initializeParameters(initialPoint.inputValues)
         myEliteSolutions.clear()
         myLastSolutions = ArrayDeque(noImproveThreshold)
-        logger.trace { "Solver: $name : initialized with CE Sampler's parameters" }
-        logger.trace { "Initial parameters = $initialPoint" }
+        logger.info { "Solver: $name : initialized with CE Sampler's parameters" }
+        logger.info { "Initial parameters = $initialPoint" }
     }
 
     override fun mainIteration() {
@@ -183,8 +184,15 @@ class CrossEntropySolver @JvmOverloads constructor(
         // specify the current solution
         currentSolution = myEliteSolutions.first()
         // capture the last solution
-        myLastSolutions.addLast(currentSolution)
+        captureLastSolution()
       //  println("Iteration: $iterationCounter  CE: $currentSolution")
+    }
+
+    private fun captureLastSolution() {
+        if (myLastSolutions.size == noImproveThreshold) {
+            myLastSolutions.removeFirstOrNull()
+        }
+        myLastSolutions.add(currentSolution)
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
@@ -201,9 +209,16 @@ class CrossEntropySolver @JvmOverloads constructor(
         if (myLastSolutions.size < noImproveThreshold) return false
         val lastSolution = myLastSolutions.last()
         for (solution in myLastSolutions) {
-            if (compare(lastSolution, solution) != 0) {
+//TODO this works but in no way accounts for variability in the comparison
+// make this a function that can be supplied. Isn't this what solution quality evaluator is for?
+
+            if (!KSLMath.within(lastSolution.penalizedObjFncValue,
+                solution.penalizedObjFncValue, solutionPrecision)) {
                 return false
             }
+//            if (compare(lastSolution, solution) != 0) {
+//                return false
+//            }
         }
         return true
     }
@@ -230,7 +245,6 @@ class CrossEntropySolver @JvmOverloads constructor(
 
     override fun toString(): String {
         val sb = StringBuilder("Cross-Entropy Solver with parameters: \n")
-        sb.appendLine("CE Sampler: $ceSampler")
         sb.appendLine("Elite Pct: $elitePct")
         sb.appendLine("No improvement threshold: $noImproveThreshold")
         sb.appendLine("CE Sample Size: $ceSampleSize")

@@ -17,7 +17,16 @@ import ksl.simulation.IterativeProcessStatusIfc
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
+import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
+
+interface SolverEmitterIfc {
+    val emitter : Emitter<Solver>
+}
+
+class SolverEmitter : SolverEmitterIfc {
+    override val emitter: Emitter<Solver> = Emitter()
+}
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -50,7 +59,7 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-) : IdentityIfc by Identity(name), CompareSolutionsIfc, SolutionEmitterIfc by SolutionEmitter() {
+) : IdentityIfc by Identity(name), CompareSolutionsIfc, SolverEmitterIfc by SolverEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -285,7 +294,6 @@ abstract class Solver(
                 numTimesBestSolutionUpdated++
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
-            emitter.emit(field)
         }
 
     /**
@@ -311,6 +319,18 @@ abstract class Solver(
      *  across any iteration.
      */
     var bestSolution: Solution = problemDefinition.badSolution()
+
+    /**
+     *  Many algorithms compare solutions. This factor serves as the criteria
+     *  when comparing two solutions such that if the solutions are within this value
+     *  they are considered equal. The default is [defaultSolutionPrecision].
+     *  Algorithms may or may not use this criterion.
+     */
+    var solutionPrecision: Double = defaultSolutionPrecision
+        set(value) {
+            require(value > 0) { "The default solution precision must be a positive value." }
+            field = value
+        }
 
     /**
      *  Causes the solver to be initialized. It will then
@@ -636,13 +656,14 @@ abstract class Solver(
             super.initializeIterations()
             iterationCounter = 0
             numTimesBestSolutionUpdated = 0
-            logger.info { "Resetting solver evaluation counters for solver: $name" }
-            logger.trace { "Initializing solver $name" }
+            logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
             if (::initialSolution.isInitialized) {
-                logger.info { "Initialized solver $name : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
-                logger.trace { "Initial solution = $initialSolution" }
+                val soln = initialSolution
+                logger.info { "Initialized solver $name : penalized objective function value: ${soln.penalizedObjFncValue}" }
+                logger.trace { "Initial solution = $soln" }
             }
+            emitter.emit(this@Solver)
         }
 
         override fun hasNextStep(): Boolean {
@@ -675,7 +696,8 @@ abstract class Solver(
             iterationCounter++
             logger.info { "Running: iteration = $iterationCounter of solver name: $name" }
             mainIteration()
-            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${initialSolution.penalizedObjFncValue}" }
+            emitter.emit(this@Solver)
+            logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
         }
@@ -691,6 +713,17 @@ abstract class Solver(
     }
 
     companion object {
+
+        /**
+         *  Many algorithms compare solutions. This factor serves as the default precision
+         *  between two solutions such that if the solutions are within this value
+         *  they are considered equal. The default is 0.01
+         */
+        var defaultSolutionPrecision: Double = 0.01
+            set(value) {
+                require(value > 0) { "The default solution precision must be a positive value." }
+                field = value
+            }
 
         /**
          * Represents the default maximum number of iterations to be executed
@@ -757,7 +790,7 @@ abstract class Solver(
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int =defaultReplicationsPerEvaluation,
-            printer: ((Solution) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null
         ) : StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
@@ -799,7 +832,7 @@ abstract class Solver(
             initialTemperature: Double = defaultInitialTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
-            printer: ((Solution) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null
         ) : SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
@@ -841,7 +874,7 @@ abstract class Solver(
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
-            printer: ((Solution) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null
         ) : CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder

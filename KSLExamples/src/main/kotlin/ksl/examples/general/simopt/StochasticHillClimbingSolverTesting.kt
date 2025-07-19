@@ -7,6 +7,7 @@ import ksl.simopt.evaluator.SimulationService
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simulation.Model
 import ksl.utilities.Interval
@@ -25,7 +26,7 @@ fun configureStochasticHillClimber(
     evaluator: Evaluator,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ): StochasticHillClimber {
     val shc = StochasticHillClimber(
         evaluator,
@@ -40,7 +41,7 @@ fun runStochasticHillClimber(
     inputs: MutableMap<String, Double>,
     maxIterations: Int = 100,
     replicationsPerEvaluation: Int = 50,
-    printer: ((Solution) -> Unit)? = null
+    printer: ((Solver) -> Unit)? = null
 ) {
     val shc = configureStochasticHillClimber(evaluator, maxIterations, replicationsPerEvaluation, printer)
     shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
@@ -79,17 +80,19 @@ fun createInputs(modelIdentifier: String): MutableMap<String, Double> {
     }
 }
 
-fun printLKInventoryModel(solution: Solution) {
+fun printLKInventoryModel(solver: Solver) {
+    val solution = solver.currentSolution
     val q = solution.inputMap["Inventory.orderQuantity"]
     val rp = solution.inputMap["Inventory.reorderPoint"]
-    println("id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("iteration = ${solver.iterationCounter} : id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
-fun printRQInventoryModel(solution: Solution) {
+fun printRQInventoryModel(solver: Solver) {
+    val solution = solver.currentSolution
     val q = solution.inputMap["Inventory:Item.initialReorderQty"]
     val rp = solution.inputMap["Inventory:Item.initialReorderPoint"]
     val fillRate = solution.responseEstimatesMap["Inventory:Item:FillRate"]!!.average
-    println("id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("iteration = ${solver.iterationCounter} : id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
 fun buildRQInventoryModel(reorderQty: Int = 2, reorderPoint: Int = 1): Model {
