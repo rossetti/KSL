@@ -189,7 +189,6 @@ class CrossEntropySolver @JvmOverloads constructor(
         currentSolution = myEliteSolutions.first()
         // capture the last solution
         captureLastSolution()
-        //  println("Iteration: $iterationCounter  CE: $currentSolution")
     }
 
     private fun captureLastSolution() {

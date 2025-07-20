@@ -13,7 +13,7 @@ class CENormalSampler(
     override val problemDefinition: ProblemDefinition,
     meanSmoother: Double = defaultMeanSmoother,
     sdSmoother: Double = defaultStdDevSmoother,
-    coeffOfVariationThreshold: Double = defaultCoefficientOfVariationThreshold,
+    coefficientOfVariationThreshold: Double = defaultCoefficientOfVariationThreshold,
     streamNum: Int = 0,
     override val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
 ) : CESamplerIfc {
@@ -25,7 +25,7 @@ class CENormalSampler(
         require(meanSmoother <= 1) { "Mean smoother must be less than or equal to one." }
         require(sdSmoother > 0) { "Standard deviation smoother must be greater than zero." }
         require(sdSmoother <= 1) { "Standard deviation smoother must be less than or equal to one." }
-        require(coeffOfVariationThreshold > 0) { "Coefficient of variation threshold must be greater than zero." }
+        require(coefficientOfVariationThreshold > 0) { "Coefficient of variation threshold must be greater than zero." }
     }
 
     /**
@@ -63,7 +63,7 @@ class CENormalSampler(
      *  This threshold represents the bound used to consider whether the coefficient of variation
      *  for the population parameters has converged.
      */
-    var cvThreshold: Double = coeffOfVariationThreshold
+    var cvThreshold: Double = coefficientOfVariationThreshold
         set(value) {
             require(value > 0) { "Standard deviation threshold must be greater than zero." }
             field = value
@@ -82,6 +82,7 @@ class CENormalSampler(
     /**
      *  A copy of the current standard deviation parameters.
      */
+    @Suppress("unused")
     val stdDeviations: DoubleArray
         get() = myStdDevs.copyOf()
 
@@ -90,6 +91,7 @@ class CENormalSampler(
     /**
      *  A list of statistics for the population within the last sample of elites.
      */
+    @Suppress("unused")
     val eliteStatistics: List<StatisticIfc>
         get() = myEliteStats.toList()
 
@@ -186,7 +188,7 @@ class CENormalSampler(
 
     /**
      *  Computes the standard deviation thresholds used to check if
-     *  the distribution has converged. These values are abs(mean[i])*cvThreshold
+     *  the distribution has converged. These values are abs(mean)*cvThreshold
      */
     val stdDeviationThresholds: DoubleArray
         get() = DoubleArray(dimension) { abs(myMeans[it]) * cvThreshold }

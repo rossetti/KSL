@@ -62,7 +62,7 @@ interface CESamplerIfc : MVSampleIfc, RNStreamControlIfc {
      *  @return true if the parameters of the underlying sampling mechanism
      *  are considered converged (i.e., that the cross-entropy distribution
      *  has converged to a degenerate distribution centered on the recommended
-     *  parameters, which represent the solution.
+     *  parameters, which represent the solution).
      */
     fun hasConverged(): Boolean
 
