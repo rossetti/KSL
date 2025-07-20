@@ -63,6 +63,7 @@ data class MCBResultData(
 /**
  *  Converts the MCB result data to a data frame
  */
+@Suppress("unused")
 fun List<MCBResultData>.asMCBResultDataFrame(): DataFrame<MCBResultData> {
     var df = this.toDataFrame()
     df = df.remove("autoIncField", "keyFields",
@@ -92,6 +93,7 @@ data class MCBIntervalData(
 /**
  *  Converts the MCB interval data to a data frame
  */
+@Suppress("unused")
 fun List<MCBIntervalData>.asMCBIntervalDataFrame(): DataFrame<MCBIntervalData> {
     var df = this.toDataFrame()
     df = df.remove("autoIncField", "keyFields",
@@ -121,6 +123,7 @@ data class MCBScreeningIntervalData(
 /**
  *  Converts the MCB interval data to a data frame
  */
+@Suppress("unused")
 fun List<MCBScreeningIntervalData>.asMCBScreeningIntervalDataFrame(): DataFrame<MCBScreeningIntervalData> {
     var df = this.toDataFrame()
     df = df.remove("autoIncField", "keyFields",
@@ -133,7 +136,7 @@ fun List<MCBScreeningIntervalData>.asMCBScreeningIntervalDataFrame(): DataFrame<
  * computes pairwise differences and variances.
  *
  * The user must supply the data samples over which the comparison will be made.
- * This is supplied in a Map with key representing a name (identifier) for the
+ * This is supplied in a Map with the key representing a name (identifier) for the
  * data and an array representing the observations. This class computes all the
  * pairwise differences and the variances of the differences in the form of
  * tabulated statistics.
@@ -326,6 +329,7 @@ class MultipleComparisonAnalyzer(
      * @param s2 the name of data set number 2
      * @return an array of the paired differences
      */
+    @Suppress("unused")
     fun pairedDifference(s1: String, s2: String): DoubleArray {
         require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
         require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
@@ -353,7 +357,7 @@ class MultipleComparisonAnalyzer(
 
     /**
      * The statistics for the pair of data names given by the strings. If the
-     * data names don't exist then an exception will occur. The name of
+     * data names don't exist, then an exception will occur. The name of
      * the statistic is formed as "$s1 - $s2". If that difference does not
      * exist, then null is returned.
      *
@@ -361,6 +365,7 @@ class MultipleComparisonAnalyzer(
      * @param s2 the name of data set number 2
      * @return a Statistic collected over the paired difference of "$s1 - $s2"
      */
+    @Suppress("unused")
     fun pairedDifferenceStatistic(s1: String, s2: String): Statistic? {
         require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
         require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
@@ -400,7 +405,7 @@ class MultipleComparisonAnalyzer(
      *
      * @return name of the minimum average difference
      */
-    val nameOfMinumumAverageOfDifferences: String
+    val nameOfMinimumAverageOfDifferences: String
         get() = namesOfPairedDifferences[indexOfMinimumOfAveragesOfDifferences]
 
     /**
@@ -413,18 +418,18 @@ class MultipleComparisonAnalyzer(
 
     /**
      * Suppose there are n data names. Then there are n(n-1)/2 pairwise
-     * differences. This method returns the index of the maximum of the array
+     * differences. This method returns the index of the maximum for the array
      * given by getAveragesOfDifferences()
      *
-     * @return the index of the maximum of the array given by getAveragesOfDifferences()
+     * @return the index of the maximum for the array given by getAveragesOfDifferences()
      */
     val indexOfMaximumOfAveragesOfDifferences: Int
         get() = averagesOfDifferences.indexOfMax()
 
     /**
-     * Returns the minimum value of the average of the differences
+     * Returns the minimum value of the average for the differences
      *
-     * @return the minimum value of the average of the differences
+     * @return the minimum value of the average for the differences
      */
     val minimumOfAveragesOfDifferences: Double
         get() = averagesOfDifferences.min()
@@ -473,12 +478,12 @@ class MultipleComparisonAnalyzer(
 
     /**
      * Suppose there are n data names. Then there are n(n-1)/2 pairwise
-     * differences. This method returns a list of confidence intervals of the
+     * differences. This method returns a list of confidence intervals for the
      * differences in an array. The elements of the array have correspondence to
      * the array of strings returned by getNamesOfPairedDifferences()
      *
      * @param level the confidence level
-     * @return list of confidence intervals of the differences in an array
+     * @return list of confidence intervals for the differences in an array
      */
     fun confidenceIntervalsOfDifferenceData(level: Double): List<Interval> {
         val list = pairedDifferenceStatistics
@@ -506,6 +511,7 @@ class MultipleComparisonAnalyzer(
      * @param s2 the name of data set number 2
      * @return average for the pair of data names given by the "$s1 - $s2"
      */
+    @Suppress("unused")
     fun averageDifference(s1: String, s2: String): Double {
         require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
         require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
@@ -517,13 +523,14 @@ class MultipleComparisonAnalyzer(
     /**
      * The variance for the pair of data names given by the strings. If the data
      * names don't exist or the difference "$s1 - $s2" or "$s2 - $s1" does
-     * not exist then an exception will occur. The variance of the differences are
+     * not exist, then an exception will occur. The variances of the differences are
      * symmetric. That is variance of "$s1 - $s2" is equal to the variance of "$s2 - $s1".
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
      * @return variance for the pair of data names given by the strings "$s1 - $s2" or "$s2 - $s1"
      */
+    @Suppress("unused")
     fun varianceOfDifference(s1: String, s2: String): Double {
         require(myDataMap.keys.contains(s1)) { "The name $s1 is not a valid data name" }
         require(myDataMap.keys.contains(s2)) { "The name $s2 is not a valid data name" }
@@ -539,7 +546,7 @@ class MultipleComparisonAnalyzer(
     /**
      * The standard error for the pair of data names given by the strings. If the data
      * names don't exist or the difference "$s1 - $s2" or "$s2 - $s1" does
-     * not exist then an exception will occur. The standard error of the differences are
+     * not exist, then an exception will occur. The standard errors of the differences are
      * symmetric. That is standard error of "$s1 - $s2" is equal to the standard error of "$s2 - $s1".
      *
      * @param s1 the name of data set number 1
@@ -627,9 +634,9 @@ class MultipleComparisonAnalyzer(
     }
 
     /**
-     * The maximum of the average of all the data
+     * The maximum of the average for all the data
      *
-     * @return maximum of the average of all the data
+     * @return maximum of the average for all the data
      */
     val maximumAverageOfData: Double
         get() = averagesOfData.max()
@@ -651,25 +658,25 @@ class MultipleComparisonAnalyzer(
         get() = dataNames[indexOfMaximumAverageOfData]
 
     /**
-     * The minimum of the average of all the data
+     * The minimum for the average of all the data
      *
-     * @return minimum of the average of all the data
+     * @return minimum for the average of all the data
      */
     val minimumAverageOfData: Double
         get() = averagesOfData.min()
 
     /**
-     * The index of the minimum of the average of all the data
+     * The index for the minimum of the average for all the data
      *
-     * @return index of the minimum of the average of all the data
+     * @return index for the minimum of the average for all the data
      */
     val indexOfMinimumAverageOfData: Int
         get() = averagesOfData.indexOfMin()
 
     /**
-     * The name of the minimum of the average of all the data
+     * The name of the minimum over the average of all the data
      *
-     * @return name of the minimum of the average of all the data
+     * @return name of the minimum over the average of all the data
      */
     val nameOfMinimumAverageOfData: String
         get() = dataNames[indexOfMinimumAverageOfData]
@@ -678,7 +685,7 @@ class MultipleComparisonAnalyzer(
      * An array of all the averages of the data Each element is the average for
      * each of the n data names
      *
-     * @return An array of all the averages of the data
+     * @return An array of all the averages for the data
      */
     val averagesOfData: DoubleArray
         get() {
@@ -691,10 +698,11 @@ class MultipleComparisonAnalyzer(
         }
 
     /**
-     * An array of all the variances of the data
+     * An array of all the variances over the data
      *
-     * @return An array of all the variances of the data
+     * @return An array of all the variances over the data
      */
+    @Suppress("unused")
     val variancesOfData: DoubleArray
         get() {
             val list = statistics
@@ -713,6 +721,7 @@ class MultipleComparisonAnalyzer(
      * @return the difference between the system average associated with the name
      * and maximum of the rest of the averages
      */
+    @Suppress("unused")
     fun diffBtwItemAndMaxOfRest(name: String): Double {
         return diffBtwItemAndMaxOfRest(indexOfName(name))
     }
@@ -741,6 +750,7 @@ class MultipleComparisonAnalyzer(
      * @return the difference between each dataset average and the maximum of
      * the rest of the averages for each dataset.
      */
+    @Suppress("unused")
     val allDiffBtwItemsAndMaxOfRest: DoubleArray
         get() {
             val avgs = averagesOfData
@@ -759,6 +769,7 @@ class MultipleComparisonAnalyzer(
      * @return difference between the system average associated with the name
      * and minimum of the rest of the averages
      */
+    @Suppress("unused")
     fun diffBtwItemAndMinOfRest(name: String): Double {
         return diffBtwItemAndMinOfRest(indexOfName(name))
     }
@@ -787,6 +798,7 @@ class MultipleComparisonAnalyzer(
      * @return the difference between each dataset average and the minimum of
      * the rest of the averages for each dataset.
      */
+    @Suppress("unused")
     val allDiffBtwItemsAndMinOfRest: DoubleArray
         get() {
             val avgs = averagesOfData
@@ -802,7 +814,7 @@ class MultipleComparisonAnalyzer(
      * at the supplied index using the supplied indifference delta.
      *
      * @param index the index
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return the interval for the maximum comparison
      */
     fun mcbMaxInterval(index: Int, delta: Double = defaultIndifferenceZone): Interval {
@@ -818,13 +830,14 @@ class MultipleComparisonAnalyzer(
      *
      * @return all the intervals
      */
+    @Suppress("unused")
     val mcbMaxIntervals: List<Interval>
         get() = mcbMaxIntervals(defaultIndifferenceZone)
 
     /**
      * Forms all MCB intervals for the maximum given the supplied delta
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return all the intervals
      */
     fun mcbMaxIntervals(delta: Double = defaultIndifferenceZone): List<Interval> {
@@ -842,6 +855,7 @@ class MultipleComparisonAnalyzer(
      *
      * @return the map holding the intervals
      */
+    @Suppress("unused")
     val mcbMaxIntervalsAsMap: Map<String, Interval>
         get() = mcbMaxIntervalsAsMap(defaultIndifferenceZone)
 
@@ -849,7 +863,7 @@ class MultipleComparisonAnalyzer(
      * The MCB maximum intervals in the form of a map. The key names are the
      * names of the data sets
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return the map holding the intervals
      */
     fun mcbMaxIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String, Interval> {
@@ -875,7 +889,7 @@ class MultipleComparisonAnalyzer(
     /**
      * Returns a StringBuilder representation of the MCB maximum intervals
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return a StringBuilder representation of the MCB maximum intervals
      */
     fun mcbMaxIntervalsAsSB(delta: Double = defaultIndifferenceZone): StringBuilder {
@@ -907,7 +921,7 @@ class MultipleComparisonAnalyzer(
      * at the supplied index using the supplied indifference delta.
      *
      * @param index the index of the interval
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return the interval
      */
     fun mcbMinInterval(index: Int, delta: Double = defaultIndifferenceZone): Interval {
@@ -923,13 +937,14 @@ class MultipleComparisonAnalyzer(
      *
      * @return MCB intervals for the minimum given the default indifference zone
      */
+    @Suppress("unused")
     val mcbMinIntervals: List<Interval>
         get() = mcbMinIntervals(defaultIndifferenceZone)
 
     /**
      * Forms all MCB intervals for the minimum given the default indifference zone
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return MCB intervals for the minimum given the default indifference zone
      */
     fun mcbMinIntervals(delta: Double = defaultIndifferenceZone): List<Interval> {
@@ -947,6 +962,7 @@ class MultipleComparisonAnalyzer(
      *
      * @return MCB minimum intervals in the form of a map
      */
+    @Suppress("unused")
     val mcbMinIntervalsAsMap: Map<String, Interval>
         get() = mcbMinIntervalsAsMap(defaultIndifferenceZone)
 
@@ -954,7 +970,7 @@ class MultipleComparisonAnalyzer(
      * The MCB minimum intervals in the form of a map. The key names are the
      * names of the data sets
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return MCB minimum intervals in the form of a map
      */
     fun mcbMinIntervalsAsMap(delta: Double = defaultIndifferenceZone): Map<String, Interval> {
@@ -979,7 +995,7 @@ class MultipleComparisonAnalyzer(
     /**
      * Returns a StringBuilder representation of the MCB minimum intervals
      *
-     * @param delta the indifference zone parameter, must be greater than or equal to zero
+     * @param delta the indifference zone parameter must be greater than or equal to zero
      * @return a StringBuilder representation of the MCB minimum intervals
      */
     fun mcbMinIntervalsAsSB(delta: Double = defaultIndifferenceZone): StringBuilder {
@@ -1016,9 +1032,6 @@ class MultipleComparisonAnalyzer(
         return ilist
     }
 
-    // get the column data
-    // copy column data into the array
-    // index to next column
     /**
      * A 2-Dim array of the data each row represents the across replication
      * average for each configuration (column)
@@ -1046,7 +1059,7 @@ class MultipleComparisonAnalyzer(
         }
 
     /**
-     *  As per Nelson and Matejcik (1995) computes the second stage sample size
+     *  As per Nelson and Matejcik (1995), this function computes the second stage sample size
      *  based on the input parameters using the maximum variance of the differences.
      *  Assumes that the supplied arrays are the initial samples and specify the number of samples.
      *
@@ -1054,6 +1067,7 @@ class MultipleComparisonAnalyzer(
      *  @param probCS probability of correct selection
      *  @return the recommended 2nd stage sample size
      */
+    @Suppress("unused")
     fun secondStageSampleSizeNM(indifference: Double, probCS: Double = defaultLevel): Int {
         require(indifference > 0.0) { "The indifference parameter must be > 0" }
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
@@ -1105,6 +1119,7 @@ class MultipleComparisonAnalyzer(
      * @param level the confidence level
      * @return A half-width summary report on the statistics for each data set
      */
+    @Suppress("unused")
     fun halfWidthSummaryStatistics(title: String? = null, level: Double = defaultLevel): StringBuilder {
         val r = StatisticReporter(statistics.toMutableList())
         return r.halfWidthSummaryReport(title, level)
@@ -1130,6 +1145,7 @@ class MultipleComparisonAnalyzer(
      * @param level the confidence level
      * @return StringBuilder representation for a half-width report on the pairwise differences
      */
+    @Suppress("unused")
     fun halfWidthDifferenceSummaryStatistics(title: String? = null, level: Double = defaultLevel): StringBuilder {
         val r = StatisticReporter(pairedDifferenceStatistics.toMutableList())
         return r.halfWidthSummaryReport(title, level)
@@ -1185,10 +1201,10 @@ class MultipleComparisonAnalyzer(
      * be checked to determine if the alternative should be retained after screening.
      *
      *  Based on:
-     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
-     *  Operations Research, vol. 49, pp.950-963.
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+     *  `Operations Research`, vol. 49, pp.950-963.
      *
-     * @param probCS is the probability of correct selection for the screening
+     * @param probCS is the probability of correct selection for the screening.
      */
     fun maxScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
@@ -1221,10 +1237,10 @@ class MultipleComparisonAnalyzer(
      * be checked to determine if the alternative should be retained after screening.
      *
      *  Based on:
-     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
-     *  Operations Research, vol. 49, pp.950-963.
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+     *  `Operations Research`, vol. 49, pp.950-963.
      *
-     * @param probCS is the probability of correct selection for the screening
+     * @param probCS is the probability of correct selection for the screening.
      */
     fun minScreeningIntervals(probCS: Double = defaultLevel): Map<String, Map<String, Interval>> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
@@ -1254,8 +1270,8 @@ class MultipleComparisonAnalyzer(
      * with the specified probability of correct selection.
      *
      *  Based on:
-     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
-     *  Operations Research, vol. 49, pp.950-963.
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+     *  `Operations Research`, vol. 49, pp.950-963.
      */
     fun screenForMinimum(probCS: Double = defaultLevel): Set<String> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
@@ -1282,8 +1298,8 @@ class MultipleComparisonAnalyzer(
      * with the specified probability of correct selection.
      *
      *  Based on:
-     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large”,
-     *  Operations Research, vol. 49, pp.950-963.
+     *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+     *  `Operations Research`, vol. 49, pp.950-963.
      */
     fun screenForMaximum(probCS: Double = defaultLevel): Set<String> {
         require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
@@ -1327,7 +1343,7 @@ class MultipleComparisonAnalyzer(
             minPerformance = minimumAverageOfData,
             maxPerformerName = nameOfMaximumAverageOfData,
             maxPerformance = maximumAverageOfData,
-            minDifferenceName = nameOfMinumumAverageOfDifferences,
+            minDifferenceName = nameOfMinimumAverageOfDifferences,
             minDifference = minimumOfAveragesOfDifferences,
             maxDifferenceName = nameOfMaximumAverageOfDifferences,
             maxDifference = maximumOfAveragesOfDifferences
@@ -1454,7 +1470,7 @@ class MultipleComparisonAnalyzer(
         sb.appendLine("Min performance = $minimumAverageOfData")
         sb.appendLine("Max performer = $nameOfMaximumAverageOfData")
         sb.appendLine("Max performance = $maximumAverageOfData")
-        sb.appendLine("Min difference = $nameOfMinumumAverageOfDifferences")
+        sb.appendLine("Min difference = $nameOfMinimumAverageOfDifferences")
         sb.appendLine("Min difference value = $minimumOfAveragesOfDifferences")
         sb.appendLine("Max difference = $nameOfMaximumAverageOfDifferences")
         sb.appendLine("Max difference value = $maximumOfAveragesOfDifferences")
@@ -1505,8 +1521,9 @@ class MultipleComparisonAnalyzer(
     /**
      * Write a statistical summary of the data in the analyzer
      *
-     * @param out the PrintWriter, must not be null
+     * @param out the PrintWriter must not be null
      */
+    @Suppress("unused")
     fun writeSummaryStatistics(out: PrintWriter) {
         out.print(summaryStatistics())
     }
@@ -1514,8 +1531,9 @@ class MultipleComparisonAnalyzer(
     /**
      * Write a statistical summary of the difference data in the analyzer
      *
-     * @param out the PrintWriter, must not be null
+     * @param out the PrintWriter must not be null
      */
+    @Suppress("unused")
     fun writeSummaryDifferenceStatistics(out: PrintWriter) {
         out.print(differenceSummaryStatistics())
     }
@@ -1523,8 +1541,9 @@ class MultipleComparisonAnalyzer(
     /**
      * Write the data as a csv file
      *
-     * @param out the PrintWriter, must not be null
+     * @param out the PrintWriter must not be null
      */
+    @Suppress("unused")
     fun writeDataAsCSVFile(out: PrintWriter) {
         val c = myDataMap.keys.size
         var r = 1
@@ -1551,10 +1570,11 @@ class MultipleComparisonAnalyzer(
     /**
      *  Returns the results as a database holding MCBResultData, MCBIntervalData,
      *  MCBScreeningIntervalData, StatisticDataDb, and ObservationDataDb
-     *  tables (tblMCBResults, tblStatistic, tblMCBIntervals,tblMCBScreeningIntervals, tblObservations).
+     *  tables (tblMCBResults, tblStatistic, tblMCBIntervals, tblMCBScreeningIntervals, tblObservations).
      *  @param dbName the name of the database on the disk
      *  @param dir the directory to hold the database on the disk
      */
+    @Suppress("unused")
     fun resultsAsDatabase(
         dbName: String,
         dir: Path = KSL.dbDir,
@@ -1613,7 +1633,7 @@ class MultipleComparisonAnalyzer(
          * computes pairwise differences and variances.
          *
          * The user must supply the data samples over which the comparison will be made.
-         * This is supplied in a Map with key representing a name (identifier) for the
+         * This is supplied in a Map with the key representing a name (identifier) for the
          * data and an array representing the observations. This class computes all the
          * pairwise differences and the variances of the differences in the form of
          * tabulated statistics.
@@ -1652,7 +1672,7 @@ class MultipleComparisonAnalyzer(
          *
          * Robert E. Bechhofer, Thomas J. Santner, David M. Goldsman
          *
-         * @param numTreatments the number of treatments in the comparison, must be at least 2
+         * @param numTreatments the number of treatments in the comparison and must be at least 2
          * @param pStar the lower bound on probably of correct selection
          * @param dof the number of degrees of freedom.  If the first stage samples size is n_0, then
          * the dof = n_0 - 1, must be 4 or more
@@ -1667,10 +1687,11 @@ class MultipleComparisonAnalyzer(
 
         /**
          * @param p      the probability, typically a confidence level (1-alpha), must be in (0,1)
-         * @param nMeans the number of columns or treatments (means), must be greater than or equal to 2.0
-         * @param dof     the degrees of freedom, must be greater than or equal to 1.0
+         * @param nMeans the number of columns or treatments (means) and must be greater than or equal to 2.0
+         * @param dof     the degrees of freedom and must be greater than or equal to 1.0
          * @return the quantile of the Tukey distribution
          */
+        @Suppress("unused")
         fun qtukey(p: Double, nMeans: Double, dof: Double): Double {
             return Tukey.invCDF(p, nMeans, dof)
         }
@@ -3843,15 +3864,16 @@ class MultipleComparisonAnalyzer(
         )
 
         /** The quantile from a multi-variate t-distribution with common correlation of 0.5.
-         * This is table look up for values of Table B.3 from Bechhofer, Santner, and Goldsman (1995)
+         * This is table look-up for values of Table B.3 from Bechhofer, Santner, and Goldsman (1995)
          * "Design and Analysis of Experiments for Statistical Selection, Screening, and Multiple
          * Comparisons"
          *
          * @param level must be 0.90, 0.95, or 0.99
-         * @param dof the degrees of freedom, must be [1,60]
-         * @param nDim the number of dimensions of the distribution, must be [1,10]
+         * @param dof the degrees of freedom and must be [1,60]
+         * @param nDim the number of dimensions for the distribution and must be [1,10]
          * @return the quantile of the multi-variate t distribution or Double.NaN
          */
+        @Suppress("unused")
         fun mvtQuantile(level: Double, dof: Int, nDim: Int): Double {
             return when (level) {
                 0.90 -> {
@@ -3874,9 +3896,9 @@ class MultipleComparisonAnalyzer(
 
         /**
          *
-         * @param dof the degrees of freedom, must be [1,60]
-         * @param nDim the number of dimensions of the distribution, must be [1,10]
-         * @return the 90 percent quantile of the multi-variate t distribution with common correlation of 0.5.
+         * @param dof the degrees of freedom and must be [1,60]
+         * @param nDim the number of dimensions for the distribution and must be [1,10]
+         * @return the 90-percent quantile of the multi-variate t distribution with common correlation of 0.5.
          */
         fun mvtQuantile90(dof: Int, nDim: Int): Double {
             require((1 < dof) && (dof <= 60)) { "The look up is limited to dof >=1 and dof <= 60" }
@@ -3886,9 +3908,9 @@ class MultipleComparisonAnalyzer(
 
         /**
          *
-         * @param dof the degrees of freedom, must be [1,60]
-         * @param nDim the number of dimensions of the distribution, must be [1,10]
-         * @return the 95 percent quantile of the multi-variate t distribution with common correlation of 0.5.
+         * @param dof the degrees of freedom and must be [1,60]
+         * @param nDim the number of dimensions for the distribution and must be [1,10]
+         * @return the 95-percent quantile of the multi-variate t distribution with common correlation of 0.5.
          */
         fun mvtQuantile95(dof: Int, nDim: Int): Double {
             require((1 < dof) && (dof <= 60)) { "The look up is limited to dof >=1 and dof <= 60" }
@@ -3898,9 +3920,9 @@ class MultipleComparisonAnalyzer(
 
         /**
          *
-         * @param dof the degrees of freedom, must be [1,60]
-         * @param nDim the number of dimensions of the distribution, must be [1,10]
-         * @return the 99 percent quantile of the multi-variate t distribution with common correlation of 0.5.
+         * @param dof the degrees of freedom and must be [1,60]
+         * @param nDim the number of dimensions for the distribution and must be [1,10]
+         * @return the 99-percent quantile of the multi-variate t distribution with common correlation of 0.5.
          */
         fun mvtQuantile99(dof: Int, nDim: Int): Double {
             require((1 < dof) && (dof <= 60)) { "The look up is limited to dof >=1 and dof <= 60" }
