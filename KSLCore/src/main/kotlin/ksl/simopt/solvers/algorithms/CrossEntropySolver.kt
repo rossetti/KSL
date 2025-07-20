@@ -5,6 +5,7 @@ import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.utilities.distributions.Normal
 import ksl.utilities.math.KSLMath
 import kotlin.math.ceil
 
@@ -109,13 +110,14 @@ class CrossEntropySolver @JvmOverloads constructor(
         }
 
     /** The sample size associated with the CE algorithm used to determine the elite solutions.
-     * By default, this is 10 times the dimension of the problem. The factor, 10, can be globally controlled
-     * via the companion object's [defaultCESampleSizeFactor]
+     * By default, this is determined by the function recommendCESampleSize() within
+     * the companion object.
+     * The value cannot be less than [defaultMinCESampleSize] or greater than [defaultMaxCESampleSize]
      */
-    var ceSampleSize: Int = defaultCESampleSizeFactor * ceSampler.dimension
+    var ceSampleSize: Int = minOf(recommendCESampleSize(), defaultMaxCESampleSize)
         set(value) {
-            require(value >= ceSampler.dimension) { "The CE sample size must be >= ${ceSampler.dimension}" }
-            field = value
+            require(value >= defaultMinCESampleSize) { "The CE sample size must be >= $defaultMinCESampleSize" }
+            field = minOf(value, defaultMaxCESampleSize)
         }
 
     /**
@@ -130,9 +132,10 @@ class CrossEntropySolver @JvmOverloads constructor(
     @Suppress("unused")
     val elites: List<Solution> get() = myEliteSolutions
 
-    private lateinit var myLastSolutions : ArrayDeque<Solution>
+    private lateinit var myLastSolutions: ArrayDeque<Solution>
+
     @Suppress("unused")
-    val lastSolutions : List<Solution>
+    val lastSolutions: List<Solution>
         get() = if (::myLastSolutions.isInitialized) myLastSolutions.toList() else emptyList()
 
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
@@ -141,7 +144,8 @@ class CrossEntropySolver @JvmOverloads constructor(
      *  @return determines the size of the elite sample
      */
     fun eliteSize(): Int {
-        return eliteSizeFn?.eliteSize(this) ?: ceil(elitePct * ceSampleSize).toInt()
+        return eliteSizeFn?.eliteSize(this) ?: maxOf(ceil(elitePct * ceSampleSize).toInt(),
+            defaultMinEliteSize)
     }
 
     /** If [sampleSizeFn] is supplied it will be used; otherwise, the value of [ceSampleSize] is used
@@ -185,7 +189,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         currentSolution = myEliteSolutions.first()
         // capture the last solution
         captureLastSolution()
-      //  println("Iteration: $iterationCounter  CE: $currentSolution")
+        //  println("Iteration: $iterationCounter  CE: $currentSolution")
     }
 
     private fun captureLastSolution() {
@@ -199,7 +203,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkForConvergence()
     }
 
-    private fun checkForConvergence() : Boolean {
+    private fun checkForConvergence(): Boolean {
         // need to check for convergence of sampler
         // need to check for no solution improvement
         return checkLastSolutions() || ceSampler.hasConverged()
@@ -212,8 +216,11 @@ class CrossEntropySolver @JvmOverloads constructor(
 //TODO this works but in no way accounts for variability in the comparison
 // make this a function that can be supplied. Isn't this what solution quality evaluator is for?
 
-            if (!KSLMath.within(lastSolution.penalizedObjFncValue,
-                solution.penalizedObjFncValue, solutionPrecision)) {
+            if (!KSLMath.within(
+                    lastSolution.penalizedObjFncValue,
+                    solution.penalizedObjFncValue, solutionPrecision
+                )
+            ) {
                 return false
             }
 //            if (compare(lastSolution, solution) != 0) {
@@ -223,7 +230,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         return true
     }
 
-    private fun convertPointsToInputs(points: List<DoubleArray>) : Set<InputMap> {
+    private fun convertPointsToInputs(points: List<DoubleArray>): Set<InputMap> {
         val inputs = mutableSetOf<InputMap>()
         for (point in points) {
             inputs.add(problemDefinition.toInputMap(point))
@@ -231,7 +238,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         return inputs
     }
 
-    private fun convertSolutionsToPoints(solutions: List<Solution>) : List<DoubleArray> {
+    private fun convertSolutionsToPoints(solutions: List<Solution>): List<DoubleArray> {
         val points = mutableListOf<DoubleArray>()
         for (solution in solutions) {
             points.add(solution.inputMap.inputValues)
@@ -258,6 +265,35 @@ class CrossEntropySolver @JvmOverloads constructor(
     companion object {
 
         /**
+         *  Based on the theory in See [Chen and Kelton (1999)](https://dl.acm.org/doi/pdf/10.1145/324138.324272),
+         *  this function computes a recommended cross-entropy sample size. The sample size may be sufficient
+         *  to adequately estimate the quantile associated with the desired elite percentage using
+         *  on a desired quantile confidence level and an adjusted half-width bound for the associated
+         *  quantile proportion.
+         *  @param elitePct a value between 0 and 1 that represents the proportion of the CE sample
+         *  that determines the elite sample. By default, this is [defaultElitePct].
+         *  @param ceQuantileConfidenceLevel A value between 0 and 1 that represents the approximate confidence
+         *  level for estimating the quantile from the cross-entropy sample. By default, this is [defaultCEQuantileConfidenceLevel].
+         *  @param maxProportionHalfWidth A value between 0 and max(0,[defaultElitePct]) that represents the
+         *  confidence level half-width bound on the proportion estimate for determining the
+         *  quantile from the cross-entropy sample. By default, this is [defaultMaxProportionHalfWidth].
+         */
+        fun recommendCESampleSize(
+            elitePct: Double = defaultElitePct,
+            ceQuantileConfidenceLevel: Double = defaultCEQuantileConfidenceLevel,
+            maxProportionHalfWidth: Double = defaultMaxProportionHalfWidth,
+        ): Int {
+            require((0 < elitePct) && (elitePct < 1)) { "The elite percentage must be in (0,1)" }
+            require((0 < ceQuantileConfidenceLevel) && (ceQuantileConfidenceLevel < 1)) { "The CE quantile confidence level must be in (0,1)" }
+            require(maxProportionHalfWidth > 0) { "The default cross-entropy proportion half-width bound must be greater than 0" }
+            val max = maxOf(elitePct, 1 - elitePct)
+            require(maxProportionHalfWidth < max) { "The default cross-entropy proportion half-width bound must be less than $max" }
+            val z = Normal.stdNormalInvCDF(1.0 - (ceQuantileConfidenceLevel / 2.0))
+            val n = z * z * elitePct * (1.0 - elitePct) / (maxProportionHalfWidth * maxProportionHalfWidth)
+            return ceil(n).toInt()
+        }
+
+        /**
          * A value between 0 and 1 that represents the default proportion of the CE sample
          * that determines the elite sample. By default, this is 0.1.
          */
@@ -266,6 +302,32 @@ class CrossEntropySolver @JvmOverloads constructor(
             set(value) {
                 require(value > 0) { "The default elite percentage must be greater than 0" }
                 require(value < 1) { "The default elite percentage must be less than 1" }
+                field = value
+            }
+
+        /**
+         * A value between 0 and 1 that represents the default approximate confidence
+         * level for estimating the quantile from the cross-entropy sample. By default, this is 0.99.
+         */
+        @JvmStatic
+        var defaultCEQuantileConfidenceLevel: Double = 0.99
+            set(value) {
+                require(value > 0) { "The default cross-entropy quantile confidence level must be greater than 0" }
+                require(value < 1) { "The default cross-entropy quantile confidence level must be less than 1" }
+                field = value
+            }
+
+        /**
+         * A value between 0 and max(0,[defaultElitePct]) that represents the default confidence level half-width
+         * bound on the proportion estimate for determining the quantile from the cross-entropy
+         * sample. By default, this is 0.1. See [Chen and Kelton (1999)](https://dl.acm.org/doi/pdf/10.1145/324138.324272)
+         */
+        @JvmStatic
+        var defaultMaxProportionHalfWidth: Double = 0.1
+            set(value) {
+                require(value > 0) { "The default cross-entropy proportion half-width bound must be greater than 0" }
+                val max = maxOf(defaultElitePct, 1 - defaultElitePct)
+                require(value < max) { "The default cross-entropy proportion half-width bound must be less than $max" }
                 field = value
             }
 
@@ -281,8 +343,8 @@ class CrossEntropySolver @JvmOverloads constructor(
             }
 
         /**
-         * This value is used as the default minimum size of cross-entropy. By default, set to 10.
-         * The size of elite sample must be at least 2 or more.
+         * This value is used as the default minimum size for the cross-entropy population sample.
+         * By default, set to 10. The size of elite sample must be 2 or more.
          */
         @JvmStatic
         var defaultMinCESampleSize: Int = 10
@@ -304,13 +366,13 @@ class CrossEntropySolver @JvmOverloads constructor(
 
         /**
          *  This value is used to help determine the cross-entropy sample size (population) that is
-         *  processed to determine the elite sample. By default, this value is 10. This value is
-         *  used to set the default sample size based on the dimension of the problem.
+         *  processed to determine the elite sample. By default, this value is 200.
+         *  This value represents the maximum CE population size that is permissible.
          */
         @JvmStatic
-        var defaultCESampleSizeFactor: Int = 10
+        var defaultMaxCESampleSize: Int = 200
             set(value) {
-                require(value >= 1) { "The default CE sample size factor must be >= 1" }
+                require(value >= 1) { "The default CE maximum sample size must be >= 1" }
                 field = value
             }
 
