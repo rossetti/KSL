@@ -367,11 +367,11 @@ class CrossEntropySolver @JvmOverloads constructor(
 
         /**
          *  This value is used to help determine the cross-entropy sample size (population) that is
-         *  processed to determine the elite sample. By default, this value is 200.
+         *  processed to determine the elite sample. By default, this value is 100.
          *  This value represents the default maximum CE population size that is permissible.
          */
         @JvmStatic
-        var defaultMaxCESampleSize: Int = 200
+        var defaultMaxCESampleSize: Int = 100
             set(value) {
                 require(value >= 1) { "The default CE maximum sample size must be >= 1" }
                 field = value
