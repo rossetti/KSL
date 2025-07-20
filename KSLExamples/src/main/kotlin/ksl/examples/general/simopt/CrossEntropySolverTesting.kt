@@ -45,6 +45,9 @@ fun runCrossEntropySolver(
     val shc = configureCrossEntropySolver(evaluator,
         maxIterations, replicationsPerEvaluation, inputs, printer)
     shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
+    println("Setting up solver:")
+    println(shc)
+    println("Running solver:")
     shc.runAllIterations()
     println()
     println("Solver Results:")

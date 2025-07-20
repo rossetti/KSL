@@ -25,7 +25,6 @@ class CENormalSampler(
         require(sdSmoother > 0) { "Standard deviation smoother must be greater than zero." }
         require(sdSmoother <= 1) { "Standard deviation smoother must be less than or equal to one." }
         require(sdThreshold > 0) { "Standard deviation threshold must be greater than zero." }
-        println("CENormalSampler: meanSmoother=$meanSmoother, sdSmoother=$sdSmoother, sdThreshold=$sdThreshold")
     }
 
     /**
