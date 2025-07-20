@@ -308,10 +308,10 @@ class CrossEntropySolver @JvmOverloads constructor(
 
         /**
          * A value between 0 and 1 that represents the default approximate confidence
-         * level for estimating the quantile from the cross-entropy sample. By default, this is 0.99.
+         * level for estimating the quantile from the cross-entropy sample. By default, this is 0.95.
          */
         @JvmStatic
-        var defaultCEQuantileConfidenceLevel: Double = 0.99
+        var defaultCEQuantileConfidenceLevel: Double = 0.95
             set(value) {
                 require(value > 0) { "The default cross-entropy quantile confidence level must be greater than 0" }
                 require(value < 1) { "The default cross-entropy quantile confidence level must be less than 1" }
