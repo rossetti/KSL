@@ -288,7 +288,9 @@ class CrossEntropySolver @JvmOverloads constructor(
             require(maxProportionHalfWidth > 0) { "The default cross-entropy proportion half-width bound must be greater than 0" }
             val max = maxOf(elitePct, 1 - elitePct)
             require(maxProportionHalfWidth < max) { "The default cross-entropy proportion half-width bound must be less than $max" }
-            val z = Normal.stdNormalInvCDF(1.0 - (ceQuantileConfidenceLevel / 2.0))
+            val a = 1.0 - ceQuantileConfidenceLevel
+            val a2 = a / 2.0
+            val z = Normal.stdNormalInvCDF(1.0 - a2)
             val n = z * z * elitePct * (1.0 - elitePct) / (maxProportionHalfWidth * maxProportionHalfWidth)
             return ceil(n).toInt()
         }
