@@ -13,6 +13,7 @@ interface SolutionEmitterIfc {
     val emitter : Emitter<Solution>
 }
 
+@Suppress("unused")
 class SolutionEmitter : SolutionEmitterIfc {
     override val emitter: Emitter<Solution> = Emitter()
 }
