@@ -270,6 +270,28 @@ class CrossEntropySolver @JvmOverloads constructor(
             }
 
         /**
+         * This value is used as the default minimum size of the elite sample. By default, set to 5.
+         * The size of elite sample must be at least 1 or more.
+         */
+        @JvmStatic
+        var defaultMinEliteSize: Int = 5
+            set(value) {
+                require(value > 0) { "The default minimum elite size must be >= 1" }
+                field = value
+            }
+
+        /**
+         * This value is used as the default minimum size of cross-entropy. By default, set to 10.
+         * The size of elite sample must be at least 2 or more.
+         */
+        @JvmStatic
+        var defaultMinCESampleSize: Int = 10
+            set(value) {
+                require(value > 1) { "The default minimum elite size must be greater than 1" }
+                field = value
+            }
+
+        /**
          * This value is used as the default termination threshold for the largest number of iterations during which no
          * improvement of the best function value is found. By default, set to 5.
          */
