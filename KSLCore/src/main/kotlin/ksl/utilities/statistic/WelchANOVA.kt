@@ -7,7 +7,7 @@ import org.jetbrains.kotlinx.dataframe.api.to
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 /**
- * Welch's ANOVA is a statistical test used to compare the means of two or more groups
+ * [Welch's ANOVA](https://real-statistics.com/one-way-analysis-of-variance-anova/welchs-procedure/) is a statistical test used to compare the means of two or more groups
  * when the assumption of equal variances between the groups is not met.
  * It is a robust alternative to the classic one-way ANOVA, which assumes equal variances.
  * Welch's ANOVA produces an F-statistic and a p-value.
@@ -15,7 +15,7 @@ import org.jetbrains.kotlinx.dataframe.api.toDataFrame
  * if the null hypothesis (that all group means are equal) is true.
  * If the p-value is below a predetermined significance level (e.g., 0.05),
  * the null hypothesis is rejected, suggesting that at least one group mean is significantly different from the others.
- * @param groups the groups to be compared as a list of estimated responses. The list must have 2 or more elements
+ * @param groups the groups to be compared as a list of estimated responses. The list must have 2 or more elements,
  * and each group must have two or more observations.
  */
 class WelchANOVA(
