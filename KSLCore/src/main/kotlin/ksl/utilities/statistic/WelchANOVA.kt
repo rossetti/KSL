@@ -14,6 +14,9 @@ class WelchANOVA(
         }
     }
 
+    constructor(dataMap: Map<String, DoubleArray>) : this(statisticalSummaries(dataMap))
+ //   constructor(statistics: List<StatisticIfc>) : this(statistics.map { it as EstimatedResponseIfc })
+
     private val myWeights = DoubleArray(groups.size) { 1.0 }
     private val factorA: Double
     private val factorB: Double
@@ -66,4 +69,32 @@ class WelchANOVA(
         println("==========================")
     }
 
+    companion object {
+
+        /**
+         *  Computes the statistical summaries for the data within the map
+         */
+        @JvmStatic
+        fun statisticalSummaries(dataMap: Map<String, DoubleArray>): List<EstimatedResponseIfc> {
+            require(dataMap.isNotEmpty()) { "The map of data must not be empty" }
+            val stats = Statistic.statisticalSummaries(dataMap)
+            val list = mutableListOf<EstimatedResponseIfc>()
+            for ((_, stat) in stats) {
+                list.add(stat as EstimatedResponseIfc)
+            }
+            return list
+        }
+    }
+
+}
+
+fun main() {
+    val dataMap = mapOf(
+        "Group1" to doubleArrayOf(0.49959, 0.23457, 0.26505, 0.27910, 0.00000, 0.00000, 0.00000, 0.14109, 0.00000, 1.34099),
+        "Group2" to doubleArrayOf(0.24792, 0.00000, 0.00000, 0.39062, 0.34841, 0.00000, 0.20690, 0.44428, 0.00000, 0.31802),
+        "Group3" to doubleArrayOf(0.25089, 0.00000, 0.00000, 0.00000, 0.11459, 0.79480, 0.17655, 0.00000, 0.15860, 0.00000),
+        "Group4" to doubleArrayOf(0.37667, 0.43561, 0.72968, 0.26285, 0.22526, 0.34903, 0.24482, 0.41096, 0.08679, 0.87532)
+    )
+    val anova = WelchANOVA(dataMap)
+    anova.printSummary()
 }
