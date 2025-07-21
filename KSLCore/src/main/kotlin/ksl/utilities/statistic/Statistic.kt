@@ -149,11 +149,6 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             return t / d
         }
 
-    override val standardError: Double
-        get() = if (myMoments[0] < 1.0) {
-            Double.NaN
-        } else standardDeviation / sqrt(myMoments[0])
-
     override val lag1Covariance: Double
         get() = if (myNum > 2.0) {
             val c1 = mySumXX - (myNum + 1.0) * myMoments[1] * myMoments[1] + myMoments[1] * (myFirstX + myValue)
