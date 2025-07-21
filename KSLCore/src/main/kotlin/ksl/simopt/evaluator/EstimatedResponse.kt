@@ -15,6 +15,11 @@ interface EstimatedResponseIfc {
     val name: String
 
     /**
+     *  @return a changeable label associated with the object
+     */
+    var label: String?
+
+    /**
      * Gets the unweighted average of the observations.
      *
      * @return A double representing the average or Double.NaN if no
@@ -111,6 +116,8 @@ data class EstimatedResponse(
 
     constructor(name: String, data: List<Double>) : this(name, data.toDoubleArray())
 
+    override var label: String? = null
+
     /**
      *  Computes the pair-wise screening width assuming that the estimates are independent. This width is
      *  used to specify screening intervals within screening procedures. This quantity is the square root
@@ -171,4 +178,5 @@ data class EstimatedResponse(
     fun instance(): EstimatedResponse {
         return EstimatedResponse(this.name, average, variance, count)
     }
+
 }
