@@ -3,9 +3,16 @@ package ksl.simopt.evaluator
 import kotlinx.serialization.Serializable
 import ksl.utilities.distributions.StudentT
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
+import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistics
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 import kotlin.math.sqrt
 
+/**
+ *  An interface to define basic statistics for something that is estimated.
+ */
 interface EstimatedResponseIfc {
     /**
      * Gets the name of the Statistic
@@ -73,7 +80,7 @@ interface EstimatedResponseIfc {
      * @return A double representing the half-width or Double.NaN if &lt; 1
      * observation
      */
-    fun halfWidth(level: Double): Double{
+    fun halfWidth(level: Double): Double {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
         if (count <= 1.0) {
             return Double.NaN
@@ -84,10 +91,27 @@ interface EstimatedResponseIfc {
         val t = StudentT.invCDF(dof, p)
         return t * standardError
     }
+
+    companion object {
+
+        /**
+         *  Computes the statistical summaries for the data within the map
+         */
+        @JvmStatic
+        fun statisticalSummaries(dataMap: Map<String, DoubleArray>): List<EstimatedResponseIfc> {
+            require(dataMap.isNotEmpty()) { "The map of data must not be empty" }
+            val stats = Statistic.statisticalSummaries(dataMap)
+            val list = mutableListOf<EstimatedResponseIfc>()
+            for ((_, stat) in stats) {
+                list.add(stat as EstimatedResponseIfc)
+            }
+            return list
+        }
+    }
 }
 
 /**
- *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1)
+ *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1),
  *  the variance will be undefined (Double.NaN).
  *
  *  @param name the name of the response that was estimated
@@ -101,7 +125,7 @@ data class EstimatedResponse(
     override val average: Double,
     override val variance: Double,
     override val count: Double
-) : EstimatedResponseIfc{
+) : EstimatedResponseIfc {
     init {
         require(name.isNotBlank()) { "The name of the response cannot be blank" }
         require(!average.isNaN() || average.isFinite()) { "The average was not a number or was infinite." }
@@ -133,7 +157,7 @@ data class EstimatedResponse(
     fun screeningWidth(estimate: EstimatedResponse, level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
         val hw1 = halfWidth(level)
         val hw2 = estimate.halfWidth(level)
-        return sqrt(hw1*hw1 + hw2*hw2)
+        return sqrt(hw1 * hw1 + hw2 * hw2)
     }
 
     /**
@@ -157,7 +181,7 @@ data class EstimatedResponse(
      *  size of 2 is used. In the cases where both samples have 2 or more elements, a weighted
      *  pooled variance is computed.
      */
-     fun pooledVariance(e: EstimatedResponse): Double {
+    fun pooledVariance(e: EstimatedResponse): Double {
         if ((count == 1.0) && (e.count == 1.0)) {
             // we have a sample of size 2 now, just average them
             val avg = (average + e.average) / 2.0
