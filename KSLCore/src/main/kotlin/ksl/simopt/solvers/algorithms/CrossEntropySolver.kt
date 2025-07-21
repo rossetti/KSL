@@ -212,9 +212,8 @@ class CrossEntropySolver @JvmOverloads constructor(
         if (myLastSolutions.size < noImproveThreshold) return false
         val lastSolution = myLastSolutions.last()
         for (solution in myLastSolutions) {
-//TODO this works but in no way accounts for variability in the comparison
-// make this a function that can be supplied. Isn't this what solution quality evaluator is for?
-
+            // This works but in no way accounts for variability in the comparison.
+            // User can supply a SolutionQualityEvaluator
             if (!KSLMath.within(
                     lastSolution.penalizedObjFncValue,
                     solution.penalizedObjFncValue, solutionPrecision
@@ -222,9 +221,6 @@ class CrossEntropySolver @JvmOverloads constructor(
             ) {
                 return false
             }
-//            if (compare(lastSolution, solution) != 0) {
-//                return false
-//            }
         }
         return true
     }
