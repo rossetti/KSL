@@ -21,13 +21,6 @@ package ksl.utilities.statistic
 interface SummaryStatisticsIfc : MeanEstimateIfc {
 
     /**
-     * Gets the name of the Statistic
-     *
-     * @return The name as a String
-     */
-    val name: String
-
-    /**
      * Gets the minimum of the observations.
      *
      * @return A double representing the minimum

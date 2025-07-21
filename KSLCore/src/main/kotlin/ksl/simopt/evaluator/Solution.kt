@@ -20,6 +20,10 @@ class SolutionEmitter : SolutionEmitterIfc {
 
 /**
  *  A solution represents the evaluated inputs for on a problem definition.
+ *  Solution also implements the [EstimatedResponseIfc] interface by delegating to the supplied
+ *  estimated objective function. The [FeasibilityIfc] interface is implemented by delegating
+ *  to the supplied input map.
+ *
  *  @param inputMap the inputs (name,value) pairs associated with the solution
  *  @param numReplications the number of replications associated with the request
  *  that caused the creation of the solution. Since a solution can have multiple
@@ -36,7 +40,7 @@ data class Solution(
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
-) : Comparable<Solution>, FeasibilityIfc by inputMap {
+) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
 
     val id : Int = solutionCounter++
 

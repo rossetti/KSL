@@ -6,6 +6,81 @@ import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistics
 import kotlin.math.sqrt
 
+interface EstimatedResponseIfc {
+    /**
+     * Gets the name of the Statistic
+     *
+     * @return The name as a String
+     */
+    val name: String
+
+    /**
+     * Gets the unweighted average of the observations.
+     *
+     * @return A double representing the average or Double.NaN if no
+     * observations.
+     */
+    val average: Double
+
+    /**
+     * Gets the sample variance of the observations.
+     *
+     * @return A double representing the computed variance or Double.NaN if 1 or
+     * fewer observations.
+     */
+    val variance: Double
+
+    /**
+     * Gets the count for the number of the observations.
+     *
+     * @return A double representing the count
+     */
+    val count: Double
+
+    /**
+     * Gets the sample standard deviation of the observations. Simply
+     * the square root of variance
+     *
+     * @return A double representing the computed standard deviation or Double.NaN
+     * if 1 or fewer observations.
+     */
+    val standardDeviation: Double
+        get() = sqrt(variance)
+
+    /**
+     * Gets the standard error of the observations. Simply the generate standard
+     * deviation divided by the square root of the number of observations
+     *
+     * @return A double representing the standard error or Double.NaN if &lt; 1
+     * observation
+     */
+    val standardError: Double
+        get() = if (count < 1.0) {
+            Double.NaN
+        } else standardDeviation / sqrt(count)
+
+    /**
+     * Gets the confidence interval half-width. Simply the standard error
+     * times the confidence coefficient as determined by an appropriate sampling
+     * distribution
+     *
+     * @param level the confidence level
+     * @return A double representing the half-width or Double.NaN if &lt; 1
+     * observation
+     */
+    fun halfWidth(level: Double): Double{
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        if (count <= 1.0) {
+            return Double.NaN
+        }
+        val dof = count - 1.0
+        val alpha = 1.0 - level
+        val p = 1.0 - alpha / 2.0
+        val t = StudentT.invCDF(dof, p)
+        return t * standardError
+    }
+}
+
 /**
  *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1)
  *  the variance will be undefined (Double.NaN).
@@ -17,11 +92,11 @@ import kotlin.math.sqrt
  */
 @Serializable
 data class EstimatedResponse(
-    val name: String,
-    val average: Double,
-    val variance: Double,
-    val count: Double
-) {
+    override val name: String,
+    override val average: Double,
+    override val variance: Double,
+    override val count: Double
+) : EstimatedResponseIfc{
     init {
         require(name.isNotBlank()) { "The name of the response cannot be blank" }
         require(!average.isNaN() || average.isFinite()) { "The average was not a number or was infinite." }
@@ -35,39 +110,6 @@ data class EstimatedResponse(
     )
 
     constructor(name: String, data: List<Double>) : this(name, data.toDoubleArray())
-
-    /**
-     * Gets the sample standard deviation of the observations. Simply
-     * the square root of variance
-     *
-     * @return A double representing the computed standard deviation or Double.NaN
-     * if 1 or fewer observations.
-     */
-    val standardDeviation: Double
-        get() = sqrt(variance)
-
-    val standardError: Double
-        get() = standardDeviation / sqrt(count)
-
-    /**
-     * Gets the confidence interval half-width. Simply the standard error
-     * times the confidence coefficient based on a StudentT distribution approximation.
-     *
-     * @param level the confidence level
-     * @return A double representing the half-width or Double.NaN if &lt; 1
-     * observation
-     */
-    fun halfWidth(level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
-        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
-        if (count <= 1.0) {
-            return Double.NaN
-        }
-        val dof = count - 1.0
-        val alpha = 1.0 - level
-        val p = 1.0 - alpha / 2.0
-        val t = StudentT.invCDF(dof, p)
-        return t * standardError
-    }
 
     /**
      *  Computes the pair-wise screening width assuming that the estimates are independent. This width is

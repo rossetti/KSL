@@ -30,12 +30,6 @@ import kotlin.math.log10
  * The StatisticIfc interface presents a read-only view of a Statistic
  */
 interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc, ValueIfc {
-    /**
-     * Gets the name of the Statistic
-     *
-     * @return The name as a String
-     */
-    override val name: String
 
     /**
      * Gets the sum of the observations.
@@ -71,13 +65,6 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
         get() = count - (negativeCount + zeroCount)
 
     /**
-     * Gets the last observed data point
-     *
-     * @return A double representing the last observations
-     */
-//    val lastValue: Double
-
-    /**
      * Gets the kurtosis of the data
      *
      * @return A double representing the kurtosis
@@ -90,15 +77,6 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      * @return A double representing the skewness
      */
     val skewness: Double
-
-    /**
-     * Gets the standard error of the observations. Simply the generate standard
-     * deviation divided by the square root of the number of observations
-     *
-     * @return A double representing the standard error or Double.NaN if &lt; 1
-     * observation
-     */
-    val standardError: Double
 
     /**
      * Gets the confidence interval half-width. Simply the standard error
@@ -115,27 +93,6 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      */
     val width: Double
         get() = width(confidenceLevel)
-
-    /**
-     * Gets the confidence interval half-width. Simply the standard error
-     * times the confidence coefficient as determined by an appropriate sampling
-     * distribution
-     *
-     * @param level the confidence level
-     * @return A double representing the half-width or Double.NaN if &lt; 1
-     * observation
-     */
-    fun halfWidth(level: Double): Double{
-        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
-        if (count <= 1.0) {
-            return Double.NaN
-        }
-        val dof = count - 1.0
-        val alpha = 1.0 - level
-        val p = 1.0 - alpha / 2.0
-        val t = StudentT.invCDF(dof, p)
-        return t * standardError
-    }
 
     /**
      * @param  level the confidence level

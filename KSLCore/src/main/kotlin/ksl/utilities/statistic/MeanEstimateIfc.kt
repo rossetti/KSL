@@ -18,7 +18,7 @@
 
 package ksl.utilities.statistic
 
-import kotlin.math.sqrt
+import ksl.simopt.evaluator.EstimatedResponseIfc
 
 /**
  * A minimal interface to define an estimator that will produce an estimate
@@ -28,41 +28,8 @@ import kotlin.math.sqrt
  * mean; however, implementors may override this behavior by overriding the
  * estimate() method.
  */
-interface MeanEstimateIfc : EstimateIfc {
+interface MeanEstimateIfc : EstimateIfc, EstimatedResponseIfc {
     override fun estimate(): Double {
         return average
     }
-
-    /**
-     * Gets the count of the number of the observations.
-     *
-     * @return A double representing the count
-     */
-    val count: Double
-
-    /**
-     * Gets the unweighted average of the observations.
-     *
-     * @return A double representing the average or Double.NaN if no
-     * observations.
-     */
-    val average: Double
-
-    /**
-     * Gets the sample variance of the observations.
-     *
-     * @return A double representing the computed variance or Double.NaN if 1 or
-     * fewer observations.
-     */
-    val variance: Double
-
-    /**
-     * Gets the sample standard deviation of the observations. Simply
-     * the square root of variance
-     *
-     * @return A double representing the computed standard deviation or Double.NaN
-     * if 1 or fewer observations.
-     */
-    val standardDeviation: Double
-        get() = sqrt(variance)
 }
