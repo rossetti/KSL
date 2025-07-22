@@ -35,7 +35,7 @@ enum class EmpDistType {
     Base, Continuity1, Continuity2
 }
 
-enum class OptimizationType{
+enum class OptimizationType {
     MAXIMIZE, MINIMIZE
 }
 
@@ -85,10 +85,10 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
 
     private var myMax = Double.NEGATIVE_INFINITY
 
-    override var negativeCount : Double = 0.0
+    override var negativeCount: Double = 0.0
         private set
 
-    override var zeroCount : Double = 0.0
+    override var zeroCount: Double = 0.0
         private set
 
     init {
@@ -249,7 +249,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
      *
      * @return the 2nd statistical raw moment (about zero)
      */
-    val rawMoment2 : Double = myMoments[2] + average * average
+    val rawMoment2: Double = myMoments[2] + average * average
 
     /**
      * Returns the 3rd statistical raw moment (about zero)
@@ -1512,12 +1512,12 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             val k = groups.size
             val beta = probCS.pow(1.0 / (k - 1.0))
             val intervalMap = mutableMapOf<Int, MutableMap<Int, Interval>>()
-            for((i, groupI) in groups.withIndex()) {
+            for ((i, groupI) in groups.withIndex()) {
                 val n2Map = mutableMapOf<Int, Interval>()
-                for((j, groupJ) in groups.withIndex()) {
-                    if (i != j){
+                for ((j, groupJ) in groups.withIndex()) {
+                    if (i != j) {
                         val w = groupI.screeningWidth(groupJ, beta)
-                        val delta = max(0.0, w-indifferenceZone)
+                        val delta = max(0.0, w - indifferenceZone)
                         val interval = if (optimizationType == OptimizationType.MAXIMIZE) {
                             val lowerLimit = groupJ.average - delta
                             Interval(lowerLimit, Double.POSITIVE_INFINITY)
