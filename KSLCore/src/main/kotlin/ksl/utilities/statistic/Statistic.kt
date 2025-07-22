@@ -1436,11 +1436,14 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
          *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-         *
+         *  @param range the sample range. Must be positive
+         *  @param n the size of the sample
+         *  @return the estimated standard deviation
          */
         @JvmStatic
         @Suppress("unused")
         fun estimateStdDevFromRange(range: Double, n: Double): Double {
+            require(range > 0.0) { "Range must be greater than zero" }
             require(n >= 2) { "There must be at least two observations" }
             val z = 2.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
             return range / z
@@ -1451,11 +1454,16 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
          *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-         *
+         *  @param range the sample range. Must be positive.
+         *  @param iqr the interquartile range. Must be positive.
+         *  @param n the size of the sample
+         *  @return the estimated standard deviation
          */
         @JvmStatic
         @Suppress("unused")
         fun estimateStdDevFromRangeAndIQR(range: Double, iqr: Double, n: Double): Double {
+            require(range > 0.0) { "Range must be greater than zero" }
+            require(iqr > 0.0) { "Interquartile range must be greater than zero" }
             require(n >= 2) { "There must be at least two observations" }
             val z1 = 4.0 * Normal.stdNormalInvCDF((n - 0.375) / (n + 0.25))
             val z2 = 4.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))
@@ -1467,11 +1475,14 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *  Wan, Xiang, Wenqian Wang, Jiming Liu, and Tiejun Tong. “Estimating the Sample Mean and Standard Deviation
          *  from the Sample Size, Median, Range and/or Interquartile Range.” BMC Medical Research Methodology 14, no. 1
          *  (December 2014): 135. https://doi.org/10.1186/1471-2288-14-135.
-         *
+         *  @param iqr the interquartile range. Must be positive.
+         *  @param n the size of the sample
+         *  @return the estimated standard deviation
          */
         @JvmStatic
         @Suppress("unused")
         fun estimateStdDevFromIQR(iqr: Double, n: Double): Double {
+            require(iqr > 0.0) { "Interquartile range must be greater than zero" }
             require(n >= 2) { "There must be at least two observations" }
             val z2 = 2.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))
             return iqr / z2
@@ -1496,6 +1507,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * we are indifferent to the difference. The default is 0.0.
          * @param optimizationType the type of optimization {MINIMIZE or MAXIMIZE}. The default is MINIMIZE.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun screeningIntervals(
             groups: List<EstimatedResponseIfc>,
             probCS: Double = DEFAULT_CONFIDENCE_LEVEL,
@@ -1549,6 +1562,8 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          * @param optimizationType the type of optimization {MINIMIZE or MAXIMIZE}. The default is MINIMIZE.
          * @return A set containing the indices of the alternatives that are not screened. The indices are zero-based.
          */
+        @JvmStatic
+        @Suppress("unused")
         fun screenAlternatives(
             groups: List<EstimatedResponseIfc>,
             probCS: Double = DEFAULT_CONFIDENCE_LEVEL,
