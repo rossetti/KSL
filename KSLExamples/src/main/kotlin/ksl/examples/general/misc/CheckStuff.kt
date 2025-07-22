@@ -38,7 +38,34 @@ fun main(){
 //      serializing()
 //    testMRound()
 
-    testRV()
+ //   testRV()
+    testAI()
+}
+
+fun testAI(){
+
+    // Create a Normal Random Variable with mean = 20.0, variance = 4.0
+    val normalRandomVariable = NormalRV(20.0, 4.0)
+
+    // Create an instance of the Statistic class to collect data
+    val statistic = Statistic("Normal Distribution Stats")
+
+    // Generate 100 random values and collect statistics on them
+    repeat(100) {
+        // Get a value from the normal distribution
+        val value = normalRandomVariable.value
+
+        // Collect this value in our statistic object
+        statistic.collect(value)
+    }
+
+    // Output the collected statistics
+    println(statistic)
+
+    // You can also generate a report using StatisticReporter if desired
+    val reporter = StatisticReporter(mutableListOf(statistic))
+    println(reporter.summaryReport())
+
 }
 
 fun testRV(){
