@@ -18,6 +18,7 @@
 
 package ksl.examples.general.utilities
 
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.utilities.distributions.KolmogorovSmirnovDist
 import ksl.utilities.distributions.Normal
 import ksl.utilities.io.*
@@ -25,6 +26,7 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.MVIndependentMarginals
 import ksl.utilities.random.rvariable.NormalRV
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import ksl.utilities.statistic.OptimizationType
 import ksl.utilities.statistic.Statistic
 import ksl.utilities.statistic.U01Test
 import ksl.utilities.toMapOfRows
@@ -192,4 +194,63 @@ fun mcbExample(){
     val dataMap = da.toMapOfRows(listOf("One", "Two", "Three", "Four"))
     testMCB(dataMap)
 
+}
+
+fun testRanks(){
+    // test ranking function
+    val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0)
+    //   val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0, 1.0, 1.0, 1.0)
+//    val y = doubleArrayOf(1.0, 1.0, 2.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0)
+    print("Data             = ")
+    println(y.joinToString())
+    val r = Statistic.fractionalRanks(y)
+    print("Fractional Ranks = ")
+    println(r.joinToString())
+
+    println()
+
+    print("Data          = ")
+    println(y.joinToString())
+    val o = Statistic.ordinalRanks(y)
+    print("Ordinal Ranks = ")
+    println(o.joinToString())
+    println()
+    print("Data        = ")
+    println(y.joinToString())
+    val dr = Statistic.denseRanks(y)
+    print("Dense Ranks = ")
+    println(dr.joinToString())
+}
+
+fun testScreening(){
+    val groups = listOf(
+        EstimatedResponse("Base", 46.86, 0.21, 10.0),
+        EstimatedResponse("Clean", 45.7, 0.37, 10.0),
+        EstimatedResponse("Load", 47.23, 0.29, 10.0),
+        EstimatedResponse("Oxidize", 45.13, 0.09, 10.0),
+        EstimatedResponse("Unload", 46.8, 0.28, 10.0),
+        EstimatedResponse("Coat", 47.81, 0.98, 10.0),
+        EstimatedResponse("Step", 47.41, 0.12, 10.0),
+        EstimatedResponse("Develop", 46.94, 0.28, 10.0),
+    )
+    val intervals  = Statistic.screeningIntervals(
+        groups,0.95, 0.15, OptimizationType.MINIMIZE)
+
+    for((i, map) in intervals){
+        println("Intervals for group $i")
+        println(groups[i])
+        for((k,v) in map){
+            println("group $k interval $v contained = ${v.contains(groups[i].average)}")
+        }
+        println()
+    }
+
+    val remaining = Statistic.screenAlternatives(
+        groups,0.95, 0.15, OptimizationType.MINIMIZE
+    )
+    println(remaining)
+    println("Remaining groups")
+    for(i in remaining){
+        println(groups[i])
+    }
 }

@@ -17,11 +17,15 @@
  */
 package ksl.utilities.statistic
 
+import ksl.simopt.evaluator.EstimatedResponseIfc
 import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.math.KSLMath
 import org.hipparchus.stat.correlation.Covariance
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 import kotlin.collections.max
 import kotlin.math.*
 
@@ -29,6 +33,10 @@ private var StatCounter: Int = 0
 
 enum class EmpDistType {
     Base, Continuity1, Continuity2
+}
+
+enum class OptimizationType{
+    MAXIMIZE, MINIMIZE
 }
 
 /**
@@ -1468,32 +1476,103 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
             val z2 = 2.0 * Normal.stdNormalInvCDF((0.75 * n - 0.125) / (n + 0.25))
             return iqr / z2
         }
+
+        /** Returns the screening intervals for each alternative assuming
+         * the specified direction of optimization. Returns a map of maps. The keys for the maps
+         * are the indices of the alternatives (in combination). The interval
+         * represents the screening interval.
+         * The intervals are one-sided [negative infinity, upper limit] for minimization
+         * and [lower limit, positive infinity] for maximization. The intervals
+         * can be checked to determine if the alternative should be retained after screening.
+         *
+         *  Based on:
+         *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+         *  `Operations Research`, vol. 49, pp.950-963.
+         *
+         * @param groups the groups to be screened. The group's size must be 2 or more. The sample size for
+         * each group must be two or more.
+         * @param probCS is the probability of correct selection for the screening.
+         * @param indifferenceZone the indifference zone parameter. If the systems are within this value, then
+         * we are indifferent to the difference. The default is 0.0.
+         * @param optimizationType the type of optimization {MINIMIZE or MAXIMIZE}. The default is MINIMIZE.
+         */
+        fun screeningIntervals(
+            groups: List<EstimatedResponseIfc>,
+            probCS: Double = DEFAULT_CONFIDENCE_LEVEL,
+            indifferenceZone: Double = 0.0,
+            optimizationType: OptimizationType = OptimizationType.MINIMIZE
+        ): Map<Int, Map<Int, Interval>> {
+            require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+            require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            require(groups.isNotEmpty()) { "The list of groups must not be empty" }
+            require(groups.size > 1) { "The list of groups must have at least 2 elements" }
+            for (i in groups.indices) {
+                require(groups[i].count >= 2) { "The count for group $i must be greater than or equal to 2" }
+            }
+            val k = groups.size
+            val beta = probCS.pow(1.0 / (k - 1.0))
+            val intervalMap = mutableMapOf<Int, MutableMap<Int, Interval>>()
+            for((i, groupI) in groups.withIndex()) {
+                val n2Map = mutableMapOf<Int, Interval>()
+                for((j, groupJ) in groups.withIndex()) {
+                    if (i != j){
+                        val w = groupI.screeningWidth(groupJ, beta)
+                        val delta = max(0.0, w-indifferenceZone)
+                        val interval = if (optimizationType == OptimizationType.MAXIMIZE) {
+                            val lowerLimit = groupJ.average - delta
+                            Interval(lowerLimit, Double.POSITIVE_INFINITY)
+                        } else {
+                            val upperLimit = groupJ.average + delta
+                            Interval(Double.NEGATIVE_INFINITY, upperLimit)
+                        }
+                        n2Map[j] = interval
+                    }
+                }
+                intervalMap[i] = n2Map
+            }
+            return intervalMap
+        }
+
+        /** Screens for the best from the set of alternatives using the specified probability
+         * of correct selection [probCS]. Returns the set of alternatives that could be the best.
+         * with the specified probability of correct selection.
+         *
+         *  Based on:
+         *  Nelson et al. (2001) “Simple Procedures for Selecting the Best System when the Number of Alternatives is Large,”
+         *  `Operations Research`, vol. 49, pp.950-963.
+         *
+         * @param groups the groups to be screened. The group's size must be 2 or more. The sample size for
+         * each group must be two or more.
+         * @param probCS is the probability of correct selection for the screening.
+         * @param indifferenceZone the indifference zone parameter. If the systems are within this value, then
+         * we are indifferent to the difference. The default is 0.0.
+         * @param optimizationType the type of optimization {MINIMIZE or MAXIMIZE}. The default is MINIMIZE.
+         * @return A set containing the indices of the alternatives that are not screened. The indices are zero-based.
+         */
+        fun screenAlternatives(
+            groups: List<EstimatedResponseIfc>,
+            probCS: Double = DEFAULT_CONFIDENCE_LEVEL,
+            indifferenceZone: Double = 0.0,
+            optimizationType: OptimizationType = OptimizationType.MINIMIZE
+        ): Set<Int> {
+            require((0.0 < probCS) && (probCS < 1.0)) { "The probability of correct selection must be in (0,1)" }
+            val set = mutableSetOf<Int>()
+            val minMap = screeningIntervals(groups, probCS, indifferenceZone, optimizationType)
+            for ((i, map) in minMap) {
+                val avg = groups[i].average// the one to test
+                var test = true
+                for ((_, interval) in map) {
+                    if (!interval.contains(avg)) {
+                        test = false
+                        break
+                    }
+                }
+                if (test) {
+                    set.add(i)
+                }
+            }
+            return set
+        }
     }
 
-}
-
-fun main() {
-    // test ranking function
-    val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0)
-    //   val y = doubleArrayOf(1.0, 2.0, 5.0, 2.0, 1.0, 25.0, 2.0, 1.0, 1.0, 1.0)
-//    val y = doubleArrayOf(1.0, 1.0, 2.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0)
-    print("Data             = ")
-    println(y.joinToString())
-    val r = Statistic.fractionalRanks(y)
-    print("Fractional Ranks = ")
-    println(r.joinToString())
-
-    println()
-
-    print("Data          = ")
-    println(y.joinToString())
-    val o = Statistic.ordinalRanks(y)
-    print("Ordinal Ranks = ")
-    println(o.joinToString())
-    println()
-    print("Data        = ")
-    println(y.joinToString())
-    val dr = Statistic.denseRanks(y)
-    print("Dense Ranks = ")
-    println(dr.joinToString())
 }

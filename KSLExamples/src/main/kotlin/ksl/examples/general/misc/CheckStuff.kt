@@ -17,9 +17,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import ksl.modeling.entity.CapacityItemData
 import ksl.modeling.entity.CapacityScheduleData
+import ksl.simopt.evaluator.EstimatedResponse
 import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamProvider
+import ksl.utilities.statistic.OptimizationType
 
 fun main(){
 //    val twos = IntArray(10){ (2).ipow(it+3).toInt() }
@@ -39,8 +41,10 @@ fun main(){
 //    testMRound()
 
  //   testRV()
-    testAI()
+ //   testAI()
 }
+
+
 
 fun testAI(){
 

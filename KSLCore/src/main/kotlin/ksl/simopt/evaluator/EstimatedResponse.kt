@@ -87,9 +87,28 @@ interface EstimatedResponseIfc {
         }
         val dof = count - 1.0
         val alpha = 1.0 - level
-        val p = 1.0 - alpha / 2.0
+        val p = 1.0 - (alpha / 2.0)
         val t = StudentT.invCDF(dof, p)
         return t * standardError
+    }
+
+    /**
+     *  Computes the pair-wise screening width assuming that the estimates are independent. This width is
+     *  used to specify screening intervals within screening procedures. This quantity is the square root
+     *  of the sum of squared half-widths of the estimates.
+     *
+     *  Based on:
+     *   Boesel, Justin, Barry L. Nelson, and Seong-Hee Kim. 2003. “Using Ranking and Selection to ‘Clean Up’ after
+     *   Simulation Optimization.” Operations Research 51 (5): 814–25. https://doi.org/10.1287/opre.51.5.814.16751.
+     *
+     * @param estimate the estimate to pair with
+     * @param level the confidence level for the Student-T distribution computation of the half-width
+     */
+    @Suppress("unused")
+    fun screeningWidth(estimate: EstimatedResponseIfc, level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
+        val hw1 = halfWidth(level)
+        val hw2 = estimate.halfWidth(level)
+        return sqrt(hw1 * hw1 + hw2 * hw2)
     }
 
     companion object {
@@ -141,24 +160,6 @@ data class EstimatedResponse(
     constructor(name: String, data: List<Double>) : this(name, data.toDoubleArray())
 
     override var label: String? = null
-
-    /**
-     *  Computes the pair-wise screening width assuming that the estimates are independent. This width is
-     *  used to specify screening intervals within screening procedures. This quantity is the square root
-     *  of the sum of squared half-widths of the estimates.
-     *
-     *  Based on:
-     *   Boesel, Justin, Barry L. Nelson, and Seong-Hee Kim. 2003. “Using Ranking and Selection to ‘Clean Up’ after
-     *   Simulation Optimization.” Operations Research 51 (5): 814–25. https://doi.org/10.1287/opre.51.5.814.16751.
-     *
-     * @param estimate the estimate to pair with
-     * @param level the confidence level for the Student-T distribution computation of the half-width
-     */
-    fun screeningWidth(estimate: EstimatedResponse, level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
-        val hw1 = halfWidth(level)
-        val hw2 = estimate.halfWidth(level)
-        return sqrt(hw1 * hw1 + hw2 * hw2)
-    }
 
     /**
      * Combine this estimate with another independent estimate
