@@ -21,7 +21,6 @@ package ksl.utilities
 import ksl.utilities.math.FunctionIfc
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rvariable.ConstantRV
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.*
 import java.text.DecimalFormat
 import java.util.*
@@ -32,12 +31,14 @@ import kotlin.math.*
  */
 object KSLArrays {
     /**
-     * Returns the index associated with the minimum element in the array For
+     * Returns the index associated with the minimum element in the array. For
      * ties, this returns the first found.
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search must not be empty
      * @return the index associated with the minimum element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun indexOfMin(x: DoubleArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
@@ -52,18 +53,20 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the minimum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun min(x: DoubleArray): Double {
         return x[indexOfMin(x)]
     }
 
     /**
-     * Returns the index associated with the maximum element in the array For
+     * Returns the index associated with the maximum element in the array. For
      * ties, this returns the first found.
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the index associated with the maximum element
      */
     fun indexOfMax(x: DoubleArray): Int {
@@ -80,20 +83,24 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the maximum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun max(x: DoubleArray): Double {
         return x[indexOfMax(x)]
     }
 
     /**
-     * Returns the index associated with the minimum element in the array For
+     * Returns the index associated with the minimum element in the array. For
      * ties, this returns the first found.
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the index associated with the minimum element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun indexOfMin(x: IntArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
@@ -108,20 +115,24 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the minimum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun min(x: IntArray): Int {
         return x[indexOfMin(x)]
     }
 
     /**
-     * Returns the index associated with the maximum element in the array For
-     * ties, this returns the first found
+     * Returns the index associated with the maximum element in the array. For
+     * ties, this returns the first found.
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the index associated with the maximum element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun indexOfMax(x: IntArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
@@ -136,20 +147,24 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search. must not be empty
      * @return the maximum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun max(x: IntArray): Int {
         return x[indexOfMax(x)]
     }
 
     /**
-     * Returns the index associated with the minimum element in the array For
+     * Returns the index associated with the minimum element in the array. For
      * ties, this returns the first found
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search must not be empty
      * @return the index associated with the minimum element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun indexOfMin(x: LongArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
@@ -164,20 +179,24 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search must not be empty
      * @return the minimum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun min(x: LongArray): Long {
         return x[indexOfMin(x)]
     }
 
     /**
-     * Returns the index associated with the maximum element in the array For
+     * Returns the index associated with the maximum element in the array. For
      * ties, this returns the first found
      *
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search must not be empty
      * @return the index associated with the maximum element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun indexOfMax(x: LongArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
@@ -192,9 +211,11 @@ object KSLArrays {
     }
 
     /**
-     * @param x the array to search, must not be null or empty
+     * @param x the array to search must not be empty
      * @return the maximum value in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun max(x: LongArray): Long {
         return x[indexOfMax(x)]
     }
@@ -203,18 +224,24 @@ object KSLArrays {
      * @param array the array to operate on
      * @return max() - min()
      */
+    @JvmStatic
+    @Suppress("unused")
     fun range(array: DoubleArray): Double = max(array) - min(array)
 
     /**
      * @param array the array to operate on
      * @return max() - min()
      */
+    @JvmStatic
+    @Suppress("unused")
     fun range(array: IntArray): Int = max(array) - min(array)
 
     /**
      * @param array the array to operate on
      * @return max() - min()
      */
+    @JvmStatic
+    @Suppress("unused")
     fun range(array: LongArray): Long = max(array) - min(array)
 
     /**
@@ -222,8 +249,10 @@ object KSLArrays {
      *
      * @param element the element to search for
      * @param array   the array to search in
-     * @return the index of the first occurrence of the element
+     * @return the index of the first occurrence for the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun findIndex(element: Int, array: IntArray): Int {
         // find length of array
         var i = 0
@@ -243,8 +272,10 @@ object KSLArrays {
     /**
      *
      * @param array the array to check
-     * @return true if the array as at least one zero element
+     * @return true if the array has at least one zero element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasZero(array: IntArray): Boolean {
         return findIndex(0, array) >= 0
     }
@@ -252,8 +283,10 @@ object KSLArrays {
     /**
      *
      * @param array the array to check
-     * @return true if the array as at least one zero element
+     * @return true if the array has at least one zero element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasZero(array: DoubleArray): Boolean {
         return findIndex(0.0, array) >= 0
     }
@@ -261,8 +294,10 @@ object KSLArrays {
     /**
      *
      * @param array the array to check
-     * @return true if the array as at least one zero element
+     * @return true if the array has at least one zero element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasZero(array: LongArray): Boolean {
         return findIndex(0, array) >= 0
     }
@@ -272,8 +307,10 @@ object KSLArrays {
      *
      * @param element the element to search for
      * @param array   the array to search in
-     * @return the index of the first occurrence of the element
+     * @return the index of the first occurrence for the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun findIndex(element: Double, array: DoubleArray): Int {
         // find length of array
         var i = 0
@@ -295,6 +332,8 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasElement(element: Double, array: DoubleArray): Boolean {
         return findIndex(element, array) >= 0
     }
@@ -304,8 +343,10 @@ object KSLArrays {
      *
      * @param element the element to search for
      * @param array   the array to search in
-     * @return the index of the first occurrence of the element
+     * @return the index of the first occurrence for the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun findIndex(element: Long, array: LongArray): Int {
         // find length of array
         var i = 0
@@ -327,6 +368,8 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasElement(element: Long, array: LongArray): Boolean {
         return findIndex(element, array) >= 0
     }
@@ -336,6 +379,8 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the array as at least one occurrence of the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun hasElement(element: Int, array: IntArray): Boolean {
         return findIndex(element, array) >= 0
     }
@@ -345,8 +390,10 @@ object KSLArrays {
      *
      * @param element the element to search for
      * @param array   the array to search in
-     * @return the index of the first occurrence of the element
+     * @return the index of the first occurrence for the element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun findIndex(element: String, array: Array<String>): Int {
         // find length of array
         var i = 0
@@ -367,9 +414,11 @@ object KSLArrays {
      * Returns a new array that has been scaled so that the values are between
      * the minimum and maximum values of the supplied array
      *
-     * @param array the array to scale, must not be null
+     * @param array the array to scale
      * @return the scaled array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun minMaxScaledArray(array: DoubleArray): DoubleArray {
         val max = max(array)
         val min = min(array)
@@ -386,9 +435,11 @@ object KSLArrays {
      * Returns a new array that has been scaled so that the values are
      * the (x - avg)/sd values of the supplied array
      *
-     * @param array the array to scale, must not be null
+     * @param array the array to scale
      * @return the scaled array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun normScaledArray(array: DoubleArray): DoubleArray {
         val s = Statistic(array)
         val avg = s.average
@@ -402,13 +453,15 @@ object KSLArrays {
     }
 
     /**
-     * Copies all but element index of array fromA into array toB
+     * Copies all but element index of the array fromA into the array toB
      * If fromA has 1 element, toB will be empty
-     * @param index index of element to leave out, must be 0 to fromA.length-1
-     * @param fromA array to copy from, must not be null
+     * @param index index of the element to leave out, must be 0 to fromA.length-1
+     * @param fromA array to copy from
      * @param toB   array to copy to, must be length fromA.length - 1
      * @return a reference to the array toB
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copyWithout(index: Int, fromA: DoubleArray, toB: DoubleArray = DoubleArray(fromA.size - 1)): DoubleArray {
         require(index >= 0) { "The index must be >= 0" }
         require(index <= fromA.size - 1) { "The index must be <= fromA.length-1" }
@@ -432,6 +485,8 @@ object KSLArrays {
      * @return post multiplies a by b, a result with nRow elements representing the dot product of
      * b with each row of a.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun postProduct(a: Array<DoubleArray>, b: DoubleArray): DoubleArray {
         require(isRectangular(a)) { "The double[][] array was not rectangular" }
         require(a.size == b.size) { "The double[][] array is not multiplication compatible with the double[]" }
@@ -444,10 +499,12 @@ object KSLArrays {
     }
 
     /**
-     * @param a the first array, must not be null
-     * @param b the second array, must not be null
+     * @param a the first array
+     * @param b the second array
      * @return the summed product of the two arrays
      */
+    @JvmStatic
+    @Suppress("unused")
     fun dotProduct(a: DoubleArray, b: DoubleArray): Double {
         require(a.size == b.size) { "The length of the arrays was not equal" }
         require(a.isNotEmpty()) { "The arrays were empty!" }
@@ -459,13 +516,15 @@ object KSLArrays {
     }
 
     /**
-     * The arrays must be rectangular and n columns of first must
-     * be same and n rows for second
+     * The arrays must be rectangular, and n columns of first must
+     * be same and n rows for second.
      *
-     * @param first  the first array, must not be null
-     * @param second the second array, must not be null
+     * @param first  the first array
+     * @param second the second array
      * @return true if arrays can be multiplied
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isMultiplyCompatible(first: Array<DoubleArray>, second: Array<DoubleArray>): Boolean {
         if (!isRectangular(first)) {
             return false
@@ -479,10 +538,12 @@ object KSLArrays {
     }
 
     /**
-     * @param first  the first array, must not be null, must be rectangular
-     * @param second the second array, must not be null, must be rectangular
+     * @param first  the first array must be rectangular
+     * @param second the second array must be rectangular
      * @return true if arrays have the same elements
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isEqual(first: Array<DoubleArray>, second: Array<DoubleArray>): Boolean {
         require(isRectangular(first)) { "The first array was not rectangular" }
         require(isRectangular(second)) { "The second array was not rectangular" }
@@ -506,12 +567,14 @@ object KSLArrays {
 
     /**
      * The arrays must be rectangular with the number of rows of the first
-     * array equal to the number of columns of the second array.
+     * array equal to the number of columns for the second array.
      *
-     * @param first  the first array, must not be null
-     * @param second the second array, must not be null
+     * @param first  the first array
+     * @param second the second array
      * @return the product of the arrays
      */
+    @JvmStatic
+    @Suppress("unused")
     fun multiply(first: Array<DoubleArray>, second: Array<DoubleArray>): Array<DoubleArray> {
         require(isRectangular(first)) { "The first array was not rectangular" }
         require(isRectangular(second)) { "The second array was not rectangular" }
@@ -532,18 +595,22 @@ object KSLArrays {
     }
 
     /**
-     * @param array a 2-D rectangular array, must not be null
+     * @param array a 2-D rectangular array
      * @return the number of rows in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun numRows(array: Array<DoubleArray>): Int {
         require(isRectangular(array)) { "The array was not rectangular" }
         return array.size
     }
 
     /**
-     * @param array a 2-D rectangular array, must not be null
+     * @param array a 2-D rectangular array
      * @return the number of columns in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun numColumns(array: Array<DoubleArray>): Int {
         require(isRectangular(array)) { "The array was not rectangular" }
         return array[0].size
@@ -554,6 +621,8 @@ object KSLArrays {
      * @param c the constant to add to each element
      * @return the transformed array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun addConstant(a: DoubleArray, c: Double): DoubleArray {
         for (i in a.indices) {
             a[i] = a[i] + c
@@ -566,6 +635,8 @@ object KSLArrays {
      * @param c the constant to subtract from each element
      * @return the transformed array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun subtractConstant(a: DoubleArray, c: Double): DoubleArray {
         return addConstant(a, -c)
     }
@@ -575,6 +646,8 @@ object KSLArrays {
      * @param c the constant to multiply against each element
      * @return the transformed array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun multiplyConstant(a: DoubleArray, c: Double): DoubleArray {
         for (i in a.indices) {
             a[i] = a[i] * c
@@ -584,21 +657,25 @@ object KSLArrays {
 
     /** This operation is in-place.
      * @param a the array to divide the constant by. The array is changed.
-     * @param c the constant to divide each element, cannot be zero
+     * @param c the constant to divide each element and cannot be zero
      * @return the transformed array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun divideConstant(a: DoubleArray, c: Double): DoubleArray {
         require(c != 0.0) { "Cannot divide by zero" }
         return multiplyConstant(a, 1.0 / c)
     }
 
     /**
-     * Multiplies the two arrays element by element. Arrays must have same length.
+     * Multiplies the two arrays element by element. Arrays must have the same length.
      *
      * @param a the first array
      * @param b the second array
      * @return a new array containing a[i]*b[i]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun multiplyElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }
         val c = DoubleArray(a.size)
@@ -609,12 +686,14 @@ object KSLArrays {
     }
 
     /**
-     * Divides the arrays' element by element. Arrays must have same length and must not be null.
+     * Divides the arrays' element by element. Arrays must have the same length and must not be null.
      *
      * @param a the first array
-     * @param b the second array, must not have any zero elements
+     * @param b the second array and must not have any zero elements
      * @return the array containing a[i]/b[i]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun divideElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(!hasZero(b)) { "The divisor array has at least one element that is 0.0" }
         require(a.size == b.size) { "The array lengths must match" }
@@ -631,9 +710,11 @@ object KSLArrays {
      * the minimum number of columns to make the array an un-ragged array (matrix) where
      * all row arrays have the same number of elements.
      *
-     * @param array2D the array to check, must not be null
+     * @param array2D the array to check
      * @return the minimum number of columns in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun minNumColumns(array2D: Array<DoubleArray>): Int {
         var min = Int.MAX_VALUE
         for (row in array2D.indices) {
@@ -645,13 +726,15 @@ object KSLArrays {
     }
 
     /**
-     * Copies the supplied array by trimming to the minimum number of columns of the
+     * Copies the supplied array by trimming to the minimum number of columns for the
      * supplied (potentially ragged) array so that the returned array is rectangular,
      * where all row arrays have the same number of elements (columns)
      *
      * @param array2D the array to copy
      * @return the copy
      */
+    @JvmStatic
+    @Suppress("unused")
     fun trimToRectangular(array2D: Array<DoubleArray>): Array<DoubleArray> {
         val rows = array2D.size
         val cols = minNumColumns(array2D)
@@ -665,7 +748,7 @@ object KSLArrays {
     }
 
     /**
-     * Copies the supplied 2-D array by expanding to the maximum number of columns of the
+     * Copies the supplied 2-D array by expanding to the maximum number of columns for the
      * supplied (ragged) array so that the returned array is rectangular,
      * where all row arrays have the same number of elements (columns).
      *
@@ -676,6 +759,8 @@ object KSLArrays {
      * @param fillValue the value to fill if needed, default is 0.0
      * @return the copy
      */
+    @JvmStatic
+    @Suppress("unused")
     fun expandToRectangular(array2D: Array<DoubleArray>, fillValue: Double = 0.0): Array<DoubleArray> {
         val rows = array2D.size
         val cols = maxNumColumns(array2D)
@@ -698,6 +783,8 @@ object KSLArrays {
      * @param array2D the array to check
      * @return true if the array is rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun <T> isRectangular(array2D: Array<Array<T>>): Boolean {
         if (array2D.isEmpty()) {
             return false // no rows can't be rectangular
@@ -718,6 +805,8 @@ object KSLArrays {
      * @param collection the array to check
      * @return true if the array is rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isRectangular(collection: Collection<DoubleArray>): Boolean {
         if (collection.isEmpty()) {
             return false // no rows can't be rectangular
@@ -737,6 +826,8 @@ object KSLArrays {
      * @param array2D the array to check
      * @return true if the array is rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isRectangular(array2D: Array<DoubleArray>): Boolean {
         if (array2D.isEmpty()) {
             return false // no rows can't be rectangular
@@ -756,6 +847,8 @@ object KSLArrays {
      * @param array2D the array to check
      * @return true if the array is rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isRectangular(array2D: Array<IntArray>): Boolean {
         if (array2D.isEmpty()) {
             return false // no rows can't be rectangular
@@ -775,6 +868,8 @@ object KSLArrays {
      * @param array2D the array to check
      * @return true if the array is rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isRectangular(array2D: Array<LongArray>): Boolean {
         if (array2D.isEmpty()) {
             return false // no rows can't be rectangular
@@ -789,9 +884,11 @@ object KSLArrays {
     }
 
     /**
-     * @param array the square array, must not be null
+     * @param array the square array
      * @return the diagonal elements of the array as an array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun diagonal(array: Array<DoubleArray>): DoubleArray {
         require(isSquare(array)) { "The diagonal cannot be extracted because the array is not square" }
         val diagonal = DoubleArray(array.size)
@@ -805,6 +902,8 @@ object KSLArrays {
      * @param array the array to check
      * @return true if the number of rows equals the number of columns
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isSquare(array: Array<DoubleArray>): Boolean {
         if (array.isEmpty()) {
             return false // no rows can't be square
@@ -823,9 +922,11 @@ object KSLArrays {
      * Assumes that the array can be ragged. Returns the number of elements in
      * the row array that has the most elements.
      *
-     * @param array2D the array to check, must not be null
+     * @param array2D the array to check,
      * @return the minimum number of columns in the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun maxNumColumns(array2D: Array<DoubleArray>): Int {
         var max = Int.MIN_VALUE
         for (row in array2D.indices) {
@@ -837,10 +938,12 @@ object KSLArrays {
     }
 
     /**
-     * @param k      the kth column to be extracted (zero based indexing)
-     * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
+     * @param k      the kth column to be extracted (zero-based indexing)
+     * @param matrix must not be null, assumed 2D rectangular array (i.e., all rows have the same number of columns)
      * @return a copy of the extracted column
      */
+    @JvmStatic
+    @Suppress("unused")
     fun column(k: Int, matrix: Array<DoubleArray>): DoubleArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
         val column = DoubleArray(matrix.size) // Here I assume a rectangular 2D array!
@@ -851,10 +954,12 @@ object KSLArrays {
     }
 
     /**
-     * @param k      the kth column to be extracted (zero based indexing)
-     * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
+     * @param k      the kth column to be extracted (zero-based indexing)
+     * @param matrix must not be null, assumed 2D rectangular array (i.e., all rows have the same number of columns)
      * @return a copy of the extracted column
      */
+    @JvmStatic
+    @Suppress("unused")
     fun column(k: Int, matrix: Array<IntArray>): IntArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
         val column = IntArray(matrix.size) // Here I assume a rectangular 2D array!
@@ -865,10 +970,12 @@ object KSLArrays {
     }
 
     /**
-     * @param k      the kth column to be extracted (zero based indexing)
-     * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
+     * @param k      the kth column to be extracted (zero-based indexing)
+     * @param matrix must not be null, assumed 2D rectangular array (i.e., all rows have the same number of columns)
      * @return a copy of the extracted column
      */
+    @JvmStatic
+    @Suppress("unused")
     fun column(k: Int, matrix: Array<LongArray>): LongArray {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
         val column = LongArray(matrix.size) // Here I assume a rectangular 2D array!
@@ -894,10 +1001,12 @@ object KSLArrays {
 //    }
 
     /**
-     * @param index  the column to be extracted (zero based indexing)
-     * @param matrix must not be null, assumed 2D rectangular array (i.e. all rows have the same number of columns)
+     * @param index  the column to be extracted (zero-based indexing)
+     * @param matrix must not be null, assumed 2D rectangular array (i.e., all rows have the same number of columns)
      * @return a copy of the extracted column
      */
+    @JvmStatic
+    @Suppress("unused")
     inline fun <reified T> column(index: Int, matrix: Array<Array<T>>): Array<T> {
         require(isRectangular(matrix)) { "The matrix was not rectangular" }
         return Array(matrix.size) { i -> matrix[i][index] }
@@ -905,16 +1014,18 @@ object KSLArrays {
 
     /**  Converts the 2-D array to a 1-D array by processing
      *   the source [src] array row-wise and concatenating the rows.
-     *   For example if the data is organized as follows:
+     *   For example, if the data is organized as follows:
      *
      *   1  2   3
      *   4  5   6
      *   7  8   9
      *
      *   Then the resulting array will be (1,2,3,4,5,6,7,8,9).
-     *   In general the source array may be ragged.
+     *   In general, the source array may be ragged.
      *
      */
+    @JvmStatic
+    @Suppress("unused")
     fun concatenateTo1DArray(src: Array<DoubleArray>): DoubleArray {
         if (src.isEmpty()) {
             return doubleArrayOf()
@@ -932,6 +1043,8 @@ object KSLArrays {
      * @param src the source array to copy
      * @return a copy of the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copy2DArray(src: Array<DoubleArray>): Array<DoubleArray> {
         if (src.isEmpty()) {
             return Array(0) { DoubleArray(0) }
@@ -943,6 +1056,8 @@ object KSLArrays {
      * @param src the source array to copy
      * @return a copy of the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copy2DArray(src: Array<IntArray>): Array<IntArray> {
         if (src.isEmpty()) {
             return Array(0) { IntArray(0) }
@@ -954,6 +1069,8 @@ object KSLArrays {
      * @param src the source array to copy
      * @return a copy of the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copy2DArray(src: Array<LongArray>): Array<LongArray> {
         if (src.isEmpty()) {
             return Array(0) { LongArray(0) }
@@ -963,9 +1080,11 @@ object KSLArrays {
 
     /**
      *
-     * @param array the array to fill, must not be null
-     * @param theValue the supplier of the value, must not be null
+     * @param array the array to fill
+     * @param theValue the supplier of the value
      */
+    @JvmStatic
+    @Suppress("unused")
     fun fill(array: DoubleArray, theValue: GetValueIfc = ConstantRV.ZERO) {
         for (i in array.indices) {
             array[i] = theValue.value()
@@ -974,9 +1093,11 @@ object KSLArrays {
 
     /**
      *
-     * @param array the array to fill, must not be null
-     * @param theValue the supplier of the value, must not be null
+     * @param array the array to fill
+     * @param theValue the supplier of the value
      */
+    @JvmStatic
+    @Suppress("unused")
     fun fill(array: Array<DoubleArray>, theValue: GetValueIfc = ConstantRV.ZERO) {
         for (doubles in array) {
             fill(doubles, theValue)
@@ -987,9 +1108,11 @@ object KSLArrays {
      * The destination array is mutated by this method
      *
      * @param col  the column in the destination to fill
-     * @param src  the source for filling the column, must not be null
-     * @param dest the destination array, assumed to be rectangular, must not be null
+     * @param src  the source for filling the column
+     * @param dest the destination array, assumed to be rectangular
      */
+    @JvmStatic
+    @Suppress("unused")
     fun fillColumn(col: Int, src: DoubleArray, dest: Array<DoubleArray>) {
         require(dest.size == src.size) { "The source array length and destination array must have the same number of rows" }
         require(isRectangular(dest)) { "The matrix was not rectangular" }
@@ -1002,8 +1125,10 @@ object KSLArrays {
      * The array must not be null.
      *
      * @param array the input array. Cannot be empty.
-     * @return the sum of the squares of the elements of the array
+     * @return the sum of the squares for the elements of the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sumOfSquares(array: DoubleArray): Double {
         require(array.isNotEmpty()) { "The array cannot be empty." }
         var sum = 0.0
@@ -1014,13 +1139,15 @@ object KSLArrays {
     }
 
     /**
-     * Subtracts the arrays element by element. Arrays must have same length and must not be empty.
-     * Computes the sum of the squares of the differences.
+     * Subtracts the arrays element by element. Arrays must have the same length and must not be empty.
+     * Computes the sum of the squares forthe differences.
      *
      * @param a the first array
      * @param b the second array
      * @return the sum of  (a[i]-b[i])^2 for the elements
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sumOfSquaredError(a: DoubleArray, b: DoubleArray): Double {
         require(a.isNotEmpty() && b.isNotEmpty()) { "The arrays cannot be empty." }
         val d = subtractElements(a, b)
@@ -1028,13 +1155,15 @@ object KSLArrays {
     }
 
     /**
-     * Subtracts the arrays element by element. Arrays must have same length and must not be empty.
-     * Computes the average of the squares of the differences.
+     * Subtracts the arrays element by element. Arrays must have the same length and must not be empty.
+     * Computes the average of the squares forthe differences.
      *
      * @param a the first array. Cannot be empty.
      * @param b the second array. Cannot be empty
      * @return the average of sum of (a[i]-b[i])^2 for the elements
      */
+    @JvmStatic
+    @Suppress("unused")
     fun meanSquaredError(a: DoubleArray, b: DoubleArray): Double {
         require(a.isNotEmpty() && b.isNotEmpty()) { "The arrays cannot be empty." }
         return sumOfSquaredError(a, b) / a.size
@@ -1044,8 +1173,10 @@ object KSLArrays {
      * The array must have non-negative elements and not be empty
      *
      * @param array the input array
-     * @return the sum of the square roots of the elements of the array
+     * @return the sum of the square roots for the elements of the array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sumOfSquareRoots(array: DoubleArray): Double {
         require(array.isNotEmpty()) { "The array cannot be empty." }
         var sum = 0.0
@@ -1056,12 +1187,14 @@ object KSLArrays {
     }
 
     /**
-     * Adds the two arrays element by element. Arrays must have same length and must not be null.
+     * Adds the two arrays element by element. Arrays must have the same length and must not be null.
      *
      * @param a the first array
      * @param b the second array
      * @return the array containing a[i]+b[i]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun addElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }
         val c = DoubleArray(a.size)
@@ -1072,12 +1205,14 @@ object KSLArrays {
     }
 
     /**
-     * Subtracts the arrays element by element. Arrays must have same length and must not be null.
+     * Subtracts the arrays element by element. Arrays must have the same length and must not be null.
      *
      * @param a the first array
      * @param b the second array
      * @return the new array containing a[i]-b[i]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun subtractElements(a: DoubleArray, b: DoubleArray): DoubleArray {
         require(a.size == b.size) { "The array lengths must match" }
         val c = DoubleArray(a.size)
@@ -1094,11 +1229,12 @@ object KSLArrays {
      *
      * @param <T>         the type of the element to search for
      * @param objects     the list that can hold anything
-     * @param targetClass the class type to find in the list, should be same as
+     * @param targetClass the class type to find in the list and should be same as
      * T
      * @return a list that holds the items of the targetClass
     </T> */
     @Suppress("UNCHECKED_CAST")
+    @JvmStatic
     fun <T> getElements(objects: List<*>, targetClass: Class<T>): List<T> {
         //TODO review, remove dependence on java Class
         val stuff: MutableList<T> = ArrayList()
@@ -1116,10 +1252,12 @@ object KSLArrays {
      * class.
      *
      * @param objects     the list that can hold anything
-     * @param targetClass the class type to find in the list, should be same as
+     * @param targetClass the class type to find in the list and should be same as
      * T
      * @return a list that holds the items of the targetClass
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countElements(objects: List<*>, targetClass: Class<*>): Int {
         //TODO review, remove dependence on java Class
         var n = 0
@@ -1136,6 +1274,8 @@ object KSLArrays {
      * @param second the second array
      * @return true if all elements are equal
      */
+    @JvmStatic
+    @Suppress("unused")
     fun compareArrays(first: DoubleArray, second: DoubleArray): Boolean {
         if (first.size != second.size) {
             return false
@@ -1156,6 +1296,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(array: Array<Double?>, replaceNull: Double = 0.0): DoubleArray {
         if (array.isEmpty()) {
             return DoubleArray(0)
@@ -1170,6 +1312,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(doubleList: List<Double?>, replaceNull: Double = 0.0): DoubleArray {
         if (doubleList.isEmpty()) {
             return DoubleArray(0)
@@ -1184,6 +1328,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(array: Array<Int?>, replaceNull: Int = 0): IntArray {
         if (array.isEmpty()) {
             return IntArray(0)
@@ -1198,6 +1344,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(list: List<Int?>, replaceNull: Int = 0): IntArray {
         if (list.isEmpty()) {
             return IntArray(0)
@@ -1212,6 +1360,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(array: Array<Long?>, replaceNull: Long = 0): LongArray {
         if (array.isEmpty()) {
             return LongArray(0)
@@ -1226,6 +1376,8 @@ object KSLArrays {
      * @param replaceNull the value to replace any nulls
      * @return the primitive array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toPrimitives(list: List<Long?>, replaceNull: Long = 0): LongArray {
         if (list.isEmpty()) {
             return LongArray(0)
@@ -1238,9 +1390,11 @@ object KSLArrays {
      * corresponding value
      *
      * @param array the array of doubles
-     * @param df the decimal format to apply to each element, may be null
+     * @param df the decimal format to apply to each element
      * @return the array of strings representing the values of the doubles
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toStrings(array: DoubleArray, df: DecimalFormat? = null): Array<String> {
         if (array.isEmpty()) {
             return emptyArray()
@@ -1250,8 +1404,10 @@ object KSLArrays {
 
     /**
      * @param array the array to convert
-     * @return a comma delimited string of the array, if empty, returns the empty string
+     * @return a comma-delimited string of the array, if empty, returns the empty string
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toCSVString(array: DoubleArray): String {
         if (array.isEmpty()) {
             return ""
@@ -1261,8 +1417,10 @@ object KSLArrays {
 
     /**
      * @param array the array to convert
-     * @return a comma delimited string of the array, if empty or null, returns the empty string
+     * @return a comma-delimited string of the array, if empty or null, returns the empty string
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toCSVString(array: IntArray): String {
         if (array.isEmpty()) {
             return ""
@@ -1272,8 +1430,10 @@ object KSLArrays {
 
     /**
      * @param array the array to convert
-     * @return a comma delimited string of the array, if empty or null, returns the empty string
+     * @return a comma-delimited string of the array, if empty or null, returns the empty string
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toCSVString(array: LongArray): String {
         if (array.isEmpty()) {
             return ""
@@ -1288,6 +1448,8 @@ object KSLArrays {
      * @param array the array of ints
      * @return the array of doubles representing the values of the ints
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubles(array: IntArray): DoubleArray {
         if (array.isEmpty()) {
             return DoubleArray(0)
@@ -1302,6 +1464,8 @@ object KSLArrays {
      * @param array the array of ints
      * @return the array of doubles representing the values of the ints
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubles(array: Array<Int>): DoubleArray {
         if (array.isEmpty()) {
             return DoubleArray(0)
@@ -1316,6 +1480,8 @@ object KSLArrays {
      * @param array the array of longs
      * @return the array of doubles representing the values of the longs
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubles(array: LongArray): DoubleArray {
         if (array.isEmpty()) {
             return DoubleArray(0)
@@ -1330,6 +1496,8 @@ object KSLArrays {
      * @param array the array of longs
      * @return the array of doubles representing the values of the longs
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubles(array: Array<Long>): DoubleArray {
         if (array.isEmpty()) {
             return DoubleArray(0)
@@ -1344,6 +1512,8 @@ object KSLArrays {
      * @param array the array of doubles
      * @return the array of Doubles representing the values of the doubles
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubles(array: Array<DoubleArray>): Array<Array<Double>> {
         if (array.isEmpty()) {
             return Array(0) { emptyArray() }
@@ -1358,6 +1528,8 @@ object KSLArrays {
      * @param array the array of int
      * @return the array of Integer representing the values of the int
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toInts(array: Array<IntArray>): Array<Array<Int>> {
         if (array.isEmpty()) {
             return Array(0) { emptyArray() }
@@ -1368,6 +1540,8 @@ object KSLArrays {
     /**
      *  Converts the list of arrays to an array of arrays.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun to2DDoubleArray(list: List<DoubleArray>): Array<DoubleArray> {
         return list.toTypedArray()
     }
@@ -1377,6 +1551,8 @@ object KSLArrays {
      *  the arrays.  The rows of the array become the elements of
      *  the list.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toDoubleList(twoDArray: Array<DoubleArray>): List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         for (array in twoDArray) {
@@ -1392,6 +1568,8 @@ object KSLArrays {
      * @param array the array of int
      * @return the array of Integer representing the values of the int
      */
+    @JvmStatic
+    @Suppress("unused")
     fun toLongs(array: Array<LongArray>): Array<Array<Long>> {
         if (array.isEmpty()) {
             return Array(0) { emptyArray() }
@@ -1403,9 +1581,11 @@ object KSLArrays {
      * Converts the array of strings to Doubles
      *
      * @param dblStrings an array of strings that represent Doubles
-     * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+     * @param parseFail the value to use if the parse fails or string is null by default Double.NaN
      * @return the parsed doubles as an array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun parseToDoubles(dblStrings: Array<String>, parseFail: Double = Double.NaN): DoubleArray {
         if (dblStrings.isEmpty()) {
             return DoubleArray(0)
@@ -1425,9 +1605,11 @@ object KSLArrays {
      * Converts the array of strings to Doubles
      *
      * @param dblStrings a list of strings that represent Doubles
-     * @param parseFail the fail to use if the parse fails or string is null, by default Double.NaN
+     * @param parseFail the value to use if the parse fails or string is null by default Double.NaN
      * @return the parsed doubles as an array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun parseToDoubles(dblStrings: List<String>, parseFail: Double = Double.NaN): DoubleArray {
         return parseToDoubles(dblStrings.toTypedArray(), parseFail)
     }
@@ -1438,6 +1620,8 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
+    @JvmStatic
+    @Suppress("unused")
     fun transpose(array: Array<IntArray>): Array<IntArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
@@ -1457,6 +1641,8 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
+    @JvmStatic
+    @Suppress("unused")
     fun transpose(array: Array<DoubleArray>): Array<DoubleArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
@@ -1476,6 +1662,8 @@ object KSLArrays {
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
      */
+    @JvmStatic
+    @Suppress("unused")
     fun transpose(array: Array<LongArray>): Array<LongArray> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val m = array.size
@@ -1495,6 +1683,8 @@ object KSLArrays {
      * @param array an array with m rows and n columns, must be rectangular
      * @return an array with n columns and m rows
      */
+    @JvmStatic
+    @Suppress("unused")
     inline fun <reified T> transpose(array: Array<Array<T>>): Array<Array<T>> {
         require(isRectangular(array)) { "The array was not rectangular" }
         val cols = array[0].size
@@ -1514,6 +1704,8 @@ object KSLArrays {
      * @return a 2D array, where rows of the array hold the data in the order returned
      * from the string labels.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copyToRows(labeledRows: LinkedHashMap<String, DoubleArray>): Array<DoubleArray> {
         return labeledRows.values.toTypedArray()
     }
@@ -1526,6 +1718,8 @@ object KSLArrays {
      * @return a 2D array, where columns of the array hold the data in the order returned
      * from the string labels.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun copyToColumns(labeledColumns: LinkedHashMap<String, DoubleArray>): Array<DoubleArray> {
         if (labeledColumns.isEmpty()) {
             return Array(0) { DoubleArray(0) }
@@ -1543,6 +1737,8 @@ object KSLArrays {
      * @param entries the list of data entries
      * @return the 2D array
      */
+    @JvmStatic
+    @Suppress("unused")
     fun parseTo2DArray(entries: List<Array<String>>): Array<DoubleArray> {
         val data = mutableListOf<DoubleArray>()
         val iterator = entries.iterator()
@@ -1560,6 +1756,8 @@ object KSLArrays {
      * @param <T>   the type of the objects
      * @return a String array holding the string value of the elements of the array
     </T> */
+    @JvmStatic
+    @Suppress("unused")
     fun <T> asStringArray(array: Array<T>?): Array<String?> {
         if (array == null) {
             return arrayOfNulls(0)
@@ -1573,10 +1771,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are strictly increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isStrictlyIncreasing(array: DoubleArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1596,10 +1796,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly decreasing a_0 gt a_1 gt a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are strictly increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isStrictlyDecreasing(array: DoubleArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1619,10 +1821,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are increasing a_0 lte a_1 lte a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isIncreasing(array: DoubleArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1642,10 +1846,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are decreasing a_0 gte a_1 gte a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are decreasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isDecreasing(array: DoubleArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1665,11 +1871,13 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are equal a_0 = a_1 = a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check,
      * @param precision the precision to consider things equal, defaults to KSLMath.defaultNumericalPrecision
      * @return true if all elements are equal, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isAllEqual(array: DoubleArray, precision: Double = KSLMath.defaultNumericalPrecision): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1692,11 +1900,13 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are equal a_0 != a_1 != a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @param precision the precision to consider things equal, defaults to KSLMath.defaultNumericalPrecision
      * @return true if all elements are different, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isAllDifferent(array: DoubleArray, precision: Double = KSLMath.defaultNumericalPrecision): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1720,10 +1930,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are equal a_0 != a_1 != a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are different, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isAllDifferent(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1744,10 +1956,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are equal a_0 = a_1 = a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are equal, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isAllEqual(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1770,6 +1984,8 @@ object KSLArrays {
      * @param array the array to check
      * @return true if all are strictly positive
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isStrictlyPositive(array: DoubleArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1786,10 +2002,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are strictly increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isStrictlyIncreasing(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1809,10 +2027,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are strictly decreasing a_0 gt a_1 gt a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are strictly increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isStrictlyDecreasing(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1832,10 +2052,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are increasing a_0 lte a_1 lte a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are increasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isIncreasing(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1855,10 +2077,12 @@ object KSLArrays {
      * Examines each element, a_i starting at 0, and determines if all
      * the elements are decreasing a_0 gte a_1 gte a_2, etc.
      *
-     * @param array the array to check, must not be null
+     * @param array the array to check
      * @return true if all elements are decreasing, if there
-     * are 0 elements then it returns false, 1 element returns true
+     * are 0 elements, then it returns false, 1 element returns true
      */
+    @JvmStatic
+    @Suppress("unused")
     fun isDecreasing(array: IntArray): Boolean {
         if (array.isEmpty()) {
             return false
@@ -1881,6 +2105,8 @@ object KSLArrays {
      * @param array   the array to apply the modulo operator on
      * @param divisor the divisor for each element
      */
+    @JvmStatic
+    @Suppress("unused")
     fun remainder(array: DoubleArray, divisor: Double) {
         require(divisor != 0.0) { "The divisor cannot be zero!" }
         for (i in array.indices) {
@@ -1894,6 +2120,8 @@ object KSLArrays {
      *
      * @param array the array to apply the absolute value function on
      */
+    @JvmStatic
+    @Suppress("unused")
     fun abs(array: DoubleArray) {
         for (i in array.indices) {
             array[i] = abs(array[i])
@@ -1905,9 +2133,11 @@ object KSLArrays {
      * array is changed in place. Using FunctionIfc avoids autoboxing
      * when dealing with primitive doubles.
      *
-     * @param array    the array to apply the function on, must not be null
-     * @param function the function to apply, must not be null
+     * @param array    the array to apply the function on
+     * @param function the function to apply
      */
+    @JvmStatic
+    @Suppress("unused")
     fun apply(array: DoubleArray, function: FunctionIfc) {
         for (i in array.indices) {
             array[i] = function.f(array[i])
@@ -1919,9 +2149,11 @@ object KSLArrays {
      * array is changed in place. Using FunctionIfc avoids autoboxing
      * when dealing with primitive doubles.
      *
-     * @param array    the array to apply the function on, must not be null
-     * @param function the function to apply, must not be null
+     * @param array    the array to apply the function on
+     * @param function the function to apply
      */
+    @JvmStatic
+    @Suppress("unused")
     fun apply(array: Array<DoubleArray>, function: FunctionIfc) {
         for (i in array.indices) {
             for (j in 0 until array[i].size) {
@@ -1933,9 +2165,11 @@ object KSLArrays {
     /**
      * Checks if any element of the array is equal to Double.NaN
      *
-     * @param array the array to check, must not be null
-     * @return true if any element of array is NaN
+     * @param array the array to check
+     * @return true if any element of the array is NaN
      */
+    @JvmStatic
+    @Suppress("unused")
     fun checkForNaN(array: DoubleArray): Boolean {
         for (x in array) {
             if (x.isNaN()) {
@@ -1950,6 +2184,8 @@ object KSLArrays {
      * @param interval the interval
      * @return an array containing the array values that are contained in the interval
      */
+    @JvmStatic
+    @Suppress("unused")
     fun dataInInterval(array: DoubleArray, interval: Interval): DoubleArray {
         val saver = DoubleArraySaver()
         for (x in array) {
@@ -1969,6 +2205,8 @@ object KSLArrays {
      * @param n - number of replications
      * @return - 1D array of length n filled with values x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun replicate(x: Double, n: Int): DoubleArray {
         require(n >= 0) { "n cannot be negative" }
         val res = DoubleArray(n)
@@ -1985,6 +2223,8 @@ object KSLArrays {
      * @param granularity - the granularity to which to round x
      * @return - 1 1D array of elements i s.t. x[i] is rounded to granularity[i]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun mround(x: DoubleArray, granularity: DoubleArray?): DoubleArray {
         return if (granularity == null) {
             x
@@ -2019,6 +2259,8 @@ object KSLArrays {
      * @param granularity - Double
      * @return - 1D array the same size as x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun mround(x: DoubleArray, granularity: Double): DoubleArray {
         val gr = DoubleArray(x.size)
         Arrays.fill(gr, granularity)
@@ -2034,6 +2276,8 @@ object KSLArrays {
      * @param sf     - number of significant figures
      * @return the number of decimal places
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sigFigDecimals(values: DoubleArray, sf: Int): Int {
         val p = IntArray(values.size)
         for (i in values.indices) {
@@ -2055,6 +2299,8 @@ object KSLArrays {
      * @param sf    -
      * @return the number of decimal places
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sigFigDecimals(value: Double, sf: Int): Int {
         // handle 0 (which requires no sigfigs) and for
         // which log(0) is -Inf
@@ -2071,6 +2317,8 @@ object KSLArrays {
      * @param sf    -
      * @return the value formatted as a String
      */
+    @JvmStatic
+    @Suppress("unused")
     fun sigFigFormat(value: Double, sf: Int): String {
         val p = sigFigDecimals(value, sf)
         return String.format("%,." + p + "f", value)
@@ -2081,6 +2329,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points less than or equal to x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countLessEqualTo(data: DoubleArray, x: Double): Int {
         var cnt = 0
         for (datum in data) {
@@ -2096,6 +2346,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points less than x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countLessThan(data: DoubleArray, x: Double): Int {
         var cnt = 0
         for (datum in data) {
@@ -2111,6 +2363,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points greater than or equal to x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countGreaterEqualTo(data: DoubleArray, x: Double): Int {
         var cnt = 0
         for (datum in data) {
@@ -2126,6 +2380,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points greater than x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countGreaterThan(data: DoubleArray, x: Double): Int {
         var cnt = 0
         for (datum in data) {
@@ -2141,6 +2397,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points less than or equal to x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countLessEqualTo(data: IntArray, x: Int): Int {
         var cnt = 0
         for (datum in data) {
@@ -2156,6 +2414,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points less than x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countLessThan(data: IntArray, x: Int): Int {
         var cnt = 0
         for (datum in data) {
@@ -2171,6 +2431,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points greater than or equal to x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countGreaterEqualTo(data: IntArray, x: Int): Int {
         var cnt = 0
         for (datum in data) {
@@ -2186,6 +2448,8 @@ object KSLArrays {
      * @param x    the ordinate to check
      * @return the number of data points greater than x
      */
+    @JvmStatic
+    @Suppress("unused")
     fun countGreaterThan(data: IntArray, x: Int): Int {
         var cnt = 0
         for (datum in data) {
@@ -2201,6 +2465,8 @@ object KSLArrays {
      * @param data the data to sort
      * @return a copy of the sorted array in ascending order representing the order statistics
      */
+    @JvmStatic
+    @Suppress("unused")
     fun orderStatistics(data: DoubleArray): DoubleArray {
         val doubles = data.copyOf()
         doubles.sort()
@@ -2211,6 +2477,8 @@ object KSLArrays {
      *  Returns a new array with duplicate data values removed from the original array,
      *  preserving the order of the observations.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun removeDuplicates(data: DoubleArray): DoubleArray {
         val doubles = data.copyOf()
         val set = doubles.toSet()
@@ -2222,6 +2490,8 @@ object KSLArrays {
      *  with the specified value removed.  All instances of the value
      *  will be removed.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun removeValue(data: DoubleArray, value: Double): DoubleArray {
         val values = mutableListOf<Double>()
         for (x in data) {
@@ -2238,6 +2508,8 @@ object KSLArrays {
      * @param x the values to compute statistics for
      * @return a Statistic summarizing the data
      */
+    @JvmStatic
+    @Suppress("unused")
     fun statistics(x: DoubleArray): Statistic {
         val s = Statistic()
         s.collect(x)
@@ -2250,6 +2522,8 @@ object KSLArrays {
      * @param x the values to compute statistics for
      * @return a BoxPlotSummary summarizing the data
      */
+    @JvmStatic
+    @Suppress("unused")
     fun boxPlotSummary(x: DoubleArray): BoxPlotSummary {
         return BoxPlotSummary(x)
     }
@@ -2258,6 +2532,8 @@ object KSLArrays {
      * Creates a matrix of Doubles with [nRows] and [nCols] containing the
      * supplied [value]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun matrixOfDoubles(nRows: Int, nCols: Int, value: Double = 0.0): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
@@ -2270,6 +2546,8 @@ object KSLArrays {
      * Creates a matrix of Ints with [nRows] and [nCols] containing the
      * supplied [value]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun matrixOfInts(nRows: Int, nCols: Int, value: Int = 0): Array<IntArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
@@ -2282,6 +2560,8 @@ object KSLArrays {
      * Creates a matrix of Longs with [nRows] and [nCols] containing the
      * supplied [value]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun matrixOfLongs(nRows: Int, nCols: Int, value: Long = 0): Array<LongArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
@@ -2294,6 +2574,8 @@ object KSLArrays {
      * Creates a matrix of doubles with [nRows] and [nCols] containing values from the
      * supplied [x]
      */
+    @JvmStatic
+    @Suppress("unused")
     fun matrixOfDoubles(nRows: Int, nCols: Int, x: GetValueIfc): Array<DoubleArray> {
         require(nRows > 0) { "The number of rows must be >= 1" }
         require(nCols > 0) { "The number of columns must be >= 1" }
@@ -2308,6 +2590,8 @@ object KSLArrays {
      *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
      *  and returns the new array of differences.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun diff(x: DoubleArray, k: Int = 1): DoubleArray {
         require(k >= 1) { "The differencing delta must be >= 1" }
         return DoubleArray(x.size - k) { x[it + k] - x[it] }
@@ -2315,8 +2599,10 @@ object KSLArrays {
 
     /**
      * Returns a new array of size (x.size -k) that is lagged by k elements
-     * y[i] = x[i+k] for i=0,1,...
+     * y[i] = x[i+k] for i=0, 1,...
      */
+    @JvmStatic
+    @Suppress("unused")
     fun lag(x: DoubleArray, k: Int = 1): DoubleArray {
         require(k >= 1) { "The lag must be >= 1" }
         return DoubleArray(x.size - k) { x[it + k] }
@@ -2324,8 +2610,10 @@ object KSLArrays {
 
     /**
      * Returns a new array of size (x.size -k) that is lagged by k elements
-     * y[i] = x[i+k] for i=0,1,...
+     * y[i] = x[i+k] for i=0, 1,...
      */
+    @JvmStatic
+    @Suppress("unused")
     inline fun <reified T> lag(x: Array<T>, k: Int = 1): Array<T> {
         require(k >= 1) { "The lag must be >= 1" }
         return Array(x.size - k) { x[it + k] }
@@ -2337,9 +2625,11 @@ object KSLArrays {
      *  [first] array and the [second] element of the pair is from the second
      *  array. This produces all possible combinations of the elements
      *  as the pairs. If the first array has n elements and the second
-     *  array has m elements then the number of pairs produced is n x m.
+     *  array has m elements, then the number of pairs produced is n x m.
      *
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesian(first: DoubleArray, second: DoubleArray): List<Pair<Double, Double>> {
         val list = mutableListOf<Pair<Double, Double>>()
         for (x in first) {
@@ -2356,9 +2646,11 @@ object KSLArrays {
      *  [first] collection and the [second] element of the pair is from the second
      *  collection. This produces all possible combinations of the elements
      *  as the pairs. If the first collection has n elements and the second
-     *  collection has m elements then the number of pairs produced is n x m.
+     *  collection has m elements, then the number of pairs produced is n x m.
      *
      */
+    @JvmStatic
+    @Suppress("unused")
     fun <F, S> cartesian(first: Collection<F>, second: Collection<S>): List<Pair<F, S>> {
         val list = mutableListOf<Pair<F, S>>()
         for (x in first) {
@@ -2372,6 +2664,8 @@ object KSLArrays {
     /**
      *  Returns a new array with the [value] inserted at the index.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun insertAt(arr: IntArray, value: Int, index: Int): IntArray {
         val result = IntArray(arr.size + 1)
         if (index >= arr.size) {
@@ -2389,6 +2683,8 @@ object KSLArrays {
     /**
      *  Returns a new array with the [value] inserted at the index.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun insertAt(arr: DoubleArray, value: Double, index: Int): DoubleArray {
         val result = DoubleArray(arr.size + 1)
         if (index >= arr.size) {
@@ -2407,6 +2703,8 @@ object KSLArrays {
      *  Removes the element at the index. If the index is out
      *  of bounds, then a copy of the array is returned.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun removeAt(arr: IntArray, index: Int): IntArray {
         if (index < 0 || index >= arr.size) {
             return arr.copyOf()
@@ -2420,6 +2718,8 @@ object KSLArrays {
      *  Removes the element at the index. If the index is out
      *  of bounds, then a copy of the array is returned.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun removeAt(arr: DoubleArray, index: Int): DoubleArray {
         if (index < 0 || index >= arr.size) {
             return arr.copyOf()
@@ -2450,6 +2750,8 @@ object KSLArrays {
      *     Prints:
      *     The element at index 4 is: 1, 4, 5, 7
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductRow(sets: Array<IntArray>, index: Int): IntArray {
         var n = 1
         for (i in sets.indices) {
@@ -2492,6 +2794,8 @@ object KSLArrays {
      *     Prints:
      *     The element at index 4 is: 1, 4, 5, 7
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductRow(sets: List<IntArray>, index: Int): IntArray {
         var n = 1
         for (i in sets.indices) {
@@ -2522,6 +2826,8 @@ object KSLArrays {
      *  represent a set, the values must be unique. That is, no duplicates
      *  are permitted within an individual array.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductRow(sets: Array<DoubleArray>, index: Int): DoubleArray {
         var n = 1
         for (i in sets.indices) {
@@ -2552,6 +2858,8 @@ object KSLArrays {
      *  represent a set, the values must be unique. That is, no duplicates
      *  are permitted within an individual array.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductRow(sets: List<DoubleArray>, index: Int): DoubleArray {
         var n = 1
         for (i in sets.indices) {
@@ -2577,6 +2885,8 @@ object KSLArrays {
      *  Computes the cartesian product of the supplied sets and returns
      *  a list holding the rows of the cartesian product
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProduct(a: Set<*>, b: Set<*>, vararg sets: Set<*>): List<List<*>> =
         (setOf(a, b).plus(sets))
             .fold(listOf(listOf<Any?>())) { acc, set ->
@@ -2588,6 +2898,8 @@ object KSLArrays {
      *  a list holding the rows of the cartesian product with each row represented
      *  as a list.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductOfDoubles(a: Set<Double>, b: Set<Double>, vararg sets: Set<Double>): List<List<Double>> =
         (setOf(a, b).plus(sets))
             .fold(listOf(listOf())) { acc, set ->
@@ -2599,17 +2911,153 @@ object KSLArrays {
      *  a list holding the rows of the cartesian product with each row represented
      *  as a list.
      */
+    @JvmStatic
+    @Suppress("unused")
     fun cartesianProductOfInts(a: Set<Int>, b: Set<Int>, vararg sets: Set<Int>): List<List<Int>> =
         (setOf(a, b).plus(sets))
             .fold(listOf(listOf())) { acc, set ->
                 acc.flatMap { list -> set.map { element -> list + element } }
             }
+
+    /**
+     *  Computes the Manhattan distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun manhattanDistance(a: List<Int>, b: List<Int>): Int {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var sum = 0
+        for (i in a.indices) {
+            sum = sum + abs(a[i] * b[i])
+        }
+        return sum
+    }
+
+    /**
+     *  Computes the Manhattan distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun manhattanDistance(a: IntArray, b: IntArray): Int {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var sum = 0
+        for (i in a.indices) {
+            sum = sum + abs(a[i] * b[i])
+        }
+        return sum
+    }
+
+    /**
+     *  Computes the Manhattan distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun manhattanDistance(a: List<Double>, b: List<Double>): Double {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var sum = 0.0
+        for (i in a.indices) {
+            sum = sum + abs(a[i] * b[i])
+        }
+        return sum
+    }
+
+    /**
+     *  Computes the Manhattan distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun manhattanDistance(a: DoubleArray, b: DoubleArray): Double {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var sum = 0.0
+        for (i in a.indices) {
+            sum = sum + abs(a[i] * b[i])
+        }
+        return sum
+    }
+
+    /**
+     *  Computes the Chebyshev distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun chebyshevDistance(a: IntArray, b: IntArray): Int {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var maxDiff = 0
+        for (i in a.indices) {
+            val diff = abs(a[i] - b[i])
+            if (diff > maxDiff) {
+                maxDiff = diff
+            }
+        }
+        return maxDiff
+    }
+
+    /**
+     *  Computes the Chebyshev distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun chebyshevDistance(a: List<Int>, b: List<Int>): Int {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var maxDiff = 0
+        for (i in a.indices) {
+            val diff = abs(a[i] - b[i])
+            if (diff > maxDiff) {
+                maxDiff = diff
+            }
+        }
+        return maxDiff
+    }
+
+    /**
+     *  Computes the Chebyshev distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun chebyshevDistance(a: DoubleArray, b: DoubleArray): Double {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var maxDiff = 0.0
+        for (i in a.indices) {
+            val diff = abs(a[i] - b[i])
+            if (diff > maxDiff) {
+                maxDiff = diff
+            }
+        }
+        return maxDiff
+    }
+
+    /**
+     *  Computes the Chebyshev distance between the two vectors.
+     *  The vectors must be of the same size.
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun chebyshevDistance(a: List<Double>, b: List<Double>): Double {
+        require(a.size == b.size) { "Vectors must be of the same length" }
+        var maxDiff = 0.0
+        for (i in a.indices) {
+            val diff = abs(a[i] - b[i])
+            if (diff > maxDiff) {
+                maxDiff = diff
+            }
+        }
+        return maxDiff
+    }
+
 }
 
 /** Extension functions and other functions for working with arrays
  * @author rossetti@uark.edu
  */
 
+@Suppress("unused")
 inline fun <reified T> matrixOfNulls(n: Int, m: Int): Array<Array<T?>> = Array(n) { arrayOfNulls<T>(m) }
 
 inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
@@ -2622,6 +3070,7 @@ inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
  *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
  *  and returns the new array of differences.
  */
+@Suppress("unused")
 fun DoubleArray.diff(k: Int = 1): DoubleArray {
     return KSLArrays.diff(this, k)
 }
@@ -2630,6 +3079,7 @@ fun DoubleArray.diff(k: Int = 1): DoubleArray {
  * Returns a new array of size (x.size -k) that is lagged by k elements
  * y[i] = x[i+k] for i=0,1,...
  */
+@Suppress("unused")
 fun DoubleArray.lag(k: Int = 1): DoubleArray {
     return KSLArrays.lag(this, k)
 }
@@ -2639,6 +3089,7 @@ fun DoubleArray.lag(k: Int = 1): DoubleArray {
  *
  * @return a Statistic summarizing the data
  */
+@Suppress("unused")
 fun DoubleArray.statistics(): Statistic {
     return KSLArrays.statistics(this)
 }
@@ -2646,6 +3097,7 @@ fun DoubleArray.statistics(): Statistic {
 /**
  *  Returns a statistic that summarizes the data in the collection.
  */
+@Suppress("unused")
 fun Collection<Double>.statistics(): Statistic {
     return this.toDoubleArray().statistics()
 }
@@ -2660,6 +3112,7 @@ fun Collection<Double>.statistics(): Statistic {
  * @param numBatches the number of batches (k), must be less than or equal to n and greater than 0
  * @return an array of the batch means
  */
+@Suppress("unused")
 fun DoubleArray.batchMeans(numBatches: Int): DoubleArray {
     return BatchStatistic.batchMeans(this, numBatches)
 }
@@ -2669,6 +3122,7 @@ fun DoubleArray.batchMeans(numBatches: Int): DoubleArray {
  *
  * @return a BoxPlotSummary summarizing the data
  */
+@Suppress("unused")
 fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
     return KSLArrays.boxPlotSummary(this)
 }
@@ -2676,6 +3130,7 @@ fun DoubleArray.boxPlotSummary(): BoxPlotSummary {
 /**
  *  Inserts the value at the index, returning a new array
  */
+@Suppress("unused")
 fun DoubleArray.insertAt(value: Double, index: Int): DoubleArray {
     return KSLArrays.insertAt(this, value, index)
 }
@@ -2683,6 +3138,7 @@ fun DoubleArray.insertAt(value: Double, index: Int): DoubleArray {
 /**
  *  Inserts the value at the index, returning a new array
  */
+@Suppress("unused")
 fun IntArray.insertAt(value: Int, index: Int): IntArray {
     return KSLArrays.insertAt(this, value, index)
 }
@@ -2690,6 +3146,7 @@ fun IntArray.insertAt(value: Int, index: Int): IntArray {
 /**
  *  Remove the element at the index, returning a new array
  */
+@Suppress("unused")
 fun DoubleArray.removeAt(index: Int): DoubleArray {
     return KSLArrays.removeAt(this, index)
 }
@@ -2697,6 +3154,7 @@ fun DoubleArray.removeAt(index: Int): DoubleArray {
 /**
  *  Remove the element at the index, returning a new array
  */
+@Suppress("unused")
 fun IntArray.removeAt(index: Int): IntArray {
     return KSLArrays.removeAt(this, index)
 }
@@ -2706,6 +3164,7 @@ fun IntArray.removeAt(index: Int): IntArray {
  *
  * @return a Histogram summarizing the data
  */
+@Suppress("unused")
 fun DoubleArray.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoints(this)): Histogram {
     return Histogram.create(this, breakPoints)
 }
@@ -2713,6 +3172,7 @@ fun DoubleArray.histogram(breakPoints: DoubleArray = Histogram.recommendBreakPoi
 /**
  * @return a copy of the sorted array in ascending order representing the order statistics
  */
+@Suppress("unused")
 fun DoubleArray.orderStatistics(): DoubleArray {
     return KSLArrays.orderStatistics(this)
 }
@@ -2721,6 +3181,7 @@ fun DoubleArray.orderStatistics(): DoubleArray {
  *  Returns a new array with duplicate data values removed from the original array,
  *  preserving the order of the observations.
  */
+@Suppress("unused")
 fun DoubleArray.removeDuplicates(): DoubleArray {
     return KSLArrays.removeDuplicates(this)
 }
@@ -2730,6 +3191,7 @@ fun DoubleArray.removeDuplicates(): DoubleArray {
  *  with the specified value removed.  All instances of the value
  *  will be removed.
  */
+@Suppress("unused")
 fun DoubleArray.removeValue(value: Double): DoubleArray {
     val values = mutableListOf<Double>()
     for (x in this) {
@@ -2744,6 +3206,7 @@ fun DoubleArray.removeValue(value: Double): DoubleArray {
  * @param x    the ordinate to check
  * @return the number of data points greater than x
  */
+@Suppress("unused")
 fun DoubleArray.countGreaterThan(x: Double): Int {
     return KSLArrays.countGreaterThan(this, x)
 }
@@ -2752,6 +3215,7 @@ fun DoubleArray.countGreaterThan(x: Double): Int {
  * @param x    the ordinate to check
  * @return the number of data points greater than or equal to x
  */
+@Suppress("unused")
 fun DoubleArray.countGreaterEqualTo(x: Double): Int {
     return KSLArrays.countGreaterEqualTo(this, x)
 }
@@ -2760,6 +3224,7 @@ fun DoubleArray.countGreaterEqualTo(x: Double): Int {
  * @param x    the ordinate to check
  * @return the number of data points less than x
  */
+@Suppress("unused")
 fun DoubleArray.countLessThan(x: Double): Int {
     return KSLArrays.countLessThan(this, x)
 }
@@ -2768,6 +3233,7 @@ fun DoubleArray.countLessThan(x: Double): Int {
  * @param x    the ordinate to check
  * @return the number of data points less than or equal to x
  */
+@Suppress("unused")
 fun DoubleArray.countLessEqualTo(x: Double): Int {
     return KSLArrays.countLessEqualTo(this, x)
 }
@@ -2776,16 +3242,18 @@ fun DoubleArray.countLessEqualTo(x: Double): Int {
  * @param x the ordinate to check
  * @return the proportion of the data points that are less than or equal to x
  */
+@Suppress("unused")
 fun DoubleArray.empiricalCDF(x: Double): Double {
     return Statistic.empiricalCDF(this, x)
 }
 
 /**
  * Returns the index associated with the minimum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun DoubleArray.indexOfMin(): Int {
     return KSLArrays.indexOfMin(this)
 }
@@ -2793,16 +3261,18 @@ fun DoubleArray.indexOfMin(): Int {
 /**
  * @return the minimum value in the array
  */
+@Suppress("unused")
 fun DoubleArray.min(): Double {
     return KSLArrays.min(this)
 }
 
 /**
  * Returns the index associated with the maximum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun DoubleArray.indexOfMax(): Int {
     return KSLArrays.indexOfMax(this)
 }
@@ -2810,6 +3280,7 @@ fun DoubleArray.indexOfMax(): Int {
 /**
  * @return the maximum value in the array
  */
+@Suppress("unused")
 fun DoubleArray.max(): Double {
     return KSLArrays.max(this)
 }
@@ -2818,6 +3289,7 @@ fun DoubleArray.max(): Double {
  * @param x    the ordinate to check
  * @return the number of data points greater than x
  */
+@Suppress("unused")
 fun IntArray.countGreaterThan(x: Int): Int {
     return KSLArrays.countGreaterThan(this, x)
 }
@@ -2826,6 +3298,7 @@ fun IntArray.countGreaterThan(x: Int): Int {
  * @param x    the ordinate to check
  * @return the number of data points greater than or equal to x
  */
+@Suppress("unused")
 fun IntArray.countGreaterEqualTo(x: Int): Int {
     return KSLArrays.countGreaterEqualTo(this, x)
 }
@@ -2834,6 +3307,7 @@ fun IntArray.countGreaterEqualTo(x: Int): Int {
  * @param x    the ordinate to check
  * @return the number of data points less than x
  */
+@Suppress("unused")
 fun IntArray.countLessThan(x: Int): Int {
     return KSLArrays.countLessThan(this, x)
 }
@@ -2842,16 +3316,18 @@ fun IntArray.countLessThan(x: Int): Int {
  * @param x    the ordinate to check
  * @return the number of data points less than or equal to x
  */
+@Suppress("unused")
 fun IntArray.countLessEqualTo(x: Int): Int {
     return KSLArrays.countLessEqualTo(this, x)
 }
 
 /**
  * Returns the index associated with the minimum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun IntArray.indexOfMin(): Int {
     return KSLArrays.indexOfMin(this)
 }
@@ -2859,16 +3335,18 @@ fun IntArray.indexOfMin(): Int {
 /**
  * @return the minimum value in the array
  */
+@Suppress("unused")
 fun IntArray.min(): Int {
     return KSLArrays.min(this)
 }
 
 /**
  * Returns the index associated with the maximum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun IntArray.indexOfMax(): Int {
     return KSLArrays.indexOfMax(this)
 }
@@ -2876,16 +3354,18 @@ fun IntArray.indexOfMax(): Int {
 /**
  * @return the maximum value in the array
  */
+@Suppress("unused")
 fun IntArray.max(): Int {
     return KSLArrays.max(this)
 }
 
 /**
  * Returns the index associated with the minimum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun LongArray.indexOfMin(): Int {
     return KSLArrays.indexOfMin(this)
 }
@@ -2893,16 +3373,18 @@ fun LongArray.indexOfMin(): Int {
 /**
  * @return the minimum value in the array
  */
+@Suppress("unused")
 fun LongArray.min(): Long {
     return KSLArrays.min(this)
 }
 
 /**
  * Returns the index associated with the maximum element in the array For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun LongArray.indexOfMax(): Int {
     return KSLArrays.indexOfMax(this)
 }
@@ -2910,6 +3392,7 @@ fun LongArray.indexOfMax(): Int {
 /**
  * @return the maximum value in the array
  */
+@Suppress("unused")
 fun LongArray.max(): Long {
     return KSLArrays.max(this)
 }
@@ -2917,6 +3400,7 @@ fun LongArray.max(): Long {
 /**
  * @return max() - min()
  */
+@Suppress("unused")
 fun DoubleArray.range(): Double {
     return KSLArrays.range(this)
 }
@@ -2925,8 +3409,9 @@ fun DoubleArray.range(): Double {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
- * @return the index of the first occurrence of the element
+ * @return the index of the first occurrence for the element
  */
+@Suppress("unused")
 fun DoubleArray.findIndex(element: Double): Int {
     return KSLArrays.findIndex(element, this)
 }
@@ -2937,6 +3422,7 @@ fun DoubleArray.findIndex(element: Double): Int {
  * @param element the element to search for
  * @return true if an instance of the element is found
  */
+@Suppress("unused")
 fun DoubleArray.hasElement(element: Double): Boolean {
     return KSLArrays.hasElement(element, this)
 }
@@ -2945,8 +3431,9 @@ fun DoubleArray.hasElement(element: Double): Boolean {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
- * @return the index of the first occurrence of the element
+ * @return the index of the first occurrence for the element
  */
+@Suppress("unused")
 fun IntArray.findIndex(element: Int): Int {
     return KSLArrays.findIndex(element, this)
 }
@@ -2957,6 +3444,7 @@ fun IntArray.findIndex(element: Int): Int {
  * @param element the element to search for
  * @return true if an instance of the element is found
  */
+@Suppress("unused")
 fun IntArray.hasElement(element: Int): Boolean {
     return KSLArrays.hasElement(element, this)
 }
@@ -2965,8 +3453,9 @@ fun IntArray.hasElement(element: Int): Boolean {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
- * @return the index of the first occurrence of the element
+ * @return the index of the first occurrence for the element
  */
+@Suppress("unused")
 fun LongArray.findIndex(element: Long): Int {
     return KSLArrays.findIndex(element, this)
 }
@@ -2977,6 +3466,7 @@ fun LongArray.findIndex(element: Long): Int {
  * @param element the element to search for
  * @return true if an instance of the element is found
  */
+@Suppress("unused")
 fun LongArray.hasElement(element: Long): Boolean {
     return KSLArrays.hasElement(element, this)
 }
@@ -2985,6 +3475,7 @@ fun LongArray.hasElement(element: Long): Boolean {
  *
  * @return true if the array has at least one 0.0
  */
+@Suppress("unused")
 fun DoubleArray.hasZero(): Boolean {
     return KSLArrays.hasZero(this)
 }
@@ -2993,6 +3484,7 @@ fun DoubleArray.hasZero(): Boolean {
  *
  * @return true if the array has at least one 0.0
  */
+@Suppress("unused")
 fun IntArray.hasZero(): Boolean {
     return KSLArrays.hasZero(this)
 }
@@ -3001,6 +3493,7 @@ fun IntArray.hasZero(): Boolean {
  *
  * @return true if the array has at least one 0.0
  */
+@Suppress("unused")
 fun LongArray.hasZero(): Boolean {
     return KSLArrays.hasZero(this)
 }
@@ -3009,8 +3502,9 @@ fun LongArray.hasZero(): Boolean {
  * If the array is empty, -1 is returned.
  *
  * @param element the element to search for
- * @return the index of the first occurrence of the element
+ * @return the index of the first occurrence for the element
  */
+@Suppress("unused")
 fun Array<String>.findIndex(element: String): Int {
     return KSLArrays.findIndex(element, this)
 }
@@ -3021,6 +3515,7 @@ fun Array<String>.findIndex(element: String): Int {
  *
  * @return the scaled array
  */
+@Suppress("unused")
 fun DoubleArray.minMaxScaledArray(): DoubleArray {
     return KSLArrays.minMaxScaledArray(this)
 }
@@ -3032,16 +3527,18 @@ fun DoubleArray.minMaxScaledArray(): DoubleArray {
  *
  * @return the scaled array
  */
+@Suppress("unused")
 fun DoubleArray.normScaledArray(): DoubleArray {
     return KSLArrays.normScaledArray(this)
 }
 
 /**
- * Copies all but element index of array fromA into array toB
+ * Copies all but element index of the array fromA into the array toB
  * If fromA has 1 element, toB will be empty
- * @param index index of element to leave out, must be 0 to fromA.length-1
+ * @param index index of the element to leave out, must be 0 to fromA.length-1
  * @return a reference to the array toB
  */
+@Suppress("unused")
 fun DoubleArray.copyWithout(index: Int): DoubleArray {
     return KSLArrays.copyWithout(index, this)
 }
@@ -3049,6 +3546,7 @@ fun DoubleArray.copyWithout(index: Int): DoubleArray {
 /**
  *  Computes the product of the elements in the array
  */
+@Suppress("unused")
 fun DoubleArray.product(): Double {
     var p = 1.0
     for (x in this) {
@@ -3061,6 +3559,7 @@ fun DoubleArray.product(): Double {
  * @param c the constant to add to each element
  * @return the transformed array
  */
+@Suppress("unused")
 fun DoubleArray.addConstant(c: Double): DoubleArray {
     return KSLArrays.addConstant(this, c)
 }
@@ -3069,6 +3568,7 @@ fun DoubleArray.addConstant(c: Double): DoubleArray {
  * @param c the constant to subtract from each element
  * @return the transformed array
  */
+@Suppress("unused")
 fun DoubleArray.subtractConstant(c: Double): DoubleArray {
     return KSLArrays.subtractConstant(this, c)
 }
@@ -3077,6 +3577,7 @@ fun DoubleArray.subtractConstant(c: Double): DoubleArray {
  * @param c the constant to multiply against each element
  * @return the transformed array
  */
+@Suppress("unused")
 fun DoubleArray.multiplyConstant(c: Double): DoubleArray {
     return KSLArrays.multiplyConstant(this, c)
 }
@@ -3085,6 +3586,7 @@ fun DoubleArray.multiplyConstant(c: Double): DoubleArray {
  * @param c the constant to divide each element
  * @return the transformed array
  */
+@Suppress("unused")
 fun DoubleArray.divideConstant(c: Double): DoubleArray {
     return KSLArrays.divideConstant(this, c)
 }
@@ -3095,6 +3597,7 @@ fun DoubleArray.divideConstant(c: Double): DoubleArray {
  * @param b the second array
  * @return the array containing a[i]*b[i]
  */
+@Suppress("unused")
 fun DoubleArray.multiplyElements(b: DoubleArray): DoubleArray {
     return KSLArrays.multiplyElements(this, b)
 }
@@ -3107,6 +3610,7 @@ fun DoubleArray.multiplyElements(b: DoubleArray): DoubleArray {
  *
  * @return the minimum number of columns in the arrays
  */
+@Suppress("unused")
 fun Array<DoubleArray>.minNumColumns(): Int {
     return KSLArrays.minNumColumns(this)
 }
@@ -3118,22 +3622,24 @@ fun Array<DoubleArray>.minNumColumns(): Int {
  *
  * @return the copy
  */
+@Suppress("unused")
 fun Array<DoubleArray>.trimToRectangular(): Array<DoubleArray> {
     return KSLArrays.trimToRectangular(this)
 }
 
 /**  Converts the 2-D array to a 1-D array by processing
  *   the source [src] array row-wise and concatenating the rows.
- *   For example if the data is organized as follows:
+ *   For example, if the data is organized as follows:
  *
  *   1  2   3
  *   4  5   6
  *   7  8   9
  *
  *   Then the resulting array will be (1,2,3,4,5,6,7,8,9).
- *   In general the source array may be ragged.
+ *   In general, the source array may be ragged.
  *
  */
+@Suppress("unused")
 fun Array<DoubleArray>.concatenateTo1DArray(): DoubleArray {
     return KSLArrays.concatenateTo1DArray(this)
 }
@@ -3149,6 +3655,7 @@ fun Array<DoubleArray>.concatenateTo1DArray(): DoubleArray {
  * @param fillValue the value to fill if needed, default is 0.0
  * @return the copy
  */
+@Suppress("unused")
 fun Array<DoubleArray>.expandToRectangular(fillValue: Double = 0.0): Array<DoubleArray> {
     return KSLArrays.expandToRectangular(this, fillValue)
 }
@@ -3158,6 +3665,7 @@ fun Array<DoubleArray>.expandToRectangular(fillValue: Double = 0.0): Array<Doubl
  *
  * @return true if the array is rectangular
  */
+@Suppress("unused")
 fun <T> Array<Array<T>>.isRectangular(): Boolean {
     return KSLArrays.isRectangular(this)
 }
@@ -3167,6 +3675,7 @@ fun <T> Array<Array<T>>.isRectangular(): Boolean {
  *
  * @return true if the array is rectangular
  */
+@Suppress("unused")
 fun Array<DoubleArray>.isRectangular(): Boolean {
     return KSLArrays.isRectangular(this)
 }
@@ -3176,6 +3685,7 @@ fun Array<DoubleArray>.isRectangular(): Boolean {
  *
  * @return true if the array is rectangular
  */
+@Suppress("unused")
 fun Array<IntArray>.isRectangular(): Boolean {
     return KSLArrays.isRectangular(this)
 }
@@ -3185,6 +3695,7 @@ fun Array<IntArray>.isRectangular(): Boolean {
  *
  * @return true if the array is rectangular
  */
+@Suppress("unused")
 fun Array<LongArray>.isRectangular(): Boolean {
     return KSLArrays.isRectangular(this)
 }
@@ -3195,38 +3706,43 @@ fun Array<LongArray>.isRectangular(): Boolean {
  *
  * @return the maximum number of columns in the array
  */
+@Suppress("unused")
 fun Array<DoubleArray>.maxNumColumns(): Int {
     return KSLArrays.minNumColumns(this)
 }
 
 /**
- * @param k      the kth column to be extracted (zero based indexing)
+ * @param k      the kth column to be extracted (zero-based indexing)
  * @return a copy of the extracted column
  */
+@Suppress("unused")
 fun Array<DoubleArray>.column(k: Int): DoubleArray {
     return KSLArrays.column(k, this)
 }
 
 /**
- * @param k      the kth column to be extracted (zero based indexing)
+ * @param k      the kth column to be extracted (zero-based indexing)
  * @return a copy of the extracted column
  */
+@Suppress("unused")
 fun Array<IntArray>.column(k: Int): IntArray {
     return KSLArrays.column(k, this)
 }
 
 /**
- * @param k      the kth column to be extracted (zero based indexing)
+ * @param k      the kth column to be extracted (zero-based indexing)
  * @return a copy of the extracted column
  */
+@Suppress("unused")
 fun Array<LongArray>.column(k: Int): LongArray {
     return KSLArrays.column(k, this)
 }
 
 /**
- * @param k      the kth column to be extracted (zero based indexing)
+ * @param k      the kth column to be extracted (zero-based indexing)
  * @return a copy of the extracted column
  */
+@Suppress("unused")
 inline fun <reified T> Array<Array<T>>.column(k: Int): Array<T> {
     return KSLArrays.column(k, this)
 }
@@ -3234,6 +3750,7 @@ inline fun <reified T> Array<Array<T>>.column(k: Int): Array<T> {
 /**
  * @return a copy of the array
  */
+@Suppress("unused")
 fun Array<DoubleArray>.copyOf(): Array<DoubleArray> {
     return KSLArrays.copy2DArray(this)
 }
@@ -3241,6 +3758,7 @@ fun Array<DoubleArray>.copyOf(): Array<DoubleArray> {
 /**
  * @return a copy of the array
  */
+@Suppress("unused")
 fun Array<IntArray>.copyOf(): Array<IntArray> {
     return KSLArrays.copy2DArray(this)
 }
@@ -3248,6 +3766,7 @@ fun Array<IntArray>.copyOf(): Array<IntArray> {
 /**
  * @return a copy of the array
  */
+@Suppress("unused")
 fun Array<LongArray>.copyOf(): Array<LongArray> {
     return KSLArrays.copy2DArray(this)
 }
@@ -3255,6 +3774,7 @@ fun Array<LongArray>.copyOf(): Array<LongArray> {
 /**
  *  Fills the array with the value
  */
+@Suppress("unused")
 fun DoubleArray.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
     KSLArrays.fill(this, theValue)
 }
@@ -3262,6 +3782,7 @@ fun DoubleArray.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
 /**
  *  Fills the array with the provided value
  */
+@Suppress("unused")
 fun Array<DoubleArray>.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
     KSLArrays.fill(this, theValue)
 }
@@ -3270,8 +3791,9 @@ fun Array<DoubleArray>.fill(theValue: GetValueIfc = ConstantRV.ZERO) {
  * The destination array is mutated by this method
  *
  * @param col  the column in the destination to fill
- * @param src  the source for filling the column, must not be null
+ * @param src  the source for filling the column
  */
+@Suppress("unused")
 fun Array<DoubleArray>.fillColumn(col: Int, src: DoubleArray) {
     KSLArrays.fillColumn(col, src, this)
 }
@@ -3279,8 +3801,9 @@ fun Array<DoubleArray>.fillColumn(col: Int, src: DoubleArray) {
 /**
  * The array must not be null
  *
- * @return the sum of the squares of the elements of the array
+ * @return the sum of the squares for the elements of the array
  */
+@Suppress("unused")
 fun DoubleArray.sumOfSquares(): Double {
     return KSLArrays.sumOfSquares(this)
 }
@@ -3288,18 +3811,20 @@ fun DoubleArray.sumOfSquares(): Double {
 /**
  * The array must not be null
  *
- * @return the sum of the square roots of the elements of the array
+ * @return the sum of the square roots for the elements of the array
  */
+@Suppress("unused")
 fun DoubleArray.sumOfSquareRoots(): Double {
     return KSLArrays.sumOfSquareRoots(this)
 }
 
 /**
- * Adds the two arrays element by element. Arrays must have same length and must not be null.
+ * Adds the two arrays element by element. Arrays must have the same length and must not be null.
  *
  * @param b the second array
  * @return the array containing a[i]+b[i]
  */
+@Suppress("unused")
 fun DoubleArray.addElements(b: DoubleArray): DoubleArray {
     return KSLArrays.addElements(this, b)
 }
@@ -3308,6 +3833,7 @@ fun DoubleArray.addElements(b: DoubleArray): DoubleArray {
  * @param another the second array
  * @return true if all elements are equal
  */
+@Suppress("unused")
 fun DoubleArray.compareTo(another: DoubleArray): Boolean {
     return KSLArrays.compareArrays(this, another)
 }
@@ -3318,6 +3844,7 @@ fun DoubleArray.compareTo(another: DoubleArray): Boolean {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun Array<Double?>.toPrimitives(replaceNull: Double = 0.0): DoubleArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3328,6 +3855,7 @@ fun Array<Double?>.toPrimitives(replaceNull: Double = 0.0): DoubleArray {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun List<Double?>.toPrimitives(replaceNull: Double = 0.0): DoubleArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3338,6 +3866,7 @@ fun List<Double?>.toPrimitives(replaceNull: Double = 0.0): DoubleArray {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun Array<Int?>.toPrimitives(replaceNull: Int = 0): IntArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3348,6 +3877,7 @@ fun Array<Int?>.toPrimitives(replaceNull: Int = 0): IntArray {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun List<Int?>.toPrimitives(replaceNull: Int = 0): IntArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3358,6 +3888,7 @@ fun List<Int?>.toPrimitives(replaceNull: Int = 0): IntArray {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun Array<Long?>.toPrimitives(replaceNull: Long = 0): LongArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3368,6 +3899,7 @@ fun Array<Long?>.toPrimitives(replaceNull: Long = 0): LongArray {
  * @param replaceNull the value to replace any nulls
  * @return the primitive array
  */
+@Suppress("unused")
 fun List<Long?>.toPrimitives(replaceNull: Long = 0): LongArray {
     return KSLArrays.toPrimitives(this, replaceNull)
 }
@@ -3378,27 +3910,31 @@ fun List<Long?>.toPrimitives(replaceNull: Long = 0): LongArray {
  *
  * @return the array of strings representing the values of the doubles
  */
+@Suppress("unused")
 fun DoubleArray.toStrings(): Array<String> {
     return KSLArrays.toStrings(this)
 }
 
 /**
- * @return a comma delimited string of the array, if empty, returns the empty string
+ * @return a comma-delimited string of the array, if empty, returns the empty string
  */
+@Suppress("unused")
 fun DoubleArray.toCSVString(): String {
     return KSLArrays.toCSVString(this)
 }
 
 /**
- * @return a comma delimited string of the array, if empty, returns the empty string
+ * @return a comma-delimited string of the array, if empty, returns the empty string
  */
+@Suppress("unused")
 fun IntArray.toCSVString(): String {
     return KSLArrays.toCSVString(this)
 }
 
 /**
- * @return a comma delimited string of the array, if empty, returns the empty string
+ * @return a comma-delimited string of the array, if empty, returns the empty string
  */
+@Suppress("unused")
 fun LongArray.toCSVString(): String {
     return KSLArrays.toCSVString(this)
 }
@@ -3409,6 +3945,7 @@ fun LongArray.toCSVString(): String {
  *
  * @return the array of doubles representing the values of the ints
  */
+@Suppress("unused")
 fun IntArray.toDoubles(): DoubleArray {
     return KSLArrays.toDoubles(this)
 }
@@ -3419,6 +3956,7 @@ fun IntArray.toDoubles(): DoubleArray {
  *
  * @return the array of doubles representing the values of the ints
  */
+@Suppress("unused")
 fun Array<Int>.toDoubles(): DoubleArray {
     return KSLArrays.toDoubles(this)
 }
@@ -3429,6 +3967,7 @@ fun Array<Int>.toDoubles(): DoubleArray {
  *
  * @return the array of doubles representing the values of the ints
  */
+@Suppress("unused")
 fun LongArray.toDoubles(): DoubleArray {
     return KSLArrays.toDoubles(this)
 }
@@ -3439,6 +3978,7 @@ fun LongArray.toDoubles(): DoubleArray {
  *
  * @return the array of doubles representing the values of the ints
  */
+@Suppress("unused")
 fun Array<Long>.toDoubles(): DoubleArray {
     return KSLArrays.toDoubles(this)
 }
@@ -3449,16 +3989,18 @@ fun Array<Long>.toDoubles(): DoubleArray {
  *
  * @return the array of Doubles representing the values of the doubles
  */
+@Suppress("unused")
 fun Array<DoubleArray>.toDoubles(): Array<Array<Double>> {
     return KSLArrays.toDoubles(this)
 }
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
+ *  by column. If the column name is not supplied, then the column is called col1, col2, etc. The
  *  2D array must be rectangular.
  *  @param colNames the names of the columns (optional)
  */
+@Suppress("unused")
 fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nCol = KSLArrays.numColumns(this)
     val names = (1..nCol).map { "col$it" }.toList()
@@ -3472,10 +4014,11 @@ fun Array<DoubleArray>.toMapOfColumns(colNames: List<String> = emptyList()): Map
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by column. If the column name is not supplied then the column is called col1, col2, etc. The
+ *  by column. If the column name is not supplied, then the column is called col1, col2, etc. The
  *  2D array must be rectangular.
  *  @param colNames the names of the columns (optional)
  */
+@Suppress("unused")
 fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<String, List<Double>> {
     val nCol = KSLArrays.numColumns(this)
     val names = (1..nCol).map { "col$it" }.toList()
@@ -3489,10 +4032,11 @@ fun Array<DoubleArray>.toMapOfLists(colNames: List<String> = emptyList()): Map<S
 
 /**
  *  Converts the 2D array of doubles to a map that holds the arrays
- *  by rows. If the row name is not supplied then the row is called row1, row2, etc. The
+ *  by rows. If the row name is not supplied, then the row is called row1, row2, etc. The
  *  2D array must be rectangular.
  *  @param rowNames the names of the rows (optional)
  */
+@Suppress("unused")
 fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<String, DoubleArray> {
     val nRows = this.size
     val names = (1..nRows).map { "row$it" }.toList()
@@ -3506,10 +4050,11 @@ fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<St
 
 /**
  *  Computes the statistics for the 2D array of doubles by rows.
- *  If the row name is not supplied then the row is called rowj where j is the
+ *  If the row name is not supplied, then the row is called rowj where j is the
  *  number of the missing row name.
  *  @param rowNames the names of the rows (optional)
  */
+@Suppress("unused")
 fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): List<StatisticIfc> {
     val nRows = this.size
     val names = (1..nRows).map { "row$it" }.toList()
@@ -3528,6 +4073,7 @@ fun Array<DoubleArray>.statisticsByRow(rowNames: List<String> = emptyList()): Li
  *
  * @return the array of Int representing the values of the doubles
  */
+@Suppress("unused")
 fun Array<IntArray>.toInts(): Array<Array<Int>> {
     return KSLArrays.toInts(this)
 }
@@ -3538,6 +4084,7 @@ fun Array<IntArray>.toInts(): Array<Array<Int>> {
  *
  * @return the array of Long representing the values of the doubles
  */
+@Suppress("unused")
 fun Array<LongArray>.toLongs(): Array<Array<Long>> {
     return KSLArrays.toLongs(this)
 }
@@ -3545,9 +4092,10 @@ fun Array<LongArray>.toLongs(): Array<Array<Long>> {
 /**
  * Converts the array of strings to Doubles
  *
- * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null by default Double.NaN
  * @return the parsed doubles as an array
  */
+@Suppress("unused")
 fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
     return KSLArrays.parseToDoubles(this, parseFail)
 }
@@ -3555,9 +4103,10 @@ fun Array<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
 /**
  * Converts the list of strings to Doubles
  *
- * @param parseFail the value to use if the parse fails or string is null, by default Double.NaN
+ * @param parseFail the value to use if the parse fails or string is null by default Double.NaN
  * @return the parsed doubles as an array
  */
+@Suppress("unused")
 fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
     return KSLArrays.parseToDoubles(this, parseFail)
 }
@@ -3567,6 +4116,7 @@ fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
  *
  * @return an array with n columns and m rows
  */
+@Suppress("unused")
 fun Array<IntArray>.transpose(): Array<IntArray> {
     return KSLArrays.transpose(this)
 }
@@ -3576,6 +4126,7 @@ fun Array<IntArray>.transpose(): Array<IntArray> {
  *
  * @return an array with n columns and m rows
  */
+@Suppress("unused")
 fun Array<DoubleArray>.transpose(): Array<DoubleArray> {
     return KSLArrays.transpose(this)
 }
@@ -3585,6 +4136,7 @@ fun Array<DoubleArray>.transpose(): Array<DoubleArray> {
  *
  * @return an array with n columns and m rows
  */
+@Suppress("unused")
 fun Array<LongArray>.transpose(): Array<LongArray> {
     return KSLArrays.transpose(this)
 }
@@ -3594,8 +4146,9 @@ fun Array<LongArray>.transpose(): Array<LongArray> {
  * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun DoubleArray.isStrictlyIncreasing(): Boolean {
     return KSLArrays.isStrictlyIncreasing(this)
 }
@@ -3605,8 +4158,9 @@ fun DoubleArray.isStrictlyIncreasing(): Boolean {
  * the elements are strictly decreasing a_0 gt a_1 gt a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun DoubleArray.isStrictlyDecreasing(): Boolean {
     return KSLArrays.isStrictlyDecreasing(this)
 }
@@ -3616,8 +4170,9 @@ fun DoubleArray.isStrictlyDecreasing(): Boolean {
  * the elements are increasing a_0 lte a_1 lte a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun DoubleArray.isIncreasing(): Boolean {
     return KSLArrays.isIncreasing(this)
 }
@@ -3627,8 +4182,9 @@ fun DoubleArray.isIncreasing(): Boolean {
  * the elements are decreasing a_0 gte a_1 gte a_2, etc.
  *
  * @return true if all elements are decreasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun DoubleArray.isDecreasing(): Boolean {
     return KSLArrays.isDecreasing(this)
 }
@@ -3638,8 +4194,9 @@ fun DoubleArray.isDecreasing(): Boolean {
  * the elements are equal a_0 = a_1 = a_2, etc.
  *
  * @return true if all elements are equal, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun DoubleArray.isAllEqual(): Boolean {
     return KSLArrays.isAllEqual(this)
 }
@@ -3649,8 +4206,9 @@ fun DoubleArray.isAllEqual(): Boolean {
  * the elements are different (distinct) a_0 != a_1 != a_2, etc.
  *
  * @return true if all elements are distinct, if there
- * are 0 elements then it returns false
+ * are 0 elements, then it returns false
  */
+@Suppress("unused")
 fun DoubleArray.isAllDifferent(): Boolean {
     return KSLArrays.isAllDifferent(this)
 }
@@ -3660,8 +4218,9 @@ fun DoubleArray.isAllDifferent(): Boolean {
  * the elements are different (distinct) a_0 != a_1 != a_2, etc.
  *
  * @return true if all elements are distinct, if there
- * are 0 elements then it returns false
+ * are 0 elements, then it returns false
  */
+@Suppress("unused")
 fun IntArray.isAllDifferent(): Boolean {
     return KSLArrays.isAllDifferent(this)
 }
@@ -3671,8 +4230,9 @@ fun IntArray.isAllDifferent(): Boolean {
  * the elements are equal a_0 = a_1 = a_2, etc.
  *
  * @return true if all elements are equal, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun IntArray.isAllEqual(): Boolean {
     return KSLArrays.isAllEqual(this)
 }
@@ -3682,8 +4242,9 @@ fun IntArray.isAllEqual(): Boolean {
  * the elements are strictly increasing a_0 lt a_1 lt a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun IntArray.isStrictlyIncreasing(): Boolean {
     return KSLArrays.isStrictlyIncreasing(this)
 }
@@ -3693,8 +4254,9 @@ fun IntArray.isStrictlyIncreasing(): Boolean {
  * the elements are strictly decreasing a_0 gt a_1 gt a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun IntArray.isStrictlyDecreasing(): Boolean {
     return KSLArrays.isStrictlyDecreasing(this)
 }
@@ -3704,8 +4266,9 @@ fun IntArray.isStrictlyDecreasing(): Boolean {
  * the elements are increasing a_0 lte a_1 lte a_2, etc.
  *
  * @return true if all elements are strictly increasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun IntArray.isIncreasing(): Boolean {
     return KSLArrays.isIncreasing(this)
 }
@@ -3715,8 +4278,9 @@ fun IntArray.isIncreasing(): Boolean {
  * the elements are decreasing a_0 gte a_1 gte a_2, etc.
  *
  * @return true if all elements are decreasing, if there
- * are 0 elements then it returns false, 1 element returns true
+ * are 0 elements, then it returns false, 1 element returns true
  */
+@Suppress("unused")
 fun IntArray.isDecreasing(): Boolean {
     return KSLArrays.isDecreasing(this)
 }
@@ -3725,6 +4289,7 @@ fun IntArray.isDecreasing(): Boolean {
  *  Applies the transformation to each element of the array
  *  in place
  */
+@Suppress("unused")
 fun <T> Array<T>.mapInPlace(transform: (T) -> T) {
     for (i in this.indices) {
         this[i] = transform(this[i])
@@ -3735,6 +4300,7 @@ fun <T> Array<T>.mapInPlace(transform: (T) -> T) {
  *  Applies the transformation to each element of the array
  *  in place
  */
+@Suppress("unused")
 fun IntArray.mapInPlace(transform: (Int) -> Int) {
     for (i in this.indices) {
         this[i] = transform(this[i])
@@ -3745,7 +4311,7 @@ fun IntArray.mapInPlace(transform: (Int) -> Int) {
  *  Applies the transformation to each element of the array
  *  in place
  */
-
+@Suppress("unused")
 fun DoubleArray.mapInPlace(transform: (Double) -> Double) {
     for (i in this.indices) {
         this[i] = transform(this[i])
@@ -3754,11 +4320,12 @@ fun DoubleArray.mapInPlace(transform: (Double) -> Double) {
 
 /**
  * Returns the index associated with the minimum element in the list For
- * ties, this returns the first found.
+ * ties. This returns the first found.
  *
  * The list must not be null or empty
  * @return the index associated with the minimum element
  */
+@Suppress("unused")
 fun List<Double>.indexOfMin(): Int {
     require(isNotEmpty()) { "The list was empty" }
     var index = 0
@@ -3778,9 +4345,10 @@ fun List<Double>.indexOfMin(): Int {
  *  @param start the starting value. Must be less than stop
  *  @param stop the stopping value. Must be greater than start
  *  @param num the number of points in the interval. Defaults to 50
- *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+ *  @param endpoint if true, the end point (stop) is included in the interval. Defaults to true.
  *  @return a list of the values
  */
+@Suppress("unused")
 fun linspace(start: Int, stop: Int, num: Int = 50, endpoint: Boolean = true): List<Double> {
     return linspace(start.toDouble(), stop.toDouble(), num, endpoint)
 }
@@ -3788,12 +4356,12 @@ fun linspace(start: Int, stop: Int, num: Int = 50, endpoint: Boolean = true): Li
 /**
  *  A simple implementation of linspace() found in python
  *  Returns evenly spaced values within a given interval start, stop
- *  @param start the starting value. Must be less than stop
- *  @param stop the stopping value. Must be greater than start
+ *  @param range the range for the interval
  *  @param num the number of points in the interval. Defaults to 50
  *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
  *  @return a list of the values
  */
+@Suppress("unused")
 fun linspace(range: IntRange, num: Int = 50, endpoint: Boolean = true): List<Double> {
     return linspace(range.first, range.last, num, endpoint)
 }
@@ -3804,15 +4372,16 @@ fun linspace(range: IntRange, num: Int = 50, endpoint: Boolean = true): List<Dou
  *  @param start the starting value. Must be less than stop
  *  @param stop the stopping value. Must be greater than start
  *  @param num the number of points in the interval. Defaults to 50
- *  @param endpoint if true the end point (stop) is included in the interval. Defaults to true.
+ *  @param endpoint if true, the end point (stop) is included in the interval. Defaults to true.
  *  @return a list of the values
  */
+@Suppress("unused")
 fun linspace(start: Double, stop: Double, num: Int = 50, endpoint: Boolean = true): List<Double> {
     require(start.isFinite()) { "start must be finite" }
     require(stop.isFinite()) { "stop must be finite" }
     require(!start.isNaN()) { "start must be not be NaN" }
     require(!stop.isNaN()) { "stop must be not be NaN" }
-    require(start < stop) {"The starting value ($start) must be less that the stop value ($stop)."}
+    require(start < stop) { "The starting value ($start) must be less that the stop value ($stop)." }
     val n = num.coerceAtLeast(1)
     if (n == 1) {
         return listOf(start)
@@ -3827,4 +4396,128 @@ fun linspace(start: Double, stop: Double, num: Int = 50, endpoint: Boolean = tru
         list.add(start + step * i)
     }
     return list
+}
+
+/**
+ *  Computes the Manhattan distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun List<Int>.manhattanDistance(b: List<Int>): Int {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var sum = 0
+    for (i in indices) {
+        sum = sum + abs(this[i] * b[i])
+    }
+    return sum
+}
+
+/**
+ *  Computes the Manhattan distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun IntArray.manhattanDistance(b: IntArray): Int {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var sum = 0
+    for (i in indices) {
+        sum = sum + abs(this[i] * b[i])
+    }
+    return sum
+}
+
+/**
+ *  Computes the Manhattan distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun List<Double>.manhattanDistance(b: List<Double>): Double {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var sum = 0.0
+    for (i in indices) {
+        sum = sum + abs(this[i] * b[i])
+    }
+    return sum
+}
+
+/**
+ *  Computes the Manhattan distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun DoubleArray.manhattanDistance(b: DoubleArray): Double {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var sum = 0.0
+    for (i in indices) {
+        sum = sum + abs(this[i] * b[i])
+    }
+    return sum
+}
+
+/**
+ *  Computes the Chebyshev distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun IntArray.chebyshevDistance(b: IntArray): Int {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var maxDiff = 0
+    for (i in indices) {
+        val diff = abs(this[i] - b[i])
+        if (diff > maxDiff) {
+            maxDiff = diff
+        }
+    }
+    return maxDiff
+}
+
+/**
+ *  Computes the Chebyshev distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun List<Int>.chebyshevDistance(b: List<Int>): Int {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var maxDiff = 0
+    for (i in indices) {
+        val diff = abs(this[i] - b[i])
+        if (diff > maxDiff) {
+            maxDiff = diff
+        }
+    }
+    return maxDiff
+}
+
+/**
+ *  Computes the Chebyshev distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun DoubleArray.chebyshevDistance(b: DoubleArray): Double {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var maxDiff = 0.0
+    for (i in indices) {
+        val diff = abs(this[i] - b[i])
+        if (diff > maxDiff) {
+            maxDiff = diff
+        }
+    }
+    return maxDiff
+}
+
+/**
+ *  Computes the Chebyshev distance between the two vectors.
+ *  The vectors must be of the same size.
+ */
+@Suppress("unused")
+fun List<Double>.chebyshevDistance(b: List<Double>): Double {
+    require(size == b.size) { "Vectors must be of the same length" }
+    var maxDiff = 0.0
+    for (i in indices) {
+        val diff = abs(this[i] - b[i])
+        if (diff > maxDiff) {
+            maxDiff = diff
+        }
+    }
+    return maxDiff
 }
