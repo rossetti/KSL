@@ -524,7 +524,7 @@ class MultipleComparisonAnalyzer(
      * The variance for the pair of data names given by the strings. If the data
      * names don't exist or the difference "$s1 - $s2" or "$s2 - $s1" does
      * not exist, then an exception will occur. The variances of the differences are
-     * symmetric. That is variance of "$s1 - $s2" is equal to the variance of "$s2 - $s1".
+     * symmetric. That is, the variance of "$s1 - $s2" is equal to the variance of "$s2 - $s1".
      *
      * @param s1 the name of data set number 1
      * @param s2 the name of data set number 2
@@ -744,7 +744,7 @@ class MultipleComparisonAnalyzer(
     /**
      * Computes the difference between each dataset average and the maximum of
      * the rest of the averages for each dataset. If d[] represents the
-     * differences then d[0] is the difference between the first dataset average
+     * differences, then d[0] is the difference between the first dataset average
      * and the maximum over the averages of the other datasets and so on.
      *
      * @return the difference between each dataset average and the maximum of
@@ -792,7 +792,7 @@ class MultipleComparisonAnalyzer(
     /**
      * Computes the difference between each dataset average and the minimum of
      * the rest of the averages for each dataset. If d[] represents the
-     * differences then d[0] is the difference between the first dataset average
+     * differences, then d[0] is the difference between the first dataset average
      * and the minimum over the averages of the other datasets and so on
      *
      * @return the difference between each dataset average and the minimum of
