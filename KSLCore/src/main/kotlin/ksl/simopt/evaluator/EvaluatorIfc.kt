@@ -113,6 +113,7 @@ interface EvaluatorIfc {
 
     companion object {
 
+        @JvmStatic
         val logger: KLogger = KotlinLogging.logger {}
 
     }
