@@ -916,8 +916,7 @@ class ProblemDefinition @JvmOverloads constructor(
     fun mooreNeighborhoodFinder(radius: Int = 1) : NeighborhoodFinderIfc {
         return MooreNeighborhoodFinder(this, radius)
     }
-
-
+    
     companion object {
 
         /**
