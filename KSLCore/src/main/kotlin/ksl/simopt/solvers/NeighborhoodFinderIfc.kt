@@ -6,7 +6,8 @@ import ksl.utilities.manhattanDistance
 
 data class Point(val coordinates: IntArray) {
 
-    constructor(dimension: Int = 2) : this(IntArray(dimension))
+    @Suppress("unused")
+    constructor(dimension: Int) : this(IntArray(dimension))
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -25,7 +26,7 @@ data class Point(val coordinates: IntArray) {
  *  The solver is supplied to allow potential access to its state/memory
  *  within the process to determine the neighborhood.
  */
-fun interface NeighborhoodIfc {
+fun interface NeighborhoodFinderIfc {
 
     /**
      *  Defines a search neighborhood for the provided input
@@ -38,10 +39,11 @@ fun interface NeighborhoodIfc {
      *  @return a set of input points that form a search neighborhood around
      *  the provided point.
      */
+    @Suppress("unused")
     fun neighborhood(
         inputMap: InputMap,
-        solver: Solver
-    ): Set<InputMap>
+        solver: Solver?
+    ): MutableSet<InputMap>
 
     companion object {
 
@@ -56,12 +58,14 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun zeroVonNeumannNeighborhood(
             dimension: Int,
             radius: Int = 1,
             includeCenter: Boolean = false
         ) : List<IntArray> {
-            require(dimension >= 2) {"The dimension must be 2 or more"}
             return vonNeumannNeighborhood(IntArray(dimension), radius, includeCenter)
         }
 
@@ -75,14 +79,26 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun vonNeumannNeighborhood(
             center: IntArray,
             radius: Int = 1,
             includeCenter: Boolean = false
         ): List<IntArray> {
-            val result = mutableListOf<IntArray>()
+            require(center.isNotEmpty()) {"The dimension must be 1 or more"}
+            require( radius >= 0 ) {"The radius must be greater than or equal to 0"}
+            if (radius == 0){
+                return if (includeCenter){
+                    listOf(center.copyOf())
+                } else {
+                    listOf()
+                }
+            }
             val dimensions = center.size
-
+            require(dimensions >= 1) {"The dimension must be 1 or more"}
+            val result = mutableListOf<IntArray>()
             // Create bounds for each dimension
             val minBounds = IntArray(dimensions)
             val maxBounds = IntArray(dimensions)
@@ -143,13 +159,25 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun vonNeumannNeighborhoodBFS(
             center: IntArray,
             radius: Int = 1,
             includeCenter: Boolean = false
         ): List<IntArray> {
-            val result = mutableListOf<IntArray>()
+            require(center.isNotEmpty()) {"The dimension must be 1 or more"}
+            require( radius >= 0 ) {"The radius must be greater than or equal to 0"}
+            if (radius == 0){
+                return if (includeCenter){
+                    listOf(center.copyOf())
+                } else {
+                    listOf()
+                }
+            }
             val dimensions = center.size
+            val result = mutableListOf<IntArray>()
 
             // Generate all points within Manhattan distance <= radius
             val queue = mutableListOf<IntArray>()
@@ -214,12 +242,14 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun zeroMooreNeighborhood(
             dimension: Int,
             radius: Int = 1,
             includeCenter: Boolean = false
         ) : List<IntArray> {
-            require(dimension >= 2) {"The dimension must be 2 or more"}
             return mooreNeighborhood(IntArray(dimension), radius, includeCenter)
         }
 
@@ -234,11 +264,23 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun mooreNeighborhood(
             center: IntArray,
             radius: Int = 1,
             includeCenter: Boolean = false
         ): List<IntArray> {
+            require(center.isNotEmpty()) {"The dimension must be 1 or more"}
+            require( radius >= 0 ) {"The radius must be greater than or equal to 0"}
+            if (radius == 0){
+                return if (includeCenter){
+                    listOf(center.copyOf())
+                } else {
+                    listOf()
+                }
+            }
             val result = mutableListOf<IntArray>()
             val dimensions = center.size
 
@@ -303,11 +345,23 @@ fun interface NeighborhoodIfc {
          *  @param includeCenter indicates if the center point should be included in the returned array
          *  @return the points in the neighborhood
          */
+        @JvmStatic
+        @JvmOverloads
+        @Suppress("unused")
         fun mooreNeighborhoodBFS(
             center: IntArray,
             radius: Int = 1,
             includeCenter: Boolean = false
         ): List<IntArray> {
+            require(center.isNotEmpty()) {"The dimension must be 1 or more"}
+            require( radius >= 0 ) {"The radius must be greater than or equal to 0"}
+            if (radius == 0){
+                return if (includeCenter){
+                    listOf(center.copyOf())
+                } else {
+                    listOf()
+                }
+            }
             val result = mutableListOf<IntArray>()
             val dimensions = center.size
             val visited = mutableSetOf<Point>()

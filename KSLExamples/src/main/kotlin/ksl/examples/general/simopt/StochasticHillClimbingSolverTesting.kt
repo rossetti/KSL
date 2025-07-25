@@ -18,8 +18,18 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runSHCSolver(modelIdentifier, maxIterations = 10)
+ //   runSHCSolver(modelIdentifier, maxIterations = 10)
+     testProblemDefinition()
+}
 
+fun testProblemDefinition(){
+    val pd = makeLKInventoryModelProblemDefinition()
+    val c = pd.toInputMap(doubleArrayOf(50.0, 75.0))
+    val ng = pd.vonNeumannNeighborhoodFinder()
+    val nc = ng.neighborhood(c, null)
+    for(n in nc){
+        println(n)
+    }
 }
 
 fun configureStochasticHillClimber(
