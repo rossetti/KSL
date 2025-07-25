@@ -898,21 +898,23 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  @param radius the radius for the neighborhood. The default is 1.
      *  @return the functional interface that can determine the von Neumann neighborhood
      *  for the problem definition
      */
     @Suppress("unused")
-    fun vonNeumannNeighborhoodFinder() : NeighborhoodFinderIfc {
-        return VonNeumannNeighborhoodFinder(this)
+    fun vonNeumannNeighborhoodFinder(radius: Int = 1) : NeighborhoodFinderIfc {
+        return VonNeumannNeighborhoodFinder(this, radius)
     }
 
     /**
+     *  @param radius the radius for the neighborhood. The default is 1.
      *  @return the functional interface that can determine the Moore neighborhood
      *  for the problem definition
      */
     @Suppress("unused")
-    fun mooreNeighborhoodFinder() : NeighborhoodFinderIfc {
-        return MooreNeighborhoodFinder(this)
+    fun mooreNeighborhoodFinder(radius: Int = 1) : NeighborhoodFinderIfc {
+        return MooreNeighborhoodFinder(this, radius)
     }
 
 

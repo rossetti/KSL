@@ -13,8 +13,12 @@ import ksl.utilities.toDoubles
  *  not include the center point of the neighborhood and uses a radius of 1.
  *
  * @param problemDefinition the problem definition over which the neighborhood should be found.
+ * @param radius the radius for the neighborhood. The default is 1.
  */
-class MooreNeighborhoodFinder(val problemDefinition: ProblemDefinition) : NeighborhoodFinderIfc {
+class MooreNeighborhoodFinder(
+    val problemDefinition: ProblemDefinition,
+    radius: Int = 1
+) : NeighborhoodFinderIfc {
     /**
      *  This is the neighborhood centered at 0 and adjusted for granularity
      */
@@ -24,7 +28,7 @@ class MooreNeighborhoodFinder(val problemDefinition: ProblemDefinition) : Neighb
     init {
         require(problemDefinition.inputDefinitions.isNotEmpty()) { "The problem must have at least one input variable." }
         val dimension = problemDefinition.inputDefinitions.size
-        val znb = NeighborhoodFinderIfc.zeroMooreNeighborhood(dimension)
+        val znb = NeighborhoodFinderIfc.zeroMooreNeighborhood(dimension, radius)
         myBaseNeighborhood = List(znb.size) { znb[it].toDoubles() }
         val granularities = problemDefinition.inputGranularities
         // if there is no granularity, then the default is to assume 1 unit movement
