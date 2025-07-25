@@ -10,9 +10,13 @@ import ksl.utilities.toDoubles
  *  in all dimensions) from the center is less than or equal to the radius. This function uses
  *  a direct iteration around a bounding box.  By default, this implementation does
  *  not include the center point of the neighborhood and uses a radius of one.
- * @param problemDefinition the problem definition over which the neighborhood should be found.
+ *  @param problemDefinition the problem definition over which the neighborhood should be found.
+ *  @param radius the radius for the neighborhood. The default is 1.
  */
-class VonNeumannNeighborhoodFinder(val problemDefinition: ProblemDefinition) : NeighborhoodFinderIfc {
+class VonNeumannNeighborhoodFinder(
+    val problemDefinition: ProblemDefinition,
+    radius: Int = 1
+) : NeighborhoodFinderIfc {
     /**
      *  This is the neighborhood centered at 0 and adjusted for granularity
      */
@@ -22,7 +26,7 @@ class VonNeumannNeighborhoodFinder(val problemDefinition: ProblemDefinition) : N
     init {
         require(problemDefinition.inputDefinitions.isNotEmpty()) { "The problem must have at least one input variable." }
         val dimension = problemDefinition.inputDefinitions.size
-        val znb = NeighborhoodFinderIfc.zeroVonNeumannNeighborhood(dimension)
+        val znb = NeighborhoodFinderIfc.zeroVonNeumannNeighborhood(dimension, radius)
         myBaseNeighborhood = List(znb.size) { znb[it].toDoubles() }
         val granularities = problemDefinition.inputGranularities
         // if there is no granularity, then the default is to assume 1 unit movement
