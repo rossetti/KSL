@@ -3,6 +3,9 @@ package ksl.simopt.problem
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.solvers.MooreNeighborhoodFinder
+import ksl.simopt.solvers.NeighborhoodFinderIfc
+import ksl.simopt.solvers.VonNeumannNeighborhoodFinder
 import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
@@ -893,6 +896,25 @@ class ProblemDefinition @JvmOverloads constructor(
         }
         return sb.toString()
     }
+
+    /**
+     *  @return the functional interface that can determine the von Neumann neighborhood
+     *  for the problem definition
+     */
+    @Suppress("unused")
+    fun vonNeumannNeighborhoodFinder() : NeighborhoodFinderIfc {
+        return VonNeumannNeighborhoodFinder(this)
+    }
+
+    /**
+     *  @return the functional interface that can determine the Moore neighborhood
+     *  for the problem definition
+     */
+    @Suppress("unused")
+    fun mooreNeighborhoodFinder() : NeighborhoodFinderIfc {
+        return MooreNeighborhoodFinder(this)
+    }
+
 
     companion object {
 
