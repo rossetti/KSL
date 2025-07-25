@@ -4407,7 +4407,7 @@ fun List<Int>.manhattanDistance(b: List<Int>): Int {
     require(size == b.size) { "Vectors must be of the same length" }
     var sum = 0
     for (i in indices) {
-        sum = sum + abs(this[i] * b[i])
+        sum = sum + abs(this[i] - b[i])
     }
     return sum
 }
@@ -4421,7 +4421,7 @@ fun IntArray.manhattanDistance(b: IntArray): Int {
     require(size == b.size) { "Vectors must be of the same length" }
     var sum = 0
     for (i in indices) {
-        sum = sum + abs(this[i] * b[i])
+        sum = sum + abs(this[i] - b[i])
     }
     return sum
 }
@@ -4435,7 +4435,7 @@ fun List<Double>.manhattanDistance(b: List<Double>): Double {
     require(size == b.size) { "Vectors must be of the same length" }
     var sum = 0.0
     for (i in indices) {
-        sum = sum + abs(this[i] * b[i])
+        sum = sum + abs(this[i] - b[i])
     }
     return sum
 }
@@ -4449,7 +4449,7 @@ fun DoubleArray.manhattanDistance(b: DoubleArray): Double {
     require(size == b.size) { "Vectors must be of the same length" }
     var sum = 0.0
     for (i in indices) {
-        sum = sum + abs(this[i] * b[i])
+        sum = sum + abs(this[i] - b[i])
     }
     return sum
 }
