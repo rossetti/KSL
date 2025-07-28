@@ -24,6 +24,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.statistic.*
 import java.text.DecimalFormat
 import java.util.*
+import kotlin.collections.mapIndexed
 import kotlin.math.*
 
 /**
@@ -2474,6 +2475,25 @@ object KSLArrays {
     }
 
     /**
+     * Constructs an array that holds the indices of the items in the data in their sort order.
+     * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
+     * are zero-based.
+     * 
+     * @param data the data to sort
+     * @return the indices of the original items indicating the sort order
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun sortedIndices(data: DoubleArray) : IntArray {
+        // Pair each element with its original index
+        val indexedArray = data.mapIndexed { index, value -> Pair(value, index) }
+        // Sort the pairs based on the element's value
+        val sortedIndexedArray = indexedArray.sortedBy { it.first }
+        // Extract the original indices from the sorted pairs
+        return sortedIndexedArray.map { it.second }.toIntArray()
+    }
+
+    /**
      *  Returns a new array with duplicate data values removed from the original array,
      *  preserving the order of the observations.
      */
@@ -4520,4 +4540,19 @@ fun List<Double>.chebyshevDistance(b: List<Double>): Double {
         }
     }
     return maxDiff
+}
+
+/**
+ *  Returns a list holding the indices of the sorted items in the array
+ */
+@Suppress("unused")
+fun <T : Comparable<T>> Array<T>.sortedIndices(): List<Int> {
+    // Pair each element with its original index
+    val indexedArray = this.mapIndexed { index, value -> Pair(value, index) }
+
+    // Sort the pairs based on the element's value
+    val sortedIndexedArray = indexedArray.sortedBy { it.first }
+
+    // Extract the original indices from the sorted pairs
+    return sortedIndexedArray.map { it.second }
 }
