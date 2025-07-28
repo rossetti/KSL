@@ -81,6 +81,27 @@ class InputMap internal constructor(
     }
 
     /**
+     *  Perturbs the input values away from the granularity grid by a random factor
+     *  based on a percentage of the granularity. The returned array is not limited to
+     *  the granularity of the inputs.
+     *
+     *  @param perturbationFactor the perturbation factor. Must be a number in (0.0, 1.0)
+     *  @param rnStream the stream to use for randomizing the perturbation
+     *  @return an array representing the perturbed input values
+     */
+    @Suppress("unused")
+    fun perturbOffGranularity(perturbationFactor: Double, rnStream: RNStreamIfc): DoubleArray {
+        require((0.0 < perturbationFactor) && (perturbationFactor < 1.0)){"The perturbationFactor must be in (0,1)"}
+        val x = this.inputValues
+        val g = problemDefinition.inputGranularities
+        for (i in x.indices) {
+            val p = perturbationFactor*g[i]
+            x[i] = x[i] + rnStream.rUniform(-p, p)
+        }
+        return x
+    }
+
+    /**
      *  Checks if the supplied value is a valid input value for the supplied input name.
      *  @param inputName the name of the input. The name must be in the input map.
      *  @param value the value to be assigned to the input
