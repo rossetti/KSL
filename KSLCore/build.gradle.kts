@@ -160,3 +160,21 @@ mavenPublishing {
         }
     }
 }
+
+// build.gradle.kts
+
+dokka {
+
+    dokkaPublications.html {
+        suppressInheritedMembers.set(true)
+        failOnWarning.set(true)
+    }
+
+    dokkaSourceSets.main {
+        sourceLink {
+            localDirectory.set(file("src/main/kotlin"))
+            remoteUrl("https://github.com/rossetti/KSL/tree/main/KSLCore/src/main/kotlin")
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
