@@ -2216,7 +2216,7 @@ object KSLArrays {
     }
 
     /**
-     * contributed by Andrew Gibson
+     * Contributed by Andrew Gibson
      * round the 1D array x to a multiple of granularity (double[])
      *
      * @param x           - the input
@@ -2235,7 +2235,7 @@ object KSLArrays {
     }
 
     /**
-     * contributed by Andrew Gibson
+     * Contributed by Andrew Gibson
      * round a 1D array x to a multiple of a scalar granularity value
      * note that 0 or null granularity values are interpreted as "no rounding"
      *
