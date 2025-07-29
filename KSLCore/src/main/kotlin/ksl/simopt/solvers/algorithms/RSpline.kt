@@ -86,7 +86,7 @@ fun main() {
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
     val vertices = mutableListOf<DoubleArray>()
-    //val x0 = KSLArrays.gRound(x, g)
+//    val x0 = KSLArrays.gRound(x, g)
     val x0 = DoubleArray(x.size) { floor(x[it]) }
     println("x0 = ${x0.contentToString()}")
     vertices.add(x0)
