@@ -274,7 +274,7 @@ class ProblemDefinition @JvmOverloads constructor(
      *  Must be finite.
      *  @param upperBound the upper bound on the range of the input variable. Must be greater than the lower bound.
      *  Must be finite.
-     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
+     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.gRound]. The
      *  default is 0.0
      */
     @Suppress("unused")
@@ -296,7 +296,7 @@ class ProblemDefinition @JvmOverloads constructor(
      *
      *  @param name the name of the input variable. Must be in the set of names supplied when the problem was created.
      *  @param interval the interval containing the variable
-     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.mround]. The
+     *  @param granularity the granularity associated with the variable see [ksl.utilities.math.KSLMath.gRound]. The
      *  default is 0.0
      */
     @Suppress("unused")

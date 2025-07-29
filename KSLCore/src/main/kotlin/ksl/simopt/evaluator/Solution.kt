@@ -155,7 +155,7 @@ data class Solution(
     val granularObjFncValue: Double
         get() {
             if (estimatedObjFnc.average.isNaN()) return Double.MAX_VALUE
-            return KSLMath.mround(estimatedObjFncValue, problemDefinition.objFnGranularity)
+            return KSLMath.gRound(estimatedObjFncValue, problemDefinition.objFnGranularity)
         }
 
     /**
@@ -172,7 +172,7 @@ data class Solution(
     val granularPenalizedObjFncValue: Double
         get() {
             if (granularObjFncValue.isNaN() || (granularObjFncValue == Double.MAX_VALUE)) return Double.MAX_VALUE
-            return KSLMath.mround(penalizedObjFncValue, problemDefinition.objFnGranularity)
+            return KSLMath.gRound(penalizedObjFncValue, problemDefinition.objFnGranularity)
         }
 
     /**
