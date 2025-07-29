@@ -38,7 +38,7 @@ fun main(){
 
 //    testBoxMuller()
 //      serializing()
-//    testMRound()
+    testMRound()
 
  //   testRV()
  //   testAI()
@@ -86,9 +86,10 @@ fun testRV(){
 }
 
 fun testMRound(){
-    val x = 3.0459
+    //val x = 3.0459
+    val x = Math.PI
     val g = 0.25
-    val r = KSLMath.mround(x, g)
+    val r = KSLMath.gRound(x, g)
     println("x=$x g=$g r=$r")
 }
 
