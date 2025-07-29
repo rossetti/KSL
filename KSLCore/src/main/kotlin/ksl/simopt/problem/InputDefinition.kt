@@ -1,7 +1,6 @@
 package ksl.simopt.problem
 
 import ksl.utilities.Interval
-import ksl.utilities.KSLArrays
 import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -101,7 +100,7 @@ class InputDefinition(
      *  @return the rounded value
      */
     fun roundToGranularity(x: Double): Double {
-        return KSLMath.mround(x, granularity)
+        return KSLMath.gRound(x, granularity)
     }
 
     /**
