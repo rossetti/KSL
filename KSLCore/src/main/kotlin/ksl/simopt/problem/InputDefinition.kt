@@ -9,10 +9,10 @@ import ksl.utilities.random.rvariable.KSLRandom
  *  Represents the definition of an input variable for a ProblemDefinition.
  *  Input variables are the variables used in the problem to model the decision parameter
  *  of the simulation model. The input variable name should correspond to some named parameter
- *  (e.g. control) in the model.
+ *  (e.g., control) in the model.
  *
  *  The specified granularity indicates the acceptable precision for the variable's value
- *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
+ *  with respect to decision-making. If the granularity is 0, then no rounding will be applied
  *  when evaluating the variable. Granularity defines the level of precision for an input variable
  *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
  *  will attempt to find a solution to the level of machine precision. For any positive granularity value,
@@ -25,7 +25,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  *  @param upperBound the upper bound on the range of possible values
  *  @param granularity the acceptable precision for decision-making
  */
-class InputDefinition(
+class InputDefinition @JvmOverloads constructor(
     val name: String,
     val lowerBound: Double,
     val upperBound: Double,
@@ -41,7 +41,7 @@ class InputDefinition(
      *  Represents the definition of an input variable for a ProblemDefinition.
      *  Input variables are the variables used in the problem to model the decision parameter
      *  of the simulation model. The input variable name should correspond to some named parameter
-     *  (e.g. control) in the model.
+     *  (e.g., control) in the model.
      *
      *  The specified granularity indicates the acceptable precision for the variable's value
      *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
@@ -56,12 +56,16 @@ class InputDefinition(
      *  @param interval the feasible range of the variable as an interval
      *  @param granularity the acceptable precision for decision-making
      */
+    @Suppress("unused")
     constructor(
         name: String,
         interval: Interval,
         granularity: Double
     ) : this(name, interval.lowerLimit, interval.upperLimit, granularity)
 
+    /**
+     *  The interval over which the variable is defined.
+     */
     val interval: Interval
         get() = Interval(lowerBound, upperBound)
 
@@ -81,7 +85,18 @@ class InputDefinition(
             field = value
         }
 
-    val midPoint: Pair<String, Double> = Pair(name, (lowerBound + upperBound)/2.0)
+    /**
+     *  An input variable is considered integer ordered if it can only take on integer values.
+     *  The granularity of a variable must be equal to 1.0 for it to be integer-ordered.
+     */
+    @Suppress("unused")
+    val isIntegerOrdered: Boolean
+        get() = KSLMath.equal(granularity, 1.0)
+
+    /**
+     *  The mid-point of the variable. The returned pair is the name and mid-point value.
+     */
+    val midPoint: Pair<String, Double> = Pair(name, (lowerBound + upperBound) / 2.0)
 
     /**
      *
@@ -119,18 +134,19 @@ class InputDefinition(
      *  Requires granularity to be greater than 0.0 or an IllegalArgumentException will be thrown.
      *  If granularity is 0.0, then the set of points is infinite.
      *
-     *  Returns a list of points starting at the lower bound stepping by the
+     *  Returns a list of points starting at the lower-bound stepping by the
      *  granularity to the upper bound. This is the set of possible points
      *  for the defined interval based on the granularity.
      *
      *  @return the list of points
      */
-    fun granularPoints() : List<Double>{
+    @Suppress("unused")
+    fun granularPoints(): List<Double> {
         require(granularity > 0.0) { "granularity must be > 0.0" }
         val list = mutableListOf<Double>()
         var x = lowerBound
         do {
-            val y  = roundToGranularity(x)
+            val y = roundToGranularity(x)
             list.add(y)
             x = y + granularity
         } while (x <= upperBound)
