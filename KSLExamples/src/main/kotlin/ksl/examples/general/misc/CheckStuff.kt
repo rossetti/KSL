@@ -87,7 +87,8 @@ fun testRV(){
 
 fun testMRound(){
     //val x = 3.0459
-    val x = Math.PI
+    val x = 3.549
+    //val x = Math.PI
     val g = 0.25
     val r = KSLMath.gRound(x, g)
     println("x=$x g=$g r=$r")
