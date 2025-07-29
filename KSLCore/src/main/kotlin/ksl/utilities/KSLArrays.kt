@@ -2478,7 +2478,7 @@ object KSLArrays {
      * Constructs an array that holds the indices of the items in the data in their sort order.
      * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
      * are zero-based.
-     * 
+     *
      * @param data the data to sort
      * @return the indices of the original items indicating the sort order
      */
