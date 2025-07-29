@@ -17,6 +17,10 @@ class RSpline(
     name: String? = null
 ) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
+    init {
+        require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
+    }
+    
     /**
      *  Save the input variable granularity values for repeated processing
      */
