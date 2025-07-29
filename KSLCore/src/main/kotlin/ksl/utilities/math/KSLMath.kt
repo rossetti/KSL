@@ -298,8 +298,8 @@ object KSLMath {
      *
      * For example,
      *
-     * mround(3.1459, granularity = 0.25) = 3.25
-     * mround(3.0459, granularity = 0.25) = 3.0
+     * gRound(3.1459, granularity = 0.25) = 3.25
+     * gRound(3.0459, granularity = 0.25) = 3.0
      *
      * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
      * for further information.
@@ -308,7 +308,7 @@ object KSLMath {
      * @param granularity a scalar Double
      * @return x rounded to granularity
      */
-    fun mround(x: Double, granularity: Double): Double {
+    fun gRound(x: Double, granularity: Double): Double {
         // interpret 0 as "no rounding"
         return if (granularity.compareTo(0.0) < 1) {
             x

@@ -2217,8 +2217,7 @@ object KSLArrays {
 
     /**
      * contributed by Andrew Gibson
-     * round the 1D array x  to a multiple of granularity (double[])
-     * note that 0 or null granularity values are interpreted as "no rounding"
+     * round the 1D array x to a multiple of granularity (double[])
      *
      * @param x           - the input
      * @param granularity - the granularity to which to round x
@@ -2226,17 +2225,13 @@ object KSLArrays {
      */
     @JvmStatic
     @Suppress("unused")
-    fun mround(x: DoubleArray, granularity: DoubleArray?): DoubleArray {
-        return if (granularity == null) {
-            x
-        } else {
-            require(x.size == granularity.size) { "x array and granularity array have different lengths" }
-            val res = DoubleArray(x.size)
-            for (i in x.indices) {
-                res[i] = KSLMath.mround(x[i], granularity[i])
-            }
-            res
+    fun gRound(x: DoubleArray, granularity: DoubleArray): DoubleArray {
+        require(x.size == granularity.size) { "x array and granularity array have different lengths" }
+        val res = DoubleArray(x.size)
+        for (i in x.indices) {
+            res[i] = KSLMath.gRound(x[i], granularity[i])
         }
+        return res
     }
 
     /**
@@ -2251,8 +2246,8 @@ object KSLArrays {
      *
      * For example,
      *
-     * mround(3.1459, granularity = 0.25) = 3.25
-     * mround(3.0459, granularity = 0.25) = 3.0
+     * gRound(3.1459, granularity = 0.25) = 3.25
+     * gRound(3.0459, granularity = 0.25) = 3.0
      *
      * See this stack overflow [post](https://stackoverflow.com/questions/10540341/java-function-to-preserve-the-granularity)
      * for further information.
@@ -2262,10 +2257,9 @@ object KSLArrays {
      */
     @JvmStatic
     @Suppress("unused")
-    fun mround(x: DoubleArray, granularity: Double): DoubleArray {
-        val gr = DoubleArray(x.size)
-        Arrays.fill(gr, granularity)
-        return mround(x, gr)
+    fun gRound(x: DoubleArray, granularity: Double): DoubleArray {
+        val gr = DoubleArray(x.size) { granularity }
+        return gRound(x, gr)
     }
 
     /**
@@ -2484,7 +2478,26 @@ object KSLArrays {
      */
     @JvmStatic
     @Suppress("unused")
-    fun sortedIndices(data: DoubleArray) : IntArray {
+    fun sortIndices(data: DoubleArray): IntArray {
+        // Pair each element with its original index
+        val indexedArray = data.mapIndexed { index, value -> Pair(value, index) }
+        // Sort the pairs based on the element's value
+        val sortedIndexedArray = indexedArray.sortedBy { it.first }
+        // Extract the original indices from the sorted pairs
+        return sortedIndexedArray.map { it.second }.toIntArray()
+    }
+
+    /**
+     * Constructs an array that holds the indices of the items in the data in their sort order.
+     * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
+     * are zero-based.
+     *
+     * @param data the data to sort
+     * @return the indices of the original items indicating the sort order
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun sortIndices(data: IntArray): IntArray {
         // Pair each element with its original index
         val indexedArray = data.mapIndexed { index, value -> Pair(value, index) }
         // Sort the pairs based on the element's value
@@ -4546,7 +4559,7 @@ fun List<Double>.chebyshevDistance(b: List<Double>): Double {
  *  Returns a list holding the indices of the sorted items in the array
  */
 @Suppress("unused")
-fun <T : Comparable<T>> Array<T>.sortedIndices(): List<Int> {
+fun <T : Comparable<T>> Array<T>.sortIndices(): List<Int> {
     // Pair each element with its original index
     val indexedArray = this.mapIndexed { index, value -> Pair(value, index) }
 
@@ -4555,4 +4568,43 @@ fun <T : Comparable<T>> Array<T>.sortedIndices(): List<Int> {
 
     // Extract the original indices from the sorted pairs
     return sortedIndexedArray.map { it.second }
+}
+
+/**
+ *  Returns a list holding the indices of the sorted items in the list
+ */
+@Suppress("unused")
+fun <T : Comparable<T>> List<T>.sortIndices(): List<Int> {
+    // Pair each element with its original index
+    val indexedArray = this.mapIndexed { index, value -> Pair(value, index) }
+
+    // Sort the pairs based on the element's value
+    val sortedIndexedArray = indexedArray.sortedBy { it.first }
+
+    // Extract the original indices from the sorted pairs
+    return sortedIndexedArray.map { it.second }
+}
+
+/**
+ * Constructs an array that holds the indices of the items in the data in their sort order.
+ * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
+ * are zero-based.
+ *
+ * @return the indices of the original items indicating the sort order
+ */
+@Suppress("unused")
+fun DoubleArray.sortIndices(): IntArray {
+    return KSLArrays.sortIndices(this)
+}
+
+/**
+ * Constructs an array that holds the indices of the items in the data in their sort order.
+ * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
+ * are zero-based.
+ *
+ * @return the indices of the original items indicating the sort order
+ */
+@Suppress("unused")
+fun IntArray.sortIndices(): IntArray {
+    return KSLArrays.sortIndices(this)
 }
