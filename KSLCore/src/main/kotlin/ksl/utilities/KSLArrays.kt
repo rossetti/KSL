@@ -2474,15 +2474,20 @@ object KSLArrays {
      * are zero-based.
      *
      * @param data the data to sort
+     * @param descending if true, the sort will be descending rather than ascending. The default is false (ascending).
      * @return the indices of the original items indicating the sort order
      */
     @JvmStatic
     @Suppress("unused")
-    fun sortIndices(data: DoubleArray): IntArray {
+    fun sortIndices(data: DoubleArray, descending: Boolean = false): IntArray {
         // Pair each element with its original index
         val indexedArray = data.mapIndexed { index, value -> Pair(value, index) }
         // Sort the pairs based on the element's value
-        val sortedIndexedArray = indexedArray.sortedBy { it.first }
+        val sortedIndexedArray = if (descending) {
+            indexedArray.sortedByDescending { it.first }
+        } else {
+            indexedArray.sortedBy { it.first }
+        }
         // Extract the original indices from the sorted pairs
         return sortedIndexedArray.map { it.second }.toIntArray()
     }
@@ -2493,15 +2498,20 @@ object KSLArrays {
      * are zero-based.
      *
      * @param data the data to sort
+     * @param descending if true, the sort will be descending rather than ascending. The default is false (ascending).
      * @return the indices of the original items indicating the sort order
      */
     @JvmStatic
     @Suppress("unused")
-    fun sortIndices(data: IntArray): IntArray {
+    fun sortIndices(data: IntArray, descending: Boolean = false): IntArray {
         // Pair each element with its original index
         val indexedArray = data.mapIndexed { index, value -> Pair(value, index) }
         // Sort the pairs based on the element's value
-        val sortedIndexedArray = indexedArray.sortedBy { it.first }
+        val sortedIndexedArray = if (descending) {
+            indexedArray.sortedByDescending { it.first }
+        } else {
+            indexedArray.sortedBy { it.first }
+        }
         // Extract the original indices from the sorted pairs
         return sortedIndexedArray.map { it.second }.toIntArray()
     }
@@ -4572,14 +4582,19 @@ fun <T : Comparable<T>> Array<T>.sortIndices(): List<Int> {
 
 /**
  *  Returns a list holding the indices of the sorted items in the list
+ * @param descending if true, the sort will be descending rather than ascending. The default is false (ascending).
  */
 @Suppress("unused")
-fun <T : Comparable<T>> List<T>.sortIndices(): List<Int> {
+fun <T : Comparable<T>> List<T>.sortIndices(descending: Boolean = false): List<Int> {
     // Pair each element with its original index
     val indexedArray = this.mapIndexed { index, value -> Pair(value, index) }
 
     // Sort the pairs based on the element's value
-    val sortedIndexedArray = indexedArray.sortedBy { it.first }
+    val sortedIndexedArray = if (descending) {
+        indexedArray.sortedByDescending { it.first }
+    } else {
+        indexedArray.sortedBy { it.first }
+    }
 
     // Extract the original indices from the sorted pairs
     return sortedIndexedArray.map { it.second }
@@ -4589,22 +4604,22 @@ fun <T : Comparable<T>> List<T>.sortIndices(): List<Int> {
  * Constructs an array that holds the indices of the items in the data in their sort order.
  * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
  * are zero-based.
- *
+ * @param descending if true, the sort will be descending rather than ascending. The default is false (ascending).
  * @return the indices of the original items indicating the sort order
  */
 @Suppress("unused")
-fun DoubleArray.sortIndices(): IntArray {
-    return KSLArrays.sortIndices(this)
+fun DoubleArray.sortIndices(descending: Boolean = false): IntArray {
+    return KSLArrays.sortIndices(this, descending)
 }
 
 /**
  * Constructs an array that holds the indices of the items in the data in their sort order.
  * Example: If the array is [2,3,1,4,5], then [2,0,1,3,4] is returned. Recall that indices
  * are zero-based.
- *
+ * @param descending if true, the sort will be descending rather than ascending. The default is false (ascending).
  * @return the indices of the original items indicating the sort order
  */
 @Suppress("unused")
-fun IntArray.sortIndices(): IntArray {
-    return KSLArrays.sortIndices(this)
+fun IntArray.sortIndices(descending: Boolean = false): IntArray {
+    return KSLArrays.sortIndices(this, descending)
 }
