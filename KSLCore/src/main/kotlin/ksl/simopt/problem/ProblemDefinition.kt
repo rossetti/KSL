@@ -149,6 +149,18 @@ class ProblemDefinition @JvmOverloads constructor(
     val inputDefinitionList: List<InputDefinition>
         get() = myInputDefinitions.values.toList()
 
+    /**
+     *  A problem definition is considered integer-ordered if its input
+     *  variables are all integer-ordered.
+     */
+    val isIntegerOrdered: Boolean
+        get() {
+            for(definition in myInputDefinitions.values) {
+                if(!definition.isIntegerOrdered) return false
+            }
+            return true
+        }
+
     private val myLinearConstraints = mutableListOf<LinearConstraint>()
 
     /**
