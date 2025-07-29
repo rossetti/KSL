@@ -111,4 +111,15 @@ fun main() {
     for((i, v) in vertices.withIndex()) {
         println("v$i = ${v.contentToString()}")
     }
+
+    println()
+    val zList = z.toMutableList()
+    zList.add(0, 1.0)
+    zList.add(0.0)
+    println("zList = ${zList.joinToString()}")
+    println()
+    for(i in 0..z.size) {
+        val w = zList[i] - zList[i+1]
+        println("w = $w")
+    }
 }
