@@ -67,7 +67,7 @@ class InputDefinition(
 
     /**
      *  The specified granularity indicates the acceptable precision for the variable's value
-     *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
+     *  with respect to decision-making. If the granularity is 0, then no rounding will be applied
      *  when evaluating the variable. Granularity defines the level of precision for an input variable
      *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
      *  will attempt to find a solution to the level of machine precision. For any positive granularity value,
