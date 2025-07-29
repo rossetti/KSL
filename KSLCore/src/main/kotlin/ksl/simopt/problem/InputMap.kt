@@ -83,7 +83,7 @@ class InputMap internal constructor(
     /**
      *  Perturbs the input values away from the granularity grid by a random factor
      *  based on a percentage of the granularity. The returned array is not limited to
-     *  the granularity of the inputs.
+     *  the granularity of the inputs and may not be input feasible.
      *
      *  @param perturbationFactor the perturbation factor. Must be a number in (0.0, 1.0)
      *  @param rnStream the stream to use for randomizing the perturbation
