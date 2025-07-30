@@ -178,7 +178,7 @@ class CrossEntropySolver @JvmOverloads constructor(
             return
         }
         // At least one result, so proceed with processing.
-        // Process the results to find the elites, this should fill myElites.
+        // Process the results to find the elites. This should fill myElites.
         myEliteSolutions = findEliteSolutions(results)
         // convert elite solutions to points
         val elitePoints = extractSolutionInputPoints(myEliteSolutions)
