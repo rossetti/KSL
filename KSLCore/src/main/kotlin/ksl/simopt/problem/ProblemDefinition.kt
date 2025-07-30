@@ -561,6 +561,22 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Translates the supplied list of arrays to a set of named input pairs (name, value).
+     *  Assumes that the order of the array elements is the same as the order of the defined names for the problem.
+     *  If the supplied value is outside the range of the name variable, it is adjusted to the closest
+     *  boundary. In addition, the granularity of the input variable is applied.
+     *  @param x the supplied array.
+     */
+    @Suppress("unused")
+    fun convertPointsToInputs(points: List<DoubleArray>): Set<InputMap> {
+        val inputs = mutableSetOf<InputMap>()
+        for (point in points) {
+            inputs.add(toInputMap(point))
+        }
+        return inputs
+    }
+
+    /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
      *  If the supplied value is outside the range of the name variable, it is adjusted to the closest
