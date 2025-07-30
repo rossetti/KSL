@@ -578,6 +578,26 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Filters the supplied list of arrays to a set of input maps that are input feasible. Each
+     *  array is checked if it is input-feasible [isInputFeasible] and if so added to the resulting
+     *  returned set.
+     *  
+     *  Assumes that the order of the array elements is the same as the order of the defined names for the problem.
+     *  @param points the supplied list of arrays to filter.
+     *  @return a set of InputMap instances representing the feasible points
+     */
+    @Suppress("unused")
+    fun filterToFeasibleInputs(points: List<DoubleArray>): Set<InputMap> {
+        val inputs = mutableSetOf<InputMap>()
+        for (point in points) {
+            if (isInputFeasible(point)) {
+                inputs.add(toInputMap(point))
+            }
+        }
+        return inputs
+    }
+
+    /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
      *  NOTE!!: If the supplied value is outside the range of the name variable, it is adjusted to the closest
