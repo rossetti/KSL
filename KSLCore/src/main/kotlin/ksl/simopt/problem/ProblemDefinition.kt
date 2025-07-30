@@ -563,9 +563,10 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  Translates the supplied list of arrays to a set of named input pairs (name, value).
      *  Assumes that the order of the array elements is the same as the order of the defined names for the problem.
-     *  If the supplied value is outside the range of the name variable, it is adjusted to the closest
+     *  NOTE!!: If the supplied value is outside the range of the name variable, it is adjusted to the closest
      *  boundary. In addition, the granularity of the input variable is applied.
-     *  @param x the supplied array.
+     *  @param points the supplied list of arrays to translate.
+     *  @return a set of InputMap instances representing the points
      */
     @Suppress("unused")
     fun convertPointsToInputs(points: List<DoubleArray>): Set<InputMap> {
