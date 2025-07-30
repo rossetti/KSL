@@ -1123,7 +1123,7 @@ object KSLArrays {
     }
 
     /**
-     * The array must not be null.
+     * The array must not be empty.
      *
      * @param array the input array. Cannot be empty.
      * @return the sum of the squares for the elements of the array
@@ -1137,6 +1137,36 @@ object KSLArrays {
             sum = sum + v * v
         }
         return sum
+    }
+
+    /**
+     * The array must not be empty. Computes the square root for
+     * the sum of squares for the array.
+     *
+     * @param array the input array. Cannot be empty.
+     * @return the Euclidean norm of the array
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun euclideanNorm(array: DoubleArray): Double {
+        return sqrt(sumOfSquares(array))
+    }
+
+    /**
+     * The array must not be empty. Normalizes the array to have length 1.
+     * The resulting array has unit length but the same direction as the original
+     * array. This is the array divided by its Euclidean norm. The array
+     * must not be empty. Its Euclidean norm cannot be zero.
+     *
+     * @param array the input array. Cannot be empty.
+     * @return the normalized array
+     */
+    @JvmStatic
+    @Suppress("unused")
+    fun normalize(array: DoubleArray): DoubleArray {
+        val norm = euclideanNorm(array)
+        require(norm > 0.0) {"The Euclidean norm must be greater than zero" }
+        return divideConstant(array, norm)
     }
 
     /**
@@ -1188,7 +1218,7 @@ object KSLArrays {
     }
 
     /**
-     * Adds the two arrays element by element. Arrays must have the same length and must not be null.
+     * Adds the two arrays, element by element. Arrays must have the same length and must not be null.
      *
      * @param a the first array
      * @param b the second array
@@ -3852,7 +3882,32 @@ fun DoubleArray.sumOfSquares(): Double {
 }
 
 /**
- * The array must not be null
+ * The array must not be empty. Computes the square root for
+ * the sum of squares for the array.
+ *
+ * @return the Euclidean norm of the array
+ */
+@Suppress("unused")
+fun DoubleArray.euclideanNorm(): Double {
+    return KSLArrays.euclideanNorm(this)
+}
+
+/**
+ * The array must not be empty. Normalizes the array to have length 1.
+ * The resulting array has unit length but the same direction as the original
+ * array. This is the array divided by its Euclidean norm. The array
+ * must not be empty. Its Euclidean norm cannot be zero.
+ *
+ * @return the normalized array
+ */
+@Suppress("unused")
+fun DoubleArray.normalize(): DoubleArray {
+    return KSLArrays.normalize(this)
+}
+
+
+/**
+ * The array must not be empty
  *
  * @return the sum of the square roots for the elements of the array
  */

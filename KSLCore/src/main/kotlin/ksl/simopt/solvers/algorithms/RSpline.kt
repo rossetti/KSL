@@ -27,6 +27,8 @@ class RSpline(
     }
 
     private data class PWLFunction(val value: Double, val gradient: DoubleArray?) {
+
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -46,14 +48,12 @@ class RSpline(
         }
     }
 
-    // private class SimplexInputMap(val inputs: InputMap, weight: Double)
-
     private fun piecewiseLinearInterpolation(
         point: DoubleArray,
         sampleSize: Int
     ): PWLFunction {
         // determine the next simplex
-        val simplex = piecewiseLinearSimplex(point)
+        val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
         val feasibleInputs = filterToFeasibleInputs(simplex)
         // the feasible input is mapped to the vertex's weight in the simplex
@@ -85,8 +85,11 @@ class RSpline(
             return PWLFunction(interpolatedObjFnc, null)
         }
         // can compute the gradients
-
-        TODO("Not yet implemented")
+        val gradients = DoubleArray(sortedIndices.size)
+        for((i, indexValue) in sortedIndices.withIndex()){
+            gradients[indexValue] = solutions[i].penalizedObjFncValue - solutions[i-1].penalizedObjFncValue
+        }
+        return PWLFunction(interpolatedObjFnc, gradients)
     }
 
     private fun filterToFeasibleInputs(simplex: List<SimplexPoint>): Map<InputMap, Double> {
@@ -113,7 +116,7 @@ class RSpline(
          * @param point a non-integral point around which the simplex is to be formed
          * @return a pair (List<DoubleArray>, DoubleArray) that represent the simplex and the weights
          */
-        fun piecewiseLinearSimplex(point: DoubleArray): List<SimplexPoint> {
+        fun piecewiseLinearSimplex(point: DoubleArray): Pair<List<SimplexPoint>, IntArray> {
             require(point.isNotEmpty()) { "The points must not be empty!" }
             // vertices will hold the vertices of the simplex
             val vertices = mutableListOf<DoubleArray>()
@@ -157,7 +160,7 @@ class RSpline(
             for ((i, vertex) in vertices.withIndex()) {
                 simplex.add(SimplexPoint(vertex, w[i]))
             }
-            return simplex
+            return Pair(simplex, zSortedIndices)
         }
     }
 
@@ -166,7 +169,7 @@ class RSpline(
 fun main() {
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
-    val simplex = RSpline.piecewiseLinearSimplex(x)
+    val (simplex, sortedIndices) = RSpline.piecewiseLinearSimplex(x)
     for ((i, point) in simplex.withIndex()) {
         println("w[$i] = ${point.weight} vertex = ${point.vertex.contentToString()}")
     }
