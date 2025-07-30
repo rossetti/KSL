@@ -176,7 +176,7 @@ data class Solution(
         }
 
     /**
-     *  Tests if each response constraint is feasible.  If all test feasible, then the
+     *  Tests if each response constraint is feasible.  If all tests are feasible, then the
      *  solution is considered response feasible.
      *
      *  @param overallCILevel the overall confidence across all response constraints.
