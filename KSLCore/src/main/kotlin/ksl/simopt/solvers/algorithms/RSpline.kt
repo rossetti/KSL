@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -20,11 +21,6 @@ class RSpline(
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
     }
-    
-    /**
-     *  Save the input variable granularity values for repeated processing
-     */
-    private val granularities = problemDefinition.inputGranularities
 
     override fun mainIteration() {
         TODO("Not yet implemented")
@@ -50,43 +46,90 @@ class RSpline(
         }
     }
 
-//    private class Simplex(dimension: Int) {
-//        val vertices: List<DoubleArray>
-//        init {
-//
-//        }
-//        val weights: DoubleArray = DoubleArray(vertices.size)
-//        fun setVertex(vertex:Int, values: DoubleArray) {
-//            for(i in vertices[vertex].indices){
-//                vertices[vertex][i] = values[i]
-//            }
-//        }
-//    }
-
     private fun piecewiseLinearInterpolation(
         point: DoubleArray,
         sampleSize: Int
     ): PWLFunction {
-        // hold the vertices
-        val vertices = mutableListOf<DoubleArray>()
-        // get the granular vertex associated with the general non-granular point
-        val x0 = KSLArrays.gRound(point, granularities)
-        vertices.add(x0)
-        // need to make the d other vertices of the simplex
-        // get the fractional part
-        val z = DoubleArray(point.size) { point[it] - x0[it] }
-        val zSortedIndices = z.sortIndices(descending = true)
+        // determine the next simplex
+        val (vertices, weights) = piecewiseLinearSimplex(point)
 
         TODO("Not yet implemented")
     }
 
-    private fun constructSimplex(point: DoubleArray) {
-
+    private fun convertVertices(vertices: List<DoubleArray>): Set<InputMap> {
+        val result = mutableSetOf<InputMap>()
+        for (v in vertices) {
+            result.add(problemDefinition.toInputMap(v))
+        }
+        return result
     }
+
+    companion object {
+
+        /**
+         * Determines a piecewise-linear simple consisting of d + 1 vertices, where d is
+         * the size of the point. The simplex is formed around the supplied point, and the
+         * weights are such that the vertices form a convex combination of the vertices who
+         * convex hull contains the supplied point
+         *
+         * @param point a non-integral point around which the simplex is to be formed
+         * @return a pair (List<DoubleArray>, DoubleArray) that represent the simplex and the weights
+         */
+        fun piecewiseLinearSimplex(point: DoubleArray) : Pair<List<DoubleArray>, DoubleArray> {
+            require(point.isNotEmpty()) { "The points must not be empty!" }
+            // vertices will hold the vertices of the simplex
+            val vertices = mutableListOf<DoubleArray>()
+            // Get the first vertex by taking the integer floor of the offered point
+            val x0 = DoubleArray(point.size) { floor(point[it]) }
+            vertices.add(x0)
+            // compute the fractional parts of the offered point
+            val z = DoubleArray(point.size) { point[it] - x0[it] }
+            // get the ordered indices to form the convex hull
+            val zSortedIndices = z.sortIndices(descending = true)
+            // the list of arrays holds the unit vectors that are used to form the vertices
+            val e = mutableListOf<DoubleArray>()
+            for ((index, value) in zSortedIndices.withIndex()) {
+                val ei = DoubleArray(z.size)
+                // assign 1 according to the next largest fractional part
+                ei[zSortedIndices[index]] = 1.0
+                e.add(ei)
+            }
+            // construct the vertices by adding 1 to the component with the next
+            // largest fractional part
+            var np = x0
+            for (array in e) {
+                val nx = KSLArrays.addElements(np, array)
+                np = nx
+                vertices.add(nx)
+            }
+            // the vertices are now constructed, compute the weights
+            // augment the fractional array with 1 and 0
+            val zList = z.toMutableList()
+            zList.add(0, 1.0)
+            zList.add(0.0)
+            // compute the weights, one for each vertex
+            val w = DoubleArray(z.size + 1) { 0.0 }
+            for (i in 0..z.size) {
+                w[i] = zList[i] - zList[i + 1]
+            }
+            return Pair(vertices, w)
+        }
+    }
+
 }
 
 fun main() {
-    val g = doubleArrayOf(1.0, 1.0, 1.0)
+    val x = doubleArrayOf(1.8, 2.3, 3.6)
+    println("x = ${x.contentToString()}")
+    val (vertices, weights) = RSpline.piecewiseLinearSimplex(x)
+    for ((i, v) in vertices.withIndex()) {
+        println("v$i = ${v.contentToString()}")
+    }
+    println()
+    println("weights = ${weights.contentToString()}")
+}
+
+fun tempTesting(){
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
     val vertices = mutableListOf<DoubleArray>()
@@ -99,20 +142,20 @@ fun main() {
     val zSortedIndices = z.sortIndices(descending = true)
     println("zSortedIndices = ${zSortedIndices.contentToString()}")
     val e = mutableListOf<DoubleArray>()
-    for((index,value) in zSortedIndices.withIndex()) {
+    for ((index, value) in zSortedIndices.withIndex()) {
         val ei = DoubleArray(z.size)
         ei[zSortedIndices[index]] = 1.0
         println("e$index = ${ei.contentToString()}")
         e.add(ei)
     }
     var np = x0
-    for(array in e) {
+    for (array in e) {
         val nx = KSLArrays.addElements(np, array)
         np = nx
         vertices.add(nx)
     }
     println()
-    for((i, v) in vertices.withIndex()) {
+    for ((i, v) in vertices.withIndex()) {
         println("v$i = ${v.contentToString()}")
     }
 
@@ -122,9 +165,10 @@ fun main() {
     zList.add(0.0)
     println("zList = ${zList.joinToString()}")
     println()
-    for(i in 0..z.size) {
-        val w = zList[i] - zList[i+1]
-        println("w = $w")
+    val w = DoubleArray(z.size + 1) { 0.0 }
+    for (i in 0..z.size) {
+        w[i] = zList[i] - zList[i + 1]
+        println("w[$i] = ${w[i]}")
     }
 }
 /*

@@ -2,7 +2,6 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
-import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.distributions.Normal
@@ -170,7 +169,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         // Generate the cross-entropy sample population
         val points = ceSampler.sample(sampleSize())
         // Convert the points to be able to evaluate.
-        val inputs = convertPointsToInputs(points)
+        val inputs = problemDefinition.convertPointsToInputs(points)
         // request evaluations for solutions
         val results = requestEvaluations(inputs)
         if (results.isEmpty()) {
@@ -182,7 +181,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         // Process the results to find the elites, this should fill myElites.
         myEliteSolutions = findEliteSolutions(results)
         // convert elite solutions to points
-        val elitePoints = convertSolutionsToPoints(myEliteSolutions)
+        val elitePoints = extractSolutionInputPoints(myEliteSolutions)
         // update the sampler's parameters
         ceSampler.updateParameters(elitePoints)
         // specify the current solution
@@ -225,22 +224,6 @@ class CrossEntropySolver @JvmOverloads constructor(
         return true
     }
 
-    private fun convertPointsToInputs(points: List<DoubleArray>): Set<InputMap> {
-        val inputs = mutableSetOf<InputMap>()
-        for (point in points) {
-            inputs.add(problemDefinition.toInputMap(point))
-        }
-        return inputs
-    }
-
-    private fun convertSolutionsToPoints(solutions: List<Solution>): List<DoubleArray> {
-        val points = mutableListOf<DoubleArray>()
-        for (solution in solutions) {
-            points.add(solution.inputMap.inputValues)
-        }
-        return points
-    }
-
     private fun findEliteSolutions(results: List<Solution>): MutableList<Solution> {
         return results.sorted().take(eliteSize()).toMutableList()
     }
@@ -258,6 +241,20 @@ class CrossEntropySolver @JvmOverloads constructor(
     }
 
     companion object {
+
+        /**
+         *  Extracts the supplied solutions to a list that contains the input points
+         *  associated with each solution.
+         *  @param solutions the list of solutions to convert
+         *  @return the extracted input points
+         */
+        fun extractSolutionInputPoints(solutions: List<Solution>): List<DoubleArray> {
+            val points = mutableListOf<DoubleArray>()
+            for (solution in solutions) {
+                points.add(solution.inputMap.inputValues)
+            }
+            return points
+        }
 
         /**
          *  Based on the theory in See [Chen and Kelton (1999)](https://dl.acm.org/doi/pdf/10.1145/324138.324272),
