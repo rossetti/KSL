@@ -52,6 +52,7 @@ class RSpline(
     ): PWLFunction {
         // determine the next simplex
         val (vertices, weights) = piecewiseLinearSimplex(point)
+        //TODO the vertices might not be feasible
         val inputs = problemDefinition.convertPointsToInputs(vertices)
         // request evaluations for solutions
         val results = requestEvaluations(inputs)
