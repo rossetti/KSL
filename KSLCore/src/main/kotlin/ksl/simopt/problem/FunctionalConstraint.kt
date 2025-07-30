@@ -73,8 +73,4 @@ class FunctionalConstraint(
         return computeLHS(values) < ltRHSValue
     }
 
-    fun computeLHS(values: DoubleArray): Double {
-
-    }
-
 }

@@ -70,7 +70,7 @@ data class LinearConstraint(
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied values for each input variable in the equation.  The returned value
      *  has been adjusted to ensure a less-than constraint orientation.
      *
@@ -85,12 +85,12 @@ data class LinearConstraint(
             require(equation.containsKey(name)) { "The supplied input name ($name) does not exist in the equation)" }
             sum = sum + value * equation[name]!!
         }
-        //coefficients don't have inequality factor applied, need to apply to entire LHS
+        //coefficients don't have the inequality factor applied, need to apply to entire LHS
         return sum * inequalityFactor
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied values for each input variable in the equation. Assumes that the values
      *  are ordered in the same order as the input names. The returned value
      *  has been adjusted to ensure a less-than constraint orientation.
@@ -106,12 +106,12 @@ data class LinearConstraint(
         for ((i, v) in values.withIndex()) {
             sum = sum + c[i] * v
         }
-        //coefficients don't have inequality factor applied, need to apply to entire LHS
+        //coefficients don't have the inequality factor applied, need to apply to entire LHS
         return sum * inequalityFactor
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied inputs for each input variable in the equation and checks if the constraint is satisfied.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
@@ -122,12 +122,13 @@ data class LinearConstraint(
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied values for each input variable in the equation and checks if the constraint is satisfied.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
      *  @return true if the constraint is satisfied, false otherwise.
      */
+    @Suppress("unused")
     fun isSatisfied(values: DoubleArray): Boolean {
         return computeLHS(values) < ltRHSValue
     }
@@ -141,6 +142,7 @@ data class LinearConstraint(
      *  in the equation, then the coefficient is considered 0.0
      *  @return an array of coefficients, one for each supplied name.
      */
+    @Suppress("unused")
     fun coefficients(inputNames: List<String>): DoubleArray {
         val coefficients = mutableListOf<Double>()
         for (name in inputNames) {
