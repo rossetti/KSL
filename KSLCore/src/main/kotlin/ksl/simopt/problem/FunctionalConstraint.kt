@@ -50,7 +50,7 @@ class FunctionalConstraint(
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied values for each input variable in the equation.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair.
@@ -63,7 +63,7 @@ class FunctionalConstraint(
     }
 
     /**
-     *  Computes the value of the left-hand side of the constraint based on the
+     *  Computes the value of the left-hand side for the constraint based on the
      *  supplied values for each input variable in the equation and checks if the constraint is satisfied.
      *
      *  @param values the map containing the input variable name and the current value of the input variable as a pair
