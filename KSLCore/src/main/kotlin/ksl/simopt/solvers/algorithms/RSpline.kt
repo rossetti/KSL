@@ -46,7 +46,7 @@ class RSpline(
         }
     }
 
-   // private class SimplexInputMap(val inputs: InputMap, weight: Double)
+    // private class SimplexInputMap(val inputs: InputMap, weight: Double)
 
     private fun piecewiseLinearInterpolation(
         point: DoubleArray,
@@ -61,14 +61,30 @@ class RSpline(
             // no feasible points to evaluate
             return PWLFunction(Double.POSITIVE_INFINITY, null)
         }
-        //TODO this needs to be via CRN
+        //TODO this needs to be via CRN and use the specified sample size
         // request evaluations for solutions
         val results = requestEvaluations(feasibleInputs.keys)
         if (results.isEmpty()) {
             // No solutions returned
             return PWLFunction(Double.POSITIVE_INFINITY, null)
         }
+        // compute the interpolated objective function value
+        var interpolatedObjFnc = 0.0
+        var wSum = 0.0
+        for (solution in results) {
+            val weight = feasibleInputs[solution.inputMap]!!
+            wSum = wSum + weight
+            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
+        }
+        if (wSum <= 0.0){
+            return PWLFunction(Double.POSITIVE_INFINITY, null)
+        }
+        interpolatedObjFnc = interpolatedObjFnc/wSum
         // The simplex may be missing infeasible vertices. This means that the gradient cannot be computed.
+        if (solutions.size < simplex.size){
+            return PWLFunction(interpolatedObjFnc, null)
+        }
+        // can compute the gradients
 
         TODO("Not yet implemented")
     }
@@ -126,8 +142,11 @@ class RSpline(
             }
             // the vertices are now constructed, compute the weights
             // augment the fractional array with 1 and 0
-            val zList = z.toMutableList()
+            val zList = mutableListOf<Double>()
             zList.add(0, 1.0)
+            for (index in zSortedIndices) {
+                zList.add(z[index])
+            }
             zList.add(0.0)
             // compute the weights, one for each vertex
             val w = DoubleArray(z.size + 1) { 0.0 }
