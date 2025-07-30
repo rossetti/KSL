@@ -98,7 +98,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         }
 
     /**
-     * This value is used as a termination threshold for the largest number of iterations during which no
+     * This value is used as a termination threshold for the largest number of iterations, during which no
      * improvement of the best function value is found. By default, set to 5, which can be controlled
      * globally via the companion object's [defaultNoImproveThreshold]
      */
@@ -174,7 +174,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         val results = requestEvaluations(inputs)
         if (results.isEmpty()) {
             // Returning will cause no updating on this iteration.
-            // New points will be generated for another try on next iteration.
+            // New points will be generated for another try on the next iteration.
             return
         }
         // At least one result, so proceed with processing.
@@ -348,7 +348,7 @@ class CrossEntropySolver @JvmOverloads constructor(
             }
 
         /**
-         * This value is used as the default termination threshold for the largest number of iterations during which no
+         * This value is used as the default termination threshold for the largest number of iterations, during which no
          * improvement of the best function value is found. By default, set to 5.
          */
         @JvmStatic
