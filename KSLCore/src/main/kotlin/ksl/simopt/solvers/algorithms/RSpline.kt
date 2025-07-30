@@ -52,16 +52,15 @@ class RSpline(
     ): PWLFunction {
         // determine the next simplex
         val (vertices, weights) = piecewiseLinearSimplex(point)
-
-        TODO("Not yet implemented")
-    }
-
-    private fun convertVertices(vertices: List<DoubleArray>): Set<InputMap> {
-        val result = mutableSetOf<InputMap>()
-        for (v in vertices) {
-            result.add(problemDefinition.toInputMap(v))
+        val inputs = problemDefinition.convertPointsToInputs(vertices)
+        // request evaluations for solutions
+        val results = requestEvaluations(inputs)
+        if (results.isEmpty()) {
+            // Returning will cause no updating on this iteration.
+            // New points will be generated for another try on next iteration.
+            TODO()
         }
-        return result
+        TODO("Not yet implemented")
     }
 
     companion object {

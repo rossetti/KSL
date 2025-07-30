@@ -579,9 +579,11 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
-     *  If the supplied value is outside the range of the name variable, it is adjusted to the closest
-     *  boundary. In addition, the granularity of the input variable is applied.
+     *  NOTE!!: If the supplied value is outside the range of the name variable, it is adjusted to the closest
+     *  boundary. In addition, the granularity of the input variable is applied. Thus, the returned
+     *  input map will be input-range-feasible after this conversion process.
      *  @param x the supplied array.
+     *  @return the array mapped to an InputMap
      */
     fun toInputMap(x: DoubleArray): InputMap {
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
@@ -596,6 +598,23 @@ class ProblemDefinition @JvmOverloads constructor(
             }
         }
         return InputMap(this, map)
+    }
+
+    /**
+     *  Translates the supplied array to named input pairs (name, value).
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *  NOTE!!: No adjustment of the value is performed
+     *  @param point the supplied array.
+     *  @return a map with each point value labeled with the appropriate input name
+     */
+    @Suppress("unused")
+    fun toMap(point: DoubleArray): Map<String, Double> {
+        require(point.size == myInputDefinitions.size) { "The size of the input array is ${point.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        val map = mutableMapOf<String, Double>()
+        for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
+            map[inputDefinition.name] = point[i]
+        }
+        return map
     }
 
     /**
@@ -617,6 +636,20 @@ class ProblemDefinition @JvmOverloads constructor(
             }
         }
         return true
+    }
+
+    /**
+     *  Checks if the array's elements are within the defined input ranges for each input variable.
+     *
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *  @param point the point to check for input-range-feasibility. The size of the array must
+     *  be equal to the number of input variables.
+     *  @return true if each element of the array is within the defined input-range for its corresponding
+     *  named variable
+     */
+    @Suppress("unused")
+    fun isInputRangeFeasible(point: DoubleArray): Boolean {
+        return isInputRangeFeasible(toMap(point))
     }
 
     /**
@@ -642,6 +675,19 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Checks if the array's elements are feasible with respect to any linear constraints
+     *
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *  @param point the point to check for input-range-feasibility. The size of the array must
+     *  be equal to the number of input variables.
+     *  @return true if the array is feasible with respect to the problem's linear constraints
+     */
+    @Suppress("unused")
+    fun isLinearConstraintFeasible(point: DoubleArray): Boolean {
+        return isLinearConstraintFeasible(toMap(point))
+    }
+
+    /**
      *  Interprets the supplied map as inputs for the problem definition and
      *  returns true if the values are within functional constraints.
      *  False will be returned if at least one functional constraint is infeasible.
@@ -661,6 +707,19 @@ class ProblemDefinition @JvmOverloads constructor(
             }
         }
         return true
+    }
+
+    /**
+     *  Checks if the array's elements are feasible with respect to any functional constraints
+     *
+     *  Assumes that the order of the array is the same as the order of the defined names for the problem.
+     *  @param point the point to check for input-range-feasibility. The size of the array must
+     *  be equal to the number of input variables.
+     *  @return true if the array is feasible with respect to the problem's functional constraints
+     */
+    @Suppress("unused")
+    fun isFunctionalConstraintFeasible(point: DoubleArray): Boolean {
+        return isFunctionalConstraintFeasible(toMap(point))
     }
 
     /**
@@ -710,12 +769,13 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  The supplied input is considered input-feasible if it is feasible with respect to
      *  the defined input parameter ranges, the linear constraints, and the functional constraints.
-     *  @param x the input values as an array. The order is used to interpret the name.
+     *  @param point the input values as an array. The order is used to interpret the name.
      *  @return true if the inputs are input feasible
      */
     @Suppress("unused")
-    fun isInputFeasible(x: DoubleArray): Boolean {
-        return isInputFeasible(toInputMap(x))
+    fun isInputFeasible(point: DoubleArray): Boolean {
+        return isInputRangeFeasible(point) && isLinearConstraintFeasible(point)
+                && isFunctionalConstraintFeasible(point)
     }
 
     /**
