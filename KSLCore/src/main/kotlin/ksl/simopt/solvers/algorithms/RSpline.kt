@@ -52,7 +52,7 @@ class RSpline(
         point: DoubleArray,
         sampleSize: Int
     ): PWLFunction {
-        // determine the next simplex
+        // determine the next simplex based on the supplied point
         val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
         val feasibleInputs = filterToFeasibleInputs(simplex)
@@ -61,7 +61,7 @@ class RSpline(
             // no feasible points to evaluate
             return PWLFunction(Double.POSITIVE_INFINITY, null)
         }
-        //TODO this needs to be via CRN and use the specified sample size
+        //TODO this needs to be via CRN
         // request evaluations for solutions
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
@@ -114,7 +114,8 @@ class RSpline(
          * convex hull contains the supplied point
          *
          * @param point a non-integral point around which the simplex is to be formed
-         * @return a pair (List<DoubleArray>, DoubleArray) that represent the simplex and the weights
+         * @return a pair that represents the simplex vertices and their weights with the indices of
+         * the sorted fractional parts for the offered point
          */
         fun piecewiseLinearSimplex(point: DoubleArray): Pair<List<SimplexPoint>, IntArray> {
             require(point.isNotEmpty()) { "The points must not be empty!" }
