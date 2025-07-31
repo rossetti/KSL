@@ -1163,7 +1163,7 @@ object KSLArrays {
      */
     @JvmStatic
     @Suppress("unused")
-    fun normalize(array: DoubleArray): DoubleArray {
+    fun direction(array: DoubleArray): DoubleArray {
         val norm = euclideanNorm(array)
         require(norm > 0.0) {"The Euclidean norm must be greater than zero" }
         return divideConstant(array, norm)
@@ -3893,7 +3893,8 @@ fun DoubleArray.euclideanNorm(): Double {
 }
 
 /**
- * The array must not be empty. Normalizes the array to have length 1.
+ * The array must not be empty. Normalizes the array to have length 1 and
+ * representing the direction of the vector.
  * The resulting array has unit length but the same direction as the original
  * array. This is the array divided by its Euclidean norm. The array
  * must not be empty. Its Euclidean norm cannot be zero.
@@ -3901,10 +3902,9 @@ fun DoubleArray.euclideanNorm(): Double {
  * @return the normalized array
  */
 @Suppress("unused")
-fun DoubleArray.normalize(): DoubleArray {
-    return KSLArrays.normalize(this)
+fun DoubleArray.direction(): DoubleArray {
+    return KSLArrays.direction(this)
 }
-
 
 /**
  * The array must not be empty
@@ -3917,7 +3917,7 @@ fun DoubleArray.sumOfSquareRoots(): Double {
 }
 
 /**
- * Adds the two arrays element by element. Arrays must have the same length and must not be null.
+ * Adds the two arrays, element by element. Arrays must have the same length and must not be null.
  *
  * @param b the second array
  * @return the array containing a[i]+b[i]
