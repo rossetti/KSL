@@ -40,6 +40,9 @@ class RSpline(
     name: String? = null
 ) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
+    //TODO need to specify the FixedGrowthRateReplicationSchedule
+    // initial number of replications and growth rate
+
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
     }
