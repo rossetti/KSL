@@ -1,5 +1,13 @@
 package ksl.simopt.solvers
 
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
+
+/**
+ * Provides a replication schedule that has a constant number of replications.
+ *
+ * @param numReplications the fixed number of replications
+ */
 class FixedReplicationsPerEvaluation(
     numReplications: Int
 ) : ReplicationPerEvaluationIfc {

@@ -1,10 +1,13 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
+import ksl.simopt.solvers.NeighborhoodFinderIfc
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.direction
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.sortIndices
@@ -40,6 +43,35 @@ class RSpline(
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
     }
+
+    /**
+     *  The amount of the perturbation for Algorithm 4 in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     */
+    var perturbation: Double = defaultPerturbation
+        set(value) {
+            require((0.0 < value) && (value < 1.0)) { "The perturbation factor must be in (0,1)" }
+            field = value
+        }
+
+    var initialStepSize: Double = 2.0
+        set(value) {
+            require(value > 1.0) { "The initial step size must be > 1.0" }
+            field = value
+        }
+
+    var stepSizeMultiplier: Double = 2.0
+        set(value) {
+            require(value >= 1.0) { "The step multiplier must be >= 1.0" }
+            field = value
+        }
+
+    var neighborhoodFinder: NeighborhoodFinderIfc = problemDefinition.vonNeumannNeighborhoodFinder()
 
     override fun mainIteration() {
         TODO("Not yet implemented")
@@ -89,22 +121,54 @@ class RSpline(
             wSum = wSum + weight
             interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
         }
-        if (wSum <= 0.0){
+        if (wSum <= 0.0) {
             return Pair(Double.POSITIVE_INFINITY, null)
         }
-        interpolatedObjFnc = interpolatedObjFnc/wSum
+        interpolatedObjFnc = interpolatedObjFnc / wSum
         // The simplex may be missing infeasible vertices. This means that the gradient cannot be computed.
-        if (solutions.size < simplex.size){
+        if (solutions.size < simplex.size) {
             return Pair(interpolatedObjFnc, null)
         }
         // can compute the gradients
         val gradients = DoubleArray(sortedIndices.size)
-        for((i, indexValue) in sortedIndices.withIndex()){
-            gradients[indexValue] = solutions[i].penalizedObjFncValue - solutions[i-1].penalizedObjFncValue
+        for ((i, indexValue) in sortedIndices.withIndex()) {
+            gradients[indexValue] = solutions[i].penalizedObjFncValue - solutions[i - 1].penalizedObjFncValue
         }
         return Pair(interpolatedObjFnc, gradients)
     }
 
+    /**
+     *  This function represents Algorithm 4 Search Piecewise Linear Interpolation in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     * @param solution the initial solution for the line search
+     * @param sampleSize the number of replications to be associated with the simulation
+     * oracle evaluations associated with the simplex vertices
+     * @param the call limit for the oracle evaluations
+     * @return the solution found from the search
+     */
+    private fun lineSearch(
+        solution: Solution,
+        sampleSize: Int,
+        callLimit: Int
+    ): Solution {
+        val x0 = solution.inputMap.inputValues
+        //TODO its supposed to return n' as well as the solution
+
+        TODO("Not implemented yet")
+    }
+
+    /**
+     *  This function filters out the infeasible points from the simplex prior
+     *  to evaluation. It also converts the feasible points to InputMap instances
+     *  to be used for evaluation. The weight for gradient calculations is
+     *  associated with the input via the Map.
+     */
     private fun filterToFeasibleInputs(simplex: List<SimplexPoint>): Map<InputMap, Double> {
         val map = mutableMapOf<InputMap, Double>()
         for (point in simplex) {
@@ -116,7 +180,64 @@ class RSpline(
         return map
     }
 
+    /**
+     *  This function represents PERTURB function of Algorithm 4 in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     * @param point the point that needs to be perturbed
+     * @return the same point with the added perturbation
+     */
+    private fun perturb(point: DoubleArray): DoubleArray {
+        return addRandomPerturbation(point, perturbation, rnStream)
+    }
+
+    /**
+     *  Performs the neighborhood search around the provided [solution].
+     *  Only feasible neighbors are considered. The best as determined by
+     *  the compare() function is returned.
+     *
+     *  @param solution the solution at the "center" of the neighborhood
+     *  @param sampleSize the sample size to use when evaluating the neighborhood solutions
+     *  @return the best from the search, which might, in fact, be the provided
+     *  solution.
+     */
+    private fun neighborhoodSearch(
+        solution: Solution,
+        sampleSize: Int
+    ): Solution {
+        val neighborHood = neighborhoodFinder.neighborhood(
+            solution.inputMap, this
+        )
+        val feasible = neighborHood.filter { it.isInputFeasible() }.toSet()
+        if (feasible.isEmpty()) {
+            return solution
+        }
+        val results = requestEvaluations(feasible, sampleSize)
+        if (results.isEmpty()) {
+            // No solutions returned
+            return solution
+        }
+        // need to find the best of the results
+        val candidate = results.minOf { it }
+        return if (compare(solution, candidate) < 0) {
+            solution
+        } else {
+            candidate
+        }
+    }
+
     companion object {
+
+        var defaultPerturbation: Double = 0.15
+            set(value) {
+                require((0.0 < value) && (value < 1.0)) { "The perturbationFactor must be in (0,1)" }
+                field = value
+            }
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
 
@@ -175,6 +296,18 @@ class RSpline(
                 simplex.add(SimplexPoint(vertex, w[i]))
             }
             return Pair(simplex, zSortedIndices)
+        }
+
+        fun addRandomPerturbation(
+            point: DoubleArray,
+            perturbationFactor: Double,
+            rnStream: RNStreamIfc
+        ): DoubleArray {
+            require((0.0 < perturbationFactor) && (perturbationFactor < 1.0)) { "The perturbationFactor must be in (0,1)" }
+            for (i in point.indices) {
+                point[i] = point[i] + rnStream.rUniform(-perturbationFactor, perturbationFactor)
+            }
+            return point
         }
     }
 
