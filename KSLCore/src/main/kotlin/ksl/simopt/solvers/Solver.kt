@@ -362,7 +362,7 @@ abstract class Solver(
 
     /**
      *   Causes the solver to run all iterations until its stopping
-     *   criteria is met or the maximum number of iterations has been reached.
+     *   criteria is met, or the maximum number of iterations has been reached.
      */
     @Suppress("unused")
     fun runAllIterations() {
@@ -468,7 +468,7 @@ abstract class Solver(
     }
 
     /**
-     *  This function is called before the function mainIteration() executes.
+     *  This function is called before the function mainIteration() is executed.
      *  Provides a hook for additional pre-iteration logic, which could
      *  be placed here instead of at the beginning of the mainIteration()
      *  function.
@@ -560,12 +560,14 @@ abstract class Solver(
      *  @param inputMap the input variables and their values for the request
      *  @return the instance of RequestData that can be sent for evaluation
      */
-    protected fun createRequest(inputMap: InputMap): RequestData {
+    protected fun createRequest(
+        inputMap: InputMap,
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+    ): RequestData {
         if (ensureProblemFeasibleRequests) {
             require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
         // the input map will be range-feasible but may not be problem-feasible.
-        val numReps = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
         // since the input map is immutable, so is the RequestData instance
         return RequestData(
             problemDefinition.modelIdentifier,
@@ -584,8 +586,11 @@ abstract class Solver(
      * @return a list of solutions obtained after performing evaluations on the inputs
      */
     @Suppress("unused")
-    protected fun requestEvaluations(inputs: Set<InputMap>): List<Solution> {
-        val requests = prepareEvaluationRequests(inputs)
+    protected fun requestEvaluations(
+        inputs: Set<InputMap>,
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+    ): List<Solution> {
+        val requests = prepareEvaluationRequests(inputs, numReps)
         return requestEvaluations(requests)
     }
 
@@ -597,8 +602,11 @@ abstract class Solver(
      * @param input an instance of InputMap representing the input variables and their values to be evaluated
      * @return the solution obtained after evaluating the input map
      */
-    protected fun requestEvaluation(input: InputMap): Solution {
-        val requests = prepareEvaluationRequests(setOf(input))
+    protected fun requestEvaluation(
+        input: InputMap,
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+    ): Solution {
+        val requests = prepareEvaluationRequests(setOf(input), numReps)
         val solutions = requestEvaluations(requests)
         val solution = solutions.first()
         logger.trace { "Solver: $name : requested evaluation of $input and received $solution" }
@@ -609,12 +617,16 @@ abstract class Solver(
      *  Uses the supplied [replicationsPerEvaluation] property to prepare the
      *  inputs as evaluation requests.
      *  @param inputs the input (point) values to prepare
+     *  @param numReps the number of replications to be associated with each request
      *  @return the prepared requests
      */
-    private fun prepareEvaluationRequests(inputs: Set<InputMap>): List<RequestData> {
+    private fun prepareEvaluationRequests(
+        inputs: Set<InputMap>,
+        numReps: Int
+    ): List<RequestData> {
         val list = mutableListOf<RequestData>()
         for (input in inputs) {
-            list.add(createRequest(input))
+            list.add(createRequest(input, numReps))
         }
         return list
     }
@@ -659,9 +671,9 @@ abstract class Solver(
             logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
             if (::initialSolution.isInitialized) {
-                val soln = initialSolution
-                logger.info { "Initialized solver $name : penalized objective function value: ${soln.penalizedObjFncValue}" }
-                logger.trace { "Initial solution = $soln" }
+                val solution = initialSolution
+                logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
+                logger.trace { "Initial solution = $solution" }
             }
             emitter.emit(this@Solver)
         }
