@@ -3,15 +3,15 @@ package ksl.simopt.evaluator
 import java.util.PriorityQueue
 
 /**
- * Class to support a group of solutions (each containing inputs, responses, objective fns, penalties)
+ * Class to support a group of solutions (all containing inputs, responses, objective fns, penalties)
  * The solutions are naturally ordered by comparison of Solution instances based on
  * their penalized objective functions (without regard to sampling error).
  *
  * @param capacity the capacity for the solutions. Constrains the total number of solutions in-memory.
  * The default capacity is 100. Oldest solutions are evicted first.
- *  @param allowInfeasibleSolutions if true input infeasible solutions are allowed to be
+ *  @param allowInfeasibleSolutions if true input-infeasible solutions are allowed to be
  *  saved. If false, input-infeasible solutions are silently ignored.
- *  The default is false (do not allow input infeasible solutions to be saved)
+ *  The default is false (do not allow input-infeasible solutions to be saved)
  */
 class Solutions(
     val capacity: Int = defaultCapacity,
@@ -61,7 +61,7 @@ class Solutions(
         } else {
             null
         }
-        //now new solution can be added
+        //now the new solution can be added
         myEnteredSolutions.add(solution)
         mySolutions.add(solution)
         return removed
@@ -87,6 +87,7 @@ class Solutions(
      *  A time-ordered list of the solution, where 0 is the first (oldest)
      *  solution added, 1 is the next, etc.
      */
+    @Suppress("unused")
     val enteredSolutions: List<Solution>
         get() = myEnteredSolutions
 
