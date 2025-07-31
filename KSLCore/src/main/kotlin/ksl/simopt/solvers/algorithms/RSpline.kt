@@ -4,11 +4,30 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.KSLArrays
+import ksl.utilities.direction
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.sortIndices
 import kotlin.math.floor
 
+/**
+ *  This class represents an implementation of R-SPLINE from the paper:
+ *
+ *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+ *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+ *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+ *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+ *  doi: 10.1145/2499913.2499916.
+ *
+ * @constructor Creates a R-SPLINE solver with the specified parameters.
+ * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
+ * @param maxIterations The maximum number of iterations allowed for the solving process.
+ * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+ * @param name Optional name identifier for this instance of the solver.
+
+ */
 class RSpline(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
@@ -26,32 +45,26 @@ class RSpline(
         TODO("Not yet implemented")
     }
 
-    private data class PWLFunction(val value: Double, val gradient: DoubleArray?) {
-
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as PWLFunction
-
-            if (value != other.value) return false
-            if (!gradient.contentEquals(other.gradient)) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = value.hashCode()
-            result = 31 * result + (gradient?.contentHashCode() ?: 0)
-            return result
-        }
-    }
-
+    /**
+     *  This function represents Algorithm 3 Piecewise Linear Interpolation in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     * @param point a non-integer point within the problem space representing the "center"
+     * of the interpolation simplex
+     * @param sampleSize the number of replications to be associated with the simulation
+     * oracle evaluations associated with the simplex vertices
+     * @return a pair (Double, DoubleArray?) = (interpolated objective function at the point,
+     * the gradient at the point (if available))
+     */
     private fun piecewiseLinearInterpolation(
         point: DoubleArray,
         sampleSize: Int
-    ): PWLFunction {
+    ): Pair<Double, DoubleArray?> {
         // determine the next simplex based on the supplied point
         val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
@@ -59,14 +72,14 @@ class RSpline(
         // the feasible input is mapped to the vertex's weight in the simplex
         if (feasibleInputs.isEmpty()) {
             // no feasible points to evaluate
-            return PWLFunction(Double.POSITIVE_INFINITY, null)
+            return Pair(Double.POSITIVE_INFINITY, null)
         }
         //TODO this needs to be via CRN
         // request evaluations for solutions
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
             // No solutions returned
-            return PWLFunction(Double.POSITIVE_INFINITY, null)
+            return Pair(Double.POSITIVE_INFINITY, null)
         }
         // compute the interpolated objective function value
         var interpolatedObjFnc = 0.0
@@ -77,19 +90,19 @@ class RSpline(
             interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
         }
         if (wSum <= 0.0){
-            return PWLFunction(Double.POSITIVE_INFINITY, null)
+            return Pair(Double.POSITIVE_INFINITY, null)
         }
         interpolatedObjFnc = interpolatedObjFnc/wSum
         // The simplex may be missing infeasible vertices. This means that the gradient cannot be computed.
         if (solutions.size < simplex.size){
-            return PWLFunction(interpolatedObjFnc, null)
+            return Pair(interpolatedObjFnc, null)
         }
         // can compute the gradients
         val gradients = DoubleArray(sortedIndices.size)
         for((i, indexValue) in sortedIndices.withIndex()){
             gradients[indexValue] = solutions[i].penalizedObjFncValue - solutions[i-1].penalizedObjFncValue
         }
-        return PWLFunction(interpolatedObjFnc, gradients)
+        return Pair(interpolatedObjFnc, gradients)
     }
 
     private fun filterToFeasibleInputs(simplex: List<SimplexPoint>): Map<InputMap, Double> {
@@ -176,48 +189,6 @@ fun main() {
     }
 }
 
-fun tempTesting() {
-    val x = doubleArrayOf(1.8, 2.3, 3.6)
-    println("x = ${x.contentToString()}")
-    val vertices = mutableListOf<DoubleArray>()
-//    val x0 = KSLArrays.gRound(x, g)
-    val x0 = DoubleArray(x.size) { floor(x[it]) }
-    println("x0 = ${x0.contentToString()}")
-    vertices.add(x0)
-    val z = DoubleArray(x.size) { x[it] - x0[it] }
-    println("z = ${z.contentToString()}")
-    val zSortedIndices = z.sortIndices(descending = true)
-    println("zSortedIndices = ${zSortedIndices.contentToString()}")
-    val e = mutableListOf<DoubleArray>()
-    for ((index, _) in zSortedIndices.withIndex()) {
-        val ei = DoubleArray(z.size)
-        ei[zSortedIndices[index]] = 1.0
-        println("e$index = ${ei.contentToString()}")
-        e.add(ei)
-    }
-    var np = x0
-    for (array in e) {
-        val nx = KSLArrays.addElements(np, array)
-        np = nx
-        vertices.add(nx)
-    }
-    println()
-    for ((i, v) in vertices.withIndex()) {
-        println("v$i = ${v.contentToString()}")
-    }
-
-    println()
-    val zList = z.toMutableList()
-    zList.add(0, 1.0)
-    zList.add(0.0)
-    println("zList = ${zList.joinToString()}")
-    println()
-    val w = DoubleArray(z.size + 1) { 0.0 }
-    for (i in 0..z.size) {
-        w[i] = zList[i] - zList[i + 1]
-        println("w[$i] = ${w[i]}")
-    }
-}
 /*
 x = [1.8, 2.3, 3.6]
 x0 = [1.0, 2.0, 3.0]
