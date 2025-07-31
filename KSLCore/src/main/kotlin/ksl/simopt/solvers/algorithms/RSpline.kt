@@ -63,7 +63,7 @@ class RSpline(
         }
         //TODO this needs to be via CRN and use the specified sample size
         // request evaluations for solutions
-        val results = requestEvaluations(feasibleInputs.keys)
+        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
             // No solutions returned
             return PWLFunction(Double.POSITIVE_INFINITY, null)
@@ -129,7 +129,7 @@ class RSpline(
             val zSortedIndices = z.sortIndices(descending = true)
             // the list of arrays holds the unit vectors that are used to form the vertices
             val e = mutableListOf<DoubleArray>()
-            for ((index, value) in zSortedIndices.withIndex()) {
+            for ((index, _) in zSortedIndices.withIndex()) {
                 val ei = DoubleArray(z.size)
                 // assign 1 according to the next largest fractional part
                 ei[zSortedIndices[index]] = 1.0
@@ -188,7 +188,7 @@ fun tempTesting() {
     val zSortedIndices = z.sortIndices(descending = true)
     println("zSortedIndices = ${zSortedIndices.contentToString()}")
     val e = mutableListOf<DoubleArray>()
-    for ((index, value) in zSortedIndices.withIndex()) {
+    for ((index, _) in zSortedIndices.withIndex()) {
         val ei = DoubleArray(z.size)
         ei[zSortedIndices[index]] = 1.0
         println("e$index = ${ei.contentToString()}")
