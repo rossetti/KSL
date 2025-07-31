@@ -64,6 +64,38 @@ class InputDefinition @JvmOverloads constructor(
     ) : this(name, interval.lowerLimit, interval.upperLimit, granularity)
 
     /**
+     *  Represents the definition of an integer input variable for a ProblemDefinition.
+     *  Input variables are the variables used in the problem to model the decision parameter
+     *  of the simulation model. The input variable name should correspond to some named parameter
+     *  (e.g., control) in the model. The granularity of the variable will be 1.0
+     *
+     *  @param name the name of the input variable
+     *  @param interval the feasible range of the variable as an IntRange
+     */
+    @Suppress("unused")
+    constructor(
+        name: String,
+        interval: IntRange,
+    ) : this(name, interval.first, interval.last)
+
+    /**
+     *  Represents the definition of an integer input variable for a ProblemDefinition.
+     *  Input variables are the variables used in the problem to model the decision parameter
+     *  of the simulation model. The input variable name should correspond to some named parameter
+     *  (e.g., control) in the model. The granularity of the variable will be 1.0
+     *
+     *  @param name the name of the input variable
+     *  @param lowerBound the lower bound on the range of possible values
+     *  @param upperBound the upper bound on the range of possible values
+     */
+    @Suppress("unused")
+    constructor(
+        name: String,
+        lowerBound: Int,
+        upperBound: Int,
+    ) : this(name, lowerBound.toDouble(), upperBound.toDouble(), 1.0)
+
+    /**
      *  The interval over which the variable is defined.
      */
     val interval: Interval
