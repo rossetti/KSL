@@ -3,14 +3,17 @@ package ksl.simopt.solvers.algorithms
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.NeighborhoodFinderIfc
-import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.KSLArrays
-import ksl.utilities.direction
+import ksl.utilities.collections.pow
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.sortIndices
+import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
@@ -29,23 +32,55 @@ import kotlin.math.floor
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name Optional name identifier for this instance of the solver.
-
  */
 class RSpline(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
-    replicationsPerEvaluation: ReplicationPerEvaluationIfc,
+    replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
-    //TODO need to specify the FixedGrowthRateReplicationSchedule
-    // initial number of replications and growth rate
-
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
     }
+
+    /**
+     *  This class represents an implementation of R-SPLINE from the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     * @constructor Creates a R-SPLINE solver with the specified parameters.
+     * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
+     * @param initialNumReps the initial starting number of replications
+     * @param maxIterations The maximum number of iterations allowed for the solving process.
+     * @param growthRate the growth rate for the replications. The default is set by [defaultGrowthRate].
+     * @param maxNumReplications the maximum number of replications permitted. If
+     * the growth exceeds this value, then this value is used for all future replications.
+     * The default is determined by [defaultMaxNumReplications]
+     * @param streamNum the random number stream number, defaults to 0, which means the next stream
+     * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
+     * @param name Optional name identifier for this instance of the solver.
+     */
+    constructor(
+        evaluator: EvaluatorIfc,
+        initialNumReps: Int = defaultInitialSampleSize,
+        maxIterations: Int = defaultMaxNumberIterations,
+        growthRate: Double = defaultGrowthRate,
+        maxNumReplications: Int = defaultMaxNumReplications,
+        streamNum: Int = 0,
+        streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+        name: String? = null
+    ) : this(evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
+        initialNumReps, growthRate, maxNumReplications), streamNum, streamProvider, name)
+
+    val fixedGrowthRateReplicationSchedule: FixedGrowthRateReplicationSchedule
+        get() = replicationsPerEvaluation as FixedGrowthRateReplicationSchedule
 
     /**
      *  The amount of the perturbation for Algorithm 4 in the paper:
@@ -76,12 +111,78 @@ class RSpline(
 
     var neighborhoodFinder: NeighborhoodFinderIfc = problemDefinition.vonNeumannNeighborhoodFinder()
 
+    var numOracleCalls: Int = 0
+        private set
+
+    var splineCallGrowthRate : Double = defaultSplineCallGrowthRate
+        set(value) {
+            require(value > 0 ) {"The spline growth rate must be > 0"}
+            field = value
+        }
+
+    var initialMaxSplineCallLimit: Int = defaultInitialMaxSplineCalls
+        set(value) {
+            require(value > 0) {"The initial maximum number of SPLINE calls must be > 0"}
+        }
+
+    var maxSplineCallLimit: Int = defaultMaxSplineCallLimit
+        set(value) {
+            require(value > 0) {"The maximum for the number of SPLINE call growth limit must be > 0"}
+        }
+
+    var currentSplineCallLimit: Int = initialMaxSplineCallLimit
+        private set
+
+    val splineCallLimit: Int
+        get() {
+            val k = iterationCounter
+            val m = initialMaxSplineCallLimit * (1.0 + splineCallGrowthRate).pow(k)
+            currentSplineCallLimit = minOf(maxSplineCallLimit, ceil(m).toInt())
+            return currentSplineCallLimit
+        }
+
+    override fun initializeIterations() {
+        super.initializeIterations()
+
+    }
+
     override fun mainIteration() {
         TODO("Not yet implemented")
     }
 
     /**
-     *  This function represents Algorithm 3 Piecewise Linear Interpolation in the paper:
+     *  This function represents Algorithm 2 SPLINE in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     * @param initialSolution the initial solution for the search process
+     * @param sampleSize the number of replications to be associated with the simulation
+     * oracle evaluations associated with the simplex vertices
+     * @param splineCallLimit the call limit for the oracle evaluations
+     */
+    private fun spline(
+        initialSolution: Solution,
+        sampleSize: Int,
+        oracleCallLimit: Int
+    ){
+        numOracleCalls = 0
+        // use the matlab/R code as a guide
+        // evaluate the initial point with the new sample size to get the initial solution
+        
+        for(i in 1..oracleCallLimit){
+            // call SPLI
+            // call NE
+        }
+        // check if the starting solution is better than the new solution
+        // if the starting solution is still better return it
+    }
+
+    /**
+     *  This function represents Algorithm 3 Piecewise Linear Interpolation (PLI) in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -141,7 +242,7 @@ class RSpline(
     }
 
     /**
-     *  This function represents Algorithm 4 Search Piecewise Linear Interpolation in the paper:
+     *  This function represents Algorithm 4 Search Piecewise Linear Interpolation (SPLI) in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -152,13 +253,13 @@ class RSpline(
      * @param solution the initial solution for the line search
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
-     * @param the call limit for the oracle evaluations
+     * @param splineCallLimit the call limit for the oracle evaluations
      * @return the solution found from the search
      */
-    private fun lineSearch(
+    private fun searchPiecewiseLinearInterpolation(
         solution: Solution,
         sampleSize: Int,
-        callLimit: Int
+        splineCallLimit: Int
     ): Solution {
         val x0 = solution.inputMap.inputValues
         //TODO its supposed to return n' as well as the solution
@@ -236,10 +337,31 @@ class RSpline(
 
     companion object {
 
+        var defaultInitialSampleSize: Int = 8
+            set(value) {
+                require(value > 0) {"The default initial sample size for replications must be > 0"}
+            }
+
         var defaultPerturbation: Double = 0.15
             set(value) {
                 require((0.0 < value) && (value < 1.0)) { "The perturbationFactor must be in (0,1)" }
                 field = value
+            }
+
+        var defaultSplineCallGrowthRate : Double = 0.1
+            set(value) {
+                require(value > 0 ) {"The default spline growth rate must be > 0"}
+                field = value
+            }
+
+        var defaultInitialMaxSplineCalls: Int = 10
+            set(value) {
+                require(value > 0) {"The default initial maximum number of SPLINE calls must be > 0"}
+            }
+
+        var defaultMaxSplineCallLimit: Int = 1000
+            set(value) {
+                require(value > 0) {"The default maximum for the number of SPLINE call growth limit must be > 0"}
             }
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
