@@ -168,17 +168,36 @@ class RSpline(
         initialSolution: Solution,
         sampleSize: Int,
         oracleCallLimit: Int
-    ){
+    ): Pair<Int, Solution> {
+        require(initialSolution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
         numOracleCalls = 0
-        // use the matlab/R code as a guide
-        // evaluate the initial point with the new sample size to get the initial solution
-        
+        // This implementation is based in part on available matlab/R code as a guide.
+        // Evaluate the initial point with the new sample size to get the starting solution
+        val initialInputs = initialSolution.inputMap
+        val startingSolution = requestEvaluation(initialInputs, sampleSize)
+        // use the starting solution as the new solution for the line search (SPLI)
+        var newSolution = startingSolution
         for(i in 1..oracleCallLimit){
-            // call SPLI
-            // call NE
+            // perform the line search to get a solution based on the new solution
+            val (splineCalls, spliSolution) = searchPiecewiseLinearInterpolation(
+                newSolution, sampleSize, oracleCallLimit)
+            // search the neighborhood starting from the SPLI solution
+            val (neCalls, neSolution) = neighborhoodSearch(spliSolution, sampleSize)
+            numOracleCalls = numOracleCalls + splineCalls + neCalls
+            // use the neighborhood search to seed the next SPLI search
+            newSolution = neSolution
+            // if the line search and the neighborhood search results are the same, we can stop
+            if (compare(spliSolution, neSolution) == 0){
+                break
+            }
         }
         // check if the starting solution is better than the new solution
         // if the starting solution is still better return it
+        return if (compare(startingSolution, newSolution) < 0) {
+            Pair(numOracleCalls, startingSolution)
+        } else {
+            Pair(numOracleCalls, newSolution)
+        }
     }
 
     /**
@@ -260,7 +279,7 @@ class RSpline(
         solution: Solution,
         sampleSize: Int,
         splineCallLimit: Int
-    ): Solution {
+    ): Pair<Int, Solution> {
         val x0 = solution.inputMap.inputValues
         //TODO its supposed to return n' as well as the solution
 
@@ -313,25 +332,25 @@ class RSpline(
     private fun neighborhoodSearch(
         solution: Solution,
         sampleSize: Int
-    ): Solution {
+    ): Pair<Int, Solution> {
         val neighborHood = neighborhoodFinder.neighborhood(
             solution.inputMap, this
         )
         val feasible = neighborHood.filter { it.isInputFeasible() }.toSet()
         if (feasible.isEmpty()) {
-            return solution
+            return Pair(0, solution)
         }
         val results = requestEvaluations(feasible, sampleSize)
         if (results.isEmpty()) {
             // No solutions returned
-            return solution
+            return Pair(0, solution)
         }
         // need to find the best of the results
         val candidate = results.minOf { it }
         return if (compare(solution, candidate) < 0) {
-            solution
+            Pair(results.size*sampleSize, solution)
         } else {
-            candidate
+            Pair(results.size*sampleSize, candidate)
         }
     }
 
