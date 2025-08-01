@@ -76,8 +76,11 @@ class RSpline(
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
-        initialNumReps, growthRate, maxNumReplications), streamNum, streamProvider, name)
+    ) : this(
+        evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
+            initialNumReps, growthRate, maxNumReplications
+        ), streamNum, streamProvider, name
+    )
 
     val fixedGrowthRateReplicationSchedule: FixedGrowthRateReplicationSchedule
         get() = replicationsPerEvaluation as FixedGrowthRateReplicationSchedule
@@ -114,20 +117,20 @@ class RSpline(
     var numOracleCalls: Int = 0
         private set
 
-    var splineCallGrowthRate : Double = defaultSplineCallGrowthRate
+    var splineCallGrowthRate: Double = defaultSplineCallGrowthRate
         set(value) {
-            require(value > 0 ) {"The spline growth rate must be > 0"}
+            require(value > 0) { "The spline growth rate must be > 0" }
             field = value
         }
 
     var initialMaxSplineCallLimit: Int = defaultInitialMaxSplineCalls
         set(value) {
-            require(value > 0) {"The initial maximum number of SPLINE calls must be > 0"}
+            require(value > 0) { "The initial maximum number of SPLINE calls must be > 0" }
         }
 
     var maxSplineCallLimit: Int = defaultMaxSplineCallLimit
         set(value) {
-            require(value > 0) {"The maximum for the number of SPLINE call growth limit must be > 0"}
+            require(value > 0) { "The maximum for the number of SPLINE call growth limit must be > 0" }
         }
 
     var currentSplineCallLimit: Int = initialMaxSplineCallLimit
@@ -141,13 +144,42 @@ class RSpline(
             return currentSplineCallLimit
         }
 
+    val currenSampleSize: Int
+        get() = fixedGrowthRateReplicationSchedule.currentNumReplications
+
     override fun initializeIterations() {
         super.initializeIterations()
-
+        numOracleCalls = 0
     }
 
+    /**
+     *  This function represents Algorithm 1 R-SPLINE in the paper:
+     *
+     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
+     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
+     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
+     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
+     *  doi: 10.1145/2499913.2499916.
+     *
+     *  The current sample [currenSampleSize] size upon initialization is the initial sample
+     *  size of the replication schedule (m_k). The current spline call limit
+     *  is determined by the property [currentSplineCallLimit].
+     *  If the kth sample path problem beats the previous sample path problem,
+     *  then the current solution is updated. The initial solution is determined
+     *  randomly when the solver is initialized.
+     */
     override fun mainIteration() {
-        TODO("Not yet implemented")
+        // the initial solution is randomly selected or specified by the user
+        // it will be the current solution until beaten by SPLINE search process
+        // call SPLINE for the next solution
+        val(splineOracleCalls, nextSolution) = spline(currentSolution,
+            currenSampleSize, currentSplineCallLimit)
+        // keep track of the total number of oracle calls
+        numOracleCalls = numOracleCalls + splineOracleCalls
+        if (compare(nextSolution, currentSolution) < 0) {
+            currentSolution = nextSolution
+        }
+        //TODO what if sequential SPLINE searches return the same solution?
     }
 
     /**
@@ -163,40 +195,42 @@ class RSpline(
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
      * @param splineCallLimit the call limit for the oracle evaluations
+     * @return a pair (Int, Solution) = (number of oracle calls executed, spline solution)
      */
     private fun spline(
         initSolution: Solution,
         sampleSize: Int,
         oracleCallLimit: Int
     ): Pair<Int, Solution> {
-        require(initSolution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
-        numOracleCalls = 0
+        require(initSolution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
+        var splineOracleCalls = 0
         // This implementation is based in part on available matlab/R code as a guide.
         // Evaluate the initial point with the new sample size to get the starting solution
         val initialInputs = initSolution.inputMap
         val startingSolution = requestEvaluation(initialInputs, sampleSize)
         // use the starting solution as the new solution for the line search (SPLI)
         var newSolution = startingSolution
-        for(i in 1..oracleCallLimit){
+        for (i in 1..oracleCallLimit) {
             // perform the line search to get a solution based on the new solution
             val (splineCalls, spliSolution) = searchPiecewiseLinearInterpolation(
-                newSolution, sampleSize, oracleCallLimit)
+                newSolution, sampleSize, oracleCallLimit
+            )
             // search the neighborhood starting from the SPLI solution
             val (neCalls, neSolution) = neighborhoodSearch(spliSolution, sampleSize)
-            numOracleCalls = numOracleCalls + splineCalls + neCalls
+            splineOracleCalls = splineOracleCalls + splineCalls + neCalls
             // use the neighborhood search to seed the next SPLI search
             newSolution = neSolution
             // if the line search and the neighborhood search results are the same, we can stop
-            if (compare(spliSolution, neSolution) == 0){
+            if (compare(spliSolution, neSolution) == 0) {
                 break
             }
         }
         // check if the starting solution is better than the new solution
         // if the starting solution is still better return it
         return if (compare(startingSolution, newSolution) < 0) {
-            Pair(numOracleCalls, startingSolution)
+            Pair(splineOracleCalls, startingSolution)
         } else {
-            Pair(numOracleCalls, newSolution)
+            Pair(splineOracleCalls, newSolution)
         }
     }
 
@@ -273,7 +307,7 @@ class RSpline(
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
      * @param splineCallLimit the call limit for the oracle evaluations
-     * @return the solution found from the search
+     * @return a pair (Int, Solution) = (number of oracle calls executed, spline solution)
      */
     private fun searchPiecewiseLinearInterpolation(
         solution: Solution,
@@ -281,7 +315,7 @@ class RSpline(
         splineCallLimit: Int
     ): Pair<Int, Solution> {
         val x0 = solution.inputMap.inputValues
-        //TODO its supposed to return n' as well as the solution
+
 
         TODO("Not implemented yet")
     }
@@ -326,14 +360,14 @@ class RSpline(
      *
      *  @param solution the solution at the "center" of the neighborhood
      *  @param sampleSize the sample size to use when evaluating the neighborhood solutions
-     *  @return the best from the search, which might, in fact, be the provided
-     *  solution.
+     *  @return a pair (Int, Solution) = (number of oracle calls executed, neighborhood solution),
+     *  the best from the search, which might, in fact, be the provided solution.
      */
     private fun neighborhoodSearch(
         solution: Solution,
         sampleSize: Int
     ): Pair<Int, Solution> {
-        require(solution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
+        require(solution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
         val neighborHood = neighborhoodFinder.neighborhood(
             solution.inputMap, this
         )
@@ -349,9 +383,9 @@ class RSpline(
         // need to find the best of the results
         val candidate = results.minOf { it }
         return if (compare(solution, candidate) < 0) {
-            Pair(results.size*sampleSize, solution)
+            Pair(results.size * sampleSize, solution)
         } else {
-            Pair(results.size*sampleSize, candidate)
+            Pair(results.size * sampleSize, candidate)
         }
     }
 
@@ -359,7 +393,7 @@ class RSpline(
 
         var defaultInitialSampleSize: Int = 8
             set(value) {
-                require(value > 0) {"The default initial sample size for replications must be > 0"}
+                require(value > 0) { "The default initial sample size for replications must be > 0" }
             }
 
         var defaultPerturbation: Double = 0.15
@@ -368,20 +402,20 @@ class RSpline(
                 field = value
             }
 
-        var defaultSplineCallGrowthRate : Double = 0.1
+        var defaultSplineCallGrowthRate: Double = 0.1
             set(value) {
-                require(value > 0 ) {"The default spline growth rate must be > 0"}
+                require(value > 0) { "The default spline growth rate must be > 0" }
                 field = value
             }
 
         var defaultInitialMaxSplineCalls: Int = 10
             set(value) {
-                require(value > 0) {"The default initial maximum number of SPLINE calls must be > 0"}
+                require(value > 0) { "The default initial maximum number of SPLINE calls must be > 0" }
             }
 
         var defaultMaxSplineCallLimit: Int = 1000
             set(value) {
-                require(value > 0) {"The default maximum for the number of SPLINE call growth limit must be > 0"}
+                require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
             }
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
