@@ -159,21 +159,21 @@ class RSpline(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
-     * @param initialSolution the initial solution for the search process
+     * @param initSolution the initial solution for the search process
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
      * @param splineCallLimit the call limit for the oracle evaluations
      */
     private fun spline(
-        initialSolution: Solution,
+        initSolution: Solution,
         sampleSize: Int,
         oracleCallLimit: Int
     ): Pair<Int, Solution> {
-        require(initialSolution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
+        require(initSolution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
         numOracleCalls = 0
         // This implementation is based in part on available matlab/R code as a guide.
         // Evaluate the initial point with the new sample size to get the starting solution
-        val initialInputs = initialSolution.inputMap
+        val initialInputs = initSolution.inputMap
         val startingSolution = requestEvaluation(initialInputs, sampleSize)
         // use the starting solution as the new solution for the line search (SPLI)
         var newSolution = startingSolution
@@ -333,6 +333,7 @@ class RSpline(
         solution: Solution,
         sampleSize: Int
     ): Pair<Int, Solution> {
+        require(solution.isInputFeasible()) {"The initial solution to the SPLINE function must be input feasible!"}
         val neighborHood = neighborhoodFinder.neighborhood(
             solution.inputMap, this
         )
