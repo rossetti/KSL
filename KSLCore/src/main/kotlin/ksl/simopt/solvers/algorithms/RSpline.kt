@@ -153,7 +153,7 @@ class RSpline(
     }
 
     /**
-     *  This function represents Algorithm 1 R-SPLINE in the paper:
+     *  This function represents Algorithm 1: R-SPLINE in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -180,10 +180,11 @@ class RSpline(
             currentSolution = nextSolution
         }
         //TODO what if sequential SPLINE search returns the same solution?
+        //TODO need to incorporate number of oracle calls into stopping criteria
     }
 
     /**
-     *  This function represents Algorithm 2 SPLINE in the paper:
+     *  This function represents Algorithm 2: SPLINE in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -221,12 +222,14 @@ class RSpline(
             // use the neighborhood search to seed the next SPLI search
             newSolution = neSolution
             // if the line search and the neighborhood search results are the same, we can stop
+            //TODO matlab and R code used some kind of tolerance when testing equality
             if (compare(spliSolution, neSolution) == 0) {
                 break
             }
         }
         // check if the starting solution is better than the solution from the SPLINE search
         // if the starting solution is still better return it
+        //TODO matlab and R code used some kind of tolerance when testing equality
         return if (compare(startingSolution, newSolution) < 0) {
             Pair(splineOracleCalls, startingSolution)
         } else {
@@ -235,7 +238,7 @@ class RSpline(
     }
 
     /**
-     *  This function represents Algorithm 3 Piecewise Linear Interpolation (PLI) in the paper:
+     *  This function represents Algorithm 3: Piecewise Linear Interpolation (PLI) in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -295,7 +298,7 @@ class RSpline(
     }
 
     /**
-     *  This function represents Algorithm 4 Search Piecewise Linear Interpolation (SPLI) in the paper:
+     *  This function represents Algorithm 4: Search Piecewise Linear Interpolation (SPLI) in the paper:
      *
      *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
      *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
@@ -315,6 +318,10 @@ class RSpline(
         splineCallLimit: Int
     ): Pair<Int, Solution> {
         val x0 = solution.inputMap.inputValues
+
+
+        val s0 = initialStepSize
+        val c = stepSizeMultiplier
 
 
         TODO("Not implemented yet")
