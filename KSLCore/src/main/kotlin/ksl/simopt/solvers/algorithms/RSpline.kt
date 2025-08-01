@@ -368,20 +368,27 @@ class RSpline(
         sampleSize: Int
     ): Pair<Int, Solution> {
         require(solution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
+        // By construction, the neighborhood does not contain the center (initial) solution.
+        // It has already been evaluated by the oracle.
         val neighborHood = neighborhoodFinder.neighborhood(
             solution.inputMap, this
         )
+        // Perform search only on feasible points in the neighborhood.
         val feasible = neighborHood.filter { it.isInputFeasible() }.toSet()
         if (feasible.isEmpty()) {
+            // No feasible points in the neighborhood. Return the starting point.
             return Pair(0, solution)
         }
+        // Evaluate the feasible points in the neighborhood.
         val results = requestEvaluations(feasible, sampleSize)
+        // Something could have gone wrong with the oracle processing.
         if (results.isEmpty()) {
-            // No solutions returned
+            // No solutions returned. Return the starting point. Assume no oracle evaluations.
             return Pair(0, solution)
         }
         // need to find the best of the results
         val candidate = results.minOf { it }
+        //TODO matlab and R code uses a tolerance for comparison
         return if (compare(solution, candidate) < 0) {
             Pair(results.size * sampleSize, solution)
         } else {
