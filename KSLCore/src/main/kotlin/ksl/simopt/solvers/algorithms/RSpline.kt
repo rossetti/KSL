@@ -162,7 +162,7 @@ class RSpline(
      *  doi: 10.1145/2499913.2499916.
      *
      *  The current sample [currenSampleSize] size upon initialization is the initial sample
-     *  size of the replication schedule (m_k). The current spline call limit
+     *  size of the replication schedule (m_k). The current spline call limit (b_k)
      *  is determined by the property [currentSplineCallLimit].
      *  If the kth sample path problem beats the previous sample path problem,
      *  then the current solution is updated. The initial solution is determined
@@ -179,7 +179,7 @@ class RSpline(
         if (compare(nextSolution, currentSolution) < 0) {
             currentSolution = nextSolution
         }
-        //TODO what if sequential SPLINE searches return the same solution?
+        //TODO what if sequential SPLINE search returns the same solution?
     }
 
     /**
@@ -225,7 +225,7 @@ class RSpline(
                 break
             }
         }
-        // check if the starting solution is better than the new solution
+        // check if the starting solution is better than the solution from the SPLINE search
         // if the starting solution is still better return it
         return if (compare(startingSolution, newSolution) < 0) {
             Pair(splineOracleCalls, startingSolution)
