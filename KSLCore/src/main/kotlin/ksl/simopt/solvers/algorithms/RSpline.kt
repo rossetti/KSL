@@ -249,17 +249,17 @@ class RSpline(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
-     * @param point a non-integer point within the problem space representing the "center"
-     * of the interpolation simplex
+     * @param solution a seeding solution for the piecewise linear interpolation. This
+     * solution should be at an input value around which the interpolation will occur.
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
-     * @return a pair (Double, DoubleArray?) = (interpolated objective function at the point,
-     * the gradient at the point (if available))
+     * @return the results of the piecewise linear interpolation as a [PLIResults] instance
      */
     private fun piecewiseLinearInterpolation(
-        point: DoubleArray,//TODO should be called with a Solution
+        solution: Solution,
         sampleSize: Int
     ): PLIResults {
+
         TODO("Not implemented yet")
 //        // determine the next simplex based on the supplied point
 //        //TODO needs to include the center point
@@ -323,7 +323,7 @@ class RSpline(
 //        )
     }
 
-    private class PLIResults(
+    class PLIResults(
         val interpolatedObjFnc: Double,
         val numOracleCalls: Int,
         val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
@@ -350,51 +350,51 @@ class RSpline(
         splineCallLimit: Int
     ): Pair<Int, Solution> {
         //Set X_best = x_0 and n′ = 0
-        var x0 = solution.inputMap.inputValues
-        var bestSoln = solution
-        var numOracleCalls = 0
-
-        val jMax = 100
-        var j = 0
-        do {
-            j++
-            //Continue {begin new line search with new gradient estimate}
-            //perturb the initial solution to get a non-integer point
-            var x1 = perturb(bestSoln.inputMap.inputValues)
-            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
-            val pliResults = piecewiseLinearInterpolation(x1, sampleSize)
-            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-            if (pliResults.gradients == null) {
-                return Pair(numOracleCalls, bestSoln)
-            }
-            if (numOracleCalls > splineCallLimit) {
-                return Pair(numOracleCalls, bestSoln)
-            }
-            var i = 0
-            val s0 = initialStepSize
-            val c = stepSizeMultiplier
-            val d = pliResults.gradients.direction()
-            do {
-                i = i + 1
-                val s = s0 * c.pow(i - 1)
-                val sd = KSLArrays.multiplyConstant(d, s)
-                x1 = KSLArrays.subtractElements(x0, sd)
-                val inputs = problemDefinition.toInputMap(x1)
-                if (!inputs.isInputFeasible()) {
-                    return Pair(numOracleCalls, bestSoln)
-                }
-                if (inputs.equals(bestSoln.inputMap)) {
-                    return Pair(numOracleCalls, bestSoln)
-                }
-                //   val n
-
-            } while (numOracleCalls < splineCallLimit)
-
-        } while (j < jMax)
-
-        val s0 = initialStepSize
-        val c = stepSizeMultiplier
-
+//        var x0 = solution.inputMap.inputValues
+//        var bestSoln = solution
+//        var numOracleCalls = 0
+//
+//        val jMax = 100
+//        var j = 0
+//        do {
+//            j++
+//            //Continue {begin new line search with new gradient estimate}
+//            //perturb the initial solution to get a non-integer point
+//            var x1 = perturb(bestSoln.inputMap.inputValues)
+//            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
+//            val pliResults = piecewiseLinearInterpolation(x1, sampleSize)
+//            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
+//            if (pliResults.gradients == null) {
+//                return Pair(numOracleCalls, bestSoln)
+//            }
+//            if (numOracleCalls > splineCallLimit) {
+//                return Pair(numOracleCalls, bestSoln)
+//            }
+//            var i = 0
+//            val s0 = initialStepSize
+//            val c = stepSizeMultiplier
+//            val d = pliResults.gradients.direction()
+//            do {
+//                i = i + 1
+//                val s = s0 * c.pow(i - 1)
+//                val sd = KSLArrays.multiplyConstant(d, s)
+//                x1 = KSLArrays.subtractElements(x0, sd)
+//                val inputs = problemDefinition.toInputMap(x1)
+//                if (!inputs.isInputFeasible()) {
+//                    return Pair(numOracleCalls, bestSoln)
+//                }
+//                if (inputs.equals(bestSoln.inputMap)) {
+//                    return Pair(numOracleCalls, bestSoln)
+//                }
+//                //   val n
+//
+//            } while (numOracleCalls < splineCallLimit)
+//
+//        } while (j < jMax)
+//
+//        val s0 = initialStepSize
+//        val c = stepSizeMultiplier
+//
 
         TODO("Not implemented yet")
     }
@@ -545,11 +545,10 @@ class RSpline(
          * convex hull contains the supplied point.
          *
          * @param point a non-integral point around which the simplex is to be formed
-         * @return a pair that represents the simplex vertices and their weights with the indices of
-         * the sorted fractional parts for the offered point
+         * @return the data associated with the simplex
          */
         fun piecewiseLinearSimplex(point: DoubleArray): SimplexData {
-            require(point.isNotEmpty()) { "The points must not be empty!" }
+            require(point.isNotEmpty()) { "The point must not be empty!" }
             // vertices will hold the vertices of the simplex
             val vertices = mutableListOf<DoubleArray>()
             // Get the first vertex by taking the integer floor of the offered point
@@ -587,10 +586,6 @@ class RSpline(
             val w = DoubleArray(z.size + 1) { 0.0 }
             for (i in 0..z.size) {
                 w[i] = zList[i] - zList[i + 1]
-            }
-            val simplex = mutableListOf<SimplexPoint>()
-            for ((i, vertex) in vertices.withIndex()) {
-                simplex.add(SimplexPoint(vertex, w[i]))
             }
             return SimplexData(
                 originalPoint = point,
