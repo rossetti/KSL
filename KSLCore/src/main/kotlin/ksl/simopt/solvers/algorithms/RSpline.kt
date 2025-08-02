@@ -9,6 +9,7 @@ import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMa
 import ksl.simopt.solvers.NeighborhoodFinderIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.collections.pow
+import ksl.utilities.direction
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -256,74 +257,76 @@ class RSpline(
      * the gradient at the point (if available))
      */
     private fun piecewiseLinearInterpolation(
-        point: DoubleArray,
+        point: DoubleArray,//TODO should be called with a Solution
         sampleSize: Int
     ): PLIResults {
-        // determine the next simplex based on the supplied point
-        val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
-        // filter out the infeasible vertices in the simplex
-        val feasibleInputs = filterToFeasibleInputs(simplex)
-        // the feasible input is mapped to the vertex's weight in the simplex
-        if (feasibleInputs.isEmpty()) {
-            // no feasible points to evaluate
-            return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-                numOracleCalls = 0,
-                gradients = null
-            )
-        }
-        //TODO this needs to be via CRN
-        // request evaluations for solutions
-        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
-        if (results.isEmpty()) {
-            // No solutions returned. We assume that no oracles happened, even if they did.
-            return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-                numOracleCalls = 0,
-                gradients = null
-            )
-        }
-        // compute the interpolated objective function value
-        var interpolatedObjFnc = 0.0
-        var wSum = 0.0
-        for (solution in results) {
-            val weight = feasibleInputs[solution.inputMap]!! //TODO
-            wSum = wSum + weight
-            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
-        }
-        if (wSum <= 0.0) {
-            //TODO matlab/R code checks if wSum is "close" to zero
-            return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-                numOracleCalls = results.size * sampleSize,
-                gradients = null
-            )
-        }
-        interpolatedObjFnc = interpolatedObjFnc / wSum
-        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
-        if (results.size < simplex.size) {
-            return PLIResults(
-                interpolatedObjFnc = interpolatedObjFnc,
-                numOracleCalls = results.size * sampleSize,
-                gradients = null
-            )
-        }
-        // can compute the gradients
-        val gradients = DoubleArray(sortedIndices.size)
-        for ((i, indexValue) in sortedIndices.withIndex()) {
-            gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
-        }
-        return PLIResults(
-            interpolatedObjFnc = interpolatedObjFnc,
-            numOracleCalls = results.size * sampleSize,
-            gradients = gradients
-        )
+        TODO("Not implemented yet")
+//        // determine the next simplex based on the supplied point
+//        //TODO needs to include the center point
+//        val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
+//        // filter out the infeasible vertices in the simplex
+//        val feasibleInputs = filterToFeasibleInputs(simplex)
+//        // the feasible input is mapped to the vertex's weight in the simplex
+//        if (feasibleInputs.isEmpty()) {
+//            // no feasible points to evaluate
+//            return PLIResults(
+//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+//                numOracleCalls = 0,
+//                gradients = null
+//            )
+//        }
+//        //TODO this needs to be via CRN
+//        // request evaluations for solutions
+//        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
+//        if (results.isEmpty()) {
+//            // No solutions returned. We assume that no oracles happened, even if they did.
+//            return PLIResults(
+//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+//                numOracleCalls = 0,
+//                gradients = null
+//            )
+//        }
+//        // compute the interpolated objective function value
+//        var interpolatedObjFnc = 0.0
+//        var wSum = 0.0
+//        for (solution in results) {
+//            val weight = feasibleInputs[solution.inputMap]!! //TODO
+//            wSum = wSum + weight
+//            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
+//        }
+//        if (wSum <= 0.0) {
+//            //TODO matlab/R code checks if wSum is "close" to zero
+//            return PLIResults(
+//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+//                numOracleCalls = results.size * sampleSize,
+//                gradients = null
+//            )
+//        }
+//        interpolatedObjFnc = interpolatedObjFnc / wSum
+//        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
+//        if (results.size < simplex.size) {
+//            return PLIResults(
+//                interpolatedObjFnc = interpolatedObjFnc,
+//                numOracleCalls = results.size * sampleSize,
+//                gradients = null
+//            )
+//        }
+//        // can compute the gradients
+//        val gradients = DoubleArray(sortedIndices.size)
+//        for ((i, indexValue) in sortedIndices.withIndex()) {
+//            gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
+//        }
+//        return PLIResults(
+//            interpolatedObjFnc = interpolatedObjFnc,
+//            numOracleCalls = results.size * sampleSize,
+//            gradients = gradients
+//        )
     }
 
     private class PLIResults(
         val interpolatedObjFnc: Double,
         val numOracleCalls: Int,
-        val gradients: DoubleArray? = null,
+        val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
     )
 
     /**
@@ -347,10 +350,47 @@ class RSpline(
         splineCallLimit: Int
     ): Pair<Int, Solution> {
         //Set X_best = x_0 and n′ = 0
-        val x0 = solution.inputMap.inputValues
+        var x0 = solution.inputMap.inputValues
+        var bestSoln = solution
         var numOracleCalls = 0
-        //Continue {begin new line search with new gradient estimate}
+
         val jMax = 100
+        var j = 0
+        do {
+            j++
+            //Continue {begin new line search with new gradient estimate}
+            //perturb the initial solution to get a non-integer point
+            var x1 = perturb(bestSoln.inputMap.inputValues)
+            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
+            val pliResults = piecewiseLinearInterpolation(x1, sampleSize)
+            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
+            if (pliResults.gradients == null) {
+                return Pair(numOracleCalls, bestSoln)
+            }
+            if (numOracleCalls > splineCallLimit) {
+                return Pair(numOracleCalls, bestSoln)
+            }
+            var i = 0
+            val s0 = initialStepSize
+            val c = stepSizeMultiplier
+            val d = pliResults.gradients.direction()
+            do {
+                i = i + 1
+                val s = s0 * c.pow(i - 1)
+                val sd = KSLArrays.multiplyConstant(d, s)
+                x1 = KSLArrays.subtractElements(x0, sd)
+                val inputs = problemDefinition.toInputMap(x1)
+                if (!inputs.isInputFeasible()) {
+                    return Pair(numOracleCalls, bestSoln)
+                }
+                if (inputs.equals(bestSoln.inputMap)) {
+                    return Pair(numOracleCalls, bestSoln)
+                }
+                //   val n
+
+            } while (numOracleCalls < splineCallLimit)
+
+        } while (j < jMax)
 
         val s0 = initialStepSize
         val c = stepSizeMultiplier
@@ -466,6 +506,38 @@ class RSpline(
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
 
+        class SimplexData(
+            val originalPoint: DoubleArray,
+            val fractionalParts: DoubleArray,
+            val sortedFractionIndices: IntArray,
+            val sortedFractions: List<Double>,
+            val vertices: List<DoubleArray>,
+            val weights: DoubleArray,
+        ) {
+            val simplexPoints: List<SimplexPoint>
+                get() {
+                    val list = mutableListOf<SimplexPoint>()
+                    for ((i, v) in vertices.withIndex()) {
+                        list.add(SimplexPoint(v, weights[i]))
+                    }
+                    return list
+                }
+
+            override fun toString(): String {
+                val sb = StringBuilder().apply {
+                    appendLine("original point = ${originalPoint.joinToString()}")
+                    appendLine("fractional parts = ${fractionalParts.joinToString()}")
+                    appendLine("sorted Fraction Indices = ${sortedFractionIndices.joinToString()}")
+                    appendLine("sortedFractions = ${sortedFractions.joinToString()}")
+                    appendLine("Vertices")
+                    for ((i, v) in vertices.withIndex()) {
+                        appendLine("vertex[$i] = ${v.joinToString()} \t weight = ${weights[i]}")
+                    }
+                }
+                return sb.toString()
+            }
+        }
+
         /**
          * Determines a piecewise-linear simple consisting of d + 1 vertices, where d is
          * the size of the point. The simplex is formed around the supplied point, and the
@@ -476,7 +548,7 @@ class RSpline(
          * @return a pair that represents the simplex vertices and their weights with the indices of
          * the sorted fractional parts for the offered point
          */
-        fun piecewiseLinearSimplex(point: DoubleArray): Pair<List<SimplexPoint>, IntArray> {
+        fun piecewiseLinearSimplex(point: DoubleArray): SimplexData {
             require(point.isNotEmpty()) { "The points must not be empty!" }
             // vertices will hold the vertices of the simplex
             val vertices = mutableListOf<DoubleArray>()
@@ -520,7 +592,14 @@ class RSpline(
             for ((i, vertex) in vertices.withIndex()) {
                 simplex.add(SimplexPoint(vertex, w[i]))
             }
-            return Pair(simplex, zSortedIndices)
+            return SimplexData(
+                originalPoint = point,
+                fractionalParts = z,
+                sortedFractionIndices = zSortedIndices,
+                sortedFractions = zList,
+                vertices = vertices,
+                weights = w
+            )
         }
 
         fun addRandomPerturbation(
@@ -541,30 +620,19 @@ class RSpline(
 fun main() {
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
-    val (simplex, sortedIndices) = RSpline.piecewiseLinearSimplex(x)
-    for ((i, point) in simplex.withIndex()) {
-        println("w[$i] = ${point.weight} vertex = ${point.vertex.contentToString()}")
-    }
+    val simpleData = RSpline.piecewiseLinearSimplex(x)
+    println(simpleData)
 }
 
 /*
 x = [1.8, 2.3, 3.6]
-x0 = [1.0, 2.0, 3.0]
-z = [0.8, 0.2999999999999998, 0.6000000000000001]
-zSortedIndices = [0, 2, 1]
-e0 = [1.0, 0.0, 0.0]
-e1 = [0.0, 0.0, 1.0]
-e2 = [0.0, 1.0, 0.0]
-
-v0 = [1.0, 2.0, 3.0]
-v1 = [2.0, 2.0, 3.0]
-v2 = [2.0, 2.0, 4.0]
-v3 = [2.0, 3.0, 4.0]
-
-zList = 1.0, 0.8, 0.2999999999999998, 0.6000000000000001, 0.0
-
-w = 0.19999999999999996
-w = 0.5000000000000002
-w = -0.30000000000000027
-w = 0.6000000000000001
- */
+original point = 1.8, 2.3, 3.6
+fractional parts = 0.8, 0.2999999999999998, 0.6000000000000001
+sorted Fraction Indices = 0, 2, 1
+sortedFractions = 1.0, 0.8, 0.6000000000000001, 0.2999999999999998, 0.0
+Vertices
+vertex[0] = 1.0, 2.0, 3.0 	 weight = 0.19999999999999996
+vertex[1] = 2.0, 2.0, 3.0 	 weight = 0.19999999999999996
+vertex[2] = 2.0, 2.0, 4.0 	 weight = 0.30000000000000027
+vertex[3] = 2.0, 3.0, 4.0 	 weight = 0.2999999999999998
+*/
