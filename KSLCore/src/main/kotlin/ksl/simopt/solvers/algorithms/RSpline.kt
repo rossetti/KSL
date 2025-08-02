@@ -172,8 +172,10 @@ class RSpline(
         // the initial solution is randomly selected or specified by the user
         // it will be the current solution until beaten by SPLINE search process
         // call SPLINE for the next solution
-        val(splineOracleCalls, nextSolution) = spline(currentSolution,
-            currenSampleSize, currentSplineCallLimit)
+        val (splineOracleCalls, nextSolution) = spline(
+            currentSolution,
+            currenSampleSize, currentSplineCallLimit
+        )
         // keep track of the total number of oracle calls
         numOracleCalls = numOracleCalls + splineOracleCalls
         if (compare(nextSolution, currentSolution) < 0) {
@@ -256,7 +258,7 @@ class RSpline(
     private fun piecewiseLinearInterpolation(
         point: DoubleArray,
         sampleSize: Int
-    ): Pair<Double, DoubleArray?> {
+    ): PLIResults {
         // determine the next simplex based on the supplied point
         val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
@@ -264,38 +266,65 @@ class RSpline(
         // the feasible input is mapped to the vertex's weight in the simplex
         if (feasibleInputs.isEmpty()) {
             // no feasible points to evaluate
-            return Pair(Double.POSITIVE_INFINITY, null)
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = 0,
+                gradients = null
+            )
         }
         //TODO this needs to be via CRN
         // request evaluations for solutions
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
-            // No solutions returned
-            return Pair(Double.POSITIVE_INFINITY, null)
+            // No solutions returned. We assume that no oracles happened, even if they did.
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = 0,
+                gradients = null
+            )
         }
         // compute the interpolated objective function value
         var interpolatedObjFnc = 0.0
         var wSum = 0.0
         for (solution in results) {
-            val weight = feasibleInputs[solution.inputMap]!!
+            val weight = feasibleInputs[solution.inputMap]!! //TODO
             wSum = wSum + weight
             interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
         }
         if (wSum <= 0.0) {
-            return Pair(Double.POSITIVE_INFINITY, null)
+            //TODO matlab/R code checks if wSum is "close" to zero
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = results.size * sampleSize,
+                gradients = null
+            )
         }
         interpolatedObjFnc = interpolatedObjFnc / wSum
-        // The simplex may be missing infeasible vertices. This means that the gradient cannot be computed.
-        if (solutions.size < simplex.size) {
-            return Pair(interpolatedObjFnc, null)
+        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
+        if (results.size < simplex.size) {
+            return PLIResults(
+                interpolatedObjFnc = interpolatedObjFnc,
+                numOracleCalls = results.size * sampleSize,
+                gradients = null
+            )
         }
         // can compute the gradients
         val gradients = DoubleArray(sortedIndices.size)
         for ((i, indexValue) in sortedIndices.withIndex()) {
-            gradients[indexValue] = solutions[i].penalizedObjFncValue - solutions[i - 1].penalizedObjFncValue
+            gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
         }
-        return Pair(interpolatedObjFnc, gradients)
+        return PLIResults(
+            interpolatedObjFnc = interpolatedObjFnc,
+            numOracleCalls = results.size * sampleSize,
+            gradients = gradients
+        )
     }
+
+    private class PLIResults(
+        val interpolatedObjFnc: Double,
+        val numOracleCalls: Int,
+        val gradients: DoubleArray? = null,
+    )
 
     /**
      *  This function represents Algorithm 4: Search Piecewise Linear Interpolation (SPLI) in the paper:
@@ -317,8 +346,11 @@ class RSpline(
         sampleSize: Int,
         splineCallLimit: Int
     ): Pair<Int, Solution> {
+        //Set X_best = x_0 and n′ = 0
         val x0 = solution.inputMap.inputValues
-
+        var numOracleCalls = 0
+        //Continue {begin new line search with new gradient estimate}
+        val jMax = 100
 
         val s0 = initialStepSize
         val c = stepSizeMultiplier
@@ -437,8 +469,8 @@ class RSpline(
         /**
          * Determines a piecewise-linear simple consisting of d + 1 vertices, where d is
          * the size of the point. The simplex is formed around the supplied point, and the
-         * weights are such that the vertices form a convex combination of the vertices who
-         * convex hull contains the supplied point
+         * weights are such that the vertices form a convex combination of the vertices where the
+         * convex hull contains the supplied point.
          *
          * @param point a non-integral point around which the simplex is to be formed
          * @return a pair that represents the simplex vertices and their weights with the indices of
