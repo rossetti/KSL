@@ -499,7 +499,7 @@ abstract class Solver(
     /**
      * Generates a neighboring point based on the current point represented by the input map.
      * This method determines the next potential point in the iterative process, either through a
-     * neighbor generator or by randomizing the input variables.
+     * neighbor generator or by randomizing the value of a randomly selected input variable.
      *
      * @param currentPoint the current point represented as an instance of InputMap
      * @param rnStream an instance of RNStreamIfc used for generating random values if no neighbor generator is provided
