@@ -78,6 +78,12 @@ abstract class StochasticSolver(
         return problemDefinition.startingPoint(rnStream)
     }
 
+    /**
+     *  The default implementation will produce an input-range feasible
+     *  point. The point might not be feasible with respect to deterministic
+     *  constraints. By default, the next point is generated using the
+     *  [generateNeighbor()] function
+     */
     override fun nextPoint(): InputMap {
         return generateNeighbor(currentPoint, rnStream)
     }
