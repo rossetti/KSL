@@ -223,7 +223,7 @@ abstract class Solver(
      *  to obtain the initial starting point.
      *
      *  The starting point must be a valid point in the input space.
-     *  It must also be input range-feasible.
+     *  It must also be input-range-feasible.
      *
      */
     var startingPoint: InputMap? = null
@@ -729,9 +729,9 @@ abstract class Solver(
         /**
          *  Many algorithms compare solutions. This factor serves as the default precision
          *  between two solutions such that if the solutions are within this value
-         *  they are considered equal. The default is 0.01
+         *  they are considered equal. The default is 0.001
          */
-        var defaultSolutionPrecision: Double = 0.01
+        var defaultSolutionPrecision: Double = 0.001
             set(value) {
                 require(value > 0) { "The default solution precision must be a positive value." }
                 field = value
