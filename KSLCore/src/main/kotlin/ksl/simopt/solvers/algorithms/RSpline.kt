@@ -148,6 +148,10 @@ class RSpline(
     val currenSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.currentNumReplications
 
+    /**
+     *  The default implementation ensures that the initial point and solution
+     *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
+     */
     override fun initializeIterations() {
         super.initializeIterations()
         numOracleCalls = 0
