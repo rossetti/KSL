@@ -292,7 +292,8 @@ class RSpline(
             return PLIResults(
                 interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = 0,
-                gradients = null
+                gradients = null,
+                solution = null
             )
         }
         //TODO this needs to be via CRN
@@ -303,7 +304,8 @@ class RSpline(
             return PLIResults(
                 interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = 0,
-                gradients = null
+                gradients = null,
+                solution = null
             )
         }
         // compute the interpolated objective function value
@@ -314,12 +316,19 @@ class RSpline(
             wSum = wSum + weight
             interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
         }
+        val resultsBest = results.minOf { it }
+        val bestSolution = if (compare(solution, resultsBest) < 0) {
+            solution
+        } else {
+            resultsBest
+        }
         if (wSum <= 0.0) {
             //TODO matlab/R code checks if wSum is "close" to zero
             return PLIResults(
                 interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = results.size * sampleSize,
-                gradients = null
+                gradients = null,
+                solution = bestSolution
             )
         }
         interpolatedObjFnc = interpolatedObjFnc / wSum
@@ -328,7 +337,8 @@ class RSpline(
             return PLIResults(
                 interpolatedObjFnc = interpolatedObjFnc,
                 numOracleCalls = results.size * sampleSize,
-                gradients = null
+                gradients = null,
+                solution = bestSolution
             )
         }
         // can compute the gradients
@@ -339,7 +349,8 @@ class RSpline(
         return PLIResults(
             interpolatedObjFnc = interpolatedObjFnc,
             numOracleCalls = results.size * sampleSize,
-            gradients = gradients
+            gradients = gradients,
+            solution = bestSolution
         )
     }
 
@@ -347,6 +358,7 @@ class RSpline(
         val interpolatedObjFnc: Double,
         val numOracleCalls: Int,
         val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
+        val solution: Solution? = null
     )
 
     /**
