@@ -174,9 +174,10 @@ class RSpline(
      *  randomly when the solver is initialized.
      */
     override fun mainIteration() {
-        // the initial solution is randomly selected or specified by the user
-        // it will be the current solution until beaten by SPLINE search process
-        // call SPLINE for the next solution
+        // The initial solution is randomly selected or specified by the user.
+        // It will be the current solution until beaten by the SPLINE search process.
+        // Call SPLINE for the next solution using the current sample size (m_k) and
+        // current SPLINE oracle call limit (b_k).
         val (splineOracleCalls, nextSolution) = spline(
             currentSolution,
             currenSampleSize, currentSplineCallLimit
@@ -188,6 +189,7 @@ class RSpline(
         }
         //TODO what if sequential SPLINE search returns the same solution?
         //TODO need to incorporate number of oracle calls into stopping criteria
+        // Can SPLINE return an infeasible solution?
     }
 
     /**
