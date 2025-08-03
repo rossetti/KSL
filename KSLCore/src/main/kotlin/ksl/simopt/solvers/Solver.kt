@@ -223,7 +223,7 @@ abstract class Solver(
      *  to obtain the initial starting point.
      *
      *  The starting point must be a valid point in the input space.
-     *  It must also be input-range-feasible.
+     *  It must also be input-feasible.
      *
      */
     var startingPoint: InputMap? = null
