@@ -259,10 +259,15 @@ class RSpline(
         solution: Solution,
         sampleSize: Int
     ): PLIResults {
+        // get the point to be associated with the center of the simplex
+        val x = solution.inputMap.inputValues
+        // perturb the point
+        val point = perturb(x)
+        // determine the next simplex based on the supplied point
+        val simplexData = piecewiseLinearSimplex(point)
+        // filter out the infeasible vertices in the simplex
 
         TODO("Not implemented yet")
-//        // determine the next simplex based on the supplied point
-//        //TODO needs to include the center point
 //        val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
 //        // filter out the infeasible vertices in the simplex
 //        val feasibleInputs = filterToFeasibleInputs(simplex)

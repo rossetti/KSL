@@ -563,7 +563,7 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  Translates the supplied list of arrays to a set of named input pairs (name, value).
      *  Assumes that the order of the array elements is the same as the order of the defined names for the problem.
-     *  NOTE!!: If the supplied value is outside the range of the name variable, it is adjusted to the closest
+     *  NOTE!!: If the supplied value is outside the range of the named variable, it is adjusted to the closest
      *  boundary. In addition, the granularity of the input variable is applied.
      *  @param points the supplied list of arrays to translate.
      *  @return a set of InputMap instances representing the points
@@ -624,7 +624,8 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  Translates the supplied array to named input pairs (name, value).
      *  Assumes that the order of the array is the same as the order of the defined names for the problem.
-     *  NOTE!!: No adjustment of the value is performed
+     *  NOTE!!: No adjustment of the value is performed. The resulting map may be infeasible with respect
+     *  to input variable ranges and other deterministic constraints.
      *  @param point the supplied array.
      *  @return a map with each point value labeled with the appropriate input name
      */
@@ -753,7 +754,7 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
-     *  Checks if the supplied map has valid names and valid values (input range feasible)
+     *  Checks if the supplied map has valid names and valid values (input-range feasible)
      *  @param inputs the map to check
      *  @return false if a name or value is invalid in the map
      */
