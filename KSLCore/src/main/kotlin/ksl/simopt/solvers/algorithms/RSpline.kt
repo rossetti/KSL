@@ -418,7 +418,7 @@ class RSpline(
                     // there were no evaluation results returned from the simplex
                     return Pair(numOracleCalls, bestSoln)
                 }
-                PLICase.NO_GRADIENTS_WITH_SOLUTION, PLICase.MISSING_GRADIENT_WITH_SOLUTION -> {
+                PLICase.MISSING_GRADIENT_WITH_SOLUTION -> {
                     TODO()
                 }
                 PLICase.GRADIENTS_WITH_SOLUTION -> {
