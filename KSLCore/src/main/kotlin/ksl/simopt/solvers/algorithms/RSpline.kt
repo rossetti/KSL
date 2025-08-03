@@ -282,69 +282,65 @@ class RSpline(
         val x = solution.inputMap.inputValues
         // perturb the point
         val point = perturb(x)
-        // determine the next simplex based on the supplied point
+        // determine the next simplex based on the perturbed point
         val simplexData = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
-
-        TODO("Not implemented yet")
-//        val (simplex, sortedIndices) = piecewiseLinearSimplex(point)
-//        // filter out the infeasible vertices in the simplex
-//        val feasibleInputs = filterToFeasibleInputs(simplex)
-//        // the feasible input is mapped to the vertex's weight in the simplex
-//        if (feasibleInputs.isEmpty()) {
-//            // no feasible points to evaluate
-//            return PLIResults(
-//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-//                numOracleCalls = 0,
-//                gradients = null
-//            )
-//        }
-//        //TODO this needs to be via CRN
-//        // request evaluations for solutions
-//        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
-//        if (results.isEmpty()) {
-//            // No solutions returned. We assume that no oracles happened, even if they did.
-//            return PLIResults(
-//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-//                numOracleCalls = 0,
-//                gradients = null
-//            )
-//        }
-//        // compute the interpolated objective function value
-//        var interpolatedObjFnc = 0.0
-//        var wSum = 0.0
-//        for (solution in results) {
-//            val weight = feasibleInputs[solution.inputMap]!! //TODO
-//            wSum = wSum + weight
-//            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
-//        }
-//        if (wSum <= 0.0) {
-//            //TODO matlab/R code checks if wSum is "close" to zero
-//            return PLIResults(
-//                interpolatedObjFnc = Double.POSITIVE_INFINITY,
-//                numOracleCalls = results.size * sampleSize,
-//                gradients = null
-//            )
-//        }
-//        interpolatedObjFnc = interpolatedObjFnc / wSum
-//        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
-//        if (results.size < simplex.size) {
-//            return PLIResults(
-//                interpolatedObjFnc = interpolatedObjFnc,
-//                numOracleCalls = results.size * sampleSize,
-//                gradients = null
-//            )
-//        }
-//        // can compute the gradients
-//        val gradients = DoubleArray(sortedIndices.size)
-//        for ((i, indexValue) in sortedIndices.withIndex()) {
-//            gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
-//        }
-//        return PLIResults(
-//            interpolatedObjFnc = interpolatedObjFnc,
-//            numOracleCalls = results.size * sampleSize,
-//            gradients = gradients
-//        )
+        val feasibleInputs = filterToFeasibleInputs(simplexData.simplexPoints)
+        // the feasible input is mapped to the vertex's weight in the simplex
+        if (feasibleInputs.isEmpty()) {
+            // no feasible points to evaluate
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = 0,
+                gradients = null
+            )
+        }
+        //TODO this needs to be via CRN
+        // request evaluations for solutions
+        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
+        if (results.isEmpty()) {
+            // No solutions returned. We assume that no oracles happened, even if they did.
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = 0,
+                gradients = null
+            )
+        }
+        // compute the interpolated objective function value
+        var interpolatedObjFnc = 0.0
+        var wSum = 0.0
+        for (solution in results) {
+            val weight = feasibleInputs[solution.inputMap]!! //TODO
+            wSum = wSum + weight
+            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
+        }
+        if (wSum <= 0.0) {
+            //TODO matlab/R code checks if wSum is "close" to zero
+            return PLIResults(
+                interpolatedObjFnc = Double.POSITIVE_INFINITY,
+                numOracleCalls = results.size * sampleSize,
+                gradients = null
+            )
+        }
+        interpolatedObjFnc = interpolatedObjFnc / wSum
+        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
+        if (results.size < simplexData.vertices.size) {
+            return PLIResults(
+                interpolatedObjFnc = interpolatedObjFnc,
+                numOracleCalls = results.size * sampleSize,
+                gradients = null
+            )
+        }
+        // can compute the gradients
+        val gradients = DoubleArray(simplexData.sortedFractionIndices.size)
+        for ((i, indexValue) in simplexData.sortedFractionIndices.withIndex()) {
+            gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
+        }
+        return PLIResults(
+            interpolatedObjFnc = interpolatedObjFnc,
+            numOracleCalls = results.size * sampleSize,
+            gradients = gradients
+        )
     }
 
     class PLIResults(
