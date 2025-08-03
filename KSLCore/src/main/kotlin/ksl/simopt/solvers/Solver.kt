@@ -232,8 +232,9 @@ abstract class Solver(
                 require(value.isNotEmpty()) { "Starting point must not be empty" }
                 require(problemDefinition == value.problemDefinition) { "Starting point must be of the same problem as the evaluator" }
                 require(problemDefinition.validate(value)) { "Starting point is not valid" }
-                field = value
+                require(value.isInputFeasible()) {"The supplied starting point must be feasible with respect to the problem"}
             }
+            field = value
         }
 
     /**

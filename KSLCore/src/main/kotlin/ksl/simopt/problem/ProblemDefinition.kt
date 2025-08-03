@@ -906,7 +906,8 @@ class ProblemDefinition @JvmOverloads constructor(
      *
      *  @param rnStream the stream to use when generating random points within the input range space.
      *  By default, this uses the default random number stream [KSLRandom.defaultRNStream]
-     *  @return the starting point
+     *  @return the starting point. It should be feasible with respect to input ranges and deterministic
+     *  constraints.
      */
     fun startingPoint(
         rnStream: RNStreamIfc = KSLRandom.defaultRNStream()

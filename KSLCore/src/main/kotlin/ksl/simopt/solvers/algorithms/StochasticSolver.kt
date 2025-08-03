@@ -69,6 +69,11 @@ abstract class StochasticSolver(
             rnStream.antithetic = value
         }
 
+    /**
+     *  The default implementation will produce an input-feasible
+     *  starting point by acceptance sampling of the feasible region
+     *  using the problem definition.
+     */
     override fun startingPoint(): InputMap {
         return problemDefinition.startingPoint(rnStream)
     }
