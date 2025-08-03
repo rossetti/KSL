@@ -145,6 +145,16 @@ class RSpline(
             return currentSplineCallLimit
         }
 
+    var splineIterMax = defaultSplineIterMax
+        set(value) {
+            require(value > 0) { "The maximum number of spline iterations must be > 0" }
+        }
+
+    var lineSearchIterMax = defaultLineSearchIterMax
+        set(value) {
+            require(value > 0) { "The maximum number of spline line search iterations must be > 0" }
+        }
+
     val currenSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.currentNumReplications
 
@@ -290,10 +300,10 @@ class RSpline(
         if (feasibleInputs.isEmpty()) {
             // no feasible points to evaluate
             return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = 0,
                 gradients = null,
-                solution = null
+                solution = null,
+                pliCase = PLICase.NO_FEASIBLE_SIMPLEX_POINTS
             )
         }
         //TODO this needs to be via CRN
@@ -302,10 +312,10 @@ class RSpline(
         if (results.isEmpty()) {
             // No solutions returned. We assume that no oracles happened, even if they did.
             return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = 0,
                 gradients = null,
-                solution = null
+                solution = null,
+                pliCase = PLICase.NO_EVALUATION_RESULTS
             )
         }
         // compute the interpolated objective function value
@@ -322,23 +332,26 @@ class RSpline(
         } else {
             resultsBest
         }
+        //TODO it looks like wSum isn't even needed because the interpolated objective function is not used
         if (wSum <= 0.0) {
             //TODO matlab/R code checks if wSum is "close" to zero
+            // this means that there was a missing
             return PLIResults(
-                interpolatedObjFnc = Double.POSITIVE_INFINITY,
                 numOracleCalls = results.size * sampleSize,
                 gradients = null,
-                solution = bestSolution
+                solution = bestSolution,
+                pliCase = PLICase.MISSING_GRADIENT_WITH_SOLUTION
             )
         }
         interpolatedObjFnc = interpolatedObjFnc / wSum
-        // The simplex results may be missing infeasible vertices. This means that the gradient cannot be computed.
+        // The simplex results may be missing infeasible vertices.
+        // This means that the gradient cannot be computed.
         if (results.size < simplexData.vertices.size) {
             return PLIResults(
-                interpolatedObjFnc = interpolatedObjFnc,
                 numOracleCalls = results.size * sampleSize,
                 gradients = null,
-                solution = bestSolution
+                solution = bestSolution,
+                pliCase = PLICase.MISSING_GRADIENT_WITH_SOLUTION
             )
         }
         // can compute the gradients
@@ -347,18 +360,24 @@ class RSpline(
             gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
         }
         return PLIResults(
-            interpolatedObjFnc = interpolatedObjFnc,
             numOracleCalls = results.size * sampleSize,
             gradients = gradients,
-            solution = bestSolution
+            solution = bestSolution,
+            pliCase = PLICase.GRADIENTS_WITH_SOLUTION
         )
     }
 
+    enum class PLICase {
+        NO_FEASIBLE_SIMPLEX_POINTS,
+        NO_EVALUATION_RESULTS,
+        MISSING_GRADIENT_WITH_SOLUTION,
+        GRADIENTS_WITH_SOLUTION
+    }
     class PLIResults(
-        val interpolatedObjFnc: Double,
         val numOracleCalls: Int,
         val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
-        val solution: Solution? = null
+        val solution: Solution? = null,
+        val pliCase: PLICase
     )
 
     /**
@@ -382,9 +401,46 @@ class RSpline(
         splineCallLimit: Int
     ): Pair<Int, Solution> {
         //Set X_best = x_0 and n′ = 0
-//        var x0 = solution.inputMap.inputValues
-//        var bestSoln = solution
-//        var numOracleCalls = 0
+        var x0 = solution.inputMap.inputValues
+        var bestSoln = solution
+        var numOracleCalls = 0
+        for(j in 1..splineIterMax) {
+            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
+            val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
+            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
+            // PLI might not return a gradient and might not return a solution.
+            when(pliResults.pliCase){
+                PLICase.NO_FEASIBLE_SIMPLEX_POINTS -> {
+                    // there were no feasible points to use for evaluating solutions
+                    return Pair(numOracleCalls, bestSoln)
+                }
+                PLICase.NO_EVALUATION_RESULTS -> {
+                    // there were no evaluation results returned from the simplex
+                    return Pair(numOracleCalls, bestSoln)
+                }
+                PLICase.NO_GRADIENTS_WITH_SOLUTION, PLICase.MISSING_GRADIENT_WITH_SOLUTION -> {
+                    TODO()
+                }
+                PLICase.GRADIENTS_WITH_SOLUTION -> {
+                    TODO()
+                }
+            }
+//            // solution is not null and gradients are not null
+//            if (numOracleCalls > splineCallLimit){
+//                // best might have changed
+//                return if (compare(bestSoln, pliResults.solution) < 0){
+//                    Pair(numOracleCalls, bestSoln)
+//                } else {
+//                    Pair(numOracleCalls, pliResults.solution)
+//                }
+//            }
+//
+//            for(i in 1..lineSearchIterMax){
+//
+//            }
+        }
+
+
 //
 //        val jMax = 100
 //        var j = 0
@@ -508,6 +564,16 @@ class RSpline(
     }
 
     companion object {
+
+        var defaultSplineIterMax = 100
+            set(value) {
+                require(value > 0) { "The default maximum number of spline iterations must be > 0" }
+            }
+
+        var defaultLineSearchIterMax = 5
+            set(value) {
+                require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
+            }
 
         var defaultInitialSampleSize: Int = 8
             set(value) {
