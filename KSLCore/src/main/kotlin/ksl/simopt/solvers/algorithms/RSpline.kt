@@ -174,22 +174,21 @@ class RSpline(
      *  randomly when the solver is initialized.
      */
     override fun mainIteration() {
-        // The initial solution is randomly selected or specified by the user.
+        // The initial (current) solution is randomly selected or specified by the user.
         // It will be the current solution until beaten by the SPLINE search process.
         // Call SPLINE for the next solution using the current sample size (m_k) and
         // current SPLINE oracle call limit (b_k).
-        val (splineOracleCalls, nextSolution) = spline(
+        val splineSolution = spline(
             currentSolution,
             currenSampleSize, currentSplineCallLimit
         )
         // keep track of the total number of oracle calls
-        numOracleCalls = numOracleCalls + splineOracleCalls
-        if (compare(nextSolution, currentSolution) < 0) {
-            currentSolution = nextSolution
+        numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
+        if (compare(splineSolution.solution, currentSolution) < 0) {
+            currentSolution = splineSolution.solution
         }
         //TODO what if sequential SPLINE search returns the same solution?
         //TODO need to incorporate number of oracle calls into stopping criteria
-        // Can SPLINE return an infeasible solution?
     }
 
     /**
@@ -201,6 +200,10 @@ class RSpline(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
+     * This implementation ensures that the returned solution will be input-feasible.
+     * If the point found from the SPLINE search is not better than the initial
+     * starting point or is input-infeasible, then the initial point is returned.
+     *
      * @param initSolution the initial solution for the search process
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
@@ -211,7 +214,8 @@ class RSpline(
         initSolution: Solution,
         sampleSize: Int,
         oracleCallLimit: Int
-    ): Pair<Int, Solution> {
+    ): SPLINESolution {
+        // The SPLINE search starts with a feasible point.
         require(initSolution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
         var splineOracleCalls = 0
         // This implementation is based in part on available matlab/R code as a guide.
@@ -236,15 +240,24 @@ class RSpline(
                 break
             }
         }
-        // check if the starting solution is better than the solution from the SPLINE search
-        // if the starting solution is still better return it
+        // Check if the starting solution is better than the solution from the SPLINE search.
+        // If the starting solution is still better return it. The starting solution
+        // must be input-feasible.
         //TODO matlab and R code used some kind of tolerance when testing equality
         return if (compare(startingSolution, newSolution) < 0) {
-            Pair(splineOracleCalls, startingSolution)
+            SPLINESolution(startingSolution, splineOracleCalls)
         } else {
-            Pair(splineOracleCalls, newSolution)
+            // The new solution might be better, but it might be input-infeasible.
+            if (newSolution.isInputFeasible()) {
+                SPLINESolution(newSolution, splineOracleCalls)
+            } else {
+                // not feasible, go back to the last feasible solution
+                SPLINESolution(startingSolution, splineOracleCalls)
+            }
         }
     }
+
+    class SPLINESolution(val solution: Solution, val numOracleCalls: Int)
 
     /**
      *  This function represents Algorithm 3: Piecewise Linear Interpolation (PLI) in the paper:
