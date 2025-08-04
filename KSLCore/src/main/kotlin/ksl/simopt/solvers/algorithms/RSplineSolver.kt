@@ -135,14 +135,14 @@ class RSplineSolver(
             require(value > 0) { "The maximum for the number of SPLINE call growth limit must be > 0" }
         }
 
-    val splineOracleCallLimit: Int
+    var splineOracleCallLimit: Int = initialMaxSplineCallLimit
         get() {
-            val k = iterationCounter
-            if (iterationCounter == 1){
-                return initialMaxSplineCallLimit
+            if (iterationCounter <= 1){
+                field = initialMaxSplineCallLimit
+                return field
             }
-            val m = initialMaxSplineCallLimit * (1.0 + splineOracleCallGrowthRate).pow(k)
-            return minOf(maxSplineOracleCallLimit, ceil(m).toInt())
+            field = ceil(field * (1.0 + splineOracleCallGrowthRate)).toInt()
+            return minOf(maxSplineOracleCallLimit, field)
         }
 
     var lineSearchIterMax = defaultLineSearchIterMax
