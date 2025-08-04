@@ -18,26 +18,26 @@ class FixedGrowthRateReplicationSchedule(
     maxNumReplications: Int = defaultMaxNumReplications
 ) : ReplicationPerEvaluationIfc {
     init {
-        require(initialNumReps > 0 ) {"The initial number of replication for each evaluation must be > 0"}
-        require(growthRate > 0 ) {"The replication growth rate must be > 0"}
-        require(maxNumReplications > 0 ) {"The maximum number of replication for each evaluation must be > 0"}
+        require(initialNumReps > 0) { "The initial number of replication for each evaluation must be > 0" }
+        require(growthRate > 0) { "The replication growth rate must be > 0" }
+        require(maxNumReplications > 0) { "The maximum number of replication for each evaluation must be > 0" }
     }
 
-    var initialNumReps : Int = initialNumReps
+    var initialNumReps: Int = initialNumReps
         set(value) {
-            require(value > 0 ) {"The initial number of replication for each evaluation must be > 0"}
+            require(value > 0) { "The initial number of replication for each evaluation must be > 0" }
             field = value
         }
 
-    var growthRate : Double = growthRate
+    var growthRate: Double = growthRate
         set(value) {
-            require(value > 0 ) {"The replication growth rate must be > 0"}
+            require(value > 0) { "The replication growth rate must be > 0" }
             field = value
         }
 
-    var maxNumReplications : Int = maxNumReplications
+    var maxNumReplications: Int = maxNumReplications
         set(value) {
-            require(value > 0 ) {"The maximum number of replication for each evaluation must be > 0"}
+            require(value > 0) { "The maximum number of replication for each evaluation must be > 0" }
             field = value
         }
 
@@ -45,11 +45,11 @@ class FixedGrowthRateReplicationSchedule(
         private set
 
     override fun numReplicationsPerEvaluation(solver: Solver): Int {
-        val k = solver.iterationCounter
-        if (k == 1){
-            return initialNumReps
+        if (solver.iterationCounter <= 1) {
+            currentNumReplications = initialNumReps
+            return currentNumReplications
         }
-        val m = initialNumReps * (1.0 + growthRate).pow(k)
+        val m = currentNumReplications * (1.0 + growthRate)
         currentNumReplications = minOf(maxNumReplications, ceil(m).toInt())
         return currentNumReplications
     }
@@ -68,18 +68,18 @@ class FixedGrowthRateReplicationSchedule(
         /**
          *  The default maximum number of replications. By default, this is 1000.
          */
-        var defaultMaxNumReplications : Int = 1000
+        var defaultMaxNumReplications: Int = 1000
             set(value) {
-                require(value > 0 ) {"The default maximum number of replication for each evaluation must be > 0"}
+                require(value > 0) { "The default maximum number of replication for each evaluation must be > 0" }
                 field = value
             }
 
         /**
          *  The default growth rate. By default, this is 10% (0.1).
          */
-        var defaultGrowthRate : Double = 0.1
+        var defaultGrowthRate: Double = 0.1
             set(value) {
-                require(value > 0 ) {"The replication growth rate must be > 0"}
+                require(value > 0) { "The replication growth rate must be > 0" }
                 field = value
             }
 

@@ -138,7 +138,7 @@ class RSplineSolver(
     val splineOracleCallLimit: Int
         get() {
             val k = iterationCounter
-            if (k == 1){
+            if (iterationCounter == 1){
                 return initialMaxSplineCallLimit
             }
             val m = initialMaxSplineCallLimit * (1.0 + splineOracleCallGrowthRate).pow(k)
