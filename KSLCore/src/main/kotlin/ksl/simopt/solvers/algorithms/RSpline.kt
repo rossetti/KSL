@@ -158,6 +158,8 @@ class RSpline(
     val currenSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.currentNumReplications
 
+    private val badSolution = problemDefinition.badSolution()
+
     /**
      *  The default implementation ensures that the initial point and solution
      *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
@@ -236,17 +238,17 @@ class RSpline(
         var newSolution = startingSolution
         for (i in 1..oracleCallLimit) {
             // perform the line search to get a solution based on the new solution
-            val (splineCalls, spliSolution) = searchPiecewiseLinearInterpolation(
+            val spliResults = searchPiecewiseLinearInterpolation(
                 newSolution, sampleSize, oracleCallLimit
             )
             // search the neighborhood starting from the SPLI solution
-            val (neCalls, neSolution) = neighborhoodSearch(spliSolution, sampleSize)
-            splineOracleCalls = splineOracleCalls + splineCalls + neCalls
+            val (neCalls, neSolution) = neighborhoodSearch(spliResults.solution, sampleSize)
+            splineOracleCalls = splineOracleCalls + spliResults.numOracleCalls + neCalls
             // use the neighborhood search to seed the next SPLI search
             newSolution = neSolution
             // if the line search and the neighborhood search results are the same, we can stop
             //TODO matlab and R code used some kind of tolerance when testing equality
-            if (compare(spliSolution, neSolution) == 0) {
+            if (compare(spliResults.solution, neSolution) == 0) {
                 break
             }
         }
@@ -299,85 +301,42 @@ class RSpline(
         // the feasible input is mapped to the vertex's weight in the simplex
         if (feasibleInputs.isEmpty()) {
             // no feasible points to evaluate
-            return PLIResults(
-                numOracleCalls = 0,
-                gradients = null,
-                solution = null,
-                pliCase = PLICase.NO_FEASIBLE_SIMPLEX_POINTS
-            )
+            return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
-        //TODO this needs to be via CRN
-        // request evaluations for solutions
+        //TODO The request for evaluation of the simplex vertices should use CRN
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
-            // No solutions returned. We assume that no oracles happened, even if they did.
-            return PLIResults(
-                numOracleCalls = 0,
-                gradients = null,
-                solution = null,
-                pliCase = PLICase.NO_EVALUATION_RESULTS
-            )
+            // No solutions returned. We assume that no oracle evaluations happened, even if they did.
+            return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
-        // compute the interpolated objective function value
-        var interpolatedObjFnc = 0.0
-        var wSum = 0.0
-        for (solution in results) {
-            val weight = feasibleInputs[solution.inputMap]!! //TODO
-            wSum = wSum + weight
-            interpolatedObjFnc = interpolatedObjFnc + weight * solution.penalizedObjFncValue
-        }
+        // There must be new results available for some simplex vertices.
+        // Find the best of the simplex vertices.
         val resultsBest = results.minOf { it }
-        val bestSolution = if (compare(solution, resultsBest) < 0) {
-            solution
-        } else {
-            resultsBest
-        }
-        //TODO it looks like wSum isn't even needed because the interpolated objective function is not used
-        if (wSum <= 0.0) {
-            //TODO matlab/R code checks if wSum is "close" to zero
-            // this means that there was a missing
-            return PLIResults(
-                numOracleCalls = results.size * sampleSize,
-                gradients = null,
-                solution = bestSolution,
-                pliCase = PLICase.MISSING_GRADIENT_WITH_SOLUTION
-            )
-        }
-        interpolatedObjFnc = interpolatedObjFnc / wSum
+        // Determine if the best solution should be updated. If tied, prefer the solution with more oracle evaluations.
+        val bestSolution = minimumSolution(resultsBest, solution)
         // The simplex results may be missing infeasible vertices.
-        // This means that the gradient cannot be computed.
         if (results.size < simplexData.vertices.size) {
-            return PLIResults(
-                numOracleCalls = results.size * sampleSize,
-                gradients = null,
-                solution = bestSolution,
-                pliCase = PLICase.MISSING_GRADIENT_WITH_SOLUTION
-            )
+            // The simplex has infeasible vertices. Return the current best solution without the gradients.
+            return PLIResults(numOracleCalls = results.size * sampleSize, gradients = null, solution = bestSolution)
         }
-        // can compute the gradients
+        // The full simplex has been evaluated. Thus, the gradients can be computed.
         val gradients = DoubleArray(simplexData.sortedFractionIndices.size)
         for ((i, indexValue) in simplexData.sortedFractionIndices.withIndex()) {
             gradients[indexValue] = results[i].penalizedObjFncValue - results[i - 1].penalizedObjFncValue
         }
-        return PLIResults(
-            numOracleCalls = results.size * sampleSize,
-            gradients = gradients,
-            solution = bestSolution,
-            pliCase = PLICase.GRADIENTS_WITH_SOLUTION
-        )
+        // Return the current best solution along with the computed gradients.
+        return PLIResults(numOracleCalls = results.size * sampleSize, gradients = gradients, solution = bestSolution)
     }
 
-    enum class PLICase {
-        NO_FEASIBLE_SIMPLEX_POINTS,
-        NO_EVALUATION_RESULTS,
-        MISSING_GRADIENT_WITH_SOLUTION,
-        GRADIENTS_WITH_SOLUTION
-    }
     class PLIResults(
         val numOracleCalls: Int,
         val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
-        val solution: Solution? = null,
-        val pliCase: PLICase
+        val solution: Solution
+    )
+
+    class SPLIResults(
+        val numOracleCalls: Int,
+        val solution: Solution
     )
 
     /**
@@ -399,45 +358,30 @@ class RSpline(
         solution: Solution,
         sampleSize: Int,
         splineCallLimit: Int
-    ): Pair<Int, Solution> {
+    ): SPLIResults {
         //Set X_best = x_0 and n′ = 0
-        var x0 = solution.inputMap.inputValues
         var bestSoln = solution
         var numOracleCalls = 0
-        for(j in 1..splineIterMax) {
-            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
+        for (j in 1..splineIterMax) {
+            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
-            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-            // PLI might not return a gradient and might not return a solution.
-            when(pliResults.pliCase){
-                PLICase.NO_FEASIBLE_SIMPLEX_POINTS -> {
-                    // there were no feasible points to use for evaluating solutions
-                    return Pair(numOracleCalls, bestSoln)
-                }
-                PLICase.NO_EVALUATION_RESULTS -> {
-                    // there were no evaluation results returned from the simplex
-                    return Pair(numOracleCalls, bestSoln)
-                }
-                PLICase.MISSING_GRADIENT_WITH_SOLUTION -> {
-                    TODO()
-                }
-                PLICase.GRADIENTS_WITH_SOLUTION -> {
-                    TODO()
-                }
+            // update the best solution if PLI found a better solution
+            bestSoln = if (compare(bestSoln, pliResults.solution) < 0) {
+                bestSoln
+            } else {
+                pliResults.solution
             }
-//            // solution is not null and gradients are not null
-//            if (numOracleCalls > splineCallLimit){
-//                // best might have changed
-//                return if (compare(bestSoln, pliResults.solution) < 0){
-//                    Pair(numOracleCalls, bestSoln)
-//                } else {
-//                    Pair(numOracleCalls, pliResults.solution)
-//                }
-//            }
-//
-//            for(i in 1..lineSearchIterMax){
-//
-//            }
+            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
+            if (pliResults.gradients == null) {
+                // Stop if no direction
+                return SPLIResults(numOracleCalls, bestSoln)
+            }
+            if (numOracleCalls > splineCallLimit) {
+                // Stop if too many oracle calls
+                return SPLIResults(numOracleCalls, bestSoln)
+            }
+            // Setup to do the line search
+
         }
 
 
