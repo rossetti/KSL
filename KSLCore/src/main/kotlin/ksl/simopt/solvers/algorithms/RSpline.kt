@@ -366,11 +366,7 @@ class RSpline(
             // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
             // update the best solution if PLI found a better solution
-            bestSoln = if (compare(bestSoln, pliResults.solution) < 0) {
-                bestSoln
-            } else {
-                pliResults.solution
-            }
+            bestSoln = minimumSolution(pliResults.solution, bestSoln)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
             if (pliResults.gradients == null) {
                 // Stop if no direction
@@ -381,53 +377,27 @@ class RSpline(
                 return SPLIResults(numOracleCalls, bestSoln)
             }
             // Setup to do the line search
-
+            val s0 = initialStepSize
+            val c = stepSizeMultiplier
+            val d = pliResults.gradients.direction()
+            val x0 = bestSoln.inputMap.inputValues
+            // The matlab/R code has a limit on the number of line searches.
+            for (i in 1..lineSearchIterMax) {
+                val s = s0 * c.pow(i - 1) // step-size
+                val sd = KSLArrays.multiplyConstant(d, s) //step-array
+                val x1 = KSLArrays.subtractElements(x0, sd)
+                // This will shift x1 to the nearest integer point.
+                val inputs = problemDefinition.toInputMap(x1)
+                if (!inputs.isInputFeasible()){
+                    return SPLIResults(numOracleCalls, bestSoln)
+                }
+                val x1Solution = requestEvaluation(inputs, sampleSize)
+                numOracleCalls = numOracleCalls + sampleSize
+                bestSoln = minimumSolution(x1Solution, bestSoln)
+                //TODO check conditions
+            }
+            //TODO check for short line search
         }
-
-
-//
-//        val jMax = 100
-//        var j = 0
-//        do {
-//            j++
-//            //Continue {begin new line search with new gradient estimate}
-//            //perturb the initial solution to get a non-integer point
-//            var x1 = perturb(bestSoln.inputMap.inputValues)
-//            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient γ
-//            val pliResults = piecewiseLinearInterpolation(x1, sampleSize)
-//            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-//            if (pliResults.gradients == null) {
-//                return Pair(numOracleCalls, bestSoln)
-//            }
-//            if (numOracleCalls > splineCallLimit) {
-//                return Pair(numOracleCalls, bestSoln)
-//            }
-//            var i = 0
-//            val s0 = initialStepSize
-//            val c = stepSizeMultiplier
-//            val d = pliResults.gradients.direction()
-//            do {
-//                i = i + 1
-//                val s = s0 * c.pow(i - 1)
-//                val sd = KSLArrays.multiplyConstant(d, s)
-//                x1 = KSLArrays.subtractElements(x0, sd)
-//                val inputs = problemDefinition.toInputMap(x1)
-//                if (!inputs.isInputFeasible()) {
-//                    return Pair(numOracleCalls, bestSoln)
-//                }
-//                if (inputs.equals(bestSoln.inputMap)) {
-//                    return Pair(numOracleCalls, bestSoln)
-//                }
-//                //   val n
-//
-//            } while (numOracleCalls < splineCallLimit)
-//
-//        } while (j < jMax)
-//
-//        val s0 = initialStepSize
-//        val c = stepSizeMultiplier
-//
-
         TODO("Not implemented yet")
     }
 
