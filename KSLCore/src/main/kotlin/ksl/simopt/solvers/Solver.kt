@@ -21,7 +21,7 @@ import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
 
 interface SolverEmitterIfc {
-    val emitter : Emitter<Solver>
+    val emitter: Emitter<Solver>
 }
 
 class SolverEmitter : SolverEmitterIfc {
@@ -232,7 +232,7 @@ abstract class Solver(
                 require(value.isNotEmpty()) { "Starting point must not be empty" }
                 require(problemDefinition == value.problemDefinition) { "Starting point must be of the same problem as the evaluator" }
                 require(problemDefinition.validate(value)) { "Starting point is not valid" }
-                require(value.isInputFeasible()) {"The supplied starting point must be feasible with respect to the problem"}
+                require(value.isInputFeasible()) { "The supplied starting point must be feasible with respect to the problem" }
             }
             field = value
         }
@@ -406,6 +406,21 @@ abstract class Solver(
      */
     override fun compare(first: Solution, second: Solution): Int {
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
+    }
+
+    /** Returns the smaller of the two solutions. Ties result in the first solution
+     * being returned. This function uses the compare function, which may use a user defined
+     * solution comparator.
+     *
+     * @param first the first solution within the comparison
+     * @param second the second solution within the comparison
+     */
+    fun minimumSolution(first: Solution, second: Solution): Solution {
+        return if (compare(first, second) <= 0) {
+            first
+        } else {
+            second
+        }
     }
 
     /**
@@ -648,7 +663,7 @@ abstract class Solver(
             appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
             appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
-            if (::initialSolution.isInitialized){
+            if (::initialSolution.isInitialized) {
                 appendLine("Initial Solution: $initialSolution")
                 appendLine("$initialSolution")
             }
@@ -804,9 +819,9 @@ abstract class Solver(
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
-            replicationsPerEvaluation: Int =defaultReplicationsPerEvaluation,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             printer: ((Solver) -> Unit)? = null
-        ) : StochasticHillClimber {
+        ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
@@ -848,7 +863,7 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             printer: ((Solver) -> Unit)? = null
-        ) : SimulatedAnnealing {
+        ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
@@ -890,7 +905,7 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             printer: ((Solver) -> Unit)? = null
-        ) : CrossEntropySolver {
+        ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
