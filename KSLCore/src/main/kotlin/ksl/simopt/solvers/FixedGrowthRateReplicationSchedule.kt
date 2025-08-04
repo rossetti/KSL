@@ -41,14 +41,14 @@ class FixedGrowthRateReplicationSchedule(
             field = value
         }
 
-    /**
-     *  The current (last) determined value for the number of replications
-     */
     var currentNumReplications: Int = initialNumReps
         private set
 
     override fun numReplicationsPerEvaluation(solver: Solver): Int {
         val k = solver.iterationCounter
+        if (k == 1){
+            return initialNumReps
+        }
         val m = initialNumReps * (1.0 + growthRate).pow(k)
         currentNumReplications = minOf(maxNumReplications, ceil(m).toInt())
         return currentNumReplications

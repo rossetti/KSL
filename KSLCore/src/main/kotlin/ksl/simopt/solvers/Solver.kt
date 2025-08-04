@@ -451,6 +451,9 @@ abstract class Solver(
      *  of the point, and then updates the current solution if the
      *  resulting solution is better than the current solution. Generally,
      *  implementing startingPoint() and nextPoint() should be adequate.
+     *  The property [iterationCounter] represents the current iteration
+     *  within the mainIteration() function. That is, the value of [iterationCounter]
+     *  is incremented prior to the execution of the mainIteration() function.
      */
     protected abstract fun mainIteration()
 
