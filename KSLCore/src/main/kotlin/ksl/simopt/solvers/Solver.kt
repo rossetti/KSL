@@ -6,9 +6,13 @@ import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
+import ksl.simopt.solvers.algorithms.RSplineSolver
+import ksl.simopt.solvers.algorithms.RSplineSolver.Companion.defaultInitialSampleSize
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -924,6 +928,52 @@ abstract class Solver(
             }
             printer?.let { ce.emitter.attach(it) }
             return ce
+        }
+
+        /**
+         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
+         * provided by the problem definition.
+         * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun rsplineSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            initialNumReps: Int = defaultInitialSampleSize,
+            sampleSizeGrowthRate: Double = defaultGrowthRate,
+            maxNumReplications: Int = defaultMaxNumReplications,
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            printer: ((Solver) -> Unit)? = null
+        ): RSplineSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+            val rspline = RSplineSolver(
+                evaluator = evaluator,
+                maxIterations = maxIterations,
+                initialNumReps = initialNumReps,
+                sampleSizeGrowthRate = sampleSizeGrowthRate,
+                maxNumReplications = maxNumReplications
+            )
+            if (startingPoint != null) {
+                rspline.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+            }
+            printer?.let { rspline.emitter.attach(it) }
+            return rspline
         }
     }
 }

@@ -34,7 +34,7 @@ import kotlin.math.floor
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name Optional name identifier for this instance of the solver.
  */
-class RSpline(
+class RSplineSolver(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
@@ -71,8 +71,8 @@ class RSpline(
     @Suppress("unused")
     constructor(
         evaluator: EvaluatorIfc,
-        initialNumReps: Int = defaultInitialSampleSize,
         maxIterations: Int = defaultMaxNumberIterations,
+        initialNumReps: Int = defaultInitialSampleSize,
         sampleSizeGrowthRate: Double = defaultGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,
         streamNum: Int = 0,
@@ -770,7 +770,7 @@ class RSpline(
 fun main() {
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
-    val simpleData = RSpline.piecewiseLinearSimplex(x)
+    val simpleData = RSplineSolver.piecewiseLinearSimplex(x)
     println(simpleData)
 }
 
