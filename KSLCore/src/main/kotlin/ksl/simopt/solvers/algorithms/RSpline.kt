@@ -379,18 +379,23 @@ class RSpline(
             // Setup to do the line search
             val s0 = initialStepSize
             val c = stepSizeMultiplier
-            val d = pliResults.gradients.direction()
+            val direction = pliResults.gradients.direction()
             val x0 = bestSoln.inputMap.inputValues
             // The matlab/R code has a limit on the number of line searches.
             for (i in 1..lineSearchIterMax) {
-                val s = s0 * c.pow(i - 1) // step-size
-                val sd = KSLArrays.multiplyConstant(d, s) //step-array
+                // determine the step-size for this interation
+                val stepSize = s0 * c.pow(i - 1)
+                // translate the step to an array towards the proposed direction
+                val sd = KSLArrays.multiplyConstant(direction, stepSize) //step-array
+                // make the step in the proposed direction
                 val x1 = KSLArrays.subtractElements(x0, sd)
                 // This will shift x1 to the nearest integer point.
                 val inputs = problemDefinition.toInputMap(x1)
                 if (!inputs.isInputFeasible()){
+                    // not a feasible step, return the best solution so far
                     return SPLIResults(numOracleCalls, bestSoln)
                 }
+                // Use the simulation oracle to evaluate the new point represented by the step.
                 val x1Solution = requestEvaluation(inputs, sampleSize)
                 numOracleCalls = numOracleCalls + sampleSize
                 bestSoln = minimumSolution(x1Solution, bestSoln)
