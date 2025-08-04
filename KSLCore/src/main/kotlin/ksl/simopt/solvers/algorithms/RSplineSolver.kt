@@ -136,14 +136,7 @@ class RSplineSolver(
         }
 
     var splineOracleCallLimit: Int = initialMaxSplineCallLimit
-        get() {
-            if (iterationCounter <= 1){
-                field = initialMaxSplineCallLimit
-                return field
-            }
-            field = ceil(field * (1.0 + splineOracleCallGrowthRate)).toInt()
-            return minOf(maxSplineOracleCallLimit, field)
-        }
+        private set
 
     var lineSearchIterMax = defaultLineSearchIterMax
         set(value) {
@@ -162,6 +155,7 @@ class RSplineSolver(
     override fun initializeIterations() {
         super.initializeIterations()
         numOracleCalls = 0
+        splineOracleCallLimit = initialMaxSplineCallLimit
     }
 
     /**
@@ -185,6 +179,7 @@ class RSplineSolver(
         // It will be the current solution until beaten by the SPLINE search process.
         // Call SPLINE for the next solution using the current sample size (m_k) and
         // current SPLINE oracle call limit (b_k).
+        splineOracleCallLimit = minOf(maxSplineOracleCallLimit, ceil(splineOracleCallLimit*(1.0 + splineOracleCallGrowthRate)).toInt())
 
         logger.info {"SPLINE search: main iteration = $iterationCounter : sample size = $rsplineSampleSize : oracle call limit = $splineOracleCallLimit"}
         val splineSolution = spline(
