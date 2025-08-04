@@ -60,7 +60,7 @@ class RSpline(
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param initialNumReps the initial starting number of replications
      * @param maxIterations The maximum number of iterations allowed for the solving process.
-     * @param growthRate the growth rate for the replications. The default is set by [defaultGrowthRate].
+     * @param sampleSizeGrowthRate the growth rate for the replications. The default is set by [defaultGrowthRate].
      * @param maxNumReplications the maximum number of replications permitted. If
      * the growth exceeds this value, then this value is used for all future replications.
      * The default is determined by [defaultMaxNumReplications]
@@ -68,18 +68,19 @@ class RSpline(
      * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @param name Optional name identifier for this instance of the solver.
      */
+    @Suppress("unused")
     constructor(
         evaluator: EvaluatorIfc,
         initialNumReps: Int = defaultInitialSampleSize,
         maxIterations: Int = defaultMaxNumberIterations,
-        growthRate: Double = defaultGrowthRate,
+        sampleSizeGrowthRate: Double = defaultGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
     ) : this(
         evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
-            initialNumReps, growthRate, maxNumReplications
+            initialNumReps, sampleSizeGrowthRate, maxNumReplications
         ), streamNum, streamProvider, name
     )
 
@@ -172,9 +173,9 @@ class RSpline(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
-     *  The current sample [currenSampleSize] size upon initialization is the initial sample
+     *  The current sample [rsplineSampleSize] size upon initialization is the initial sample
      *  size of the replication schedule (m_k). The current spline call limit (b_k)
-     *  is determined by the property [currentSplineCallLimit].
+     *  is determined by the property [splineOracleCallLimit].
      *  If the kth sample path problem beats the previous sample path problem,
      *  then the current solution is updated. The initial solution is determined
      *  randomly when the solver is initialized.
