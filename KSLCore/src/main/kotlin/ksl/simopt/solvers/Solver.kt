@@ -899,7 +899,7 @@ abstract class Solver(
          * stochastic noise. Defaults to 50.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
-         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         * @return An instance of CrossEntropySolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
         @JvmStatic
@@ -943,7 +943,7 @@ abstract class Solver(
          * stochastic noise. Defaults to 50.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
-         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         * @return An instance of RSplineSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
         @JvmStatic
