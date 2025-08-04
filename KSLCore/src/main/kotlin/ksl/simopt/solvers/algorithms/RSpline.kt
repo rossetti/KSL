@@ -365,9 +365,9 @@ class RSpline(
         for (j in 1..splineIterMax) {
             // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
-            // update the best solution if PLI found a better solution
-            bestSoln = minimumSolution(pliResults.solution, bestSoln)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
+            // regardless of gradient computation, update the current best solution
+            bestSoln = minimumSolution(pliResults.solution, bestSoln)
             if (pliResults.gradients == null) {
                 // Stop if no direction
                 return SPLIResults(numOracleCalls, bestSoln)
@@ -391,19 +391,33 @@ class RSpline(
                 val x1 = KSLArrays.subtractElements(x0, sd)
                 // This will shift x1 to the nearest integer point.
                 val inputs = problemDefinition.toInputMap(x1)
-                if (!inputs.isInputFeasible()){
+                if (!inputs.isInputFeasible()) {
                     // not a feasible step, return the best solution so far
                     return SPLIResults(numOracleCalls, bestSoln)
                 }
                 // Use the simulation oracle to evaluate the new point represented by the step.
                 val x1Solution = requestEvaluation(inputs, sampleSize)
                 numOracleCalls = numOracleCalls + sampleSize
-                bestSoln = minimumSolution(x1Solution, bestSoln)
-                //TODO check conditions
+                // if the x1Solution is worse than the current best, and we have only taken a small number
+                // of steps then assume that we are headed in the wrong direction and stop with the current best
+                if ((compare(x1Solution, bestSoln) > 0) && i <= 2) {
+                    return SPLIResults(numOracleCalls, bestSoln)
+                }
+                if (numOracleCalls > splineCallLimit) {
+                    // Stop if too many oracle calls
+                    return SPLIResults(numOracleCalls, bestSoln)
+                }
+                // if the x1Solution is worse than the current best, and we have taken some improving steps
+                // then break out of the line search and try to get a new starting point
+                if ((compare(x1Solution, bestSoln) > 0)) {
+                    break
+                }
+                // if we get here then x1 produced a better solution than the current best
+                // update the best solution
+                bestSoln = x1Solution
             }
-            //TODO check for short line search
         }
-        TODO("Not implemented yet")
+        return SPLIResults(numOracleCalls, bestSoln)
     }
 
     /**
