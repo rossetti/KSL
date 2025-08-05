@@ -288,7 +288,22 @@ data class Solution(
     }
 
     override fun toString(): String {
-        return "id: $id : Obj. Function: $penalizedObjFncValue Inputs: $inputMap"
+        val sb = StringBuilder().apply{
+            appendLine("Solution id = $id")
+            appendLine("iteration number = $iterationNumber")
+            appendLine("penalized objective function = $penalizedObjFncValue")
+            appendLine("Inputs:")
+            for((name, value) in inputMap){
+                appendLine("Name = $name = $value)")
+            }
+            appendLine("numReplications = $numReplications")
+            appendLine("Estimated Objective Function:")
+            appendLine("name = ${estimatedObjFnc.name}")
+            appendLine("average = ${estimatedObjFnc.average}")
+            appendLine("variance = ${estimatedObjFnc.variance}")
+            appendLine("count = ${estimatedObjFnc.count}")
+        }
+        return sb.toString()
     }
 
     companion object {
