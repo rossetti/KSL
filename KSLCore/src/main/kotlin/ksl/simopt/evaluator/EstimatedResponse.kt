@@ -188,10 +188,26 @@ data class EstimatedResponse(
             val avg = (average + e.average) / 2.0
             val v = (average - avg) * (average - avg) + (e.average - avg) * (e.average - avg)
             return v
-        } else if (count == 1.0 && e.count == 2.0) {
-            return e.variance
-        } else if ((count == 2.0) && (e.count == 1.0)) {
-            return variance
+        } else if (count == 1.0 && e.count >= 2.0) {
+            // Since count == 1, it is like a new data point. Use Welford's algorithm.
+            var m2 = e.variance * (e.count - 1)// base m2 on e
+            val n = count + e.count
+            // e.average is the current mean, average is the new value
+            val delta = (average - e.average)
+            val mean = e.average + delta / n
+            val delta2 = (average - mean)
+            m2 = m2 + delta * delta2
+            return m2 / (n - 1.0)
+        } else if ((count >= 2.0) && (e.count == 1.0)) {
+            // Since e.count == 1, "e" is new data point. Use Welford's algorithm.
+            var m2 = variance * (count - 1)
+            val n = count + e.count
+            // average is the current mean, e.average is the new value
+            val delta = (e.average - average)
+            val mean = average + delta / n
+            val delta2 = (e.average - mean)
+            m2 = m2 + delta * delta2
+            return m2 / (n - 1.0)
         } else {
             // both counts must be > 2
             val n = count + e.count
