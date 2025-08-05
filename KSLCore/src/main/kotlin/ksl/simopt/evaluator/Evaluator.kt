@@ -201,6 +201,7 @@ class Evaluator @JvmOverloads constructor(
             val sol = solutionMap[request]
             if (sol != null) {
                 val n = sol.numReplications //TODO I'm pretty sure that this is the problem!!
+                //TODO It looks like this is the only place where it is used and it is INCORRECT
                 totalCachedEvaluations++
                 totalCachedReplications = totalCachedReplications + n
                 request.startingReplicationNum = n //TODO why?
