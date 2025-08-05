@@ -193,17 +193,18 @@ class Evaluator @JvmOverloads constructor(
         solutionMap: MutableMap<RequestData, Solution>,
         uniqueRequests: List<RequestData>
     ) {
+        //TODO THIS NEEDS TO BE REVIEWED!!!
         if (solutionMap.isEmpty()) {
             return
         }
         for (request in uniqueRequests) {
             val sol = solutionMap[request]
             if (sol != null) {
-                val n = sol.numReplications
+                val n = sol.numReplications //TODO I'm pretty sure that this is the problem!!
                 totalCachedEvaluations++
                 totalCachedReplications = totalCachedReplications + n
                 request.startingReplicationNum = n //TODO why?
-                request.numReplications = request.numReplications - n
+                request.numReplications = request.numReplications - n //TODO need to investigate this!!
             }
         }
     }
@@ -257,6 +258,7 @@ class Evaluator @JvmOverloads constructor(
         }
         // Need to make the InputMap. This will not be the same object used to make the request.
         val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
+        //TODO need to investigate number of replications, why is it needed?
         val solution = Solution(
             inputMap,
             request.numReplications,

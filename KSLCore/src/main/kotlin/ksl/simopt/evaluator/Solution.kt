@@ -36,7 +36,7 @@ class SolutionEmitter : SolutionEmitterIfc {
  */
 data class Solution(
     val inputMap: InputMap,
-    val numReplications: Int,
+    val numReplications: Int, //TODO this is the REQUESTED replications!!!!!!, why is this even needed?
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
     val iterationNumber: Int
