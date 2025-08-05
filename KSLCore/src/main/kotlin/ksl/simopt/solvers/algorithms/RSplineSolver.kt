@@ -234,14 +234,15 @@ class RSplineSolver(
         sampleSize: Int,
         splineCallLimit: Int
     ): SPLINESolution {
-        logger.info { "spline(): Starting new SPLINE search with sample size = $sampleSize : spline call limit = $splineCallLimit : Initial solution:" }
-        logger.info { "\n $initSolution" }
-        // The SPLINE search starts with a feasible point.
+        // The SPLINE search must start with a feasible point.
         require(initSolution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
+        logger.info { "spline(): Starting new SPLINE search with sample size = $sampleSize : spline call limit = $splineCallLimit" }
+        logger.info {"Initial solution: \n $initSolution"}
         // use the initial solution as the new (starting) solution for the line search (SPLI)
         var newSolution = initSolution
         // initialize the number of oracle calls
         var splineOracleCalls = 0
+        // Note: This follows the matlab/R code, which has a limit on the number of calls to SPLI + NE
         for(i in 1..splineCallLimit){
             // perform the line search to get a solution based on the new solution
             logger.info { "\t SPLI search: SPLINE iteration: $i "}
@@ -249,18 +250,17 @@ class RSplineSolver(
             // SPLI cannot cause harm
             val neStartingSolution = if (compare(spliResults.solution, newSolution) <= 0){
                 logger.info { "\t SPLI search: resulted in a candidate solution better than current solution."}
-                logger.info { "\t SPLI search: using new candidate solution to seed NE search."}
+                logger.info { "\t SPLI search: using the new candidate solution to seed the NE search."}
                 spliResults.solution
             } else {
                 logger.info { "\t SPLI search: resulted in a candidate solution not better than current solution."}
-                logger.info { "\t SPLI search: keeping current solution to seed NE search."}
+                logger.info { "\t SPLI search: keeping the current solution to seed NE search."}
                 newSolution
             }
             // search the neighborhood starting from the SPLI solution
             logger.info { "\t NE search: SPLINE iteration: $i" }
             val neSearchResults = neighborhoodSearch(neStartingSolution, sampleSize)
             splineOracleCalls = splineOracleCalls + spliResults.numOracleCalls + neSearchResults.numOracleCalls
-            logger.info { "\t SPLINE search: iteration: $i : splineOracleCalls = $splineOracleCalls" }
             // The starting solution to NE could be:
             // 1) the previous starting solution or
             // 2) the result of the SPLI search.
@@ -284,11 +284,10 @@ class RSplineSolver(
         logger.info { "spline(): Completed SPLINE search with sample size = $sampleSize" }
         logger.info { "spline(): Completed SPLINE search with number of oracle calls = $splineOracleCalls" }
         // Check if the starting solution is better than the solution from the SPLINE search.
-        // If the starting solution is still better return it. The starting solution
-        // must be input-feasible.
+        // If the starting solution is still better return it. The returned solution must be input-feasible.
         //TODO matlab and R code used some kind of tolerance when testing equality
         return if (compare(initSolution, newSolution) < 0) {
-            logger.info { "SPLINE search completed: SPLINE solution was no improvement, returned starting solution" }
+            logger.info { "SPLINE search completed: SPLINE solution was no improvement over initial solution, returned starting solution" }
             SPLINESolution(initSolution, splineOracleCalls)
         } else {
             // The new solution might be better, but it might be input-infeasible.
@@ -324,6 +323,8 @@ class RSplineSolver(
         solution: Solution,
         sampleSize: Int
     ): PLIResults {
+        // The PLI search must start with a feasible point.
+        require(solution.isInputFeasible()) { "The initial solution to the PLI function must be input feasible!" }
         // get the point to be associated with the center of the simplex
         val x = solution.inputMap.inputValues
         // perturb the point
@@ -335,14 +336,14 @@ class RSplineSolver(
         // the feasible input is mapped to the vertex's weight in the simplex
         if (feasibleInputs.isEmpty()) {
             // no feasible points to evaluate
-            logger.info { "PLI search: no feasible simplex inputs, returning no gradients, bad solution" }
+            logger.info { "\t \t PLI search: no feasible simplex inputs, returning no gradients, bad solution" }
             return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
         //TODO The request for evaluation of the simplex vertices should use CRN
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
             // No solutions returned. We assume that no oracle evaluations happened, even if they did.
-            logger.info { "PLI search: no evaluation results, returning no gradients, bad solution" }
+            logger.info { "\t \t PLI search: no evaluation results, returning no gradients, bad solution" }
             return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
         // There must be new results available for some simplex vertices.
@@ -353,7 +354,7 @@ class RSplineSolver(
         // The simplex results may be missing infeasible vertices.
         if (results.size < simplexData.vertices.size) {
             // The simplex has infeasible vertices. Return the current best solution without the gradients.
-            logger.info { "PLI search: returning current best solution because of missing gradients!" }
+            logger.info { "\t \t PLI search: returning current best solution because of missing gradients!" }
             return PLIResults(numOracleCalls = results.size * sampleSize, gradients = null, solution = bestSolution)
         }
         // The full simplex has been evaluated. Thus, the gradients can be computed.
@@ -362,7 +363,7 @@ class RSplineSolver(
             gradients[indexValue] = results[i + 1].penalizedObjFncValue - results[i].penalizedObjFncValue
         }
         // Return the current best solution along with the computed gradients.
-        logger.info { "PLI search: returning current best solution along with the computed gradients" }
+        logger.info { "\t \t PLI search: returning current best solution along with the computed gradients" }
         return PLIResults(numOracleCalls = results.size * sampleSize, gradients = gradients, solution = bestSolution)
     }
 
@@ -376,100 +377,6 @@ class RSplineSolver(
         val numOracleCalls: Int,
         val solution: Solution
     )
-
-//    /**
-//     *  This function represents Algorithm 4: Search Piecewise Linear Interpolation (SPLI) in the paper:
-//     *
-//     *  H. Wang, R. Pasupathy, and B. W. Schmeiser, “Integer-Ordered Simulation
-//     *  Optimization using R-SPLINE: Retrospective Search with Piecewise-Linear
-//     *  Interpolation and Neighborhood Enumeration,” ACM Transactions on Modeling
-//     *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
-//     *  doi: 10.1145/2499913.2499916.
-//     *
-//     * @param solution the initial solution for the line search
-//     * @param sampleSize the number of replications to be associated with the simulation
-//     * oracle evaluations associated with the simplex vertices
-//     * @param splineCallLimit the call limit for the oracle evaluations
-//     * @return a pair (Int, Solution) = (number of oracle calls executed, spline solution)
-//     */
-//    private fun searchPiecewiseLinearInterpolation(
-//        solution: Solution,
-//        sampleSize: Int,
-//        splineCallLimit: Int
-//    ): SPLIResults {
-//        //Set X_best = x_0 and n′ = 0
-//        var bestSoln = solution
-//        var numOracleCalls = 0
-//        for (j in 1..splineIterMax) {
-//            // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
-//            val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
-//            numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-//            // regardless of gradient computation, update the current best solution
-//            bestSoln = minimumSolution(pliResults.solution, bestSoln)
-//            if (pliResults.gradients == null) {
-//                // Stop if no direction
-//                return SPLIResults(numOracleCalls, bestSoln)
-//            }
-//            if (numOracleCalls > splineCallLimit) {
-//                // Stop if too many oracle calls
-//                return SPLIResults(numOracleCalls, bestSoln)
-//            }
-//            // Setup to do the line search
-//            val s0 = initialStepSize
-//            val c = stepSizeMultiplier
-//            val direction = pliResults.gradients.direction()
-//            val x0 = bestSoln.inputMap.inputValues
-//            // The matlab/R code has a limit on the number of line searches.
-//            var lastIndex = -1
-//            for (i in 1..lineSearchIterMax) {
-//                lastIndex = i
-//                // determine the step-size for this interation
-//                val stepSize = s0 * c.pow(i - 1)
-//                // translate the step to an array towards the proposed direction
-//                val sd = KSLArrays.multiplyConstant(direction, stepSize) //step-array
-//                // make the step in the proposed direction
-//                val x1 = KSLArrays.subtractElements(x0, sd)
-//                // This will shift x1 to the nearest integer point.
-//                val inputs = problemDefinition.toInputMap(x1)
-//                if (!inputs.isInputFeasible()) {
-//                    // not a feasible step, return the best solution so far
-//                    return SPLIResults(numOracleCalls, bestSoln)
-//                }
-//                // Use the simulation oracle to evaluate the new point represented by the step.
-//                val x1Solution = requestEvaluation(inputs, sampleSize)
-//                numOracleCalls = numOracleCalls + sampleSize
-//                if (numOracleCalls > splineCallLimit) {
-//                    // Stop if too many oracle calls, return whichever is better
-//                    return SPLIResults(numOracleCalls, minimumSolution(x1Solution, bestSoln))
-//                }
-////                if (compare(x1Solution, bestSoln) > 0){
-////                    // the step produced an inferior solution
-////                    break
-////                } else {
-////                    // the step produced a better solution or a tied solution
-////                    // update the best solution
-////                    bestSoln = x1Solution
-////                }
-//                // if the x1Solution is worse than the current best, and we have only taken a small number
-//                // of steps then assume that we are headed in the wrong direction and stop with the current best
-//                if ((compare(x1Solution, bestSoln) >= 0) && i <= 2) {
-//                    return SPLIResults(numOracleCalls, bestSoln)
-//                }
-//                // to get here i > 2 and x
-//
-//
-//                // if the x1Solution is worse than the current best, and we have taken some improving steps
-//                // then break out of the line search and try to get a new starting point
-//                if ((compare(x1Solution, bestSoln) > 0)) {
-//                    break
-//                }
-//                // if we get here then x1 produced a better solution than the current best
-//                // update the best solution
-//                bestSoln = x1Solution
-//            }
-//        }
-//        return SPLIResults(numOracleCalls, bestSoln)
-//    }
 
     /**
      *  This function represents Algorithm 4: Search Piecewise Linear Interpolation (SPLI) in the paper:
@@ -493,16 +400,16 @@ class RSplineSolver(
         //Set X_best = x_0 and n′ = 0
         var bestSoln = solution
         var numOracleCalls = 0 // counts the calls internal to this routine
-        for(i in 1..spliMaxIterations){
+        for(j in 1..spliMaxIterations){
             // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-            logger.info { "SPLI search: called PLI used ${pliResults.numOracleCalls} oracle calls" }
+            logger.info { "\t SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
             bestSoln = minimumSolution(pliResults.solution, bestSoln)
             if (pliResults.gradients == null) {
                 // Stop if no direction
-                logger.info { "SPLI search: no gradient available, returned current best solution : no line search performed" }
+                logger.info { "\t SPLI search: iteration $j : no gradient available, returned current best solution : no line search performed" }
                 return SPLIResults(numOracleCalls, bestSoln)
             }
             // If we are here we have gradients to use.
@@ -512,11 +419,11 @@ class RSplineSolver(
             val direction = pliResults.gradients.direction()
             val x0 = bestSoln.inputMap.inputValues
             // The matlab/R code has a limit on the number of line searches.
-            logger.info { "SPLI search: preparing for line search" }
+            logger.info { "\t SPLI search: iteration $j : preparing for line search" }
             for (i in 1..lineSearchIterMax) {
                 // determine the step-size for this interation
                 val stepSize = s0 * c.pow(i - 1)
-                logger.info { "SPLI search: Line search: iteration $i : step size = $stepSize" }
+                logger.info { "\t SPLI search: Line search iteration $i : step size = $stepSize" }
                 // translate the step to an array towards the proposed direction
                 val sd = KSLArrays.multiplyConstant(direction, stepSize) //step-array
                 // make the step in the proposed direction
@@ -525,7 +432,7 @@ class RSplineSolver(
                 val inputs = problemDefinition.toInputMap(x1)
                 if (!inputs.isInputFeasible()) {
                     // not a feasible step, don't continue the line searching, return the best solution so far
-                    logger.info { "SPLI search: Line search: iteration $i : infeasible step, returning best solution" }
+                    logger.info { "\t SPLI search: Line search iteration $i : infeasible step, returning best solution" }
                     return SPLIResults(numOracleCalls, bestSoln)
                 }
                 // Use the simulation oracle to evaluate the new point represented by the step.
@@ -535,20 +442,20 @@ class RSplineSolver(
                     if ((compare(x1Solution, bestSoln) >= 0)) {
                         // If the x1Solution is worse than the current best, and we have only taken a small number
                         // of steps. Assume that we are headed in the wrong direction and stop with the current best
-                        logger.info { "SPLI search: Line search: iteration $i : line search candidate was no improvement, returning best" }
+                        logger.info { "\t SPLI search: Line search iteration $i : line search candidate was no improvement, returning best" }
                         return SPLIResults(numOracleCalls, bestSoln)
                     }
                 } else { // 2 < i <= lineSearchIterMax
                     // we have taken at least 3 improving steps
                     if ((compare(x1Solution, bestSoln) >= 0)) {
-                        logger.info { "SPLI search: Line search: iteration $i : line search candidate was no improvement, breaking main loop" }
+                        logger.info { "\t SPLI search: Line search iteration $i : line search candidate was no improvement, breaking main loop" }
                         // The last step did not improve, break to continue overall search.
                         break
                     }
                 }
                 // If we get here, then x1 produced a better solution than the current best.
                 // Update the best solution. Continue the line searching.
-                logger.info { "SPLI search: Line search: iteration $i : line search improved solution, updating, and continuing line search" }
+                logger.info { "\t SPLI search: Line search iteration $i : line search improved solution, updating, and continuing line search" }
                 bestSoln = x1Solution
                 //TODO consider updating current solution here
             }
