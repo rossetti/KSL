@@ -663,6 +663,7 @@ abstract class Solver(
 
     override fun toString(): String {
         val sb = StringBuilder().apply {
+            appendLine("==================================================================")
             appendLine("Solver name = $name")
             appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
             appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
@@ -670,9 +671,11 @@ abstract class Solver(
             appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
             appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
+            appendLine("==================================================================")
             if (::initialSolution.isInitialized) {
-                appendLine("Initial Solution: $initialSolution")
+                appendLine("Initial Solution:")
                 appendLine("$initialSolution")
+                appendLine("==================================================================")
             }
             appendLine("Current Solution:")
             appendLine("$currentSolution")
@@ -680,8 +683,13 @@ abstract class Solver(
             appendLine("Penalized Solution Gap = $penalizedSolutionGap")
             appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
             appendLine("Number of Iterations Completed = $iterationCounter")
-            appendLine("Best Solution:")
-            appendLine("$bestSolution")
+            appendLine("==================================================================")
+            if (compare(bestSolution, currentSolution) < 0) {
+                appendLine("A better solution was found than the current solution.")
+                appendLine("Best Solution:")
+                appendLine("$bestSolution")
+                appendLine("==================================================================")
+            }
         }
         return sb.toString()
     }
