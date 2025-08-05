@@ -119,7 +119,7 @@ class RSplineSolver(
     var numOracleCalls: Int = 0
         private set
 
-    var splineOracleCallGrowthRate: Double = defaultSplineCallGrowthRate
+    var splineCallGrowthRate: Double = defaultSplineCallGrowthRate
         set(value) {
             require(value > 0) { "The spline growth rate must be > 0" }
             field = value
@@ -131,25 +131,31 @@ class RSplineSolver(
             field = value
         }
 
-    var maxSplineOracleCallLimit: Int = defaultMaxSplineCallLimit
+    var maxSplineCallLimit: Int = defaultMaxSplineCallLimit
         set(value) {
             require(value > 0) { "The maximum for the number of SPLINE call growth limit must be > 0" }
             field = value
         }
 
-    val splineOracleCallLimit: Int
+    val splineCallLimit: Int
         get() {
             val k = iterationCounter
             if (k == 1) {
                 return initialMaxSplineCallLimit
             }
-            val m = initialMaxSplineCallLimit * (1.0 + splineOracleCallGrowthRate).pow(k - 1)
-            return minOf(maxSplineOracleCallLimit, ceil(m).toInt())
+            val m = initialMaxSplineCallLimit * (1.0 + splineCallGrowthRate).pow(k - 1)
+            return minOf(maxSplineCallLimit, ceil(m).toInt())
         }
 
     var lineSearchIterMax = defaultLineSearchIterMax
         set(value) {
             require(value > 0) { "The maximum number of spline line search iterations must be > 0" }
+            field = value
+        }
+
+    var spliMaxIterations = defaultSPLIMaxIterations
+        set(value) {
+            require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
             field = value
         }
 
@@ -178,7 +184,7 @@ class RSplineSolver(
      *
      *  The current sample [rsplineSampleSize] size upon initialization is the initial sample
      *  size of the replication schedule (m_k). The current spline call limit (b_k)
-     *  is determined by the property [splineOracleCallLimit].
+     *  is determined by the property [splineCallLimit].
      *  If the kth sample path problem beats the previous sample path problem,
      *  then the current solution is updated. The initial solution is determined
      *  randomly when the solver is initialized.
@@ -189,10 +195,10 @@ class RSplineSolver(
         // Call SPLINE for the next solution using the current sample size (m_k) and
         // current SPLINE oracle call limit (b_k).
 
-        logger.info { "SPLINE search: main iteration = $iterationCounter : sample size = $rsplineSampleSize : oracle call limit = $splineOracleCallLimit" }
+        logger.info { "SPLINE search: main iteration = $iterationCounter : sample size = $rsplineSampleSize : SPLINE call limit = $splineCallLimit" }
         val splineSolution = spline(
             currentSolution,
-            rsplineSampleSize, splineOracleCallLimit
+            rsplineSampleSize, splineCallLimit
         )
         // keep track of the total number of oracle calls
         numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
@@ -220,15 +226,15 @@ class RSplineSolver(
      * @param initSolution the initial solution for the search process
      * @param sampleSize the number of replications to be associated with the simulation
      * oracle evaluations associated with the simplex vertices
-     * @param oracleCallLimit the call limit for the oracle evaluations
+     * @param splineCallLimit the call limit for the number of times that SPLI can be called
      * @return a pair (Int, Solution) = (number of oracle calls executed, spline solution)
      */
     private fun spline(
         initSolution: Solution,
         sampleSize: Int,
-        oracleCallLimit: Int
+        splineCallLimit: Int
     ): SPLINESolution {
-        logger.info { "spline(): Starting new SPLINE search with sample size = $sampleSize : oracle limit = $oracleCallLimit : Initial solution:" }
+        logger.info { "spline(): Starting new SPLINE search with sample size = $sampleSize : spline call limit = $splineCallLimit : Initial solution:" }
         logger.info { "\n $initSolution" }
         // The SPLINE search starts with a feasible point.
         require(initSolution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
@@ -236,14 +242,10 @@ class RSplineSolver(
         var newSolution = initSolution
         // initialize the number of oracle calls
         var splineOracleCalls = 0
-        var i = 0 // counts the number of SPLINE iterations
-        do {
-            i++
+        for(i in 1..splineCallLimit){
             // perform the line search to get a solution based on the new solution
             logger.info { "\t SPLI search: SPLINE iteration: $i "}
-            val spliResults = searchPiecewiseLinearInterpolation(
-                newSolution, sampleSize, oracleCallLimit
-            )
+            val spliResults = searchPiecewiseLinearInterpolation(newSolution, sampleSize)
             // SPLI cannot cause harm
             val neStartingSolution = if (compare(spliResults.solution, newSolution) <= 0){
                 logger.info { "\t SPLI search: resulted in a candidate solution better than current solution."}
@@ -258,7 +260,7 @@ class RSplineSolver(
             logger.info { "\t NE search: SPLINE iteration: $i" }
             val neSearchResults = neighborhoodSearch(neStartingSolution, sampleSize)
             splineOracleCalls = splineOracleCalls + spliResults.numOracleCalls + neSearchResults.numOracleCalls
-            logger.info { "\t SPLINE search: iteration: $i : splineOracleCalls = $splineOracleCalls : spline call limit = $oracleCallLimit" }
+            logger.info { "\t SPLINE search: iteration: $i : splineOracleCalls = $splineOracleCalls" }
             // The starting solution to NE could be:
             // 1) the previous starting solution or
             // 2) the result of the SPLI search.
@@ -278,9 +280,9 @@ class RSplineSolver(
                 logger.info { "SPLINE search: iteration: $i : break loop : NE verified N1 local optimality" }
                 break
             }
-        } while (splineOracleCalls < oracleCallLimit)
+        }
         logger.info { "spline(): Completed SPLINE search with sample size = $sampleSize" }
-        logger.info { "spline(): Completed SPLINE search with number of oracle calls = $splineOracleCalls : oracle limit = $oracleCallLimit" }
+        logger.info { "spline(): Completed SPLINE search with number of oracle calls = $splineOracleCalls" }
         // Check if the starting solution is better than the solution from the SPLINE search.
         // If the starting solution is still better return it. The starting solution
         // must be input-feasible.
@@ -486,29 +488,21 @@ class RSplineSolver(
      */
     private fun searchPiecewiseLinearInterpolation(
         solution: Solution,
-        sampleSize: Int,
-        splineCallLimit: Int
+        sampleSize: Int
     ): SPLIResults {
         //Set X_best = x_0 and n′ = 0
         var bestSoln = solution
         var numOracleCalls = 0 // counts the calls internal to this routine
-        do {
+        for(i in 1..spliMaxIterations){
             // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-            logger.info { "SPLI search: called PLI used ${pliResults.numOracleCalls} oracle calls : numOracleCalls = $numOracleCalls" }
+            logger.info { "SPLI search: called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
             bestSoln = minimumSolution(pliResults.solution, bestSoln)
             if (pliResults.gradients == null) {
                 // Stop if no direction
-                logger.info { "SPLI search: no gradient available, returned current best solution : no line searching performed" }
-                return SPLIResults(numOracleCalls, bestSoln)
-            }
-            // this check is causing no line searching to occur at all
-            if (numOracleCalls > splineCallLimit) {
-                // Stop if too many oracle calls. No need to do any line searching. We don't have any
-                // oracle calls left.
-                logger.info { "SPLI search: exceeded available oracle calls, returned current best solution : no line searching performed." }
+                logger.info { "SPLI search: no gradient available, returned current best solution : no line search performed" }
                 return SPLIResults(numOracleCalls, bestSoln)
             }
             // If we are here we have gradients to use.
@@ -537,11 +531,6 @@ class RSplineSolver(
                 // Use the simulation oracle to evaluate the new point represented by the step.
                 val x1Solution = requestEvaluation(inputs, sampleSize)
                 numOracleCalls = numOracleCalls + sampleSize
-                if (numOracleCalls > splineCallLimit) {
-                    // Stop if too many oracle calls, return whichever is better
-                    logger.info { "SPLI search: Line search: iteration $i : exceeded oracle call limit, returning best solution" }
-                    return SPLIResults(numOracleCalls, minimumSolution(x1Solution, bestSoln))
-                }
                 if (i <= 2) {
                     if ((compare(x1Solution, bestSoln) >= 0)) {
                         // If the x1Solution is worse than the current best, and we have only taken a small number
@@ -561,9 +550,10 @@ class RSplineSolver(
                 // Update the best solution. Continue the line searching.
                 logger.info { "SPLI search: Line search: iteration $i : line search improved solution, updating, and continuing line search" }
                 bestSoln = x1Solution
+                //TODO consider updating current solution here
             }
-        } while (numOracleCalls < splineCallLimit)
-        logger.info { "SPLI search: Line search: exceeded oracle limit, returned best solution" }
+        }
+        logger.info { "SPLI search: Line search: reached the SPLI call limit, returned best solution" }
         return SPLIResults(numOracleCalls, bestSoln)
     }
 
@@ -654,14 +644,22 @@ class RSplineSolver(
 
     companion object {
 
-        var defaultLineSearchIterMax = 5
+        var defaultLineSearchIterMax = 10
             set(value) {
                 require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
+                field = value
+            }
+
+        var defaultSPLIMaxIterations = 5
+            set(value) {
+                require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
+                field = value
             }
 
         var defaultInitialSampleSize: Int = 8
             set(value) {
                 require(value > 0) { "The default initial sample size for replications must be > 0" }
+                field = value
             }
 
         var defaultPerturbation: Double = 0.15
@@ -679,12 +677,15 @@ class RSplineSolver(
         var defaultInitialMaxSplineCalls: Int = 10
             set(value) {
                 require(value > 0) { "The default initial maximum number of SPLINE calls must be > 0" }
+                field = value
             }
 
         var defaultMaxSplineCallLimit: Int = 1000
             set(value) {
                 require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
+                field = value
             }
+
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
 
