@@ -35,7 +35,7 @@ data class RequestData(
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
     val experimentRunParameters: ExperimentRunParameters? = null, //TODO why is this needed?
-    val requestTime: Instant = Clock.System.now() 
+    val requestTime: Instant = Clock.System.now()
 ) {
     init {
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
