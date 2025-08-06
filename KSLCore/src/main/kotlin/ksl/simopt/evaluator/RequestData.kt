@@ -7,7 +7,15 @@ import ksl.controls.experiments.ExperimentRunParameters
 
 
 /**
- *  The data associated with a request for a simulation evaluation.
+ *  The data associated with a request for a simulation evaluation.  A critical aspect of this
+ *  implementation is the equality of instances is determined.
+ *
+ *  Two instances of RequestData are considered equal if:
+ *
+ *  1. the [modelIdentifier] properties are equal, and
+ *  2. the [responseNames] properties are equal (contain all the same response names), and
+ *  3. the [inputs] properties are equal (contain the same (key, value) pairs)
+ *
  *  @param modelIdentifier the model identifier associated with the simulation model that will be executed
  *  @param numReplications the number of replications to run the model. Must be greater than 0. This
  *  value will override a specification for the number of replications supplied by any experimental run parameters.
@@ -23,44 +31,37 @@ import ksl.controls.experiments.ExperimentRunParameters
 @Serializable
 data class RequestData(
     val modelIdentifier: String,
-    var numReplications: Int,
+    val numReplications: Int,
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
-    val experimentRunParameters: ExperimentRunParameters? = null,
-    val modelConfiguration: Map<String, String>? = null,
-    val requestTime: Instant = Clock.System.now()
+    val experimentRunParameters: ExperimentRunParameters? = null, //TODO why is this needed?
+    val requestTime: Instant = Clock.System.now() 
 ) {
     init {
         require(modelIdentifier.isNotBlank()) { "Model identifier must not be blank" }
         require(numReplications > 0) { "Number of reps must be greater than zero" }
-        for(name in responseNames) {
+        for (name in responseNames) {
             require(name.isNotBlank()) { "Response names must not be blank" }
         }
-        for(name in inputs.keys) {
+        for (name in inputs.keys) {
             require(name.isNotBlank()) { "Input variable names must not be blank" }
         }
     }
 
     /**
-     *  Since requests may cover portions of an experiment that has multiple replication,
-     *  the starting replication number may be some number between 1 and the total
-     *  number of replications in the experiment. The chunking process may
-     *  set the starting replication number to the starting replication of the chunk
-     *  of replications.
+     *  Creates a duplicate instance of the object with the specified number of
+     *  replications.
      */
-    var startingReplicationNum: Int = 1
-        set(value) {
-            require(value >= 1) { "The starting replication number must be >= 1" }
-            field = value
-        }
-
-    /**
-     *  Sets the number of requested replications to the maximum of the supplied
-     *  [numReps] or the current setting for the number of requested replications.
-     */
-    fun maxOfReplication(numReps: Int) {
-        require(numReps > 0) { "Number of reps must be greater than zero" }
-        numReplications = maxOf(numReplications, numReps)
+    fun instance(numReplications: Int): RequestData {
+        require(numReplications > 0) { "Number of reps must be greater than zero" }
+        return RequestData(
+            modelIdentifier = this.modelIdentifier,
+            numReplications = numReplications,
+            inputs = this.inputs,
+            responseNames = this.responseNames,
+            experimentRunParameters = this.experimentRunParameters,
+            requestTime = Clock.System.now()
+        )
     }
 
     /**

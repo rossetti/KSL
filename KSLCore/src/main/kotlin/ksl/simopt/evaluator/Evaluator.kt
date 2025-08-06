@@ -6,6 +6,7 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
+import org.jetbrains.letsPlot.core.spec.remove
 
 /**
  *  An evaluator should communicate with the simulation oracle to determine
@@ -47,13 +48,13 @@ class Evaluator @JvmOverloads constructor(
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    override var totalOracleEvaluations : Int = 0
+    override var totalOracleEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    override var totalCachedEvaluations : Int = 0
+    override var totalCachedEvaluations: Int = 0
         private set
 
     /**
@@ -115,7 +116,7 @@ class Evaluator @JvmOverloads constructor(
         totalOracleReplications = 0
         totalCachedReplications = 0
     }
-    
+
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
@@ -132,7 +133,7 @@ class Evaluator @JvmOverloads constructor(
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
         EvaluatorIfc.logger.trace { "Total Evaluations $totalEvaluations, total requests received $totalRequestsReceived" }
-        // filter out the duplicate requests
+        // Filter out the duplicate requests. This also returns the requests that have the most replications.
         val uniqueRequests = filterToUniqueRequests(rawRequests)
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
         EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
@@ -141,10 +142,8 @@ class Evaluator @JvmOverloads constructor(
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
         EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
-        // update the requests based on the replications in the solutions
-        updateRequestReplicationData(solutionMap, uniqueRequests)
-        // filter requests that no longer need replications
-        val requestsToSimulate = uniqueRequests.filter { it.numReplications > 0 }
+        // update and filter the requests based on the replications in the solution cache
+        val requestsToSimulate = reviseRequests(solutionMap, uniqueRequests)
         EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
         // evaluate remaining requests and update solutions
         if (requestsToSimulate.isNotEmpty()) {
@@ -165,9 +164,9 @@ class Evaluator @JvmOverloads constructor(
                 }
             }
             // update the cache with any new solutions after possible merging
-            if (cache != null){
+            if (cache != null) {
                 EvaluatorIfc.logger.trace { "Updating cache with ${solutionMap.size} solutions" }
-                for((inputMap, solution) in solutionMap){
+                for ((inputMap, solution) in solutionMap) {
                     cache[inputMap] = solution
                 }
             }
@@ -175,7 +174,7 @@ class Evaluator @JvmOverloads constructor(
         // package the solutions up for each request in the order that was requested
         // handle the duplicate input requests by grabbing from the solution map based on the input of the request
         val solutions = mutableListOf<Solution>()
-        for(request in rawRequests){
+        for (request in rawRequests) {
             solutions.add(solutionMap[request]!!)
         }
         EvaluatorIfc.logger.trace { "Packaged ${solutions.size} solutions for return" }
@@ -186,28 +185,53 @@ class Evaluator @JvmOverloads constructor(
      *  Because the cache can satisfy some replications,
      *  this function updates the request's original amount requested
      *  so that the simulation oracle does not need to run those replications.
+     *  It also filters out any requests that can be fully satisfied from the cache.
+     *
      *  @param solutionMap the solutions obtained from the cache
      *  @param uniqueRequests the requests that need evaluation
      */
-    private fun updateRequestReplicationData(
-        solutionMap: MutableMap<RequestData, Solution>,
+    private fun reviseRequests(
+        cachedSolutions: MutableMap<RequestData, Solution>,
         uniqueRequests: List<RequestData>
-    ) {
-        //TODO THIS NEEDS TO BE REVIEWED!!!
-        if (solutionMap.isEmpty()) {
-            return
+    ): List<RequestData> {
+        // The cached solutions map has the solutions that are associated with the requests.
+        // The uniqueRequests list holds the possible requests that could be simulated.
+        if (cachedSolutions.isEmpty()) {
+            // If there are no solutions in the cache for the provided possible requests,
+            // then there is nothing revise in the list.
+            return uniqueRequests
         }
-        for (request in uniqueRequests) {
-            val sol = solutionMap[request]
-            if (sol != null) {
-                val n = sol.numReplications //TODO I'm pretty sure that this is the problem!!
-                //TODO It looks like this is the only place where it is used and it is INCORRECT
+        // There are some cached solutions that need to be reviewed.
+        // Make it easier to look up the request data by the request's hash code/equals methods.
+        val possibleRequests = uniqueRequests.associateBy { it }.toMutableMap()
+        // Process the requests in the cache
+        for ((request, solution) in cachedSolutions) {
+            if (possibleRequests.contains(request)) {
+                // The request will be satisfied wholly or in-part via the cache.
                 totalCachedEvaluations++
-                totalCachedReplications = totalCachedReplications + n
-                request.startingReplicationNum = n //TODO why?
-                request.numReplications = request.numReplications - n //TODO need to investigate this!!
+                // The request was found. Need to assess the situation.
+                // Get the actual new request for simulation runs.
+                val possibleRequest = possibleRequests[request]!!
+                // Determine the number of replications stored in the cache for the associated solution.
+                val numRepsInCache = solution.count.toInt()
+                if (numRepsInCache >= possibleRequest.numReplications) {
+                    //Remove the item from the possible requests because there is no need to simulate it.
+                    // All the replications will be satisfied by the cache.
+                    totalCachedReplications = totalCachedReplications + possibleRequest.numReplications
+                    possibleRequests.remove(request)
+                } else {
+                    // The cached solution doesn't have enough replications. We need to simulate more replications.
+                    val requiredReps = possibleRequest.numReplications - numRepsInCache
+                    // make the new request
+                    val updatedRequest = possibleRequest.instance(requiredReps)
+                    // update it in the map
+                    possibleRequests[updatedRequest] = updatedRequest
+                    // part of the replications will be satisfied by the cache
+                    totalCachedReplications = totalCachedReplications + numRepsInCache
+                }
             }
         }
+        return possibleRequests.keys.toList()
     }
 
     /**
@@ -259,10 +283,8 @@ class Evaluator @JvmOverloads constructor(
         }
         // Need to make the InputMap. This will not be the same object used to make the request.
         val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
-        //TODO need to investigate number of replications, why is it needed?
         val solution = Solution(
             inputMap,
-            request.numReplications,
             estimatedObjFnc,
             responseEstimates,
             totalEvaluations
@@ -325,17 +347,26 @@ class Evaluator @JvmOverloads constructor(
          */
         @JvmStatic
         fun filterToUniqueRequests(requests: List<RequestData>): List<RequestData> {
-            val uniqueRequests = mutableSetOf<RequestData>()
+            val uniqueRequests = mutableMapOf<RequestData, RequestData>()
+
             // Since requests are the same based on the values of their input maps,
             // we need only update the duplicate so that it has the maximum of any duplicate entries.
-            for (req in requests) {
-                if (uniqueRequests.contains(req)) {
-                    req.maxOfReplication(req.numReplications)
+            for (possibleRequest in requests) {
+                if (uniqueRequests.contains(possibleRequest)) {
+                    // If the uniqueRequests already contains the possible request, then this means
+                    // that the possible request is a duplicate of the request already placed in the map.
+                    // If the new (possible request) has  more replications than the one stored, we need to replace the entry.
+                    val storedRequest =
+                        uniqueRequests[possibleRequest]!! //because of the contains() check, it must be there
+                    if (possibleRequest.numReplications > storedRequest.numReplications) {
+                        // replace it with the one that has more replications
+                        uniqueRequests[possibleRequest] = possibleRequest
+                    }
                 } else {
-                    uniqueRequests.add(req)
+                    uniqueRequests[possibleRequest] = possibleRequest
                 }
             }
-            return uniqueRequests.toList()
+            return uniqueRequests.keys.toList()
         }
 
         /**
