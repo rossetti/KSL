@@ -25,10 +25,6 @@ class SolutionEmitter : SolutionEmitterIfc {
  *  to the supplied input map.
  *
  *  @param inputMap the inputs (name,value) pairs associated with the solution
- *  @param numReplications the number of replications associated with the request
- *  that caused the creation of the solution. Since a solution can have multiple
- *  requests for evaluation, this will generally be different from the sample size (count)
- *  associated with the estimate.
  *  @param estimatedObjFnc the estimated objective function from the simulation oracle
  *  @param responseEstimates the estimates of the responses associated with the response constraints
  *  @param iterationNumber the iteration number of the solver request. That is, the number of times that
@@ -36,17 +32,16 @@ class SolutionEmitter : SolutionEmitterIfc {
  */
 data class Solution(
     val inputMap: InputMap,
-    val numReplications: Int, //TODO this is the REQUESTED replications!!!!!!, why is this even needed?
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
-    val iterationNumber: Int
+    val iterationNumber: Int,
+    val isValid: Boolean = true
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
 
     val id : Int = solutionCounter++
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
-        require(numReplications >= 1) { "The number of replications must be >= 1" }
         require(iterationNumber >= 1) { "The iteration number that caused this solution >= 1" }
     }
 
@@ -234,7 +229,6 @@ data class Solution(
         for ((inputName, value) in inputMap) {
             list.add(SolutionData(id, "input", null, inputName, value))
         }
-        list.add(SolutionData(id, "solution", null, "numReplications", numReplications.toDouble()))
         list.add(SolutionData(id, "solution", null, "iterationNumber", iterationNumber.toDouble()))
         list.add(SolutionData(id, "solution", null, "isInputRangeFeasible", isInputRangeFeasible().toDouble()))
         list.add(
@@ -296,7 +290,6 @@ data class Solution(
             for((name, value) in inputMap){
                 appendLine("Name = $name = $value)")
             }
-            appendLine("numReplications = $numReplications")
             appendLine("Estimated Objective Function:")
             appendLine("name = ${estimatedObjFnc.name}")
             appendLine("average = ${estimatedObjFnc.average}")

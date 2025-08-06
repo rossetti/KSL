@@ -931,7 +931,7 @@ class ProblemDefinition @JvmOverloads constructor(
             val er = EstimatedResponse(rc.responseName, rValue, Double.MAX_VALUE, 1.0)
             list.add(er)
         }
-        return Solution(inputMap, 1, objFunc, list, 1)
+        return Solution(inputMap,  objFunc, list, 1, false)
     }
 
     /**
