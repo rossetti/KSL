@@ -129,6 +129,7 @@ class Evaluator @JvmOverloads constructor(
      *  @return a list containing a solution for each request
      */
     override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
+        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
@@ -143,6 +144,7 @@ class Evaluator @JvmOverloads constructor(
         EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
         // update and filter the requests based on the replications in the solution cache
+        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         val requestsToSimulate = reviseRequests(solutionMap, uniqueRequests)
         EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
         // evaluate remaining requests and update solutions
@@ -187,13 +189,14 @@ class Evaluator @JvmOverloads constructor(
      *  so that the simulation oracle does not need to run those replications.
      *  It also filters out any requests that can be fully satisfied from the cache.
      *
-     *  @param solutionMap the solutions obtained from the cache
+     *  @param cachedSolutions the solutions obtained from the cache
      *  @param uniqueRequests the requests that need evaluation
      */
     private fun reviseRequests(
         cachedSolutions: MutableMap<RequestData, Solution>,
         uniqueRequests: List<RequestData>
     ): List<RequestData> {
+        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // The cached solutions map has the solutions that are associated with the requests.
         // The uniqueRequests list holds the possible requests that could be simulated.
         if (cachedSolutions.isEmpty()) {
@@ -205,6 +208,7 @@ class Evaluator @JvmOverloads constructor(
         // Make it easier to look up the request data by the request's hash code/equals methods.
         val possibleRequests = uniqueRequests.associateBy { it }.toMutableMap()
         // Process the requests in the cache
+        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         for ((request, solution) in cachedSolutions) {
             if (possibleRequests.contains(request)) {
                 // The request will be satisfied wholly or in-part via the cache.

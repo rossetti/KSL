@@ -278,7 +278,8 @@ data class Solution(
     }
 
     fun asString(): String {
-        return toSolutionData().toDataFrame().toString()
+        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = $penalizedObjFncValue : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
+       // return toSolutionData().toDataFrame().toString()
     }
 
     override fun toString(): String {

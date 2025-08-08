@@ -10,6 +10,7 @@ import ksl.simopt.solvers.NeighborhoodFinderIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.collections.pow
 import ksl.utilities.direction
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -162,6 +163,23 @@ class RSplineSolver(
     val rsplineSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.numReplicationsPerEvaluation(this)
 
+    /**
+     * This value is used as a termination threshold for the largest number of iterations, during which no
+     * improvement of the best function value is found. By default, set to 5, which can be controlled
+     * globally via the companion object's [defaultNoImproveThreshold]
+     */
+    var noImproveThreshold: Int = defaultNoImproveThreshold
+        set(value) {
+            require(value > 0) { "The no improvement threshold must be greater than 0" }
+            field = value
+        }
+
+    private lateinit var myLastSolutions: ArrayDeque<Solution>
+
+    @Suppress("unused")
+    val lastSolutions: List<Solution>
+        get() = if (::myLastSolutions.isInitialized) myLastSolutions.toList() else emptyList()
+
     private val badSolution = problemDefinition.badSolution()
 
     /**
@@ -171,6 +189,7 @@ class RSplineSolver(
     override fun initializeIterations() {
         super.initializeIterations()
         numOracleCalls = 0
+        myLastSolutions = ArrayDeque(noImproveThreshold)
     }
 
     /**
@@ -203,11 +222,41 @@ class RSplineSolver(
         // keep track of the total number of oracle calls
         numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
         logger.info { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
-        if (compare(splineSolution.solution, currentSolution) < 0) {
+        if (compare(splineSolution.solution, currentSolution) <= 0) {
             currentSolution = splineSolution.solution
+            // capture the last solution
+            captureLastSolution()
         }
+
         //TODO what if sequential SPLINE search returns the same solution?
-        //TODO need to incorporate number of oracle calls into stopping criteria
+    }
+
+    override fun isStoppingCriteriaSatisfied(): Boolean {
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkLastSolutions()
+    }
+
+    private fun captureLastSolution() {
+        if (myLastSolutions.size == noImproveThreshold) {
+            myLastSolutions.removeFirstOrNull()
+        }
+        myLastSolutions.add(currentSolution)
+    }
+
+    private fun checkLastSolutions(): Boolean {
+        if (myLastSolutions.size < noImproveThreshold) return false
+        val lastSolution = myLastSolutions.last()
+        for (solution in myLastSolutions) {
+            // This works but in no way accounts for variability in the comparison.
+            // User can supply a SolutionQualityEvaluator
+            if (!KSLMath.within(
+                    lastSolution.penalizedObjFncValue,
+                    solution.penalizedObjFncValue, solutionPrecision
+                )
+            ) {
+                return false
+            }
+        }
+        return true
     }
 
     /**
@@ -239,8 +288,11 @@ class RSplineSolver(
         // use the initial solution as the new (starting) solution for the line search (SPLI)
         // the new solution may need the extra sample size
         var newSolution = if (sampleSize > initSolution.count){
-            requestEvaluation(initSolution.inputMap, sampleSize)
+            logger.info { "spline(): requested sample size ($sampleSize) is larger than the initial solution size (${initSolution.count})." }
+            logger.info { "spline(): requesting evaluations for sample size of $sampleSize" }
+            requestEvaluation(initSolution.inputMap, sampleSize) //TODO the request is for more samples, but the cache is not being used
         } else {
+            logger.info { "spline(): requested sample size ($sampleSize) <= initial solution size: Using the initial solution with sample size = ${initSolution.count}." }
             initSolution
         }
         // initialize the number of oracle calls
@@ -250,7 +302,7 @@ class RSplineSolver(
         for(i in 1..splineCallLimit){
             // perform the line search to get a solution based on the new solution
             logger.info { "\t SPLI search: iteration: $i of $splineCallLimit"}
-            logger.info {"\t Starting solution for SPLI: \n $newSolution"}
+            logger.info {"\t Starting solution for SPLI: ${newSolution.asString()}"}
             val spliResults = searchPiecewiseLinearInterpolation(newSolution, sampleSize)
             logger.info {"\t Completed SPLI search."}
             // SPLI cannot cause harm
@@ -264,7 +316,7 @@ class RSplineSolver(
                 newSolution
             }
             // search the neighborhood starting from the SPLI solution
-            logger.info {"\t Starting solution for NE search: \n $neStartingSolution"}
+            logger.info {"\t Starting solution for NE search: ${neStartingSolution.asString()}"}
             val neSearchResults = neighborhoodSearch(neStartingSolution, sampleSize)
             logger.info {"\t Completed NE search."}
             splineOracleCalls = splineOracleCalls + spliResults.numOracleCalls + neSearchResults.numOracleCalls
@@ -347,17 +399,26 @@ class RSplineSolver(
             return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
         //TODO The request for evaluation of the simplex vertices should use CRN
+        logger.info { "\t \t \t \t Requesting evaluation of ${feasibleInputs.keys.size} simplex vertices with sample size = $sampleSize." }
         val results = requestEvaluations(feasibleInputs.keys, sampleSize)
         if (results.isEmpty()) {
             // No solutions returned. We assume that no oracle evaluations happened, even if they did.
             logger.info { "\t \t \t \t PLI search: no evaluation results, returning no gradients, bad solution" }
             return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
+        logger.info { "\t \t \t \t PLI search: evaluation results returned for ${feasibleInputs.keys.size} vertices." }
         // There must be new results available for some simplex vertices.
         // Find the best of the simplex vertices.
         val resultsBest = results.minOf { it }
         // Determine if the best solution should be updated. If tied, prefer the solution with more oracle evaluations.
-        val bestSolution = minimumSolution(resultsBest, solution)
+        val bestSolution = if (compare(resultsBest, solution) <= 0) {
+            logger.info { "\t \t \t \t PLI search: Assigned best solution from simplex vertices." }
+            resultsBest
+        } else {
+            logger.info { "\t \t \t \t PLI search: solution from the simplex vertices was no improvement, keeping current solution." }
+            solution
+        }
+        logger.info { "\t \t \t \t PLI search: Current best solution: ${bestSolution.asString()}" }
         // The simplex results may be missing infeasible vertices.
         if (results.size < simplexData.vertices.size) {
             // The simplex has infeasible vertices. Return the current best solution without the gradients.
@@ -413,12 +474,13 @@ class RSplineSolver(
             logger.info { "\t \t \t SPLI search: iteration $j of $spliMaxIterations : calling PLI..." }
             val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
-            logger.info { "\t \t \t  SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
+            logger.info { "\t \t \t SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
-            bestSoln = minimumSolution(pliResults.solution, bestSoln)
+            bestSoln = minimumSolution(pliResults.solution, bestSoln) //TODO write out and maybe capture for emission
             if (pliResults.gradients == null) {
                 // Stop if no direction
                 logger.info { "\t \t \t SPLI search: iteration $j : no gradient available, returned current best solution : no line search performed" }
+                //TODO maybe capture emission here? I don't think so.
                 return SPLIResults(numOracleCalls, bestSoln)
             }
             // If we are here we have gradients to use.
@@ -466,11 +528,14 @@ class RSplineSolver(
                 // Update the best solution. Continue the line searching.
                 logger.info { "\t \t \t \t SPLI search: Line search iteration $i of $lineSearchIterMax: line search improved solution, updating, and continuing line search" }
                 bestSoln = x1Solution
+                logger.info { "\t \t \t \t SPLI search: Line search: improved solution : ${bestSoln.asString()}" }
                 //TODO consider updating current solution here
             }
             logger.info { "\t \t \t  SPLI search: iteration $j : completed line search iterations:" }
+            logger.info { "\t \t \t  solution : ${bestSoln.asString()}" }
         }
         logger.info { "\t \t  SPLI search: completed SPLI iterations, returning best solution." }
+        logger.info { "\t \t  SPLI search: best solution: ${bestSoln.asString()}" }
         return SPLIResults(numOracleCalls, bestSoln)
     }
 
@@ -603,6 +668,16 @@ class RSplineSolver(
                 field = value
             }
 
+        /**
+         * This value is used as the default termination threshold for the largest number of iterations, during which no
+         * improvement of the best function value is found. By default, set to 2.
+         */
+        @JvmStatic
+        var defaultNoImproveThreshold: Int = 5
+            set(value) {
+                require(value > 0) { "The default no improvement threshold must be greater than 0" }
+                field = value
+            }
 
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
 
