@@ -15,7 +15,7 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runRSPLINETest(modelIdentifier, maxIterations = 10)
+    runRSPLINETest(modelIdentifier, maxIterations = 20)
 }
 
 fun configureRSPLINESolver(

@@ -18,8 +18,8 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
- //   runSHCSolver(modelIdentifier, maxIterations = 10)
-     testProblemDefinition()
+    runSHCSolver(modelIdentifier, maxIterations = 10)
+//     testProblemDefinition()
 }
 
 fun testProblemDefinition(){
