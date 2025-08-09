@@ -94,7 +94,7 @@ fun printLKInventoryModel(solver: Solver) {
     val solution = solver.currentSolution
     val q = solution.inputMap["Inventory.orderQuantity"]
     val rp = solution.inputMap["Inventory.reorderPoint"]
-    println("iteration = ${solver.iterationCounter} : id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("iteration = ${solver.iterationCounter} : id = ${solution.id} : n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
 fun printRQInventoryModel(solver: Solver) {
@@ -102,7 +102,7 @@ fun printRQInventoryModel(solver: Solver) {
     val q = solution.inputMap["Inventory:Item.initialReorderQty"]
     val rp = solution.inputMap["Inventory:Item.initialReorderPoint"]
     val fillRate = solution.responseEstimatesMap["Inventory:Item:FillRate"]!!.average
-    println("iteration = ${solver.iterationCounter} : id = ${solution.id} objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("iteration = ${solver.iterationCounter} : id = ${solution.id} : n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
 }
 
 fun buildRQInventoryModel(reorderQty: Int = 2, reorderPoint: Int = 1): Model {

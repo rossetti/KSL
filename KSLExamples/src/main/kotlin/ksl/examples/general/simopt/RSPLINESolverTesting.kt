@@ -1,13 +1,9 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.evaluator.Evaluator
-import ksl.simopt.evaluator.Solution
-import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.CENormalSampler
-import ksl.simopt.solvers.algorithms.CESamplerIfc
-import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.algorithms.RSplineSolver
 import ksl.simopt.solvers.algorithms.RSplineSolver.Companion.defaultInitialSampleSize
 
@@ -21,7 +17,7 @@ fun main() {
 fun configureRSPLINESolver(
     evaluator: Evaluator,
     initialNumReps: Int = defaultInitialSampleSize,
-    sampleSizeGrowthRate: Double = defaultGrowthRate,
+    sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
     maxNumReplications: Int = defaultMaxNumReplications,
     maxIterations: Int = 100,
     startingPoint: MutableMap<String, Double>? = null,
@@ -46,7 +42,7 @@ fun runRSPLINESolver(
     inputs: MutableMap<String, Double>,
     maxIterations: Int = 100,
     initialNumReps: Int = defaultInitialSampleSize,
-    sampleSizeGrowthRate: Double = defaultGrowthRate,
+    sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
     maxNumReplications: Int = defaultMaxNumReplications,
     printer: ((Solver) -> Unit)? = null
 ) {
