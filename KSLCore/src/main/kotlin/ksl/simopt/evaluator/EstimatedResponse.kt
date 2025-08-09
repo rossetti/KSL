@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import kotlinx.serialization.Serializable
+import ksl.utilities.Interval
 import ksl.utilities.distributions.StudentT
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
@@ -125,6 +126,39 @@ interface EstimatedResponseIfc {
                 list.add(stat as EstimatedResponseIfc)
             }
             return list
+        }
+
+        /**
+         *  Constructs an approximate confidence interval on the difference between estimate 1 and estimate 2.
+         *  The interval assumes normally distributed independent samples with unequal variances.
+         *  @param estimate1 the first estimate
+         *  @param estimate2 the second estimate
+         *  @param level the confidence level. Must be between 0 and 1.
+         *  @return the confidence interval
+         */
+        fun differenceConfidenceInterval(
+            estimate1: EstimatedResponseIfc,
+            estimate2: EstimatedResponseIfc,
+            level: Double = DEFAULT_CONFIDENCE_LEVEL
+        ) : Interval {
+            require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+            //   require( indifferenceZone >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+            val d = estimate1.average - estimate2.average
+            val n1 = estimate1.count
+            val n2 = estimate2.count
+            val v1 = estimate1.variance / n1
+            val v2 = estimate2.variance / n2
+            val v = v1 + v2
+            val dofNumerator = v * v
+            val dofDenominator = ((v1 * v1) / (n1 + 1.0)) + ((v2 * v2) / (n2 + 1.0))
+            val dof = (dofNumerator / dofDenominator) - 2.0
+            val alpha = 1.0 - level
+            val p = 1.0 - (alpha / 2.0)
+            val t = StudentT.invCDF(dof, p)
+            val se = sqrt(v)
+            val ll = d - t * se
+            val ul = d + t * se
+            return Interval(ll, ul)
         }
     }
 }
