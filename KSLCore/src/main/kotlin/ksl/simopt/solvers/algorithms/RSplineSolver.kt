@@ -293,6 +293,8 @@ class RSplineSolver(
             logger.info { "spline(): requested sample size ($sampleSize) <= initial solution size: Using the initial solution with sample size = ${initSolution.count}." }
             initSolution
         }
+        // save the starting solution
+        val startingSolution = newSolution
         // initialize the number of oracle calls
         var splineOracleCalls = 0
         // Note: This follows the matlab/R code, which has a limit on the number of calls to SPLI + NE
@@ -343,9 +345,9 @@ class RSplineSolver(
         // Check if the starting solution is better than the solution from the SPLINE search.
         // If the starting solution is still better return it. The returned solution must be input-feasible.
         //TODO matlab and R code used some kind of tolerance when testing equality
-        return if (compare(initSolution, newSolution) < 0) {
-            logger.info { "SPLINE search completed: SPLINE solution was no improvement over initial solution, returned starting solution" }
-            SPLINESolution(initSolution, splineOracleCalls)
+        return if (compare(startingSolution, newSolution) < 0) {
+            logger.info { "SPLINE search completed: SPLINE solution was no improvement over starting solution, returned starting solution" }
+            SPLINESolution(startingSolution, splineOracleCalls)
         } else {
             // The new solution might be better, but it might be input-infeasible.
             if (newSolution.isInputFeasible()) {
@@ -354,7 +356,7 @@ class RSplineSolver(
             } else {
                 // not feasible, go back to the last feasible solution
                 logger.info { "SPLINE search completed: SPLINE solution was infeasible, returned starting solution" }
-                SPLINESolution(initSolution, splineOracleCalls)
+                SPLINESolution(startingSolution, splineOracleCalls)
             }
         }
     }
@@ -654,7 +656,7 @@ class RSplineSolver(
                 field = value
             }
 
-        var defaultSplineCallGrowthRate: Double = 0.5
+        var defaultSplineCallGrowthRate: Double = 0.1
             set(value) {
                 require(value > 0) { "The default spline growth rate must be > 0" }
                 field = value
