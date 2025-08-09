@@ -7,14 +7,14 @@ import kotlin.math.ceil
  * Provides a replication schedule that increases according to a fixed-rate
  * based on the number of iterations completed by the solver.
  * @param initialNumReps the initial starting number of replications
- * @param growthRate the growth rate. The default is set by [defaultGrowthRate].
+ * @param growthRate the growth rate. The default is set by [defaultReplicationGrowthRate].
  * @param maxNumReplications the maximum number of replications permitted. If
  * the growth exceeds this value, then this value is used for all future replications.
  * The default is determined by [defaultMaxNumReplications]
  */
 class FixedGrowthRateReplicationSchedule(
     initialNumReps: Int,
-    growthRate: Double = defaultGrowthRate,
+    growthRate: Double = defaultReplicationGrowthRate,
     maxNumReplications: Int = defaultMaxNumReplications
 ) : ReplicationPerEvaluationIfc {
     init {
@@ -75,9 +75,9 @@ class FixedGrowthRateReplicationSchedule(
             }
 
         /**
-         *  The default growth rate. By default, this is 10% (0.1).
+         *  The default growth rate. By default, this is 50% (0.5).
          */
-        var defaultGrowthRate: Double = 0.1
+        var defaultReplicationGrowthRate: Double = 0.5
             set(value) {
                 require(value > 0) { "The replication growth rate must be > 0" }
                 field = value

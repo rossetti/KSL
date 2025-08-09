@@ -6,7 +6,7 @@ import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.ProblemDefinition.Companion.defaultMaximumFeasibleSamplingIterations
-import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
@@ -297,6 +297,7 @@ abstract class Solver(
             if (compare(field, bestSolution) < 0) {
                 bestSolution = field
                 numTimesBestSolutionUpdated++
+                emitter.emit(this)
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
         }
@@ -960,7 +961,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
-            sampleSizeGrowthRate: Double = defaultGrowthRate,
+            sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
             maxNumReplications: Int = defaultMaxNumReplications,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,

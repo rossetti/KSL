@@ -6,7 +6,6 @@ import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
-import org.jetbrains.letsPlot.core.spec.remove
 
 /**
  *  An evaluator should communicate with the simulation oracle to determine
@@ -129,7 +128,6 @@ class Evaluator @JvmOverloads constructor(
      *  @return a list containing a solution for each request
      */
     override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
-        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
@@ -139,12 +137,10 @@ class Evaluator @JvmOverloads constructor(
         totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
         EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
         // check with the cache for solutions
-        //TODO this is the check of the cache, what if the cache does not hold solutions
         val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
         EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
         // the returned map is either empty or contains solutions associated with some requests
         // update and filter the requests based on the replications in the solution cache
-        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         val requestsToSimulate = reviseRequests(solutionMap, uniqueRequests)
         EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
         // evaluate remaining requests and update solutions
@@ -196,46 +192,40 @@ class Evaluator @JvmOverloads constructor(
         cachedSolutions: MutableMap<RequestData, Solution>,
         uniqueRequests: List<RequestData>
     ): List<RequestData> {
-        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // The cached solutions map has the solutions that are associated with the requests.
         // The uniqueRequests list holds the possible requests that could be simulated.
         if (cachedSolutions.isEmpty()) {
             // If there are no solutions in the cache for the provided possible requests,
-            // then there is nothing revise in the list.
+            // then there is nothing to revise in the list.
             return uniqueRequests
         }
         // There are some cached solutions that need to be reviewed.
-        // Make it easier to look up the request data by the request's hash code/equals methods.
-        val possibleRequests = uniqueRequests.associateBy { it }.toMutableMap()
-        // Process the requests in the cache
-        //TODO the new cache work is not working!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        for ((request, solution) in cachedSolutions) {
-            if (possibleRequests.contains(request)) {
-                // The request will be satisfied wholly or in-part via the cache.
-                totalCachedEvaluations++
-                // The request was found. Need to assess the situation.
-                // Get the actual new request for simulation runs.
-                val possibleRequest = possibleRequests[request]!!
+        val revisedRequests = mutableListOf<RequestData>()
+        for (request in uniqueRequests) {
+            val cachedSolution = cachedSolutions[request]
+            if (cachedSolution != null){
+                // Found the request in the cache. Need to update it.
                 // Determine the number of replications stored in the cache for the associated solution.
-                val numRepsInCache = solution.count.toInt()
-                if (numRepsInCache >= possibleRequest.numReplications) {
-                    //Remove the item from the possible requests because there is no need to simulate it.
-                    // All the replications will be satisfied by the cache.
-                    totalCachedReplications = totalCachedReplications + possibleRequest.numReplications
-                    possibleRequests.remove(request)
+                val numRepsInCache = cachedSolution.count.toInt()
+                if (numRepsInCache >= request.numReplications) {
+                    // The cache will satisfy all the replications. There is no need to include the request in the revised requests.
+                    totalCachedReplications = totalCachedReplications + request.numReplications
                 } else {
                     // The cached solution doesn't have enough replications. We need to simulate more replications.
-                    val requiredReps = possibleRequest.numReplications - numRepsInCache
+                    val requiredReps = request.numReplications - numRepsInCache
                     // make the new request
-                    val updatedRequest = possibleRequest.instance(requiredReps)
-                    // update it in the map
-                    possibleRequests[updatedRequest] = updatedRequest
+                    val updatedRequest = request.instance(requiredReps)
+                    // capture new request in the revised requests.
+                    revisedRequests.add(updatedRequest)
                     // part of the replications will be satisfied by the cache
                     totalCachedReplications = totalCachedReplications + numRepsInCache
                 }
+            } else {
+                // keep the original unchanged
+                revisedRequests.add(request)
             }
         }
-        return possibleRequests.keys.toList()
+        return revisedRequests
     }
 
     /**

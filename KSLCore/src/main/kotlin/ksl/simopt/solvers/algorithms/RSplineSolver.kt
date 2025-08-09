@@ -4,7 +4,7 @@ import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule
-import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultGrowthRate
+import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.NeighborhoodFinderIfc
 import ksl.utilities.KSLArrays
@@ -61,7 +61,7 @@ class RSplineSolver(
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param initialNumReps the initial starting number of replications
      * @param maxIterations The maximum number of iterations allowed for the solving process.
-     * @param sampleSizeGrowthRate the growth rate for the replications. The default is set by [defaultGrowthRate].
+     * @param sampleSizeGrowthRate the growth rate for the replications. The default is set by [defaultReplicationGrowthRate].
      * @param maxNumReplications the maximum number of replications permitted. If
      * the growth exceeds this value, then this value is used for all future replications.
      * The default is determined by [defaultMaxNumReplications]
@@ -74,7 +74,7 @@ class RSplineSolver(
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,
         initialNumReps: Int = defaultInitialSampleSize,
-        sampleSizeGrowthRate: Double = defaultGrowthRate,
+        sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
@@ -227,8 +227,6 @@ class RSplineSolver(
             // capture the last solution
             captureLastSolution()
         }
-
-        //TODO what if sequential SPLINE search returns the same solution?
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
@@ -290,7 +288,7 @@ class RSplineSolver(
         var newSolution = if (sampleSize > initSolution.count){
             logger.info { "spline(): requested sample size ($sampleSize) is larger than the initial solution size (${initSolution.count})." }
             logger.info { "spline(): requesting evaluations for sample size of $sampleSize" }
-            requestEvaluation(initSolution.inputMap, sampleSize) //TODO the request is for more samples, but the cache is not being used
+            requestEvaluation(initSolution.inputMap, sampleSize)
         } else {
             logger.info { "spline(): requested sample size ($sampleSize) <= initial solution size: Using the initial solution with sample size = ${initSolution.count}." }
             initSolution
@@ -476,11 +474,16 @@ class RSplineSolver(
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
             logger.info { "\t \t \t SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
-            bestSoln = minimumSolution(pliResults.solution, bestSoln) //TODO write out and maybe capture for emission
+            bestSoln = if (compare(pliResults.solution, bestSoln) <= 0) {
+                // changes, capture the new current
+                currentSolution = pliResults.solution
+                pliResults.solution
+            } else {
+                bestSoln
+            }
             if (pliResults.gradients == null) {
                 // Stop if no direction
                 logger.info { "\t \t \t SPLI search: iteration $j : no gradient available, returned current best solution : no line search performed" }
-                //TODO maybe capture emission here? I don't think so.
                 return SPLIResults(numOracleCalls, bestSoln)
             }
             // If we are here we have gradients to use.
@@ -529,7 +532,8 @@ class RSplineSolver(
                 logger.info { "\t \t \t \t SPLI search: Line search iteration $i of $lineSearchIterMax: line search improved solution, updating, and continuing line search" }
                 bestSoln = x1Solution
                 logger.info { "\t \t \t \t SPLI search: Line search: improved solution : ${bestSoln.asString()}" }
-                //TODO consider updating current solution here
+                //update current solution because a better solution was produced
+                currentSolution = bestSoln
             }
             logger.info { "\t \t \t  SPLI search: iteration $j : completed line search iterations:" }
             logger.info { "\t \t \t  solution : ${bestSoln.asString()}" }
@@ -650,7 +654,7 @@ class RSplineSolver(
                 field = value
             }
 
-        var defaultSplineCallGrowthRate: Double = 0.1
+        var defaultSplineCallGrowthRate: Double = 0.5
             set(value) {
                 require(value > 0) { "The default spline growth rate must be > 0" }
                 field = value
