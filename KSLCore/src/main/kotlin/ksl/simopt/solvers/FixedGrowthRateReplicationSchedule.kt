@@ -75,9 +75,9 @@ class FixedGrowthRateReplicationSchedule(
             }
 
         /**
-         *  The default growth rate. By default, this is 50% (0.5).
+         *  The default growth rate. By default, this is 10% (0.1).
          */
-        var defaultReplicationGrowthRate: Double = 0.5
+        var defaultReplicationGrowthRate: Double = 0.1
             set(value) {
                 require(value > 0) { "The replication growth rate must be > 0" }
                 field = value
