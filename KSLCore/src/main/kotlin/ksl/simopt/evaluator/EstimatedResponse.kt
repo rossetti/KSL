@@ -164,21 +164,34 @@ interface EstimatedResponseIfc {
 }
 
 class EstimateResponseComparator(
-    val level: Double = DEFAULT_CONFIDENCE_LEVEL,
-    val indifferenceZone: Double = 0.0
+    level: Double = DEFAULT_CONFIDENCE_LEVEL,
+    indifferenceZone: Double = 0.0
 ) : Comparator<EstimatedResponseIfc> {
     init {
         require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
         require( indifferenceZone >= 0.0) {"The indifference zone parameter must be >= 0.0"}
     }
 
+    var confidenceLevel : Double = level
+        set(value) {
+            require((0.0 < value) && (value < 1.0)) { "The confidence level must be between 0 and 1" }
+            field = value
+        }
+
+    var indifferenceZone: Double = indifferenceZone
+        set(value) {
+            require( value >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+            field = value
+        }
+
     override fun compare(
         estimate1: EstimatedResponseIfc,
         estimate2: EstimatedResponseIfc
     ): Int {
         // make the confidence interval on the difference
-        val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, level)
-        if (ci.upperLimit > indifferenceZone){
+        val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, confidenceLevel)
+        println("ci on difference: $ci")
+        if (ci.upperLimit < indifferenceZone){
             return -1
         }
         if (ci.lowerLimit > indifferenceZone){

@@ -1,5 +1,6 @@
 package ksl.simopt.solvers.algorithms
 
+import ksl.simopt.evaluator.EstimateResponseComparator
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
@@ -182,6 +183,8 @@ class RSplineSolver(
 
     private val badSolution = problemDefinition.badSolution()
 
+    val statisticalComparator: EstimateResponseComparator = EstimateResponseComparator()
+
     /**
      *  The default implementation ensures that the initial point and solution
      *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
@@ -222,11 +225,26 @@ class RSplineSolver(
         // keep track of the total number of oracle calls
         numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
         logger.info { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
-        if (compare(splineSolution.solution, currentSolution) <= 0) {
-            currentSolution = splineSolution.solution
-            // capture the last solution
-            captureLastSolution()
-        }
+
+        println("spline solution: ${splineSolution.solution.asString()}")
+        println("current solution: ${currentSolution.asString()}")
+//        if (statisticalComparator.compare(splineSolution.solution, currentSolution) < 0){
+//            currentSolution = splineSolution.solution
+//            // capture the last solution
+//            captureLastSolution()
+//        }
+
+        //TODO the spline solution should always feed the next sample path problem
+
+        currentSolution = splineSolution.solution
+        // capture the last solution
+        captureLastSolution()
+
+//        if (compare(splineSolution.solution, currentSolution) <= 0) {
+//            currentSolution = splineSolution.solution
+//            // capture the last solution
+//            captureLastSolution()
+//        }
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
@@ -238,6 +256,7 @@ class RSplineSolver(
             myLastSolutions.removeFirstOrNull()
         }
         myLastSolutions.add(currentSolution)
+        println("last solutions size: ${myLastSolutions.size} : captured last solution : ${currentSolution.asString()}")
     }
 
     private fun checkLastSolutions(): Boolean {
@@ -329,10 +348,10 @@ class RSplineSolver(
             // If there is no improvement from NE, then what?
             // Capture the newest solution from the neighborhood search to seed the next SPLI search.
             newSolution = neSearchResults.solution
-            // capture intermediate improving solutions
-            if (compare(newSolution, currentSolution) < 0){
-                currentSolution = newSolution
-            }
+//            // capture intermediate improving solutions
+//            if (compare(newSolution, currentSolution) < 0){
+//                currentSolution = newSolution
+//            }
             // if the candidate solution and the NE search starting solution are the same, we can stop
             //TODO matlab and R code used some kind of tolerance when testing equality
             if (compare(neStartingSolution, neSearchResults.solution) == 0) {
@@ -478,7 +497,7 @@ class RSplineSolver(
             // regardless of gradient computation, update the current best solution
             bestSoln = if (compare(pliResults.solution, bestSoln) <= 0) {
                 // changes, capture the new current
-                currentSolution = pliResults.solution
+               // currentSolution = pliResults.solution
                 pliResults.solution
             } else {
                 bestSoln
@@ -535,7 +554,7 @@ class RSplineSolver(
                 bestSoln = x1Solution
                 logger.info { "\t \t \t \t SPLI search: Line search: improved solution : ${bestSoln.asString()}" }
                 //update current solution because a better solution was produced
-                currentSolution = bestSoln
+               // currentSolution = bestSoln
             }
             logger.info { "\t \t \t  SPLI search: iteration $j : completed line search iterations:" }
             logger.info { "\t \t \t  solution : ${bestSoln.asString()}" }
@@ -676,7 +695,7 @@ class RSplineSolver(
 
         /**
          * This value is used as the default termination threshold for the largest number of iterations, during which no
-         * improvement of the best function value is found. By default, set to 2.
+         * improvement of the best function value is found. By default, set to 5.
          */
         @JvmStatic
         var defaultNoImproveThreshold: Int = 5
