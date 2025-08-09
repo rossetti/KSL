@@ -297,7 +297,7 @@ abstract class Solver(
             if (compare(field, bestSolution) < 0) {
                 bestSolution = field
                 numTimesBestSolutionUpdated++
-                emitter.emit(this)
+               // emitter.emit(this)
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             }
         }
