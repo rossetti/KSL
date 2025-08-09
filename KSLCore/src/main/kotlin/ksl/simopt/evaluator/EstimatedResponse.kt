@@ -163,6 +163,35 @@ interface EstimatedResponseIfc {
     }
 }
 
+class EstimateResponseComparator(
+    val level: Double = DEFAULT_CONFIDENCE_LEVEL,
+    val indifferenceZone: Double = 0.0
+) : Comparator<EstimatedResponseIfc> {
+    init {
+        require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+        require( indifferenceZone >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+    }
+
+    override fun compare(
+        estimate1: EstimatedResponseIfc,
+        estimate2: EstimatedResponseIfc
+    ): Int {
+        // make the confidence interval on the difference
+        val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, level)
+        if (ci.upperLimit >= indifferenceZone){
+            return -1
+        }
+        if (ci.lowerLimit >= indifferenceZone){
+            return 1
+        }
+        if (ci.contains(indifferenceZone)){
+            return 0
+        }
+        return 0
+    }
+
+}
+
 /**
  *  Represents an estimated response based on an independent sample. For the case of sample size 1 (count equals 1),
  *  the variance will be undefined (Double.NaN).
