@@ -6,7 +6,8 @@ import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
 /**
  *  A solution checker holds solutions up to a capacity (threshold). The solution checker will
- *  hold a maximum number of solutions to check (capacity/threshold).
+ *  hold a maximum number of solutions to check (capacity/threshold).  If the contained
+ *  solutions all test as equal, then the checker returns true.
  *
  *  @param equalityChecker the comparator to use for checking. The default is
  *  to use a [InputEquality]
@@ -82,12 +83,15 @@ class SolutionChecker(
     }
 }
 
+/**
+ *  A functional interface for checking if two solutions are equal.
+ */
 fun interface SolutionEqualityIfc {
 
     fun equals(first: Solution, second: Solution): Boolean
 }
 
-@Suppress("unused")
+
 /**
  *  This solution comparator returns 0 if the inputs are the same
  *  for the two solutions. If the solutions do not have the same inputs, then
@@ -95,12 +99,16 @@ fun interface SolutionEqualityIfc {
  *  solutions are considered the same if they have the same input values, regardless of
  *  the value of the objective functions.
  */
+@Suppress("unused")
 object InputEquality : SolutionEqualityIfc {
     override fun equals(first: Solution, second: Solution): Boolean {
         return first.inputMap == second.inputMap
     }
 }
 
+/**
+ *  A comparator for solutions based on the penalized objective function values.
+ */
 @Suppress("unused")
 object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
     override fun compare(first: Solution, second: Solution): Int {
@@ -108,6 +116,12 @@ object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
     }
 }
 
+
+/**
+ *  Equality of the solutions is based on the penalized objective function
+ *  values being within a specific precision.
+ *  @param solutionPrecision the precision for equality checking
+ */
 @Suppress("unused")
 class PenalizedObjectiveFunctionEquality(
     val solutionPrecision: Double = defaultNumericalPrecision
@@ -121,10 +135,16 @@ class PenalizedObjectiveFunctionEquality(
     }
 }
 
-@Suppress("unused")
+
 /**
- *  @param level the confidence level. Must be between 0 and 1.
+ *  Checks for equality between solutions based whether the confidence interval on
+ *  the difference contains the indifference zone parameter.
+ *  @param level the confidence level. Must be between 0 and 1.  The default is determined
+ *  by the default confidence level setting [DEFAULT_CONFIDENCE_LEVEL]
+ *  @param indifferenceZone the value for which we are indifferent between the solutions. Must
+ *  be greater than or equal to 0.0. The default is 0.0.
  */
+@Suppress("unused")
 open class ConfidenceIntervalEquality(
     level: Double = DEFAULT_CONFIDENCE_LEVEL,
     indifferenceZone: Double = 0.0
@@ -159,6 +179,17 @@ open class ConfidenceIntervalEquality(
 
 }
 
+/**
+ *  Checks for equality between solutions based whether the confidence interval on
+ *  the difference contains the indifference zone parameter and whether the input
+ *  variable values are the same.
+ *  
+ *  @param level the confidence level. Must be between 0 and 1.  The default is determined
+ *  by the default confidence level setting [DEFAULT_CONFIDENCE_LEVEL]
+ *  @param indifferenceZone the value for which we are indifferent between the solutions. Must
+ *  be greater than or equal to 0.0. The default is 0.0.
+ */
+@Suppress("unused")
 class InputsAndConfidenceIntervalEquality(
     level: Double = DEFAULT_CONFIDENCE_LEVEL,
     indifferenceZone: Double = 0.0
