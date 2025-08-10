@@ -113,41 +113,73 @@ class RSplineSolver(
             field = value
         }
 
-    var initialStepSize: Double = 2.0
+    /**
+     *  The initial setting of the line search step-size. By default, this is 2.0
+     */
+    var initialLineSearchStepSize: Double = 2.0
         set(value) {
             require(value > 1.0) { "The initial step size must be > 1.0" }
             field = value
         }
 
-    var stepSizeMultiplier: Double = 2.0
+    /**
+     *  The multiplier that increases the line search step-size for each line
+     *  search iteration. The default is 2.0
+     */
+    var lineSearchStepSizeMultiplier: Double = 2.0
         set(value) {
             require(value >= 1.0) { "The step multiplier must be >= 1.0" }
             field = value
         }
 
+    /**
+     *  The neighborhood finder for performing the neighborhood search. By default,
+     *  this is a von Neumann neighborhood.
+     */
     var neighborhoodFinder: NeighborhoodFinderIfc = problemDefinition.vonNeumannNeighborhoodFinder()
 
+    /**
+     *  A variable that tracks the total number of simulation oracle calls.
+     */
     var numOracleCalls: Int = 0
         private set
 
+    /**
+     * The rate at which the permissible number of SPLINE calls grows.
+     * By default, this is defined by [defaultSplineCallGrowthRate].
+     */
     var splineCallGrowthRate: Double = defaultSplineCallGrowthRate
         set(value) {
             require(value > 0) { "The spline growth rate must be > 0" }
             field = value
         }
 
+    /**
+     * Since the number of SPLINE calls can grow as the algorithm proceeds, this
+     * variable provides the initial number of SPLINE calls to which the growth is applied.
+     * The default value is [defaultInitialMaxSplineCalls].
+     */
     var initialMaxSplineCallLimit: Int = defaultInitialMaxSplineCalls
         set(value) {
             require(value > 0) { "The initial maximum number of SPLINE calls must be > 0" }
             field = value
         }
-
+    /**
+    * Since the number of SPLINE calls can grow as the algorithm proceeds, this
+    * variable provides the maximum number of calls that are permissible. The growth
+    * with not exceed this value. By default, this is [defaultMaxSplineCallLimit].
+    */
     var maxSplineCallLimit: Int = defaultMaxSplineCallLimit
         set(value) {
             require(value > 0) { "The maximum for the number of SPLINE call growth limit must be > 0" }
             field = value
         }
 
+    /**
+     * Since the number of SPLINE calls can grow as the algorithm proceeds, this
+     * variable represents the current number of permissible SPLINE calls. In the
+     * notation of the R-SPLINE paper, this is b_k.
+     */
     val splineCallLimit: Int
         get() {
             val k = iterationCounter
@@ -158,18 +190,28 @@ class RSplineSolver(
             return minOf(maxSplineCallLimit, ceil(m).toInt())
         }
 
+    /**
+     *  This variable limits the number of permissible line-searches within the SPLINE step.
+     */
     var lineSearchIterMax = defaultLineSearchIterMax
         set(value) {
             require(value > 0) { "The maximum number of spline line search iterations must be > 0" }
             field = value
         }
 
+    /**
+     *  This variable limits the number of permissible SPLI-searches within the SPLINE step.
+     */
     var spliMaxIterations = defaultSPLIMaxIterations
         set(value) {
             require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
             field = value
         }
 
+    /**
+     *  This variable tracks the current sample size for each SPLINE iteration. In the
+     *  notation of the paper, this is m_k.
+     */
     val rsplineSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.numReplicationsPerEvaluation(this)
 
@@ -223,25 +265,9 @@ class RSplineSolver(
         numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
         logger.info { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
 
-        println("spline solution: ${splineSolution.solution.asString()}")
-        println("current solution: ${currentSolution.asString()}")
-//        if (statisticalComparator.compare(splineSolution.solution, currentSolution) < 0){
-//            currentSolution = splineSolution.solution
-//            // capture the last solution
-//            captureLastSolution()
-//        }
-
-        //TODO the spline solution should always feed the next sample path problem
-
         currentSolution = splineSolution.solution
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
-
-//        if (compare(splineSolution.solution, currentSolution) <= 0) {
-//            currentSolution = splineSolution.solution
-//            // capture the last solution
-//            captureLastSolution()
-//        }
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
@@ -481,8 +507,8 @@ class RSplineSolver(
             }
             // If we are here we have gradients to use.
             // Setup to do the line search
-            val s0 = initialStepSize
-            val c = stepSizeMultiplier
+            val s0 = initialLineSearchStepSize
+            val c = lineSearchStepSizeMultiplier
             val direction = pliResults.gradients.direction()
             val x0 = bestSoln.inputMap.inputValues
             // The matlab/R code has a limit on the number of line searches.

@@ -183,7 +183,7 @@ open class ConfidenceIntervalEquality(
  *  Checks for equality between solutions based whether the confidence interval on
  *  the difference contains the indifference zone parameter and whether the input
  *  variable values are the same.
- *  
+ *
  *  @param level the confidence level. Must be between 0 and 1.  The default is determined
  *  by the default confidence level setting [DEFAULT_CONFIDENCE_LEVEL]
  *  @param indifferenceZone the value for which we are indifferent between the solutions. Must
