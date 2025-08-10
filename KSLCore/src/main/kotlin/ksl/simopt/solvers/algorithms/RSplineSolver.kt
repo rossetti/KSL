@@ -29,7 +29,22 @@ import kotlin.math.floor
  *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
  *  doi: 10.1145/2499913.2499916.
  *
- * @constructor Creates a R-SPLINE solver with the specified parameters.
+ *  The original algorithm used the total number of oracle calls as an approach to stopping the
+ *  iterations. Matlab/R implementations did not use this approach, but had a limit on the total
+ *  number of R-SPLINE iterations.  The basic implementation of all solvers has such a limit via the
+ *  [maxIterations] property. The theory of the approach indicates that each sample-path problem, P_k,
+ *  is used to seed the next sample path problem. This causes the solutions to the P_k problems to
+ *  eventually converge to some solution. The original paper does not provide much insight into
+ *  how to compare solutions for stopping. The approach implemented here follows the suggestions
+ *  found within the cross-entropy literature. The sequence of P_k calls will stop when a fixed number
+ *  of the last produced solutions test for equality. The default here is to indicate that solutions
+ *  are equal if they compare equal according to a confidence interval test and have the same input
+ *  variable values. The confidence interval test is based on the penalized objective function value.
+ *  The stopping criteria is controlled by the [solutionChecker] property.  Users can supply
+ *  their own checking procedure via this property and their own definition of equality via its
+ *  [solutionEqualityChecker] property.
+ *
+ * @constructor Creates an R-SPLINE solver with the specified parameters.
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
  * @param maxIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
