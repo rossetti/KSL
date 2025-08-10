@@ -213,13 +213,14 @@ class CrossEntropySolver @JvmOverloads constructor(
         for (solution in myLastSolutions) {
             // This works but in no way accounts for variability in the comparison.
             // User can supply a SolutionQualityEvaluator
-            if (!KSLMath.within(
-                    lastSolution.penalizedObjFncValue,
-                    solution.penalizedObjFncValue, solutionPrecision
-                )
-            ) {
-                return false
-            }
+            if (lastSolution.inputMap != solution.inputMap) return false
+//            if (!KSLMath.within(
+//                    lastSolution.penalizedObjFncValue,
+//                    solution.penalizedObjFncValue, solutionPrecision
+//                )
+//            ) {
+//                return false
+//            }
         }
         return true
     }
