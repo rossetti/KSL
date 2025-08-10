@@ -1,8 +1,10 @@
 package ksl.simopt.solvers.algorithms
 
-import ksl.simopt.evaluator.EstimateResponseComparator
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionChecker
+import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
@@ -11,7 +13,6 @@ import ksl.simopt.solvers.NeighborhoodFinderIfc
 import ksl.utilities.KSLArrays
 import ksl.utilities.collections.pow
 import ksl.utilities.direction
-import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
@@ -32,6 +33,9 @@ import kotlin.math.floor
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
  * @param maxIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
+ * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
+ * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and there
+ * is no statistical difference between the solutions
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name Optional name identifier for this instance of the solver.
@@ -40,6 +44,7 @@ class RSplineSolver(
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
+    solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
@@ -66,6 +71,9 @@ class RSplineSolver(
      * @param maxNumReplications the maximum number of replications permitted. If
      * the growth exceeds this value, then this value is used for all future replications.
      * The default is determined by [defaultMaxNumReplications]
+     * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
+     * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and there
+     * is no statistical difference between the solutions
      * @param streamNum the random number stream number, defaults to 0, which means the next stream
      * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @param name Optional name identifier for this instance of the solver.
@@ -77,13 +85,14 @@ class RSplineSolver(
         initialNumReps: Int = defaultInitialSampleSize,
         sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
         maxNumReplications: Int = defaultMaxNumReplications,
+        solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
     ) : this(
         evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
             initialNumReps, sampleSizeGrowthRate, maxNumReplications
-        ), streamNum, streamProvider, name
+        ), solutionEqualityChecker, streamNum, streamProvider, name
     )
 
     val fixedGrowthRateReplicationSchedule: FixedGrowthRateReplicationSchedule
@@ -164,26 +173,14 @@ class RSplineSolver(
     val rsplineSampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.numReplicationsPerEvaluation(this)
 
+
     /**
-     * This value is used as a termination threshold for the largest number of iterations, during which no
-     * improvement of the best function value is found. By default, set to 5, which can be controlled
-     * globally via the companion object's [defaultNoImproveThreshold]
+     *  Used to check if the last set of solutions that were captured
+     *  are the same.
      */
-    var noImproveThreshold: Int = defaultNoImproveThreshold
-        set(value) {
-            require(value > 0) { "The no improvement threshold must be greater than 0" }
-            field = value
-        }
-
-    private lateinit var myLastSolutions: ArrayDeque<Solution>
-
-    @Suppress("unused")
-    val lastSolutions: List<Solution>
-        get() = if (::myLastSolutions.isInitialized) myLastSolutions.toList() else emptyList()
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker)
 
     private val badSolution = problemDefinition.badSolution()
-
-    val statisticalComparator: EstimateResponseComparator = EstimateResponseComparator()
 
     /**
      *  The default implementation ensures that the initial point and solution
@@ -192,7 +189,7 @@ class RSplineSolver(
     override fun initializeIterations() {
         super.initializeIterations()
         numOracleCalls = 0
-        myLastSolutions = ArrayDeque(noImproveThreshold)
+        solutionChecker.clear()
     }
 
     /**
@@ -238,7 +235,7 @@ class RSplineSolver(
 
         currentSolution = splineSolution.solution
         // capture the last solution
-        captureLastSolution()
+        solutionChecker.captureSolution(currentSolution)
 
 //        if (compare(splineSolution.solution, currentSolution) <= 0) {
 //            currentSolution = splineSolution.solution
@@ -248,32 +245,7 @@ class RSplineSolver(
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
-        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkLastSolutions()
-    }
-
-    private fun captureLastSolution() {
-        if (myLastSolutions.size == noImproveThreshold) {
-            myLastSolutions.removeFirstOrNull()
-        }
-        myLastSolutions.add(currentSolution)
-        println("last solutions size: ${myLastSolutions.size} : captured last solution : ${currentSolution.asString()}")
-    }
-
-    private fun checkLastSolutions(): Boolean {
-        if (myLastSolutions.size < noImproveThreshold) return false
-        val lastSolution = myLastSolutions.last()
-        for (solution in myLastSolutions) {
-            // This works but in no way accounts for variability in the comparison.
-            // User can supply a SolutionQualityEvaluator
-            if (!KSLMath.within(
-                    lastSolution.penalizedObjFncValue,
-                    solution.penalizedObjFncValue, solutionPrecision
-                )
-            ) {
-                return false
-            }
-        }
-        return true
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()
     }
 
     /**

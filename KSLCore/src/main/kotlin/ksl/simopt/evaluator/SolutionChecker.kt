@@ -8,11 +8,14 @@ import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
  *  A solution checker holds solutions up to a capacity (threshold). The solution checker will
  *  hold a maximum number of solutions to check (capacity/threshold).
  *
+ *  @param equalityChecker the comparator to use for checking. The default is
+ *  to use a [InputEquality]
  *  @param noImproveThreshold This value is used as a termination threshold for the largest number of iterations, during which no
  *  improvement of the captured solutions is found. By default, set to 5, which can be controlled
  *  globally via the companion object's [defaultNoImproveThreshold]
  */
 class SolutionChecker(
+    var equalityChecker: SolutionEqualityIfc = InputEquality,
     noImproveThreshold: Int = defaultNoImproveThreshold
 ) {
     init {
@@ -36,6 +39,7 @@ class SolutionChecker(
         myLastSolutions.clear()
     }
 
+    @Suppress("unused")
     fun captureSolution(solution: Solution) {
         if (myLastSolutions.size == noImproveThreshold) {
             myLastSolutions.removeFirstOrNull()
@@ -52,10 +56,9 @@ class SolutionChecker(
      *  are all the same based on the comparator. If any are different (not equal), then the
      *  function returns false.
      *
-     *  @param equalityChecker the comparator to use for checking. The default is
-     *  to use a [InputEquality]
      */
-    fun checkSolutions(equalityChecker: SolutionEqualityIfc = InputEquality): Boolean {
+    @Suppress("unused")
+    fun checkSolutions(): Boolean {
         if (myLastSolutions.size < noImproveThreshold) return false
         val lastSolution = myLastSolutions.last()
         for (solution in myLastSolutions) {

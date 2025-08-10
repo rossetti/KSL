@@ -52,6 +52,7 @@ fun runRSPLINESolver(
         maxNumReplications = maxNumReplications,
         maxIterations, inputs, printer)
     shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
+ //   shc.solutionChecker.noImproveThreshold = 3
     println("Setting up solver:")
     println(shc)
     println("Running solver:")
