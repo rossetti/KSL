@@ -1,11 +1,13 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
 import ksl.simopt.evaluator.Solution
+import ksl.simopt.evaluator.SolutionChecker
+import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.distributions.Normal
-import ksl.utilities.math.KSLMath
 import kotlin.math.ceil
 
 /**
@@ -35,6 +37,9 @@ fun interface SampleSizeFnIfc {
  * @param ceSampler the cross-entropy sampler for the cross-entropy distribution
  * @param maxIterations The maximum number of iterations allowed for the search process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
+ * @param solutionEqualityChecker Used when testing if solutions have converged for equality between solutions.
+ * The default is [InputsAndConfidenceIntervalEquality], which checks if the inputs are the same and their
+ * is no statistical difference between the solutions
  * @param name Optional name identifier for this instance of solver.
  */
 class CrossEntropySolver @JvmOverloads constructor(
@@ -42,6 +47,7 @@ class CrossEntropySolver @JvmOverloads constructor(
     val ceSampler: CESamplerIfc,
     maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
+    solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
 ) : StochasticSolver(
     evaluator, maxIterations,
@@ -65,10 +71,12 @@ class CrossEntropySolver @JvmOverloads constructor(
         ceSampler: CESamplerIfc,
         maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+        solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
     ) : this(
         evaluator, ceSampler, maxIterations,
-        FixedReplicationsPerEvaluation(replicationsPerEvaluation), name
+        FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+        solutionEqualityChecker, name
     )
 
     /**
@@ -97,17 +105,6 @@ class CrossEntropySolver @JvmOverloads constructor(
             field = value
         }
 
-    /**
-     * This value is used as a termination threshold for the largest number of iterations, during which no
-     * improvement of the best function value is found. By default, set to 5, which can be controlled
-     * globally via the companion object's [defaultNoImproveThreshold]
-     */
-    var noImproveThreshold: Int = defaultNoImproveThreshold
-        set(value) {
-            require(value > 0) { "The no improvement threshold must be greater than 0" }
-            field = value
-        }
-
     /** The sample size associated with the CE algorithm used to determine the elite solutions.
      * By default, this is determined by the function recommendCESampleSize() within
      * the companion object.
@@ -131,11 +128,11 @@ class CrossEntropySolver @JvmOverloads constructor(
     @Suppress("unused")
     val elites: List<Solution> get() = myEliteSolutions
 
-    private lateinit var myLastSolutions: ArrayDeque<Solution>
-
-    @Suppress("unused")
-    val lastSolutions: List<Solution>
-        get() = if (::myLastSolutions.isInitialized) myLastSolutions.toList() else emptyList()
+    /**
+     *  Used to check if the last set of solutions that were captured
+     *  are the same.
+     */
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker)
 
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
      * to determine the size of the elite sample.
@@ -160,7 +157,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         val initialPoint = startingPoint ?: startingPoint()
         ceSampler.initializeParameters(initialPoint.inputValues)
         myEliteSolutions.clear()
-        myLastSolutions = ArrayDeque(noImproveThreshold)
+        solutionChecker.clear()
         logger.info { "Solver: $name : initialized with CE Sampler's parameters" }
         logger.info { "Initial parameters = $initialPoint" }
     }
@@ -187,14 +184,7 @@ class CrossEntropySolver @JvmOverloads constructor(
         // specify the current solution
         currentSolution = myEliteSolutions.first()
         // capture the last solution
-        captureLastSolution()
-    }
-
-    private fun captureLastSolution() {
-        if (myLastSolutions.size == noImproveThreshold) {
-            myLastSolutions.removeFirstOrNull()
-        }
-        myLastSolutions.add(currentSolution)
+        solutionChecker.captureSolution(currentSolution)
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
@@ -204,25 +194,7 @@ class CrossEntropySolver @JvmOverloads constructor(
     private fun checkForConvergence(): Boolean {
         // need to check for convergence of sampler
         // need to check for no solution improvement
-        return checkLastSolutions() || ceSampler.hasConverged()
-    }
-
-    private fun checkLastSolutions(): Boolean {
-        if (myLastSolutions.size < noImproveThreshold) return false
-        val lastSolution = myLastSolutions.last()
-        for (solution in myLastSolutions) {
-            // This works but in no way accounts for variability in the comparison.
-            // User can supply a SolutionQualityEvaluator
-            if (lastSolution.inputMap != solution.inputMap) return false
-//            if (!KSLMath.within(
-//                    lastSolution.penalizedObjFncValue,
-//                    solution.penalizedObjFncValue, solutionPrecision
-//                )
-//            ) {
-//                return false
-//            }
-        }
-        return true
+        return solutionChecker.checkSolutions()|| ceSampler.hasConverged()
     }
 
     private fun findEliteSolutions(results: List<Solution>): MutableList<Solution> {
@@ -232,7 +204,7 @@ class CrossEntropySolver @JvmOverloads constructor(
     override fun toString(): String {
         val sb = StringBuilder("Cross-Entropy Solver with parameters: \n")
         sb.appendLine("Elite Pct: $elitePct")
-        sb.appendLine("No improvement threshold: $noImproveThreshold")
+        sb.appendLine("No improvement threshold: ${solutionChecker.noImproveThreshold}")
         sb.appendLine("CE Sample Size: $ceSampleSize")
         sb.appendLine("Elite Size: ${eliteSize()}")
         sb.appendLine("CE Sampler:")
