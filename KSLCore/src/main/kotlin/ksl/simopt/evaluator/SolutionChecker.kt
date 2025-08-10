@@ -2,6 +2,7 @@ package ksl.simopt.evaluator
 
 import ksl.utilities.math.KSLMath
 import ksl.utilities.math.KSLMath.defaultNumericalPrecision
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
 /**
  *  A solution checker holds solutions up to a capacity (threshold). The solution checker will
@@ -48,18 +49,17 @@ class SolutionChecker(
 
     /**
      *  This will cause the solution checker to test whether the contained solutions
-     *  are all the same based on the comparator
-     *  @param solutionComparator the comparator to use for checking
+     *  are all the same based on the comparator. If any are different (not equal), then the
+     *  function returns false.
+     *
+     *  @param equalityChecker the comparator to use for checking. The default is
+     *  to use a [InputEquality]
      */
-    fun checkSolutions(solutionComparator: Comparator<Solution>): Boolean {
+    fun checkSolutions(equalityChecker: SolutionEqualityIfc = InputEquality): Boolean {
         if (myLastSolutions.size < noImproveThreshold) return false
         val lastSolution = myLastSolutions.last()
         for (solution in myLastSolutions) {
-            // This works but in no way accounts for variability in the comparison.
-            // User can supply a SolutionQualityEvaluator
-            if (solutionComparator.compare(lastSolution, solution)!= 0) {
-                return false
-            }
+            if (!equalityChecker.equals(lastSolution, solution)) return false
         }
         return true
     }
@@ -79,35 +79,90 @@ class SolutionChecker(
     }
 }
 
+fun interface SolutionEqualityIfc {
+
+    fun equals(first: Solution, second: Solution): Boolean
+}
+
 @Suppress("unused")
-object penalizedObjectiveFunctionComparator : Comparator<Solution> {
+/**
+ *  This solution comparator returns 0 if the inputs are the same
+ *  for the two solutions. If the solutions do not have the same inputs, then
+ *  the penalized objective function is used to determine the ordering. Thus, two
+ *  solutions are considered the same if they have the same input values, regardless of
+ *  the value of the objective functions.
+ */
+object InputEquality : SolutionEqualityIfc {
+    override fun equals(first: Solution, second: Solution): Boolean {
+        return first.inputMap == second.inputMap
+    }
+}
+
+@Suppress("unused")
+object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
     override fun compare(first: Solution, second: Solution): Int {
         return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
     }
 }
 
-class PenalizedObjectiveFunctionComparator(
+@Suppress("unused")
+class PenalizedObjectiveFunctionEquality(
     val solutionPrecision: Double = defaultNumericalPrecision
-) : Comparator<Solution> {
+) : SolutionEqualityIfc {
     init {
-        require(solutionPrecision > 0.0) {"The solution precision must be > 0.0"}
+        require(solutionPrecision > 0.0) { "The solution precision must be > 0.0" }
     }
 
-    override fun compare(first: Solution, second: Solution): Int {
-        val d = first.penalizedObjFncValue - second.penalizedObjFncValue
-        return if (d < solutionPrecision){
-            -1
-        } else if (d > solutionPrecision){
-            1
-        } else {
-            0
-        }
+    override fun equals(first: Solution, second: Solution): Boolean {
+        return KSLMath.equal(first.penalizedObjFncValue, second.penalizedObjFncValue, solutionPrecision)
     }
 }
 
 @Suppress("unused")
-object objectiveFunctionComparator : Comparator<Solution> {
-    override fun compare(first: Solution, second: Solution): Int {
-        return first.estimatedObjFncValue.compareTo(second.estimatedObjFncValue)
+/**
+ *  @param level the confidence level. Must be between 0 and 1.
+ */
+open class ConfidenceIntervalEquality(
+    level: Double = DEFAULT_CONFIDENCE_LEVEL,
+    indifferenceZone: Double = 0.0
+) : SolutionEqualityIfc {
+    init {
+        require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+        require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+    }
+
+    var confidenceLevel: Double = level
+        set(value) {
+            require((0.0 < value) && (value < 1.0)) { "The confidence level must be between 0 and 1" }
+            field = value
+        }
+
+    var indifferenceZone: Double = indifferenceZone
+        set(value) {
+            require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            field = value
+        }
+
+    override fun equals(first: Solution, second: Solution): Boolean {
+        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
+        if (ci.upperLimit + indifferenceZone < 0.0){
+            return false
+        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
+            return false
+        } else {
+            return true
+        }
+    }
+
+}
+
+class InputsAndConfidenceIntervalEquality(
+    level: Double = DEFAULT_CONFIDENCE_LEVEL,
+    indifferenceZone: Double = 0.0
+) : ConfidenceIntervalEquality(level, indifferenceZone) {
+
+    override fun equals(first: Solution, second: Solution): Boolean {
+        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
+        return ((first.inputMap == second.inputMap) && super.equals(first, second))
     }
 }

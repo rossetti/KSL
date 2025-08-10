@@ -190,17 +190,13 @@ class EstimateResponseComparator(
     ): Int {
         // make the confidence interval on the difference
         val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, confidenceLevel)
-        println("ci on difference: $ci")
-        if (ci.upperLimit < indifferenceZone){
+        if (ci.upperLimit + indifferenceZone < 0.0){
             return -1
-        }
-        if (ci.lowerLimit > indifferenceZone){
+        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
             return 1
-        }
-        if (ci.contains(indifferenceZone)){
+        } else {
             return 0
         }
-        return 0
     }
 
 }
