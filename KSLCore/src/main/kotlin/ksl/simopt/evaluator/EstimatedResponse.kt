@@ -142,6 +142,7 @@ interface EstimatedResponseIfc {
             level: Double = DEFAULT_CONFIDENCE_LEVEL
         ): Interval {
             require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+            //TODO I might be able to handle the case where one of the count's is one, what if variance is Double.NaN
             require(estimate1.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate1" }
             require(estimate2.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate2" }
             require(estimate1.variance.isFinite()) { "The number of variance must be finite: $estimate1" }
@@ -194,7 +195,9 @@ class EstimateResponseComparator(
         estimate1: EstimatedResponseIfc,
         estimate2: EstimatedResponseIfc
     ): Int {
+        //TODO the issue here is what to do if an estimate has no variance, i.e. variance is Double.NaN
         // make the confidence interval on the difference
+        // This is also repeating the logic in Solution.  Should do it only one place.
         val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, confidenceLevel)
         if (ci.upperLimit + indifferenceZone < 0.0) {
             return -1
@@ -225,17 +228,24 @@ data class EstimatedResponse(
 ) : EstimatedResponseIfc {
     init {
         require(name.isNotBlank()) { "The name of the response cannot be blank" }
-        require(!average.isNaN() || average.isFinite()) { "The average was not a number or was infinite." }
-        require(!count.isNaN() || count.isFinite()) { "The count was not a number or was infinite." }
+        require(!average.isNaN()) { "The average was not a number." }
+        require(average.isFinite()) { "The average was not finite." }
+        require(!count.isNaN()) { "The count was not a number." }
+        require(count.isFinite()) { "The count was not finite." }
         require((variance >= 0.0) || variance.isNaN()) { "The variance must be >= 0.0 or NaN" }
         require(count >= 1) { "The count must be >= 1" }
     }
 
-    //TODO if data only has 1 value, this will cause an error
+    /** If the data is empty, the average will be NaN and thus an IllegalArgumentException will occur.
+     *  @param data the data must not be empty.
+     */
     constructor(name: String, data: DoubleArray) : this(
         name, data.statistics().average, data.statistics().variance, data.statistics().count
     )
 
+    /** If the data is empty, the average will be NaN and thus an IllegalArgumentException will occur.
+     *  @param data the data must not be empty.
+     */
     constructor(name: String, data: List<Double>) : this(name, data.toDoubleArray())
 
     override var label: String? = null
