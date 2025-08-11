@@ -167,6 +167,73 @@ interface EstimatedResponseIfc {
             val ul = d + t * se
             return Interval(ll, ul)
         }
+
+        /**
+         *  Compares the estimated responses based on the difference between estimate 1 and estimate 2.
+         *  The interval assumes normally distributed independent samples with unequal variances.
+         *  @param estimate1 the first estimate
+         *  @param estimate2 the second estimate
+         *  @param level the confidence level. Must be between 0 and 1.
+         *  @param indifferenceZone an indifference parameter. If the difference within this
+         *  value we consider the estimates equal.
+         *  @return -1 if estimate1 is less than estimate2, 0 if they are considered statistically equal,
+         *  and 1 if estimate1 is larger than estimate2 based their averages
+         */
+        fun compareEstimatedResponses(
+            estimate1: EstimatedResponseIfc,
+            estimate2: EstimatedResponseIfc,
+            level: Double = DEFAULT_CONFIDENCE_LEVEL,
+            indifferenceZone: Double = 0.0
+        ): Int {
+            require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+            require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            if (estimate1.count == 1.0 && estimate2.count == 1.0) {
+                val d = estimate1.average - estimate2.average
+                if (d < indifferenceZone){
+                    return -1
+                } else if (d > indifferenceZone){
+                    return 1
+                }
+                return 0
+            }
+            if (estimate1.count == 1.0 && estimate2.count >= 2.0){
+                val d = estimate1.average - estimate2.average
+                val hw2 = estimate2.halfWidth(level)
+                val uL = d + hw2
+                val lL = d - hw2
+                if (uL + indifferenceZone < 0.0) {
+                    return -1
+                } else if (lL - indifferenceZone > 0.0) {
+                    return 1
+                } else {
+                    return 0
+                }
+            }
+            if (estimate1.count >= 2.0 && estimate2.count == 1.0){
+                val d = estimate1.average - estimate2.average
+                val hw1 = estimate1.halfWidth(level)
+                val uL = d + hw1
+                val lL = d - hw1
+                if (uL + indifferenceZone < 0.0) {
+                    return -1
+                } else if (lL - indifferenceZone > 0.0) {
+                    return 1
+                } else {
+                    return 0
+                }
+            }
+            // Now both are >= 2.  Thus, the variance should exist for both.
+            // We can make the confidence interval on the difference.
+            // This is also repeating the logic in Solution.  Should do it only one place.
+            val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, level)
+            if (ci.upperLimit + indifferenceZone < 0.0) {
+                return -1
+            } else if (ci.lowerLimit - indifferenceZone > 0.0) {
+                return 1
+            } else {
+                return 0
+            }
+        }
     }
 }
 
@@ -195,17 +262,7 @@ class EstimateResponseComparator(
         estimate1: EstimatedResponseIfc,
         estimate2: EstimatedResponseIfc
     ): Int {
-        //TODO the issue here is what to do if an estimate has no variance, i.e. variance is Double.NaN
-        // make the confidence interval on the difference
-        // This is also repeating the logic in Solution.  Should do it only one place.
-        val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, confidenceLevel)
-        if (ci.upperLimit + indifferenceZone < 0.0) {
-            return -1
-        } else if (ci.lowerLimit - indifferenceZone > 0.0) {
-            return 1
-        } else {
-            return 0
-        }
+        return EstimatedResponseIfc.compareEstimatedResponses(estimate1, estimate2, confidenceLevel, indifferenceZone)
     }
 
 }
@@ -232,8 +289,12 @@ data class EstimatedResponse(
         require(average.isFinite()) { "The average was not finite." }
         require(!count.isNaN()) { "The count was not a number." }
         require(count.isFinite()) { "The count was not finite." }
-        require((variance >= 0.0) || variance.isNaN()) { "The variance must be >= 0.0 or NaN" }
         require(count >= 1) { "The count must be >= 1" }
+        if (count == 1.0){
+            require(variance.isNaN()) { "If the count is 1.0, then the variance must be NaN." }
+        } else {// not 1 and must be >= 1, thus 2 or more
+            require((variance >= 0.0)) { "The variance must be >= 0.0" }
+        }
     }
 
     /** If the data is empty, the average will be NaN and thus an IllegalArgumentException will occur.

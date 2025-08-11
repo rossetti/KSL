@@ -924,14 +924,14 @@ class ProblemDefinition @JvmOverloads constructor(
     fun badSolution(): Solution {
         val inputMap = midPoints()
         inputMap.makeInfeasible()
-        val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.MAX_VALUE, 1.0)
+        val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.NaN, 1.0)
         val list = mutableListOf<EstimatedResponse>()
         for (rc in responseConstraints) {
             val rValue = rc.ltRHSValue + Int.MAX_VALUE
-            val er = EstimatedResponse(rc.responseName, rValue, Double.MAX_VALUE, 1.0)
+            val er = EstimatedResponse(rc.responseName, rValue, Double.NaN, 1.0)
             list.add(er)
         }
-        return Solution(inputMap,  objFunc, list, 1, false)
+        return Solution(inputMap,  objFunc, list, 0, false)
     }
 
     /**

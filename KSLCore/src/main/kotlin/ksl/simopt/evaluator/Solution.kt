@@ -8,7 +8,6 @@ import ksl.utilities.math.KSLMath
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 interface SolutionEmitterIfc {
     val emitter : Emitter<Solution>
@@ -28,14 +27,14 @@ class SolutionEmitter : SolutionEmitterIfc {
  *  @param inputMap the inputs (name,value) pairs associated with the solution
  *  @param estimatedObjFnc the estimated objective function from the simulation oracle
  *  @param responseEstimates the estimates of the responses associated with the response constraints
- *  @param iterationNumber the iteration number of the solver request. That is, the number of times that
+ *  @param evaluationNumber the iteration number of the solver request. That is, the number of times that
  *  the simulation oracle has been asked to evaluate (any) input.
  */
 data class Solution(
     val inputMap: InputMap,
     val estimatedObjFnc: EstimatedResponse,
     val responseEstimates: List<EstimatedResponse>,
-    val iterationNumber: Int,
+    val evaluationNumber: Int,
     val isValid: Boolean = true
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
 
@@ -43,7 +42,7 @@ data class Solution(
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
-        require(iterationNumber >= 1) { "The iteration number that caused this solution >= 1" }
+        require(evaluationNumber >= 0) { "The evaluation number that caused this solution >= 0" }
     }
 
     val problemDefinition: ProblemDefinition
@@ -132,9 +131,9 @@ data class Solution(
     val penaltyFunctionValue: Double
         get() {
             return if (penaltyFunction != null) {
-                minOf(penaltyFunction!!.penalty(iterationNumber), Double.MAX_VALUE)
+                minOf(penaltyFunction!!.penalty(evaluationNumber), Double.MAX_VALUE)
             } else {
-                minOf(NaivePenaltyFunction.defaultPenaltyFunction.penalty(iterationNumber), Double.MAX_VALUE)
+                minOf(NaivePenaltyFunction.defaultPenaltyFunction.penalty(evaluationNumber), Double.MAX_VALUE)
             }
         }
 
@@ -230,7 +229,7 @@ data class Solution(
         for ((inputName, value) in inputMap) {
             list.add(SolutionData(id, "input", null, inputName, value))
         }
-        list.add(SolutionData(id, "solution", null, "iterationNumber", iterationNumber.toDouble()))
+        list.add(SolutionData(id, "solution", null, "iterationNumber", evaluationNumber.toDouble()))
         list.add(SolutionData(id, "solution", null, "isInputRangeFeasible", isInputRangeFeasible().toDouble()))
         list.add(
             SolutionData(
@@ -286,7 +285,10 @@ data class Solution(
     override fun toString(): String {
         val sb = StringBuilder().apply{
             appendLine("Solution id = $id")
-            appendLine("iteration number = $iterationNumber")
+            if (!isValid){
+                appendLine("The solution is invalid!")
+            }
+            appendLine("evaluation number = $evaluationNumber")
             appendLine("penalized objective function = $penalizedObjFncValue")
             appendLine("Inputs:")
             for((name, value) in inputMap){
@@ -369,19 +371,10 @@ class PenalizedObjectiveFunctionConfidenceIntervalComparator(
         }
 
     override fun compare(first: Solution, second: Solution): Int {
-        //TODO need to rethink this
         if (!first.isValid || !second.isValid) {
             return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
         }
-
-        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
-        if (ci.upperLimit + indifferenceZone < 0.0){
-            return -1
-        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
-            return 1
-        } else {
-            return 0
-        }
+        return EstimatedResponseIfc.compareEstimatedResponses(first, second, confidenceLevel, indifferenceZone)
     }
 
 }
