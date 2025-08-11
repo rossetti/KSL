@@ -140,9 +140,12 @@ interface EstimatedResponseIfc {
             estimate1: EstimatedResponseIfc,
             estimate2: EstimatedResponseIfc,
             level: Double = DEFAULT_CONFIDENCE_LEVEL
-        ) : Interval {
+        ): Interval {
             require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
-            //   require( indifferenceZone >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+            require(estimate1.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate1" }
+            require(estimate2.count >= 2.0) { "The number of observations must be greater than or equal to 2.0: $estimate2" }
+            require(estimate1.variance.isFinite()) { "The number of variance must be finite: $estimate1" }
+            require(estimate2.variance.isFinite()) { "The number of variance must be finite: $estimate2" }
             val d = estimate1.average - estimate2.average
             val n1 = estimate1.count
             val n2 = estimate2.count
@@ -151,7 +154,10 @@ interface EstimatedResponseIfc {
             val v = v1 + v2
             val dofNumerator = v * v
             val dofDenominator = ((v1 * v1) / (n1 + 1.0)) + ((v2 * v2) / (n2 + 1.0))
-            val dof = (dofNumerator / dofDenominator) - 2.0
+            var dof = (dofNumerator / dofDenominator) - 2.0
+            if (dof < 1.0){
+                dof = 1.0
+            }
             val alpha = 1.0 - level
             val p = 1.0 - (alpha / 2.0)
             val t = StudentT.invCDF(dof, p)
@@ -169,10 +175,10 @@ class EstimateResponseComparator(
 ) : Comparator<EstimatedResponseIfc> {
     init {
         require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
-        require( indifferenceZone >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+        require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
     }
 
-    var confidenceLevel : Double = level
+    var confidenceLevel: Double = level
         set(value) {
             require((0.0 < value) && (value < 1.0)) { "The confidence level must be between 0 and 1" }
             field = value
@@ -180,7 +186,7 @@ class EstimateResponseComparator(
 
     var indifferenceZone: Double = indifferenceZone
         set(value) {
-            require( value >= 0.0) {"The indifference zone parameter must be >= 0.0"}
+            require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
             field = value
         }
 
@@ -190,9 +196,9 @@ class EstimateResponseComparator(
     ): Int {
         // make the confidence interval on the difference
         val ci = EstimatedResponseIfc.differenceConfidenceInterval(estimate1, estimate2, confidenceLevel)
-        if (ci.upperLimit + indifferenceZone < 0.0){
+        if (ci.upperLimit + indifferenceZone < 0.0) {
             return -1
-        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
+        } else if (ci.lowerLimit - indifferenceZone > 0.0) {
             return 1
         } else {
             return 0

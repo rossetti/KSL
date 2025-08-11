@@ -7,6 +7,7 @@ import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rvariable.toDouble
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 interface SolutionEmitterIfc {
@@ -306,3 +307,76 @@ data class Solution(
     }
 }
 
+/**
+ *  A comparator for solutions based on the penalized objective function values.
+ */
+@Suppress("unused")
+object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
+    override fun compare(first: Solution, second: Solution): Int {
+        return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
+    }
+}
+
+
+/**
+ *  Compares solutions based on granular objective function values.
+ */
+@Suppress("unused")
+object ObjFnGranularitySolutionComparator : Comparator<Solution> {
+    override fun compare(first: Solution, second: Solution): Int {
+        return first.granularObjFncValue.compareTo(second.granularObjFncValue)
+    }
+}
+
+/**
+ *  Compares solutions based on granular penalized objective function values.
+ */
+@Suppress("unused")
+object PenalizedObjFnGranularitySolutionComparator : Comparator<Solution> {
+    override fun compare(first: Solution, second: Solution): Int {
+        return first.granularPenalizedObjFncValue.compareTo(second.granularPenalizedObjFncValue)
+    }
+}
+
+/**
+ *  Checks for equality between solutions based whether the confidence interval on
+ *  the difference contains the indifference zone parameter.
+ *  @param level the confidence level. Must be between 0 and 1.  The default is determined
+ *  by the default confidence level setting [DEFAULT_CONFIDENCE_LEVEL]
+ *  @param indifferenceZone the value for which we are indifferent between the solutions. Must
+ *  be greater than or equal to 0.0. The default is 0.0.
+ */
+@Suppress("unused")
+class PenalizedObjectiveFunctionConfidenceIntervalComparator(
+    level: Double = DEFAULT_CONFIDENCE_LEVEL,
+    indifferenceZone: Double = 0.0
+) : Comparator<Solution> {
+    init {
+        require((0.0 < level) && (level < 1.0)) { "The confidence level must be between 0 and 1" }
+        require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+    }
+
+    var confidenceLevel: Double = level
+        set(value) {
+            require((0.0 < value) && (value < 1.0)) { "The confidence level must be between 0 and 1" }
+            field = value
+        }
+
+    var indifferenceZone: Double = indifferenceZone
+        set(value) {
+            require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+            field = value
+        }
+
+    override fun compare(first: Solution, second: Solution): Int {
+        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
+        if (ci.upperLimit + indifferenceZone < 0.0){
+            return -1
+        } else  if (ci.lowerLimit - indifferenceZone > 0.0){
+            return 1
+        } else {
+            return 0
+        }
+    }
+
+}
