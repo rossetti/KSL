@@ -369,6 +369,7 @@ class PenalizedObjectiveFunctionConfidenceIntervalComparator(
         }
 
     override fun compare(first: Solution, second: Solution): Int {
+        //TODO need to rethink this
         if (!first.isValid || !second.isValid) {
             return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
         }
