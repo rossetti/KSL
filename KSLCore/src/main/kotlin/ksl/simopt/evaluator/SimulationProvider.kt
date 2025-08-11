@@ -174,6 +174,8 @@ class SimulationProvider internal constructor(
             // get the data from the simulation
             val data = replicationData[name]!!
             // compute the estimates from the replication data
+            //TODO There might not be enough data to compute an estimated response
+            // What if the data array has one value.  Can only compute variance if n >= 2
             val estimatedResponse = EstimatedResponse(name, data)
             // place the estimate in the response map
             responseMap.add(estimatedResponse)
