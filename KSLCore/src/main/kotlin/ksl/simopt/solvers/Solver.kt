@@ -408,10 +408,21 @@ abstract class Solver(
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
 
-    //var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionComparator
+    /**
+     *  This comparator is used to compare a new current solution to the previous best solution within
+     *  the updateBestSolution() function. The default behavior is to use a confidence interval
+     *  on the penalized objective function value to determine if the new solution is better. The
+     *  default is a 95 percent confidence interval with 0.0 indifference zone. The user can change
+     *  this comparator or revise how the updateBestSolution() function is implemented.
+     */
     var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionConfidenceIntervalComparator()
 
+    /**
+     *  Used when the current solution is updated to (if necessary) update the current best solution.
+     *  If two solutions are considered statistically the same, then the one with more samples is used.
+     */
     protected open fun updateBestSolution(possiblyBetter: Solution) {
+
         if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
             bestSolution = possiblyBetter
             numTimesBestSolutionUpdated++

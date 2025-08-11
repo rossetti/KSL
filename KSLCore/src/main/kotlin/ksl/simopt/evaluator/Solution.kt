@@ -369,6 +369,10 @@ class PenalizedObjectiveFunctionConfidenceIntervalComparator(
         }
 
     override fun compare(first: Solution, second: Solution): Int {
+        if (!first.isValid || !second.isValid) {
+            return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
+        }
+
         val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
         if (ci.upperLimit + indifferenceZone < 0.0){
             return -1
