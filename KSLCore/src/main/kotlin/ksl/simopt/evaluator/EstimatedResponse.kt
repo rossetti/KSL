@@ -231,6 +231,7 @@ data class EstimatedResponse(
         require(count >= 1) { "The count must be >= 1" }
     }
 
+    //TODO if data only has 1 value, this will cause an error
     constructor(name: String, data: DoubleArray) : this(
         name, data.statistics().average, data.statistics().variance, data.statistics().count
     )
