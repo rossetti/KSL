@@ -107,17 +107,6 @@ object InputEquality : SolutionEqualityIfc {
 }
 
 /**
- *  A comparator for solutions based on the penalized objective function values.
- */
-@Suppress("unused")
-object PenalizedObjectiveFunctionComparator : Comparator<Solution> {
-    override fun compare(first: Solution, second: Solution): Int {
-        return first.penalizedObjFncValue.compareTo(second.penalizedObjFncValue)
-    }
-}
-
-
-/**
  *  Equality of the solutions is based on the penalized objective function
  *  values being within a specific precision.
  *  @param solutionPrecision the precision for equality checking

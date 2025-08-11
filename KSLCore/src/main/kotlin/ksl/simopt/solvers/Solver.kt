@@ -63,7 +63,7 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-) : IdentityIfc by Identity(name), CompareSolutionsIfc, SolverEmitterIfc by SolverEmitter() {
+) : IdentityIfc by Identity(name), Comparator<Solution>, SolverEmitterIfc by SolverEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -165,7 +165,7 @@ abstract class Solver(
      *  function. The user can supply a function or override the
      *  compare function to specialize how solutions are compared.
      */
-    var solutionComparer: CompareSolutionsIfc? = null
+    var solutionComparer: Comparator<Solution>? = null
 
     /**
      *  The user can supply a function that will generate a neighbor
@@ -293,13 +293,8 @@ abstract class Solver(
                 mySolutions.add(value)
             }
             // if the new current solution is better than all previous solutions
-            // capture the best solution
-            if (compare(field, bestSolution) < 0) {
-                bestSolution = field
-                numTimesBestSolutionUpdated++
-               // emitter.emit(this)
-                logger.trace { "Solver: $name : best solution set to $bestSolution" }
-            }
+            // capture the better solution
+            updateBestSolution(field)
         }
 
     /**
@@ -413,15 +408,38 @@ abstract class Solver(
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
 
+    //var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionComparator
+    var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionConfidenceIntervalComparator()
+
+    protected open fun updateBestSolution(possiblyBetter: Solution) {
+        if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
+            bestSolution = possiblyBetter
+            numTimesBestSolutionUpdated++
+            logger.trace { "Solver: $name : best solution set to $bestSolution" }
+        } else if (bestSolutionComparator.compare(possiblyBetter, bestSolution) == 0){
+            // if statistically the same, prefer the one that has more samples
+            if (possiblyBetter.count > bestSolution.count){
+                bestSolution = possiblyBetter
+                numTimesBestSolutionUpdated++
+                logger.trace { "Solver: $name : best solution set to $bestSolution" }
+            }
+        }
+    }
+
     /** Returns the smaller of the two solutions. Ties result in the first solution
-     * being returned. This function uses the compare function, which may use a user defined
-     * solution comparator.
+     * being returned. This function uses the supplied comparator.
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
+     * @param comparator the comparator to use for the comparison. By default, the
+     * comparison is based on the values of the penalized objective function values.
      */
-    fun minimumSolution(first: Solution, second: Solution): Solution {
-        return if (compare(first, second) <= 0) {
+    fun minimumSolution(
+        first: Solution,
+        second: Solution,
+        comparator: Comparator<Solution> = PenalizedObjectiveFunctionComparator)
+    : Solution {
+        return if (comparator.compare(first, second) <= 0) {
             first
         } else {
             second
