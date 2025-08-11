@@ -707,18 +707,20 @@ abstract class Solver(
                 appendLine("$initialSolution")
                 appendLine("==================================================================")
             }
-            appendLine("Current Solution:")
-            appendLine("$currentSolution")
-            appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
-            appendLine("Penalized Solution Gap = $penalizedSolutionGap")
-            appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
-            appendLine("Number of Iterations Completed = $iterationCounter")
-            appendLine("==================================================================")
-            if (compare(bestSolution, currentSolution) < 0) {
-                appendLine("A better solution was found than the current solution.")
-                appendLine("Best Solution:")
-                appendLine("$bestSolution")
+            if (currentSolution.isValid){
+                appendLine("Current Solution:")
+                appendLine("$currentSolution")
+                appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
+                appendLine("Penalized Solution Gap = $penalizedSolutionGap")
+                appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
+                appendLine("Number of Iterations Completed = $iterationCounter")
                 appendLine("==================================================================")
+                if (compare(bestSolution, currentSolution) < 0) {
+                    appendLine("A better solution was found than the current solution.")
+                    appendLine("Best Solution:")
+                    appendLine("$bestSolution")
+                    appendLine("==================================================================")
+                }
             }
         }
         return sb.toString()
