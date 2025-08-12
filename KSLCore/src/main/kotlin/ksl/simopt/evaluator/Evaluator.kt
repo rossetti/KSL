@@ -22,7 +22,7 @@ class Evaluator @JvmOverloads constructor(
     override val problemDefinition: ProblemDefinition,
     private val simulator: RunSimulationsForResponseMapsIfc,
     override val cache: SolutionCacheIfc? = null,
-    oracleReplicationBudget: Int = Int.MAX_VALUE
+    oracleReplicationBudget: Int = Int.MAX_VALUE //TODO delete
 ) : EvaluatorIfc {
     init {
         require(oracleReplicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
@@ -32,7 +32,7 @@ class Evaluator @JvmOverloads constructor(
      *   The maximum budget (in terms of number of replications) within the evaluations
      *   performed by the simulation oracle.
      */
-    override var maxOracleReplicationBudget: Int = oracleReplicationBudget
+    override var maxOracleReplicationBudget: Int = oracleReplicationBudget //TODO delete
         set(value) {
             require(value >= 1) { "The number of budgeted replications must be >= 1" }
             field = value
@@ -90,14 +90,14 @@ class Evaluator @JvmOverloads constructor(
     /**
      *  Indicates if the number of replications budgeted has been exceeded or not.
      */
-    override val hasRemainingOracleReplications: Boolean
+    override val hasRemainingOracleReplications: Boolean //TODO delete
         get() = totalOracleReplications < maxOracleReplicationBudget
 
     /**
      *  The total number of remaining replications that can be performed by
      *  the simulation oracle.
      */
-    override val remainingOracleReplications: Int
+    override val remainingOracleReplications: Int //TODO delete
         get() = maxOracleReplicationBudget - totalOracleReplications
 
     /**
