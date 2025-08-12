@@ -21,7 +21,7 @@ interface EvaluatorIfc {
      *   The maximum budget (in terms of number of replications) within the evaluations
      *   performed by the simulation oracle.
      */
-    val maxOracleReplicationBudget: Int
+    val maxOracleReplicationBudget: Int //TODO delete
 
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
@@ -67,13 +67,13 @@ interface EvaluatorIfc {
     /**
      *  Indicates if the number of replications budgeted has been exceeded or not.
      */
-    val hasRemainingOracleReplications: Boolean
+    val hasRemainingOracleReplications: Boolean //TODO delete
 
     /**
      *  The total number of remaining replications that can be performed by
      *  the simulation oracle.
      */
-    val remainingOracleReplications: Int
+    val remainingOracleReplications: Int //TODO delete
 
     /**
      *  The evaluator collects some basic counts (statistics) on its evaluations.
