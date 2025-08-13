@@ -185,7 +185,6 @@ class InputsAndConfidenceIntervalEquality(
 ) : ConfidenceIntervalEquality(level, indifferenceZone) {
 
     override fun equals(first: Solution, second: Solution): Boolean {
-        val ci = EstimatedResponseIfc.differenceConfidenceInterval(first, second, confidenceLevel)
         return ((first.inputMap == second.inputMap) && super.equals(first, second))
     }
 }

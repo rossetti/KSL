@@ -54,6 +54,7 @@ data class RequestData(
      */
     fun instance(numReplications: Int): RequestData {
         require(numReplications > 0) { "Number of reps must be greater than zero" }
+        //TODO this is being called within Evaluator when revising the request.
         return RequestData(
             modelIdentifier = this.modelIdentifier,
             numReplications = numReplications,
