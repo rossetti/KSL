@@ -203,6 +203,12 @@ abstract class Solver(
         }
 
     /**
+     *  A variable that tracks the total number of simulation oracle calls.
+     */
+    var numOracleCalls: Int = 0
+        protected set
+
+    /**
      *  Returns the number of times the main iteration function was called.
      */
     var iterationCounter: Int = 0
@@ -327,6 +333,7 @@ abstract class Solver(
      *  they are considered equal. The default is [defaultSolutionPrecision].
      *  Algorithms may or may not use this criterion.
      */
+    @Suppress("unused")
     var solutionPrecision: Double = defaultSolutionPrecision
         set(value) {
             require(value > 0) { "The default solution precision must be a positive value." }
@@ -395,7 +402,7 @@ abstract class Solver(
     /**
      * Recognizing the need to be able to compare solutions that may have sampling error,
      * the user can override this function to provide more extensive comparison or supply
-     * an instance of the [CompareSolutionsIfc] interface via the [solutionComparer] property
+     * an instance of the [Comparator<Solution>] interface via the [solutionComparer] property
      * Returns -1 if first is less than the second solution, 0 if the solutions are to be considered
      * equivalent, and 1 if the first is larger than the second solution.
      *
@@ -445,6 +452,7 @@ abstract class Solver(
      * @param comparator the comparator to use for the comparison. By default, the
      * comparison is based on the values of the penalized objective function values.
      */
+    @Suppress("unused")
     fun minimumSolution(
         first: Solution,
         second: Solution,
@@ -497,6 +505,7 @@ abstract class Solver(
      *  to just implement the startingPoint() function.
      */
     protected open fun initializeIterations() {
+        numOracleCalls = 0
         val initialPoint = startingPoint ?: startingPoint()
         initialSolution = requestEvaluation(initialPoint)
         currentSolution = initialSolution
@@ -622,6 +631,8 @@ abstract class Solver(
         if (ensureProblemFeasibleRequests) {
             require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
+        //TODO this is the only place where RequestData is being made
+
         // the input map will be range-feasible but may not be problem-feasible.
         // since the input map is immutable, so is the RequestData instance
         return RequestData(
@@ -629,7 +640,7 @@ abstract class Solver(
             numReps,
             inputMap,
             problemDefinition.allResponseNames.toSet(),
-            experimentRunParameters = null
+            experimentRunParameters = null //TODO this is not being used here
         )
     }
 
@@ -688,6 +699,7 @@ abstract class Solver(
 
     private fun requestEvaluations(requests: List<RequestData>): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
+        numOracleCalls = numOracleCalls + requests.size
         return myEvaluator.evaluate(requests)
     }
 
@@ -975,12 +987,12 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
+         * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
+         * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
          * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
          * provided by the problem definition.
-         * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
          * @return An instance of RSplineSolver that encapsulates the optimization process and results.
@@ -988,7 +1000,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rsplineSolver(
+        fun rSPLINESolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
@@ -1002,7 +1014,7 @@ abstract class Solver(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
             //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val rspline = RSplineSolver(
+            val solver = RSplineSolver(
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 initialNumReps = initialNumReps,
@@ -1010,10 +1022,10 @@ abstract class Solver(
                 maxNumReplications = maxNumReplications
             )
             if (startingPoint != null) {
-                rspline.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+                solver.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { rspline.emitter.attach(it) }
-            return rspline
+            printer?.let { solver.emitter.attach(it) }
+            return solver
         }
     }
 }

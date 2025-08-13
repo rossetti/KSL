@@ -78,7 +78,7 @@ class RSplineSolver(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
-     * @constructor Creates a R-SPLINE solver with the specified parameters.
+     * @constructor Creates an R-SPLINE solver with the specified parameters.
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param initialNumReps the initial starting number of replications
      * @param maxIterations The maximum number of iterations allowed for the solving process.
@@ -158,12 +158,6 @@ class RSplineSolver(
     var neighborhoodFinder: NeighborhoodFinderIfc = problemDefinition.vonNeumannNeighborhoodFinder()
 
     /**
-     *  A variable that tracks the total number of simulation oracle calls.
-     */
-    var numOracleCalls: Int = 0
-        private set
-
-    /**
      * The rate at which the permissible number of SPLINE calls grows.
      * By default, this is defined by [defaultSplineCallGrowthRate].
      */
@@ -231,7 +225,7 @@ class RSplineSolver(
      *  This variable tracks the current sample size for each SPLINE iteration. In the
      *  notation of the paper, this is m_k.
      */
-    val rsplineSampleSize: Int
+    val rSPLINESampleSize: Int
         get() = fixedGrowthRateReplicationSchedule.numReplicationsPerEvaluation(this)
 
 
@@ -249,7 +243,6 @@ class RSplineSolver(
      */
     override fun initializeIterations() {
         super.initializeIterations()
-        numOracleCalls = 0
         solutionChecker.clear()
     }
 
@@ -262,7 +255,7 @@ class RSplineSolver(
      *  and Computer Simulation (TOMACS), vol. 23, no. 3, pp. 17–24, July 2013,
      *  doi: 10.1145/2499913.2499916.
      *
-     *  The current sample [rsplineSampleSize] size upon initialization is the initial sample
+     *  The current sample [rSPLINESampleSize] size upon initialization is the initial sample
      *  size of the replication schedule (m_k). The current spline call limit (b_k)
      *  is determined by the property [splineCallLimit].
      *  If the kth sample path problem beats the previous sample path problem,
@@ -275,16 +268,14 @@ class RSplineSolver(
         // Call SPLINE for the next solution using the current sample size (m_k) and
         // current SPLINE oracle call limit (b_k).
 
-        logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rsplineSampleSize : SPLINE call limit = $splineCallLimit" }
+        logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rSPLINESampleSize : SPLINE call limit = $splineCallLimit" }
         val splineSolution = spline(
             currentSolution,
-            rsplineSampleSize, splineCallLimit
+            rSPLINESampleSize, splineCallLimit
         )
-        // keep track of the total number of oracle calls
-        numOracleCalls = numOracleCalls + splineSolution.numOracleCalls
         logger.trace { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
 
-        currentSolution = splineSolution.solution
+        currentSolution = splineSolution
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
     }
@@ -316,7 +307,7 @@ class RSplineSolver(
         initSolution: Solution,
         sampleSize: Int,
         splineCallLimit: Int
-    ): SPLINESolution {
+    ): Solution {
         // The SPLINE search must start with a feasible point.
         require(initSolution.isInputFeasible()) { "The initial solution to the SPLINE function must be input feasible!" }
         // use the initial solution as the new (starting) solution for the line search (SPLI)
@@ -383,21 +374,21 @@ class RSplineSolver(
         //TODO matlab and R code used some kind of tolerance when testing equality
         return if (compare(startingSolution, newSolution) < 0) {
             logger.trace { "SPLINE search completed: SPLINE solution was no improvement over starting solution, returned starting solution" }
-            SPLINESolution(startingSolution, splineOracleCalls)
+            startingSolution
         } else {
             // The new solution might be better, but it might be input-infeasible.
             if (newSolution.isInputFeasible()) {
                 logger.trace { "SPLINE search completed: returning SPLINE search solution" }
-                SPLINESolution(newSolution, splineOracleCalls)
+                newSolution
             } else {
                 // not feasible, go back to the last feasible solution
                 logger.trace { "SPLINE search completed: SPLINE solution was infeasible, returned starting solution" }
-                SPLINESolution(startingSolution, splineOracleCalls)
+                startingSolution
             }
         }
     }
 
-    class SPLINESolution(val solution: Solution, val numOracleCalls: Int)
+//    class SPLINESolution(val solution: Solution, val numOracleCalls: Int)
 
     /**
      *  This function represents Algorithm 3: Piecewise Linear Interpolation (PLI) in the paper:
@@ -707,17 +698,6 @@ class RSplineSolver(
         var defaultMaxSplineCallLimit: Int = 1000
             set(value) {
                 require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
-                field = value
-            }
-
-        /**
-         * This value is used as the default termination threshold for the largest number of iterations, during which no
-         * improvement of the best function value is found. By default, set to 5.
-         */
-        @JvmStatic
-        var defaultNoImproveThreshold: Int = 5
-            set(value) {
-                require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value
             }
 
