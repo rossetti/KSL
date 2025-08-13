@@ -209,6 +209,12 @@ abstract class Solver(
         protected set
 
     /**
+     *  A variable that tracks the total number of simulation replications requested.
+     */
+    var numReplicationsRequested: Int = 0
+        protected set
+
+    /**
      *  Returns the number of times the main iteration function was called.
      */
     var iterationCounter: Int = 0
@@ -506,6 +512,7 @@ abstract class Solver(
      */
     protected open fun initializeIterations() {
         numOracleCalls = 0
+        numReplicationsRequested = 0
         val initialPoint = startingPoint ?: startingPoint()
         initialSolution = requestEvaluation(initialPoint)
         currentSolution = initialSolution
@@ -632,7 +639,7 @@ abstract class Solver(
             require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
         //TODO this is the only place where RequestData is being made
-
+        numReplicationsRequested = numReplicationsRequested + numReps
         // the input map will be range-feasible but may not be problem-feasible.
         // since the input map is immutable, so is the RequestData instance
         return RequestData(
