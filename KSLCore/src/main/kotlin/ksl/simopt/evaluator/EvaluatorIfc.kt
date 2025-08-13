@@ -15,7 +15,7 @@ interface EvaluatorIfc {
     /**
      *  A possible cache to hold evaluated solutions
      */
-    val cache: SolutionCacheIfc?
+    val cache: SolutionCacheIfc? //TODO move to Evaluator
 
     /**
      *   The maximum budget (in terms of number of replications) within the evaluations
@@ -26,43 +26,43 @@ interface EvaluatorIfc {
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
      */
-    val totalEvaluations: Int
+    val totalEvaluations: Int //TODO move to Evaluator
 
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    val totalOracleEvaluations: Int
+    val totalOracleEvaluations: Int //TODO move to Evaluator
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    val totalCachedEvaluations: Int
+    val totalCachedEvaluations: Int //TODO move to Evaluator
 
     /**
      *  The total number of evaluation requests that were received.
      */
-    val totalRequestsReceived: Int
+    val totalRequestsReceived: Int //TODO move to Evaluator
 
     /**
      *  The total number of evaluation requests received that were duplicates in
      *  terms of inputs.
      */
-    val totalDuplicateRequestReceived: Int
+    val totalDuplicateRequestReceived: Int //TODO move to Evaluator
 
     /**
      *  The total number of replications requested across all evaluation requests.
      */
-    val totalReplications: Int
+    val totalReplications: Int //TODO move to Evaluator
 
     /**
      *  The total number of replications performed by the simulation oracle.
      */
-    val totalOracleReplications: Int
+    val totalOracleReplications: Int //TODO move to Evaluator
 
     /**
      *  The total number of replications satisfied by the cache.
      */
-    val totalCachedReplications: Int
+    val totalCachedReplications: Int //TODO move to Evaluator
 
     /**
      *  Indicates if the number of replications budgeted has been exceeded or not.
@@ -80,7 +80,7 @@ interface EvaluatorIfc {
      *  This function resets all counters to 0, perhaps in preparation for another
      *  evaluation run.
      */
-    fun resetEvaluationCounts()
+    fun resetEvaluationCounts() //TODO move to Evaluator
 
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
