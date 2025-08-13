@@ -10,7 +10,7 @@ interface EvaluatorIfc {
     /**
      *  The problem definition associated with the evaluation process
      */
-    val problemDefinition: ProblemDefinition
+    val problemDefinition: ProblemDefinition  //TODO consider removing and forcing Solver to consume the problem
 
     /**
      *  A possible cache to hold evaluated solutions
