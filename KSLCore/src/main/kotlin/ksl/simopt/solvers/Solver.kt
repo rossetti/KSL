@@ -52,13 +52,15 @@ class SolverEmitter : SolverEmitterIfc {
  *  hooks for subclasses, the user could specify more complex procedures for determining the number of replications per
  *  evaluation.
  *
+ *  @param problemDefinition the problem being solved
+ *  @param evaluator the reference to the evaluator for evaluating responses from the model
  *  @param maximumIterations the maximum number of iterations permitted for the main loop. This must be
  *  greater than 0.
  *  @param replicationsPerEvaluation the function controlling how many replications are requested for each evaluation
- *  @param evaluator the reference to the evaluator for evaluating responses from the model
  *  @param name a name to help with identifying the solver when multiple solvers are used on a problem
  */
 abstract class Solver(
+    val problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
@@ -95,11 +97,12 @@ abstract class Solver(
      *  @param name a name to help with identifying the solver when multiple solvers are used on a problem
      */
     constructor(
+        problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
         maximumIterations: Int,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
-    ) : this(evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
+    ) : this(problemDefinition, evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
 
     /**
      *  The outer iterative process. See [IterativeProcess] for
@@ -219,12 +222,6 @@ abstract class Solver(
      */
     var iterationCounter: Int = 0
         private set
-
-    /**
-     *  A convenience property to access the problem being solved
-     */
-    val problemDefinition: ProblemDefinition
-        get() = myEvaluator.problemDefinition
 
     /**
      *  The initial starting solution for the algorithm. It is the responsibility
@@ -893,6 +890,7 @@ abstract class Solver(
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val shc = StochasticHillClimber(
+                problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
@@ -935,6 +933,7 @@ abstract class Solver(
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val shc = SimulatedAnnealing(
+                problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 initialTemperature = initialTemperature,
                 maxIterations = maxIterations,
@@ -977,6 +976,7 @@ abstract class Solver(
             )
             //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val ce = CrossEntropySolver(
+                problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 ceSampler = ceSampler,
                 maxIterations = maxIterations,
@@ -1022,6 +1022,7 @@ abstract class Solver(
             )
             //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val solver = RSplineSolver(
+                problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 initialNumReps = initialNumReps,

@@ -6,6 +6,7 @@ import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.SolutionChecker
 import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultReplicationGrowthRate
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
@@ -45,6 +46,7 @@ import kotlin.math.floor
  *  [solutionEqualityChecker] property.
  *
  * @constructor Creates an R-SPLINE solver with the specified parameters.
+ * @param problemDefinition the problem being solved.
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
  * @param maxIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
@@ -55,7 +57,8 @@ import kotlin.math.floor
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name Optional name identifier for this instance of the solver.
  */
-class RSplineSolver(
+class RSplineSolver @JvmOverloads constructor(
+    problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: FixedGrowthRateReplicationSchedule,
@@ -63,7 +66,7 @@ class RSplineSolver(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
@@ -79,6 +82,7 @@ class RSplineSolver(
      *  doi: 10.1145/2499913.2499916.
      *
      * @constructor Creates an R-SPLINE solver with the specified parameters.
+     * @param problemDefinition the problem being solved.
      * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
      * @param initialNumReps the initial starting number of replications
      * @param maxIterations The maximum number of iterations allowed for the solving process.
@@ -94,7 +98,9 @@ class RSplineSolver(
      * @param name Optional name identifier for this instance of the solver.
      */
     @Suppress("unused")
+    @JvmOverloads
     constructor(
+        problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,
         initialNumReps: Int = defaultInitialSampleSize,
@@ -104,7 +110,7 @@ class RSplineSolver(
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(
+    ) : this(problemDefinition,
         evaluator, maxIterations, FixedGrowthRateReplicationSchedule(
             initialNumReps, sampleSizeGrowthRate, maxNumReplications
         ), solutionEqualityChecker, streamNum, streamProvider, name
@@ -361,7 +367,7 @@ class RSplineSolver(
 //                currentSolution = newSolution
 //            }
             // if the candidate solution and the NE search starting solution are the same, we can stop
-            //TODO matlab and R code used some kind of tolerance when testing equality
+            // matlab and R code used some kind of tolerance when testing equality
             if (compare(neStartingSolution, neSearchResults.solution) == 0) {
                 logger.trace { "\t SPLINE search: iteration: $i : break loop : NE verified N1 local optimality" }
                 break
@@ -371,7 +377,7 @@ class RSplineSolver(
         logger.trace { "spline(): Completed SPLINE search with number of oracle calls = $splineOracleCalls" }
         // Check if the starting solution is better than the solution from the SPLINE search.
         // If the starting solution is still better return it. The returned solution must be input-feasible.
-        //TODO matlab and R code used some kind of tolerance when testing equality
+        // matlab and R code used some kind of tolerance when testing equality
         return if (compare(startingSolution, newSolution) < 0) {
             logger.trace { "SPLINE search completed: SPLINE solution was no improvement over starting solution, returned starting solution" }
             startingSolution
@@ -647,7 +653,7 @@ class RSplineSolver(
         }
         // need to find the best of the results for the neighborhood evaluation
         val candidate = results.minOf { it }
-        //TODO matlab and R code uses a tolerance for comparison
+        // matlab and R code uses a tolerance for comparison
         return if (compare(solution, candidate) < 0) {
             logger.trace { "\t \t NE search: neighborhood solution was not better than starting solution, returned starting solution" }
             NESearchResults(results.size * sampleSize, solution)

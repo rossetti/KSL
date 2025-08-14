@@ -5,6 +5,7 @@ import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.SolutionChecker
 import ksl.simopt.evaluator.SolutionEqualityIfc
+import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.distributions.Normal
@@ -43,13 +44,14 @@ fun interface SampleSizeFnIfc {
  * @param name Optional name identifier for this instance of solver.
  */
 class CrossEntropySolver @JvmOverloads constructor(
+    problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     val ceSampler: CESamplerIfc,
     maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
     name: String? = null
-) : StochasticSolver(
+) : StochasticSolver(problemDefinition,
     evaluator, maxIterations,
     replicationsPerEvaluation, ceSampler.streamNumber,
     ceSampler.streamProvider, name
@@ -67,13 +69,14 @@ class CrossEntropySolver @JvmOverloads constructor(
     @JvmOverloads
     @Suppress("unused")
     constructor(
+        problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
         ceSampler: CESamplerIfc,
         maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
         name: String? = null
-    ) : this(
+    ) : this(problemDefinition,
         evaluator, ceSampler, maxIterations,
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         solutionEqualityChecker, name
