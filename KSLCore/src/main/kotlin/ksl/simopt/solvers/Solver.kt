@@ -1007,7 +1007,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rSPLINESolver(
+        fun rSplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
