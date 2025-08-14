@@ -239,7 +239,7 @@ class RSplineSolver @JvmOverloads constructor(
      *  Used to check if the last set of solutions that were captured
      *  are the same.
      */
-    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker)
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker, defaultNoImproveThresholdForRSPLINE)
 
     private val badSolution = problemDefinition.badSolution()
 
@@ -704,6 +704,17 @@ class RSplineSolver @JvmOverloads constructor(
         var defaultMaxSplineCallLimit: Int = 1000
             set(value) {
                 require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
+                field = value
+            }
+
+        /**
+         * This value is used as the default termination threshold for the largest number of iterations, during which no
+         * improvement of the best function value is found. By default, set to 10.
+         */
+        @JvmStatic
+        var defaultNoImproveThresholdForRSPLINE: Int = 10
+            set(value) {
+                require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value
             }
 

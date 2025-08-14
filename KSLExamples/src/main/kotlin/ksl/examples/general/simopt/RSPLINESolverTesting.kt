@@ -9,7 +9,7 @@ fun main() {
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
     val printer = selectPrinter(modelIdentifier)
-    val solver = Solver.rSPLINESolver(
+    val solver = Solver.rSplineSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
