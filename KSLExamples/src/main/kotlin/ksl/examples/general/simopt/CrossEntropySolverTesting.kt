@@ -11,59 +11,25 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    runCESolverTest(modelIdentifier, maxIterations = 100)
-}
-
-fun configureCrossEntropySolver(
-    evaluator: Evaluator,
-    maxIterations: Int = 100,
-    replicationsPerEvaluation: Int = 50,
-    startingPoint: MutableMap<String, Double>? = null,
-    printer: ((Solver) -> Unit)? = null
-): CrossEntropySolver {
-    val ceSampler: CESamplerIfc = CENormalSampler(evaluator.problemDefinition)
-    val ce = CrossEntropySolver(
-        evaluator = evaluator,
-        ceSampler = ceSampler,
-        maxIterations = maxIterations,
-        replicationsPerEvaluation = replicationsPerEvaluation
+    val initialTemperature = 1000.0
+    val problemDefinition = makeProblemDefinition(modelIdentifier)
+    val modelBuilder = selectBuilder(modelIdentifier)
+    val printer = selectPrinter(modelIdentifier)
+    val solver = Solver.crossEntropySolver(
+        problemDefinition = problemDefinition,
+        modelBuilder = modelBuilder,
+        startingPoint = null,
+        maxIterations = 10,
+        replicationsPerEvaluation = 50,
+        printer = printer,
     )
-    if (startingPoint != null) {
-        ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
-    }
-    printer?.let { ce.emitter.attach(it) }
-    return ce
-}
-
-fun runCrossEntropySolver(
-    evaluator: Evaluator,
-    inputs: MutableMap<String, Double>,
-    maxIterations: Int = 100,
-    replicationsPerEvaluation: Int = 50,
-    printer: ((Solver) -> Unit)? = null
-) {
-    val shc = configureCrossEntropySolver(evaluator,
-        maxIterations, replicationsPerEvaluation, inputs, printer)
-    shc.startingPoint = evaluator.problemDefinition.toInputMap(inputs)
-    println("Setting up solver:")
-    println(shc)
-    println("Running solver:")
-    shc.runAllIterations()
+    solver.runAllIterations()
     println()
     println("Solver Results:")
-    println(shc)
+    println(solver)
     println()
     println("Final Solution:")
-    println(shc.bestSolution.asString())
-}
+    println(solver.bestSolution.asString())
 
-fun runCESolverTest(
-    modelIdentifier: String,
-    maxIterations: Int = 100
-) {
-    val inputs = createInputs(modelIdentifier)
-    val evaluator = makeEvaluator(modelIdentifier)
-    val printer = if (modelIdentifier == "RQInventoryModel") ::printRQInventoryModel else ::printLKInventoryModel
-    runCrossEntropySolver(evaluator, inputs, maxIterations, printer = printer)
 }
 
