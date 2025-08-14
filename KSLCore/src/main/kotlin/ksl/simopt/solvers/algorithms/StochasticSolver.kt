@@ -2,6 +2,7 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamControlIfc
@@ -15,6 +16,7 @@ import ksl.utilities.random.rvariable.KSLRandom
  * that utilize randomness during their optimization process.
  *
  * @constructor Creates a stochastic solver with the specified parameters.
+ * @param problemDefinition the problem being solved
  * @param evaluator The evaluator responsible for assessing the quality of solutions. Must implement the EvaluatorIfc interface.
  * @param maxIterations The maximum number of iterations allowed for the solving process.
  * @param replicationsPerEvaluation Strategy to determine the number of replications to perform for each evaluation.
@@ -23,13 +25,14 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param name Optional name identifier for this instance of the solver.
  */
 abstract class StochasticSolver(
+    problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     maxIterations: Int,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : Solver(evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc {
+) : Solver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, name), RNStreamControlIfc {
 
     /**
      * rnStream provides a reference to the underlying stream of random numbers

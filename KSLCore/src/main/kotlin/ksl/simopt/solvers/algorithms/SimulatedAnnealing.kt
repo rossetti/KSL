@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -18,6 +19,7 @@ import kotlin.math.exp
  * @constructor
  * Constructs a SimulatedAnnealing solver with the specified parameters.
  *
+ * @param problemDefinition the problem being solved
  * @param evaluator The evaluator responsible for calculating the objective function value of a solution.
  *                  It must implement the [EvaluatorIfc] interface.
  * @param initialTemperature The starting temperature for the simulated annealing algorithm. Must be greater than 0.0.
@@ -33,6 +35,7 @@ import kotlin.math.exp
  *
  */
 class SimulatedAnnealing @JvmOverloads constructor(
+    problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     initialTemperature: Double = defaultInitialTemperature,
     var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
@@ -42,7 +45,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
         require(initialTemperature > 0.0) { "The initial temperature must be positive" }
@@ -124,6 +127,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
      * to initialize the Simulated Annealing algorithm with configurable parameters, while delegating
      * certain default parameters to their respective values or functional objects.
      *
+     * @param problemDefinition the problem being solved
      * @param evaluator An implementation of the EvaluatorIfc interface, used to evaluate candidate solutions.
      * @param initialTemperature The starting temperature for the simulated annealing process. Must be a positive value.
      * @param coolingSchedule Defines the cooling mechanism to reduce the temperature during the iteration process.
@@ -138,6 +142,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
      */
     @JvmOverloads
     constructor(
+        problemDefinition : ProblemDefinition,
         evaluator: EvaluatorIfc,
         initialTemperature: Double = defaultInitialTemperature,
         coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
@@ -147,7 +152,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(
+    ) : this( problemDefinition = problemDefinition,
         evaluator = evaluator,
         initialTemperature = initialTemperature,
         coolingSchedule = coolingSchedule,

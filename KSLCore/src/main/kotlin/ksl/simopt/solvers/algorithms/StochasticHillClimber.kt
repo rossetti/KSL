@@ -1,6 +1,7 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -28,13 +29,14 @@ import ksl.utilities.random.rvariable.KSLRandom
  * @param name An optional name for this solver instance.
  */
 open class StochasticHillClimber @JvmOverloads constructor(
+    problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     /**
      * Constructs an instance of StochasticHillClimber with specified parameters.
@@ -48,13 +50,14 @@ open class StochasticHillClimber @JvmOverloads constructor(
      */
     @JvmOverloads
     constructor(
+        problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this(evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+    ) : this(problemDefinition, evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         streamNum, streamProvider, name)
 
     /**  Randomly generates the next point using nextPoint().

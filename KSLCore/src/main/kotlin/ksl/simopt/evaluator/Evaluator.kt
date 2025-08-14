@@ -19,7 +19,7 @@ import ksl.simulation.ModelBuilderIfc
  *  by the simulation oracle.
  */
 class Evaluator @JvmOverloads constructor(
-    override val problemDefinition: ProblemDefinition,
+    val problemDefinition: ProblemDefinition,
     private val simulator: RunSimulationsForResponseMapsIfc,
     override val cache: SolutionCacheIfc? = null,
     oracleReplicationBudget: Int = Int.MAX_VALUE //TODO delete
