@@ -16,7 +16,7 @@ typealias ModelCreator = (jsonModelConfig: String) -> Model
  * It can be implemented to encapsulate the logic required to create
  * specific types of model instances.
  */
-fun interface ModelBuilderIfc {
+interface ModelBuilderIfc {
 
     /**
      * Constructs a `Model` instance based on the provided configuration strings.
@@ -29,7 +29,7 @@ fun interface ModelBuilderIfc {
      * The map is optional. The function should return a model that is usable.
      * @return A `Model` object constructed using the provided configuration information.
      */
-    fun build(modelConfiguration: Map<String, String>?): Model
+    fun build(modelConfiguration: Map<String, String>? = null): Model
 
 }
 
