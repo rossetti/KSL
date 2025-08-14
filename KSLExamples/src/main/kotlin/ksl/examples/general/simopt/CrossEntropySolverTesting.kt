@@ -11,7 +11,6 @@ fun main() {
 
   //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    val initialTemperature = 1000.0
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
     val printer = selectPrinter(modelIdentifier)
@@ -19,7 +18,7 @@ fun main() {
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
-        maxIterations = 10,
+        maxIterations = 100,
         replicationsPerEvaluation = 50,
         printer = printer,
     )
