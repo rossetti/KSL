@@ -98,5 +98,62 @@ abstract class StochasticSolver(
         return generateNeighbor(currentPoint, rnStream)
     }
 
+    inner class RandomlyBestStartingPoint(
+        maxRandomStartingPoints: Int = defaultMaxRandomStartingPoints,
+        replicationsPerRandomStartingPoint: Int = defaultReplicationsPerRandomStartingPoint
+        ) : StartingPointIfc {
+        //TODO how to handle source of randomness?
+        val shc = StochasticHillClimber(
+            problemDefinition = problemDefinition,
+            evaluator = myEvaluator,
+            maxIterations = maxRandomStartingPoints,
+            replicationsPerEvaluation = replicationsPerRandomStartingPoint
+        )
+
+        override fun startingPoint(problemDefinition: ProblemDefinition): InputMap {
+            shc.runAllIterations()
+            val bestSolution = shc.bestSolution
+            return bestSolution.inputMap
+        }
+
+    }
+
+    companion object {
+        /**
+         * Represents the default maximum number of iterations to be executed
+         * in a given process or algorithm. This value acts as a safeguard
+         * to prevent indefinite looping or excessive computation.
+         *
+         * The default value is set to 1000, but it can be modified based
+         * on specific requirements or constraints.
+         */
+        @JvmStatic
+        var defaultMaxRandomStartingPoints = 10
+            set(value) {
+                require(value > 0) { "The default maximum number of iterations must be a positive value." }
+                field = value
+            }
+
+        /**
+         * Represents the default number of replications to be performed during an evaluation.
+         *
+         * This parameter defines the number of times a specific evaluation process should be repeated
+         * to ensure consistency and reliability of the results. The value must always be a positive
+         * integer greater than zero.
+         *
+         * A change to this value will affect all subsequent evaluations relying on
+         * the default replication count.
+         *
+         * @throws IllegalArgumentException if the value set is not greater than zero.
+         */
+        @JvmStatic
+        @Suppress("unused")
+        var defaultReplicationsPerRandomStartingPoint = 5
+            set(value) {
+                require(value > 0) { "The default replications per evaluation must be a positive value." }
+                field = value
+            }
+
+    }
 
 }
