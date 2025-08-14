@@ -13,7 +13,7 @@ fun main() {
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
-        maxIterations = 20,
+        maxIterations = 100,
         printer = printer,
     )
     solver.runAllIterations()
