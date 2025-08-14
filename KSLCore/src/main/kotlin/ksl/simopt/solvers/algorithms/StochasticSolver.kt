@@ -3,6 +3,7 @@ package ksl.simopt.solvers.algorithms
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simopt.problem.StartingPointIfc
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamControlIfc
@@ -73,12 +74,18 @@ abstract class StochasticSolver(
         }
 
     /**
+     *  Can be supplied to provide a method for specifying a feasible starting point.
+     *  The default is to randomly generate a starting point
+     */
+    var startingPointGenerator: StartingPointIfc? = null
+
+    /**
      *  The default implementation will produce an input-feasible
      *  starting point by acceptance sampling of the feasible region
      *  using the problem definition.
      */
     override fun startingPoint(): InputMap {
-        return problemDefinition.startingPoint(rnStream)
+        return startingPointGenerator?.startingPoint(problemDefinition) ?: problemDefinition.startingPoint(rnStream)
     }
 
     /**
@@ -90,5 +97,6 @@ abstract class StochasticSolver(
     override fun nextPoint(): InputMap {
         return generateNeighbor(currentPoint, rnStream)
     }
+
 
 }
