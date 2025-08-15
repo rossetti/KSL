@@ -11,9 +11,9 @@ enum class SolverType {
 fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-//    val solverType = SolverType.SHC_RS
+    val solverType = SolverType.SHC_RS
 //    val solverType = SolverType.R_SPLINE_RS
-    val solverType = SolverType.SA_RS
+//    val solverType = SolverType.SA_RS
     runSolver(modelIdentifier, solverType)
 }
 
@@ -86,7 +86,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 restartPrinter = printer,
-                printer = printer
+                printer = null
             )
         }
         SolverType.SA_RS -> {
