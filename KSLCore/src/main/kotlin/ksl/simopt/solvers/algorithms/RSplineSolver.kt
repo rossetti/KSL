@@ -362,10 +362,6 @@ class RSplineSolver @JvmOverloads constructor(
             // If there is no improvement from NE, then what?
             // Capture the newest solution from the neighborhood search to seed the next SPLI search.
             newSolution = neSearchResults.solution
-//            // capture intermediate improving solutions
-//            if (compare(newSolution, currentSolution) < 0){
-//                currentSolution = newSolution
-//            }
             // if the candidate solution and the NE search starting solution are the same, we can stop
             // matlab and R code used some kind of tolerance when testing equality
             if (compare(neStartingSolution, neSearchResults.solution) == 0) {
@@ -393,8 +389,6 @@ class RSplineSolver @JvmOverloads constructor(
             }
         }
     }
-
-//    class SPLINESolution(val solution: Solution, val numOracleCalls: Int)
 
     /**
      *  This function represents Algorithm 3: Piecewise Linear Interpolation (PLI) in the paper:
@@ -468,6 +462,7 @@ class RSplineSolver @JvmOverloads constructor(
         return PLIResults(numOracleCalls = results.size * sampleSize, gradients = gradients, solution = bestSolution)
     }
 
+    // tracking the number of oracle calls is only necessary for logging information.
     class PLIResults(
         val numOracleCalls: Int,
         val gradients: DoubleArray? = null, // gradient size is d, one for each input variable
@@ -510,8 +505,6 @@ class RSplineSolver @JvmOverloads constructor(
             logger.trace { "\t \t \t SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
             bestSoln = if (compare(pliResults.solution, bestSoln) <= 0) {
-                // changes, capture the new current
-               // currentSolution = pliResults.solution
                 pliResults.solution
             } else {
                 bestSoln
@@ -567,8 +560,6 @@ class RSplineSolver @JvmOverloads constructor(
                 logger.trace { "\t \t \t \t SPLI search: Line search iteration $i of $lineSearchIterMax: line search improved solution, updating, and continuing line search" }
                 bestSoln = x1Solution
                 logger.trace { "\t \t \t \t SPLI search: Line search: improved solution : ${bestSoln.asString()}" }
-                //update current solution because a better solution was produced
-               // currentSolution = bestSoln
             }
             logger.trace { "\t \t \t  SPLI search: iteration $j : completed line search iterations:" }
             logger.trace { "\t \t \t  solution : ${bestSoln.asString()}" }
@@ -611,6 +602,7 @@ class RSplineSolver @JvmOverloads constructor(
         return addRandomPerturbation(point, perturbation, rnStream)
     }
 
+    // tracking the number of oracle calls is only necessary for logging information.
     class NESearchResults(
         val numOracleCalls: Int,
         val solution: Solution
