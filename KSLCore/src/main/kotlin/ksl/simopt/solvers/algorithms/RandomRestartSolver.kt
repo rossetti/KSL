@@ -67,6 +67,8 @@ class RandomRestartSolver(
         logger.info { "Current best: ${currentSolution.asString()}" }
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
+        // clear the evaluator cache between randomized runs, but allow caching during the run itself
+        evaluator.cache?.clear()
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
