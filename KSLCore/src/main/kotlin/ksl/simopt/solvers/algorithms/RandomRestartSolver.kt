@@ -42,7 +42,9 @@ class RandomRestartSolver(
      *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
      */
     override fun initializeIterations() {
-        super.initializeIterations()
+        //super.initializeIterations()
+        numOracleCalls = 0
+        numReplicationsRequested = 0
         solutionChecker.clear()
     }
 

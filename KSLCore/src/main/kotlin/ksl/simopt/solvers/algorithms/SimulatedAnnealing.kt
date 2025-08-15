@@ -1,9 +1,13 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
+import ksl.simopt.evaluator.SolutionChecker
+import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
+import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultNoImproveThresholdForSHCWithRS
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
@@ -183,11 +187,21 @@ class SimulatedAnnealing @JvmOverloads constructor(
         }
     }
 
+    val solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality()
+
+    /**
+     *  Used to check if the last set of solutions that were captured
+     *  are the same.
+     */
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker,
+        defaultNoImproveThresholdForSA)
+
     override fun initializeIterations() {
         super.initializeIterations()
         currentTemperature = initialTemperature
         lastAcceptanceProbability = 1.0
         costDifference = Double.NaN
+        solutionChecker.clear()
         logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
     }
 
@@ -218,10 +232,13 @@ class SimulatedAnnealing @JvmOverloads constructor(
         }
         // update the current temperature based on the cooling schedule
         currentTemperature = coolingSchedule.nextTemperature(iterationCounter)
+        // capture the last solution
+        solutionChecker.captureSolution(currentSolution)
     }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
-        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: checkTemperature()
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?:
+        checkTemperature() ||solutionChecker.checkSolutions()
     }
 
     private fun checkTemperature() : Boolean {
@@ -268,6 +285,17 @@ class SimulatedAnnealing @JvmOverloads constructor(
         var defaultStoppingTemperature = 0.001
             set(value) {
                 require(value > 0.0) { "The default stopping temperature must be positive" }
+                field = value
+            }
+
+        /**
+         * This value is used as the default termination threshold for the largest number of iterations, during which no
+         * improvement of the best function value is found. By default, set to 5.
+         */
+        @JvmStatic
+        var defaultNoImproveThresholdForSA: Int = 5
+            set(value) {
+                require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value
             }
 
