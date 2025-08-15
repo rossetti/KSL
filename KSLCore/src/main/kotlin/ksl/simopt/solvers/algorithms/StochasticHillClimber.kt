@@ -106,10 +106,10 @@ open class StochasticHillClimber @JvmOverloads constructor(
 
         /**
          * This value is used as the default termination threshold for the largest number of iterations, during which no
-         * improvement of the best function value is found. By default, set to 10.
+         * improvement of the best function value is found. By default, set to 20.
          */
         @JvmStatic
-        var defaultNoImproveThresholdForSHC: Int = 10
+        var defaultNoImproveThresholdForSHC: Int = 20
             set(value) {
                 require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value

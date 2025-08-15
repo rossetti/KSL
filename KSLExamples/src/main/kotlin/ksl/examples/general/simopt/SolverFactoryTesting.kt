@@ -13,7 +13,7 @@ fun main() {
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.SHC_RS
 //    val solverType = SolverType.R_SPLINE_RS
-    val solverType = SolverType.SA_RS
+    val solverType = SolverType.SHC
     runSolver(modelIdentifier, solverType)
 }
 
