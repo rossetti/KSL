@@ -12,7 +12,8 @@ fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.SHC_RS
-    val solverType = SolverType.R_SPLINE_RS
+//    val solverType = SolverType.R_SPLINE_RS
+    val solverType = SolverType.CE
     runSolver(modelIdentifier, solverType)
 }
 
