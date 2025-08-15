@@ -436,7 +436,6 @@ abstract class Solver(
      *  If two solutions are considered statistically the same, then the one with more samples is used.
      */
     protected open fun updateBestSolution(possiblyBetter: Solution) {
-
         if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
             bestSolution = possiblyBetter
             numTimesBestSolutionUpdated++
@@ -447,6 +446,9 @@ abstract class Solver(
                 bestSolution = possiblyBetter
                 numTimesBestSolutionUpdated++
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
+            } else if (possiblyBetter.count == bestSolution.count) {
+                // if they have the same number of samples, prefer the one that has a lower penalized objective function value
+                bestSolution = minimumSolution(possiblyBetter, bestSolution)
             }
         }
     }
@@ -512,8 +514,6 @@ abstract class Solver(
      *  to just implement the startingPoint() function.
      */
     protected open fun initializeIterations() {
-        numOracleCalls = 0
-        numReplicationsRequested = 0
         val initialPoint = startingPoint ?: startingPoint()
         myInitialSolution = requestEvaluation(initialPoint)
  //       println("In initializeIterations(): iteration = $iterationCounter : Initial solution: ${myInitialSolution.asString()}")
@@ -756,6 +756,9 @@ abstract class Solver(
             super.initializeIterations()
             iterationCounter = 0
             numTimesBestSolutionUpdated = 0
+            numOracleCalls = 0
+            numReplicationsRequested = 0
+            bestSolution = problemDefinition.badSolution()
             logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
             if (::myInitialSolution.isInitialized) {

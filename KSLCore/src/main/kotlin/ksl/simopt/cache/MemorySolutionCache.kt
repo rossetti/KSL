@@ -45,6 +45,13 @@ class MemorySolutionCache(
     override val values: Collection<Solution>
         get() = map.values
 
+    /**
+     *  Removes all items from the cache
+     */
+    override fun clear() {
+        map.clear()
+    }
+
     override fun containsKey(key: RequestData): Boolean {
         if (!allowCacheLookups) return false
         return map.containsKey(key)
