@@ -9,19 +9,19 @@ import ksl.utilities.random.rvariable.KSLRandom
  * This algorithm repeatedly runs the solver with a different starting point
  * until it finds a solution.
  * @param solver The solver to be used for the randomized restarts.
- * @param maxIterations The maximum number of restarts to be performed.
+ * @param maxNumRestarts The maximum number of restarts to be performed.
  * @param streamNum The random number stream number to be used for this solver.
  * @param streamProvider The random number stream provider to be used for this solver.
  * @param name Optional name identifier for this instance of the solver.
  */
 class RandomRestartSolver(
     val solver: Solver,
-    maxIterations: Int = defaultMaxRestarts,
+    maxNumRestarts: Int = defaultMaxRestarts,
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
 ) : StochasticSolver(
-    solver.problemDefinition, solver.evaluator, maxIterations,
+    solver.problemDefinition, solver.evaluator, maxNumRestarts,
     solver.replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
