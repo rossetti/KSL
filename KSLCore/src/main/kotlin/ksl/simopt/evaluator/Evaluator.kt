@@ -14,29 +14,12 @@ import ksl.simulation.ModelBuilderIfc
  *  @param problemDefinition the problem that the evaluation of responses will be used on
  *  @param simulator the provider of responses from the simulation oracle
  *  @param cache a cache that can be used instead of a costly simulation evaluation
- *  @param oracleReplicationBudget the maximum number of direct replications permitted by the evaluator.
- *  The default is Int.MAX_VALUE. This can be used to control the total number of replications executed
- *  by the simulation oracle.
  */
 class Evaluator @JvmOverloads constructor(
     val problemDefinition: ProblemDefinition,
     private val simulator: RunSimulationsForResponseMapsIfc,
     override val cache: SolutionCacheIfc? = null,
-    oracleReplicationBudget: Int = Int.MAX_VALUE //TODO delete
 ) : EvaluatorIfc {
-    init {
-        require(oracleReplicationBudget >= 1) { "The number of budgeted replications must be >= 1" }
-    }
-
-    /**
-     *   The maximum budget (in terms of number of replications) within the evaluations
-     *   performed by the simulation oracle.
-     */
-    override var maxOracleReplicationBudget: Int = oracleReplicationBudget //TODO delete
-        set(value) {
-            require(value >= 1) { "The number of budgeted replications must be >= 1" }
-            field = value
-        }
 
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
@@ -86,19 +69,6 @@ class Evaluator @JvmOverloads constructor(
      */
     override var totalCachedReplications: Int = 0
         private set
-
-    /**
-     *  Indicates if the number of replications budgeted has been exceeded or not.
-     */
-    override val hasRemainingOracleReplications: Boolean //TODO delete
-        get() = totalOracleReplications < maxOracleReplicationBudget
-
-    /**
-     *  The total number of remaining replications that can be performed by
-     *  the simulation oracle.
-     */
-    override val remainingOracleReplications: Int //TODO delete
-        get() = maxOracleReplicationBudget - totalOracleReplications
 
     /**
      *  The evaluator collects some basic counts (statistics) on its evaluations.
@@ -310,7 +280,6 @@ class Evaluator @JvmOverloads constructor(
     override fun toString(): String {
         val sb = StringBuilder().apply {
             appendLine("Evaluator:")
-            appendLine("maxOracleReplicationBudget = $maxOracleReplicationBudget")
             appendLine("totalEvaluations = $totalEvaluations")
             appendLine("totalOracleEvaluations = $totalOracleEvaluations")
             appendLine("totalCachedEvaluations = $totalCachedEvaluations")
