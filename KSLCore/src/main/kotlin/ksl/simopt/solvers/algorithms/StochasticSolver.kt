@@ -139,6 +139,8 @@ abstract class StochasticSolver(
         override fun startingPoint(problemDefinition: ProblemDefinition): InputMap {
             shc.runAllIterations()
             val bestSolution = shc.bestSolution
+            numOracleCalls = numOracleCalls + shc.numOracleCalls
+            numReplicationsRequested = numReplicationsRequested + shc.numReplicationsRequested
             return bestSolution.inputMap
         }
 

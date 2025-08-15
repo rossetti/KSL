@@ -763,7 +763,7 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
-            emitter.emit(this@Solver)
+           // emitter.emit(this@Solver)
         }
 
         override fun hasNextStep(): Boolean {
