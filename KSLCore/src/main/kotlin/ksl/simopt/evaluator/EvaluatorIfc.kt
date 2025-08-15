@@ -13,54 +13,6 @@ interface EvaluatorIfc {
     val cache: SolutionCacheIfc?
 
     /**
-     *  The total number of evaluations performed. An evaluation may have many replications.
-     */
-    val totalEvaluations: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of evaluations performed via the simulation oracle.
-     */
-    val totalOracleEvaluations: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of evaluations performed via the cache.
-     */
-    val totalCachedEvaluations: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of evaluation requests that were received.
-     */
-    val totalRequestsReceived: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of evaluation requests received that were duplicates in
-     *  terms of inputs.
-     */
-    val totalDuplicateRequestReceived: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of replications requested across all evaluation requests.
-     */
-    val totalReplications: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of replications performed by the simulation oracle.
-     */
-    val totalOracleReplications: Int //TODO move to Evaluator
-
-    /**
-     *  The total number of replications satisfied by the cache.
-     */
-    val totalCachedReplications: Int //TODO move to Evaluator
-
-    /**
-     *  The evaluator collects some basic counts (statistics) on its evaluations.
-     *  This function resets all counters to 0, perhaps in preparation for another
-     *  evaluation run.
-     */
-    fun resetEvaluationCounts() //TODO move to Evaluator
-
-    /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
      *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.

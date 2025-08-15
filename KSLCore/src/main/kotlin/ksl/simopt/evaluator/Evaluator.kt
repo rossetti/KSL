@@ -24,50 +24,50 @@ class Evaluator @JvmOverloads constructor(
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
      */
-    override var totalEvaluations: Int = 0
+    var totalEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    override var totalOracleEvaluations: Int = 0
+    var totalOracleEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    override var totalCachedEvaluations: Int = 0
+    var totalCachedEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluation requests that were received.
      */
-    override var totalRequestsReceived: Int = 0
+    var totalRequestsReceived: Int = 0
         private set
 
     /**
      *  The total number of evaluation requests received that were duplicates in
      *  terms of inputs.
      */
-    override var totalDuplicateRequestReceived: Int = 0
+    var totalDuplicateRequestReceived: Int = 0
         private set
 
     /**
      *  The total number of replications requested across all evaluation requests.
      */
-    override val totalReplications: Int
+    val totalReplications: Int
         get() = totalOracleReplications + totalCachedReplications
 
     /**
      *  The total number of replications performed by the simulation oracle.
      */
-    override var totalOracleReplications: Int = 0
+    var totalOracleReplications: Int = 0
         private set
 
     /**
      *  The total number of replications satisfied by the cache.
      */
-    override var totalCachedReplications: Int = 0
+    var totalCachedReplications: Int = 0
         private set
 
     /**
@@ -75,7 +75,7 @@ class Evaluator @JvmOverloads constructor(
      *  This function resets all counters to 0, perhaps in preparation for another
      *  evaluation run.
      */
-    override fun resetEvaluationCounts() {
+    fun resetEvaluationCounts() {
         EvaluatorIfc.logger.trace { "Resetting evaluator counts" }
         totalEvaluations = 0
         totalOracleEvaluations = 0
