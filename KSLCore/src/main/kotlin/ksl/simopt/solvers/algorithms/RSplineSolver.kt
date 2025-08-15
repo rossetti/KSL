@@ -826,12 +826,14 @@ class RSplineSolver @JvmOverloads constructor(
 
 }
 
+/**
 fun main() {
     val x = doubleArrayOf(1.8, 2.3, 3.6)
     println("x = ${x.contentToString()}")
     val simpleData = RSplineSolver.piecewiseLinearSimplex(x)
     println(simpleData)
 }
+**/
 
 /*
 x = [1.8, 2.3, 3.6]
