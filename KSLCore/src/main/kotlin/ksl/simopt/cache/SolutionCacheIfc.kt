@@ -12,6 +12,22 @@ import ksl.utilities.io.KSL
 interface SolutionCacheIfc : Map<RequestData, Solution> {
 
     /**
+     *  If true, the cache will allow lookups of solutions
+     *  based on the input settings. If false, the cache will
+     *  not allow lookups of solutions based on the input settings.
+     *  The default is true (allow cache lookups)
+     */
+    var allowCacheLookups: Boolean
+
+    /**
+     *  If true, the cache will allow puts of solutions
+     *  based on the input settings. If false, the cache will
+     *  not allow puts of solutions based on the input settings.
+     *  The default is true (allow cache puts)
+     */
+    var allowCachePuts: Boolean
+
+    /**
      *   If true input infeasible solutions are allowed to be
      *   saved in the cache. If false, input-infeasible solutions should not
      *   be saved in the cache. Implementors are free to decide how to
@@ -40,7 +56,7 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
     /**
      *  Looks up and removes the solution associated with the supplied input map.
      *  Null is returned if there is no associated solution. It is important
-     *  that implementor handle the reduced size relative to the cache.
+     *  that implementors handle the reduced size relative to the cache.
      */
     fun remove(requestData: RequestData): Solution?
 
@@ -48,6 +64,7 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
      *  Places all input-solution pairs into the cache
      */
     fun putAll(from: Map<out RequestData, Solution>) {
+        if (!allowCachePuts) return
         for ((input, solution) in from) {
             put(input, solution)
         }
@@ -67,6 +84,9 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
      */
     fun retrieveSolutions(requests: List<RequestData>): MutableMap<RequestData, Solution> {
         val mm = mutableMapOf<RequestData, Solution>()
+        if (!allowCacheLookups) {
+            return mm
+        }
         for (request in requests) {
             val solution = get(request)
             if (solution != null) {

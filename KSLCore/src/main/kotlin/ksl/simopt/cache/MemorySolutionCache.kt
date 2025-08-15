@@ -30,6 +30,10 @@ class MemorySolutionCache(
 
     private val map: MutableMap<RequestData, Solution> = mutableMapOf()
 
+    override var allowCacheLookups: Boolean = true
+
+    override var allowCachePuts: Boolean = true
+
     override var evictionRule: EvictionRuleIfc? = null
 
     override val entries: Set<Map.Entry<RequestData, Solution>>
@@ -42,18 +46,22 @@ class MemorySolutionCache(
         get() = map.values
 
     override fun containsKey(key: RequestData): Boolean {
+        if (!allowCacheLookups) return false
         return map.containsKey(key)
     }
 
     override fun containsValue(value: Solution): Boolean {
+        if (!allowCacheLookups) return false
         return map.containsValue(value)
     }
 
     override fun get(key: RequestData): Solution? {
+        if (!allowCacheLookups) return null
         return map[key]
     }
 
     override fun isEmpty(): Boolean {
+        if (!allowCacheLookups) return true
         return map.isEmpty()
     }
 
@@ -66,6 +74,7 @@ class MemorySolutionCache(
     }
 
     override fun put(requestData: RequestData, solution: Solution): Solution? {
+        if (!allowCachePuts) return null
         require(requestData.inputs == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
         //TODO this may be too quiet
         if(!solution.isInputFeasible()){
