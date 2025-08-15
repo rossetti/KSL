@@ -665,42 +665,65 @@ class RSplineSolver @JvmOverloads constructor(
 
     companion object {
 
+        /**
+         *  The default maximum number of iterations for the line search. It is set to 10.
+         */
         var defaultLineSearchIterMax = 10
             set(value) {
                 require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
                 field = value
             }
 
+        /**
+         *  The default maximum number of iterations for the SPLI search. It is equal to 5.
+         */
         var defaultSPLIMaxIterations = 5
             set(value) {
                 require(value > 0) { "The default maximum number of spline line search iterations must be > 0" }
                 field = value
             }
 
+        /**
+         *  The default initial sample size for the SPLINE search. It is equal to 8.
+         */
         var defaultInitialSampleSize: Int = 8
             set(value) {
                 require(value > 0) { "The default initial sample size for replications must be > 0" }
                 field = value
             }
 
+        /**
+         *  The default perturbation factor for the PERTURB function. It is equal to 0.15.
+         */
         var defaultPerturbation: Double = 0.15
             set(value) {
                 require((0.0 < value) && (value < 1.0)) { "The perturbationFactor must be in (0,1)" }
                 field = value
             }
 
+        /**
+         *  The default SPLINE search iteration growth factor. It is set to 0.1.
+         */
         var defaultSplineCallGrowthRate: Double = 0.1
             set(value) {
                 require(value > 0) { "The default spline growth rate must be > 0" }
                 field = value
             }
 
+        /**
+         *  The default initial number of SPLINE search calls that will grow.
+         *  It is set to 10. This is b_0 in the notation of the paper.
+         */
         var defaultInitialMaxSplineCalls: Int = 10
             set(value) {
                 require(value > 0) { "The default initial maximum number of SPLINE calls must be > 0" }
                 field = value
             }
 
+        /**
+         *  Since the number of SPLINE calls can grow, this represents the default maximum
+         *  number of SPLINE calls to limit the growth.
+         */
         var defaultMaxSplineCallLimit: Int = 1000
             set(value) {
                 require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
@@ -718,8 +741,22 @@ class RSplineSolver @JvmOverloads constructor(
                 field = value
             }
 
+        /**
+         *  A point within a simplex with its weight
+         */
         class SimplexPoint(val vertex: DoubleArray, val weight: Double)
 
+        /**
+         *  This class represents the data structure for a computed simplex.
+         *  The simplex is a set of vertices, each with a weight.
+         *
+         *  @param originalPoint the point that started the simplex
+         *  @param fractionalParts the fractional parts of the original point
+         *  @param sortedFractionIndices the indices of the sorted fractions
+         *  @param sortedFractions the fractional parts sorted
+         *  @param vertices the vertices that make up the simplex
+         *  @param weights the weights of the vertices
+         */
         class SimplexData(
             val originalPoint: DoubleArray,
             val fractionalParts: DoubleArray,
@@ -811,6 +848,13 @@ class RSplineSolver @JvmOverloads constructor(
             )
         }
 
+        /** This function adds a random perturbation to the supplied point.
+         *
+         * @param point the point to perturb
+         * @param perturbation the perturbation factor
+         * @param rnStream the random number stream to use for the perturbation
+         *
+         */
         fun addRandomPerturbation(
             point: DoubleArray,
             perturbationFactor: Double,
