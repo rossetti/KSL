@@ -129,8 +129,7 @@ abstract class Solver(
     /**
      *  The evaluator used by the solver.
      */
-    protected var myEvaluator: EvaluatorIfc = evaluator
-        private set
+    val evaluator: EvaluatorIfc = evaluator
 
     /**
      *  Permits capture of evaluated solutions locally by the solver.
@@ -704,7 +703,7 @@ abstract class Solver(
     private fun requestEvaluations(requests: List<RequestData>): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
         numOracleCalls = numOracleCalls + requests.size
-        return myEvaluator.evaluate(requests)
+        return evaluator.evaluate(requests)
     }
 
     override fun toString(): String {
