@@ -89,6 +89,24 @@ abstract class StochasticSolver(
     }
 
     /**
+     *  Sets the starting point generator to use a randomly generated
+     *  input-feasible point that is associated with the best solution found from a
+     *  sampling of randomly generated points within the feasible region of the problem definition.
+     *  This approach causes the simulation oracles to be run multiple times during the search.
+     *  @param maxRandomStartingPoints The maximum number of random starting points to use.
+     *  @param replicationsPerRandomStartingPoint The number of replications to perform for each random starting point.
+     *  @return The point associated with the best solution found during the sampling process.
+     */
+    @Suppress("unused")
+    fun useRandomlyBestStartingPoint(
+        maxRandomStartingPoints: Int = defaultMaxRandomStartingPoints,
+        replicationsPerRandomStartingPoint: Int = defaultReplicationsPerRandomStartingPoint
+    ) {
+        startingPointGenerator = RandomlyBestStartingPoint(maxRandomStartingPoints,
+            replicationsPerRandomStartingPoint)
+    }
+
+    /**
      *  The default implementation will produce an input-range feasible
      *  point. The point might not be feasible with respect to deterministic
      *  constraints. By default, the next point is generated using the
@@ -98,16 +116,24 @@ abstract class StochasticSolver(
         return generateNeighbor(currentPoint, rnStream)
     }
 
+    /**
+     *  Represents a starting point generator that uses a randomly generated
+     *  feasible point that is based on a sampling of randomly generated points
+     *  within the feasible region of the problem definition.
+     */
     inner class RandomlyBestStartingPoint(
         maxRandomStartingPoints: Int = defaultMaxRandomStartingPoints,
         replicationsPerRandomStartingPoint: Int = defaultReplicationsPerRandomStartingPoint
         ) : StartingPointIfc {
-        //TODO how to handle source of randomness?
+
         val shc = StochasticHillClimber(
             problemDefinition = problemDefinition,
             evaluator = myEvaluator,
             maxIterations = maxRandomStartingPoints,
-            replicationsPerEvaluation = replicationsPerRandomStartingPoint
+            replicationsPerEvaluation = replicationsPerRandomStartingPoint,
+            streamNum = streamNumber,
+            streamProvider = streamProvider,
+            name = "Randomly Generated Best Solution"
         )
 
         override fun startingPoint(problemDefinition: ProblemDefinition): InputMap {
