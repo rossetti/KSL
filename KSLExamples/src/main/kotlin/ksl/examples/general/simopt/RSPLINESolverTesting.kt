@@ -25,3 +25,4 @@ fun main() {
     println(solver.bestSolution.asString())
 }
 
+

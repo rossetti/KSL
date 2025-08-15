@@ -12,7 +12,7 @@ fun main() {
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
-        maxIterations = 10,
+        maxIterations = 100,
         replicationsPerEvaluation = 50,
         printer = printer,
     )
