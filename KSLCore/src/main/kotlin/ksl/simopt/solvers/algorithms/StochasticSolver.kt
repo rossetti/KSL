@@ -128,7 +128,7 @@ abstract class StochasticSolver(
 
         val shc = StochasticHillClimber(
             problemDefinition = problemDefinition,
-            evaluator = myEvaluator,
+            evaluator = evaluator,
             maxIterations = maxRandomStartingPoints,
             replicationsPerEvaluation = replicationsPerRandomStartingPoint,
             streamNum = streamNumber,
