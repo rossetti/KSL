@@ -86,7 +86,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 restartPrinter = printer,
-                printer = null
+                printer = printer
             )
         }
         SolverType.SA_RS -> {

@@ -73,11 +73,7 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
     /**
      *  Removes all items from the cache
      */
-    fun clear() {
-        for (key in keys) {
-            remove(key)
-        }
-    }
+    fun clear()
 
     /**
      *  Retrieves the solutions associated with the requests
