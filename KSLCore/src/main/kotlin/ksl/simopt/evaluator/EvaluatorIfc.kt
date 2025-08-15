@@ -8,20 +8,9 @@ import ksl.simopt.problem.ProblemDefinition
 interface EvaluatorIfc {
 
     /**
-     *  The problem definition associated with the evaluation process
-     */
-//    val problemDefinition: ProblemDefinition  //TODO consider removing and forcing Solver to consume the problem
-
-    /**
      *  A possible cache to hold evaluated solutions
      */
-    val cache: SolutionCacheIfc? //TODO move to Evaluator
-
-    /**
-     *   The maximum budget (in terms of number of replications) within the evaluations
-     *   performed by the simulation oracle.
-     */
-    val maxOracleReplicationBudget: Int //TODO delete
+    val cache: SolutionCacheIfc?
 
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
@@ -63,17 +52,6 @@ interface EvaluatorIfc {
      *  The total number of replications satisfied by the cache.
      */
     val totalCachedReplications: Int //TODO move to Evaluator
-
-    /**
-     *  Indicates if the number of replications budgeted has been exceeded or not.
-     */
-    val hasRemainingOracleReplications: Boolean //TODO delete
-
-    /**
-     *  The total number of remaining replications that can be performed by
-     *  the simulation oracle.
-     */
-    val remainingOracleReplications: Int //TODO delete
 
     /**
      *  The evaluator collects some basic counts (statistics) on its evaluations.
