@@ -906,6 +906,46 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun stochasticHillClimbingSolverWithRestarts(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            printer: ((Solver) -> Unit)? = null
+        ) : RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            val shc = StochasticHillClimber(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation
+            )
+            val restartSolver = RandomRestartSolver(
+                shc, maxNumRestarts
+            )
+            printer?.let { restartSolver.emitter.attach(it) }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
          * provided by the problem definition.
          * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
