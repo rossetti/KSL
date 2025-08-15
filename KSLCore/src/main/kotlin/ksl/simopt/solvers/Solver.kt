@@ -228,7 +228,10 @@ abstract class Solver(
      *  The initial starting solution for the algorithm. It is the responsibility
      *  of the subclass to initialize the initial solution.
      */
-    protected lateinit var initialSolution: Solution
+    protected lateinit var myInitialSolution: Solution
+
+    val initialSolution: Solution?
+        get() = if (::myInitialSolution.isInitialized) myInitialSolution else null
 
     /**
      *  An initial starting point for the solver. If supplied, this point
@@ -256,7 +259,7 @@ abstract class Solver(
      */
     @Suppress("unused")
     val initialPoint: InputMap?
-        get() = if (::initialSolution.isInitialized) initialSolution.inputMap else null
+        get() = if (::myInitialSolution.isInitialized) myInitialSolution.inputMap else null
 
     /**
      *  The previous solution in the sequence of solutions.
@@ -512,8 +515,9 @@ abstract class Solver(
         numOracleCalls = 0
         numReplicationsRequested = 0
         val initialPoint = startingPoint ?: startingPoint()
-        initialSolution = requestEvaluation(initialPoint)
-        currentSolution = initialSolution
+        myInitialSolution = requestEvaluation(initialPoint)
+ //       println("In initializeIterations(): iteration = $iterationCounter : Initial solution: ${myInitialSolution.asString()}")
+        currentSolution = myInitialSolution
     }
 
     /**
@@ -718,10 +722,12 @@ abstract class Solver(
             appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
             appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
+            appendLine("Number of simulation calls = $numOracleCalls")
+            appendLine("Number of replications requested = $numReplicationsRequested")
             appendLine("==================================================================")
-            if (::initialSolution.isInitialized) {
+            if (::myInitialSolution.isInitialized) {
                 appendLine("Initial Solution:")
-                appendLine("$initialSolution")
+                appendLine("$myInitialSolution")
                 appendLine("==================================================================")
             }
             if (currentSolution.isValid){
@@ -752,8 +758,8 @@ abstract class Solver(
             numTimesBestSolutionUpdated = 0
             logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
-            if (::initialSolution.isInitialized) {
-                val solution = initialSolution
+            if (::myInitialSolution.isInitialized) {
+                val solution = myInitialSolution
                 logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
@@ -910,8 +916,10 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
+         *    observe the inner solver optimization process.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -923,6 +931,7 @@ abstract class Solver(
             maxNumRestarts: Int = defaultMaxRestarts,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ) : RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
@@ -937,7 +946,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 shc, maxNumRestarts
             )
-            printer?.let { restartSolver.emitter.attach(it) }
+            restartPrinter?.let { restartSolver.emitter.attach(it) }
+            printer?.let { shc.emitter.attach(it) }
             return restartSolver
         }
 
@@ -996,8 +1006,10 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
+         *    observe the inner solver optimization process.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1010,6 +1022,7 @@ abstract class Solver(
             initialTemperature: Double = defaultInitialTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ) : RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1025,7 +1038,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 sa, maxNumRestarts
             )
-            printer?.let { restartSolver.emitter.attach(it) }
+            restartPrinter?.let { restartSolver.emitter.attach(it) }
+            printer?.let { sa.emitter.attach(it) }
             return restartSolver
         }
 
@@ -1084,8 +1098,10 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
+         *    observe the inner solver optimization process.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1098,6 +1114,7 @@ abstract class Solver(
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ) : RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1113,7 +1130,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 ce, maxNumRestarts
             )
-            printer?.let { restartSolver.emitter.attach(it) }
+            restartPrinter?.let { restartSolver.emitter.attach(it) }
+            printer?.let { ce.emitter.attach(it) }
             return restartSolver
         }
 
@@ -1176,8 +1194,10 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
+         *    observe the inner solver optimization process.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1192,6 +1212,7 @@ abstract class Solver(
             maxNumReplications: Int = defaultMaxNumReplications,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ) : RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1208,7 +1229,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 solver, maxNumRestarts
             )
-            printer?.let { restartSolver.emitter.attach(it) }
+            restartPrinter?.let { restartSolver.emitter.attach(it) }
+            printer?.let { solver.emitter.attach(it) }
             return restartSolver
         }
     }
