@@ -13,6 +13,8 @@ import ksl.simopt.solvers.algorithms.CESamplerIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.algorithms.RSplineSolver
 import ksl.simopt.solvers.algorithms.RSplineSolver.Companion.defaultInitialSampleSize
+import ksl.simopt.solvers.algorithms.RandomRestartSolver
+import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRestarts
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -931,20 +933,64 @@ abstract class Solver(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val shc = SimulatedAnnealing(
+            val sa = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 initialTemperature = initialTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { shc.emitter.attach(it) }
-            return shc
+            sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
+            printer?.let { sa.emitter.attach(it) }
+            return sa
         }
 
         /**
          * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
+         * accepting worse solutions at the start of the process. Defaults to 1000.0.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun simulatedAnnealingSolverWithRestarts(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            initialTemperature: Double = defaultInitialTemperature,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            printer: ((Solver) -> Unit)? = null
+        ) : RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            val sa = SimulatedAnnealing(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                initialTemperature = initialTemperature,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation
+            )
+            val restartSolver = RandomRestartSolver(
+                sa, maxNumRestarts
+            )
+            printer?.let { restartSolver.emitter.attach(it) }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures a cross-entropy optimization algorithm for a given problem definition.
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
@@ -973,7 +1019,6 @@ abstract class Solver(
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
-            //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
@@ -989,7 +1034,51 @@ abstract class Solver(
         }
 
         /**
-         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         * Creates and configures a cross-entropy optimization algorithm for a given problem definition
+         * that uses a random restart approach.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun crossEntropySolverWithRestarts(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            printer: ((Solver) -> Unit)? = null
+        ) : RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            val ce = CrossEntropySolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                ceSampler = ceSampler,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation
+            )
+            val restartSolver = RandomRestartSolver(
+                ce, maxNumRestarts
+            )
+            printer?.let { restartSolver.emitter.attach(it) }
+            return restartSolver
+        }
+
+        /**
+         * Creates and configures an R-SPLINE optimization algorithm for a given problem definition.
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
@@ -1019,7 +1108,6 @@ abstract class Solver(
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
-            //val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
@@ -1034,5 +1122,55 @@ abstract class Solver(
             printer?.let { solver.emitter.attach(it) }
             return solver
         }
+
+        /**
+         * Creates and configures an R-SPLINE optimization algorithm for a given problem definition
+         * that uses a random restart approach.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
+         * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
+         * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         */
+        @Suppress("unused")
+        @JvmStatic
+        @JvmOverloads
+        fun rSplineSolverWithRestarts(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            maxNumRestarts: Int = defaultMaxRestarts,
+            initialNumReps: Int = defaultInitialSampleSize,
+            sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
+            maxNumReplications: Int = defaultMaxNumReplications,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            printer: ((Solver) -> Unit)? = null
+        ) : RandomRestartSolver {
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+            )
+            val solver = RSplineSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                maxIterations = maxIterations,
+                initialNumReps = initialNumReps,
+                sampleSizeGrowthRate = sampleSizeGrowthRate,
+                maxNumReplications = maxNumReplications
+            )
+            val restartSolver = RandomRestartSolver(
+                solver, maxNumRestarts
+            )
+            printer?.let { restartSolver.emitter.attach(it) }
+            return restartSolver
+        }
     }
+
 }
