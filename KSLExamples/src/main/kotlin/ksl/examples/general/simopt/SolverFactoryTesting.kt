@@ -11,7 +11,8 @@ enum class SolverType {
 fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    val solverType = SolverType.SHC
+//    val solverType = SolverType.SHC_RS
+    val solverType = SolverType.R_SPLINE_RS
     runSolver(modelIdentifier, solverType)
 }
 
@@ -83,7 +84,8 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                printer = printer,
+                restartPrinter = printer,
+                printer = null
             )
         }
         SolverType.SA_RS -> {
@@ -94,7 +96,8 @@ fun solverFactory(
                 initialTemperature = initialTemperature,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                printer = printer,
+                restartPrinter = printer,
+                printer = null
             )
         }
         SolverType.CE_RS -> {
@@ -103,7 +106,8 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                printer = printer,
+                restartPrinter = printer,
+                printer = null
             )
         }
         SolverType.R_SPLINE_RS -> {
@@ -111,7 +115,8 @@ fun solverFactory(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
-                printer = printer,
+                restartPrinter = printer,
+                printer = null
             )
         }
     }

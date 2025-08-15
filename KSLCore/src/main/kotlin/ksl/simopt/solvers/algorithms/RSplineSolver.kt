@@ -239,7 +239,8 @@ class RSplineSolver @JvmOverloads constructor(
      *  Used to check if the last set of solutions that were captured
      *  are the same.
      */
-    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker, defaultNoImproveThresholdForRSPLINE)
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker,
+        defaultNoImproveThresholdForRSPLINE)
 
     private val badSolution = problemDefinition.badSolution()
 
@@ -275,6 +276,7 @@ class RSplineSolver @JvmOverloads constructor(
         // current SPLINE oracle call limit (b_k).
 
         logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rSPLINESampleSize : SPLINE call limit = $splineCallLimit" }
+//        println("SPLINE: starting solution: ${currentSolution.asString()}")
         val splineSolution = spline(
             currentSolution,
             rSPLINESampleSize, splineCallLimit

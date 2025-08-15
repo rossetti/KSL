@@ -1,6 +1,7 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.algorithms.RandomRestartSolver
 
 fun main() {
   //  val modelIdentifier = "RQInventoryModel"
@@ -36,18 +37,45 @@ fun selectPrinter(modelIdentifier: String): (Solver) -> Unit {
 }
 
 fun printLKInventoryModel(solver: Solver) {
+    println("**** iteration = ${solver.iterationCounter} *************************************************************")
+    if (solver is RandomRestartSolver){
+        val rs = solver.restartingSolver
+        val initialSolution = rs.initialSolution
+        if (initialSolution != null) {
+            val q = initialSolution.inputMap["Inventory.orderQuantity"]
+            val rp = initialSolution.inputMap["Inventory.reorderPoint"]
+            println("initial solution: id = ${initialSolution.id}")
+            println("n = ${initialSolution.count} : objFnc = ${initialSolution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${initialSolution.penalizedObjFncValue}")
+        }
+    }
     val solution = solver.currentSolution
     val q = solution.inputMap["Inventory.orderQuantity"]
     val rp = solution.inputMap["Inventory.reorderPoint"]
-    println("iteration = ${solver.iterationCounter} : id = ${solution.id} : n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("solution: id = ${solution.id}")
+    println("n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("********************************************************************************")
 }
 
+
 fun printRQInventoryModel(solver: Solver) {
+    println("**** iteration = ${solver.iterationCounter} ************************************")
+    if (solver is RandomRestartSolver){
+        val rs = solver.restartingSolver
+        val initialSolution = rs.initialSolution
+        if (initialSolution != null) {
+            val q = initialSolution.inputMap["Inventory.orderQuantity"]
+            val rp = initialSolution.inputMap["Inventory.reorderPoint"]
+            println("initial solution: id = ${initialSolution.id}")
+            println("n = ${initialSolution.count} : objFnc = ${initialSolution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${initialSolution.penalizedObjFncValue}")
+        }
+    }
     val solution = solver.currentSolution
     val q = solution.inputMap["Inventory:Item.initialReorderQty"]
     val rp = solution.inputMap["Inventory:Item.initialReorderPoint"]
     val fillRate = solution.responseEstimatesMap["Inventory:Item:FillRate"]!!.average
-    println("iteration = ${solver.iterationCounter} : id = ${solution.id} : n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t fillrate = $fillRate \t penalized objFnc = ${solution.penalizedObjFncValue}")
+    println("solution: id = ${solution.id}")
+    println("n = ${solution.count} : objFnc = ${solution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${solution.penalizedObjFncValue} \t fillrate = $fillRate ")
+    println("********************************************************************************")
 }
 
 //

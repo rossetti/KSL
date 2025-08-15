@@ -135,7 +135,8 @@ class CrossEntropySolver @JvmOverloads constructor(
      *  Used to check if the last set of solutions that were captured
      *  are the same.
      */
-    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker)
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker,
+        defaultNoImproveThresholdForCE)
 
     /** If [eliteSizeFn] is supplied it will be used; otherwise, the elite percentage is used
      * to determine the size of the elite sample.
@@ -328,7 +329,7 @@ class CrossEntropySolver @JvmOverloads constructor(
          * improvement of the best function value is found. By default, set to 5.
          */
         @JvmStatic
-        var defaultNoImproveThreshold: Int = 5
+        var defaultNoImproveThresholdForCE: Int = 5
             set(value) {
                 require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value

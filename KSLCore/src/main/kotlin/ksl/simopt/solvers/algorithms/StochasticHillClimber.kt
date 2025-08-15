@@ -1,6 +1,9 @@
 package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
+import ksl.simopt.evaluator.SolutionChecker
+import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
@@ -60,6 +63,24 @@ open class StochasticHillClimber @JvmOverloads constructor(
     ) : this(problemDefinition, evaluator, maxIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         streamNum, streamProvider, name)
 
+    val solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality()
+
+    /**
+     *  Used to check if the last set of solutions that were captured
+     *  are the same.
+     */
+    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker,
+        defaultNoImproveThresholdForSHC)
+
+    /**
+     *  The default implementation ensures that the initial point and solution
+     *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
+     */
+    override fun initializeIterations() {
+        super.initializeIterations()
+        solutionChecker.clear()
+    }
+
     /**  Randomly generates the next point using nextPoint().
      *   Evaluates the point and gets the solution.
      *   If the solution is better than the current solution, it becomes the current solution.
@@ -73,5 +94,25 @@ open class StochasticHillClimber @JvmOverloads constructor(
         if (compare(nextSolution, currentSolution) < 0) {
             currentSolution = nextSolution
         }
+        // capture the last solution
+        solutionChecker.captureSolution(currentSolution)
+    }
+
+    override fun isStoppingCriteriaSatisfied(): Boolean {
+        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()
+    }
+
+    companion object {
+
+        /**
+         * This value is used as the default termination threshold for the largest number of iterations, during which no
+         * improvement of the best function value is found. By default, set to 10.
+         */
+        @JvmStatic
+        var defaultNoImproveThresholdForSHC: Int = 10
+            set(value) {
+                require(value > 0) { "The default no improvement threshold must be greater than 0" }
+                field = value
+            }
     }
 }
