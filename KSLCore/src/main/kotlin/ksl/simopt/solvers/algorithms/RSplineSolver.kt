@@ -366,7 +366,7 @@ class RSplineSolver @JvmOverloads constructor(
             newSolution = neSearchResults.solution
             // if the candidate solution and the NE search starting solution are the same, we can stop
             // matlab and R code used some kind of tolerance when testing equality
-            if (compare(neStartingSolution, neSearchResults.solution) == 0) {
+            if ((neStartingSolution == neSearchResults.solution) || compare(neStartingSolution, neSearchResults.solution) == 0) {
                 logger.trace { "\t SPLINE search: iteration: $i : break loop : NE verified N1 local optimality" }
                 break
             }
