@@ -197,11 +197,11 @@ class SimulatedAnnealing @JvmOverloads constructor(
         defaultNoImproveThresholdForSA)
 
     override fun initializeIterations() {
+        solutionChecker.clear()
         super.initializeIterations()
         currentTemperature = initialTemperature
         lastAcceptanceProbability = 1.0
         costDifference = Double.NaN
-        solutionChecker.clear()
         logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
     }
 

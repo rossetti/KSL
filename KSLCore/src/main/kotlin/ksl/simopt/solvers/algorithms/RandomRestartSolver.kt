@@ -45,8 +45,6 @@ class RandomRestartSolver(
      */
     override fun initializeIterations() {
         //super.initializeIterations()
-        numOracleCalls = 0
-        numReplicationsRequested = 0
         solutionChecker.clear()
     }
 

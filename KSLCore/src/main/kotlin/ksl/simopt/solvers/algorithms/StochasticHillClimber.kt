@@ -77,8 +77,8 @@ open class StochasticHillClimber @JvmOverloads constructor(
      *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
      */
     override fun initializeIterations() {
-        super.initializeIterations()
         solutionChecker.clear()
+        super.initializeIterations()
     }
 
     /**  Randomly generates the next point using nextPoint().

@@ -261,6 +261,7 @@ abstract class Solver(
                 require(value.isInputFeasible()) { "The supplied starting point must be feasible with respect to the problem" }
             }
             field = value
+            println("In setStartingPoint(): value = ${value?.inputValues?.joinToString()}")
         }
 
     /**
