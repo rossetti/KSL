@@ -249,8 +249,8 @@ class RSplineSolver @JvmOverloads constructor(
      *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
      */
     override fun initializeIterations() {
-        super.initializeIterations()
         solutionChecker.clear()
+        super.initializeIterations()
     }
 
     /**
@@ -276,7 +276,7 @@ class RSplineSolver @JvmOverloads constructor(
         // current SPLINE oracle call limit (b_k).
 
         logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rSPLINESampleSize : SPLINE call limit = $splineCallLimit" }
-//        println("SPLINE: starting solution: ${currentSolution.asString()}")
+        println("SPLINE: starting solution: ${currentSolution.asString()}")
         val splineSolution = spline(
             currentSolution,
             rSPLINESampleSize, splineCallLimit
@@ -284,6 +284,7 @@ class RSplineSolver @JvmOverloads constructor(
         logger.trace { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
 
         currentSolution = splineSolution
+        println("SPLINE: ending solution: ${currentSolution.asString()}")
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
     }
