@@ -34,8 +34,10 @@ class RandomRestartSolver(
      *  Used to check if the last set of solutions that were captured
      *  are the same.
      */
-    val solutionChecker: SolutionChecker = SolutionChecker(solutionEqualityChecker,
-        defaultNoImproveThresholdForSHCWithRS)
+    val solutionChecker: SolutionChecker = SolutionChecker(
+        solutionEqualityChecker,
+        defaultNoImproveThresholdForSHCWithRS
+    )
 
     /**
      *  The default implementation ensures that the initial point and solution
@@ -65,7 +67,10 @@ class RandomRestartSolver(
         logger.info { "Best solution found from the solver run: ${bestSolution.asString()}" }
 //        println("Best solution found from the solver run: ${bestSolution.asString()}")
         // update the current solution if the new solution is better
-        currentSolution = minimumSolution(bestSolution, currentSolution)
+        if (compare(bestSolution, currentSolution) < 0) {
+            currentSolution = bestSolution
+        }
+//        currentSolution = minimumSolution(bestSolution, currentSolution)
         logger.info { "Current best: ${currentSolution.asString()}" }
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
@@ -92,10 +97,10 @@ class RandomRestartSolver(
 
         /**
          * This value is used as the default termination threshold for the largest number of iterations, during which no
-         * improvement of the best function value is found. By default, set to 3.
+         * improvement of the best function value is found. By default, set to 5.
          */
         @JvmStatic
-        var defaultNoImproveThresholdForSHCWithRS: Int = 3
+        var defaultNoImproveThresholdForSHCWithRS: Int = 5
             set(value) {
                 require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value

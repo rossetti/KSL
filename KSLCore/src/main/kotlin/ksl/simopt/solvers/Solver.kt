@@ -104,7 +104,13 @@ abstract class Solver(
         maximumIterations: Int,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         name: String? = null
-    ) : this(problemDefinition, evaluator, maximumIterations, FixedReplicationsPerEvaluation(replicationsPerEvaluation), name)
+    ) : this(
+        problemDefinition,
+        evaluator,
+        maximumIterations,
+        FixedReplicationsPerEvaluation(replicationsPerEvaluation),
+        name
+    )
 
     /**
      *  The outer iterative process. See [IterativeProcess] for
@@ -138,13 +144,15 @@ abstract class Solver(
      *  Not all solvers retain past solutions. Also, in general,
      *  the evaluator will have access to a cache of solutions.
      */
-    protected val mySolutions: Solutions = Solutions()
+    protected val myBestSolutions: Solutions = Solutions()
 
     /**
-     *  If true, updates to the current solution will be captured
-     *  automatically to memory. The default is false.
+     *  Whenever the current solution is assigned it is checked to see if it is better than the
+     *  current best solution. If it is, then the best solution is updated.
+     *  If true, updates to the best solution will be captured
+     *  automatically to memory. The default is true.
      */
-    var saveSolutions: Boolean = false
+    var saveBestSolutions: Boolean = true
 
     /**
      *  Indicates whether the solver allows infeasible requests
@@ -155,12 +163,13 @@ abstract class Solver(
     var ensureProblemFeasibleRequests: Boolean = false
 
     /**
-     *  A read-only view of the solutions evaluated by the solver.
+     *  A read-only view of the best solutions evaluated by the solver.
      *  Not all solvers retain past solutions. Also, in general,
-     *  the evaluator will have access to a cache of solutions.
+     *  the evaluator may have access to a cache of solutions.
      */
-    val solutions: SolutionsIfc
-        get() = mySolutions
+    @Suppress("unused")
+    val bestSolutions: SolutionsIfc
+        get() = myBestSolutions
 
     /**
      *  The user can supply a comparator for comparing whether one
@@ -302,9 +311,6 @@ abstract class Solver(
             field = value
             penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
             unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
-            if (saveSolutions) {
-                mySolutions.add(value)
-            }
             // if the new current solution is better than all previous solutions
             // capture the better solution
             updateBestSolution(field)
@@ -333,6 +339,13 @@ abstract class Solver(
      *  across any iteration.
      */
     var bestSolution: Solution = problemDefinition.badSolution()
+        set(value) {
+            field = value
+            if (saveBestSolutions) {
+                myBestSolutions.add(value)
+            }
+            numTimesBestSolutionUpdated++
+        }
 
     /**
      *  Many algorithms compare solutions. This factor serves as the criteria
@@ -407,6 +420,16 @@ abstract class Solver(
     }
 
     /**
+     *  Clears the best solutions captured by the solver. The solver will retain
+     *  all best solutions that have been observed until they are cleared, even
+     *  with repeated use.
+     */
+    @Suppress("unused")
+    fun clearBestSolutions() {
+        myBestSolutions.clear()
+    }
+
+    /**
      * Recognizing the need to be able to compare solutions that may have sampling error,
      * the user can override this function to provide more extensive comparison or supply
      * an instance of the [Comparator<Solution>] interface via the [solutionComparer] property
@@ -438,13 +461,11 @@ abstract class Solver(
     protected open fun updateBestSolution(possiblyBetter: Solution) {
         if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
             bestSolution = possiblyBetter
-            numTimesBestSolutionUpdated++
             logger.trace { "Solver: $name : best solution set to $bestSolution" }
-        } else if (bestSolutionComparator.compare(possiblyBetter, bestSolution) == 0){
+        } else if (bestSolutionComparator.compare(possiblyBetter, bestSolution) == 0) {
             // if statistically the same, prefer the one that has more samples
-            if (possiblyBetter.count > bestSolution.count){
+            if (possiblyBetter.count > bestSolution.count) {
                 bestSolution = possiblyBetter
-                numTimesBestSolutionUpdated++
                 logger.trace { "Solver: $name : best solution set to $bestSolution" }
             } else if (possiblyBetter.count == bestSolution.count) {
                 // if they have the same number of samples, prefer the one that has a lower penalized objective function value
@@ -465,8 +486,8 @@ abstract class Solver(
     fun minimumSolution(
         first: Solution,
         second: Solution,
-        comparator: Comparator<Solution> = PenalizedObjectiveFunctionComparator)
-    : Solution {
+        comparator: Comparator<Solution> = PenalizedObjectiveFunctionComparator
+    ): Solution {
         return if (comparator.compare(first, second) <= 0) {
             first
         } else {
@@ -516,7 +537,7 @@ abstract class Solver(
     protected open fun initializeIterations() {
         val initialPoint = startingPoint ?: startingPoint()
         myInitialSolution = requestEvaluation(initialPoint)
- //       println("In initializeIterations(): iteration = $iterationCounter : Initial solution: ${myInitialSolution.asString()}")
+        //       println("In initializeIterations(): iteration = $iterationCounter : Initial solution: ${myInitialSolution.asString()}")
         currentSolution = myInitialSolution
     }
 
@@ -730,7 +751,7 @@ abstract class Solver(
                 appendLine("$myInitialSolution")
                 appendLine("==================================================================")
             }
-            if (currentSolution.isValid){
+            if (currentSolution.isValid) {
                 appendLine("Current Solution:")
                 appendLine("$currentSolution")
                 appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
@@ -745,6 +766,11 @@ abstract class Solver(
                     appendLine("==================================================================")
                 }
             }
+            appendLine("Best Solutions Found:")
+            for (solution in myBestSolutions.orderedSolutions) {
+                appendLine(solution.asString())
+            }
+            appendLine("==================================================================")
         }
         return sb.toString()
     }
@@ -766,7 +792,7 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
-           // emitter.emit(this@Solver)
+            // emitter.emit(this@Solver)
         }
 
         override fun hasNextStep(): Boolean {
@@ -936,7 +962,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
-        ) : RandomRestartSolver {
+        ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
@@ -1027,7 +1053,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
-        ) : RandomRestartSolver {
+        ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
@@ -1119,7 +1145,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
-        ) : RandomRestartSolver {
+        ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )
@@ -1217,7 +1243,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
-        ) : RandomRestartSolver {
+        ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder
             )

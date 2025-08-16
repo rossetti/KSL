@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import ksl.simopt.evaluator.SolutionsIfc.Companion.defaultCapacity
 import java.util.PriorityQueue
 
 /**
@@ -8,22 +9,50 @@ import java.util.PriorityQueue
  * their penalized objective functions (without regard to sampling error).
  *
  * @param capacity the capacity for the solutions. Constrains the total number of solutions in-memory.
- * The default capacity is 100. Oldest solutions are evicted first.
+ * The default capacity is [defaultCapacity]. Oldest solutions are evicted first.
  *  @param allowInfeasibleSolutions if true input-infeasible solutions are allowed to be
  *  saved. If false, input-infeasible solutions are silently ignored.
  *  The default is false (do not allow input-infeasible solutions to be saved)
  */
 class Solutions(
-    val capacity: Int = defaultCapacity,
+    capacity: Int = defaultCapacity,
     var allowInfeasibleSolutions: Boolean = false
 ) : SolutionsIfc {
+    init {
+        require(capacity >= 1) { "The minimum capacity is 1" }
+    }
 
-    constructor(solutions: List<Solution>, capacity: Int = defaultCapacity) : this(capacity) {
+    override var capacity: Int = capacity
+        private set
+
+    /**
+     * Class to support a group of solutions (all containing inputs, responses, objective fns, penalties)
+     * The solutions are naturally ordered by comparison of Solution instances based on
+     * their penalized objective functions (without regard to sampling error).
+     *
+     * @param solutions the initial list of solutions to add
+     * @param capacity the capacity for the solutions. Constrains the total number of solutions in-memory.
+     * The default capacity is [defaultCapacity]. Oldest solutions are evicted first.
+     *  @param allowInfeasibleSolutions if true input-infeasible solutions are allowed to be
+     *  saved. If false, input-infeasible solutions are silently ignored.
+     *  The default is false (do not allow input-infeasible solutions to be saved)
+     */
+    constructor(
+        solutions: List<Solution>,
+        capacity: Int = defaultCapacity,
+        allowInfeasibleSolutions: Boolean = false
+    ) : this(capacity, allowInfeasibleSolutions) {
         addAll(solutions)
     }
 
     private val mySolutions = PriorityQueue<Solution>()
     private val myEnteredSolutions = ArrayDeque<Solution>()
+
+    @Suppress("unused")
+    override fun increaseCapacity(increase: Int){
+        if(increase <= 0) return
+        capacity = capacity + increase
+    }
 
     /**
      *  Adds all the solutions to the sequence of solutions. If the capacity
@@ -45,13 +74,33 @@ class Solutions(
 
     /**
      *  Adds the solution to the sequence of solutions. If the capacity
-     *  is met, then the oldest (first) item is evicted and returned
+     *  is met, then the oldest (first) item is evicted and returned.
+     *  If the solution is input-infeasible and the allowInfeasibleSolutions
+     *  flag is false, then the solution is silently ignored.
+     *  If the solution is already in the sequence of solutions, then it is
+     *  not added again.
      *  @param solution the solution to add
-     *  @return a possibly evicted item
+     *  @return a possibly evicted item or null if the solution was not added
      */
     fun add(solution: Solution): Solution? {
+        if (contains(solution)) return null
         if(!solution.isInputFeasible()){
             return null
+        }
+        mySolutions.firstOrNull { it.inputMap == solution.inputMap }?.let {
+            // found an input map duplicate
+            if (solution.count <= it.count ) {
+                // found a solution with a larger count with the same inputs
+                // ignore the new solution, keep the one with more samples
+                return null
+            } else  {
+               //else incoming solution has more samples, but is a duplicate keep it
+                mySolutions.remove(it)
+                myEnteredSolutions.remove(it)
+                myEnteredSolutions.add(solution)
+                mySolutions.add(solution)
+                return it
+            }
         }
         val removed = if (myEnteredSolutions.size == capacity) {
             // insert will cause capacity violation, remove oldest
@@ -154,17 +203,6 @@ class Solutions(
 
     override fun contains(element: Solution): Boolean {
         return myEnteredSolutions.contains(element)
-    }
-
-    companion object {
-        /**
-         *  The default capacity for solutions. By default, 100.
-         */
-        var defaultCapacity : Int = 100
-            set(value) {
-                require(value >= 1) { "The minimum capacity is 1" }
-                field = value
-            }
     }
 
     //TODO need to implement screenToBest function

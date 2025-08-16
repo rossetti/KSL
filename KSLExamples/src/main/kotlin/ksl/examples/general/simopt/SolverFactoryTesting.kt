@@ -2,6 +2,7 @@ package ksl.examples.general.simopt
 
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.simulation.ModelBuilderIfc
 
 enum class SolverType {
@@ -11,8 +12,8 @@ enum class SolverType {
 fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
-    val solverType = SolverType.SHC_RS
-//    val solverType = SolverType.R_SPLINE_RS
+//    val solverType = SolverType.R_SPLINE
+    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
     runSolver(modelIdentifier, solverType)
 }
@@ -22,6 +23,8 @@ fun runSolver(modelIdentifier: String, solverType: SolverType) {
     val modelBuilder = selectBuilder(modelIdentifier)
     val printer = selectPrinter(modelIdentifier)
     val solver = solverFactory(solverType, problemDefinition, modelBuilder, printer)
+//   solver.useRandomlyBestStartingPoint()
+//    solver.advanceToNextSubStream()
     solver.runAllIterations()
     println()
     println("Solver Results:")
@@ -36,7 +39,7 @@ fun solverFactory(
     problemDefinition: ProblemDefinition,
     modelBuilder: ModelBuilderIfc,
     printer: (Solver) -> Unit
-): Solver {
+): StochasticSolver {
     return when(solverType){
         SolverType.SHC -> {
             Solver.stochasticHillClimbingSolver(

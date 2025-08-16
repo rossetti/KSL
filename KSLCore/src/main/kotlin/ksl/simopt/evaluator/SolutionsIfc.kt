@@ -3,6 +3,20 @@ package ksl.simopt.evaluator
 interface SolutionsIfc : List<Solution> {
 
     /**
+     *  The capacity of the sequence of solutions.
+     */
+    val capacity: Int
+
+    /**
+     *  Increases the capacity of the sequence of solutions.
+     *  The default increase is to increase by [defaultCapacity].
+     *
+     *  @param increase the amount of the increase. If 0 or negative, no increase occurs.
+     *  The current capacity is increased by [increase]
+     */
+    fun increaseCapacity(increase: Int = defaultCapacity)
+
+    /**
      *  A list of solutions ordered by penalized
      *  objective function. The solutions may or may not be feasible.
      */
@@ -29,4 +43,14 @@ interface SolutionsIfc : List<Solution> {
      */
     fun peekBest(): Solution?
 
+    companion object {
+        /**
+         *  The default capacity for solutions. By default, 10.
+         */
+        var defaultCapacity : Int = 10
+            set(value) {
+                require(value >= 1) { "The minimum capacity is 1" }
+                field = value
+            }
+    }
 }
