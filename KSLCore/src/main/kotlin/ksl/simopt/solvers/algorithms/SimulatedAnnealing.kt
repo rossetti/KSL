@@ -7,7 +7,6 @@ import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
-import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultNoImproveThresholdForSHCWithRS
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
