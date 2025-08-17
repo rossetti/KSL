@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.evaluator.SolutionsIfc.Companion.defaultCapacity
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import java.util.PriorityQueue
 
 /**
@@ -49,8 +50,8 @@ class Solutions(
     private val myEnteredSolutions = ArrayDeque<Solution>()
 
     @Suppress("unused")
-    override fun increaseCapacity(increase: Int){
-        if(increase <= 0) return
+    override fun increaseCapacity(increase: Int) {
+        if (increase <= 0) return
         capacity = capacity + increase
     }
 
@@ -89,17 +90,17 @@ class Solutions(
      */
     fun add(solution: Solution): Solution? {
         if (contains(solution)) return null
-        if(!solution.isInputFeasible()){
+        if (!solution.isInputFeasible()) {
             return null
         }
-        mySolutions.firstOrNull { it.inputMap == solution.inputMap }?.let {
+        myEnteredSolutions.firstOrNull { it.inputMap == solution.inputMap }?.let {
             // found an input map duplicate
-            if (solution.count <= it.count ) {
+            if (solution.count <= it.count) {
                 // found a solution with a larger count with the same inputs
                 // ignore the new solution, keep the one with more samples
                 return null
-            } else  {
-               //else incoming solution has more samples, but is a duplicate keep it
+            } else {
+                //else incoming solution has more samples, but is a duplicate keep it
                 mySolutions.remove(it)
                 myEnteredSolutions.remove(it)
                 myEnteredSolutions.add(solution)
@@ -111,7 +112,7 @@ class Solutions(
             // reached capacity, need to check if new solution is better than the worst solution
             // find the worst solution
             val worst = orderedSolutions.last()
-            if (solution < worst){
+            if (solution.compareTo(worst) < 0) {
                 myEnteredSolutions.remove(worst)
                 mySolutions.remove(worst)
                 myEnteredSolutions.add(solution)
@@ -216,5 +217,17 @@ class Solutions(
         return myEnteredSolutions.contains(element)
     }
 
-    //TODO need to implement screenToBest function
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("Solutions:")
+            appendLine("totalSolutions = $size")
+            appendLine("capacity = $capacity")
+            appendLine("allowInfeasibleSolutions = $allowInfeasibleSolutions")
+            appendLine("orderedSolutions:")
+            for (solution in orderedSolutions) {
+                appendLine(solution.asString())
+            }
+        }
+        return sb.toString()
+    }
 }

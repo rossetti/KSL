@@ -276,8 +276,8 @@ class RSplineSolver @JvmOverloads constructor(
         // current SPLINE oracle call limit (b_k).
 
         logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rSPLINESampleSize : SPLINE call limit = $splineCallLimit" }
-        println("SPLINE: main iteration = $iterationCounter : sample size = $rSPLINESampleSize")
-        println("SPLINE: starting solution: ${currentSolution.asString()}")
+//        println("SPLINE: main iteration = $iterationCounter : sample size = $rSPLINESampleSize")
+//        println("SPLINE: starting solution: ${currentSolution.asString()}")
         val splineSolution = spline(
             currentSolution,
             rSPLINESampleSize, splineCallLimit
@@ -285,16 +285,16 @@ class RSplineSolver @JvmOverloads constructor(
         logger.trace { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
 
         currentSolution = splineSolution
-        println("SPLINE: ending solution: ${currentSolution.asString()}")
+//        println("SPLINE: ending solution: ${currentSolution.asString()}")
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
     }
 
-    override fun afterMainIteration() {
-        println("SPLINE: after main iteration = $iterationCounter")
-        println("SPLINE: current solution: ${currentSolution.asString()}")
-        println("SPLINE: best solution: ${bestSolution.asString()}")
-    }
+//    override fun afterMainIteration() {
+//        println("SPLINE: after main iteration = $iterationCounter")
+//        println("SPLINE: current solution: ${currentSolution.asString()}")
+//        println("SPLINE: best solution: ${bestSolution.asString()}")
+//    }
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
         return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()

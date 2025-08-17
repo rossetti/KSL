@@ -1,5 +1,7 @@
 package ksl.simopt.evaluator
 
+import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
+
 interface SolutionsIfc : List<Solution> {
 
     /**
@@ -42,6 +44,46 @@ interface SolutionsIfc : List<Solution> {
      *  The solution may or may not be feasible.
      */
     fun peekBest(): Solution?
+
+    /**
+     *  Returns a list of solutions that are possibly the best by using
+     *  the supplied comparator.
+     *  @param comparator the comparator to use to compare the solutions
+     */
+    fun possiblyBest(
+        comparator: Comparator<Solution>
+    ): Solutions {
+        val ordered = orderedSolutions
+        val solutions = Solutions()
+        if (ordered.isEmpty()) return solutions
+        // Since ordered solutions is not empty, there is at least one best solution.
+        val best = ordered.first()
+        for(solution in ordered){
+            if(comparator.compare(solution, best) <= 0){
+                solutions.add(solution)
+            }
+        }
+        return solutions
+    }
+
+    /**
+     *  Returns a list of solutions that are possibly the best by using
+     *  a [PenalizedObjectiveFunctionConfidenceIntervalComparator].
+     *  @param level the level of confidence to use. By default, this is set to [DEFAULT_CONFIDENCE_LEVEL].
+     *  @param indifferenceZone the indifference zone to use. By default, this is set to 0.0.
+     */
+    @Suppress("unused")
+    fun possiblyBest(
+        level: Double = DEFAULT_CONFIDENCE_LEVEL,
+        indifferenceZone: Double = 0.0
+    ): Solutions {
+        return possiblyBest(
+            PenalizedObjectiveFunctionConfidenceIntervalComparator(
+                level = level,
+                indifferenceZone = indifferenceZone
+            )
+        )
+    }
 
     companion object {
         /**

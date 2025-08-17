@@ -118,14 +118,14 @@ abstract class Solver(
      */
     private val myMainIterativeProcess = MainIterativeProcess()
 
-    /**
-     * Counts the number of times that a new current solution replaced the current
-     * best solution. This can be used to measure how often an iteration results in
-     * a better solution being found.
-     */
-    @Suppress("unused")
-    var numTimesBestSolutionUpdated: Int = 0
-        private set
+//    /**
+//     * Counts the number of times that a new current solution replaced the current
+//     * best solution. This can be used to measure how often an iteration results in
+//     * a better solution being found.
+//     */
+//    @Suppress("unused")
+//    var numTimesBestSolutionUpdated: Int = 0
+//        private set
 
     /**
      *  Allow the status of the iterative process to be accessible
@@ -152,7 +152,7 @@ abstract class Solver(
      *  If true, updates to the best solution will be captured
      *  automatically to memory. The default is true.
      */
-    var saveBestSolutions: Boolean = true
+//    var saveBestSolutions: Boolean = true
 
     /**
      *  Indicates whether the solver allows infeasible requests
@@ -170,6 +170,16 @@ abstract class Solver(
     @Suppress("unused")
     val bestSolutions: SolutionsIfc
         get() = myBestSolutions
+
+    /**
+     *  The best solution found so far in the search. Some algorithms may allow
+     *  the current solution to vary from the best solution due to randomness
+     *  or other search needs (e.g., explore bad areas with the hope of getting better).
+     *  The algorithm should ensure the updating of the best solution found
+     *  across any iteration.
+     */
+    val bestSolution: Solution
+        get() = myBestSolutions.orderedSolutions.firstOrNull() ?: problemDefinition.badSolution()
 
     /**
      *  The user can supply a comparator for comparing whether one
@@ -261,7 +271,7 @@ abstract class Solver(
                 require(value.isInputFeasible()) { "The supplied starting point must be feasible with respect to the problem" }
             }
             field = value
-            println("In setStartingPoint(): value = ${value?.inputValues?.joinToString()}")
+//            println("In setStartingPoint(): value = ${value?.inputValues?.joinToString()}")
         }
 
     /**
@@ -312,9 +322,10 @@ abstract class Solver(
             field = value
             penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
             unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
+            myBestSolutions.add(value)
             // if the new current solution is better than all previous solutions
             // capture the better solution
-            updateBestSolution(field)
+            //updateBestSolution(field)
         }
 
     /**
@@ -331,22 +342,6 @@ abstract class Solver(
      */
     val currentPoint: InputMap
         get() = currentSolution.inputMap
-
-    /**
-     *  The best solution found so far in the search. Some algorithms may allow
-     *  the current solution to vary from the best solution due to randomness
-     *  or other search needs (e.g., explore bad areas with the hope of getting better).
-     *  The algorithm should ensure the updating of the best solution found
-     *  across any iteration.
-     */
-    var bestSolution: Solution = problemDefinition.badSolution()
-        set(value) {
-            field = value
-            if (saveBestSolutions) {
-                myBestSolutions.add(value)
-            }
-            numTimesBestSolutionUpdated++
-        }
 
     /**
      *  Many algorithms compare solutions. This factor serves as the criteria
@@ -446,34 +441,34 @@ abstract class Solver(
         return solutionComparer?.compare(first, second) ?: first.compareTo(second)
     }
 
-    /**
-     *  This comparator is used to compare a new current solution to the previous best solution within
-     *  the updateBestSolution() function. The default behavior is to use a confidence interval
-     *  on the penalized objective function value to determine if the new solution is better. The
-     *  default is a 95 percent confidence interval with 0.0 indifference zone. The user can change
-     *  this comparator or revise how the updateBestSolution() function is implemented.
-     */
-    var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionConfidenceIntervalComparator()
-
-    /**
-     *  Used when the current solution is updated to (if necessary) update the current best solution.
-     *  If two solutions are considered statistically the same, then the one with more samples is used.
-     */
-    protected open fun updateBestSolution(possiblyBetter: Solution) {
-        if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
-            bestSolution = possiblyBetter
-            logger.trace { "Solver: $name : best solution set to $bestSolution" }
-        } else if (bestSolutionComparator.compare(possiblyBetter, bestSolution) == 0) {
-            // if statistically the same, prefer the one that has more samples
-            if (possiblyBetter.count > bestSolution.count) {
-                bestSolution = possiblyBetter
-                logger.trace { "Solver: $name : best solution set to $bestSolution" }
-            } else if (possiblyBetter.count == bestSolution.count) {
-                // if they have the same number of samples, prefer the one that has a lower penalized objective function value
-                bestSolution = minimumSolution(possiblyBetter, bestSolution)
-            }
-        }
-    }
+//    /**
+//     *  This comparator is used to compare a new current solution to the previous best solution within
+//     *  the updateBestSolution() function. The default behavior is to use a confidence interval
+//     *  on the penalized objective function value to determine if the new solution is better. The
+//     *  default is a 95 percent confidence interval with 0.0 indifference zone. The user can change
+//     *  this comparator or revise how the updateBestSolution() function is implemented.
+//     */
+//    var bestSolutionComparator: Comparator<Solution> = PenalizedObjectiveFunctionConfidenceIntervalComparator()
+//
+//    /**
+//     *  Used when the current solution is updated to (if necessary) update the current best solution.
+//     *  If two solutions are considered statistically the same, then the one with more samples is used.
+//     */
+//    protected open fun updateBestSolution(possiblyBetter: Solution) {
+//        if (bestSolutionComparator.compare(possiblyBetter, bestSolution) < 0) {
+//            bestSolution = possiblyBetter
+//            logger.trace { "Solver: $name : best solution set to $bestSolution" }
+//        } else if (bestSolutionComparator.compare(possiblyBetter, bestSolution) == 0) {
+//            // if statistically the same, prefer the one that has more samples
+//            if (possiblyBetter.count > bestSolution.count) {
+//                bestSolution = possiblyBetter
+//                logger.trace { "Solver: $name : best solution set to $bestSolution" }
+//            } else if (possiblyBetter.count == bestSolution.count) {
+//                // if they have the same number of samples, prefer the one that has a lower penalized objective function value
+//                bestSolution = minimumSolution(possiblyBetter, bestSolution)
+//            }
+//        }
+//    }
 
     /** Returns the smaller of the two solutions. Ties result in the first solution
      * being returned. This function uses the supplied comparator.
@@ -757,8 +752,8 @@ abstract class Solver(
                 appendLine("$currentSolution")
                 appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
                 appendLine("Penalized Solution Gap = $penalizedSolutionGap")
-                appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
-                appendLine("Number of Iterations Completed = $iterationCounter")
+//                appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
+//                appendLine("Number of Iterations Completed = $iterationCounter")
                 appendLine("==================================================================")
                 if (compare(bestSolution, currentSolution) < 0) {
                     appendLine("A better solution was found than the current solution.")
@@ -782,13 +777,13 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
-            numTimesBestSolutionUpdated = 0
+       //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
             currentSolution = problemDefinition.badSolution()
-            bestSolution = problemDefinition.badSolution()
+          //  bestSolution = problemDefinition.badSolution()
             myBestSolutions.clear()
-            println("Solver: initializeIterations(): reset current solution, best solution, and cleared best solutions")
+//            println("Solver: initializeIterations(): reset current solution, best solution, and cleared best solutions")
 //            println("current solution: ${currentSolution.asString()}")
 //            println("best solution: ${bestSolution.asString()}")
 //            println("best solutions size ${myBestSolutions.size}")
