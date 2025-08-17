@@ -81,7 +81,7 @@ interface EstimatedResponseIfc {
      * @return A double representing the half-width or Double.NaN if &lt; 1
      * observation
      */
-    fun halfWidth(level: Double): Double {
+    fun halfWidth(level: Double = DEFAULT_CONFIDENCE_LEVEL): Double {
         require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
         if (count <= 1.0) {
             return Double.NaN
@@ -91,6 +91,21 @@ interface EstimatedResponseIfc {
         val p = 1.0 - (alpha / 2.0)
         val t = StudentT.invCDF(dof, p)
         return t * standardError
+    }
+
+    /**
+     * An approximate confidence interval for the estimated value.
+     *
+     * @param level the confidence level. Must be between 0 and 1.
+     * @return the interval
+     */
+    fun confidenceInterval(level: Double = DEFAULT_CONFIDENCE_LEVEL): Interval {
+        require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
+        if (count <= 1.0) {
+            return Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+        }
+        val hw = halfWidth(level)
+        return Interval(average - hw, average + hw)
     }
 
     /**
@@ -156,7 +171,7 @@ interface EstimatedResponseIfc {
             val dofNumerator = v * v
             val dofDenominator = ((v1 * v1) / (n1 + 1.0)) + ((v2 * v2) / (n2 + 1.0))
             var dof = (dofNumerator / dofDenominator) - 2.0
-            if (dof < 1.0){
+            if (dof < 1.0) {
                 dof = 1.0
             }
             val alpha = 1.0 - level
@@ -189,14 +204,14 @@ interface EstimatedResponseIfc {
             require(indifferenceZone >= 0.0) { "The indifference zone parameter must be >= 0.0" }
             if (estimate1.count == 1.0 && estimate2.count == 1.0) {
                 val d = estimate1.average - estimate2.average
-                if (d < indifferenceZone){
+                if (d < indifferenceZone) {
                     return -1
-                } else if (d > indifferenceZone){
+                } else if (d > indifferenceZone) {
                     return 1
                 }
                 return 0
             }
-            if (estimate1.count == 1.0 && estimate2.count >= 2.0){
+            if (estimate1.count == 1.0 && estimate2.count >= 2.0) {
                 val d = estimate1.average - estimate2.average
                 val hw2 = estimate2.halfWidth(level)
                 val uL = d + hw2
@@ -209,7 +224,7 @@ interface EstimatedResponseIfc {
                     return 0
                 }
             }
-            if (estimate1.count >= 2.0 && estimate2.count == 1.0){
+            if (estimate1.count >= 2.0 && estimate2.count == 1.0) {
                 val d = estimate1.average - estimate2.average
                 val hw1 = estimate1.halfWidth(level)
                 val uL = d + hw1
@@ -290,7 +305,7 @@ data class EstimatedResponse(
         require(!count.isNaN()) { "The count was not a number." }
         require(count.isFinite()) { "The count was not finite." }
         require(count >= 1) { "The count must be >= 1" }
-        if (count == 1.0){
+        if (count == 1.0) {
             require(variance.isNaN()) { "If the count is 1.0, then the variance must be NaN." }
         } else {// not 1 and must be >= 1, thus 2 or more
             require((variance >= 0.0)) { "The variance must be >= 0.0" }

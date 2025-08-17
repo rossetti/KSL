@@ -785,7 +785,13 @@ abstract class Solver(
             numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
+            currentSolution = problemDefinition.badSolution()
             bestSolution = problemDefinition.badSolution()
+            myBestSolutions.clear()
+            println("Solver: initializeIterations(): reset current solution, best solution, and cleared best solutions")
+//            println("current solution: ${currentSolution.asString()}")
+//            println("best solution: ${bestSolution.asString()}")
+//            println("best solutions size ${myBestSolutions.size}")
             logger.info { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
             if (::myInitialSolution.isInitialized) {

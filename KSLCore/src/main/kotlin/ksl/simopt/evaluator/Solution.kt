@@ -278,7 +278,7 @@ data class Solution(
     }
 
     fun asString(): String {
-        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = $penalizedObjFncValue : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
+        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = $penalizedObjFncValue : 95%ci = ${estimatedObjFnc.confidenceInterval()} : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
        // return toSolutionData().toDataFrame().toString()
     }
 
