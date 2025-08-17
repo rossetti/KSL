@@ -125,7 +125,7 @@ interface StatisticIfc : SummaryStatisticsIfc, GetCSVStatisticIfc, LastValueIfc,
      * @param level the confidence level
      * @return the interval
      */
-    fun confidenceInterval(level: Double): Interval {
+    override fun confidenceInterval(level: Double): Interval {
         if (count < 1.0) {
             return Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
         }

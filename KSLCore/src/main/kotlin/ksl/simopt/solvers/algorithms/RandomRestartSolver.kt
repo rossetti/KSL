@@ -55,7 +55,7 @@ class RandomRestartSolver(
         val startPoint = startingPoint()
         restartingSolver.startingPoint = startPoint
         logger.info { "Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}" }
-//        println("Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}")
+        println("Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}")
         // run the solver until it finds a solution
         restartingSolver.runAllIterations()
         numOracleCalls = numOracleCalls + restartingSolver.numOracleCalls
@@ -63,7 +63,7 @@ class RandomRestartSolver(
         // get the best solution from the solver run
         val bestSolution = restartingSolver.bestSolution
         logger.info { "Best solution found from the solver run: ${bestSolution.asString()}" }
-//        println("Best solution found from the solver run: ${bestSolution.asString()}")
+        println("Best solution found from the solver run: ${bestSolution.asString()}")
         // update the current solution if the new solution is better
         if (compare(bestSolution, currentSolution) < 0) {
             currentSolution = bestSolution
