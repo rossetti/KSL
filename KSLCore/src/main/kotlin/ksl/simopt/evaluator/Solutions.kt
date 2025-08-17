@@ -73,12 +73,17 @@ class Solutions(
     }
 
     /**
-     *  Adds the solution to the sequence of solutions. If the capacity
-     *  is met, then the oldest (first) item is evicted and returned.
+     *  Adds the solution to the solutions.
+     *
      *  If the solution is input-infeasible and the allowInfeasibleSolutions
      *  flag is false, then the solution is silently ignored.
-     *  If the solution is already in the sequence of solutions, then it is
-     *  not added again.
+     *
+     *  If the capacity is met, then the worst solution is evicted and returned.
+     *
+     *  If the solution is already in the sequence of solutions (based on input-equality),
+     *  and it has more samples than the existing solution, then the existing solution is replaced;
+     *  otherwise the existing solution is not replaced.
+     *
      *  @param solution the solution to add
      *  @return a possibly evicted item or null if the solution was not added
      */
@@ -102,18 +107,24 @@ class Solutions(
                 return it
             }
         }
-        val removed = if (myEnteredSolutions.size == capacity) {
-            // insert will cause capacity violation, remove oldest
-            val first = myEnteredSolutions.removeFirst()
-            mySolutions.remove(first)
-            first
-        } else {
-            null
+        if (myEnteredSolutions.size == capacity) {
+            // reached capacity, need to check if new solution is better than the worst solution
+            // find the worst solution
+            val worst = orderedSolutions.last()
+            if (solution < worst){
+                myEnteredSolutions.remove(worst)
+                mySolutions.remove(worst)
+                myEnteredSolutions.add(solution)
+                mySolutions.add(solution)
+                return worst
+            } else {
+                return null
+            }
         }
-        //now the new solution can be added
+        // there is capacity for the new solution, just add it
         myEnteredSolutions.add(solution)
         mySolutions.add(solution)
-        return removed
+        return null
     }
 
     /**
