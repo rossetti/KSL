@@ -28,26 +28,6 @@ class RandomRestartSolver(
     restartingSolver.replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
 
-    val solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality()
-
-    /**
-     *  Used to check if the last set of solutions that were captured
-     *  are the same.
-     */
-    val solutionChecker: SolutionChecker = SolutionChecker(
-        solutionEqualityChecker,
-        defaultNoImproveThresholdForSHCWithRS
-    )
-
-    /**
-     *  The default implementation ensures that the initial point and solution
-     *  are input-feasible (feasible with respect to input ranges and deterministic constraints).
-     */
-    override fun initializeIterations() {
-        //super.initializeIterations()
-        solutionChecker.clear()
-    }
-
     override fun mainIteration() {
         // clear the evaluator cache between randomized runs, but allow caching during the run itself
         evaluator.cache?.clear()
@@ -55,7 +35,7 @@ class RandomRestartSolver(
         val startPoint = startingPoint()
         restartingSolver.startingPoint = startPoint
         logger.info { "Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}" }
-        println("Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}")
+//        println("Starting a new randomized run at point: ${startPoint.inputValues.joinToString()}")
         // run the solver until it finds a solution
         restartingSolver.runAllIterations()
         numOracleCalls = numOracleCalls + restartingSolver.numOracleCalls
@@ -63,20 +43,21 @@ class RandomRestartSolver(
         // get the best solution from the solver run
         val bestSolution = restartingSolver.bestSolution
         logger.info { "Best solution found from the solver run: ${bestSolution.asString()}" }
-        println("Best solution found from the solver run: ${bestSolution.asString()}")
-        // update the current solution if the new solution is better
-        if (compare(bestSolution, currentSolution) < 0) {
-            currentSolution = bestSolution
-        }
+//        println("Best solution found from the solver run: ${bestSolution.asString()}")
+        currentSolution = bestSolution
+//        // update the current solution if the new solution is better
+//        if (compare(bestSolution, currentSolution) < 0) {
+//            currentSolution = bestSolution
+//        }
 //        currentSolution = minimumSolution(bestSolution, currentSolution)
         logger.info { "Current best: ${currentSolution.asString()}" }
         // capture the last solution
-        solutionChecker.captureSolution(currentSolution)
+//        solutionChecker.captureSolution(currentSolution)
     }
 
-    override fun isStoppingCriteriaSatisfied(): Boolean {
-        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()
-    }
+//    override fun isStoppingCriteriaSatisfied(): Boolean {
+//        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()
+//    }
 
     companion object {
         /**

@@ -32,6 +32,9 @@ fun runSolver(modelIdentifier: String, solverType: SolverType) {
     println()
     println("Final Solution:")
     println(solver.bestSolution.asString())
+    println("Approximate screening:")
+    val solutions = solver.bestSolutions.possiblyBest()
+    println(solutions)
 }
 
 fun solverFactory(
