@@ -30,6 +30,7 @@ class RandomRestartSolver(
 
     override fun mainIteration() {
         // clear the evaluator cache between randomized runs, but allow caching during the run itself
+        // this will cause new replications to be generated
         evaluator.cache?.clear()
         // randomly assign a new starting point
         val startPoint = startingPoint()
@@ -45,43 +46,21 @@ class RandomRestartSolver(
         logger.info { "Best solution found from the solver run: ${bestSolution.asString()}" }
 //        println("Best solution found from the solver run: ${bestSolution.asString()}")
         currentSolution = bestSolution
-//        // update the current solution if the new solution is better
-//        if (compare(bestSolution, currentSolution) < 0) {
-//            currentSolution = bestSolution
-//        }
-//        currentSolution = minimumSolution(bestSolution, currentSolution)
         logger.info { "Current best: ${currentSolution.asString()}" }
-        // capture the last solution
-//        solutionChecker.captureSolution(currentSolution)
     }
-
-//    override fun isStoppingCriteriaSatisfied(): Boolean {
-//        return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?: solutionChecker.checkSolutions()
-//    }
 
     companion object {
         /**
          * Represents the default maximum number restarts to be executed
          * in a given process or algorithm.
          *
-         * The default value is set to 10, but it can be modified based
+         * The default value is set to 5, but it can be modified based
          * on specific requirements or constraints.
          */
         @JvmStatic
-        var defaultMaxRestarts = 10
+        var defaultMaxRestarts = 5
             set(value) {
                 require(value > 0) { "The default maximum number of restarts must be a positive value." }
-                field = value
-            }
-
-        /**
-         * This value is used as the default termination threshold for the largest number of iterations, during which no
-         * improvement of the best function value is found. By default, set to 5.
-         */
-        @JvmStatic
-        var defaultNoImproveThresholdForSHCWithRS: Int = 5
-            set(value) {
-                require(value > 0) { "The default no improvement threshold must be greater than 0" }
                 field = value
             }
     }
