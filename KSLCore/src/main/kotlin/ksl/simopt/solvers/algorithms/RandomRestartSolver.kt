@@ -27,11 +27,18 @@ class RandomRestartSolver(
     restartingSolver.problemDefinition, restartingSolver.evaluator, maxNumRestarts,
     restartingSolver.replicationsPerEvaluation, streamNum, streamProvider, name
 ) {
+    /**
+     *  Indicates whether the evaluator cache should be cleared between runs.
+     *  Defaults to true. If the evaluator does not support caching, this value is ignored.
+     */
+    var clearCacheBetweenRuns = true
 
     override fun mainIteration() {
         // clear the evaluator cache between randomized runs, but allow caching during the run itself
         // this will cause new replications to be generated
-        evaluator.cache?.clear()
+        if (clearCacheBetweenRuns){
+            evaluator.cache?.clear()
+        }
         // randomly assign a new starting point
         val startPoint = startingPoint()
         restartingSolver.startingPoint = startPoint
