@@ -1,6 +1,23 @@
 package ksl.simopt.evaluator
 
-interface RunSimulationsForResponseMapsIfc {
+interface RequestSimulatorIfc {
+
+    /**
+     *  Control whether the evaluator switches to the use of common random numbers (CRN).
+     *  When the evaluator starts using CRN, it will continue to use CRN until told
+     *  not to use CRN.
+     *
+     * @param modelIdentifier the model identifier of the model for application of CRN
+     *  @param crnOption if true, the evaluator should start using common random numbers
+     *  when evaluating requests.
+     */
+    fun useCommonRandomNumbers(modelIdentifier: String, crnOption: Boolean)
+
+    /**
+     * Returns true if the CRN option is on for the identified model.
+     * @param modelIdentifier the model identifier of the model for application of CRN
+     */
+    fun crnOption(modelIdentifier: String) : Boolean
 
     /**
      * Executes multiple simulations based on the provided list of request data and maps each request
@@ -16,6 +33,6 @@ interface RunSimulationsForResponseMapsIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    fun runSimulationsForResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>>
+    fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>>
 
 }

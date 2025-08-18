@@ -12,7 +12,7 @@ import ksl.simulation.Model
  *  and collect the desired responses.
  *
  */
-interface SimulationServiceIfc : RunSimulationsForResponseMapsIfc {
+interface SimulationServiceIfc : RequestSimulatorIfc {
 
     /**
      * @param modelIdentifier the string identifier for the model to be executed
@@ -102,7 +102,7 @@ interface SimulationServiceIfc : RunSimulationsForResponseMapsIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    override fun runSimulationsForResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+    override fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
         val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
         for (request in requests) {
@@ -173,8 +173,6 @@ interface SimulationServiceIfc : RunSimulationsForResponseMapsIfc {
                 // get the data from the simulation
                 val data = replicationData[name]!!
                 // compute the estimates from the replication data
-                //TODO There might not be enough data to compute an estimated response
-                // What if the data array has one value.  Can only compute variance if n >= 2
                 val estimatedResponse = EstimatedResponse(name, data)
                 // place the estimate in the response map
                 responseMap.add(estimatedResponse)
@@ -205,16 +203,20 @@ interface SimulationServiceIfc : RunSimulationsForResponseMapsIfc {
         @Suppress("unused")
         fun executeSimulation(request: RequestData, model: Model, expIdentifier: String? = null): SimulationRun {
             val myOriginalExpRunParams = model.extractRunParameters()
-            val srp = if (request.experimentRunParameters != null) {
-                // assume that if the user supplied the parameters then the experiment name is appropriate
-                request.experimentRunParameters
-            } else {
-                // If no experiment run parameters were provided with the request, then use the model's defaults.
-                val p = model.extractRunParameters()
-                p.experimentName = if (expIdentifier != null) "${request.modelIdentifier}_Exp_$expIdentifier"
-                    else "${request.modelIdentifier}_Exp_${request.requestTime}"
-                p
-            }
+//            val srp = if (request.experimentRunParameters != null) {
+//                // assume that if the user supplied the parameters then the experiment name is appropriate
+//                request.experimentRunParameters
+//            } else {
+//                // If no experiment run parameters were provided with the request, then use the model's defaults.
+//                val p = model.extractRunParameters()
+//                p.experimentName = if (expIdentifier != null) "${request.modelIdentifier}_Exp_$expIdentifier"
+//                    else "${request.modelIdentifier}_Exp_${request.requestTime}"
+//                p
+//            }
+//            // If no experiment run parameters were provided with the request, then use the model's defaults.
+            val srp = model.extractRunParameters()
+            srp.experimentName = if (expIdentifier != null) "${request.modelIdentifier}_Exp_$expIdentifier"
+            else "${request.modelIdentifier}_Exp_${request.requestTime}"
             // ensure that the requested number of replications will be executed
             srp.numberOfReplications = request.numReplications
             logger.info { "SimulationService: Running simulation for model: ${request.modelIdentifier} experiment: ${srp.experimentName} " }

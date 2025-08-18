@@ -34,7 +34,6 @@ data class RequestData(
     val numReplications: Int,
     val inputs: Map<String, Double> = emptyMap(),
     val responseNames: Set<String> = emptySet(),
-    val experimentRunParameters: ExperimentRunParameters? = null, //TODO why is this needed?
     val requestTime: Instant = Clock.System.now()
 ) {
     init {
@@ -60,7 +59,6 @@ data class RequestData(
             numReplications = numReplications,
             inputs = this.inputs,
             responseNames = this.responseNames,
-            experimentRunParameters = this.experimentRunParameters,
             requestTime = Clock.System.now()
         )
     }
