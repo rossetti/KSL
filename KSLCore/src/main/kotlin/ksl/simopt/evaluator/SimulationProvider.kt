@@ -24,7 +24,7 @@ import ksl.simulation.Model
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    private val model: Model,
+    val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
     override var useCachedSimulationRuns: Boolean = false,
 ) : SimulationProviderIfc {
@@ -55,8 +55,6 @@ class SimulationProvider internal constructor(
      */
     private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
 
-    //TODO could add ExperimentDataCollector as an option
-
     /**
      *  Used to count the number of times that the simulation model is executed. Each execution can
      *  be considered a different experiment
@@ -75,10 +73,20 @@ class SimulationProvider internal constructor(
         executionCounter = 0
     }
 
-    override fun runSimulationsForResponseMaps(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+    override fun useCommonRandomNumbers(modelIdentifier: String, crnOption: Boolean) {
+        require(isModelValid(modelIdentifier)) {"The model identifier must be a valid model identifier for the provided model"}
+        model.resetStartStreamOption = crnOption
+    }
+
+    override fun crnOption(modelIdentifier: String): Boolean {
+        require(isModelValid(modelIdentifier)) {"The model identifier must be a valid model identifier for the provided model"}
+        return model.resetStartStreamOption
+    }
+
+    override fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
         val results = mutableMapOf<RequestData, Result<ResponseMap>>()
         for (request in requests) {
-            //TODO validate request??
+            require(isRequestValid(request)) {"The request is not valid for the provided model"}
             if ((simulationRunCache != null) && useCachedSimulationRuns) {
                 // use the cache instead of run the simulation
                 respondFromCache(request, results)
@@ -105,7 +113,7 @@ class SimulationProvider internal constructor(
         request: RequestData,
         results: MutableMap<RequestData, Result<ResponseMap>>
     ) {
-        if ((simulationRunCache != null) ){
+        if ((simulationRunCache != null)) {
             // check if the request is in the cache
             if (simulationRunCache.containsKey(request)) {
                 // check if it has the appropriate number of replications
@@ -129,17 +137,11 @@ class SimulationProvider internal constructor(
         // update experiment name on the model and number of replications
         model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
         model.numberOfReplications = request.numReplications
-        if (request.experimentRunParameters != null) {
-            // update the name and the number of replications on the supplied parameters
-            request.experimentRunParameters.experimentName = model.experimentName
-            request.experimentRunParameters.numberOfReplications = model.numberOfReplications
-        }
         Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
             modelIdentifier = request.modelIdentifier,
             inputs = request.inputs,
-            experimentRunParameters = request.experimentRunParameters ?: model.extractRunParameters()
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
         // capture the simulation results
@@ -174,8 +176,6 @@ class SimulationProvider internal constructor(
             // get the data from the simulation
             val data = replicationData[name]!!
             // compute the estimates from the replication data
-            //TODO There might not be enough data to compute an estimated response
-            // What if the data array has one value.  Can only compute variance if n >= 2
             val estimatedResponse = EstimatedResponse(name, data)
             // place the estimate in the response map
             responseMap.add(estimatedResponse)
@@ -183,7 +183,6 @@ class SimulationProvider internal constructor(
         // capture the responses for each request
         results[request] = Result.success(responseMap)
     }
-
 
 
 }

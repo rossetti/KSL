@@ -148,6 +148,22 @@ open class SimulationService @JvmOverloads constructor(
         }
     }
 
+    override fun useCommonRandomNumbers(modelIdentifier: String, crnOption: Boolean) {
+        require(isModelProvided(modelIdentifier)) {"The service does not provide model $modelIdentifier"}
+        val model = modelProvider.provideModel(modelIdentifier)
+        model.resetStartStreamOption = crnOption
+        //TODO this is not going to work!!
+        TODO("Not yet implemented")
+    }
+
+    override fun crnOption(modelIdentifier: String): Boolean {
+        require(isModelProvided(modelIdentifier)) {"The service does not provide model $modelIdentifier"}
+        val model = modelProvider.provideModel(modelIdentifier)
+        //TODO this is not going to work!!
+        TODO("Not yet implemented")
+        return model.resetStartStreamOption
+    }
+
     companion object {
 
         /**

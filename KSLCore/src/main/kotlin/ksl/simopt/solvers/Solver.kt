@@ -666,7 +666,6 @@ abstract class Solver(
             numReps,
             inputMap,
             problemDefinition.allResponseNames.toSet(),
-            experimentRunParameters = null //TODO this is not being used here
         )
     }
 

@@ -12,6 +12,21 @@ interface EvaluatorIfc {
     val cache: SolutionCacheIfc?
 
     /**
+     *  Control whether the evaluator switches to the use of common random numbers (CRN).
+     *  When the evaluator starts using CRN, it will continue to use CRN until told
+     *  not to use CRN.
+     *
+     *  @param crnOption if true, the evaluator should start using common random numbers
+     *  when evaluating requests.
+     */
+    fun useCommonRandomNumbers(crnOption: Boolean)
+
+    /**
+     *  Indicates if the evaluator is set for using common random numbers
+     */
+    val crnOption: Boolean
+
+    /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
      *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.

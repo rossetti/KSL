@@ -17,7 +17,7 @@ import ksl.simulation.ModelBuilderIfc
  */
 class Evaluator @JvmOverloads constructor(
     val problemDefinition: ProblemDefinition,
-    private val simulator: RunSimulationsForResponseMapsIfc,
+    private val simulator: RequestSimulatorIfc,
     override val cache: SolutionCacheIfc? = null,
 ) : EvaluatorIfc {
 
@@ -75,6 +75,7 @@ class Evaluator @JvmOverloads constructor(
      *  This function resets all counters to 0, perhaps in preparation for another
      *  evaluation run.
      */
+    @Suppress("unused")
     fun resetEvaluationCounts() {
         EvaluatorIfc.logger.trace { "Resetting evaluator counts" }
         totalEvaluations = 0
@@ -85,6 +86,13 @@ class Evaluator @JvmOverloads constructor(
         totalOracleReplications = 0
         totalCachedReplications = 0
     }
+
+    override fun useCommonRandomNumbers(crnOption: Boolean) {
+        simulator.useCommonRandomNumbers(problemDefinition.modelIdentifier, crnOption)
+    }
+
+    override val crnOption: Boolean
+        get() = simulator.crnOption(problemDefinition.modelIdentifier)
 
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
@@ -212,7 +220,7 @@ class Evaluator @JvmOverloads constructor(
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
-        val cases = simulator.runSimulationsForResponseMaps(requests)
+        val cases = simulator.simulateRequests(requests)
         val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, result) in cases) {
