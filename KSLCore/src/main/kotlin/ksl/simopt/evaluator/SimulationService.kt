@@ -88,7 +88,7 @@ open class SimulationService @JvmOverloads constructor(
      * and other parameters necessary to execute the simulation
      * @return a result object wrapping a successful simulation run or an exception if the simulation fails
      */
-    override fun runSimulation(request: RequestData): Result<SimulationRun> {
+    override fun runSimulation(request: ModelInputs): Result<SimulationRun> {
         if (!isModelProvided(request.modelIdentifier)) {
             val msg = "The SimulationService does not provide model ${request.modelIdentifier}\n" +
                     "request: $request"
@@ -129,7 +129,7 @@ open class SimulationService @JvmOverloads constructor(
      * @return the cached simulation run if it exists, meets the requirements, and caching is enabled;
      * otherwise, null.
      */
-    protected fun retrieveFromCache(request: RequestData): SimulationRun? {
+    protected fun retrieveFromCache(request: ModelInputs): SimulationRun? {
         if (simulationRunCache == null) {
             return null // no cache, return null
         }

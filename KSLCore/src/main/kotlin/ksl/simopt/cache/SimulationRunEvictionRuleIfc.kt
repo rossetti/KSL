@@ -1,8 +1,8 @@
 package ksl.simopt.cache
 
-import ksl.simopt.evaluator.RequestData
+import ksl.simopt.evaluator.ModelInputs
 
 fun interface SimulationRunEvictionRuleIfc {
 
-    fun findEvictionCandidate(simulationRunCache: SimulationRunCacheIfc): RequestData
+    fun findEvictionCandidate(simulationRunCache: SimulationRunCacheIfc): ModelInputs
 }

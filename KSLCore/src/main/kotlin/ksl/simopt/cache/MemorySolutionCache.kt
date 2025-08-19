@@ -1,10 +1,9 @@
 package ksl.simopt.cache
 
-import ksl.simopt.evaluator.RequestData
+import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.SolutionData
 import ksl.simopt.evaluator.Solutions
-import ksl.simopt.problem.InputMap
 
 /**
  *  A memory-based cache to hold solutions.  A simplified cache to avoid including
@@ -28,7 +27,7 @@ class MemorySolutionCache(
         require(capacity >= 2) {"The cache's capacity must be >= 2"}
     }
 
-    private val map: MutableMap<RequestData, Solution> = mutableMapOf()
+    private val map: MutableMap<ModelInputs, Solution> = mutableMapOf()
 
     override var allowCacheLookups: Boolean = true
 
@@ -36,9 +35,9 @@ class MemorySolutionCache(
 
     override var evictionRule: EvictionRuleIfc? = null
 
-    override val entries: Set<Map.Entry<RequestData, Solution>>
+    override val entries: Set<Map.Entry<ModelInputs, Solution>>
         get() = map.entries
-    override val keys: Set<RequestData>
+    override val keys: Set<ModelInputs>
         get() = map.keys
     override val size: Int
         get() = map.size
@@ -52,7 +51,7 @@ class MemorySolutionCache(
         map.clear()
     }
 
-    override fun containsKey(key: RequestData): Boolean {
+    override fun containsKey(key: ModelInputs): Boolean {
         if (!allowCacheLookups) return false
         return map.containsKey(key)
     }
@@ -62,7 +61,7 @@ class MemorySolutionCache(
         return map.containsValue(value)
     }
 
-    override fun get(key: RequestData): Solution? {
+    override fun get(key: ModelInputs): Solution? {
         if (!allowCacheLookups) return null
         return map[key]
     }
@@ -72,17 +71,17 @@ class MemorySolutionCache(
         return map.isEmpty()
     }
 
-    override fun remove(requestData: RequestData): Solution? {
-        return map.remove(requestData)
+    override fun remove(modelInputs: ModelInputs): Solution? {
+        return map.remove(modelInputs)
     }
 
     override fun solutions(): Solutions {
         return Solutions(map.values.toList())
     }
 
-    override fun put(requestData: RequestData, solution: Solution): Solution? {
+    override fun put(modelInputs: ModelInputs, solution: Solution): Solution? {
         if (!allowCachePuts) return null
-        require(requestData.inputs == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
+        require(modelInputs.inputs == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
         //TODO this may be too quiet
         if(!solution.isInputFeasible()){
             return null
@@ -92,7 +91,7 @@ class MemorySolutionCache(
             remove(itemToEvict)
         }
         require(size < capacity) { "The eviction of members did not work. No capacity for item in the cache." }
-        return map.put(requestData, solution)
+        return map.put(modelInputs, solution)
     }
 
     /**
@@ -102,7 +101,7 @@ class MemorySolutionCache(
      *   - the first solution with an infinite (or NaN) objective function or
      *   - the first solution (oldest) with the maximum penalized objective function.
      */
-    fun findEvictionCandidate(): RequestData {
+    fun findEvictionCandidate(): ModelInputs {
         if (size == 1) {
             return keys.toList().first()
         }
@@ -127,7 +126,7 @@ class MemorySolutionCache(
         // If here, then solutions were deterministically feasible with non-problematic objective function values.
         // Find the oldest, largest solution to evict.
         var largestSolValue = Double.MAX_VALUE
-        var candidate: RequestData? = null
+        var candidate: ModelInputs? = null
         for((inputMap, solution) in map) {
             val possibleMax = solution.penalizedObjFncValue
             if (possibleMax < largestSolValue){

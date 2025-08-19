@@ -1,14 +1,14 @@
 package ksl.simopt.cache
 
 import ksl.controls.experiments.SimulationRun
-import ksl.simopt.evaluator.RequestData
+import ksl.simopt.evaluator.ModelInputs
 import ksl.utilities.io.ToJSONIfc
 
 /**
  *  A simulation run cache should be designed to efficiently look up a simulation run
  *  based on a given set of input settings.
  */
-interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
+interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
 
     /**
      *  The maximum permitted size of the cache
@@ -25,20 +25,20 @@ interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
      *  ensure that the input names and response names associated with the request are consistent with the
      *  input names and response names of the simulation run.
      */
-    fun put(requestData: RequestData, simulationRun: SimulationRun): SimulationRun?
+    fun put(modelInputs: ModelInputs, simulationRun: SimulationRun): SimulationRun?
 
     /**
      *  Looks up and removes the simulation run associated with the supplied request.
      *  Null is returned if there is no associated simulation run. It is important
      *  that implementors handle the reduced size relative to the cache.
      */
-    fun remove(requestData: RequestData): SimulationRun?
+    fun remove(modelInputs: ModelInputs): SimulationRun?
 
     /**
      *  Places all input-solution pairs into the cache
      */
     @Suppress("unused")
-    fun putAll(from: Map<out RequestData, SimulationRun>) {
+    fun putAll(from: Map<out ModelInputs, SimulationRun>) {
         for ((input, simulationRun) in from) {
             put(input, simulationRun)
         }
@@ -57,8 +57,8 @@ interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
      *  Retrieves the simulation runs associated with the requests
      */
     @Suppress("unused")
-    fun retrieveSimulationRuns(requests: List<RequestData>): MutableMap<RequestData, SimulationRun> {
-        val mm = mutableMapOf<RequestData, SimulationRun>()
+    fun retrieveSimulationRuns(requests: List<ModelInputs>): MutableMap<ModelInputs, SimulationRun> {
+        val mm = mutableMapOf<ModelInputs, SimulationRun>()
         for (request in requests) {
             val simulationRun = get(request)
             if (simulationRun != null) {
@@ -71,8 +71,8 @@ interface SimulationRunCacheIfc : Map<RequestData, SimulationRun>, ToJSONIfc {
     /**
      *  Allows use of bracket operator for setting values
      */
-    operator fun set(requestData: RequestData, simulationRun: SimulationRun) {
-        put(requestData, simulationRun)
+    operator fun set(modelInputs: ModelInputs, simulationRun: SimulationRun) {
+        put(modelInputs, simulationRun)
     }
 
     /**

@@ -62,7 +62,7 @@ interface SimulationProviderIfc : RequestSimulatorIfc {
      *  then the current input settings of the model will be used and all responses from the simulation will be returned.
      */
     @Suppress("unused")
-    fun isRequestValid(request: RequestData): Boolean {
+    fun isRequestValid(request: ModelInputs): Boolean {
         if (!isModelValid(request.modelIdentifier)) return false
         // check input names
         if (!areInputNamesValid(request.inputs.keys)) return false

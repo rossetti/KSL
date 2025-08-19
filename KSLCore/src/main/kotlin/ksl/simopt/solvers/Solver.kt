@@ -653,7 +653,7 @@ abstract class Solver(
     protected fun createRequest(
         inputMap: InputMap,
         numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
-    ): RequestData {
+    ): ModelInputs {
         if (ensureProblemFeasibleRequests) {
             require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
@@ -661,7 +661,7 @@ abstract class Solver(
         numReplicationsRequested = numReplicationsRequested + numReps
         // the input map will be range-feasible but may not be problem-feasible.
         // since the input map is immutable, so is the RequestData instance
-        return RequestData(
+        return ModelInputs(
             problemDefinition.modelIdentifier,
             numReps,
             inputMap,
@@ -714,15 +714,15 @@ abstract class Solver(
     private fun prepareEvaluationRequests(
         inputs: Set<InputMap>,
         numReps: Int
-    ): List<RequestData> {
-        val list = mutableListOf<RequestData>()
+    ): List<ModelInputs> {
+        val list = mutableListOf<ModelInputs>()
         for (input in inputs) {
             list.add(createRequest(input, numReps))
         }
         return list
     }
 
-    private fun requestEvaluations(requests: List<RequestData>): List<Solution> {
+    private fun requestEvaluations(requests: List<ModelInputs>): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
         numOracleCalls = numOracleCalls + requests.size
         return evaluator.evaluate(requests)

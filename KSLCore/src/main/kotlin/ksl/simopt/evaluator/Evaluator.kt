@@ -98,7 +98,7 @@ class Evaluator @JvmOverloads constructor(
      *  @param rawRequests a list of evaluation requests
      *  @return a list containing a solution for each request
      */
-    override fun evaluate(rawRequests: List<RequestData>): List<Solution> {
+    override fun evaluate(rawRequests: List<ModelInputs>): List<Solution> {
         EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
@@ -160,9 +160,9 @@ class Evaluator @JvmOverloads constructor(
      *  @param uniqueRequests the requests that need evaluation
      */
     private fun reviseRequests(
-        cachedSolutions: MutableMap<RequestData, Solution>,
-        uniqueRequests: List<RequestData>
-    ): List<RequestData> {
+        cachedSolutions: MutableMap<ModelInputs, Solution>,
+        uniqueRequests: List<ModelInputs>
+    ): List<ModelInputs> {
         // The cached solutions map has the solutions that are associated with the requests.
         // The uniqueRequests list holds the possible requests that could be simulated.
         if (cachedSolutions.isEmpty()) {
@@ -171,7 +171,7 @@ class Evaluator @JvmOverloads constructor(
             return uniqueRequests
         }
         // There are some cached solutions that need to be reviewed.
-        val revisedRequests = mutableListOf<RequestData>()
+        val revisedRequests = mutableListOf<ModelInputs>()
         for (request in uniqueRequests) {
             val cachedSolution = cachedSolutions[request]
             if (cachedSolution != null){
@@ -206,15 +206,15 @@ class Evaluator @JvmOverloads constructor(
      * @return a map of evaluation requests with their accompanying solution
      */
     private fun evaluateViaSimulation(
-        requests: List<RequestData>
-    ): Map<RequestData, Solution> {
+        requests: List<ModelInputs>
+    ): Map<ModelInputs, Solution> {
         require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
         totalOracleEvaluations = totalOracleEvaluations + requests.size
         totalOracleReplications = totalOracleReplications + requests.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
         val cases = simulator.simulateRequests(requests)
-        val solutions: MutableMap<RequestData, Solution> = mutableMapOf()
+        val solutions: MutableMap<ModelInputs, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, result) in cases) {
             solutions[request] = if (result.isFailure) {
@@ -234,7 +234,7 @@ class Evaluator @JvmOverloads constructor(
      *  @param responseMap the response map to convert
      */
     private fun createSolution(
-        request: RequestData,
+        request: ModelInputs,
         responseMap: ResponseMap,
     ): Solution {
         val objFnName = problemDefinition.objFnResponseName
@@ -263,7 +263,7 @@ class Evaluator @JvmOverloads constructor(
      *  and the supplied solution are not changed during the merging process.
      */
     private fun mergeSolution(
-        request: RequestData,
+        request: ModelInputs,
         firstSolution: Solution,
         secondSolution: Solution,
     ): Solution {
@@ -310,8 +310,8 @@ class Evaluator @JvmOverloads constructor(
          * @return a list of evaluation requests that are unique
          */
         @JvmStatic
-        fun filterToUniqueRequests(requests: List<RequestData>): List<RequestData> {
-            val uniqueRequests = mutableMapOf<RequestData, RequestData>()
+        fun filterToUniqueRequests(requests: List<ModelInputs>): List<ModelInputs> {
+            val uniqueRequests = mutableMapOf<ModelInputs, ModelInputs>()
 
             // Since requests are the same based on the values of their input maps,
             // we need only update the duplicate so that it has the maximum of any duplicate entries.
@@ -410,6 +410,6 @@ class Evaluator @JvmOverloads constructor(
  *  A simple extension function to compute the total number of replications within a set
  *  of evaluation requests.
  */
-fun List<RequestData>.totalReplications(): Int {
+fun List<ModelInputs>.totalReplications(): Int {
     return sumOf { it.numReplications }
 }

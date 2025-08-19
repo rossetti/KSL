@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class EvaluationRequest(
     val modelIdentifier: String,
-    val requests: List<RequestData>,
+    val requests: List<ModelInputs>,
     val crnOption: Boolean = false
 ) {
     init {
@@ -31,7 +31,7 @@ data class EvaluationRequest(
      *  The CRN option is false by default because it is a single request. CRN is applied
      *  across multiple evaluations.
      */
-    constructor(modelIdentifier: String, request: RequestData,) : this(
+    constructor(modelIdentifier: String, request: ModelInputs,) : this(
         modelIdentifier = modelIdentifier,
         requests = listOf(request),
     )
