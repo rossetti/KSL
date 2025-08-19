@@ -81,9 +81,30 @@ class Evaluator @JvmOverloads constructor(
 
     override fun evaluate(evaluationRequest: EvaluationRequest): List<Solution> {
         val rawRequests = evaluationRequest.modelInputs
-        EvaluatorIfc.logger.trace { "Evaluator: $evaluationRequest" }
+        EvaluatorIfc.logger.trace { "Evaluator: evaluate() : $evaluationRequest" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
+        if (evaluationRequest.crnOption) {
+            // the provider should handle the CRN
+            // simulate the requests with no caching
+            val simulatedSolutions = evaluateViaSimulation(evaluationRequest)
+            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
+            // if the cache exists update the cache with new results (update or replace)?
+        } else {
+            if (cache != null) {
+                if (evaluationRequest.cachingAllowed) {
+                    // need to check the cache and adjust the requests for additional replications
+                    // simulate the adjusted requests
+                    // update the cache with the new results
+                } else {
+                    // simulate the requests with no caching
+                    // update the cache with new results
+                }
+            } else {
+                // simulate the requests with no caching
+                // no need to update the cache because it does not exist
+            }
+        }
 
         TODO("Not yet implemented")
     }
@@ -175,7 +196,7 @@ class Evaluator @JvmOverloads constructor(
         val revisedRequests = mutableListOf<ModelInputs>()
         for (request in uniqueRequests) {
             val cachedSolution = cachedSolutions[request]
-            if (cachedSolution != null){
+            if (cachedSolution != null) {
                 // Found the request in the cache. Need to update it.
                 // Determine the number of replications stored in the cache for the associated solution.
                 val numRepsInCache = cachedSolution.count.toInt()
