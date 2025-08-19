@@ -1,5 +1,8 @@
 package ksl.simopt.evaluator
 
+/**
+ *  An interface to define something that can simulate requests.
+ */
 interface RequestSimulatorIfc {
 
     /**
