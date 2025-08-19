@@ -1,15 +1,14 @@
 package ksl.simopt.cache
 
-import ksl.simopt.evaluator.RequestData
+import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
 import ksl.simopt.evaluator.Solutions
-import ksl.utilities.io.KSL
 
 /**
  *  A solution cache should be designed to efficiently look up a solution
  *  based on a given set of input settings.
  */
-interface SolutionCacheIfc : Map<RequestData, Solution> {
+interface SolutionCacheIfc : Map<ModelInputs, Solution> {
 
     /**
      *  If true, the cache will allow lookups of solutions
@@ -51,19 +50,19 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
      *  handle the insertion of infeasible inputs and ensure that the input
      *  map is associated with the solution
      */
-    fun put(requestData: RequestData, solution: Solution): Solution?
+    fun put(modelInputs: ModelInputs, solution: Solution): Solution?
 
     /**
      *  Looks up and removes the solution associated with the supplied input map.
      *  Null is returned if there is no associated solution. It is important
      *  that implementors handle the reduced size relative to the cache.
      */
-    fun remove(requestData: RequestData): Solution?
+    fun remove(modelInputs: ModelInputs): Solution?
 
     /**
      *  Places all input-solution pairs into the cache
      */
-    fun putAll(from: Map<out RequestData, Solution>) {
+    fun putAll(from: Map<out ModelInputs, Solution>) {
         if (!allowCachePuts) return
         for ((input, solution) in from) {
             put(input, solution)
@@ -78,8 +77,8 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
     /**
      *  Retrieves the solutions associated with the requests
      */
-    fun retrieveSolutions(requests: List<RequestData>): MutableMap<RequestData, Solution> {
-        val mm = mutableMapOf<RequestData, Solution>()
+    fun retrieveSolutions(requests: List<ModelInputs>): MutableMap<ModelInputs, Solution> {
+        val mm = mutableMapOf<ModelInputs, Solution>()
         if (!allowCacheLookups) {
             return mm
         }
@@ -95,8 +94,8 @@ interface SolutionCacheIfc : Map<RequestData, Solution> {
     /**
      *  Allows use of bracket operator for setting values
      */
-    operator fun set(requestData: RequestData, solution: Solution) {
-        put(requestData, solution)
+    operator fun set(modelInputs: ModelInputs, solution: Solution) {
+        put(modelInputs, solution)
     }
 
     /**

@@ -63,7 +63,7 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
      * and other parameters necessary to execute the simulation
      * @return a result object wrapping a successful simulation run or an exception if the simulation fails
      */
-    fun runSimulation(request: RequestData): Result<SimulationRun>
+    fun runSimulation(request: ModelInputs): Result<SimulationRun>
 
     /**
      * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
@@ -75,7 +75,7 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
      * @return a result wrapping a map where each key is the provided request, and the value
      *         is the corresponding ResponseMap. If the simulation fails, the result contains an error.
      */
-    fun runSimulationToResponseMap(request: RequestData): Result<ResponseMap> {
+    fun runSimulationToResponseMap(request: ModelInputs): Result<ResponseMap> {
         val simulationRunResult = runSimulation(request)
         simulationRunResult.onFailure {
             return Result.failure(it)
@@ -102,9 +102,9 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    override fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
+    override fun simulateRequests(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
-        val resultMap = mutableMapOf<RequestData, Result<ResponseMap>>()
+        val resultMap = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (request in requests) {
             resultMap[request] = runSimulationToResponseMap(request)
         }
@@ -125,9 +125,9 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    fun runSimulations(requests: List<RequestData>): Map<RequestData, Result<SimulationRun>> {
+    fun runSimulations(requests: List<ModelInputs>): Map<ModelInputs, Result<SimulationRun>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
-        val resultMap = mutableMapOf<RequestData, Result<SimulationRun>>()
+        val resultMap = mutableMapOf<ModelInputs, Result<SimulationRun>>()
         for (request in requests) {
             resultMap[request] = runSimulation(request)
         }
@@ -154,7 +154,7 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
          *  @throws IllegalArgumentException if the provided simulation run has an error.
          */
         fun simulationRunToResponseMap(
-            request: RequestData,
+            request: ModelInputs,
             simulationRun: SimulationRun
         ): ResponseMap {
             require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
@@ -201,7 +201,7 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
          *         runErrorMsg property will not be empty (blank).
          */
         @Suppress("unused")
-        fun executeSimulation(request: RequestData, model: Model, expIdentifier: String? = null): SimulationRun {
+        fun executeSimulation(request: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
             val myOriginalExpRunParams = model.extractRunParameters()
 //            val srp = if (request.experimentRunParameters != null) {
 //                // assume that if the user supplied the parameters then the experiment name is appropriate

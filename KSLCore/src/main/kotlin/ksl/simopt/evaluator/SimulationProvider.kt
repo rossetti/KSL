@@ -73,8 +73,8 @@ class SimulationProvider internal constructor(
         executionCounter = 0
     }
 
-    override fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
-        val results = mutableMapOf<RequestData, Result<ResponseMap>>()
+    override fun simulateRequests(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+        val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (request in requests) {
             require(isRequestValid(request)) {"The request is not valid for the provided model"}
             if ((simulationRunCache != null) && useCachedSimulationRuns) {
@@ -100,8 +100,8 @@ class SimulationProvider internal constructor(
     }
 
     private fun respondFromCache(
-        request: RequestData,
-        results: MutableMap<RequestData, Result<ResponseMap>>
+        request: ModelInputs,
+        results: MutableMap<ModelInputs, Result<ResponseMap>>
     ) {
         if ((simulationRunCache != null)) {
             // check if the request is in the cache
@@ -120,8 +120,8 @@ class SimulationProvider internal constructor(
     }
 
     private fun executeSimulation(
-        request: RequestData,
-        results: MutableMap<RequestData, Result<ResponseMap>>
+        request: ModelInputs,
+        results: MutableMap<ModelInputs, Result<ResponseMap>>
     ) {
         executionCounter++
         // update experiment name on the model and number of replications
@@ -143,9 +143,9 @@ class SimulationProvider internal constructor(
     }
 
     private fun captureResults(
-        request: RequestData,
+        request: ModelInputs,
         simulationRun: SimulationRun,
-        results: MutableMap<RequestData, Result<ResponseMap>>
+        results: MutableMap<ModelInputs, Result<ResponseMap>>
     ) {
         if (simulationRun.runErrorMsg.isNotEmpty()) {
             results[request] = Result.failure(SimulationRunException(simulationRun))

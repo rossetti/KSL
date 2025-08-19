@@ -3,14 +3,13 @@ package ksl.simopt.evaluator
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
-import ksl.controls.experiments.ExperimentRunParameters
 
 
 /**
  *  The data associated with a request for a simulation evaluation.  A critical aspect of this
- *  implementation is the equality of instances is determined.
+ *  implementation is how the equality of instances is determined.
  *
- *  Two instances of RequestData are considered equal if:
+ *  Two instances of [ModelInputs] are considered equal if:
  *
  *  1. the [modelIdentifier] properties are equal, and
  *  2. the [responseNames] properties are equal (contain all the same response names), and
@@ -24,12 +23,10 @@ import ksl.controls.experiments.ExperimentRunParameters
  *  @param responseNames the names of the response variables requested from the simulation results.
  *  If no response names are provided, then all responses from the simulation will be returned. The default
  *  is all responses from the model.
- *  @param experimentRunParameters an optional set of simulation run parameters for application to the model.
- *  If not supplied, then the model's current (default) settings will be used.
  *  @param requestTime the instant that the request was constructed
  */
 @Serializable
-data class RequestData(
+data class ModelInputs(
     val modelIdentifier: String,
     val numReplications: Int,
     val inputs: Map<String, Double> = emptyMap(),
@@ -51,10 +48,10 @@ data class RequestData(
      *  Creates a duplicate instance of the object with the specified number of
      *  replications.
      */
-    fun instance(numReplications: Int): RequestData {
+    fun instance(numReplications: Int): ModelInputs {
         require(numReplications > 0) { "Number of reps must be greater than zero" }
         //TODO this is being called within Evaluator when revising the request.
-        return RequestData(
+        return ModelInputs(
             modelIdentifier = this.modelIdentifier,
             numReplications = numReplications,
             inputs = this.inputs,
@@ -71,7 +68,7 @@ data class RequestData(
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as RequestData
+        other as ModelInputs
 
         if (modelIdentifier != other.modelIdentifier) return false
         if (responseNames != other.responseNames) return false

@@ -19,6 +19,6 @@ interface RequestSimulatorIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>>
+    fun simulateRequests(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>>
 
 }
