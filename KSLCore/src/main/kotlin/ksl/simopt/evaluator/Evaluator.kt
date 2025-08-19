@@ -87,13 +87,6 @@ class Evaluator @JvmOverloads constructor(
         totalCachedReplications = 0
     }
 
-    override fun useCommonRandomNumbers(crnOption: Boolean) {
-        simulator.useCommonRandomNumbers(problemDefinition.modelIdentifier, crnOption)
-    }
-
-    override val crnOption: Boolean
-        get() = simulator.crnOption(problemDefinition.modelIdentifier)
-
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
      *  solution cache (if present) or via evaluations by the simulation oracle.  The list of

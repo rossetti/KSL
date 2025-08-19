@@ -73,16 +73,6 @@ class SimulationProvider internal constructor(
         executionCounter = 0
     }
 
-    override fun useCommonRandomNumbers(modelIdentifier: String, crnOption: Boolean) {
-        require(isModelValid(modelIdentifier)) {"The model identifier must be a valid model identifier for the provided model"}
-        model.resetStartStreamOption = crnOption
-    }
-
-    override fun crnOption(modelIdentifier: String): Boolean {
-        require(isModelValid(modelIdentifier)) {"The model identifier must be a valid model identifier for the provided model"}
-        return model.resetStartStreamOption
-    }
-
     override fun simulateRequests(requests: List<RequestData>): Map<RequestData, Result<ResponseMap>> {
         val results = mutableMapOf<RequestData, Result<ResponseMap>>()
         for (request in requests) {
