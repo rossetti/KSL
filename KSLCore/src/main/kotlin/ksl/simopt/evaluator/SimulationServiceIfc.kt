@@ -12,7 +12,7 @@ import ksl.simulation.Model
  *  and collect the desired responses.
  *
  */
-interface SimulationServiceIfc : RequestSimulatorIfc {
+interface SimulationServiceIfc : SimulationOracleIfc {
 
     /**
      * @param modelIdentifier the string identifier for the model to be executed
@@ -102,13 +102,17 @@ interface SimulationServiceIfc : RequestSimulatorIfc {
      * @throws IllegalArgumentException if the input list of requests is empty.
      */
     @Suppress("unused")
-    override fun simulateRequests(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+    private fun simulate(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         require(requests.isNotEmpty()) { "The supplied list of requests was empty!" }
         val resultMap = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (request in requests) {
             resultMap[request] = runSimulationToResponseMap(request)
         }
         return resultMap
+    }
+
+    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+        TODO("Not yet implemented")
     }
 
     /**

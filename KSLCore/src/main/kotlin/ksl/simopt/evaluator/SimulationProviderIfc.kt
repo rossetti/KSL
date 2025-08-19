@@ -10,13 +10,13 @@ import ksl.simopt.cache.SimulationRunCacheIfc
  *  represents the desired responses from the simulation. It should
  *  contain the replication averages for each desired response.
  */
-interface SimulationProviderIfc : RequestSimulatorIfc {
+interface SimulationProviderIfc : SimulationOracleIfc {
 
     /**
      *  Indicates if the simulation provider should use cached simulation runs
      *  when responding to requests.
      */
-    var useCachedSimulationRuns: Boolean
+    var useCachedSimulationRuns: Boolean //TODO consider deletion
 
     /**
      *  Use to hold executed simulation runs.

@@ -17,7 +17,7 @@ import ksl.simulation.ModelBuilderIfc
  */
 class Evaluator @JvmOverloads constructor(
     val problemDefinition: ProblemDefinition,
-    private val simulator: RequestSimulatorIfc,
+    private val simulator: SimulationOracleIfc,
     override val cache: SolutionCacheIfc? = null,
 ) : EvaluatorIfc {
 
@@ -43,13 +43,6 @@ class Evaluator @JvmOverloads constructor(
      *  The total number of evaluation requests that were received.
      */
     var totalRequestsReceived: Int = 0
-        private set
-
-    /**
-     *  The total number of evaluation requests received that were duplicates in
-     *  terms of inputs.
-     */
-    var totalDuplicateRequestReceived: Int = 0
         private set
 
     /**
@@ -82,73 +75,81 @@ class Evaluator @JvmOverloads constructor(
         totalOracleEvaluations = 0
         totalCachedEvaluations = 0
         totalRequestsReceived = 0
-        totalDuplicateRequestReceived = 0
         totalOracleReplications = 0
         totalCachedReplications = 0
     }
 
-    /**
-     *  Processes the supplied requests for solutions. The solutions may come from an associated
-     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
-     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
-     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
-     *  solutions that result due to the processing will be entered into the cache (according
-     *  to the rules governing the cache).
-     *
-     *  @param rawRequests a list of evaluation requests
-     *  @return a list containing a solution for each request
-     */
-    override fun evaluate(rawRequests: List<ModelInputs>): List<Solution> {
-        EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
+    override fun evaluate(evaluationRequest: EvaluationRequest): List<Solution> {
+        val rawRequests = evaluationRequest.modelInputs
+        EvaluatorIfc.logger.trace { "Evaluator: $evaluationRequest" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + rawRequests.size
-        EvaluatorIfc.logger.trace { "Total Evaluations $totalEvaluations, total requests received $totalRequestsReceived" }
-        // Filter out the duplicate requests. This also returns the requests that have the most replications.
-        val uniqueRequests = filterToUniqueRequests(rawRequests)
-        totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
-        EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
-        // check with the cache for solutions
-        val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
-        EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
-        // the returned map is either empty or contains solutions associated with some requests
-        // update and filter the requests based on the replications in the solution cache
-        val requestsToSimulate = reviseRequests(solutionMap, uniqueRequests)
-        EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
-        // evaluate remaining requests and update solutions
-        if (requestsToSimulate.isNotEmpty()) {
-            //TODO since Solution contains InputMap, the association with EvaluationRequest may not be needed
-            val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
-            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
-            // since some requests could have needed additional replications, we may need to merge solutions
-            // from the cache with solutions performed by the oracle
-            for ((request, simulatedSolution) in simulatedSolutions) {
-                if (solutionMap.containsKey(request)) {
-                    // merge the solution with the cached solution
-                    EvaluatorIfc.logger.trace { "Merging solution with cached solution in solution map." }
-                    val cachedSolution = solutionMap[request]!!
-                    solutionMap[request] = mergeSolution(request, cachedSolution, simulatedSolution)
-                } else {
-                    EvaluatorIfc.logger.trace { "Adding solution to the solution map without merging with cached solution." }
-                    solutionMap[request] = simulatedSolution
-                }
-            }
-            // update the cache with any new solutions after possible merging
-            if (cache != null) {
-                EvaluatorIfc.logger.trace { "Updating cache with ${solutionMap.size} solutions" }
-                for ((inputMap, solution) in solutionMap) {
-                    cache[inputMap] = solution
-                }
-            }
-        }
-        // package the solutions up for each request in the order that was requested
-        // handle the duplicate input requests by grabbing from the solution map based on the input of the request
-        val solutions = mutableListOf<Solution>()
-        for (request in rawRequests) {
-            solutions.add(solutionMap[request]!!)
-        }
-        EvaluatorIfc.logger.trace { "Packaged ${solutions.size} solutions for return" }
-        return solutions
+
+        TODO("Not yet implemented")
     }
+
+//    /**
+//     *  Processes the supplied requests for solutions. The solutions may come from an associated
+//     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
+//     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
+//     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
+//     *  solutions that result due to the processing will be entered into the cache (according
+//     *  to the rules governing the cache).
+//     *
+//     *  @param rawRequests a list of evaluation requests
+//     *  @return a list containing a solution for each request
+//     */
+//    private fun evaluate(rawRequests: List<ModelInputs>): List<Solution> {
+//        EvaluatorIfc.logger.trace { "Evaluating ${rawRequests.size} requests" }
+//        totalEvaluations++
+//        totalRequestsReceived = totalRequestsReceived + rawRequests.size
+//        EvaluatorIfc.logger.trace { "Total Evaluations $totalEvaluations, total requests received $totalRequestsReceived" }
+//        // Filter out the duplicate requests. This also returns the requests that have the most replications.
+//        val uniqueRequests = filterToUniqueRequests(rawRequests)
+//        totalDuplicateRequestReceived = totalDuplicateRequestReceived + (rawRequests.size - uniqueRequests.size)
+//        EvaluatorIfc.logger.trace { "Total total duplicate requests received $totalDuplicateRequestReceived" }
+//        // check with the cache for solutions
+//        val solutionMap = cache?.retrieveSolutions(uniqueRequests) ?: mutableMapOf()
+//        EvaluatorIfc.logger.trace { "Solutions found in the cache: ${solutionMap.size}" }
+//        // the returned map is either empty or contains solutions associated with some requests
+//        // update and filter the requests based on the replications in the solution cache
+//        val requestsToSimulate = reviseRequests(solutionMap, uniqueRequests)
+//        EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
+//        // evaluate remaining requests and update solutions
+//        if (requestsToSimulate.isNotEmpty()) {
+//            //TODO since Solution contains InputMap, the association with ModelInputs may not be needed
+//            val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
+//            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
+//            // since some requests could have needed additional replications, we may need to merge solutions
+//            // from the cache with solutions performed by the oracle
+//            for ((request, simulatedSolution) in simulatedSolutions) {
+//                if (solutionMap.containsKey(request)) {
+//                    // merge the solution with the cached solution
+//                    EvaluatorIfc.logger.trace { "Merging solution with cached solution in solution map." }
+//                    val cachedSolution = solutionMap[request]!!
+//                    solutionMap[request] = mergeSolution(request, cachedSolution, simulatedSolution)
+//                } else {
+//                    EvaluatorIfc.logger.trace { "Adding solution to the solution map without merging with cached solution." }
+//                    solutionMap[request] = simulatedSolution
+//                }
+//            }
+//            // update the cache with any new solutions after possible merging
+//            if (cache != null) {
+//                EvaluatorIfc.logger.trace { "Updating cache with ${solutionMap.size} solutions" }
+//                for ((inputMap, solution) in solutionMap) {
+//                    cache[inputMap] = solution
+//                }
+//            }
+//        }
+//        // package the solutions up for each request in the order that was requested
+//        // handle the duplicate input requests by grabbing from the solution map based on the input of the request
+//        val solutions = mutableListOf<Solution>()
+//        for (request in rawRequests) {
+//            solutions.add(solutionMap[request]!!)
+//        }
+//        EvaluatorIfc.logger.trace { "Packaged ${solutions.size} solutions for return" }
+//        return solutions
+//    }
 
     /**
      *  Because the cache can satisfy some replications,
@@ -202,18 +203,18 @@ class Evaluator @JvmOverloads constructor(
     /**
      * Evaluate directly via the simulation oracle (without accessing the cache).
      *
-     * @param requests  list of requests (design vector input and number of desired replications)
-     * @return a map of evaluation requests with their accompanying solution
+     * @param evaluationRequest  the requested evaluations (input, number of desired replications, and CRN requirements)
+     * @return a map of the model inputs with their accompanying solution evaluations
      */
     private fun evaluateViaSimulation(
-        requests: List<ModelInputs>
+        evaluationRequest: EvaluationRequest
     ): Map<ModelInputs, Solution> {
-        require(requests.isNotEmpty()) { "Cannot evaluate a list of empty requests!" }
-        totalOracleEvaluations = totalOracleEvaluations + requests.size
-        totalOracleReplications = totalOracleReplications + requests.totalReplications()
+        val modelInputs = evaluationRequest.modelInputs
+        totalOracleEvaluations = totalOracleEvaluations + modelInputs.size
+        totalOracleReplications = totalOracleReplications + modelInputs.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
-        val cases = simulator.simulateRequests(requests)
+        val cases = simulator.simulate(evaluationRequest)
         val solutions: MutableMap<ModelInputs, Solution> = mutableMapOf()
         // Converts (EvaluationRequest, ResponseMap) pairs to (EvaluationRequest, Solution)
         for ((request, result) in cases) {
@@ -285,7 +286,6 @@ class Evaluator @JvmOverloads constructor(
             appendLine("totalOracleEvaluations = $totalOracleEvaluations")
             appendLine("totalCachedEvaluations = $totalCachedEvaluations")
             appendLine("totalRequestsReceived = $totalRequestsReceived")
-            appendLine("totalDuplicateRequestReceived = $totalDuplicateRequestReceived")
             appendLine("totalCachedReplications = $totalCachedReplications")
             appendLine("totalOracleReplications = $totalOracleReplications")
             appendLine("totalReplications = $totalReplications")

@@ -73,7 +73,13 @@ class SimulationProvider internal constructor(
         executionCounter = 0
     }
 
-    override fun simulateRequests(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+
+
+        TODO("Not yet implemented")
+    }
+
+    private fun simulate(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (request in requests) {
             require(isRequestValid(request)) {"The request is not valid for the provided model"}

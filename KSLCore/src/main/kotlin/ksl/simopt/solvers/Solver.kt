@@ -648,16 +648,16 @@ abstract class Solver(
      *  constraints of the problem.
      *
      *  @param inputMap the input variables and their values for the request
-     *  @return the instance of RequestData that can be sent for evaluation
+     *  @return the instance of ModelInputs that can be sent for evaluation
      */
-    protected fun createRequest(
+    protected fun createModelInputs(
         inputMap: InputMap,
         numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
     ): ModelInputs {
         if (ensureProblemFeasibleRequests) {
             require(inputMap.isInputFeasible()) { "The input settings were infeasible for the problem when preparing requests." }
         }
-        //TODO this is the only place where RequestData is being made
+        //TODO this is the only place where ModelInputs is being made
         numReplicationsRequested = numReplicationsRequested + numReps
         // the input map will be range-feasible but may not be problem-feasible.
         // since the input map is immutable, so is the RequestData instance
@@ -674,31 +674,44 @@ abstract class Solver(
      * from the provided inputs and then performs evaluations to generate solutions.
      *
      * @param inputs a set of input maps, where each map contains input variables and their respective values
+     * @param numReps the number of replications for each of the requested evaluations
+     * @param crnOption indicates if common random numbers should be used for the evaluations. The default
+     * is false. If true, no caching is allowed.
+     * @param cachingAllowed indicates whether the evaluations can be satisfied from a solution cache. The
+     * default is true.  This will permit some (or all) the replications to be satisfied from a cache.
      * @return a list of solutions obtained after performing evaluations on the inputs
      */
     @Suppress("unused")
     protected fun requestEvaluations(
         inputs: Set<InputMap>,
-        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
+        crnOption: Boolean = false,
+        cachingAllowed: Boolean = true
     ): List<Solution> {
-        val requests = prepareEvaluationRequests(inputs, numReps)
-        return requestEvaluations(requests)
+        val caching = if (crnOption) false else cachingAllowed
+        val requests = prepareModelInputs(inputs, numReps)
+        return requestEvaluations(requests, crnOption, caching)
     }
 
     /**
      * Requests an evaluation for a single input map and returns the resulting solution.
      * The function prepares the input as an evaluation request, performs the evaluation,
-     * and subsequently emits and logs the resulting solution.
+     * and subsequently emits and logs the resulting solution.  CRN is not permitted for a single
+     * evaluation.
      *
      * @param input an instance of InputMap representing the input variables and their values to be evaluated
+     * @param numReps the number of replications for each of the requested evaluations
+     * @param cachingAllowed indicates whether the evaluations can be satisfied from a solution cache. The
+     * default is true.  This will permit some (or all) the replications to be satisfied from a cache.
      * @return the solution obtained after evaluating the input map
      */
     protected fun requestEvaluation(
         input: InputMap,
-        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this)
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
+        cachingAllowed: Boolean = true
     ): Solution {
-        val requests = prepareEvaluationRequests(setOf(input), numReps)
-        val solutions = requestEvaluations(requests)
+        val requests = prepareModelInputs(setOf(input), numReps)
+        val solutions = requestEvaluations(requests, false, cachingAllowed)
         val solution = solutions.first()
         logger.trace { "Solver: $name : requested evaluation of $input and received $solution" }
         return solution
@@ -711,21 +724,29 @@ abstract class Solver(
      *  @param numReps the number of replications to be associated with each request
      *  @return the prepared requests
      */
-    private fun prepareEvaluationRequests(
+    private fun prepareModelInputs(
         inputs: Set<InputMap>,
         numReps: Int
     ): List<ModelInputs> {
         val list = mutableListOf<ModelInputs>()
         for (input in inputs) {
-            list.add(createRequest(input, numReps))
+            list.add(createModelInputs(input, numReps))
         }
         return list
     }
 
-    private fun requestEvaluations(requests: List<ModelInputs>): List<Solution> {
+    /**
+     *  Calls for the evaluation of the model inputs.
+     */
+    private fun requestEvaluations(
+        modelInputs: List<ModelInputs>,
+        crnOption: Boolean,
+        cachingAllowed: Boolean
+    ): List<Solution> {
         //TODO this is a long running call, consider coroutines to support this
-        numOracleCalls = numOracleCalls + requests.size
-        return evaluator.evaluate(requests)
+        numOracleCalls = numOracleCalls + modelInputs.size
+        val evaluationRequest = EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
+        return evaluator.evaluate(evaluationRequest)
     }
 
     override fun toString(): String {
@@ -776,11 +797,11 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
-       //     numTimesBestSolutionUpdated = 0
+            //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
             currentSolution = problemDefinition.badSolution()
-          //  bestSolution = problemDefinition.badSolution()
+            //  bestSolution = problemDefinition.badSolution()
             myBestSolutions.clear()
 //            println("Solver: initializeIterations(): reset current solution, best solution, and cleared best solutions")
 //            println("current solution: ${currentSolution.asString()}")
