@@ -1,8 +1,5 @@
 package ksl.simopt.solvers.algorithms
 
-import ksl.simopt.evaluator.InputsAndConfidenceIntervalEquality
-import ksl.simopt.evaluator.SolutionChecker
-import ksl.simopt.evaluator.SolutionEqualityIfc
 import ksl.simopt.solvers.Solver
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
