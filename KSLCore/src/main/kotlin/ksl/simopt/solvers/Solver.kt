@@ -249,6 +249,7 @@ abstract class Solver(
      */
     protected lateinit var myInitialSolution: Solution
 
+    @Suppress("unused")
     val initialSolution: Solution?
         get() = if (::myInitialSolution.isInitialized) myInitialSolution else null
 
@@ -687,7 +688,7 @@ abstract class Solver(
         numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
         crnOption: Boolean = false,
         cachingAllowed: Boolean = true
-    ): List<Solution> {
+    ): Map<ModelInputs, Solution>{
         val caching = if (crnOption) false else cachingAllowed
         val requests = prepareModelInputs(inputs, numReps)
         return requestEvaluations(requests, crnOption, caching)
@@ -712,7 +713,8 @@ abstract class Solver(
     ): Solution {
         val requests = prepareModelInputs(setOf(input), numReps)
         val solutions = requestEvaluations(requests, false, cachingAllowed)
-        val solution = solutions.first()
+        // There was only one ModelInput prepared and it must be associated with the returned solution
+        val solution = solutions[requests[0]]!!
         logger.trace { "Solver: $name : requested evaluation of $input and received $solution" }
         return solution
     }
@@ -742,7 +744,7 @@ abstract class Solver(
         modelInputs: List<ModelInputs>,
         crnOption: Boolean,
         cachingAllowed: Boolean
-    ): List<Solution> {
+    ): Map<ModelInputs, Solution> {
         //TODO this is a long running call, consider coroutines to support this
         numOracleCalls = numOracleCalls + modelInputs.size
         val evaluationRequest = EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
@@ -803,7 +805,7 @@ abstract class Solver(
             currentSolution = problemDefinition.badSolution()
             //  bestSolution = problemDefinition.badSolution()
             myBestSolutions.clear()
-//            println("Solver: initializeIterations(): reset current solution, best solution, and cleared best solutions")
+//            println("Solver: initializeIterations(): reset current solution, the best solution, and cleared best solutions")
 //            println("current solution: ${currentSolution.asString()}")
 //            println("best solution: ${bestSolution.asString()}")
 //            println("best solutions size ${myBestSolutions.size}")

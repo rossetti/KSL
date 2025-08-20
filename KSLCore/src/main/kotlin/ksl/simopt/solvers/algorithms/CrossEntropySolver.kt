@@ -172,7 +172,8 @@ class CrossEntropySolver @JvmOverloads constructor(
         // Convert the points to be able to evaluate.
         val inputs = problemDefinition.convertPointsToInputs(points)
         // request evaluations for solutions
-        val results = requestEvaluations(inputs)
+        val evaluations = requestEvaluations(inputs)
+        val results = evaluations.values.toList()
         if (results.isEmpty()) {
             // Returning will cause no updating on this iteration.
             // New points will be generated for another try on the next iteration.

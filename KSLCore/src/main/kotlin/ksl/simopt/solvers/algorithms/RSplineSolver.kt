@@ -437,7 +437,11 @@ class RSplineSolver @JvmOverloads constructor(
         }
         //TODO The request for evaluation of the simplex vertices should use CRN
         logger.trace { "\t \t \t \t Requesting evaluation of ${feasibleInputs.keys.size} simplex vertices with sample size = $sampleSize." }
-        val results = requestEvaluations(feasibleInputs.keys, sampleSize)
+        val evaluations = requestEvaluations(feasibleInputs.keys, sampleSize)
+        val results = mutableListOf<Solution>()
+        for((_, solution) in evaluations) {
+            results.add(solution)//TODO is this preserving the ordering? I think so.
+        }
         if (results.isEmpty()) {
             // No solutions returned. We assume that no oracle evaluations happened, even if they did.
             logger.trace { "\t \t \t \t PLI search: no evaluation results, returning no gradients, bad solution" }
@@ -646,7 +650,8 @@ class RSplineSolver @JvmOverloads constructor(
             return NESearchResults(0, solution)
         }
         // Evaluate the feasible points in the neighborhood.
-        val results = requestEvaluations(feasible, sampleSize)
+        val evaluations = requestEvaluations(feasible, sampleSize)
+        val results = evaluations.values
         // Something could have gone wrong with the oracle processing.
         if (results.isEmpty()) {
             // No solutions returned. Return the starting point. Assume no oracle evaluations.

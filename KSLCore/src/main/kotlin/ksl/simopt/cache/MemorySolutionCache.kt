@@ -24,7 +24,7 @@ class MemorySolutionCache(
     override var allowInfeasibleSolutions: Boolean = false
 ) : SolutionCacheIfc {
     init {
-        require(capacity >= 2) {"The cache's capacity must be >= 2"}
+        require(capacity >= 2) { "The cache's capacity must be >= 2" }
     }
 
     private val map: MutableMap<ModelInputs, Solution> = mutableMapOf()
@@ -81,9 +81,9 @@ class MemorySolutionCache(
 
     override fun put(modelInputs: ModelInputs, solution: Solution): Solution? {
         if (!allowCachePuts) return null
-        require(modelInputs.inputs == solution.inputMap){"The supplied input map is not associated with the supplied solution."}
+        require(modelInputs.inputs == solution.inputMap) { "The supplied input map is not associated with the supplied solution." }
         //TODO this may be too quiet
-        if(!solution.isInputFeasible()){
+        if (!solution.isInputFeasible()) {
             return null
         }
         if (size == capacity) {
@@ -91,6 +91,7 @@ class MemorySolutionCache(
             remove(itemToEvict)
         }
         require(size < capacity) { "The eviction of members did not work. No capacity for item in the cache." }
+        //TODO if a solution already exists in the map, should we do the merging here or should it stay as replacement only?
         return map.put(modelInputs, solution)
     }
 
@@ -114,12 +115,14 @@ class MemorySolutionCache(
             }
             // or remove the first infinite or bad constrained solution
             if (solution.penalizedObjFncValue.isNaN() || solution.penalizedObjFncValue.isInfinite()
-                || solution.penalizedObjFncValue == Double.MAX_VALUE){
+                || solution.penalizedObjFncValue == Double.MAX_VALUE
+            ) {
                 return requestData
             }
             // or remove the first infinite or bad unconstrained solution
             if (solution.estimatedObjFncValue.isNaN() || solution.estimatedObjFncValue.isInfinite()
-                || solution.estimatedObjFncValue == Double.MAX_VALUE){
+                || solution.estimatedObjFncValue == Double.MAX_VALUE
+            ) {
                 return requestData
             }
         }
@@ -127,9 +130,9 @@ class MemorySolutionCache(
         // Find the oldest, largest solution to evict.
         var largestSolValue = Double.MAX_VALUE
         var candidate: ModelInputs? = null
-        for((inputMap, solution) in map) {
+        for ((inputMap, solution) in map) {
             val possibleMax = solution.penalizedObjFncValue
-            if (possibleMax < largestSolValue){
+            if (possibleMax < largestSolValue) {
                 candidate = inputMap
                 largestSolValue = possibleMax
             }
@@ -142,9 +145,9 @@ class MemorySolutionCache(
      *  Converts the data in the cache to a list containing instances
      *   of the SolutionData
      */
-    fun toSolutionData() : List<SolutionData> {
+    fun toSolutionData(): List<SolutionData> {
         val list = mutableListOf<SolutionData>()
-        for(solution in map.values){
+        for (solution in map.values) {
             list.addAll(solution.toSolutionData())
         }
         return list
@@ -154,9 +157,9 @@ class MemorySolutionCache(
         /**
          *  The default size for caches. By default, 1000.
          */
-        var defaultCacheSize : Int = 1000
+        var defaultCacheSize: Int = 1000
             set(value) {
-                require(value >= 2) {"The minimum cache size is 2"}
+                require(value >= 2) { "The minimum cache size is 2" }
                 field = value
             }
     }
