@@ -7,12 +7,16 @@ import kotlinx.serialization.Serializable
  *
  *  @param modelIdentifier the identifier for the model that will execute the requests
  *  @param modelInputs the request (input/output) for the model to use. There must not
- *  be duplicates in this list as defined by the equality of model inputs.
+ *  be duplicates in this list as defined by the equality of model inputs.  All model inputs
+ *  must be associated with the same model identifier.
  *  @param crnOption indicates if the requests should be executed by the model using
- *  common random numbers. The default is false.
+ *  common random numbers. The default is false.  The CRN option cannot be true if there
+ *  is only one model input to be evaluated. CRN only makes sense with 2 or more evaluations.
+ *  @param cachingAllowed indicates if the request permits evaluation via a cache. The default
+ *  is true. If the CRN option is true, caching must be false.
  */
 @Serializable
-data class EvaluationRequest(
+data class EvaluationRequest @JvmOverloads constructor (
     val modelIdentifier: String,
     val modelInputs: List<ModelInputs>,
     val crnOption: Boolean = false,
@@ -40,14 +44,23 @@ data class EvaluationRequest(
      *  The CRN option is false by default because it is a single request. CRN is applied
      *  across multiple evaluations.
      */
-    constructor(modelIdentifier: String, request: ModelInputs, cachingAllowed: Boolean = true) : this(
+    @JvmOverloads
+    @Suppress("unused")
+    constructor(modelIdentifier: String, modelInputs: ModelInputs, cachingAllowed: Boolean = true) : this(
         modelIdentifier = modelIdentifier,
-        modelInputs = listOf(request), cachingAllowed = cachingAllowed
+        modelInputs = listOf(modelInputs), cachingAllowed = cachingAllowed
     )
 
-    override fun toString(): String {
-        val sb = StringBuilder()
+    /**
+     *  Creates a new EvaluationRequest with the same model identifier, CRN option, and caching options
+     *  as this instance, but with the supplied model inputs.
+     *  @param modelInputs the list of model inputs for the evaluation request
+     */
+    fun instance(modelInputs: List<ModelInputs>) : EvaluationRequest {
+        return EvaluationRequest(this.modelIdentifier, modelInputs, this.crnOption, this.cachingAllowed)
+    }
 
+    override fun toString(): String {
         return "Evaluation Request for ${modelInputs.size} inputs: modelIdentifier = $modelIdentifier : crnOption = $crnOption : cachingAllowed = cachingAllowed"
     }
 }

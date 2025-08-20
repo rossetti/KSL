@@ -83,39 +83,38 @@ class Evaluator @JvmOverloads constructor(
         EvaluatorIfc.logger.trace { "Evaluator: evaluate() : $evaluationRequest" }
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + evaluationRequest.modelInputs.size
-        if (evaluationRequest.crnOption) {
+        if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed) {
             // The provider should handle the CRN. Simulate the requests with no caching.
-            // We don't put the solutions into a cache even if it exists because they are dependent samples.
+            // For CRN, we don't do caching even if the cache exists because we don't want to mix dependent results.
+            EvaluatorIfc.logger.trace { "Evaluator: evaluating via simulation: crnOption = ${evaluationRequest.crnOption} : cachingAllowed = ${evaluationRequest.cachingAllowed}" }
             return evaluateViaSimulation(evaluationRequest)
-        } else {
-            // No CRN will be applied. Independent sampling.
-            if (cache != null) {
-                // There is a cache to use.
-                if (evaluationRequest.cachingAllowed) {
-                    // Caching is allowed. Need to check the cache and adjust the requests for additional replications
-                    // check with the cache for solutions
-                    val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
-                    EvaluatorIfc.logger.trace { "Solutions found in the cache: ${cachedSolutions.size}" }
-                    if (cachedSolutions.isEmpty()) {
-                        // Just simulate all the requests
-                        val evaluations = evaluateViaSimulation(evaluationRequest)
-                        //TODO update the cache with the new results
-                    } else {
-                        // Found solutions in the cache. Need to adjust the requests.
-                        // simulate the adjusted requests
-                        //TODO update the cache with the new results
-                    }
-                } else {
-                    // simulate the requests with no caching
-                    val evaluations = evaluateViaSimulation(evaluationRequest)
-                    //TODO update the cache with the new results
-                }
-            } else {
-                // Simulate the requests with no caching. No need to update the cache because it does not exist.
-                return evaluateViaSimulation(evaluationRequest)
-            }
         }
+        // caching could be allowed and there is no CRN
+        if (cache != null) {
+            return cacheBasedEvaluation(evaluationRequest)
+        }
+        // there is no cache to worry about, just simulate and return
+        EvaluatorIfc.logger.trace { "Evaluator: evaluating via simulation with no caching." }
+        return evaluateViaSimulation(evaluationRequest)
+    }
 
+    private fun cacheBasedEvaluation(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
+        require(cache != null) { "The cache must not be null for cache based evaluation" }
+        // check with the cache for solutions
+        val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
+        EvaluatorIfc.logger.trace { "Solutions found in the cache: ${cachedSolutions.size}" }
+        val simulatedSolutions = if (cachedSolutions.isEmpty()) {
+            // Nothing pulled from the cache. Just simulate the requests.
+            evaluateViaSimulation(evaluationRequest)
+        } else {
+            //TODO Found solutions in the cache.
+            // Need to adjust the requests.
+            //TODO simulate the adjusted requests
+            evaluateViaSimulation(evaluationRequest)
+        }
+        // need to combine simulated solutions with retrieved solutions from the cache
+        // update the cache and return with the combined solutions
+        //TODO update the cache with the new results
         TODO("Not yet implemented")
     }
 
