@@ -24,7 +24,7 @@ import ksl.simulation.Model
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    val model: Model,
+    val model: Model,//TODO I think that there should be a model identifier. Don't assume the model name.
     override val simulationRunCache: SimulationRunCacheIfc? = null,
     override var useCachedSimulationRuns: Boolean = false //TODO this needs to be deleted. Caching (if available) is controlled by the request
 ) : SimulationProviderIfc {
@@ -74,6 +74,7 @@ class SimulationProvider internal constructor(
     }
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+        //TODO validate the model identifier???
         //TODO the evaluation request has options for caching and CRN that need to be handled
         // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
         // in the cache used CRN and saving dependent samples in the cache seems problematic.
