@@ -44,12 +44,46 @@ import kotlin.time.Duration
 
 private var simCounter: Int = 0
 
+/**
+ *  A simulation model is a representation of a system for the purpose of recreating the system's behavior
+ *  over time. A KSL model consists of many model elements that represent the components of the system.
+ *  The user create a model to contain model elements and adds the model elements prior to executing
+ *  the simulation.
+ *  
+ *  ```
+ *     val model = Model("Drive Through Pharmacy", autoCSVReports = true)
+ *     model.numberOfReplications = 30
+ *     model.lengthOfReplication = 20000.0
+ *     model.lengthOfReplicationWarmUp = 5000.0
+ *     // add DriveThroughPharmacy to the main model
+ *     val dtp = DriveThroughPharmacy(model, 1)
+ *     dtp.arrivalRV.initialRandomSource = ExponentialRV(6.0, 1)
+ *     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+ *     model.simulate()
+ *     model.print()
+ *  ```
+ *  @param simulationName the name of the simulation model. This name must be unique within the context
+ *  of the elements in this model. A unique name is assigned by default.
+ *  @param pathToOutputDirectory the path specifying the location where simulation output files will be stored.
+ *  By default, this is the simulation name augmented by "_OutputDir".
+ *  @param autoCSVReports if true the simulation output results will automatically be stored in comma separated
+ *  value files. The default is false.
+ *  @param eventCalendar the event calendar to use for holding events. By default, this is a [PriorityQueueEventCalendar].
+ */
 class Model @JvmOverloads constructor(
     val simulationName: String = "Simulation${++simCounter}",
     pathToOutputDirectory: Path = KSL.createSubDirectory(simulationName.replace(" ", "_") + "_OutputDir"),
     var autoCSVReports: Boolean = false,
     eventCalendar: CalendarIfc = PriorityQueueEventCalendar(),
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
+
+    /**
+     *  A general user changeable identifier for a model. In general, the identifier might not be unique.
+     *  The default is the name of the model, which must be unique within the model element hierarchy, but
+     *  could possibly be the same **across** models (i.e. for different models). If it is required that
+     *  the identifier is unique across models, it is up to the user and context to ensure that the identifier is unique.
+     */
+    var modelIdentifier: String = this.name
 
     /**
      *
