@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import ksl.controls.experiments.SimulationRun
 import ksl.simopt.cache.SimulationRunCacheIfc
 
 /**
