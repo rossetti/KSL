@@ -75,6 +75,8 @@ class SimulationProvider internal constructor(
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
         //TODO the evaluation request has options for caching and CRN that need to be handled
+        // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
+        // in the cache used CRN and saving dependent samples in the cache seems problematic.
         return simulate(evaluationRequest.modelInputs)
      //   TODO("Not yet implemented")
     }
