@@ -75,8 +75,8 @@ class SimulationProvider internal constructor(
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
         //TODO the evaluation request has options for caching and CRN that need to be handled
-
-        TODO("Not yet implemented")
+        return simulate(evaluationRequest.modelInputs)
+     //   TODO("Not yet implemented")
     }
 
     private fun simulate(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {

@@ -84,7 +84,7 @@ class Evaluator @JvmOverloads constructor(
         totalEvaluations++
         totalRequestsReceived = totalRequestsReceived + evaluationRequest.modelInputs.size
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed) {
-            // The provider should handle the CRN. Simulate the requests with no caching.
+            // The provider should handle the CRN and or simulate the requests with no caching.
             // For CRN, we don't do caching even if the cache exists because we don't want to mix dependent results.
             EvaluatorIfc.logger.trace { "Evaluator: evaluating via simulation: crnOption = ${evaluationRequest.crnOption} : cachingAllowed = ${evaluationRequest.cachingAllowed}" }
             return evaluateViaSimulation(evaluationRequest)
@@ -103,19 +103,42 @@ class Evaluator @JvmOverloads constructor(
         require(cache != null) { "The cache must not be null for cache based evaluation" }
         // check with the cache for solutions
         val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
-        EvaluatorIfc.logger.trace { "Solutions found in the cache: ${cachedSolutions.size}" }
+        EvaluatorIfc.logger.trace { "Number of solutions found in the cache: ${cachedSolutions.size}" }
         if (cachedSolutions.isEmpty()) {
             val evaluations = evaluateViaSimulation(evaluationRequest)
             // Put the solutions into the cache
             cache.putAll(evaluations)
             return evaluations
         }
-        //TODO There are solutions in the cache that do not need to be simulated.
-        // Need to adjust the requests.
-        // Simulate the adjusted requests
-        // Combine simulated solutions with retrieved solutions from the cache
-        // Update the cache and return with the combined solutions
-        TODO("Not yet implemented")
+        // The cache retrieved solutions are associated with some requests. The following code will add to
+        // the cached solutions by simulating the requests not in the cache and those that require additional replications.
+        val requests = evaluationRequest.modelInputs
+        // Revise and filter the requests based on the replications in the solution cache.
+        val requestsToSimulate = reviseRequestReplications(cachedSolutions, requests)
+        // Since the cache could satisfy all request requirements, there may not be any requests to simulate.
+        if (requestsToSimulate.isNotEmpty()) {
+            // There are requests to simulate. Make a new EvaluationRequest for the revised requests.
+            val revisedEvaluationRequest = evaluationRequest.instance(requestsToSimulate)
+            // Simulate the revised request.
+            val simulatedSolutions = evaluateViaSimulation(revisedEvaluationRequest)
+            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
+            // since some requests could have needed additional replications, we may need to merge solutions
+            // from the cache with solutions performed by the oracle
+            for ((request, simulatedSolution) in simulatedSolutions) {
+                if (cachedSolutions.containsKey(request)) {
+                    // merge the solution with the cached solution
+                    EvaluatorIfc.logger.trace { "Merging solution with cached solution in solution map." }
+                    val cachedSolution = cachedSolutions[request]!!
+                    cachedSolutions[request] = mergeSolution(request, cachedSolution, simulatedSolution)
+                } else {
+                    EvaluatorIfc.logger.trace { "Adding solution to the solution map without merging with cached solution." }
+                    cachedSolutions[request] = simulatedSolution
+                }
+            }
+            // update the cache with the new or updated solutions after possible merging
+            cache.putAll(cachedSolutions)
+        }
+        return cachedSolutions
     }
 
 //    /**
@@ -147,7 +170,7 @@ class Evaluator @JvmOverloads constructor(
 //        EvaluatorIfc.logger.trace { "Requests to simulate: ${requestsToSimulate.size}" }
 //        // evaluate remaining requests and update solutions
 //        if (requestsToSimulate.isNotEmpty()) {
-//            //TODO since Solution contains InputMap, the association with ModelInputs may not be needed
+//            // since Solution contains InputMap, the association with ModelInputs may not be needed
 //            val simulatedSolutions = evaluateViaSimulation(requestsToSimulate)
 //            EvaluatorIfc.logger.trace { "Requests simulated, resulting in ${simulatedSolutions.size} solutions" }
 //            // since some requests could have needed additional replications, we may need to merge solutions
@@ -188,46 +211,46 @@ class Evaluator @JvmOverloads constructor(
      *  It also filters out any requests that can be fully satisfied from the cache.
      *
      *  @param cachedSolutions the solutions obtained from the cache
-     *  @param uniqueRequests the requests that need evaluation
+     *  @param modelInputs the model inputs that need evaluation
      */
-    private fun reviseRequests(
+    private fun reviseRequestReplications(
         cachedSolutions: MutableMap<ModelInputs, Solution>,
-        uniqueRequests: List<ModelInputs>
+        modelInputs: List<ModelInputs>
     ): List<ModelInputs> {
         // The cached solutions map has the solutions that are associated with the requests.
-        // The uniqueRequests list holds the possible requests that could be simulated.
+        // The modelInputs list holds the possible requests that could be simulated.
         if (cachedSolutions.isEmpty()) {
             // If there are no solutions in the cache for the provided possible requests,
             // then there is nothing to revise in the list.
-            return uniqueRequests
+            return modelInputs
         }
         // There are some cached solutions that need to be reviewed.
-        val revisedRequests = mutableListOf<ModelInputs>()
-        for (request in uniqueRequests) {
-            val cachedSolution = cachedSolutions[request]
+        val revisedModelInputs = mutableListOf<ModelInputs>()
+        for (modelInput in modelInputs) {
+            val cachedSolution = cachedSolutions[modelInput]
             if (cachedSolution != null) {
-                // Found the request in the cache. Need to update it.
+                // Found the model input in the cache. Need to update it.
                 // Determine the number of replications stored in the cache for the associated solution.
                 val numRepsInCache = cachedSolution.count.toInt()
-                if (numRepsInCache >= request.numReplications) {
-                    // The cache will satisfy all the replications. There is no need to include the request in the revised requests.
-                    totalCachedReplications = totalCachedReplications + request.numReplications
+                if (numRepsInCache >= modelInput.numReplications) {
+                    // The cache will satisfy all the replications. There is no need to include the input request in the revised inputs.
+                    totalCachedReplications = totalCachedReplications + modelInput.numReplications
                 } else {
                     // The cached solution doesn't have enough replications. We need to simulate more replications.
-                    val requiredReps = request.numReplications - numRepsInCache
+                    val requiredReps = modelInput.numReplications - numRepsInCache
                     // make the new request
-                    val updatedRequest = request.instance(requiredReps)
+                    val updatedModelInput = modelInput.instance(requiredReps)
                     // capture new request in the revised requests.
-                    revisedRequests.add(updatedRequest)
+                    revisedModelInputs.add(updatedModelInput)
                     // part of the replications will be satisfied by the cache
                     totalCachedReplications = totalCachedReplications + numRepsInCache
                 }
             } else {
                 // keep the original unchanged
-                revisedRequests.add(request)
+                revisedModelInputs.add(modelInput)
             }
         }
-        return revisedRequests
+        return revisedModelInputs
     }
 
     /**
@@ -341,6 +364,7 @@ class Evaluator @JvmOverloads constructor(
          * @return a list of evaluation requests that are unique
          */
         @JvmStatic
+        @Suppress("unused")
         fun filterToUniqueRequests(requests: List<ModelInputs>): List<ModelInputs> {
             val uniqueRequests = mutableMapOf<ModelInputs, ModelInputs>()
 
