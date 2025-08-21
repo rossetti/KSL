@@ -26,7 +26,7 @@ import ksl.simulation.Model
 class SimulationProvider internal constructor(
     val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
-    override var useCachedSimulationRuns: Boolean = false,
+    override var useCachedSimulationRuns: Boolean = false //TODO this needs to be deleted. Caching (if available) is controlled by the request
 ) : SimulationProviderIfc {
 
     /**

@@ -106,6 +106,7 @@ class SimulationRunner(
      * associated with the simulation run [simulationRun]
      */
     fun simulate(simulationRun: SimulationRun) {
+        //TODO need to validate the model identifier?
         try {
             // set simulation run parameters, number of advances, experimental controls, and random variables
             setupSimulation(simulationRun)
