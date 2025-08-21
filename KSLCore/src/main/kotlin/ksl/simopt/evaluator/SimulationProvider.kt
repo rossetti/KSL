@@ -71,50 +71,8 @@ class SimulationProvider internal constructor(
         executionCounter = 0
     }
 
-    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
-        require(modelIdentifier == evaluationRequest.modelIdentifier) {"The model identifier from the request must match the provider's model identifier."}
-        // The evaluation request has options for caching and CRN that need to be handled
-        if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || (simulationRunCache == null)) {
-            // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
-            // in the cache used CRN and saving dependent samples in the cache seems problematic.
-            // If there is no caching allowed or there isn't a cache, we just do the simulations.
-            return if (evaluationRequest.crnOption){
-                simulateWithCRN(evaluationRequest.modelInputs)
-            } else {
-                simulate(evaluationRequest.modelInputs)
-            }
-        }
-        // There is a cache and we are permitted to use it.
-        return simulate(evaluationRequest.modelInputs)
-     //   TODO("Not yet implemented")
-    }
-
-    private fun simulateWithCRN(requests: List<ModelInputs>) : Map<ModelInputs, Result<ResponseMap>>{
-        model.resetStartStreamOption = true
-        val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
-        for (request in requests) {
-            executeSimulation(request, results)
-        }
-        model.resetStartStreamOption = false
-        return results
-    }
-
-    private fun simulate(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
-        val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
-        for (request in requests) {
-            require(isRequestValid(request)) {"The request is not valid for the provided model"}
-            if ((simulationRunCache != null)) {
-                // use the cache instead of run the simulation
-                respondFromCache(request, results)
-            } else {
-                executeSimulation(request, results)
-            }
-        }
-        return results
-    }
-
     override fun isModelValid(modelIdentifier: String): Boolean {
-        return model.name == modelIdentifier
+        return model.modelIdentifier == modelIdentifier
     }
 
     override fun areInputNamesValid(inputNames: Set<String>): Boolean {
@@ -125,30 +83,56 @@ class SimulationProvider internal constructor(
         return model.validateResponseNames(responseNames)
     }
 
-    private fun respondFromCache(
-        request: ModelInputs,
-        results: MutableMap<ModelInputs, Result<ResponseMap>>
-    ) {
-        if ((simulationRunCache != null)) {
-            // check if the request is in the cache
-            if (simulationRunCache.containsKey(request)) {
-                // check if it has the appropriate number of replications
-                val requestedReplications = request.numReplications
-                val simulationRun = simulationRunCache[request]!!
-                if (requestedReplications <= simulationRun.numberOfReplications) {
-                    captureResults(request, simulationRun, results)
-                }
-                return
+    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+        require(modelIdentifier == evaluationRequest.modelIdentifier) { "The model identifier from the request must match the provider's model identifier." }
+        // The evaluation request has options for caching and CRN that need to be handled
+        if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || (simulationRunCache == null)) {
+            // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
+            // in the cache used CRN and saving dependent samples in the cache is problematic.
+            // If there is no caching allowed or there isn't a cache, we just do the simulations.
+            if (evaluationRequest.crnOption) {
+                model.resetStartStreamOption = true
+            }
+            return simulate(evaluationRequest.modelInputs)
+        }
+        // There is a cache and we are permitted to use it.
+        val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+        for (modelInputs in evaluationRequest.modelInputs) {
+            val simulationRun = useCachedSimulationRun(modelInputs) ?: executeSimulation(modelInputs)
+            val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
+            allResults.putAll(results)
+        }
+        model.changeRunParameters(myOriginalExpRunParams)
+        return allResults
+    }
+
+    private fun simulate(modelInputs: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+        val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+        for (request in modelInputs) {
+            val simulationRun = executeSimulation(request)
+            val results = captureResultsFromSimulationRun(request, simulationRun)
+            allResults.putAll(results)
+        }
+        model.changeRunParameters(myOriginalExpRunParams)
+        return allResults
+    }
+
+    private fun useCachedSimulationRun(modelInputs: ModelInputs): SimulationRun? {
+        if (simulationRunCache == null) return null
+        if (simulationRunCache.containsKey(modelInputs)) {
+            // check if it has the appropriate number of replications
+            val requestedReplications = modelInputs.numReplications
+            val simulationRun = simulationRunCache[modelInputs]!!
+            if (requestedReplications <= simulationRun.numberOfReplications) {
+                return simulationRun
             }
         }
-        // if it is not in the cache, then execute the simulation
-        executeSimulation(request, results)
+        return null
     }
 
     private fun executeSimulation(
         request: ModelInputs,
-        results: MutableMap<ModelInputs, Result<ResponseMap>>
-    ) {
+    ): SimulationRun {
         executionCounter++
         // update experiment name on the model and number of replications
         model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
@@ -160,47 +144,88 @@ class SimulationProvider internal constructor(
             inputs = request.inputs,
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
-        //TODO just return the simulation run and capture results else where
-        // capture the simulation results
-        captureResults(request, simulationRun, results)
-        // add the SimulationRun to the simulation run cache
-        simulationRunCache?.put(request, simulationRun)
         // reset the model run parameters back to their original values
         model.changeRunParameters(myOriginalExpRunParams)
+        return simulationRun
     }
 
-    private fun captureResults(
-        request: ModelInputs,
-        simulationRun: SimulationRun,
-        results: MutableMap<ModelInputs, Result<ResponseMap>>
-    ) {
-        //TODO this function should produce a new results map rather than use one
-        if (simulationRun.runErrorMsg.isNotEmpty()) {
-            results[request] = Result.failure(SimulationRunException(simulationRun))
-            return
-        }
-        // extract the replication data for each simulation response
-        val replicationData = simulationRun.results
-        // if the request's response name set is empty then return all responses from the simulation run
-        val responseNames = request.responseNames.ifEmpty {
-            simulationRun.results.keys
-        }
-        // make an empty response map to hold the estimated responses
-        val responseMap = ResponseMap(request.modelIdentifier, responseNames)
-        // fill the response map
-        for (name in responseNames) {
-            // this should have been checked when validating the request
-            require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
-            // get the data from the simulation
-            val data = replicationData[name]!!
-            // compute the estimates from the replication data
-            val estimatedResponse = EstimatedResponse(name, data)
-            // place the estimate in the response map
-            responseMap.add(estimatedResponse)
-        }
-        // capture the responses for each request
-        results[request] = Result.success(responseMap)
-    }
+    companion object {
 
+        /**
+         * Associates a given request with a ResponseMap from a simulation run.
+         * The method processes the simulation results to estimate and map the responses
+         * specified in the request. If the request specifies no response names, all
+         * responses from the simulation run are included in the result map.
+         *
+         * @param modelInputs the model input data containing model identifier, inputs,
+         *                response names, and additional parameters necessary for simulation evaluation
+         * @param simulationRun the simulation execution results containing the data to be
+         *                      processed and mapped
+         * @return a map where the key is the given model inputs and the value is a ResponseMap
+         *         containing the estimated simulation responses for the requested response names.
+         *         If the simulation run has an error, then the ResponseMap is mapped to a failed Result.
+         * @throws IllegalArgumentException if a specified response name in the model inputs
+         *                                  does not exist in the simulation results
+         */
+        fun captureResultsFromSimulationRun(
+            modelInputs: ModelInputs,
+            simulationRun: SimulationRun,
+        ): MutableMap<ModelInputs, Result<ResponseMap>> {
+            val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+            if (simulationRun.runErrorMsg.isNotEmpty()) {
+                results[modelInputs] = Result.failure(SimulationRunException(simulationRun))
+                return results
+            }
+            // extract the replication data for each simulation response
+            val responseMap = simulationRunToResponseMap(modelInputs, simulationRun)
+            // capture the responses for each request
+            results[modelInputs] = Result.success(responseMap)
+            return results
+        }
+
+        /**
+         * Associates a given request with a ResponseMap from a simulation run.
+         * The method processes the simulation results to estimate and map the responses
+         * specified in the request. If the request specifies no response names, all
+         * responses from the simulation run are included in the result map.
+         *
+         * @param request the request data containing model identifier, inputs,
+         *                response names, and additional parameters necessary for simulation evaluation
+         * @param simulationRun the simulation execution results containing the data to be
+         *                      processed and mapped
+         * @return a map where the key is the given request and the value is a ResponseMap
+         *         containing the estimated simulation responses for the requested response names
+         * @throws IllegalArgumentException if a specified response name in the model inputs
+         *                                  does not exist in the simulation results
+         *  @throws IllegalArgumentException if the provided simulation run has an error.
+         */
+        fun simulationRunToResponseMap(
+            request: ModelInputs,
+            simulationRun: SimulationRun
+        ): ResponseMap {
+            require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
+            // extract the replication data for each simulation response
+            val replicationData = simulationRun.results
+            // if the request's response name set is empty then return all responses from the simulation run
+            val responseNames = request.responseNames.ifEmpty {
+                simulationRun.results.keys
+            }
+            // make an empty response map to hold the estimated responses
+            val responseMap = ResponseMap(request.modelIdentifier, responseNames)
+            // fill the response map
+            for (name in responseNames) {
+                // this should have been checked when validating the request
+                require(replicationData.containsKey(name)) { "The simulation responses did not contain the requested response name $name" }
+                // get the data from the simulation
+                val data = replicationData[name]!!
+                // compute the estimates from the replication data
+                val estimatedResponse = EstimatedResponse(name, data)
+                // place the estimate in the response map
+                responseMap.add(estimatedResponse)
+            }
+            // return the responses for the request
+            return responseMap
+        }
+    }
 
 }
