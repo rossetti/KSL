@@ -13,12 +13,6 @@ import ksl.simopt.cache.SimulationRunCacheIfc
 interface SimulationProviderIfc : SimulationOracleIfc {
 
     /**
-     *  Indicates if the simulation provider should use cached simulation runs
-     *  when responding to requests.
-     */
-    var useCachedSimulationRuns: Boolean //TODO consider deletion
-
-    /**
      *  Use to hold executed simulation runs.
      */
     val simulationRunCache: SimulationRunCacheIfc?
