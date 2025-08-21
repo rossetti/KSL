@@ -18,15 +18,15 @@ import ksl.simulation.Model
  *
  * @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
+ * @param modelIdentifier an identifier for the model. By default, this is the [modelIdentifier] property of model.
+ * This property is used to ensure that simulation execution requests are intended for the associated model.
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
- * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding
- * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    val model: Model,//TODO I think that there should be a model identifier. Don't assume the model name.
+    val model: Model,
+    val modelIdentifier: String = model.modelIdentifier,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
-    override var useCachedSimulationRuns: Boolean = false //TODO this needs to be deleted. Caching (if available) is controlled by the request
 ) : SimulationProviderIfc {
 
     /**
@@ -34,17 +34,15 @@ class SimulationProvider internal constructor(
      *
      * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
      * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
-     * @param useCachedSimulationRuns Indicates whether the provider should use cached simulation runs when responding to requests. The
-     * default is false. If the simulation runs are not cached, this option has no effect.
      */
     constructor(
         modelCreator: () -> Model,
+        modelIdentifier: String,
         simulationRunCache: SimulationRunCacheIfc? = null,
-        useCachedSimulationRuns: Boolean = false
     ) : this(
         model = modelCreator(),
+        modelIdentifier = modelIdentifier,
         simulationRunCache = simulationRunCache,
-        useCachedSimulationRuns = useCachedSimulationRuns
     )
 
     private val mySimulationRunner = SimulationRunner(model)
@@ -74,19 +72,38 @@ class SimulationProvider internal constructor(
     }
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
-        //TODO validate the model identifier???
-        //TODO the evaluation request has options for caching and CRN that need to be handled
-        // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
-        // in the cache used CRN and saving dependent samples in the cache seems problematic.
+        require(modelIdentifier == evaluationRequest.modelIdentifier) {"The model identifier from the request must match the provider's model identifier."}
+        // The evaluation request has options for caching and CRN that need to be handled
+        if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || (simulationRunCache == null)) {
+            // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
+            // in the cache used CRN and saving dependent samples in the cache seems problematic.
+            // If there is no caching allowed or there isn't a cache, we just do the simulations.
+            return if (evaluationRequest.crnOption){
+                simulateWithCRN(evaluationRequest.modelInputs)
+            } else {
+                simulate(evaluationRequest.modelInputs)
+            }
+        }
+        // There is a cache and we are permitted to use it.
         return simulate(evaluationRequest.modelInputs)
      //   TODO("Not yet implemented")
+    }
+
+    private fun simulateWithCRN(requests: List<ModelInputs>) : Map<ModelInputs, Result<ResponseMap>>{
+        model.resetStartStreamOption = true
+        val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+        for (request in requests) {
+            executeSimulation(request, results)
+        }
+        model.resetStartStreamOption = false
+        return results
     }
 
     private fun simulate(requests: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (request in requests) {
             require(isRequestValid(request)) {"The request is not valid for the provided model"}
-            if ((simulationRunCache != null) && useCachedSimulationRuns) {
+            if ((simulationRunCache != null)) {
                 // use the cache instead of run the simulation
                 respondFromCache(request, results)
             } else {
@@ -143,6 +160,7 @@ class SimulationProvider internal constructor(
             inputs = request.inputs,
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
+        //TODO just return the simulation run and capture results else where
         // capture the simulation results
         captureResults(request, simulationRun, results)
         // add the SimulationRun to the simulation run cache
@@ -156,6 +174,7 @@ class SimulationProvider internal constructor(
         simulationRun: SimulationRun,
         results: MutableMap<ModelInputs, Result<ResponseMap>>
     ) {
+        //TODO this function should produce a new results map rather than use one
         if (simulationRun.runErrorMsg.isNotEmpty()) {
             results[request] = Result.failure(SimulationRunException(simulationRun))
             return

@@ -49,7 +49,7 @@ private var simCounter: Int = 0
  *  over time. A KSL model consists of many model elements that represent the components of the system.
  *  The user create a model to contain model elements and adds the model elements prior to executing
  *  the simulation.
- *  
+ *
  *  ```
  *     val model = Model("Drive Through Pharmacy", autoCSVReports = true)
  *     model.numberOfReplications = 30
