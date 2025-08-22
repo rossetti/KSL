@@ -7,6 +7,7 @@ import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.evaluator.SimulationProvider.Companion.simulationRunToResponseMap
 import ksl.simulation.Model
+import ksl.simulation.ModelDescriptor
 
 /**
  *  This simulation service will execute evaluation requests on models
@@ -16,43 +17,10 @@ import ksl.simulation.Model
 interface SimulationServiceIfcV2 : SimulationOracleIfc {
 
     /**
-     * @param modelIdentifier the string identifier for the model to be executed
-     * @return true if the service will provide results from the model
+     *  The model descriptors associated with the models served by the service.
+     *  @return the list of model descriptors wrapped in a Result
      */
-    fun isModelProvided(modelIdentifier: String): Boolean
-
-    /**
-     * Retrieves a list of model identifiers provided by the service. These identifiers represent
-     * the models available for simulation runs or other operations.
-     *
-     * @return a list of strings where each string represents a unique model identifier.
-     */
-    fun providedModels(): List<String>
-
-    /**
-     * Retrieves a list of response names associated with the specified model.
-     *
-     * @param modelIdentifier the identifier of the model whose response names are to be retrieved
-     * @return a list of response names corresponding to the specified model
-     */
-    fun responseNames(modelIdentifier: String): List<String>
-
-    /**
-     * Retrieves the list of input names associated with the specified model.
-     *
-     * @param modelIdentifier the identifier of the model whose input names are to be retrieved
-     * @return a list of strings representing the input names corresponding to the specified model
-     */
-    fun inputNames(modelIdentifier: String): List<String>
-
-    /**
-     * Retrieves the experimental run parameters for the model identified by the given identifier.
-     * This method extracts detailed configurations and settings required to execute the experiment.
-     *
-     * @param modelIdentifier the identifier of the model whose experimental parameters are to be retrieved
-     * @return an instance of [ExperimentRunParameters] containing the run parameters for the specified model
-     */
-    fun experimentalParameters(modelIdentifier: String): ExperimentRunParameters
+    fun modelDescriptors(): Result<List<ModelDescriptor>>
 
     /**
      * Executes a single simulation run based on the given model input. The simulation will be based on an
@@ -66,6 +34,17 @@ interface SimulationServiceIfcV2 : SimulationOracleIfc {
      */
     fun runSimulation(modelInputs: ModelInputs): Result<SimulationRun>
 
+    /**
+     * Executes multiple simulations based on the provided evaluation request and maps each request
+     * to a corresponding [SimulationRun]. Each request is processed individually, and the results of the
+     * simulations are stored as a key-value pair in the returned map. This default implementation runs all
+     * the requests sequentially based on the order within the evaluation request.
+     *
+     * @param evaluationRequest the request for simulation evaluations
+     * @return a map where each key is a ModelInputs object and each value is a Result wrapping either
+     *         a successful SimulationRun or an exception if the simulation fails for the corresponding evaluation.
+     * @throws IllegalArgumentException if the input list of evaluations is empty.
+     */
     fun runSimulations(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<SimulationRun>>
 
     /**
