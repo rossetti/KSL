@@ -101,7 +101,7 @@ interface ModelProviderIfc {
      * @return an instance of [ExperimentRunParameters] containing the run parameters for the specified model
      */
     @Suppress("unused")
-    fun experimentalParameters(modelIdentifier: String) : ExperimentRunParameters{
+    fun experimentalParameters(modelIdentifier: String): ExperimentRunParameters {
         return provideModel(modelIdentifier).extractRunParameters()
     }
 }

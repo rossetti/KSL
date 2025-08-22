@@ -152,7 +152,9 @@ class SimulationProvider internal constructor(
     companion object {
 
         /**
-         * Associates a given request with a ResponseMap from a simulation run.
+         * Converts the data within the [SimulationRun] to a [ResponseMap] and ensures that
+         * the model inputs are associated with the responses.
+         *
          * The method processes the simulation results to estimate and map the responses
          * specified in the request. If the request specifies no response names, all
          * responses from the simulation run are included in the result map.
@@ -184,34 +186,35 @@ class SimulationProvider internal constructor(
         }
 
         /**
-         * Associates a given request with a ResponseMap from a simulation run.
+         * Converts the data within the [SimulationRun] to a [ResponseMap] and ensures that
+         * the model inputs are associated with the responses.
+         *
          * The method processes the simulation results to estimate and map the responses
-         * specified in the request. If the request specifies no response names, all
+         * specified in the model inputs. If the model inputs specifies no response names, all
          * responses from the simulation run are included in the result map.
          *
-         * @param request the request data containing model identifier, inputs,
+         * @param modelInputs the request data containing model identifier, inputs,
          *                response names, and additional parameters necessary for simulation evaluation
          * @param simulationRun the simulation execution results containing the data to be
          *                      processed and mapped
-         * @return a map where the key is the given request and the value is a ResponseMap
-         *         containing the estimated simulation responses for the requested response names
+         * @return a [ResponseMap] holding the results from the simulation run
          * @throws IllegalArgumentException if a specified response name in the model inputs
          *                                  does not exist in the simulation results
          *  @throws IllegalArgumentException if the provided simulation run has an error.
          */
         fun simulationRunToResponseMap(
-            request: ModelInputs,
+            modelInputs: ModelInputs,
             simulationRun: SimulationRun
         ): ResponseMap {
             require(simulationRun.runErrorMsg.isEmpty()) { "The simulation run had an error: ${simulationRun.runErrorMsg}" }
             // extract the replication data for each simulation response
             val replicationData = simulationRun.results
             // if the request's response name set is empty then return all responses from the simulation run
-            val responseNames = request.responseNames.ifEmpty {
+            val responseNames = modelInputs.responseNames.ifEmpty {
                 simulationRun.results.keys
             }
             // make an empty response map to hold the estimated responses
-            val responseMap = ResponseMap(request.modelIdentifier, responseNames)
+            val responseMap = ResponseMap(modelInputs.modelIdentifier, responseNames)
             // fill the response map
             for (name in responseNames) {
                 // this should have been checked when validating the request
