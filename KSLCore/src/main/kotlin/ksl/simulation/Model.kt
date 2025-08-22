@@ -40,7 +40,9 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
 import java.nio.file.Path
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 private var simCounter: Int = 0
 
@@ -85,6 +87,10 @@ class Model @JvmOverloads constructor(
      */
     var modelIdentifier: String = this.name
 
+    /**
+     *  A user defined string that describes the model.
+     */
+    var description: String = "The model ($modelIdentifier) was created on ${TimeSource.Monotonic.markNow()}."
     /**
      *
      * @return the defined OutputDirectory for the simulation
@@ -302,6 +308,26 @@ class Model @JvmOverloads constructor(
     }
 
     val simulationReporter: SimulationReporter = SimulationReporter(this)
+
+    /**
+     *  Constructs a data class that describes the model.
+     *  @return the model descriptor at the time of the call
+     */
+    fun modelDescriptor(): ModelDescriptor {
+        return ModelDescriptor(
+            modelIdentifier = this.modelIdentifier,
+            modelName = this.name,
+            description = this.description,
+            responseNames = this.responseNames.toSet(),
+            inputNames = this.inputKeys().toSet(),
+            outputDirectory = outputDirectory.outDir.toString(),
+            experimentRunParameters = this.extractRunParameters(),
+            controlData = this.controls().controlData(),
+            rvParameterData = this.rvParameterSetter.rvParametersData,
+            configuration = this.configuration,
+            baseTimeUnit = this.baseTimeUnit
+        )
+    }
 
     /**
      * Attaches the CSVReplicationReport to the model if not attached.
