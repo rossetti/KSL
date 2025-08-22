@@ -66,6 +66,11 @@ interface SimulationServiceIfc : SimulationOracleIfc {
      */
     fun runSimulation(request: ModelInputs): Result<SimulationRun>
 
+
+    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+        TODO("Not yet implemented")
+    }
+
     /**
      * Executes a simulation based on the provided request data and maps the results into a ResponseMap.
      * If the simulation runs successfully, the request is associated with the ResponseMap in the returned map.
@@ -112,9 +117,7 @@ interface SimulationServiceIfc : SimulationOracleIfc {
         return resultMap
     }
 
-    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
-        TODO("Not yet implemented")
-    }
+
 
     /**
      * Executes multiple simulation runs based on the provided list of request data. Each request is
