@@ -1,6 +1,5 @@
 package ksl.simopt.evaluator
 
-import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
@@ -50,24 +49,6 @@ class SimulationProvider internal constructor(
 
     private val mySimulationRunner = SimulationRunner(model)
 
-    /**
-     *  Used to count the number of times that the simulation model is executed. Each execution can
-     *  be considered a different experiment
-     */
-    var executionCounter: Int = 0
-        private set
-
-    /**
-     *  Causes the execution counter to be reset to 0. Care must be taken if a database is used to
-     *  collect simulation results. The names of the experiments are based on the value of the counter. An
-     *  error will occur if multiple experiments have the same name in the database. You will likely want
-     *  to export and clear the data from the database before running additional simulations.
-     */
-    @Suppress("unused")
-    fun resetExecutionCounter() {
-        executionCounter = 0
-    }
-
     override fun isModelValid(modelIdentifier: String): Boolean {
         return model.modelIdentifier == modelIdentifier
     }
@@ -101,10 +82,9 @@ class SimulationProvider internal constructor(
             var simulationRun = useCachedSimulationRun(modelInputs)
             if (simulationRun == null) {
                 simulationRun = executeSimulation(modelInputs, model)
-                executionCounter++
             }
-            val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
-            allResults.putAll(results)
+            val results = captureResultFromSimulationRun(modelInputs, simulationRun)
+            allResults[modelInputs]= results
         }
         model.changeRunParameters(originalExpRunParams)
         return allResults
@@ -114,9 +94,8 @@ class SimulationProvider internal constructor(
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (modelInputs in modelInputs) {
             val simulationRun = executeSimulation(modelInputs, model)
-            executionCounter++
-            val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
-            allResults.putAll(results)
+            val results = captureResultFromSimulationRun(modelInputs, simulationRun)
+            allResults[modelInputs] = results
         }
         return allResults
     }
@@ -154,20 +133,17 @@ class SimulationProvider internal constructor(
          * @throws IllegalArgumentException if a specified response name in the model inputs
          *                                  does not exist in the simulation results
          */
-        fun captureResultsFromSimulationRun(
+        fun captureResultFromSimulationRun(
             modelInputs: ModelInputs,
             simulationRun: SimulationRun,
-        ): MutableMap<ModelInputs, Result<ResponseMap>> {
-            val results = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+        ): Result<ResponseMap> {
             if (simulationRun.runErrorMsg.isNotEmpty()) {
-                results[modelInputs] = Result.failure(SimulationRunException(simulationRun))
-                return results
+                return Result.failure(SimulationRunException(simulationRun))
             }
             // extract the replication data for each simulation response
             val responseMap = simulationRunToResponseMap(modelInputs, simulationRun)
-            // capture the responses for each request
-            results[modelInputs] = Result.success(responseMap)
-            return results
+            // capture the responses for the request
+            return Result.success(responseMap)
         }
 
         /**
