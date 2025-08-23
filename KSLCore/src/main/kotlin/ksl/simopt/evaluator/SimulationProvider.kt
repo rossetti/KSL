@@ -18,16 +18,20 @@ import ksl.simulation.Model
  *
  * @param model a function that promises to create the model that will be executed. The model that is created
  *  is assumed to be configured to run.
- * @param modelIdentifier an identifier for the model. By default, this is the [modelIdentifier] property of model.
- * This property is used to ensure that simulation execution requests are intended for the associated model.
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    val model: Model,
-    val modelIdentifier: String = model.modelIdentifier,
+    internal var model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
 ) : SimulationProviderIfc {
+
+    /**
+     *  An identifier for the model. By default, this is the [modelIdentifier] property of model.
+     * This property is used to ensure that simulation execution requests are intended for the associated model.
+     */
+    val modelIdentifier: String
+        get() = model.modelIdentifier
 
     /**
      * Secondary constructor for the SimulationProvider class.
@@ -37,11 +41,9 @@ class SimulationProvider internal constructor(
      */
     constructor(
         modelCreator: () -> Model,
-        modelIdentifier: String,
         simulationRunCache: SimulationRunCacheIfc? = null,
     ) : this(
         model = modelCreator(),
-        modelIdentifier = modelIdentifier,
         simulationRunCache = simulationRunCache,
     )
 
@@ -108,9 +110,9 @@ class SimulationProvider internal constructor(
 
     private fun simulate(modelInputs: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
-        for (request in modelInputs) {
-            val simulationRun = executeSimulation(request)
-            val results = captureResultsFromSimulationRun(request, simulationRun)
+        for (modelInputs in modelInputs) {
+            val simulationRun = executeSimulation(modelInputs)
+            val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
             allResults.putAll(results)
         }
         model.changeRunParameters(myOriginalExpRunParams)
@@ -131,17 +133,18 @@ class SimulationProvider internal constructor(
     }
 
     private fun executeSimulation(
-        request: ModelInputs,
+        modelInputs: ModelInputs,
     ): SimulationRun {
+        //TODO look at experiment naming and effect of CRN
         executionCounter++
         // update experiment name on the model and number of replications
-        model.experimentName = request.modelIdentifier + "_Exp_$executionCounter"
-        model.numberOfReplications = request.numReplications
+        model.experimentName = modelInputs.modelIdentifier + "_Exp_$executionCounter"
+        model.numberOfReplications = modelInputs.numReplications
         Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
         //run the simulation
         val simulationRun = mySimulationRunner.simulate(
-            modelIdentifier = request.modelIdentifier,
-            inputs = request.inputs,
+            modelIdentifier = modelInputs.modelIdentifier,
+            inputs = modelInputs.inputs,
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
         // reset the model run parameters back to their original values

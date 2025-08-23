@@ -151,7 +151,7 @@ interface SimulationServiceIfc : SimulationOracleIfc {
          * original state after execution.  This default implementation executes each replication of the
          * request sequentially.
          *
-         * @param request the request data containing the model identifier, inputs, number of replications,
+         * @param modelInputs the request data containing the model identifier, inputs, number of replications,
          *                and optional simulation run parameters. It specifies how the simulation should be executed.
          * @param model the model to be used for the simulation. Includes the configuration and behavior required
          *              for the simulation execution.
@@ -165,7 +165,7 @@ interface SimulationServiceIfc : SimulationOracleIfc {
          *         runErrorMsg property will not be empty (blank).
          */
       //  @Suppress("unused")
-        fun executeSimulation(request: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
+        fun executeSimulation(modelInputs: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
             val myOriginalExpRunParams = model.extractRunParameters()
 //            val srp = if (request.experimentRunParameters != null) {
 //                // assume that if the user supplied the parameters then the experiment name is appropriate
@@ -179,18 +179,18 @@ interface SimulationServiceIfc : SimulationOracleIfc {
 //            }
 //            // If no experiment run parameters were provided with the request, then use the model's defaults.
             val srp = model.extractRunParameters()
-            srp.experimentName = if (expIdentifier != null) "${request.modelIdentifier}_Exp_$expIdentifier"
-            else "${request.modelIdentifier}_Exp_${request.requestTime}"
+            srp.experimentName = if (expIdentifier != null) "${modelInputs.modelIdentifier}_Exp_$expIdentifier"
+            else "${modelInputs.modelIdentifier}_Exp_${modelInputs.requestTime}"
             // ensure that the requested number of replications will be executed
-            srp.numberOfReplications = request.numReplications
-            logger.info { "SimulationService: Running simulation for model: ${request.modelIdentifier} experiment: ${srp.experimentName} " }
+            srp.numberOfReplications = modelInputs.numReplications
+            logger.info { "SimulationService: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
             val mySimulationRunner = SimulationRunner(model)
             //run the simulation to produce the simulation run results
             val simulationRun = mySimulationRunner.simulate(
-                modelIdentifier = request.modelIdentifier,
-                inputs = request.inputs,
+                modelIdentifier = modelInputs.modelIdentifier,
+                inputs = modelInputs.inputs,
                 experimentRunParameters = srp)
-            logger.info { "SimulationService: Completed simulation for model: ${request.modelIdentifier} experiment: ${srp.experimentName} " }
+            logger.info { "SimulationService: Completed simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
             // reset the model run parameters back to their original values
             model.changeRunParameters(myOriginalExpRunParams)
             return simulationRun

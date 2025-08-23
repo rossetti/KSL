@@ -20,7 +20,7 @@ interface SimulationServiceIfcV2 : SimulationOracleIfc {
      *  The model descriptors associated with the models served by the service.
      *  @return the list of model descriptors wrapped in a Result
      */
-    fun modelDescriptors(): Result<List<ModelDescriptor>>
+    fun modelDescriptors(): List<ModelDescriptor>
 
     /**
      * Executes a single simulation run based on the given model input. The simulation will be based on an
