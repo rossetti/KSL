@@ -2,15 +2,15 @@ package ksl.simopt.evaluator
 
 import ksl.controls.experiments.SimulationRun
 import ksl.simopt.cache.SimulationRunCacheIfc
-import ksl.simopt.evaluator.SimulationServiceIfcV2.Companion.executeSimulation
+import ksl.simopt.evaluator.SimulationProvider.Companion.executeSimulation
 import ksl.simulation.Model
 import ksl.simulation.ModelDescriptor
 
 abstract class SimulationServiceV2(
     simulationRunCache: SimulationRunCacheIfc? = null
-) : SimulationServiceIfcV2{
+) : SimulationServiceIfcV2 {
 
-    protected abstract fun provideModel(modelIdentifier: String) : Model?
+    protected abstract fun provideModel(modelIdentifier: String): Model?
 
     /**
      *  The simulation provider for this service. This is used to execute simulations.
@@ -22,7 +22,7 @@ abstract class SimulationServiceV2(
     val simulationRunCache: SimulationRunCacheIfc?
         get() = mySimulationProvider.simulationRunCache
 
-    abstract fun modelIdentifiers() : Set<String>
+    abstract fun modelIdentifiers(): Set<String>
 
     override fun modelDescriptors(): List<ModelDescriptor> {
         val list = mutableListOf<ModelDescriptor>()
@@ -44,7 +44,11 @@ abstract class SimulationServiceV2(
             SimulationServiceIfc.logger.error { msg }
             return Result.failure(ModelNotProvidedException(msg))
         }
+        // With respect to CRN, this is okay because this is a single run.
+        // CRN does not make sense in the context of a single run.
+        val originalExpRunParams = model.extractRunParameters()
         val simulationRun = executeSimulation(modelInputs, model)
+        model.changeRunParameters(originalExpRunParams)
         if (simulationRun.runErrorMsg.isNotEmpty()) {
             SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
             SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
@@ -63,6 +67,7 @@ abstract class SimulationServiceV2(
             val failure = Result.failure<SimulationRun>(ModelNotProvidedException(msg))
             return mapOf(modelInputs to failure)
         }
+        //TODO need to handle caching and CRN because this could be multiple runs on the same model
         TODO("Not yet implemented")
     }
 
