@@ -4,6 +4,7 @@ import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
+import ksl.simopt.evaluator.SimulationServiceIfcV2.Companion.logger
 import ksl.simulation.Model
 
 /**
@@ -50,12 +51,6 @@ class SimulationProvider internal constructor(
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
-     *  capture the original experiment run parameters so that they can
-     *  be restored to the original after executing a simulation
-     */
-    private val myOriginalExpRunParams: ExperimentRunParameters = model.extractRunParameters()
-
-    /**
      *  Used to count the number of times that the simulation model is executed. Each execution can
      *  be considered a different experiment
      */
@@ -87,35 +82,42 @@ class SimulationProvider internal constructor(
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
         require(modelIdentifier == evaluationRequest.modelIdentifier) { "The model identifier from the request must match the provider's model identifier." }
+        val originalExpRunParams = model.extractRunParameters()
         // The evaluation request has options for caching and CRN that need to be handled
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || (simulationRunCache == null)) {
             // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
             // in the cache used CRN and saving dependent samples in the cache is problematic.
             // If there is no caching allowed or there isn't a cache, we just do the simulations.
             if (evaluationRequest.crnOption) {
-                model.resetStartStreamOption = true //TODO this could be turned off for a set of simulation runs
+                model.resetStartStreamOption = true
             }
-            return simulate(evaluationRequest.modelInputs)
+            val results = simulateWithoutCache(evaluationRequest.modelInputs)
+            model.changeRunParameters(originalExpRunParams)
+            return results
         }
         // There is a cache and we are permitted to use it.
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (modelInputs in evaluationRequest.modelInputs) {
-            val simulationRun = useCachedSimulationRun(modelInputs) ?: executeSimulation(modelInputs)
+            var simulationRun = useCachedSimulationRun(modelInputs)
+            if (simulationRun == null) {
+                simulationRun = executeSimulation(modelInputs, model)
+                executionCounter++
+            }
             val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
             allResults.putAll(results)
         }
-        model.changeRunParameters(myOriginalExpRunParams)
+        model.changeRunParameters(originalExpRunParams)
         return allResults
     }
 
-    private fun simulate(modelInputs: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
+    private fun simulateWithoutCache(modelInputs: List<ModelInputs>): Map<ModelInputs, Result<ResponseMap>> {
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for (modelInputs in modelInputs) {
-            val simulationRun = executeSimulation(modelInputs)
+            val simulationRun = executeSimulation(modelInputs, model)
+            executionCounter++
             val results = captureResultsFromSimulationRun(modelInputs, simulationRun)
             allResults.putAll(results)
         }
-        model.changeRunParameters(myOriginalExpRunParams)
         return allResults
     }
 
@@ -130,28 +132,6 @@ class SimulationProvider internal constructor(
             }
         }
         return null
-    }
-
-    private fun executeSimulation(
-        modelInputs: ModelInputs,
-    ): SimulationRun {
-        //TODO look at experiment naming and effect of CRN
-
-        executionCounter++
-        // update experiment name on the model and number of replications
-        model.experimentName = modelInputs.modelIdentifier + "_Exp_$executionCounter"
-        model.numberOfReplications = modelInputs.numReplications
-        Model.logger.info { "SimulationProvider: Running simulation for experiment: ${model.experimentName} " }
-        //run the simulation
-        val simulationRun = mySimulationRunner.simulate(
-            modelIdentifier = modelInputs.modelIdentifier,
-            inputs = modelInputs.inputs,
-        )
-        Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
-        // reset the model run parameters back to their original values
-        //TODO this could turn off CRN for a set of simulation
-        model.changeRunParameters(myOriginalExpRunParams)
-        return simulationRun
     }
 
     companion object {
@@ -233,6 +213,43 @@ class SimulationProvider internal constructor(
             }
             // return the responses for the request
             return responseMap
+        }
+
+        /**
+         * Executes a simulation using the given model inputs. It updates the model's parameters
+         * based on the request data and runs the simulation. Thus, a side effect of this function
+         * is to update the model's experimental run parameters.  Thus, you may want to capture
+         * the current experimental run parameters before calling this function.
+         *
+         * @param modelInputs the request data containing the model identifier, inputs, number of replications,
+         *                and optional simulation run parameters. It specifies how the simulation should be executed.
+         * @param model the model to be used for the simulation. Includes the configuration and behavior required
+         *              for the simulation execution.
+         * @param expIdentifier a string that is used to uniquely identify the experiment within the context
+         * of multiple executions for the same model. The name of the experiment will be:
+         * "${request.modelIdentifier}_Exp_$expIdentifier". If expIdentifier is null, then the time of the request
+         * is used to as expIdentifier. Depending on how users might store experimental
+         * results, this naming may be important, especially if a KSLDatabase is used to hold experimental results.
+         * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
+         *         results from the executed simulation.  If the simulation run resulted in errors, the simulation run's
+         *         runErrorMsg property will not be empty (blank).
+         */
+        @Suppress("unused")
+        fun executeSimulation(modelInputs: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
+            val srp = model.extractRunParameters()
+            srp.experimentName = if (expIdentifier != null) "${modelInputs.modelIdentifier}_Exp_$expIdentifier"
+            else "${modelInputs.modelIdentifier}_Exp_${modelInputs.requestTime}"
+            // ensure that the requested number of replications will be executed
+            srp.numberOfReplications = modelInputs.numReplications
+            logger.info { "SimulationProvider: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
+            val mySimulationRunner = SimulationRunner(model)
+            //run the simulation to produce the simulation run results
+            val simulationRun = mySimulationRunner.simulate(
+                modelIdentifier = modelInputs.modelIdentifier,
+                inputs = modelInputs.inputs,
+                experimentRunParameters = srp)
+            logger.info { "SimulationProvider: Completed simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
+            return simulationRun
         }
     }
 

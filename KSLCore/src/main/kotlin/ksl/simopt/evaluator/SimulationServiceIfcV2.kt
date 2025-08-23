@@ -2,11 +2,8 @@ package ksl.simopt.evaluator
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
-import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
-import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.evaluator.SimulationProvider.Companion.simulationRunToResponseMap
-import ksl.simulation.Model
 import ksl.simulation.ModelDescriptor
 
 /**
@@ -98,47 +95,6 @@ interface SimulationServiceIfcV2 : SimulationOracleIfc {
 
     companion object {
         val logger: KLogger = KotlinLogging.logger {}
-
-        /**
-         * Executes a simulation using the given request data and model. It updates the model's parameters
-         * based on the request data, runs the simulation, and resets the model's parameters to their
-         * original state after execution.  This default implementation executes each replication of the
-         * request sequentially.
-         *
-         * @param modelInputs the request data containing the model identifier, inputs, number of replications,
-         *                and optional simulation run parameters. It specifies how the simulation should be executed.
-         * @param model the model to be used for the simulation. Includes the configuration and behavior required
-         *              for the simulation execution.
-         * @param expIdentifier a string that is used to uniquely identify the experiment within the context
-         * of multiple executions for the same model. The name of the experiment will be:
-         * "${request.modelIdentifier}_Exp_$expIdentifier". If expIdentifier is null, then the time of the request
-         * is used to as expIdentifier. Depending on how users might store experimental
-         * results, this naming may be important, especially if a KSLDatabase is used to hold experimental results.
-         * @return the result of the simulation run encapsulated in a SimulationRun object. This contains the
-         *         results from the executed simulation.  If the simulation run resulted in errors, the simulation run's
-         *         runErrorMsg property will not be empty (blank).
-         */
-        @Suppress("unused")
-        fun executeSimulation(modelInputs: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
-            val myOriginalExpRunParams = model.extractRunParameters()
-            val srp = model.extractRunParameters()
-            srp.experimentName = if (expIdentifier != null) "${modelInputs.modelIdentifier}_Exp_$expIdentifier"
-            else "${modelInputs.modelIdentifier}_Exp_${modelInputs.requestTime}"
-            // ensure that the requested number of replications will be executed
-            srp.numberOfReplications = modelInputs.numReplications
-            logger.info { "SimulationService: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
-            val mySimulationRunner = SimulationRunner(model)
-            //run the simulation to produce the simulation run results
-            val simulationRun = mySimulationRunner.simulate(
-                modelIdentifier = modelInputs.modelIdentifier,
-                inputs = modelInputs.inputs,
-                experimentRunParameters = srp)
-            logger.info { "SimulationService: Completed simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }
-            // reset the model run parameters back to their original values
-            model.changeRunParameters(myOriginalExpRunParams)
-            return simulationRun
-        }
-
     }
 
 }
