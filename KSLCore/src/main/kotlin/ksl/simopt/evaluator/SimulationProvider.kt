@@ -93,7 +93,7 @@ class SimulationProvider internal constructor(
             // in the cache used CRN and saving dependent samples in the cache is problematic.
             // If there is no caching allowed or there isn't a cache, we just do the simulations.
             if (evaluationRequest.crnOption) {
-                model.resetStartStreamOption = true
+                model.resetStartStreamOption = true //TODO this could be turned off for a set of simulation runs
             }
             return simulate(evaluationRequest.modelInputs)
         }
@@ -136,6 +136,7 @@ class SimulationProvider internal constructor(
         modelInputs: ModelInputs,
     ): SimulationRun {
         //TODO look at experiment naming and effect of CRN
+
         executionCounter++
         // update experiment name on the model and number of replications
         model.experimentName = modelInputs.modelIdentifier + "_Exp_$executionCounter"
@@ -148,6 +149,7 @@ class SimulationProvider internal constructor(
         )
         Model.logger.info { "SimulationProvider: Completed simulation for experiment: ${model.experimentName} " }
         // reset the model run parameters back to their original values
+        //TODO this could turn off CRN for a set of simulation
         model.changeRunParameters(myOriginalExpRunParams)
         return simulationRun
     }
