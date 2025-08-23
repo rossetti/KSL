@@ -106,7 +106,7 @@ class SimulationRunner(
      * associated with the simulation run [simulationRun]
      */
     fun simulate(simulationRun: SimulationRun) {
-        //TODO need to validate the model identifier?
+        require(model.modelIdentifier == simulationRun.modelIdentifier) {"The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run."}
         try {
             // set simulation run parameters, number of advances, experimental controls, and random variables
             setupSimulation(simulationRun)
