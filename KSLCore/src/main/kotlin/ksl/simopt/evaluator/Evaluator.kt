@@ -360,41 +360,6 @@ class Evaluator @JvmOverloads constructor(
             return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
         }
 
-        /**
-         * Creates an instance of `Evaluator` for managing simulation service problem evaluation.
-         * The method validates the compatibility of the problem definition with the provided model,
-         * constructs a simulator using the model, and initializes the evaluator with a solution cache.
-         *
-         * @param problemDefinition the definition of the problem being evaluated; must be compatible
-         *                          with the provided model.
-         * @param modelIdentifier an identifier used to distinguish between different simulation models.
-         * @param modelBuilder a builder instance responsible for constructing the simulation model
-         *                     used during problem evaluation.
-         * @param modelConfiguration A map of strings representing the model configuration. The key string
-         * should contain the necessary information for being able to use the paired string value.
-         * The stored string values could be anything. For example, the value could be a JSON
-         * string and the key provides information about how to process the JSON.
-         * The intent is that the map should be sufficient to build an appropriate `Model` instance.
-         * The map is optional. The function should return a model that is usable.
-         * @return an `Evaluator` instance configured with the given problem definition and simulation environment.
-         * @throws IllegalArgumentException if the problem definition and model are not input/response compatible.
-         */
-        @Suppress("unused")
-        @JvmStatic
-        @JvmOverloads
-        fun createSimulationServiceProblemEvaluator(
-            problemDefinition: ProblemDefinition,
-            modelIdentifier: String,
-            modelBuilder: ModelBuilderIfc,
-            modelConfiguration: Map<String, String>? = null
-        ): Evaluator {
-            val model = modelBuilder.build(modelConfiguration)
-            require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
-            val mapModelProvider = MapModelProvider(modelIdentifier, modelBuilder)
-            val simulator = SimulationService(mapModelProvider)
-            return Evaluator(problemDefinition, simulator, MemorySolutionCache())
-        }
-
     }
 }
 

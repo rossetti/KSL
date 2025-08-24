@@ -1,183 +1,137 @@
 package ksl.simopt.evaluator
 
-import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.SimulationRun
-import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.SimulationRunCacheIfc
-import ksl.simopt.evaluator.SimulationServiceIfc.Companion.executeSimulation
-import ksl.simulation.MapModelProvider
-import ksl.simulation.ModelBuilderIfc
-import ksl.simulation.ModelProviderIfc
+import ksl.simopt.evaluator.SimulationProvider.Companion.captureResultFromSimulationRun
+import ksl.simopt.evaluator.SimulationProvider.Companion.executeSimulation
+import ksl.simulation.Model
+import ksl.simulation.ModelDescriptor
 
-/**
- *  This simulation service will execute evaluation requests on models
- *  and collect the desired responses.  This service runs the model's replications
- *  locally and sequentially in the same execution thread as the requests.
- *
- * @param modelProvider provides the models that are registered with this provider based on their model identifiers
- * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
- * @param useCachedSimulationRuns Indicates whether the service should use cached simulation runs when responding
- * to requests. The default is false. If the simulation runs are not cached, this option has no effect.
- */
-@Suppress("unused")
-open class SimulationService @JvmOverloads constructor(
-    val modelProvider: ModelProviderIfc,
-    val simulationRunCache: SimulationRunCacheIfc? = null,
-    var useCachedSimulationRuns: Boolean = false
+abstract class SimulationService(
+    val simulationRunCache: SimulationRunCacheIfc? = null
 ) : SimulationServiceIfc {
 
-    /**
-     * @param modelIdentifier the string identifier for the model to be executed
-     * @return true if the service will provide results from the model
-     */
-    override fun isModelProvided(modelIdentifier: String): Boolean {
-        return modelProvider.isModelProvided(modelIdentifier)
+    protected abstract fun provideModel(modelIdentifier: String): Model?
+
+    abstract fun modelIdentifiers(): Set<String>
+
+    override fun modelDescriptors(): List<ModelDescriptor> {
+        val list = mutableListOf<ModelDescriptor>()
+        val ids = modelIdentifiers()
+        for (id in ids) {
+            val model = provideModel(id)
+            if (model != null) {
+                list.add(model.modelDescriptor())
+            }
+        }
+        return list
     }
 
-    /**
-     * Retrieves a list of model identifiers provided by the service. These identifiers represent
-     * the models available for simulation runs or other operations.
-     *
-     * @return a list of strings where each string represents a unique model identifier.
-     */
-    override fun providedModels(): List<String> {
-        return modelProvider.modelIdentifiers()
-    }
-
-    /**
-     * Retrieves a list of response names associated with the specified model.
-     *
-     * @param modelIdentifier the identifier of the model whose response names are to be retrieved
-     * @return a list of response names corresponding to the specified model
-     */
-    @Suppress("unused")
-    override fun responseNames(modelIdentifier: String): List<String> {
-        return modelProvider.responseNames(modelIdentifier)
-    }
-
-    /**
-     * Retrieves the list of input names associated with the specified model.
-     *
-     * @param modelIdentifier the identifier of the model whose input names are to be retrieved
-     * @return a list of strings representing the input names corresponding to the specified model
-     */
-    @Suppress("unused")
-    override fun inputNames(modelIdentifier: String): List<String> {
-        return modelProvider.inputNames(modelIdentifier)
-    }
-
-    /**
-     * Retrieves the experimental run parameters for the model identified by the given identifier.
-     * This method extracts detailed configurations and settings required to execute the experiment.
-     *
-     * @param modelIdentifier the identifier of the model whose experimental parameters are to be retrieved
-     * @return an instance of [ExperimentRunParameters] containing the run parameters for the specified model
-     */
-    @Suppress("unused")
-    override fun experimentalParameters(modelIdentifier: String): ExperimentRunParameters {
-        return modelProvider.experimentalParameters(modelIdentifier)
-    }
-
-    /**
-     * Executes a simulation run based on the given request data. This method retrieves simulation results
-     * from the cache if available, or executes the simulation using the provided model. If the simulation
-     * completes successfully, the result is cached for future requests. If the simulation results
-     * in an error, an exception is returned with the error details.
-     *
-     * @param request the request data containing the model identifier, inputs, number of replications,
-     * and other parameters necessary to execute the simulation
-     * @return a result object wrapping a successful simulation run or an exception if the simulation fails
-     */
-    override fun runSimulation(request: ModelInputs): Result<SimulationRun> {
-        if (!isModelProvided(request.modelIdentifier)) {
-            val msg = "The SimulationService does not provide model ${request.modelIdentifier}\n" +
-                    "request: $request"
+    override fun runSimulation(modelInputs: ModelInputs): Result<SimulationRun> {
+        val model = provideModel(modelInputs.modelIdentifier)
+        if (model == null) {
+            val msg = "The SimulationService does not provide model ${modelInputs.modelIdentifier}\n" +
+                    "model inputs: $modelInputs"
             SimulationServiceIfc.logger.error { msg }
             return Result.failure(ModelNotProvidedException(msg))
         }
-        // check the cache before working with the model
-        var simulationRun = retrieveFromCache(request)
-        if (simulationRun != null) {
-            SimulationServiceIfc.logger.info { "SimulationService: results for ${request.modelIdentifier} returned from the cache" }
-            return Result.success(simulationRun)
-        }
-        // not found in the cache, need to run the model
-        val model = modelProvider.provideModel(request.modelIdentifier)
-        simulationRun = executeSimulation(request, model)
+        // With respect to CRN, this is okay because this is a single run.
+        // CRN does not make sense in the context of a single run.
+        val originalExpRunParams = model.extractRunParameters()
+        val simulationRun = executeSimulation(modelInputs, model)
+        model.changeRunParameters(originalExpRunParams)
         if (simulationRun.runErrorMsg.isNotEmpty()) {
             SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
             SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
             return Result.failure(SimulationRunException(simulationRun))
-        } else {
-            // only store good simulation runs in the cache
-            // add the SimulationRun to the simulation run cache
-            simulationRunCache?.put(request, simulationRun)
-            if (simulationRunCache != null) {
-                SimulationServiceIfc.logger.info { "SimulationService: results for ${request.modelIdentifier} added to the cache" }
+        }
+        return Result.success(simulationRun)
+    }
+
+    override fun runSimulations(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<SimulationRun>> {
+        val model = provideModel(evaluationRequest.modelIdentifier)
+        if (model == null) {
+            val msg = "The SimulationService does not provide model ${evaluationRequest.modelIdentifier}\n" +
+                    "model inputs: $evaluationRequest"
+            SimulationServiceIfc.logger.error { msg }
+            val modelInputs = evaluationRequest.modelInputs.first()
+            val failure = Result.failure<SimulationRun>(ModelNotProvidedException(msg))
+            return mapOf(modelInputs to failure)
+        }
+        val originalExpRunParams = model.extractRunParameters()
+        // The evaluation request has options for caching and CRN that need to be handled
+        if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || (simulationRunCache == null)) {
+            // CRN should not permit cache retrieval. There is no way to ensure that the simulation runs
+            // in the cache used CRN and saving dependent samples in the cache is problematic.
+            // If there is no caching allowed or there isn't a cache, we just do the simulations.
+            if (evaluationRequest.crnOption) {
+                model.resetStartStreamOption = true
             }
-            return Result.success(simulationRun)
+            val results = simulateWithoutCache(evaluationRequest.modelInputs, model)
+            model.changeRunParameters(originalExpRunParams)
+            return results
         }
+        // There is a cache and we are permitted to use it.
+        val results = mutableMapOf<ModelInputs, Result<SimulationRun>>()
+        for (modelInputs in evaluationRequest.modelInputs) {
+            var simulationRun = useCachedSimulationRun(modelInputs)
+            if (simulationRun == null) {
+                simulationRun = executeSimulation(modelInputs, model)
+            }
+            results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
+                Result.success(simulationRun)
+            } else {
+                SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
+                SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+                Result.failure(SimulationRunException(simulationRun))
+            }
+        }
+        model.changeRunParameters(originalExpRunParams)
+        return results
     }
 
-    /**
-     * Retrieves a cached simulation run based on the provided request data.
-     * This method checks if caching is enabled and if the requested simulation run exists in the cache
-     * with the required number of replications. If any condition is not met, it returns null.
-     *
-     * @param request the request data containing the parameters to identify the desired simulation run,
-     * including the number of requested replications.
-     * @return the cached simulation run if it exists, meets the requirements, and caching is enabled;
-     * otherwise, null.
-     */
-    protected fun retrieveFromCache(request: ModelInputs): SimulationRun? {
-        if (simulationRunCache == null) {
-            return null // no cache, return null
+    private fun useCachedSimulationRun(modelInputs: ModelInputs): SimulationRun? {
+        if (simulationRunCache == null) return null
+        if (simulationRunCache.containsKey(modelInputs)) {
+            // check if it has the appropriate number of replications
+            val requestedReplications = modelInputs.numReplications
+            val simulationRun = simulationRunCache[modelInputs]!!
+            if (requestedReplications <= simulationRun.numberOfReplications) {
+                return simulationRun
+            }
         }
-        if (!useCachedSimulationRuns) {
-            return null // don't use the cache, return null
-        }
-        val simulationRun = simulationRunCache[request]
-        if (simulationRun == null) {
-            return null // run not found in the cache, return null
-        }
-        val requestedReplications = request.numReplications
-        return if (requestedReplications <= simulationRun.numberOfReplications) {
-            simulationRun
-        } else {
-            null // not enough replications stored in the cache, return null
-        }
+        return null
     }
 
-    companion object {
-
-        /**
-         * Creates a cached simulation service instance using the provided model identifier and model builder.
-         *
-         * @param modelIdentifier the unique identifier for the model to be used in the simulation service
-         * @param modelBuilder the builder responsible for constructing the model associated with the given identifier
-         * @return a new instance of [SimulationService] configured with the specified model provider and cache settings
-         */
-        @JvmStatic
-        fun createCachedSimulationServiceForModel(modelIdentifier: String, modelBuilder: ModelBuilderIfc) : SimulationService {
-            return createCachedSimulationService(MapModelProvider(modelIdentifier, modelBuilder))
+    private fun simulateWithoutCache(
+        modelInputs: List<ModelInputs>,
+        model: Model
+    ): Map<ModelInputs, Result<SimulationRun>> {
+        val results = mutableMapOf<ModelInputs, Result<SimulationRun>>()
+        for (modelInputs in modelInputs) {
+            val simulationRun = executeSimulation(modelInputs, model)
+            results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
+                Result.success(simulationRun)
+            } else {
+                SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
+                SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+                Result.failure(SimulationRunException(simulationRun))
+            }
         }
-
-        /**
-         * Creates a new instance of a `SimulationService` with a memory-based cache for simulation runs.
-         * This service uses the model provider and enables caching for simulation runs.
-         *
-         * @param modelProvider an instance of `ModelProviderIfc` responsible for providing models for simulation
-         * @return an instance of [SimulationService] configured with a memory-based simulation run cache and caching enabled
-         */
-        @JvmStatic
-        fun createCachedSimulationService(modelProvider: ModelProviderIfc) : SimulationService {
-            return SimulationService(
-                modelProvider = modelProvider,
-                simulationRunCache = MemorySimulationRunCache(),
-                useCachedSimulationRuns = true
-            )
-        }
+        return results
     }
 
+    override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
+        // translate the simulation runs to response maps.
+        val simulations = runSimulations(evaluationRequest)
+        val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
+        for ((modelInputs, simulationRunResult) in simulations) {
+            simulationRunResult.onFailure {
+                allResults[modelInputs] = Result.failure(it)
+            }.onSuccess {
+                allResults[modelInputs] = captureResultFromSimulationRun(modelInputs, it)
+            }
+        }
+        return allResults
+    }
 }
-
