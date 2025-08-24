@@ -96,6 +96,21 @@ data class Solution(
     }
 
     /**
+     *  Converts the solution to a map of name, value pairs.
+     *  The returned values include the input map, the estimated objective function,
+     *  and the estimated responses.
+     */
+    fun asMappedData() : Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        map.putAll(inputMap)
+        map.putAll(estimatedObjFnc.toResponseData())
+        for (estimate in responseEstimates) {
+            map.putAll(estimate.toResponseData())
+        }
+        return map
+    }
+
+    /**
      *  Allows comparison of solutions by the estimated objective function
      */
     @Suppress("unused")
