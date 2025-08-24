@@ -2,7 +2,6 @@ package ksl.simopt.cache
 
 import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.Solution
-import ksl.simopt.evaluator.SolutionData
 import ksl.simopt.evaluator.Solutions
 
 /**
@@ -139,18 +138,6 @@ class MemorySolutionCache(
         }
         // this should be safe because there must be more than 2 items, and they must be less than MAX_VALUE.
         return candidate!!
-    }
-
-    /**
-     *  Converts the data in the cache to a list containing instances
-     *   of the SolutionData
-     */
-    fun toSolutionData(): List<SolutionData> {
-        val list = mutableListOf<SolutionData>()
-        for (solution in map.values) {
-            list.addAll(solution.toSolutionData())
-        }
-        return list
     }
 
     companion object {

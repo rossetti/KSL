@@ -235,59 +235,6 @@ data class Solution(
         return intervals
     }
 
-    /**
-     *  Converts the data in the solution to a list containing the data associated
-     *  with the solution.
-     */
-    fun toSolutionData(): List<SolutionData> {
-        val list = mutableListOf<SolutionData>()
-        for ((inputName, value) in inputMap) {
-            list.add(SolutionData(id, "input", null, inputName, value))
-        }
-        list.add(SolutionData(id, "solution", null, "iterationNumber", evaluationNumber.toDouble()))
-        list.add(SolutionData(id, "solution", null, "isInputRangeFeasible", isInputRangeFeasible().toDouble()))
-        list.add(
-            SolutionData(
-                id,
-                "solution",
-                null,
-                "isLinearConstraintFeasible",
-                isLinearConstraintFeasible().toDouble()
-            )
-        )
-        list.add(
-            SolutionData(
-                id,
-                "solution",
-                null,
-                "isFunctionalConstraintFeasible",
-                isFunctionalConstraintFeasible().toDouble()
-            )
-        )
-        list.add(
-            SolutionData(
-                id,
-                "solution",
-                null,
-                "responseConstraintViolationPenalty",
-                responseConstraintViolationPenalty
-            )
-        )
-        list.add(SolutionData(id, "solution", null, "penalizedObjFncValue", penalizedObjFncValue))
-        for ((name, value) in responseViolations) {
-            list.add(SolutionData(id, "solution", "constraintViolation", name, value))
-        }
-        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "count", estimatedObjFnc.count))
-        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "average", estimatedObjFnc.average))
-        list.add(SolutionData(id, "objectiveFunction", estimatedObjFnc.name, "variance", estimatedObjFnc.variance))
-        for (estimate in responseEstimates) {
-            list.add(SolutionData(id, "responseEstimate", estimate.name, "count", estimate.count))
-            list.add(SolutionData(id, "responseEstimate", estimate.name, "average", estimate.average))
-            list.add(SolutionData(id, "responseEstimate", estimate.name, "variance", estimate.variance))
-        }
-        return list
-    }
-
     override fun compareTo(other: Solution): Int {
         return penalizedObjFncValue.compareTo(other.penalizedObjFncValue)
     }
