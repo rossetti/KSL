@@ -137,7 +137,7 @@ interface EstimatedResponseIfc {
      *  the resulting key would be "power_average".
      */
     @Suppress("unused")
-    fun toResponseData() : Map<String, Double> {
+    fun asMappedData() : Map<String, Double> {
         val map = mutableMapOf<String, Double>()
         map["${name}_average"] = average
         map["${name}_variance"] = variance
