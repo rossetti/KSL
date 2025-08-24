@@ -127,6 +127,26 @@ interface EstimatedResponseIfc {
         return sqrt(hw1 * hw1 + hw2 * hw2)
     }
 
+    /**
+     *  Returns a map of the statistical summary data for the estimates.
+     *  Each key is the name of the statistic concatenated with the name of the response
+     *  and the value is the statistic value.  The following statistics are provided:
+     *  average, variance, standard deviation, standard error, and count.
+     *  The names of the response and statistic are concatenated with an underscore.
+     *  As an example, if the name of the response is "power" and the name of the statistic is "average",
+     *  the resulting key would be "power_average".
+     */
+    @Suppress("unused")
+    fun responseData() : Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        map["${name}_average"] = average
+        map["${name}_variance"] = variance
+        map["${name}_count"] = count
+        map["${name}_standardDeviation"] = standardDeviation
+        map["${name}_standardError"] = standardError
+        return map
+    }
+
     companion object {
 
         /**
