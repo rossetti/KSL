@@ -4,6 +4,10 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.simulation.ModelBuilderIfc
+import org.jetbrains.kotlinx.dataframe.api.describe
+import org.jetbrains.kotlinx.dataframe.api.print
+import org.jetbrains.kotlinx.dataframe.api.schema
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 enum class SolverType {
     SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
@@ -14,8 +18,8 @@ fun main() {
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.R_SPLINE
 //    val solverType = SolverType.CE
-//    val solverType = SolverType.SHC
-    val solverType = SolverType.R_SPLINE_RS
+    val solverType = SolverType.SHC
+//    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
     runSolver(modelIdentifier, solverType)
@@ -38,6 +42,9 @@ fun runSolver(modelIdentifier: String, solverType: SolverType) {
     println("Approximate screening:")
     val solutions = solver.bestSolutions.possiblyBest()
     println(solutions)
+//    val df = solver.bestSolutions.toDataFrame()
+//    df.schema().print()
+//    df.print()
 }
 
 fun solverFactory(
