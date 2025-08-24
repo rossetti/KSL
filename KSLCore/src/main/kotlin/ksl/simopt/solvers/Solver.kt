@@ -695,6 +695,23 @@ abstract class Solver(
     }
 
     /**
+     * Requests evaluations for a set of input maps. The function prepares the evaluation requests
+     * from the provided inputs and then performs evaluations to generate solutions. The
+     * evaluations will be performed using the common random numbers.
+     *
+     * @param inputs a set of input maps, where each map contains input variables and their respective values
+     * @param numReps the number of replications for each of the requested evaluations
+     * @return a list of solutions obtained after performing evaluations on the inputs
+     */
+    @Suppress("unused")
+    protected fun requestEvaluationsWithCRN(
+        inputs: Set<InputMap>,
+        numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
+    ): Map<ModelInputs, Solution> {
+        return requestEvaluations(inputs, numReps, true)
+    }
+
+    /**
      * Requests an evaluation for a single input map and returns the resulting solution.
      * The function prepares the input as an evaluation request, performs the evaluation,
      * and subsequently emits and logs the resulting solution.  CRN is not permitted for a single

@@ -3,7 +3,7 @@ package ksl.simopt.evaluator
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
-import ksl.simopt.evaluator.SimulationServiceIfcV2.Companion.logger
+import ksl.simopt.evaluator.SimulationServiceIfc.Companion.logger
 import ksl.simulation.Model
 
 /**

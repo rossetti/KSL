@@ -435,9 +435,10 @@ class RSplineSolver @JvmOverloads constructor(
             logger.trace { "\t \t \t \t PLI search: no feasible simplex inputs, returning no gradients, bad solution" }
             return PLIResults(numOracleCalls = 0, gradients = null, solution = badSolution)
         }
-        //TODO The request for evaluation of the simplex vertices should use CRN
+        //The request for evaluation of the simplex vertices should use CRN
         logger.trace { "\t \t \t \t Requesting evaluation of ${feasibleInputs.keys.size} simplex vertices with sample size = $sampleSize." }
-        val evaluations = requestEvaluations(feasibleInputs.keys, sampleSize)
+        val evaluations = requestEvaluationsWithCRN(feasibleInputs.keys, sampleSize)
+//        val evaluations = requestEvaluations(feasibleInputs.keys, sampleSize)
         val results = mutableListOf<Solution>()
         for((_, solution) in evaluations) {
             results.add(solution)//TODO is this preserving the ordering? I think so.
