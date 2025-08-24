@@ -78,13 +78,13 @@ abstract class SimulationServiceV2(
             if (simulationRun == null) {
                 simulationRun = executeSimulation(modelInputs, model)
             }
-             results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
-                 Result.success(simulationRun)
-             } else {
-                 SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
-                 SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
-                 Result.failure(SimulationRunException(simulationRun))
-             }
+            results[modelInputs] = if (simulationRun.runErrorMsg.isEmpty()) {
+                Result.success(simulationRun)
+            } else {
+                SimulationServiceIfc.logger.info { "SimulationService: Simulation for model: ${model.name} experiment: ${model.experimentName} had an error. " }
+                SimulationServiceIfc.logger.info { "Error message: ${simulationRun.runErrorMsg} " }
+                Result.failure(SimulationRunException(simulationRun))
+            }
         }
         model.changeRunParameters(originalExpRunParams)
         return results
@@ -106,7 +106,7 @@ abstract class SimulationServiceV2(
     private fun simulateWithoutCache(
         modelInputs: List<ModelInputs>,
         model: Model
-    ) : Map<ModelInputs, Result<SimulationRun>> {
+    ): Map<ModelInputs, Result<SimulationRun>> {
         val results = mutableMapOf<ModelInputs, Result<SimulationRun>>()
         for (modelInputs in modelInputs) {
             val simulationRun = executeSimulation(modelInputs, model)
@@ -122,16 +122,16 @@ abstract class SimulationServiceV2(
     }
 
     override fun simulate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Result<ResponseMap>> {
-         // translate the simulation runs to response maps.
+        // translate the simulation runs to response maps.
         val simulations = runSimulations(evaluationRequest)
         val allResults = mutableMapOf<ModelInputs, Result<ResponseMap>>()
         for ((modelInputs, simulationRunResult) in simulations) {
             simulationRunResult.onFailure {
                 allResults[modelInputs] = Result.failure(it)
-            } .onSuccess {
+            }.onSuccess {
                 allResults[modelInputs] = captureResultFromSimulationRun(modelInputs, it)
             }
-         }
+        }
         return allResults
     }
 }
