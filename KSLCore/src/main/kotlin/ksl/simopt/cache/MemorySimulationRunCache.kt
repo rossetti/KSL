@@ -76,6 +76,8 @@ class MemorySimulationRunCache private constructor(
     }
 
     override fun put(modelInputs: ModelInputs, simulationRun: SimulationRun): SimulationRun? {
+        // don't put the simulation run in the cache if there is an error
+        if (simulationRun.runErrorMsg.isNotEmpty()) return null
         require(validatePair(modelInputs, simulationRun)) { "The supplied request and simulation run are not valid." }
         if (size == capacity) {
             val itemToEvict = evictionRule?.findEvictionCandidate(this) ?: findEvictionCandidate()
