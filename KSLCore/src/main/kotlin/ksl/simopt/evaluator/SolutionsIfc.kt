@@ -3,6 +3,9 @@ package ksl.simopt.evaluator
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import org.jetbrains.kotlinx.dataframe.AnyFrame
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 
 interface SolutionsIfc : List<Solution> {
 
@@ -123,4 +126,30 @@ interface SolutionsIfc : List<Solution> {
                 field = value
             }
     }
+}
+
+/**
+ *  Returns a map of the data associated with the solutions.
+ */
+fun List<Solution>.toDataMap() : Map<String, List<Double>>{
+    if (isEmpty()) return emptyMap()
+    val map = mutableMapOf<String, MutableList<Double>>()
+    for (solution in this) {
+        val data = solution.asMappedData()
+        for ((key, value) in data) {
+            if (map.containsKey(key)) {
+                map[key]!!.add(value)
+            } else {
+                map[key] = mutableListOf(value)
+            }
+        }
+    }
+    return map
+}
+
+/**
+ *  Returns a DataFrame of the data associated with the solutions.
+ */
+fun List<Solution>.toDataFrame(): AnyFrame {
+    return toDataMap().toDataFrame()
 }
