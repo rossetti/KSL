@@ -100,12 +100,12 @@ data class Solution(
      *  The returned values include the input map, the estimated objective function,
      *  and the estimated responses.
      */
-    fun asMappedData() : Map<String, Double> {
+    override fun asMappedData() : Map<String, Double> {
         val map = mutableMapOf<String, Double>()
         map.putAll(inputMap)
-        map.putAll(estimatedObjFnc.toResponseData())
+        map.putAll(estimatedObjFnc.asMappedData())
         for (estimate in responseEstimates) {
-            map.putAll(estimate.toResponseData())
+            map.putAll(estimate.asMappedData())
         }
         return map
     }
