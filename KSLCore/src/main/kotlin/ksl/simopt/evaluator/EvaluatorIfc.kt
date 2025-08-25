@@ -13,13 +13,9 @@ interface EvaluatorIfc {
 
     /**
      *  Processes the supplied requests for solutions. The solutions may come from an associated
-     *  solution cache (if present) or via evaluations by the simulation oracle.  The list of
-     *  requests may have duplicated inputs, in which case, the solution will also be a duplicate.
-     *  That is, no extra evaluations occur for duplicates in the list of requests. Any new
-     *  solutions that result due to the processing will be entered into the cache (according
-     *  to the rules governing the cache).  Any incoming requests that have input range
-     *  infeasible input settings will not be evaluated and will result in solutions that
-     *  are bad and infeasible.
+     *  solution cache (if present or allowed) or via evaluations by the simulation oracle.
+     *  The CRN option is applied to the set of requests and does not permit
+     *  cached solutions, even if caching is permitted.
      *
      *  @param evaluationRequest a request for evaluation
      *  @return a map containing the model inputs and resulting solutions as pairs
