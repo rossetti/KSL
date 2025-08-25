@@ -47,11 +47,7 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
     /**
      *  Removes all items from the cache
      */
-    fun clear() {
-        for (key in keys) {
-            remove(key)
-        }
-    }
+    fun clear()
 
     /**
      *  Retrieves the simulation runs associated with the requests

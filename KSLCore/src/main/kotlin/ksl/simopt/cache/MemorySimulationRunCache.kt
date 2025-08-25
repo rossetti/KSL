@@ -71,6 +71,10 @@ class MemorySimulationRunCache private constructor(
         return map.remove(modelInputs)
     }
 
+    override fun clear() {
+        map.clear()
+    }
+
     override fun simulationRuns(): List<SimulationRun> {
         return map.values.toList()
     }
