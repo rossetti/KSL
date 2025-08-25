@@ -85,6 +85,20 @@ fun testRV(){
 
 }
 
+fun testGroupingMaps(){
+    val originalMap = mapOf(
+        "apple" to "fruit",
+        "banana" to "fruit",
+        "carrot" to "vegetable"
+    )
+
+// Group by the value (e.g., "fruit", "vegetable")
+    val groupedByValue = originalMap.entries.groupBy { it.value }
+
+    println(groupedByValue)
+// Output: {fruit=[apple=fruit, banana=fruit], vegetable=[carrot=vegetable]}
+}
+
 fun testMRound(){
     //val x = 3.0459
     //val x = 3.549
