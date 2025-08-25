@@ -3,6 +3,8 @@ package ksl.simopt.cache
 import ksl.controls.experiments.SimulationRun
 import ksl.simopt.evaluator.ModelInputs
 import ksl.utilities.io.ToJSONIfc
+import org.jetbrains.kotlinx.dataframe.AnyFrame
+import org.jetbrains.kotlinx.dataframe.api.toDataFrame
 
 /**
  *  A simulation run cache should be designed to efficiently look up a simulation run
@@ -91,6 +93,31 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
             this.entries.groupBy { it.key.names() }
         // convert the grouped list of map entries to maps
         return groupBy.mapValues { toMap() }
+    }
+
+    fun toMappedDataGroupedByModelInputNames() : Map<Set<String>, Map<String, List<Double>>> {
+        val map = mutableMapOf<Set<String>, Map<String, List<Double>>>()
+        val srMap = simulationRunsGroupedByModelInputNames()
+        for ((names, simResults) in srMap) {
+            val tmp = mutableMapOf<String, List<Double>>()
+            for ((modelInputs, simulationRun) in simResults) {
+                val rNames = modelInputs.responseNames.ifEmpty { simulationRun.results.keys }
+                for ((rn, responseData) in simulationRun.results) {
+                    if (rNames.contains(rn)) {
+                        tmp[rn] = responseData.toList()
+                    }
+                }
+                for ((n, v) in modelInputs.inputs) {
+                    tmp[n] = List(simulationRun.numberOfReplications) { v }
+                }
+            }
+            map[names] = tmp
+        }
+        return map
+    }
+
+    fun toDataFramesGroupedByModelInputNames(): Map<Set<String>, AnyFrame> {
+        return toMappedDataGroupedByModelInputNames().mapValues { it.value.toDataFrame() }
     }
 }
 
