@@ -1574,6 +1574,23 @@ class Model @JvmOverloads constructor(
     }
 
     /**
+     * Combines inputs from controls and from random variable parameters single map of inputs (key, value)
+     *
+     * @param conCatString A character used as a delimiter for concatenating parameter keys. Defaults to `rvParamConCatChar`.
+     * @return the map of current inputs for the model
+     */
+    @Suppress("unused")
+    @JvmOverloads
+    fun inputSettings(conCatString: Char = rvParamConCatChar) : Map<String, Double> {
+        val map = mutableMapOf<String, Double>()
+        val rvs = RVParameterSetter(this)
+        val controls = Controls(this)
+        map.putAll(controls.asMap())
+        map.putAll(rvs.flatParametersAsDoubles(conCatString))
+        return map
+    }
+
+    /**
      * Validates the provided set of response names are associated with the model's responses
      * (Response, TWResponse or Counter).
      *
