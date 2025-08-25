@@ -22,7 +22,7 @@ import ksl.simulation.Model
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    internal var model: Model,
+    private val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
 ) : SimulationProviderIfc {
 
@@ -81,7 +81,10 @@ class SimulationProvider internal constructor(
         for (modelInputs in evaluationRequest.modelInputs) {
             var simulationRun = useCachedSimulationRun(modelInputs)
             if (simulationRun == null) {
+                // nothing in the cache was usable, run the simulation
                 simulationRun = executeSimulation(modelInputs, model)
+                // capture the simulation run into the cache
+                simulationRunCache[modelInputs] = simulationRun
             }
             val results = captureResultFromSimulationRun(modelInputs, simulationRun)
             allResults[modelInputs]= results
@@ -100,6 +103,11 @@ class SimulationProvider internal constructor(
         return allResults
     }
 
+    /**
+     *  The cache is only used if the requested number of replications is less than or equal to
+     *  a cached instance's stored number of replications; otherwise, a full new simulation is
+     *  executed.
+     */
     private fun useCachedSimulationRun(modelInputs: ModelInputs): SimulationRun? {
         if (simulationRunCache == null) return null
         if (simulationRunCache.containsKey(modelInputs)) {

@@ -105,6 +105,7 @@ class Evaluator @JvmOverloads constructor(
         val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
         EvaluatorIfc.logger.trace { "Number of solutions found in the cache: ${cachedSolutions.size}" }
         if (cachedSolutions.isEmpty()) {
+            // nothing found in the cache, just evaluate by simulation
             val evaluations = evaluateViaSimulation(evaluationRequest)
             // Put the solutions into the cache
             cache.putAll(evaluations)
@@ -239,6 +240,7 @@ class Evaluator @JvmOverloads constructor(
             }
         }
         // Need to make the InputMap. This will not be the same object used to make the request.
+        // But, it will have the same values.
         val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
         val solution = Solution(
             inputMap,
