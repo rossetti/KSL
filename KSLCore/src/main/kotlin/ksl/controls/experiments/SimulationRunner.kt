@@ -106,7 +106,7 @@ class SimulationRunner(
      * associated with the simulation run [simulationRun]
      */
     fun simulate(simulationRun: SimulationRun) {
-        require(model.modelIdentifier == simulationRun.modelIdentifier) {"The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run."}
+        require(model.modelIdentifier == simulationRun.modelIdentifier) { "The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run." }
         try {
             // set simulation run parameters, number of advances, experimental controls, and random variables
             setupSimulation(simulationRun)
@@ -126,6 +126,10 @@ class SimulationRunner(
             results["repTimings"] = timer.replicationTimes()
             val rdcData = rdc.allReplicationDataAsMap
             results.putAll(rdcData)
+//            if (simulationRun.inputs.isEmpty()) {
+//                //fill them with the defaults for the model that ran
+//                simulationRun.inputs = model.inputSettings()
+//            }
             simulationRun.results = results
             simulationRun.beginExecutionTime = timer.experimentStartTime
             simulationRun.endExecutionTime = timer.experimentEndTime
