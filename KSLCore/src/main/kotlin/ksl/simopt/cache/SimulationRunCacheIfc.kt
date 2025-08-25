@@ -75,7 +75,21 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
      *  Retrieves the simulation runs in the cache as a list of simulation runs
      *  @return the list of simulation runs
      */
-    fun simulationRuns() : List<SimulationRun>
+    fun simulationRuns(): List<SimulationRun>
 
+    /**
+     *  Partitions the simulation runs into groups that are determined by the model inputs
+     *  that have the same input and response names. Any simulation runs that have model inputs
+     *  with the same input names and response names are grouped together into a map.
+     *  @return the returned map has keys that are the unique set of strings within the model
+     *  input names and response names, with values representing the map of model inputs to related
+     *  simulation runs.
+     */
+    fun simulationRunsGroupedByModelInputNames(): Map<Set<String>, Map<ModelInputs, SimulationRun>> {
+        val groupBy: Map<Set<String>, List<Map.Entry<ModelInputs, SimulationRun>>> =
+            this.entries.groupBy { it.key.names() }
+        // convert the grouped list of map entries to maps
+        return groupBy.mapValues { toMap() }
+    }
 }
 
