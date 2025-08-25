@@ -85,6 +85,7 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
      *  input names and response names, with values representing the map of model inputs to related
      *  simulation runs.
      */
+    @Suppress("unused")
     fun simulationRunsGroupedByModelInputNames(): Map<Set<String>, Map<ModelInputs, SimulationRun>> {
         val groupBy: Map<Set<String>, List<Map.Entry<ModelInputs, SimulationRun>>> =
             this.entries.groupBy { it.key.names() }
