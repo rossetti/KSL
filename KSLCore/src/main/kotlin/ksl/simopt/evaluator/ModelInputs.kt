@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
  *  inputs will be used.
  *  Note 3: The [responseNames] property may be empty. If empty, then all responses from the simulation
  *  are requested to be returned as a result of the evaluation.
+ *  Note 4: If [inputs] and [responseNames] are both empty, equality is determined solely by the [modelIdentifier].
  *
  *  @param modelIdentifier the model identifier associated with the simulation model that will be executed
  *  @param numReplications the number of replications to run the model. Must be greater than 0. This
