@@ -15,7 +15,11 @@ import kotlinx.serialization.Serializable
  *  2. the [responseNames] properties are equal (contain all the same response names), and
  *  3. the [inputs] properties are equal (contain the same (key, value) pairs)
  *
- *  Note: Two instances are still equal if their number of replications are different.
+ *  Note 1: Two instances are still equal if their number of replications are different.
+ *  Note 2: The [inputs] property may be empty. This indicates that the current values for the model's
+ *  inputs will be used.
+ *  Note 3: The [responseNames] property may be empty. If empty, then all responses from the simulation
+ *  are requested to be returned as a result of the evaluation.
  *
  *  @param modelIdentifier the model identifier associated with the simulation model that will be executed
  *  @param numReplications the number of replications to run the model. Must be greater than 0. This
