@@ -68,6 +68,28 @@ data class ModelInputs(
     }
 
     /**
+     *  Returns true if the names of the inputs and the names of the
+     *  responses are the same.  If both inputs are empty, this
+     *  is considered equal. If both response names are empty, this
+     *  is considered equal. For the not empty cases, the contents must match.
+     */
+    fun equalNames(other: ModelInputs): Boolean {
+        if (this.inputs.keys != other.inputs.keys) return false
+        if (this.responseNames != other.responseNames) return false
+        return true
+    }
+
+    /**
+     *  Returns the names of the inputs and the responses as a set.
+     */
+    fun names() : Set<String> {
+        val result = mutableSetOf<String>()
+        result.addAll(inputs.keys)
+        result.addAll(responseNames)
+        return result
+    }
+
+    /**
      *  Equals is based on modelIdentifier, inputs, and response names
      *  all being the same.
      */
