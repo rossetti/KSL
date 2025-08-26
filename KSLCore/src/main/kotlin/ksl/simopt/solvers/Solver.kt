@@ -2,6 +2,9 @@ package ksl.simopt.solvers
 
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import ksl.simopt.cache.MemorySolutionCache
+import ksl.simopt.cache.SimulationRunCacheIfc
+import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.evaluator.*
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
@@ -949,6 +952,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of hill climbing iterations to perform.
          * @param replicationsPerEvaluation The number of simulations or evaluations performed per solution to estimate its quality.
          * @param printer An optional function to receive updates about solutions found during the search.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
         @Suppress("unused")
@@ -960,10 +966,13 @@ abstract class Solver(
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             printer: ((Solver) -> Unit)? = null
         ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val shc = StochasticHillClimber(
@@ -988,6 +997,9 @@ abstract class Solver(
          * stochastic noise. Defaults to 50.
          * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the restart optimization process.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
@@ -1001,11 +1013,14 @@ abstract class Solver(
             maxNumRestarts: Int = defaultMaxRestarts,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val shc = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1033,6 +1048,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
          * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
@@ -1047,10 +1065,13 @@ abstract class Solver(
             initialTemperature: Double = defaultInitialTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             printer: ((Solver) -> Unit)? = null
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val sa = SimulatedAnnealing(
@@ -1076,6 +1097,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
@@ -1092,11 +1116,14 @@ abstract class Solver(
             initialTemperature: Double = defaultInitialTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val sa = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
@@ -1124,6 +1151,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
          * @return An instance of CrossEntropySolver that encapsulates the optimization process and results.
@@ -1138,10 +1168,13 @@ abstract class Solver(
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             printer: ((Solver) -> Unit)? = null
         ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1168,6 +1201,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
@@ -1184,11 +1220,14 @@ abstract class Solver(
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder,
+                solutionCache = solutionCache, simulationRunCache = simulationRunCache
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1216,6 +1255,9 @@ abstract class Solver(
          * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
          * provided by the problem definition.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
          * @return An instance of RSplineSolver that encapsulates the optimization process and results.
@@ -1231,10 +1273,13 @@ abstract class Solver(
             maxNumReplications: Int = defaultMaxNumReplications,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             printer: ((Solver) -> Unit)? = null
         ): RSplineSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
@@ -1264,6 +1309,9 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
@@ -1282,11 +1330,14 @@ abstract class Solver(
             maxNumReplications: Int = defaultMaxNumReplications,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
             printer: ((Solver) -> Unit)? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,

@@ -111,21 +111,36 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
      *  @return a map of maps. The key to the outer map is the set of input and response names. The inner map is a
      *  data map of the inputs and the replication responses.
      */
-    fun toMappedDataGroupedByModelInputNames() : Map<Set<String>, Map<String, List<Double>>> {
-        val map = mutableMapOf<Set<String>, Map<String, List<Double>>>()
+    fun toMappedDataGroupedByModelInputNames(): Map<Set<String>, Map<String, List<Double>>> {
+        val map = mutableMapOf<Set<String>, Map<String, MutableList<Double>>>()
         val srMap = simulationRunsGroupedByModelInputNames()
         for ((names, simResults) in srMap) {
-            val tmp = mutableMapOf<String, List<Double>>()
+            val tmp = mutableMapOf<String, MutableList<Double>>()
+            tmp["simRunId"] = mutableListOf()
+            var i = 1.0
             for ((modelInputs, simulationRun) in simResults) {
-                val rNames = modelInputs.responseNames.ifEmpty { simulationRun.results.keys }
-                for ((rn, responseData) in simulationRun.results) {
-                    if (rNames.contains(rn)) {
-                        tmp[rn] = responseData.toList()
+                tmp["simRunId"]!!.addAll(MutableList(simulationRun.numberOfReplications){i})
+                for ((n, _) in modelInputs.inputs) {
+                    if (!tmp.containsKey(n)) {
+                        tmp[n] = mutableListOf()
                     }
                 }
                 for ((n, v) in modelInputs.inputs) {
-                    tmp[n] = List(simulationRun.numberOfReplications) { v }
+                    val list = MutableList(simulationRun.numberOfReplications) { v }
+                    tmp[n]!!.addAll(list)
                 }
+                val rNames = modelInputs.responseNames.ifEmpty { simulationRun.results.keys }
+                for ((rn, responseData) in simulationRun.results) {
+                    if (!tmp.containsKey(rn)) {
+                        if ((rn in rNames) || (rn == "repNumbers")) {
+                            tmp[rn] = mutableListOf()
+                        }
+                    }
+                    if ((rn in rNames) || (rn == "repNumbers")) {
+                        tmp[rn]!!.addAll(responseData.toList())
+                    }
+                }
+                i++
             }
             map[names] = tmp
         }
