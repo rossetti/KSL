@@ -95,6 +95,22 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
         return groupBy.mapValues { toMap() }
     }
 
+    /**
+     *  Cached simulation runs are associated with instances of [ModelInputs].  The equality of model inputs
+     *  is determined by the model identifier, the names (and values) of the inputs, and the names of the desired responses.
+     *  For the purposes of this function, we assume that the simulation runs are grouped (partitioned) by
+     *  those model inputs that have the same input names and same requested responses. See [simulationRunsGroupedByModelInputNames()].
+     *  This function returns the inputs and replication responses within a map of maps. The outer map
+     *  represents the common input names and requested responses, and the inner map the inputs and responses.
+     *  You can think of the inner map as holding the columns of the simulation run inputs and responses for each
+     *  replication within the run. This "tabular" representation is useful for analysis of input to output relationships.
+     *  The model input values will be repeated for each replication. The response values represent the observed
+     *  replication average for the response.  The outer grouping is necessary because not every requested simulation
+     *  run will have the same input names and/or requested responses. The grouping ensures those that have common
+     *  names (inputs/response) will be within the associated map.
+     *  @return a map of maps. The key to the outer map is the set of input and response names. The inner map is a
+     *  data map of the inputs and the replication responses.
+     */
     fun toMappedDataGroupedByModelInputNames() : Map<Set<String>, Map<String, List<Double>>> {
         val map = mutableMapOf<Set<String>, Map<String, List<Double>>>()
         val srMap = simulationRunsGroupedByModelInputNames()
@@ -116,6 +132,12 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
         return map
     }
 
+    /**
+     *  Translates the maps returned by [toMappedDataGroupedByModelInputNames()] into data frames
+     *  holding the input-response data for each replication.
+     *  @return a map of data frames. The key to the outer map is the set of input and response names. The
+     *  dataframe holds the data of inputs and responses.
+     */
     fun toDataFramesGroupedByModelInputNames(): Map<Set<String>, AnyFrame> {
         return toMappedDataGroupedByModelInputNames().mapValues { it.value.toDataFrame() }
     }
