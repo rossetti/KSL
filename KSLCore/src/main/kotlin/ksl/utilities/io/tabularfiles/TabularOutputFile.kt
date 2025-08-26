@@ -83,6 +83,7 @@ class TabularOutputFile(
         dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)
         val executed = myDb.executeCommand(cmd)
+        println(cmd)
         if (!executed) {
             throw IllegalStateException("Unable to create tabular file: $path")
         }
@@ -104,10 +105,11 @@ class TabularOutputFile(
                 "text"
             }
             i++
+            val cn = col.key.replace(".", "_")
             if (i < myColumnNames.size) {
-                sb.append("${col.key} $type,")
+                sb.append("$cn $type,")
             } else {
-                sb.append("${col.key} $type)")
+                sb.append("$cn $type)")
             }
         }
         return sb.toString()

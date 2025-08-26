@@ -6,6 +6,7 @@ import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.io.KSL
+import ksl.utilities.io.toTabularFile
 import org.jetbrains.kotlinx.dataframe.api.describe
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.schema
@@ -41,6 +42,7 @@ fun main() {
            // println(df.print(rowsLimit = 100))
             println()
             df.writeCsv(KSL.csvDir.resolve("simulationRuns${i}.csv"))
+            df.toTabularFile("simulationRuns${i}")
             i++
         }
     }
