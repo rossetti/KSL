@@ -153,6 +153,7 @@ interface SimulationRunCacheIfc : Map<ModelInputs, SimulationRun>, ToJSONIfc {
      *  @return a map of data frames. The key to the outer map is the set of input and response names. The
      *  dataframe holds the data of inputs and responses.
      */
+    @Suppress("unused")
     fun toDataFramesGroupedByModelInputNames(): Map<Set<String>, AnyFrame> {
         return toMappedDataGroupedByModelInputNames().mapValues { it.value.toDataFrame() }
     }
