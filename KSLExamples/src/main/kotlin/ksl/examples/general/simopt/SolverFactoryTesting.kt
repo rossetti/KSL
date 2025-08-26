@@ -1,17 +1,23 @@
 package ksl.examples.general.simopt
 
+import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.simulation.ModelBuilderIfc
+import ksl.utilities.io.KSL
 import org.jetbrains.kotlinx.dataframe.api.describe
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.schema
 import org.jetbrains.kotlinx.dataframe.api.toDataFrame
+import org.jetbrains.kotlinx.dataframe.io.writeCsv
+import org.jetbrains.kotlinx.dataframe.io.writeExcel
 
 enum class SolverType {
     SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
 }
+
+var simulationRunCache = MemorySimulationRunCache()
 
 fun main() {
     //  val modelIdentifier = "RQInventoryModel"
@@ -23,6 +29,22 @@ fun main() {
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
     runSolver(modelIdentifier, solverType)
+
+    if (solverType == SolverType.SHC) {
+        println("Number of simulation runs in the cache = ${simulationRunCache.size}")
+        val mapDF = simulationRunCache.toDataFramesGroupedByModelInputNames()
+        println("Number of dataframes: ${mapDF.size}")
+        var i = 1
+        for((key, df) in mapDF) {
+            println(key.joinToString())
+            println("-------------")
+           // println(df.print(rowsLimit = 100))
+            println()
+            df.writeCsv(KSL.csvDir.resolve("simulationRuns${i}.csv"))
+            i++
+        }
+    }
+
 }
 
 fun runSolver(modelIdentifier: String, solverType: SolverType) {
@@ -61,6 +83,7 @@ fun solverFactory(
                 startingPoint = null,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
+                simulationRunCache = simulationRunCache,
                 printer = printer,
             )
         }

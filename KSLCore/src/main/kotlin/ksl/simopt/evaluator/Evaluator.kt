@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.cache.MemorySolutionCache
+import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
@@ -354,12 +355,14 @@ class Evaluator @JvmOverloads constructor(
         fun createProblemEvaluator(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
-            modelConfiguration: Map<String, String>? = null
+            modelConfiguration: Map<String, String>? = null,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null
         ): Evaluator {
             val model = modelBuilder.build(modelConfiguration)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
-            val simulationProvider = SimulationProvider(model)
-            return Evaluator(problemDefinition, simulationProvider, MemorySolutionCache())
+            val simulationProvider = SimulationProvider(model, simulationRunCache)
+            return Evaluator(problemDefinition, simulationProvider, solutionCache)
         }
 
     }
