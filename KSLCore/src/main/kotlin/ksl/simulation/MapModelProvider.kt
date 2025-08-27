@@ -61,8 +61,13 @@ class MapModelProvider(
         return modelBuilders.containsKey(modelIdentifier)
     }
 
-    override fun provideModel(modelIdentifier: String, modelConfiguration: Map<String, String>?): Model {
-         val model = modelBuilders[modelIdentifier]?.build(modelConfiguration)
+    override fun provideModel(
+        modelIdentifier: String,
+        modelConfiguration: Map<String, String>?,
+        experimentRunParameters: ExperimentRunParametersIfc?,
+        defaultKSLDatabaseObserverOption: Boolean
+    ): Model {
+         val model = modelBuilders[modelIdentifier]?.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
             ?: throw IllegalArgumentException("No model builder found for identifier: $modelIdentifier")
         if (!modelCache.containsKey(modelIdentifier)) modelCache[modelIdentifier] = model
         return model
