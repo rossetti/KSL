@@ -417,14 +417,19 @@ class RSplineSolver @JvmOverloads constructor(
      */
     private fun piecewiseLinearInterpolation(
         solution: Solution,
-        sampleSize: Int
+        sampleSize: Int,
+        perturbation: Double
     ): PLIResults {
+        // TODO this function could potentially be moved to StochasticSolver as a protected function.
+        // The issue is that the parameter solution must have integer inputs.  No testing is done here
+        // because by construction RSPLINE can only be applied to integer ordered problems.
+
         // The PLI search must start with a feasible point.
         require(solution.isInputFeasible()) { "The initial solution to the PLI function must be input feasible!" }
         // get the point to be associated with the center of the simplex
         val x = solution.inputMap.inputValues
         // perturb the point
-        val point = perturb(x)
+        val point = perturb(x, perturbation)
         // determine the next simplex based on the perturbed point
         val simplexData = piecewiseLinearSimplex(point)
         // filter out the infeasible vertices in the simplex
@@ -515,7 +520,7 @@ class RSplineSolver @JvmOverloads constructor(
         for(j in 1..spliMaxIterations){
             // Call PLI(x1, mk) to observe gmk (x1) and (possibly) gradient
             logger.trace { "\t \t \t SPLI search: iteration $j of $spliMaxIterations : calling PLI..." }
-            val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize)
+            val pliResults = piecewiseLinearInterpolation(bestSoln, sampleSize, perturbation)
             numOracleCalls = numOracleCalls + pliResults.numOracleCalls
             logger.trace { "\t \t \t SPLI search: iteration $j : called PLI used ${pliResults.numOracleCalls} oracle calls" }
             // regardless of gradient computation, update the current best solution
@@ -611,9 +616,10 @@ class RSplineSolver @JvmOverloads constructor(
      *  doi: 10.1145/2499913.2499916.
      *
      * @param point the point that needs to be perturbed
+     * @param perturbation the amount of the perturbation
      * @return the same point with the added perturbation
      */
-    private fun perturb(point: DoubleArray): DoubleArray {
+    private fun perturb(point: DoubleArray, perturbation: Double): DoubleArray {
         return addRandomPerturbation(point, perturbation, rnStream)
     }
 
@@ -806,6 +812,7 @@ class RSplineSolver @JvmOverloads constructor(
          * @param point a non-integral point around which the simplex is to be formed
          * @return the data associated with the simplex
          */
+        @JvmStatic
         fun piecewiseLinearSimplex(point: DoubleArray): SimplexData {
             require(point.isNotEmpty()) { "The point must not be empty!" }
             // vertices will hold the vertices of the simplex
@@ -863,6 +870,7 @@ class RSplineSolver @JvmOverloads constructor(
          * @param rnStream the random number stream to use for the perturbation
          *
          */
+        @JvmStatic
         fun addRandomPerturbation(
             point: DoubleArray,
             perturbationFactor: Double,
