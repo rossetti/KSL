@@ -5,6 +5,9 @@ import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.evaluator.SimulationServiceIfc.Companion.logger
 import ksl.simulation.Model
+import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import java.nio.file.Path
 
 /**
  *  This simulation provider will execute evaluation requests on the same model
@@ -22,7 +25,7 @@ import ksl.simulation.Model
  */
 @Suppress("unused")
 class SimulationProvider internal constructor(
-    private val model: Model,
+    val model: Model,
     override val simulationRunCache: SimulationRunCacheIfc? = null,
 ) : SimulationProviderIfc {
 
@@ -48,6 +51,19 @@ class SimulationProvider internal constructor(
     )
 
     private val mySimulationRunner = SimulationRunner(model)
+
+    /**
+     *  Creates a default KSLDatabase and attaches a KSLDatabaseObserver to the model.
+     *  @param dbName the name of the database. By default, this is [modelIdentifier].
+     *  @param dbDirectory the path to the database. By default, this is model.outputDirectory.dbDir
+     *  @return the created database observer
+     */
+    fun attachKSLDatabaseObserver(dbName: String = model.modelIdentifier, dbDirectory: Path = model.outputDirectory.dbDir) : KSLDatabaseObserver {
+        val name = "${dbName}.db".replace(" ", "_")
+        val kslDb: KSLDatabase = KSLDatabase(name, dbDirectory)
+        val dbObserver: KSLDatabaseObserver = KSLDatabaseObserver(model, kslDb, true)
+        return dbObserver
+    }
 
     override fun isModelValid(modelIdentifier: String): Boolean {
         return model.modelIdentifier == modelIdentifier
