@@ -89,6 +89,20 @@ abstract class StochasticSolver(
     }
 
     /**
+     *  Generates a set of randomly generated points (inputs) for the problem. The points
+     *  are uniformly sampled from the feasible region and will be unique.
+     */
+    @Suppress("unused")
+    fun sampleInputFeasiblePoints(size: Int = 1): Set<InputMap> {
+        require(size > 0) {"The sample size must be greater than zero!"}
+        val result = mutableSetOf<InputMap>()
+        while (result.size < size) {
+            result.add(problemDefinition.generateInputFeasibleValues(rnStream))
+        }
+        return result
+    }
+
+    /**
      *  Sets the starting point generator to use a randomly generated
      *  input-feasible point that is associated with the best solution found from a
      *  sampling of randomly generated points within the feasible region of the problem definition.
