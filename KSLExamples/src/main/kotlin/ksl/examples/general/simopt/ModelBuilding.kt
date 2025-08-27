@@ -2,6 +2,7 @@ package ksl.examples.general.simopt
 
 import ksl.examples.book.chapter7.RQInventorySystem
 import ksl.examples.general.models.LKInventoryModel
+import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.ConstantRV
@@ -19,7 +20,11 @@ fun selectBuilder(modelIdentifier: String): ModelBuilderIfc {
 }
 
 object BuildRQModel : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?): Model {
+    override fun build(
+        modelConfiguration: Map<String, String>?,
+        experimentRunParameters: ExperimentRunParametersIfc?,
+        defaultKSLDatabaseObserverOption: Boolean
+    ): Model {
         val reorderQty: Int = 2
         val reorderPoint: Int = 1
         val model = Model("RQInventoryModel")
@@ -30,12 +35,19 @@ object BuildRQModel : ModelBuilderIfc {
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 10000.0
         model.numberOfReplications = 40
+        if (defaultKSLDatabaseObserverOption) {
+            model.createDefaultDatabaseObserver()
+        }
         return model
     }
 }
 
 object BuildLKModel : ModelBuilderIfc {
-    override fun build(modelConfiguration: Map<String, String>?): Model {
+    override fun build(
+        modelConfiguration: Map<String, String>?,
+        experimentRunParameters: ExperimentRunParametersIfc?,
+        defaultKSLDatabaseObserverOption: Boolean
+    ): Model {
         val model = Model("LKInventoryModel")
         val lkInventoryModel = LKInventoryModel(model, "Inventory")
         model.lengthOfReplication = 120.0
@@ -43,6 +55,9 @@ object BuildLKModel : ModelBuilderIfc {
         model.lengthOfReplicationWarmUp = 20.0
         lkInventoryModel.orderQuantity = 1
         lkInventoryModel.reorderPoint = 2
+        if (defaultKSLDatabaseObserverOption) {
+            model.createDefaultDatabaseObserver()
+        }
         return model
     }
 }

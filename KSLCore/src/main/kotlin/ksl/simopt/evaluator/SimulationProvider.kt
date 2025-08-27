@@ -19,8 +19,7 @@ import java.nio.file.Path
  *  for use by the provider.  Use the primary constructor if you are certain that there are no issues with
  *  sharing the model instance.
  *
- * @param model a function that promises to create the model that will be executed. The model that is created
- *  is assumed to be configured to run.
+ * @param model the model that is run by the provider
  * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
  */
 @Suppress("unused")
@@ -52,18 +51,18 @@ class SimulationProvider internal constructor(
 
     private val mySimulationRunner = SimulationRunner(model)
 
-    /**
-     *  Creates a default KSLDatabase and attaches a KSLDatabaseObserver to the model.
-     *  @param dbName the name of the database. By default, this is [modelIdentifier].
-     *  @param dbDirectory the path to the database. By default, this is model.outputDirectory.dbDir
-     *  @return the created database observer
-     */
-    fun attachKSLDatabaseObserver(dbName: String = model.modelIdentifier, dbDirectory: Path = model.outputDirectory.dbDir) : KSLDatabaseObserver {
-        val name = "${dbName}.db".replace(" ", "_")
-        val kslDb: KSLDatabase = KSLDatabase(name, dbDirectory)
-        val dbObserver: KSLDatabaseObserver = KSLDatabaseObserver(model, kslDb, true)
-        return dbObserver
-    }
+//    /**
+//     *  Creates a default KSLDatabase and attaches a KSLDatabaseObserver to the model.
+//     *  @param dbName the name of the database. By default, this is [modelIdentifier].
+//     *  @param dbDirectory the path to the database. By default, this is model.outputDirectory.dbDir
+//     *  @return the created database observer
+//     */
+//    fun attachKSLDatabaseObserver(dbName: String = model.modelIdentifier, dbDirectory: Path = model.outputDirectory.dbDir) : KSLDatabaseObserver {
+//        val name = "${dbName}.db".replace(" ", "_")
+//        val kslDb: KSLDatabase = KSLDatabase(name, dbDirectory)
+//        val dbObserver: KSLDatabaseObserver = KSLDatabaseObserver(model, kslDb, true)
+//        return dbObserver
+//    }
 
     override fun isModelValid(modelIdentifier: String): Boolean {
         return model.modelIdentifier == modelIdentifier
