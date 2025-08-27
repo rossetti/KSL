@@ -5,6 +5,7 @@ import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
 
@@ -344,6 +345,9 @@ class Evaluator @JvmOverloads constructor(
          * string and the key provides information about how to process the JSON.
          * The intent is that the map should be sufficient to build an appropriate `Model` instance.
          * The map is optional. The function should return a model that is usable.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
          * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible,
@@ -357,9 +361,11 @@ class Evaluator @JvmOverloads constructor(
             modelBuilder: ModelBuilderIfc,
             modelConfiguration: Map<String, String>? = null,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
-            simulationRunCache: SimulationRunCacheIfc? = null
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): Evaluator {
-            val model = modelBuilder.build(modelConfiguration)
+            val model = modelBuilder.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model, simulationRunCache)
             return Evaluator(problemDefinition, simulationProvider, solutionCache)

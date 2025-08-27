@@ -21,6 +21,7 @@ import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRes
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
 import ksl.simulation.ModelBuilderIfc
@@ -955,6 +956,9 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
         @Suppress("unused")
@@ -968,11 +972,14 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val shc = StochasticHillClimber(
@@ -1002,6 +1009,9 @@ abstract class Solver(
          * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1016,11 +1026,14 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val shc = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1053,6 +1066,9 @@ abstract class Solver(
          * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1067,11 +1083,14 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val sa = SimulatedAnnealing(
@@ -1104,6 +1123,9 @@ abstract class Solver(
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1119,11 +1141,14 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val sa = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
@@ -1156,6 +1181,9 @@ abstract class Solver(
          * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of CrossEntropySolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1170,11 +1198,14 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1208,6 +1239,9 @@ abstract class Solver(
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1223,11 +1257,14 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder,
-                solutionCache = solutionCache, simulationRunCache = simulationRunCache
+                solutionCache = solutionCache, simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters, defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1260,6 +1297,9 @@ abstract class Solver(
          * is null (no cache).
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of RSplineSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1275,11 +1315,14 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): RSplineSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
@@ -1316,6 +1359,9 @@ abstract class Solver(
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1333,11 +1379,14 @@ abstract class Solver(
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
             restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
