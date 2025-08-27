@@ -10,8 +10,7 @@ import ksl.utilities.Identity
  */
 class ExperimentalDesign @JvmOverloads constructor(
     factors: Set<Factor>,
-    name: String? = null,
-//    numReps: Int = 1
+    name: String? = null
 ) : Identity(name), ExperimentalDesignIfc {
 
     init {
@@ -27,6 +26,7 @@ class ExperimentalDesign @JvmOverloads constructor(
     /**
      *  Clears all the design points from the design.
      */
+    @Suppress("unused")
     fun clearDesignPoints() {
         myDesignPoints.clear()
     }
