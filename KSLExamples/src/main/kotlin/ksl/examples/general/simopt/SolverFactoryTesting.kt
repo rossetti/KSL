@@ -1,9 +1,11 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.cache.MemorySimulationRunCache
+import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticSolver
+import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.io.KSL
 import ksl.utilities.io.toTabularFile
@@ -18,9 +20,10 @@ enum class SolverType {
     SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
 }
 
-var simulationRunCache = MemorySimulationRunCache()
+
 
 fun main() {
+//    var simulationRunCache = MemorySimulationRunCache()
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.R_SPLINE
@@ -29,31 +32,39 @@ fun main() {
 //    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
-    runSolver(modelIdentifier, solverType)
+    runSolver(modelIdentifier, solverType, defaultKSLDatabaseObserverOption = true)
 
-    if (solverType == SolverType.SHC) {
-        println("Number of simulation runs in the cache = ${simulationRunCache.size}")
-        val mapDF = simulationRunCache.toDataFramesGroupedByModelInputNames()
-        println("Number of dataframes: ${mapDF.size}")
-        var i = 1
-        for((key, df) in mapDF) {
-            println(key.joinToString())
-            println("-------------")
-           // println(df.print(rowsLimit = 100))
-            println()
-            df.writeCsv(KSL.csvDir.resolve("simulationRuns${i}.csv"))
-            df.toTabularFile("simulationRuns${i}")
-            i++
-        }
-    }
+//    if (solverType == SolverType.SHC) {
+//
+//        println("Number of simulation runs in the cache = ${simulationRunCache.size}")
+//        val mapDF = simulationRunCache.toDataFramesGroupedByModelInputNames()
+//        println("Number of dataframes: ${mapDF.size}")
+//        var i = 1
+//        for((key, df) in mapDF) {
+//            println(key.joinToString())
+//            println("-------------")
+//           // println(df.print(rowsLimit = 100))
+//            println()
+//            df.writeCsv(KSL.csvDir.resolve("simulationRuns${i}.csv"))
+//            df.toTabularFile("simulationRuns${i}")
+//            i++
+//        }
+//    }
 
 }
 
-fun runSolver(modelIdentifier: String, solverType: SolverType) {
+fun runSolver(
+    modelIdentifier: String,
+    solverType: SolverType,
+    simulationRunCache: SimulationRunCacheIfc? = null,
+    experimentRunParameters: ExperimentRunParametersIfc? = null,
+    defaultKSLDatabaseObserverOption: Boolean = false
+) {
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
     val printer = selectPrinter(modelIdentifier)
-    val solver = solverFactory(solverType, problemDefinition, modelBuilder, printer)
+    val solver = solverFactory(solverType, problemDefinition, modelBuilder,
+        printer, simulationRunCache, experimentRunParameters, defaultKSLDatabaseObserverOption)
 //   solver.useRandomlyBestStartingPoint()
 //   solver.advanceToNextSubStream()
     solver.runAllIterations()
@@ -75,7 +86,10 @@ fun solverFactory(
     solverType: SolverType,
     problemDefinition: ProblemDefinition,
     modelBuilder: ModelBuilderIfc,
-    printer: (Solver) -> Unit
+    printer: (Solver) -> Unit,
+    simulationRunCache: SimulationRunCacheIfc? = null,
+    experimentRunParameters: ExperimentRunParametersIfc? = null,
+    defaultKSLDatabaseObserverOption: Boolean = false
 ): StochasticSolver {
     return when(solverType){
         SolverType.SHC -> {
@@ -87,6 +101,8 @@ fun solverFactory(
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
                 printer = printer,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.SA -> {
@@ -99,6 +115,9 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 printer = printer,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.CE -> {
@@ -109,6 +128,9 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 printer = printer,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.R_SPLINE -> {
@@ -118,6 +140,9 @@ fun solverFactory(
                 startingPoint = null,
                 maxIterations = 100,
                 printer = printer,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.SHC_RS -> {
@@ -127,7 +152,10 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 restartPrinter = printer,
-                printer = null
+                printer = null,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.SA_RS -> {
@@ -139,7 +167,10 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 restartPrinter = printer,
-                printer = null
+                printer = null,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.CE_RS -> {
@@ -149,7 +180,10 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 restartPrinter = printer,
-                printer = null
+                printer = null,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
         SolverType.R_SPLINE_RS -> {
@@ -158,7 +192,10 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 restartPrinter = printer,
-                printer = null
+                printer = null,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
         }
     }
