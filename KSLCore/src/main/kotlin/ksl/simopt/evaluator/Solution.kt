@@ -6,7 +6,6 @@ import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
 import ksl.utilities.observers.Emitter
-import ksl.utilities.random.rvariable.toDouble
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
 interface SolutionEmitterIfc {
