@@ -109,7 +109,6 @@ abstract class StochasticSolver(
      *  This approach causes the simulation oracles to be run multiple times during the search.
      *  @param maxRandomStartingPoints The maximum number of random starting points to use.
      *  @param replicationsPerRandomStartingPoint The number of replications to perform for each random starting point.
-     *  @return The point associated with the best solution found during the sampling process.
      */
     @Suppress("unused")
     fun useRandomlyBestStartingPoint(
