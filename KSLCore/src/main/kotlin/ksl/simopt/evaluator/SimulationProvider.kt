@@ -1,5 +1,6 @@
 package ksl.simopt.evaluator
 
+import kotlinx.datetime.Clock
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.simopt.cache.SimulationRunCacheIfc
@@ -139,6 +140,12 @@ class SimulationProvider internal constructor(
     companion object {
 
         /**
+         *  Counts the number of times the provider executes a simulation model
+         */
+        var executionCounter = 0
+            private set
+
+        /**
          * Converts the data within the [SimulationRun] to a [ResponseMap] and ensures that
          * the model inputs are associated with the responses.
          *
@@ -235,9 +242,10 @@ class SimulationProvider internal constructor(
          */
         @Suppress("unused")
         fun executeSimulation(modelInputs: ModelInputs, model: Model, expIdentifier: String? = null): SimulationRun {
+            executionCounter++
             val srp = model.extractRunParameters()
             srp.experimentName = if (expIdentifier != null) "${modelInputs.modelIdentifier}_Exp_$expIdentifier"
-            else "${modelInputs.modelIdentifier}_Exp_${modelInputs.requestTime}"
+            else "${modelInputs.modelIdentifier}_Exp_${executionCounter}_Time_${Clock.System.now()}"
             // ensure that the requested number of replications will be executed
             srp.numberOfReplications = modelInputs.numReplications
             logger.info { "SimulationProvider: Running simulation for model: ${modelInputs.modelIdentifier} experiment: ${srp.experimentName} " }

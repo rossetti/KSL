@@ -27,12 +27,12 @@ fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.R_SPLINE
-//    val solverType = SolverType.CE
-    val solverType = SolverType.SHC
+    val solverType = SolverType.CE
+//    val solverType = SolverType.SHC
 //    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
-    runSolver(modelIdentifier, solverType, defaultKSLDatabaseObserverOption = true)
+    runSolver(modelIdentifier, solverType, defaultKSLDatabaseObserverOption = false)
 
 //    if (solverType == SolverType.SHC) {
 //
@@ -74,9 +74,11 @@ fun runSolver(
     println()
     println("Final Solution:")
     println(solver.bestSolution.asString())
+    println()
     println("Approximate screening:")
     val solutions = solver.bestSolutions.possiblyBest()
     println(solutions)
+    println("Dataframe")
     val df = solver.bestSolutions.toDataFrame()
     df.schema().print()
     df.print()
