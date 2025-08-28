@@ -74,6 +74,16 @@ interface SolutionsIfc : List<Solution> {
     /**
      *  Returns a list of solutions that are possibly the best by using
      *  a [PenalizedObjectiveFunctionConfidenceIntervalComparator].
+     *  The basic procedure is to select the smallest or largest solution as the best
+     *  dependent on the objective.  Then, this procedure uses the best solution as the standard and
+     *  compares all the solutions with it in a pair-wise manner.  Any solutions that are considered
+     *  not statistically different from the best solution are returned. The confidence interval is for
+     *  each individual comparison with the best.  Thus, to control the overall confidence, users
+     *  will want to adjust the individual confidence interval level such that the overall confidence
+     *  is the process is controlled. See the theory of related to multi-comparison discussed
+     *  [here](https://rossetti.github.io/KSLBook/simoacomparingSystems.html#simoacomparingSystemsMCB)
+     *  The process used here is approximate.
+     *
      *  @param level the level of confidence to use. By default, this is set to [DEFAULT_CONFIDENCE_LEVEL].
      *  @param indifferenceZone the indifference zone to use. By default, this is set to 0.0.
      */
