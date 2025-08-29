@@ -42,6 +42,7 @@ class SimulationProvider internal constructor(
      * @param modelCreator A lambda function that creates and returns a Model instance. It provides the primary model for the simulation.
      * @param simulationRunCache if supplied the cache will be used to store executed simulation runs.
      */
+    @JvmOverloads
     constructor(
         modelCreator: () -> Model,
         simulationRunCache: SimulationRunCacheIfc? = null,
