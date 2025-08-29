@@ -1648,6 +1648,25 @@ object KSLRandom {
      *
      *  @param sampleSize the number of points to generate.
      *  @param dimension the size (dimension) of the hyper-cube.
+     *  @param streamNum the random number stream to use during the generation process
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    @Suppress("unused")
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        dimension: Int,
+        streamNum: Int
+    ): Array<DoubleArray> {
+        return rLatinHyperCube(sampleSize, dimension,rnStream(streamNum) )
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified [dimension] using the supplied stream. A Latin hypercube sample generates n points in
+     *  [0,1)^d, placing exactly one point in [j/n, (j+1)/n) for j = 0,1,2, ..,n-1.
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param dimension the size (dimension) of the hyper-cube.
      *  @param stream the random number stream to use during the generation process
      *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
      */
@@ -1706,6 +1725,26 @@ object KSLRandom {
             }
         }
         return result
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified intervals using the supplied stream. A Latin hypercube sample generates n points in
+     *  hyper-cube defined by the intervals.
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param intervals the intervals that will be divided into points. The list must
+     *  not be empty and each interval must be finite with a width greater than 0.0
+     *  @param streamNum the random number stream to use during the generation process
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    @Suppress("unused")
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        intervals: List<Interval>,
+        streamNum: Int
+    ) : Array<DoubleArray> {
+        return rLatinHyperCube(sampleSize, intervals, rnStream(streamNum) )
     }
 }
 
