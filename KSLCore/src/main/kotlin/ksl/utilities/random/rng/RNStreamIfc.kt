@@ -20,7 +20,6 @@ package ksl.utilities.random.rng
 import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.KSLRandom.AlgoType
-import ksl.utilities.random.rvariable.KSLRandom.defaultRNStream
 
 /**
  * Represents a random number stream with stream control
@@ -50,12 +49,13 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
 
     /**
      * Returns a (pseudo)random number from the discrete uniform distribution
-     * over the integers {i, i + 1, . . . , j }, using this stream. Calls randU01 once.
+     * over the integers {i, i + 1,. . . , j }, using this stream. Calls randU01 once.
      *
      * @param i start of range
      * @param j end of range
      * @return The integer pseudo random number
      */
+    @Suppress("unused")
     fun randInt(i: Int, j: Int): Int {
         require(i <= j) { "The lower limit must be <= the upper limit" }
         return i + (randU01() * (j - i + 1)).toInt()
@@ -65,6 +65,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *
      *  @param range the integer range to generate over
      */
+    @Suppress("unused")
     fun randInt(range: IntRange): Int {
         return randInt(range.first, range.last)
     }
@@ -73,6 +74,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *  Returns a randomly generated sign -1 or +1
      *  @param pSuccess the probability of getting + 1. The default is 0.5.
      */
+    @Suppress("unused")
     fun rSign(pSuccess: Double = 0.5): Double {
         return if (randU01() < pSuccess) -1.0 else 1.0
     }
@@ -81,6 +83,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * Returns a randomly generated sign -1, 0, +1
      * all equally likely.
      */
+    @Suppress("unused")
     fun rSignWithZero() : Double {
         return randInt(-1, 1).toDouble()
     }
@@ -89,6 +92,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param pSuccess the probability of success, must be in (0,1)
      * @return the random value
      */
+    @Suppress("unused")
     fun rBernoulli(pSuccess: Double = 0.5): Double {
         return KSLRandom.rBernoulli(pSuccess, this)
     }
@@ -97,6 +101,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param pSuccess the probability of success, must be in (0,1)
      * @return the random value as a Boolean value
      */
+    @Suppress("unused")
     fun rBernoulliBoolean(pSuccess: Double = 0.5): Boolean {
         return KSLRandom.rBernoulliBoolean(pSuccess, this)
     }
@@ -106,6 +111,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param nTrials  the number of trials, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rBinomial(pSuccess: Double, nTrials: Int): Int {
         return KSLRandom.rBinomial(pSuccess, nTrials, this)
     }
@@ -114,6 +120,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param mean the mean of the Poisson, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rPoisson(mean: Double): Int {
         return KSLRandom.rPoisson(mean, this)
     }
@@ -125,6 +132,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param maximum   the maximum of the range
      * @return the random value
      */
+    @Suppress("unused")
     fun rDUniform(minimum: Int, maximum: Int): Int {
         return randInt(minimum, maximum)
     }
@@ -135,6 +143,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param range the range of the random variate
      * @return the random value
      */
+    @Suppress("unused")
     fun rDUniform(range: IntRange): Int {
         return randInt(range.first, range.last)
     }
@@ -143,6 +152,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param pSuccess the probability of success, must be in (0,1)
      * @return the random value on range 0, 1, 2,...
      */
+    @Suppress("unused")
     fun rGeometric(pSuccess: Double): Int {
         return KSLRandom.rGeometric(pSuccess, this)
     }
@@ -152,6 +162,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param rSuccesses number of trials until rth success
      * @return the random value on range 1, 2, 3
      */
+    @Suppress("unused")
     fun rNegBinomial(
         pSuccess: Double,
         rSuccesses: Double
@@ -190,6 +201,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param variance the variance of the lognormal, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rLogNormal(
         mean: Double,
         variance: Double,
@@ -202,6 +214,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rWeibull(shape: Double, scale: Double): Double {
         return KSLRandom.rWeibull(shape, scale, this)
     }
@@ -221,6 +234,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param max    the max
      * @return the generated value
      */
+    @Suppress("unused")
     fun rJohnsonB(
         alpha1: Double, alpha2: Double, min: Double, max: Double
     ): Double {
@@ -232,6 +246,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
+    @Suppress("unused")
     fun rLogistic(location: Double, scale: Double): Double {
         return KSLRandom.rLogistic(location, scale, this)
     }
@@ -241,6 +256,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
+    @Suppress("unused")
     fun rLogLogistic(shape: Double, scale: Double): Double {
         return KSLRandom.rLogLogistic(shape, scale, this)
     }
@@ -251,6 +267,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param max  the max
      * @return the random value
      */
+    @Suppress("unused")
     fun rTriangular(
         min: Double, mode: Double, max: Double
     ): Double {
@@ -263,6 +280,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param type, must be appropriate algorithm type, if null then inverse transform is the default
      * @return the generated value
      */
+    @Suppress("unused")
     fun rGamma(
         shape: Double, scale: Double, type: AlgoType = AlgoType.Inverse
     ): Double {
@@ -273,6 +291,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param dof degrees of freedom, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rChiSquared(dof: Double): Double {
         return KSLRandom.rChiSquared(dof, this)
     }
@@ -282,6 +301,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale the scale, must be greater than 0
      * @return the generated value
      */
+    @Suppress("unused")
     fun rPearsonType5(
         shape: Double, scale: Double,
     ): Double {
@@ -295,6 +315,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param beta  beta (second shape) parameter
      * @return the random value
      */
+    @Suppress("unused")
     fun rBeta(alpha: Double, beta: Double): Double {
         return KSLRandom.rBeta(alpha, beta, this)
     }
@@ -308,6 +329,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param maximum the maximum of the range
      * @return the random value
      */
+    @Suppress("unused")
     fun rBetaG(alpha: Double, beta: Double, minimum: Double, maximum: Double): Double {
         return KSLRandom.rBetaG(alpha, beta, minimum, maximum, this)
     }
@@ -320,6 +342,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param beta   the beta parameter, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rPearsonType6(alpha1: Double, alpha2: Double, beta: Double): Double {
         return KSLRandom.rPearsonType6(alpha1, alpha2, beta, this)
     }
@@ -331,6 +354,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param scale scale parameter, must be greater than 0
      * @return the random value
      */
+    @Suppress("unused")
     fun rLaplace(location: Double, scale: Double): Double {
         return KSLRandom.rLaplace(location, scale, this)
     }
@@ -341,6 +365,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param array the array to select from, must not be empty
      * @return the randomly selected value
      */
+    @Suppress("unused")
     fun randomlySelect(array: IntArray): Int {
         return KSLRandom.randomlySelect(array, this)
     }
@@ -351,6 +376,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param array the array to select from, must not be empty
      * @return the randomly selected value
      */
+    @Suppress("unused")
     fun randomlySelect(array: DoubleArray): Double {
         return KSLRandom.randomlySelect(array, this)
     }
@@ -363,6 +389,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * array
      * @return the randomly selected value
      */
+    @Suppress("unused")
     fun randomlySelect(
         array: DoubleArray, cdf: DoubleArray,
     ): Double {
@@ -376,6 +403,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param cdf   the cumulative probability associated with each element of array
      * @return the randomly selected value
      */
+    @Suppress("unused")
     fun discreteInverseCDF(array: IntArray, cdf: DoubleArray): Int {
         return KSLRandom.discreteInverseCDF(array, cdf, this)
     }
@@ -387,6 +415,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param cdf   the cumulative probability associated with each element of array
      * @return the randomly selected value
      */
+    @Suppress("unused")
     fun randomlySelect(array: IntArray, cdf: DoubleArray): Int {
         return KSLRandom.randomlySelect(array, cdf, this)
     }
@@ -396,6 +425,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *
      * @param x   the array
      */
+    @Suppress("unused")
     fun permute(x: DoubleArray) {
         return KSLRandom.permute(x, this)
     }
@@ -407,6 +437,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
+    @Suppress("unused")
     fun sampleWithoutReplacement(x: DoubleArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
@@ -416,6 +447,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *
      * @param x   the array
      */
+    @Suppress("unused")
     fun permute(x: IntArray) {
         KSLRandom.permute(x, this)
     }
@@ -427,6 +459,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
+    @Suppress("unused")
     fun sampleWithoutReplacement(x: IntArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
@@ -436,6 +469,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *
      * @param x   the array
      */
+    @Suppress("unused")
     fun permute(x: BooleanArray) {
         KSLRandom.permute(x, this)
     }
@@ -447,6 +481,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
+    @Suppress("unused")
     fun sampleWithoutReplacement(x: BooleanArray, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
@@ -457,6 +492,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param T the type of the array
      * @param x   the array
      */
+    @Suppress("unused")
     fun <T> permute(x: Array<T>) {
         KSLRandom.permute(x, this)
     }
@@ -469,6 +505,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the array
      * @param sampleSize the size to generate
      */
+    @Suppress("unused")
     fun <T> sampleWithoutReplacement(x: Array<T>, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
@@ -479,6 +516,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param T the type of the list
      * @param x   the list
      */
+    @Suppress("unused")
     fun <T> permute(x: MutableList<T>) {
         KSLRandom.permute(x, this)
     }
@@ -491,6 +529,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      * @param x          the list
      * @param sampleSize the size to generate
      */
+    @Suppress("unused")
     fun <T> sampleWithoutReplacement(x: MutableList<T>, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
     }
@@ -504,6 +543,7 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      *  @param dimension the size (dimension) of the hyper-cube.
      *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
      */
+    @Suppress("unused")
     fun rLatinHyperCube(
         sampleSize: Int,
         dimension: Int,
