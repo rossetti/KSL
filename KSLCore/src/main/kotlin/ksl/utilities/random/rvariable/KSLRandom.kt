@@ -23,6 +23,7 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.countLessThan
 import ksl.utilities.distributions.*
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.permute
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rng.RNStreamProviderIfc
@@ -48,7 +49,7 @@ import kotlin.math.*
  * @author rossetti
  */
 object KSLRandom {
-    var DefaultRNStreamProvider: RNStreamProviderIfc = RNStreamProvider(name="DefaultRNStreamProvider")
+    var DefaultRNStreamProvider: RNStreamProviderIfc = RNStreamProvider(name = "DefaultRNStreamProvider")
 
     enum class AlgoType {
         Inverse, AcceptanceRejection
@@ -575,7 +576,7 @@ object KSLRandom {
         require(scale > 0) { "Scale parameter must be > 0" }
         val u = rng.randU01()
         val c = u / (1.0 - u)
-        return location + scale*ln(c)
+        return location + scale * ln(c)
     }
 
     /**
@@ -1082,7 +1083,7 @@ object KSLRandom {
      * @return the randomly selected value
      */
     fun discreteInverseCDF(array: DoubleArray, cdf: DoubleArray, stream: RNStreamIfc): Double {
-        require(array.isNotEmpty()) {"Cannot sample from an empty array"}
+        require(array.isNotEmpty()) { "Cannot sample from an empty array" }
         if (cdf.size == 1) {
             return array[0]
         }
@@ -1105,7 +1106,7 @@ object KSLRandom {
      * @return the randomly selected value
      */
     fun discreteInverseCDF(array: IntArray, cdf: DoubleArray, stream: RNStreamIfc): Int {
-        require(array.isNotEmpty()) {"Cannot sample from an empty array"}
+        require(array.isNotEmpty()) { "Cannot sample from an empty array" }
         if (cdf.size == 1) {
             return array[0]
         }
@@ -1173,7 +1174,7 @@ object KSLRandom {
      * the array
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected value
-    */
+     */
     fun <T> randomlySelect(list: List<T>, cdf: DoubleArray, streamNum: Int): T {
         return randomlySelect(list, cdf, rnStream(streamNum))
     }
@@ -1187,7 +1188,7 @@ object KSLRandom {
      * the array
      * @param stream  the source of randomness
      * @return the randomly selected value
-    */
+     */
     fun <T> randomlySelect(
         list: List<T>,
         cdf: DoubleArray,
@@ -1219,7 +1220,7 @@ object KSLRandom {
      * @return true if valid cdf
      */
     fun isValidCDF(cdf: DoubleArray): Boolean {
-        if (cdf.isEmpty()){
+        if (cdf.isEmpty()) {
             return false
         }
         if (cdf[cdf.size - 1] != 1.0) {
@@ -1271,14 +1272,14 @@ object KSLRandom {
      * @return a valid CDF
      */
     fun makeCDF(prob: DoubleArray): DoubleArray {
-        require(prob.size >= 2){"The array of probabilities must have 2 or more elements to be a PMF"}
+        require(prob.size >= 2) { "The array of probabilities must have 2 or more elements to be a PMF" }
         var cp = 0.0
-        for((i, p) in prob.withIndex()){
-            require((0.0 <= p) && (p <= 1.0 )){"The supplied element p($i$) = $p and was not a valid probability"}
+        for ((i, p) in prob.withIndex()) {
+            require((0.0 <= p) && (p <= 1.0)) { "The supplied element p($i$) = $p and was not a valid probability" }
             cp = cp + p
         }
-        require(KSLMath.equal(cp, 1.0)) {"The array of probabilities summed to more than 1.0"}
- //       require(isValidPMF(prob)) { "The supplied array was not a valid PMF" }
+        require(KSLMath.equal(cp, 1.0)) { "The array of probabilities summed to more than 1.0" }
+        //       require(isValidPMF(prob)) { "The supplied array was not a valid PMF" }
         val cdf = DoubleArray(prob.size)
         var sum = 0.0
         for (i in 0 until prob.size - 1) {
@@ -1314,7 +1315,7 @@ object KSLRandom {
      * @param list      the list
      * @param streamNum the stream number from the stream provider to use
      * @return the randomly selected element
-    */
+     */
     fun <T> randomlySelect(list: List<T>, streamNum: Int): T {
         return randomlySelect(list, rnStream(streamNum))
     }
@@ -1326,9 +1327,9 @@ object KSLRandom {
      * @param list the list
      * @param stream  the source of randomness
      * @return the randomly selected element
-    */
+     */
     fun <T> randomlySelect(list: List<T>, stream: RNStreamIfc = defaultRNStream()): T {
-        require(list.isNotEmpty()){"Cannot select from an empty list"}
+        require(list.isNotEmpty()) { "Cannot select from an empty list" }
         return if (list.size == 1) {
             list[0]
         } else list[stream.randInt(0, list.size - 1)]
@@ -1353,7 +1354,7 @@ object KSLRandom {
      * @param stream the source of randomness
      */
     fun permute(x: DoubleArray, stream: RNStreamIfc = defaultRNStream()) {
-        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
+        require(x.isNotEmpty()) { "Cannot permute an empty array!" }
         sampleWithoutReplacement(x, x.size, stream)
     }
 
@@ -1382,7 +1383,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
-        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
+        require(x.isNotEmpty()) { "Cannot sample without replacement from an empty array!" }
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1412,7 +1413,7 @@ object KSLRandom {
      * @param rng the source of randomness
      */
     fun permute(x: IntArray, rng: RNStreamIfc = defaultRNStream()) {
-        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
+        require(x.isNotEmpty()) { "Cannot permute an empty array!" }
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1441,7 +1442,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
-        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
+        require(x.isNotEmpty()) { "Cannot sample without replacement from an empty array!" }
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1500,7 +1501,7 @@ object KSLRandom {
         sampleSize: Int,
         rng: RNStreamIfc = defaultRNStream()
     ) {
-        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
+        require(x.isNotEmpty()) { "Cannot sample without replacement from an empty array!" }
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1533,7 +1534,7 @@ object KSLRandom {
      * @param rng the source of randomness
      */
     fun <T> permute(x: Array<T>, rng: RNStreamIfc = defaultRNStream()) {
-        require(x.isNotEmpty()) {"Cannot permute an empty array!"}
+        require(x.isNotEmpty()) { "Cannot permute an empty array!" }
         sampleWithoutReplacement(x, x.size, rng)
     }
 
@@ -1564,7 +1565,7 @@ object KSLRandom {
         sampleSize: Int,
         stream: RNStreamIfc = defaultRNStream()
     ) {
-        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty array!"}
+        require(x.isNotEmpty()) { "Cannot sample without replacement from an empty array!" }
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1583,7 +1584,7 @@ object KSLRandom {
      * @param T      the type of the list
      * @param x         the list
      * @param streamNum the stream number from the stream provider to use
-    */
+     */
     fun <T> permute(x: MutableList<T>, streamNum: Int) {
         permute(x, rnStream(streamNum))
     }
@@ -1595,9 +1596,9 @@ object KSLRandom {
      * @param T the type of the list
      * @param x   the list
      * @param stream the source of randomness
-    */
+     */
     fun <T> permute(x: MutableList<T>, stream: RNStreamIfc = defaultRNStream()) {
-        require(x.isNotEmpty()) {"Cannot permute an empty list!"}
+        require(x.isNotEmpty()) { "Cannot permute an empty list!" }
         sampleWithoutReplacement(x, x.size, stream)
     }
 
@@ -1627,7 +1628,7 @@ object KSLRandom {
         sampleSize: Int,
         stream: RNStreamIfc = defaultRNStream()
     ) {
-        require(x.isNotEmpty()) {"Cannot sample without replacement from an empty list!"}
+        require(x.isNotEmpty()) { "Cannot sample without replacement from an empty list!" }
         require(sampleSize <= x.size) {
             "Cannot draw without replacement for more than the number of elements ${x.size}"
         }
@@ -1637,6 +1638,40 @@ object KSLRandom {
             x[j] = x[i]
             x[i] = temp
         }
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified [dimension] using the supplied stream. A Latin hypercube sample generates n points in
+     *  [0,1)^d, placing exactly one point in [j/n, (j+1)/n) for j = 0,1,2, ..,n-1.
+     *  .
+     *  Each univariate marginal distribution is stratified, placing exactly one point in for .
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param dimension the size (dimension) of the hyper-cube.
+     *  @param stream the random number stream to use during the generation process
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        dimension: Int,
+        stream: RNStreamIfc = defaultRNStream()
+    ): Array<DoubleArray> {
+        require(sampleSize > 0) { "The sample size must be greater than zero!" }
+        require(dimension > 0) { "The dimension must be greater than zero!" }
+        val result = Array(sampleSize) { DoubleArray(dimension) { 0.0 } }
+        val tmp = DoubleArray(sampleSize)
+        val delta = 1.0 / sampleSize
+        for (i in 0 until dimension) {
+            for (j in 0 until sampleSize) {
+                tmp[j] = stream.rUniform(j * delta, (j + 1) * delta)
+            }
+            tmp.permute(stream)
+            for (j in 0 until sampleSize) {
+                result[i][j] = tmp[j]
+            }
+        }
+        return result
     }
 }
 
@@ -1661,6 +1696,6 @@ fun <T> MutableList<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()
     KSLRandom.permute(this, stream)
 }
 
-fun <T> MutableList<T>.permute(streamNum: Int){
+fun <T> MutableList<T>.permute(streamNum: Int) {
     KSLRandom.permute(this, streamNum)
 }
