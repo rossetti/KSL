@@ -17,8 +17,10 @@
  */
 package ksl.utilities.random.rng
 
+import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.KSLRandom.AlgoType
+import ksl.utilities.random.rvariable.KSLRandom.defaultRNStream
 
 /**
  * Represents a random number stream with stream control
@@ -491,6 +493,40 @@ interface RNStreamIfc : RandU01Ifc, RNStreamControlIfc, RNStreamNewInstanceIfc, 
      */
     fun <T> sampleWithoutReplacement(x: MutableList<T>, sampleSize: Int) {
         KSLRandom.sampleWithoutReplacement(x, sampleSize, this)
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified [dimension] using the supplied stream. A Latin hypercube sample generates n points in
+     *  [0,1)^d, placing exactly one point in [j/n, (j+1)/n) for j = 0,1,2, ..,n-1.
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param dimension the size (dimension) of the hyper-cube.
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        dimension: Int,
+    ): Array<DoubleArray> {
+        return KSLRandom.rLatinHyperCube(sampleSize, dimension, this)
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified intervals using the supplied stream. A Latin hypercube sample generates n points in
+     *  hyper-cube defined by the intervals.
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param intervals the intervals that will be divided into points. The list must
+     *  not be empty and each interval must be finite with a width greater than 0.0
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    @Suppress("unused")
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        intervals: List<Interval>,
+    ) : Array<DoubleArray> {
+        return KSLRandom.rLatinHyperCube(sampleSize, intervals, this)
     }
 
 }
