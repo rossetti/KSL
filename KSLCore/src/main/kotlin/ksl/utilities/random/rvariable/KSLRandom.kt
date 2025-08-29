@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 //TODO extension functions for array and collection work
 //TODO change argument checks to require()
 
+import ksl.utilities.Interval
 import ksl.utilities.countLessThan
 import ksl.utilities.distributions.*
 import ksl.utilities.math.KSLMath
@@ -1644,8 +1645,6 @@ object KSLRandom {
      *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
      *  specified [dimension] using the supplied stream. A Latin hypercube sample generates n points in
      *  [0,1)^d, placing exactly one point in [j/n, (j+1)/n) for j = 0,1,2, ..,n-1.
-     *  .
-     *  Each univariate marginal distribution is stratified, placing exactly one point in for .
      *
      *  @param sampleSize the number of points to generate.
      *  @param dimension the size (dimension) of the hyper-cube.
@@ -1669,6 +1668,41 @@ object KSLRandom {
             tmp.permute(stream)
             for (j in 0 until sampleSize) {
                 result[i][j] = tmp[j]
+            }
+        }
+        return result
+    }
+
+    /**
+     *  Randomly generates [sampleSize] points from a unit Latin hyper-cube for the
+     *  specified intervals using the supplied stream. A Latin hypercube sample generates n points in
+     *  hyper-cube defined by the intervals.
+     *
+     *  @param sampleSize the number of points to generate.
+     *  @param intervals the intervals that will be divided into points. The list must
+     *  not be empty and each interval must be finite with a width greater than 0.0
+     *  @param stream the random number stream to use during the generation process
+     *  @return an array of DoubleArray. The rows represent the samples each of size (dimension)
+     */
+    @Suppress("unused")
+    fun rLatinHyperCube(
+        sampleSize: Int,
+        intervals: List<Interval>,
+        stream: RNStreamIfc = defaultRNStream()
+    ) : Array<DoubleArray> {
+        require(sampleSize > 0) { "The sample size must be greater than zero!" }
+        require(intervals.isNotEmpty()) { "The intervals must not be empty!" }
+        for(interval in intervals) {
+            require(interval.lowerLimit.isFinite()) {"The interval must have a finite lower limit."}
+            require(interval.upperLimit.isFinite()) {"The interval must have a finite upper limit."}
+            require(interval.lowerLimit != interval.upperLimit) { "The interval's width must be greater than zero!" }
+        }
+        val result = rLatinHyperCube(sampleSize, intervals.size, stream)
+        for(array in result) {
+            for((j, v) in array.withIndex()) {
+                val ll = intervals[j].lowerLimit
+                val ul = intervals[j].upperLimit
+                array[j] = ll + (ul - ll) * v
             }
         }
         return result
