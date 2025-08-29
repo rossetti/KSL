@@ -91,15 +91,32 @@ abstract class StochasticSolver(
     /**
      *  Generates a set of randomly generated points (inputs) for the problem. The points
      *  are uniformly sampled from the feasible region and will be unique.
+     *  @param numPoints the size of the sample
+     *  @return the generated inputs. The points will be feasible with respect to the problem
      */
     @Suppress("unused")
-    fun sampleInputFeasiblePoints(size: Int = 1): Set<InputMap> {
-        require(size > 0) {"The sample size must be greater than zero!"}
+    fun sampleInputFeasiblePoints(numPoints: Int = 1): Set<InputMap> {
+        require(numPoints > 0) {"The sample size must be greater than zero!"}
         val result = mutableSetOf<InputMap>()
-        while (result.size < size) {
+        while (result.size < numPoints) {
             result.add(problemDefinition.generateInputFeasibleValues(rnStream))
         }
         return result
+    }
+
+    /**
+     *  Generates a set of randomly generated points (inputs) for the problem. The points
+     *  are sampled using Latin hyper-cube sampling over the ranges of the inputs.
+     *  The points might not be feasible with respect to linear or functional constraints
+     *  for the problem.
+     *
+     *  @param numPoints the size of the sample
+     *  @return the generated inputs. The points will be feasible with respect to the problem
+     */
+    @Suppress("unused")
+    fun sampleLatinHyperCubePoints(numPoints: Int = 1): Set<InputMap> {
+        require(numPoints > 0) {"The sample size must be greater than zero!"}
+        return problemDefinition.inputRangeLatinHyperCubeInputs(numPoints,rnStream).toSet()
     }
 
     /**
