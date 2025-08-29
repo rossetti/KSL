@@ -899,6 +899,8 @@ class ProblemDefinition @JvmOverloads constructor(
 
     /**
      *  Generates the specified number of points using Latin hyper-cube sampling over the ranges of inputs.
+     *  The points may not be feasible with respect to linear or functional constraints.
+     *  
      *  @param numPoints the number of point to generate. This defines how the range of the inputs are divided such
      *  that the individual cubes have points.
      *  @param rnStream the random number stream to use for the sampling
@@ -910,6 +912,8 @@ class ProblemDefinition @JvmOverloads constructor(
 
     /**
      *  Generates the specified number of points using Latin hyper-cube sampling over the ranges of inputs.
+     *  The points may not be feasible with respect to linear or functional constraints.
+     *
      *  @param numPoints the number of point to generate. This defines how the range of the inputs are divided such
      *  that the individual cubes have points.
      *  @param rnStream the random number stream to use for the sampling
