@@ -1686,7 +1686,7 @@ object KSLRandom {
             }
             tmp.permute(stream)
             for (j in 0 until sampleSize) {
-                result[i][j] = tmp[j]
+                result[j][i] = tmp[j]
             }
         }
         return result
