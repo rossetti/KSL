@@ -2,6 +2,7 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.simopt.evaluator.EvaluatorIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.LatinHyperCubePointGenerator
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.problem.StartingPointIfc
 import ksl.simopt.solvers.ReplicationPerEvaluationIfc
@@ -134,6 +135,17 @@ abstract class StochasticSolver(
     ) {
         startingPointGenerator = RandomlyBestStartingPoint(maxRandomStartingPoints,
             replicationsPerRandomStartingPoint)
+    }
+
+    /**
+     *  Sets the starting point generator to use a randomly generated
+     *  input-feasible points that are based on Latin hyper-cube sampling.
+     *
+     *  @param pointsPerDimension specifies the resolution for the Latin hyper-cube sampling
+     */
+    @Suppress("unused")
+    fun useLatinHyperCubeStartingPoints(pointsPerDimension: Int) {
+        startingPointGenerator = LatinHyperCubePointGenerator(pointsPerDimension, problemDefinition, streamNumber, streamProvider)
     }
 
     /**

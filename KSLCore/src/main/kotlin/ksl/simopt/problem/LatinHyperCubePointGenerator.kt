@@ -46,17 +46,5 @@ class LatinHyperCubePointGenerator @JvmOverloads constructor(
         return problemDefinition.toInputMap(point)
     }
 
-    /**
-     *  Generates a set of input feasible points using Latin hyper cube sampling.
-     */
-    fun generateInputFeasiblePoints(numPoints: Int): Set<InputMap> {
-        require(numPoints > 0) { "The number of points must be > 0" }
-        val set = mutableSetOf<InputMap>()
-        for(i in 1..numPoints) {
-            set.add(startingPoint(problemDefinition))
-        }
-        return set
-    }
-
 
 }
