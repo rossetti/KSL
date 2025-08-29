@@ -898,6 +898,34 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
+     *  Generates the specified number of points using Latin hyper-cube sampling over the ranges of inputs.
+     *  @param numPoints the number of point to generate. This defines how the range of the inputs are divided such
+     *  that the individual cubes have points.
+     *  @param rnStream the random number stream to use for the sampling
+     *  @return the points within an array
+     */
+    fun inputRangeLatinHyperCubePoints(numPoints: Int, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): Array<DoubleArray> {
+        return rnStream.rLatinHyperCube(numPoints, inputIntervals)
+    }
+
+    /**
+     *  Generates the specified number of points using Latin hyper-cube sampling over the ranges of inputs.
+     *  @param numPoints the number of point to generate. This defines how the range of the inputs are divided such
+     *  that the individual cubes have points.
+     *  @param rnStream the random number stream to use for the sampling
+     *  @return the points defined as inputs
+     */
+    @Suppress("unused")
+    fun inputRangeLatinHyperCubeInputs(numPoints: Int, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): List<InputMap> {
+        val points = inputRangeLatinHyperCubePoints(numPoints, rnStream)
+        val list = mutableListOf<InputMap>()
+        for (point in points) {
+            list.add(toInputMap(point))
+        }
+        return list
+    }
+
+    /**
      *  Returns a starting point for the problem. If the user specified an instance of
      *  the [StartingPointIfc] via the [ProblemDefinition.startingPointGenerator] property then
      *  the supplied generator is used; otherwise, the problem definition attempts

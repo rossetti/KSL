@@ -14,7 +14,7 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param name an optional name
  */
-class LatinHyperCubeSampler(
+class LatinHyperCubeSampler @JvmOverloads constructor(
     val pointsPerDimension: Int,
     val intervals: List<Interval>,
     streamNum: Int = 0,
@@ -49,6 +49,8 @@ class LatinHyperCubeSampler(
      * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
      * @param name an optional name
      */
+    @Suppress("unused")
+    @JvmOverloads
     constructor(
         pointsPerDimension: Int,
         dimension: Int,
