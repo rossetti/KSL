@@ -44,6 +44,7 @@ import ksl.utilities.random.rvariable.randomlySelect
  *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
  *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
  *  between solutions are considered practically insignificant. The default is zero.
+ *  @param objFnGranularity the granularity of the objective function
  */
 class ProblemDefinition @JvmOverloads constructor(
     problemName: String? = null,
