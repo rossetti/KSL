@@ -52,13 +52,19 @@ interface ConstraintIfc {
      *  The names must be in the equation.
      *  @return the difference between the right-hand side value and the left-hand side value.
      */
+    @Suppress("unused")
     fun slack(inputs: Map<String, Double>): Double {
         return ltRHSValue - computeLHS(inputs)
     }
 
-    //TODO is this correct?
+    /**
+     *  The violation associated with the constraint. This is max(0, LHS - RHS) assuming
+     *  a less-than type of constraint.
+     */
+    @Suppress("unused")
     fun violation(inputs: Map<String, Double>): Double {
-        return -minOf(slack(inputs), 0.0)
+        return maxOf(0.0, computeLHS(inputs) - ltRHSValue)
+        //return -minOf(slack(inputs), 0.0)
     }
 
 }
