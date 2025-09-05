@@ -156,8 +156,8 @@ class ProblemDefinition @JvmOverloads constructor(
      */
     val isIntegerOrdered: Boolean
         get() {
-            for(definition in myInputDefinitions.values) {
-                if(!definition.isIntegerOrdered) return false
+            for (definition in myInputDefinitions.values) {
+                if (!definition.isIntegerOrdered) return false
             }
             return true
         }
@@ -246,7 +246,7 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      * The maximum number of iterations when sampling for an input feasible point
      */
-    var maxFeasibleSamplingIterations : Int = defaultMaximumFeasibleSamplingIterations
+    var maxFeasibleSamplingIterations: Int = defaultMaximumFeasibleSamplingIterations
         set(value) {
             require(value > 0) { "The maximum number of samples is $value, must be > 0" }
             field = value
@@ -418,7 +418,7 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
-     *  Returns the adjusted left-hand side values for each constraint. Make the adjustment
+     *  Returns the adjusted left-hand side values for each constraint. Makes the adjustment
      *  such that the constraint is considered less-than orientation.
      *
      *  @param inputs the input values as a map containing the (name, value) of the inputs
@@ -433,6 +433,7 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  Assume we have the constraint, A*x < b or A*x > b, then this function returns the b vector. The values have not
      *  been adjusted for the direction of the constraint.
+     *  @return the unadjusted right-hand side values, one for each linear constraint.
      */
     @Suppress("unused")
     fun linearConstraintsRHS(): DoubleArray {
@@ -440,13 +441,36 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
-     *  Returns the coefficients of the constraints as a matrix. Assume we have the constraint
-     *  A*x < b or A*x > b, then this function returns the b vector. The values have
-     *  been adjusted for the direction of the constraint.
+     *  Assume we have the constraint A*x < b or A*x > b, then this function returns the b vector. The values have
+     *  been adjusted for the direction of the constraint such that the constraint is considered to
+     *  have a less-than orientation.
+     *  @return the array of right-hand side values, one for each linear constraint
      */
     @Suppress("unused")
     fun linearConstraintsAdjustedRHS(): DoubleArray {
         return myLinearConstraints.map { it.ltRHSValue }.toDoubleArray()
+    }
+
+    /**
+     *  Computes and returns the violation for each linear constraint.
+     *  @param inputs the inputs to use to compute the left-hand side values
+     *  @return an array of the violations for each linear constraint
+     */
+    @Suppress("unused")
+    fun linearConstraintViolations(inputs: MutableMap<String, Double>): DoubleArray {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return DoubleArray(myLinearConstraints.size) { myLinearConstraints[it].violation(inputs) }
+    }
+
+    /**
+     *  Computes and returns the violation for each functional constraint.
+     *  @param inputs the inputs to use to compute the left-hand side values for each functional constraint
+     *  @return an array of the violations for each functional constraint
+     */
+    @Suppress("unused")
+    fun functionalConstraintViolations(inputs: MutableMap<String, Double>): DoubleArray {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return DoubleArray(myFunctionalConstraints.size) { myFunctionalConstraints[it].violation(inputs) }
     }
 
     /**
@@ -475,7 +499,7 @@ class ProblemDefinition @JvmOverloads constructor(
     @Suppress("unused")
     fun responseConstraintViolations(responseMap: ResponseMap): Map<String, Double> {
         val names = allResponseNames
-        for(name in responseMap.keys) {
+        for (name in responseMap.keys) {
             require(name in names) { "The name $name does not exist in the response names" }
         }
         val averages = responseMap.mapValues { it.value.average }
@@ -528,9 +552,9 @@ class ProblemDefinition @JvmOverloads constructor(
         for ((name, inputDefinition) in myInputDefinitions) {
             require(name in map) { "The problem definition input name $name does not exist in the supplied input map $map" }
             val value = map[name]!!
-            map[name] = if (value < inputDefinition.lowerBound){
+            map[name] = if (value < inputDefinition.lowerBound) {
                 inputDefinition.lowerBound
-            } else if (value > inputDefinition.upperBound){
+            } else if (value > inputDefinition.upperBound) {
                 inputDefinition.upperBound
             } else {
                 inputDefinition.roundToGranularity(value)
@@ -557,7 +581,7 @@ class ProblemDefinition @JvmOverloads constructor(
      *  Creates an input map centered at the mid-points of
      *  all the input variables
      */
-    fun midPoints() : InputMap {
+    fun midPoints(): InputMap {
         return toInputMap(midPoints)
     }
 
@@ -611,9 +635,9 @@ class ProblemDefinition @JvmOverloads constructor(
         require(x.size == myInputDefinitions.size) { "The size of the input array is ${x.size}, but the number of inputs is ${myInputDefinitions.size}" }
         val map = mutableMapOf<String, Double>()
         for ((i, inputDefinition) in myInputDefinitions.values.withIndex()) {
-            map[inputDefinition.name] = if (x[i] < inputDefinition.lowerBound){
+            map[inputDefinition.name] = if (x[i] < inputDefinition.lowerBound) {
                 inputDefinition.lowerBound
-            } else if (x[i] > inputDefinition.upperBound){
+            } else if (x[i] > inputDefinition.upperBound) {
                 inputDefinition.upperBound
             } else {
                 inputDefinition.roundToGranularity(x[i])
@@ -761,7 +785,9 @@ class ProblemDefinition @JvmOverloads constructor(
      */
     fun validate(inputs: Map<String, Double>): Boolean {
         for ((name, value) in inputs) {
-            if(!validateInputVariable(name, value)) {return false}
+            if (!validateInputVariable(name, value)) {
+                return false
+            }
         }
         return true
     }
@@ -772,8 +798,10 @@ class ProblemDefinition @JvmOverloads constructor(
      *  @param value the value associated with the input name
      *  @return true if the name and value are valid, false otherwise
      */
-    fun validateInputVariable(inputName: String, value: Double) : Boolean {
-        if (!myInputDefinitions.containsKey(inputName)) { return false }
+    fun validateInputVariable(inputName: String, value: Double): Boolean {
+        if (!myInputDefinitions.containsKey(inputName)) {
+            return false
+        }
         return myInputDefinitions[inputName]!!.contains(value)
     }
 
@@ -907,7 +935,10 @@ class ProblemDefinition @JvmOverloads constructor(
      *  @param rnStream the random number stream to use for the sampling
      *  @return the points within an array
      */
-    fun inputRangeLatinHyperCubePoints(numPoints: Int, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): Array<DoubleArray> {
+    fun inputRangeLatinHyperCubePoints(
+        numPoints: Int,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): Array<DoubleArray> {
         return rnStream.rLatinHyperCube(numPoints, inputIntervals)
     }
 
@@ -921,7 +952,10 @@ class ProblemDefinition @JvmOverloads constructor(
      *  @return the points defined as inputs
      */
     @Suppress("unused")
-    fun inputRangeLatinHyperCubeInputs(numPoints: Int, rnStream: RNStreamIfc = KSLRandom.defaultRNStream()): List<InputMap> {
+    fun inputRangeLatinHyperCubeInputs(
+        numPoints: Int,
+        rnStream: RNStreamIfc = KSLRandom.defaultRNStream()
+    ): List<InputMap> {
         val points = inputRangeLatinHyperCubePoints(numPoints, rnStream)
         val list = mutableListOf<InputMap>()
         for (point in points) {
@@ -964,7 +998,7 @@ class ProblemDefinition @JvmOverloads constructor(
             val er = EstimatedResponse(rc.responseName, rValue, Double.NaN, 1.0)
             list.add(er)
         }
-        return Solution(inputMap,  objFunc, list, 0, false)
+        return Solution(inputMap, objFunc, list, 0, false)
     }
 
     /**
@@ -973,7 +1007,7 @@ class ProblemDefinition @JvmOverloads constructor(
      * @param model the model against which the problem definition will be validated
      * @return true if the input names and response names in the problem definition are valid for the model; false otherwise
      */
-    fun validateProblemDefinition(model: Model) : Boolean {
+    fun validateProblemDefinition(model: Model): Boolean {
         val inputs = inputNames.toSet()
         val responses = responseNames.toSet()
         if (!model.validateInputKeys(inputs)) return false
@@ -1047,7 +1081,7 @@ class ProblemDefinition @JvmOverloads constructor(
      *  for the problem definition
      */
     @Suppress("unused")
-    fun vonNeumannNeighborhoodFinder(radius: Int = 1) : NeighborhoodFinderIfc {
+    fun vonNeumannNeighborhoodFinder(radius: Int = 1): NeighborhoodFinderIfc {
         return VonNeumannNeighborhoodFinder(this, radius)
     }
 
@@ -1057,7 +1091,7 @@ class ProblemDefinition @JvmOverloads constructor(
      *  for the problem definition
      */
     @Suppress("unused")
-    fun mooreNeighborhoodFinder(radius: Int = 1) : NeighborhoodFinderIfc {
+    fun mooreNeighborhoodFinder(radius: Int = 1): NeighborhoodFinderIfc {
         return MooreNeighborhoodFinder(this, radius)
     }
 
@@ -1066,7 +1100,7 @@ class ProblemDefinition @JvmOverloads constructor(
         /**
          *  The default maximum number of iterations for when sampling for a feasible input point
          */
-        var defaultMaximumFeasibleSamplingIterations : Int = 10000
+        var defaultMaximumFeasibleSamplingIterations: Int = 10000
             set(value) {
                 require(value >= 1) { "The default maximum number of iterations for sampling must be > 0" }
                 field = value
