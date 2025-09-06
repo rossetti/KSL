@@ -14,7 +14,6 @@ import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
 
-
 /**
  *  This class describes an optimization problem for use within simulation optimization algorithms.
  *  The general optimization problem is presented as minimizing the expected value of some function H(x), where
@@ -52,9 +51,17 @@ class ProblemDefinition @JvmOverloads constructor(
     val objFnResponseName: String,
     inputNames: List<String>,
     responseNames: List<String> = emptyList(),
+    val optimizationType: OptimizationType = OptimizationType.MINIMIZE,
     indifferenceZoneParameter: Double = 0.0,
     objFnGranularity: Double = 0.0
 ) : IdentityIfc by Identity(problemName) {
+
+
+    /**
+     *  Used to maximization problems into minimization problems
+     */
+    val objFncFactor: Double
+        get() = if (optimizationType == OptimizationType.MINIMIZE) 1.0 else -1.0
 
     /**
      *  The names of the input parameters over which the problem is
@@ -187,6 +194,13 @@ class ProblemDefinition @JvmOverloads constructor(
     @Suppress("unused")
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
+
+    /**
+     *  The user may supply a penalty function to use when computing
+     *  the constraint violation penalty; otherwise the default
+     *  penalty function is used.
+     */
+    var penaltyFunction: PenaltyFunctionIfc = DefaultPenaltyFunction.defaultPenaltyFunction
 
     /**
      * The lower bounds for each input variable
@@ -457,9 +471,20 @@ class ProblemDefinition @JvmOverloads constructor(
      *  @return an array of the violations for each linear constraint
      */
     @Suppress("unused")
-    fun linearConstraintViolations(inputs: MutableMap<String, Double>): DoubleArray {
+    fun linearConstraintViolations(inputs: Map<String, Double>): DoubleArray {
         require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         return DoubleArray(myLinearConstraints.size) { myLinearConstraints[it].violation(inputs) }
+    }
+
+    /**
+     *  Computes and returns the total violation for the linear constraints.
+     *  @param inputs the inputs to use to compute the left-hand side values
+     *  @return the total violation associated with the linear constraints
+     */
+    @Suppress("unused")
+    fun totalLinearConstrainViolations(inputs: Map<String, Double>): Double {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return myLinearConstraints.sumOf { it.violation(inputs) }
     }
 
     /**
@@ -468,9 +493,20 @@ class ProblemDefinition @JvmOverloads constructor(
      *  @return an array of the violations for each functional constraint
      */
     @Suppress("unused")
-    fun functionalConstraintViolations(inputs: MutableMap<String, Double>): DoubleArray {
+    fun functionalConstraintViolations(inputs: Map<String, Double>): DoubleArray {
         require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
         return DoubleArray(myFunctionalConstraints.size) { myFunctionalConstraints[it].violation(inputs) }
+    }
+
+    /**
+     *  Computes and returns the total violation for the functional constraints.
+     *  @param inputs the inputs to use to compute the left-hand side values
+     *  @return the total violation associated with the functional constraints
+     */
+    @Suppress("unused")
+    fun totalFunctionalConstraintViolations(inputs: Map<String, Double>): Double {
+        require(inputs.size == myInputDefinitions.size) { "The size of the input array is ${inputs.size}, but the number of inputs is ${myInputDefinitions.size}" }
+        return myFunctionalConstraints.sumOf { it.violation(inputs) }
     }
 
     /**
@@ -522,6 +558,42 @@ class ProblemDefinition @JvmOverloads constructor(
             map[rc.responseName] = rc.violation(average)
         }
         return map
+    }
+
+    /**
+     *  The total violations associated with the response constraints for the
+     *  provided values within the map holding the average response for each named response.
+     *  @param averages the map of responses filled with the average response for each named response..
+     *  Must have been created by this problem.
+     *  @return the total violation associated with the response constraints.
+     */
+    @Suppress("unused")
+    fun totalResponseConstraintViolations(averages: Map<String, Double>): Double {
+        var violations = 0.0
+        for (rc in myResponseConstraints) {
+            require(averages.containsKey(rc.responseName)) { "The name ${rc.responseName} was not found in the supplied averages" }
+            val average = averages[rc.responseName]!!
+            violations += rc.violation(average)
+        }
+        return violations
+    }
+
+    /**
+     *  Returns the total violation penalty associated with the constraints for the problem.
+     *  @param inputMap The current input map. This also contains a reference to the
+     *  problem definition.
+     *  @param responseAverages The average response values for each response variable required
+     *  to compute the penality associated with the response constraints.
+     *  @param iterationCounter The current iteration count. The iteration associated
+     *  with the solver's process.
+     */
+    @Suppress("unused")
+    fun constraintPenalty(
+        inputMap: InputMap,
+        responseAverages: Map<String, Double>,
+        iterationCounter: Int
+    ): Double {
+        return penaltyFunction.penalty(inputMap, responseAverages, iterationCounter)
     }
 
     /** The array x is mutated to hold values that have appropriate granularity based on the

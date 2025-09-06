@@ -1,4 +1,4 @@
-package ksl.simopt.evaluator
+package ksl.simopt.problem
 
 import kotlin.math.pow
 
@@ -20,7 +20,11 @@ class NaivePenaltyFunction(
         require(exponent > 0.0) {"exponent must be positive, was $exponent"}
     }
 
-    override fun penalty(iterationCounter: Int): Double {
+    override fun penalty(
+        inputMap: InputMap,
+        responseAverages: Map<String, Double>,
+        iterationCounter: Int)
+    : Double {
         val p = initialValue * iterationCounter.toDouble().pow(exponent)
         return minOf(p, Double.MAX_VALUE)
     }
