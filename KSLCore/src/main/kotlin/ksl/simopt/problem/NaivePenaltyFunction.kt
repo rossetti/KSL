@@ -1,5 +1,6 @@
 package ksl.simopt.problem
 
+import ksl.simopt.evaluator.Solution
 import kotlin.math.pow
 
 /**
@@ -10,7 +11,7 @@ import kotlin.math.pow
  *  @param initialValue The initial value in the penalty function sequence. The default value is 1000.0
  *  @param exponent The exponent in the penalty function sequence. The default is 2.0.
  */
-class NaivePenaltyFunction(
+class NaivePenaltyFunction( //TODO
     val initialValue: Double = 1000.0,
     val exponent: Double = 2.0
 ) : PenaltyFunctionIfc {
@@ -21,8 +22,7 @@ class NaivePenaltyFunction(
     }
 
     override fun penalty(
-        inputMap: InputMap,
-        responseAverages: Map<String, Double>,
+        solution: Solution,
         iterationCounter: Int)
     : Double {
         val p = initialValue * iterationCounter.toDouble().pow(exponent)

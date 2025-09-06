@@ -63,6 +63,23 @@ class ProblemDefinition @JvmOverloads constructor(
     val objFncFactor: Double
         get() = if (optimizationType == OptimizationType.MINIMIZE) 1.0 else -1.0
 
+
+    /**
+     *  Computes the objective function value for the provided solution.
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *
+     *  @param solution the solution to compute the objective function value for
+     *  @return the objective function value
+     */
+    @Suppress("unused")
+    fun objFncValue(solution: Solution): Double {
+        require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
+        if (solution.average.isNaN() || solution.average.isInfinite()) {
+            return objFncFactor * Double.MAX_VALUE
+        }
+        return objFncFactor * solution.average
+    }
+
     /**
      *  The names of the input parameters over which the problem is
      *  being optimized, i.e., the decision variable names.
