@@ -55,34 +55,36 @@ data class Solution(
     /**
      *  The response estimate averages
      */
-    val averages: Map<String, Double>
+    val responseAverages: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.average) }
 
     /**
      *  The variance of the estimated responses
      */
-    val variances: Map<String, Double>
+    @Suppress("unused")
+    val responseVariances: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.variance) }
 
     /**
      *  The number of times that the response has been sampled. The sample
      *  size of the response estimates.
      */
-    val counts: Map<String, Double>
+    @Suppress("unused")
+    val responseCounts: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.count) }
 
     /**
      *  The standard deviations of the estimated responses
      */
     @Suppress("unused")
-    val stdDeviations: Map<String, Double>
+    val responseStandardDeviations: Map<String, Double>
         get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
 
     /**
      *  The violation amount for each response constraint
      */
     val responseViolations: Map<String, Double>
-        get() = problemDefinition.responseConstraintViolations(averages)
+        get() = problemDefinition.responseConstraintViolations(responseAverages)
 
     /**
      *  Converts the solution to an instance of a ResponseMap
@@ -116,26 +118,26 @@ data class Solution(
      */
     @Suppress("unused")
     val objFuncComparator: Comparator<Solution>
-        get() = compareBy<Solution> { it.estimatedObjFnc.average }
+        get() = compareBy<Solution> { it.estimatedObjFnc.average } //TODO
 
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
     @Suppress("unused")
     val penalizedObjFuncComparator: Comparator<Solution>
-        get() = compareBy<Solution> { it.penalizedObjFncValue }
+        get() = compareBy<Solution> { it.penalizedObjFncValue }//TODO
 
     /**
      *  The user may supply a penalty function to use when computing
      *  the response constraint violation penalty; otherwise the default
      *  penalty function is used.
      */
-    var penaltyFunction: PenaltyFunctionIfc? = null
+    var penaltyFunction: PenaltyFunctionIfc? = null //TODO
 
     /**
      *  The total penalty associated with violating the response constraints
      */
-    val responseConstraintViolationPenalty: Double
+    val responseConstraintViolationPenalty: Double //TODO
         get() {
             val p = responseViolations.values.sum() * penaltyFunctionValue
             return if (p.isNaN()) Double.MAX_VALUE else p
@@ -144,7 +146,7 @@ data class Solution(
     /**
      *  The current value of the penalty function
      */
-    val penaltyFunctionValue: Double
+    val penaltyFunctionValue: Double //TODO
         get() {
             return if (penaltyFunction != null) {
                 minOf(penaltyFunction!!.penalty(evaluationNumber), Double.MAX_VALUE)
@@ -157,7 +159,7 @@ data class Solution(
      *  The estimated (average) value of the objective function
      */
     val estimatedObjFncValue: Double
-        get() = if (estimatedObjFnc.average.isNaN()) Double.MAX_VALUE else estimatedObjFnc.average
+        get() = if (estimatedObjFnc.average.isNaN()) Double.MAX_VALUE else estimatedObjFnc.average //TODO
 
     /**
      *  The estimated (average) value of the objective function but rounded to the problem's
@@ -166,7 +168,7 @@ data class Solution(
     val granularObjFncValue: Double
         get() {
             if (estimatedObjFnc.average.isNaN()) return Double.MAX_VALUE
-            return KSLMath.gRound(estimatedObjFncValue, problemDefinition.objFnGranularity)
+            return KSLMath.gRound(estimatedObjFncValue, problemDefinition.objFnGranularity) //TODO
         }
 
     /**
@@ -174,7 +176,7 @@ data class Solution(
      *  the total penalty associated with violating the response constraints.
      */
     val penalizedObjFncValue: Double
-        get() = estimatedObjFncValue + responseConstraintViolationPenalty
+        get() = estimatedObjFncValue + responseConstraintViolationPenalty //TODO
 
     /**
      *  The estimated (average) value of the objective function but rounded to the problem's
@@ -183,7 +185,7 @@ data class Solution(
     val granularPenalizedObjFncValue: Double
         get() {
             if (granularObjFncValue.isNaN() || (granularObjFncValue == Double.MAX_VALUE)) return Double.MAX_VALUE
-            return KSLMath.gRound(penalizedObjFncValue, problemDefinition.objFnGranularity)
+            return KSLMath.gRound(penalizedObjFncValue, problemDefinition.objFnGranularity) //TODO
         }
 
     /**
