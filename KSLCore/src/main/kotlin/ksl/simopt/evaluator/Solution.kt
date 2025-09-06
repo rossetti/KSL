@@ -2,6 +2,8 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
+import ksl.simopt.problem.NaivePenaltyFunction
+import ksl.simopt.problem.PenaltyFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
