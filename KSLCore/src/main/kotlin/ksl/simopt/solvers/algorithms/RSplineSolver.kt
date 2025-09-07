@@ -738,7 +738,7 @@ class RSplineSolver @JvmOverloads constructor(
          *  Since the number of SPLINE calls can grow, this represents the default maximum
          *  number of SPLINE calls to limit the growth.
          */
-        var defaultMaxSplineCallLimit: Int = 1000
+        var defaultMaxSplineCallLimit: Int = 400
             set(value) {
                 require(value > 0) { "The default maximum for the number of SPLINE call growth limit must be > 0" }
                 field = value

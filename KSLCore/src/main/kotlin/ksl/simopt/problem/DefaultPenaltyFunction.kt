@@ -57,6 +57,7 @@ class DefaultPenaltyFunction() : PenaltyFunctionIfc {
         solution: Solution,
         iterationCounter: Int
     ): Double {
+        if (!solution.isValid) return Double.MAX_VALUE
         val inputMap = solution.inputMap
         val responseAverages = solution.responseAverages
         val linearViolations = inputMap.problemDefinition.totalLinearConstrainViolations(inputMap)
