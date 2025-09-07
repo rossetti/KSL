@@ -443,6 +443,7 @@ class RSplineSolver @JvmOverloads constructor(
         //The request for evaluation of the simplex vertices should use CRN
         logger.trace { "\t \t \t \t Requesting evaluation of ${feasibleInputs.keys.size} simplex vertices with sample size = $sampleSize." }
         val evaluations = requestEvaluationsWithCRN(feasibleInputs.keys, sampleSize)
+        //TODO only 1 feasible causes CRN issue
 //        val evaluations = requestEvaluations(feasibleInputs.keys, sampleSize)
         val results = mutableListOf<Solution>()
         for((_, solution) in evaluations) {
