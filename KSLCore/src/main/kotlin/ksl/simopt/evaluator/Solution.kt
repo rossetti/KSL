@@ -2,11 +2,8 @@ package ksl.simopt.evaluator
 
 import ksl.simopt.problem.FeasibilityIfc
 import ksl.simopt.problem.InputMap
-import ksl.simopt.problem.NaivePenaltyFunction
-import ksl.simopt.problem.PenaltyFunctionIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
-import ksl.utilities.math.KSLMath
 import ksl.utilities.observers.Emitter
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
@@ -43,7 +40,7 @@ data class Solution(
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
-        require(evaluationNumber >= 0) { "The evaluation number that caused this solution >= 0" }
+        require(evaluationNumber > 0) { "The evaluation number that caused this solution must be > 0" }
     }
 
     val problemDefinition: ProblemDefinition
@@ -83,6 +80,7 @@ data class Solution(
     /**
      *  The violation amount for each response constraint
      */
+    @Suppress("unused")
     val responseViolations: Map<String, Double>
         get() = problemDefinition.responseConstraintViolations(responseAverages)
 
@@ -118,75 +116,55 @@ data class Solution(
      */
     @Suppress("unused")
     val objFuncComparator: Comparator<Solution>
-        get() = compareBy<Solution> { it.estimatedObjFnc.average } //TODO
+        get() = compareBy<Solution> { it.estimatedObjFncValue }
 
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
     @Suppress("unused")
     val penalizedObjFuncComparator: Comparator<Solution>
-        get() = compareBy<Solution> { it.penalizedObjFncValue }//TODO
-
-    /**
-     *  The user may supply a penalty function to use when computing
-     *  the response constraint violation penalty; otherwise the default
-     *  penalty function is used.
-     */
-    var penaltyFunction: PenaltyFunctionIfc? = null //TODO
+        get() = compareBy<Solution> { it.penalizedObjFncValue }
 
     /**
      *  The total penalty associated with violating the response constraints
      */
-    val responseConstraintViolationPenalty: Double //TODO
-        get() {
-            val p = responseViolations.values.sum() * penaltyFunctionValue
-            return if (p.isNaN()) Double.MAX_VALUE else p
-        }
+    @Suppress("unused")
+    val responseConstraintViolationPenalty: Double
+        get() = problemDefinition.totalResponseConstraintViolations(responseAverages)
 
     /**
      *  The current value of the penalty function
      */
-    val penaltyFunctionValue: Double //TODO
-        get() {
-            return if (penaltyFunction != null) {
-                minOf(penaltyFunction!!.penalty(evaluationNumber), Double.MAX_VALUE)
-            } else {
-                minOf(NaivePenaltyFunction.defaultPenaltyFunction.penalty(evaluationNumber), Double.MAX_VALUE)
-            }
-        }
+    @Suppress("unused")
+    val penaltyFncValue: Double
+        get() = problemDefinition.penaltyFncValue(this)
 
     /**
      *  The estimated (average) value of the objective function
      */
     val estimatedObjFncValue: Double
-        get() = if (estimatedObjFnc.average.isNaN()) Double.MAX_VALUE else estimatedObjFnc.average //TODO
+        get() = problemDefinition.objFncValue(this)
 
     /**
      *  The estimated (average) value of the objective function but rounded to the problem's
      *  granularity for the objective function
      */
     val granularObjFncValue: Double
-        get() {
-            if (estimatedObjFnc.average.isNaN()) return Double.MAX_VALUE
-            return KSLMath.gRound(estimatedObjFncValue, problemDefinition.objFnGranularity) //TODO
-        }
+        get() = problemDefinition.granularObjFncValue(this)
 
     /**
      *  The penalized objective function.  That is, the estimated objective function plus
-     *  the total penalty associated with violating the response constraints.
+     *  the total penalty associated with violating the constraints.
      */
     val penalizedObjFncValue: Double
-        get() = estimatedObjFncValue + responseConstraintViolationPenalty //TODO
+        get() = problemDefinition.penalizedObjFncValue(this)
 
     /**
-     *  The estimated (average) value of the objective function but rounded to the problem's
+     *  The value of the penalized objective function but rounded to the problem's
      *  granularity for the objective function
      */
     val granularPenalizedObjFncValue: Double
-        get() {
-            if (granularObjFncValue.isNaN() || (granularObjFncValue == Double.MAX_VALUE)) return Double.MAX_VALUE
-            return KSLMath.gRound(penalizedObjFncValue, problemDefinition.objFnGranularity) //TODO
-        }
+        get() = problemDefinition.granularPenalizedObjFncValue(this)
 
     /**
      *  Tests if each response constraint is feasible.  If all tests are feasible, then the
@@ -244,7 +222,6 @@ data class Solution(
 
     fun asString(): String {
         return "id = $id : n = ${estimatedObjFnc.count} : objFnc = $penalizedObjFncValue : 95%ci = ${estimatedObjFnc.confidenceInterval()} : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
-       // return toSolutionData().toDataFrame().toString()
     }
 
     override fun toString(): String {
