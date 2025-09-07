@@ -10,6 +10,7 @@ import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.IdentityIfc
 import ksl.utilities.Interval
+import ksl.utilities.math.KSLMath
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.randomlySelect
@@ -56,6 +57,22 @@ class ProblemDefinition @JvmOverloads constructor(
     objFnGranularity: Double = 0.0
 ) : IdentityIfc by Identity(problemName) {
 
+    /**
+     *  The specified granularity indicates the acceptable precision for the objective function's value
+     *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
+     *  when evaluating the objective function. Granularity defines the level of precision for variable
+     *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
+     *  should attempt to find a solution to the level of machine precision. For any positive granularity value,
+     *  the solution will be found to some multiple of that granularity. As a special case, setting granularity to 1
+     *  implies an integer-ordered input variable. The specification of granularity reflects a reality for the
+     *  decision maker that there is a level of precision beyond which it is not practical to implement a solution.
+     */
+    @Suppress("unused")
+    var objFnGranularity: Double = objFnGranularity
+        set(value) {
+            require(value >= 0.0) { "Objective function granularity must be >=  0.0" }
+            field = value
+        }
 
     /**
      *  Used to maximization problems into minimization problems
@@ -78,6 +95,57 @@ class ProblemDefinition @JvmOverloads constructor(
             return objFncFactor * Double.MAX_VALUE
         }
         return objFncFactor * solution.average
+    }
+
+    /**
+     *  Computes the penalized objective function value for the provided solution.
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *  This is the objective function value plue the penality function value.
+     *
+     *  @param solution the solution to compute the objective function value for
+     *  @return the penalized objective function value
+     */
+    @Suppress("unused")
+    fun penalizedObjFncValue(solution: Solution): Double {
+        require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
+        if (solution.average.isNaN() || solution.average.isInfinite()) {
+            return objFncFactor * Double.MAX_VALUE
+        }
+        return objFncValue(solution) + penaltyFncValue(solution)
+    }
+
+    /**
+     *  Computes the objective function value for the provided solution in terms of
+     *  its specified granularity. If the granularity is 0.0 then the raw value is returned.
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *
+     *  @param solution the solution to compute the objective function value for
+     *  @return the objective function value
+     */
+    @Suppress("unused")
+    fun granularObjFncValue(solution: Solution): Double {
+        require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
+        if (solution.average.isNaN() || solution.average.isInfinite()) {
+            return objFncFactor * Double.MAX_VALUE
+        }
+        return KSLMath.gRound(objFncValue(solution), objFnGranularity)
+    }
+
+    /**
+     *  Computes the granular version of the penalized objective function value for the provided solution in terms of
+     *  its specified granularity. If the granularity is 0.0 then the raw value is returned.
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *
+     *  @param solution the solution to compute the objective function value for
+     *  @return the granular penalized objective function value
+     */
+    @Suppress("unused")
+    fun granularPenalizedObjFncValue(solution: Solution): Double {
+        require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
+        if (solution.average.isNaN() || solution.average.isInfinite()) {
+            return objFncFactor * Double.MAX_VALUE
+        }
+        return KSLMath.gRound(penalizedObjFncValue(solution), objFnGranularity)
     }
 
     /**
@@ -120,23 +188,6 @@ class ProblemDefinition @JvmOverloads constructor(
     var indifferenceZoneParameter: Double = indifferenceZoneParameter
         set(value) {
             require(value >= 0.0) { "The indifference zone parameter must be >= 0.0" }
-            field = value
-        }
-
-    /**
-     *  The specified granularity indicates the acceptable precision for the objective function's value
-     *  with respect to decision-making. If the granularity is 0 then no rounding will be applied
-     *  when evaluating the objective function. Granularity defines the level of precision for variable
-     *  to which the problem will be solved. Setting granularity to 0, the default, means that the solver
-     *  should attempt to find a solution to the level of machine precision. For any positive granularity value,
-     *  the solution will be found to some multiple of that granularity. As a special case, setting granularity to 1
-     *  implies an integer-ordered input variable. The specification of granularity reflects a reality for the
-     *  decision maker that there is a level of precision beyond which it is not practical to implement a solution.
-     */
-    @Suppress("unused")
-    var objFnGranularity: Double = objFnGranularity
-        set(value) {
-            require(value >= 0.0) { "Objective function granularity must be >=  0.0" }
             field = value
         }
 
@@ -580,7 +631,7 @@ class ProblemDefinition @JvmOverloads constructor(
     /**
      *  The total violations associated with the response constraints for the
      *  provided values within the map holding the average response for each named response.
-     *  @param averages the map of responses filled with the average response for each named response..
+     *  @param averages the map of responses filled with the average response for each named response.
      *  Must have been created by this problem.
      *  @return the total violation associated with the response constraints.
      */
@@ -597,20 +648,30 @@ class ProblemDefinition @JvmOverloads constructor(
 
     /**
      *  Returns the total violation penalty associated with the constraints for the problem.
-     *  @param inputMap The current input map. This also contains a reference to the
-     *  problem definition.
-     *  @param responseAverages The average response values for each response variable required
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *  @param solution The solution for which the penalty is being computed.
      *  to compute the penality associated with the response constraints.
-     *  @param iterationCounter The current iteration count. The iteration associated
-     *  with the solver's process.
      */
     @Suppress("unused")
-    fun constraintPenalty(
-        inputMap: InputMap,
-        responseAverages: Map<String, Double>,
-        iterationCounter: Int
-    ): Double {
-        return penaltyFunction.penalty(inputMap, responseAverages, iterationCounter)
+    fun penaltyFncValue(solution: Solution): Double {
+        return penaltyFunction.penalty(solution, solution.evaluationNumber) * objFncFactor
+    }
+
+    /**
+     *  Computes the penalty function value for the provided solution in terms of
+     *  its specified granularity. If the granularity is 0.0 then the raw value is returned.
+     *  Ensures that the returned value is oriented according to the optimization type.
+     *
+     *  @param solution the solution to compute the objective function value for
+     *  @return the objective function value
+     */
+    @Suppress("unused")
+    fun granularPenaltyFncValue(solution: Solution): Double {
+        require(solution.problemDefinition == this) { "The solution is not associated with this problem definition" }
+        if (solution.average.isNaN() || solution.average.isInfinite()) {
+            return objFncFactor * Double.MAX_VALUE
+        }
+        return KSLMath.gRound(penaltyFncValue(solution), objFnGranularity)
     }
 
     /** The array x is mutated to hold values that have appropriate granularity based on the
@@ -1124,9 +1185,9 @@ class ProblemDefinition @JvmOverloads constructor(
                 appendLine("\t <None>")
             }
             appendLine("Input Definitions:")
-            val iDefns = inputDefinitionList
-            if (iDefns.isNotEmpty()) {
-                for (iDefn in iDefns) {
+            val definitions = inputDefinitionList
+            if (definitions.isNotEmpty()) {
+                for (iDefn in definitions) {
                     append("\t ")
                     appendLine(iDefn)
                 }
