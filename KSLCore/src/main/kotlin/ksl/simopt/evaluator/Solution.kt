@@ -40,7 +40,7 @@ data class Solution(
 
     init {
         require(inputMap.isNotEmpty()) { "The input map cannot be empty for a solution" }
-        require(evaluationNumber > 0) { "The evaluation number that caused this solution must be > 0" }
+        require(evaluationNumber >= 0) { "The evaluation number that caused this solution must be >= 0" }
     }
 
     val problemDefinition: ProblemDefinition

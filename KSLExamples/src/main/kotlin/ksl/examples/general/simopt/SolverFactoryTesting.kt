@@ -27,9 +27,9 @@ fun main() {
     //  val modelIdentifier = "RQInventoryModel"
     val modelIdentifier = "LKInventoryModel"
 //    val solverType = SolverType.R_SPLINE
-    val solverType = SolverType.CE
+//    val solverType = SolverType.CE
 //    val solverType = SolverType.SHC
-//    val solverType = SolverType.R_SPLINE_RS
+    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
     runSolver(modelIdentifier, solverType, defaultKSLDatabaseObserverOption = false)
