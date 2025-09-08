@@ -595,6 +595,9 @@ abstract class Solver(
      * neighbor generator or by randomizing the value of a randomly selected input variable.
      * Unless a neighborhood generator is supplied, the resulting point will be input-range feasible.
      * Thus, it may be infeasible with respect to deterministic constraints.
+     * If a neighborhood generator is not supplied, the approach is to randomly select one
+     * of the coordinates (inputs) and then randomly generating an input-range feasible value
+     * for the selected input.
      *
      * @param currentPoint the current point represented as an instance of InputMap
      * @param rnStream an instance of RNStreamIfc used for generating random values if no neighbor generator is provided
@@ -608,6 +611,8 @@ abstract class Solver(
         val nextPoint = if (neighborGenerator != null) {
             neighborGenerator!!.generateNeighbor(currentPoint, this, ensureProblemFeasibleRequests)
         } else {
+            // Note: this randomly picks a coordinate (input name) and then randomly generates an
+            // input range value uniformly over its range.
             currentPoint.randomizeInputVariable(rnStream)
         }
         logger.trace { "Solver: $name : generated neighbor $nextPoint" }
