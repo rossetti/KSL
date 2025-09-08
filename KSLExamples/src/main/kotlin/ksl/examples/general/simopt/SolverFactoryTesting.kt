@@ -26,7 +26,8 @@ fun main() {
 //    var simulationRunCache = MemorySimulationRunCache()
       val modelIdentifier = "RQInventoryModel"
 //    val modelIdentifier = "LKInventoryModel"
-    val solverType = SolverType.R_SPLINE
+//    val solverType = SolverType.R_SPLINE
+    val solverType = SolverType.SA
 //    val solverType = SolverType.CE
 //    val solverType = SolverType.SHC
 //    val solverType = SolverType.R_SPLINE_RS
