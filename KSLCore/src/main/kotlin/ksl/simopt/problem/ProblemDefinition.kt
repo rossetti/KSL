@@ -240,6 +240,13 @@ class ProblemDefinition @JvmOverloads constructor(
     private val myLinearConstraints = mutableListOf<LinearConstraint>()
 
     /**
+     *  True if there are linear constraints
+     */
+    @Suppress("unused")
+    val hasLinearConstraints: Boolean
+        get() = myLinearConstraints.isNotEmpty()
+
+    /**
      *  The linear constraints for the problem as a list
      */
     @Suppress("unused")
@@ -249,12 +256,26 @@ class ProblemDefinition @JvmOverloads constructor(
     private val myResponseConstraints = mutableListOf<ResponseConstraint>()
 
     /**
+     *  True if there are response constraints
+     */
+    @Suppress("unused")
+    val hasResponseConstraints: Boolean
+        get() = myResponseConstraints.isNotEmpty()
+
+    /**
      *  The response constraints as a list
      */
     val responseConstraints: List<ResponseConstraint>
         get() = myResponseConstraints.toList()
 
     private val myFunctionalConstraints = mutableListOf<FunctionalConstraint>()
+
+    /**
+     *  True if there are functional constraints
+     */
+    @Suppress("unused")
+    val hasFunctionalConstraints: Boolean
+        get() = myFunctionalConstraints.isNotEmpty()
 
     /**
      *  The functional constraints for the problem as a list

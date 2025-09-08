@@ -63,10 +63,11 @@ fun printRQInventoryModel(solver: Solver) {
         val rs = solver.restartingSolver
         val initialSolution = rs.initialSolution
         if (initialSolution != null) {
-            val q = initialSolution.inputMap["Inventory.orderQuantity"]
-            val rp = initialSolution.inputMap["Inventory.reorderPoint"]
+            val q = initialSolution.inputMap["Inventory:Item.initialReorderQty"]
+            val rp = initialSolution.inputMap["Inventory:Item.initialReorderPoint"]
+            val fillRate = initialSolution.responseEstimatesMap["Inventory:Item:FillRate"]!!.average
             println("initial solution: id = ${initialSolution.id}")
-            println("n = ${initialSolution.count} : objFnc = ${initialSolution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${initialSolution.penalizedObjFncValue}")
+            println("n = ${initialSolution.count} : objFnc = ${initialSolution.estimatedObjFncValue} \t q = $q \t r = $rp \t penalized objFnc = ${initialSolution.penalizedObjFncValue} \t fillrate = $fillRate")
         }
     }
     val solution = solver.currentSolution

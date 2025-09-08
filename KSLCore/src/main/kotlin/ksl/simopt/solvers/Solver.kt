@@ -301,18 +301,18 @@ abstract class Solver(
         get() = previousSolution.inputMap
 
     /**
-     *  The difference between the previous solution's penalized objective function value
-     *  and the current solution's penalized objective function value.
+     *  The difference between the current solution's penalized objective function value
+     *  and the previous solution's penalized objective function value.
      */
-    var penalizedSolutionGap: Double = Double.NaN
-        private set
+    val penalizedSolutionGap: Double
+        get() = currentSolution.penalizedObjFncValue - previousSolution.penalizedObjFncValue
 
     /**
-     *  The difference between the previous solution's unpenalized objective function value
-     *  and the current solution's unpenalized objective function value.
+     *  The difference between the current solution's unpenalized objective function value
+     *  and the previous solution's unpenalized objective function value.
      */
-    var unPenalizedSolutionGap: Double = Double.NaN
-        private set
+    val unPenalizedSolutionGap: Double
+        get() = currentSolution.estimatedObjFncValue - previousSolution.estimatedObjFncValue
 
     /**
      *  The current (or last) solution that was accepted as a possible
@@ -325,8 +325,8 @@ abstract class Solver(
             previousSolution = field
             // update the current solution
             field = value
-            penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
-            unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
+ //           penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
+ //           unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
             myBestSolutions.add(value)
             // if the new current solution is better than all previous solutions
             // capture the better solution

@@ -14,6 +14,12 @@ interface ConstraintIfc {
         get() = if (inequalityType == InequalityType.LESS_THAN) 1.0 else -1.0
 
     /**
+     *  The string for inequality either <= or >=
+     */
+    val inequalityString: String
+        get() = if (inequalityType == InequalityType.LESS_THAN) "<=" else ">="
+
+    /**
      *  The right-hand side of the constraint adjusted for the direction of the inequality to ensure
      *  a less-than constraint
      */
