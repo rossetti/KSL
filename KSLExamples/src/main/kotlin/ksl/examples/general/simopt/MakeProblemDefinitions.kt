@@ -73,7 +73,7 @@ fun makeRQInventoryModelProblemDefinition(): ProblemDefinition {
     )
     problemDefinition.responseConstraint(
         name = "Inventory:Item:FillRate",
-        rhsValue = 0.90,
+        rhsValue = 0.95,
         inequalityType = InequalityType.GREATER_THAN
     )
     return problemDefinition

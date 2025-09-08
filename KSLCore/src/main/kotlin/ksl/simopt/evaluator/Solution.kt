@@ -231,7 +231,10 @@ data class Solution(
                 appendLine("The solution is invalid!")
             }
             appendLine("evaluation number = $evaluationNumber")
+            appendLine("objective function value = $estimatedObjFncValue")
             appendLine("penalized objective function = $penalizedObjFncValue")
+            appendLine("granular function value = $granularObjFncValue")
+            appendLine("penality function value = $penaltyFncValue")
             appendLine("Inputs:")
             for((name, value) in inputMap){
                 appendLine("Name = $name = $value)")
@@ -241,6 +244,37 @@ data class Solution(
             appendLine("average = ${estimatedObjFnc.average}")
             appendLine("variance = ${estimatedObjFnc.variance}")
             appendLine("count = ${estimatedObjFnc.count}")
+            if (problemDefinition.hasLinearConstraints){
+                appendLine("Linear Constraints:")
+                val linearConstraints= problemDefinition.linearConstraints
+                for(lc in linearConstraints){
+                    val lhs = lc.computeLHS(inputMap)
+                    val rhs = lc.rhsValue
+                    val diff = lhs - rhs
+                    appendLine("LHS = $lhs ${lc.inequalityString} RHS = $rhs : (LHS-RHS) = $diff ")
+                }
+            }
+            if (problemDefinition.hasFunctionalConstraints){
+                appendLine("Functional Constraints:")
+                val functionalConstraints= problemDefinition.functionalConstraints
+                for(lc in functionalConstraints){
+                    val lhs = lc.computeLHS(inputMap)
+                    val rhs = lc.rhsValue
+                    val diff = lhs - rhs
+                    appendLine("LHS = $lhs ${lc.inequalityString} RHS = $rhs  : (LHS-RHS) = $diff ")
+                }
+            }
+            if (problemDefinition.hasResponseConstraints){
+                appendLine("Response Constraints:")
+                val responseConstraints= problemDefinition.responseConstraints
+                val lhSides = responseAverages
+                for(lc in responseConstraints){
+                    val lhs = lhSides[lc.responseName]!!
+                    val rhs = lc.rhsValue
+                    val diff = lhs - rhs
+                    appendLine("${lc.responseName}: LHS = $lhs ${lc.inequalityString} RHS = $rhs : (LHS-RHS) = $diff")
+                }
+            }
         }
         return sb.toString()
     }

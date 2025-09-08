@@ -29,6 +29,12 @@ class ResponseConstraint(
         require(tolerance >= 0.0) { "The tolerance must be >= 0.0." }
     }
 
+    /**
+     *  The string for inequality either <= or >=
+     */
+    val inequalityString: String
+        get() = if (inequalityType == InequalityType.LESS_THAN) "<=" else ">="
+
     override fun toString() : String {
         val sb = StringBuilder().apply{
             append("Equation: ")
@@ -51,9 +57,11 @@ class ResponseConstraint(
 
     private val inequalityFactor: Double = if (inequalityType == InequalityType.LESS_THAN) 1.0 else -1.0
 
+    @Suppress("unused")
     val targetInterval: Interval
         get() = Interval(rhsValue - target, rhsValue + target)
 
+    @Suppress("unused")
     val toleranceInterval: Interval
         get() = Interval(rhsValue - tolerance, rhsValue + tolerance)
 
