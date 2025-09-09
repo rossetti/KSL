@@ -1765,6 +1765,14 @@ fun <T> List<T>.randomlySelect(streamNum: Int): T {
     return KSLRandom.randomlySelect(this, streamNum)
 }
 
+fun <T> Set<T>.randomlySelect(stream: RNStreamIfc = KSLRandom.defaultRNStream()): T {
+    return KSLRandom.randomlySelect(this.toList(), stream)
+}
+
+fun <T> Set<T>.randomlySelect(streamNum: Int): T {
+    return KSLRandom.randomlySelect(this.toList(), streamNum)
+}
+
 fun <T> MutableList<T>.permute(stream: RNStreamIfc = KSLRandom.defaultRNStream()) {
     KSLRandom.permute(this, stream)
 }
