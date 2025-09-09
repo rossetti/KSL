@@ -798,10 +798,8 @@ abstract class Solver(
             if (currentSolution.isValid) {
                 appendLine("Current Solution:")
                 appendLine("$currentSolution")
-                appendLine("Unpenalized Solution Gap = $unPenalizedSolutionGap")
-                appendLine("Penalized Solution Gap = $penalizedSolutionGap")
-//                appendLine("Number of times the best solution was updated = $numTimesBestSolutionUpdated")
-//                appendLine("Number of Iterations Completed = $iterationCounter")
+                appendLine("Previous solution penalized objective function value (POFV) = ${previousSolution.penalizedObjFncValue}")
+                appendLine("Current solution POFV - Previous solution POFV  = $penalizedSolutionGap")
                 appendLine("==================================================================")
                 if (compare(bestSolution, currentSolution) < 0) {
                     appendLine("A better solution was found than the current solution.")
