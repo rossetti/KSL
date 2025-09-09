@@ -41,6 +41,7 @@ import ksl.utilities.random.rvariable.randomlySelect
  *  @param inputNames the names of the inputs for the simulation model. These names are used to set values for
  *  the simulation when executing experiments. Any constraints specified on the input variables must use these names.
  *  @param responseNames the names of any responses that will appear in response constraints. The default is empty.
+ *  @param optimizationType The type of optimization to perform, either MINIMIZE or MAXIMIZE.
  *  @param indifferenceZoneParameter a parameter that represents the smallest actual difference that is important
  *  to detect for the objective function response. This parameter can be used by solvers to determine if differences
  *  between solutions are considered practically insignificant. The default is zero.
