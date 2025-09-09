@@ -11,17 +11,17 @@ infix fun Int.pow(power: Int): Int =
 
 object Sets {
 
-    fun <T> powerSet(set: Set<T>): Set<Set<T>> = set.powerset()
-    fun <T> powerSetSize(set: Set<T>): Int = set.powersetSize
+    fun <T> powerSet(set: Set<T>): Set<Set<T>> = set.powerSet()
+    fun <T> powerSetSize(set: Set<T>): Int = set.powerSetSize
 
 }
 
-fun <T> Collection<T>.powerset(): Set<Set<T>> = powerset(this, setOf(setOf()))
+fun <T> Collection<T>.powerSet(): Set<Set<T>> = powerSet(this, setOf(setOf()))
 
-private tailrec fun <T> powerset(left: Collection<T>, acc: Set<Set<T>>): Set<Set<T>> = when {
+private tailrec fun <T> powerSet(left: Collection<T>, acc: Set<Set<T>>): Set<Set<T>> = when {
     left.isEmpty() -> acc
-    else ->powerset(left.drop(1), acc + acc.map { it + left.first() })
+    else ->powerSet(left.drop(1), acc + acc.map { it + left.first() })
 }
 
-val <T> Collection<T>.powersetSize: Int
+val <T> Collection<T>.powerSetSize: Int
     get() = 2.pow(size)
