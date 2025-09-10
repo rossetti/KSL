@@ -122,15 +122,6 @@ abstract class Solver(
      */
     private val myMainIterativeProcess = MainIterativeProcess()
 
-//    /**
-//     * Counts the number of times that a new current solution replaced the current
-//     * best solution. This can be used to measure how often an iteration results in
-//     * a better solution being found.
-//     */
-//    @Suppress("unused")
-//    var numTimesBestSolutionUpdated: Int = 0
-//        private set
-
     /**
      *  Allow the status of the iterative process to be accessible
      */
@@ -325,12 +316,7 @@ abstract class Solver(
             previousSolution = field
             // update the current solution
             field = value
- //           penalizedSolutionGap = value.penalizedObjFncValue - previousSolution.penalizedObjFncValue
- //           unPenalizedSolutionGap = value.estimatedObjFncValue - previousSolution.estimatedObjFncValue
             myBestSolutions.add(value)
-            // if the new current solution is better than all previous solutions
-            // capture the better solution
-            //updateBestSolution(field)
         }
 
     /**
