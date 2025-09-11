@@ -80,7 +80,7 @@ interface SolutionsIfc : List<Solution> {
      *  not statistically different from the best solution are returned. The confidence interval is for
      *  each individual comparison with the best.  Thus, to control the overall confidence, users
      *  will want to adjust the individual confidence interval level such that the overall confidence
-     *  is the process is controlled. See the theory of related to multi-comparison discussed
+     *  in the process is controlled. See the theory of related to multi-comparison discussed
      *  [here](https://rossetti.github.io/KSLBook/simoacomparingSystems.html#simoacomparingSystemsMCB)
      *  The process used here is approximate.
      *
@@ -125,6 +125,42 @@ interface SolutionsIfc : List<Solution> {
     fun toDataFrame(): AnyFrame {
         return toDataMap().toDataFrame()
     }
+
+    /**
+     *  Adds the solution to the solutions.
+     *
+     *  If the solution is input-infeasible and the allowInfeasibleSolutions
+     *  flag is false, then the solution is silently ignored.
+     *
+     *  If the capacity is met, then the worst solution is evicted and returned.
+     *
+     *  If the solution is already in the sequence of solutions (based on input-equality),
+     *  and it has more samples than the existing solution, then the existing solution is replaced;
+     *  otherwise the existing solution is not replaced.
+     *
+     *  @param solution the solution to add
+     *  @return a possibly evicted item or null if the solution was not added
+     */
+    fun add(solution: Solution): Solution?
+
+    /**
+     *  Adds all the solutions to the sequence of solutions. If the capacity
+     *  is met, then the oldest (first) item is evicted and returned. Each
+     *  evicted item is returned in the order of eviction.
+     *  @param solutions the solutions to add
+     *  @return a list of possibly evicted items
+     */
+    fun addAll(solutions: List<Solution>): List<Solution>
+
+    /**
+     *  Removes the specified element
+     */
+    fun remove(solution: Solution)
+
+    /**
+     *  Clears all solutions
+     */
+    fun clear()
 
     companion object {
         /**

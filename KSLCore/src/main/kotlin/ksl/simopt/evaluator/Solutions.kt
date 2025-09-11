@@ -62,7 +62,7 @@ class Solutions(
      *  @param solutions the solutions to add
      *  @return a list of possibly evicted items
      */
-    fun addAll(solutions: List<Solution>): List<Solution> {
+    override fun addAll(solutions: List<Solution>): List<Solution> {
         val list = mutableListOf<Solution>()
         for (solution in solutions) {
             val evicted = add(solution)
@@ -88,7 +88,7 @@ class Solutions(
      *  @param solution the solution to add
      *  @return a possibly evicted item or null if the solution was not added
      */
-    fun add(solution: Solution): Solution? {
+    override fun add(solution: Solution): Solution? {
         if (contains(solution)) return null
         if (!solution.isInputFeasible()) {
             return null
@@ -131,7 +131,7 @@ class Solutions(
     /**
      *  Removes the specified element
      */
-    fun remove(solution: Solution) {
+    override fun remove(solution: Solution) {
         myEnteredSolutions.remove(solution)
         mySolutions.remove(solution)
     }
@@ -139,7 +139,7 @@ class Solutions(
     /**
      *  Clears all solutions
      */
-    fun clear() {
+    override fun clear() {
         mySolutions.clear()
         myEnteredSolutions.clear()
     }
