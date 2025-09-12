@@ -237,7 +237,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     override fun isStoppingCriteriaSatisfied(): Boolean {
         return solutionQualityEvaluator?.isStoppingCriteriaReached(this) ?:
-        checkTemperature() ||solutionChecker.checkSolutions()
+        checkTemperature() || solutionChecker.checkSolutions()
     }
 
     private fun checkTemperature() : Boolean {
