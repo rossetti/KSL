@@ -46,7 +46,7 @@ fun interface SampleSizeFnIfc {
 class CrossEntropySolver @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    val ceSampler: CESamplerIfc,
+    val ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
     maxIterations: Int = ceDefaultMaxIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
@@ -71,7 +71,7 @@ class CrossEntropySolver @JvmOverloads constructor(
     constructor(
         problemDefinition: ProblemDefinition,
         evaluator: EvaluatorIfc,
-        ceSampler: CESamplerIfc,
+        ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
         maxIterations: Int = ceDefaultMaxIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         solutionEqualityChecker: SolutionEqualityIfc = InputsAndConfidenceIntervalEquality(),
