@@ -66,7 +66,8 @@ class RSplineSolver @JvmOverloads constructor(
     streamNum: Int = 0,
     streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     name: String? = null
-) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
+) : StochasticSolver(problemDefinition, evaluator, maxIterations,
+    replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
         require(problemDefinition.isIntegerOrdered) { "R-SPLINE requires that the problem definition be integer ordered!" }
@@ -274,18 +275,13 @@ class RSplineSolver @JvmOverloads constructor(
         // It will be the current solution until beaten by the SPLINE search process.
         // Call SPLINE for the next solution using the current sample size (m_k) and
         // current SPLINE oracle call limit (b_k).
-
         logger.trace { "SPLINE search: main iteration = $iterationCounter : sample size = $rSPLINESampleSize : SPLINE call limit = $splineCallLimit" }
-//        println("SPLINE: main iteration = $iterationCounter : sample size = $rSPLINESampleSize")
-//        println("SPLINE: starting solution: ${currentSolution.asString()}")
         val splineSolution = spline(
             currentSolution,
             rSPLINESampleSize, splineCallLimit
         )
         logger.trace { "SPLINE search: completed main iteration = $iterationCounter : numOracleCalls = $numOracleCalls" }
-
         currentSolution = splineSolution
-//        println("SPLINE: ending solution: ${currentSolution.asString()}")
         // capture the last solution
         solutionChecker.captureSolution(currentSolution)
     }
