@@ -17,10 +17,10 @@ import org.jetbrains.kotlinx.dataframe.api.schema
 
 
 fun main(){
-    runSolver()
+    runCESolver()
 }
 
-fun runSolver(
+fun runCESolver(
     simulationRunCache: SimulationRunCacheIfc? = null,
     experimentRunParameters: ExperimentRunParametersIfc? = null,
     defaultKSLDatabaseObserverOption: Boolean = false
