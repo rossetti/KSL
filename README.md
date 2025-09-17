@@ -109,10 +109,19 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.2"
+version = "R1.2.3"
 
 ## Release Notes
-Latest Release R1.2.2
+Latest Release R1.2.3
+* Significant improvements to the `ksl.simopt` package for simulation optimization
+	- Refactored `ProblemDefinition` class. Moved penalty function modeling into `ProblemDefintion`
+	- Added cross-entropy solver
+	- Added R-SPLINE solver
+	- Refactored simulation oracle usage framework
+	- Added screening of solution
+* Added chapter 10 to accompanying textbook to cover simulation optimization methods
+
+Release R1.2.2
 * Added jvmOverloads and started changes to improve usage from java
 * Improved RandomElement and interaction with new `RNStreamProvider` usage
 * Revised JSON configuration for `ModelBuilderIfc`
