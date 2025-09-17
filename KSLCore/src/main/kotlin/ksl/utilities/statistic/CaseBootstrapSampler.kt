@@ -3,9 +3,11 @@ package ksl.utilities.statistic
 import ksl.utilities.KSLArrays
 import ksl.utilities.concatenateTo1DArray
 import ksl.utilities.isRectangular
+import ksl.utilities.random.StreamNumberIfc
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.transpose
 import org.hipparchus.stat.regression.OLSMultipleLinearRegression
@@ -119,13 +121,19 @@ object OLSBootEstimator : MatrixEstimatorIfc {
  */
 open class CaseBootstrapSampler(
     val estimator: CaseBootEstimatorIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream()
-) : RNStreamControlIfc, RNStreamChangeIfc {
+    streamNum: Int = 0,
+    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
+) : RNStreamControlIfc, RNStreamChangeIfc, StreamNumberIfc {
 
     init {
         require(estimator.names.isNotEmpty()) { "The estimator has no defined names!" }
         require(estimator.originalEstimates.isNotEmpty()) { "The estimator provided no original estimates" }
     }
+
+    override var rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     /**
      * @return the estimate from the supplied CaseBootEstimatorIfc based on the original data
@@ -179,8 +187,6 @@ open class CaseBootstrapSampler(
      */
     val bootStrapData: Array<DoubleArray>
         get() = myBSEstimates.toTypedArray()
-
-    override var rnStream: RNStreamIfc = stream
 
     /**
      * Tells the stream to start producing antithetic variates
