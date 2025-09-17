@@ -22,6 +22,7 @@ import ksl.utilities.observers.Observable
 import ksl.utilities.random.rng.RNStreamChangeIfc
 import ksl.utilities.random.rng.RNStreamControlIfc
 import ksl.utilities.random.rng.RNStreamIfc
+import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.MVSampleIfc
 import ksl.utilities.statistic.BatchStatistic
@@ -34,16 +35,18 @@ import ksl.utilities.statistic.averages
  * @param initialX the initial value to start generation process
  * @param targetFun the target function
  * @param proposalFun the proposal function
- * @param stream the stream for accepting or rejecting the proposed state
+ * @param streamNum the random number stream number, defaults to 0, which means the next stream
+ * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  * @param batchStatistics a list of BatchStatistics one for each dimension that have
  * been configured to collect batch statistics on the dimensions. Default batch statistics
  * are provided.
  */
-open class MetropolisHastingsMV(
+open class MetropolisHastingsMV @JvmOverloads constructor(
     initialX: DoubleArray,
     val targetFun: FunctionMVIfc,
     val proposalFun: ProposalFunctionMVIfc,
-    stream: RNStreamIfc = KSLRandom.nextRNStream(),
+    streamNum: Int = 0,
+    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     batchStatistics: List<BatchStatistic> = createBatchStatistics(initialX.size)
 ) : MVSampleIfc, RNStreamChangeIfc, RNStreamControlIfc, Observable<MetropolisHastingsMV>() {
 
@@ -55,6 +58,11 @@ open class MetropolisHastingsMV(
         require(batchStatistics.size == initialX.size)
         { "The number of supplied batch statistics was not equal to the number of dimensions" }
     }
+
+    override var rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
+    override val streamNumber: Int
+        get() = streamProvider.streamNumber(rnStream)
 
     override val dimension: Int = initialX.size
 
@@ -281,8 +289,6 @@ open class MetropolisHastingsMV(
         targetFunctionAtProposedY = fy
         return ratio
     }
-
-    override var rnStream: RNStreamIfc = stream
 
     override var advanceToNextSubStreamOption: Boolean
         get() = rnStream.advanceToNextSubStreamOption

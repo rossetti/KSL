@@ -47,6 +47,13 @@ interface MVBSEstimatorIfc : IdentityIfc {
     fun estimate(data: DoubleArray): DoubleArray
 }
 
+/**
+ *  Contains statistic values for average, variance, min, max, skewness, kurtosis,
+ *  lag1 correlation, and lag 1 covariance
+ *
+ *  @param aName The name for the statistic
+ */
+@Suppress("unused")
 class BasicStatistics(aName: String? = null) : MVBSEstimatorIfc, IdentityIfc by Identity(aName){
 
     private val stat = Statistic()
@@ -84,7 +91,7 @@ open class BootstrapSampler(
     originalData: DoubleArray,
     val estimator: MVBSEstimatorIfc,
     streamNumber: Int = 0,
-    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
+    val streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
 ) : RNStreamControlIfc, StreamNumberIfc {
 
     init {

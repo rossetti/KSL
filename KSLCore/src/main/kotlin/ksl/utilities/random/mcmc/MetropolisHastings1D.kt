@@ -34,7 +34,7 @@ import ksl.utilities.statistic.Statistic
  * @param streamNumber the random number stream number, defaults to 0, which means the next stream
  * @param streamProvider the provider of random number streams, defaults to [KSLRandom.DefaultRNStreamProvider]
  */
-class MetropolisHastings1D(
+class MetropolisHastings1D @JvmOverloads constructor(
     var initialX: Double,
     targetFun: FunctionIfc,
     proposalFun: ProposalFunction1DIfc,
