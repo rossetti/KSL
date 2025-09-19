@@ -43,7 +43,7 @@ object KSLArrays {
     fun indexOfMin(x: DoubleArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var min = Double.MAX_VALUE
+        var min = Double.POSITIVE_INFINITY
         for (i in x.indices) {
             if (x[i] < min) {
                 min = x[i]
@@ -73,7 +73,7 @@ object KSLArrays {
     fun indexOfMax(x: DoubleArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var max = Double.MIN_VALUE
+        var max = Double.NEGATIVE_INFINITY
         for (i in x.indices) {
             if (x[i] > max) {
                 max = x[i]
@@ -105,7 +105,7 @@ object KSLArrays {
     fun indexOfMin(x: IntArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var min = Double.MAX_VALUE
+        var min = Double.POSITIVE_INFINITY
         for (i in x.indices) {
             if (x[i] < min) {
                 min = x[i].toDouble()
@@ -137,7 +137,7 @@ object KSLArrays {
     fun indexOfMax(x: IntArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var max = Double.MIN_VALUE
+        var max = Double.NEGATIVE_INFINITY
         for (i in x.indices) {
             if (x[i] > max) {
                 max = x[i].toDouble()
@@ -169,7 +169,7 @@ object KSLArrays {
     fun indexOfMin(x: LongArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var min = Double.MAX_VALUE
+        var min = Double.POSITIVE_INFINITY
         for (i in x.indices) {
             if (x[i] < min) {
                 min = x[i].toDouble()
@@ -201,7 +201,7 @@ object KSLArrays {
     fun indexOfMax(x: LongArray): Int {
         require(x.isNotEmpty()) { "The array was empty" }
         var index = 0
-        var max = Double.MIN_VALUE
+        var max = Double.NEGATIVE_INFINITY
         for (i in x.indices) {
             if (x[i] > max) {
                 max = x[i].toDouble()

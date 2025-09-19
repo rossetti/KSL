@@ -40,6 +40,8 @@ class MixtureRV @JvmOverloads constructor(
     private val myRVList = list
 
     init {
+        require(list.size >= 2) {"The number of random variables in the list must be greater than or equal to two." }
+        require(cdf.size == list.size) { "The number of elements in the cdf must equal the number of elements in the list" }
         require(KSLRandom.isValidCDF(cdf)) { "The cdf was not a valid CDF" }
     }
 
