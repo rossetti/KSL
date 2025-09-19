@@ -4427,10 +4427,31 @@ fun DoubleArray.mapInPlace(transform: (Double) -> Double) {
 fun List<Double>.indexOfMin(): Int {
     require(isNotEmpty()) { "The list was empty" }
     var index = 0
-    var min = Double.MAX_VALUE
+    var min = Double.POSITIVE_INFINITY
     for (i in this.indices) {
         if (this[i] < min) {
             min = this[i]
+            index = i
+        }
+    }
+    return index
+}
+
+/**
+ * Returns the index associated with the minimum element in the list For
+ * ties. This returns the first found.
+ *
+ * The list must not be null or empty
+ * @return the index associated with the minimum element
+ */
+@Suppress("unused")
+fun List<Double>.indexOfMax(): Int {
+    require(isNotEmpty()) { "The list was empty" }
+    var index = 0
+    var max = Double.NEGATIVE_INFINITY
+    for (i in this.indices) {
+        if (this[i] > max) {
+            max = this[i]
             index = i
         }
     }
