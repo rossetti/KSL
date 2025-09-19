@@ -22,5 +22,5 @@ import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 
 interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc,
-    GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc {
+    GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc, MeanIfc, VarianceIfc {
 }
