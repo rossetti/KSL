@@ -72,7 +72,7 @@ class MixtureDistribution(
         get() {
             val list = mutableListOf<ContinuousDistributionIfc>()
             for(distribution in cdfList){
-                list.add(distribution.instance() as ContinuousDistributionIfc)
+                list.add(distribution.instance())
             }
             return list
         }
