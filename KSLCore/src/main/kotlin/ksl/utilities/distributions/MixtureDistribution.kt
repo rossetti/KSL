@@ -6,7 +6,13 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.MixtureRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
-
+/**
+ *  This class models mixture distributions that have continuous
+ *  distributions as their components.
+ *  @param cdfList the list of distributions to be mixed
+ *  @param cdf the mixing distribution specified as a CDF
+ *  @param name an optional name
+ */
 class MixtureDistribution(
     private val cdfList: List<ContinuousDistributionIfc>,
     cdf: DoubleArray,
@@ -15,6 +21,12 @@ class MixtureDistribution(
 
     private val myDomain: Interval
     private val myWeights: DoubleArray
+
+    /**
+     *  The total number of parameters in the mixing distribution.
+     *  Each weight counts as a parameter and the total number of
+     *  parameters associated with the distributions.
+     */
     val numParameters: Int
 
     init {
