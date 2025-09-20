@@ -15,6 +15,7 @@ class MixtureDistribution(
 
     private val myDomain: Interval
     private val myWeights: DoubleArray
+    val numParameters: Int
 
     init {
         require(cdfList.size >= 2) { "The number of random variables in the list must be greater than or equal to two." }
@@ -35,6 +36,7 @@ class MixtureDistribution(
         }
         myDomain = Interval(minLL, maxUL)
         myWeights = computeWeights(cdf)
+        numParameters = parameters().size
     }
 
     private fun computeWeights(incomingCDF: DoubleArray): DoubleArray {
