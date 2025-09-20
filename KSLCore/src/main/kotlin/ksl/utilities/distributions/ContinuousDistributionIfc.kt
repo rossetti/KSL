@@ -24,4 +24,6 @@ import ksl.utilities.random.rvariable.RVParametersTypeIfc
 
 interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc,
     GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc, MeanIfc, VarianceIfc, DistributionIfc {
+
+    override fun instance(): ContinuousDistributionIfc
 }
