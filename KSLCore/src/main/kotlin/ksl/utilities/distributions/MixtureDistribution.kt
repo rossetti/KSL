@@ -195,6 +195,11 @@ class MixtureDistribution(
         return list.toDoubleArray()
     }
 
+    /**
+     *  This function returns the parameters of the mixture distribution as
+     *  a list of double arrays.  The first array is the CDF of the mixture.
+     *  Then, each parameter array from the list of supplied distributions.
+     */
     fun parameterArrays() : List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         list.add(myCDF)
