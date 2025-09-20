@@ -14,10 +14,16 @@ fun testMixtureDistribution1() {
     val list = listOf<ContinuousDistributionIfc>(Normal(), Exponential())
     val cdf = doubleArrayOf(0.5, 1.0)
     val mixtureDistribution = MixtureDistribution(list, cdf)
+    //val e = Exponential()
     // test p = 0.75
-    val p = 0.75
-    val quantile = mixtureDistribution.invCDF(p)
-    println("quantile = $quantile")
+    //val p = 0.75
+    for (i in 0..10){
+        val p = i/10.0
+        val quantile = mixtureDistribution.invCDF(p)
+        //val quantile = e.invCDF(p)
+        println("p = $p, quantile = $quantile")
+    }
+
     val mean = mixtureDistribution.mean()
     val variance = mixtureDistribution.variance()
     println("mean = $mean")
