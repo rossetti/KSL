@@ -109,10 +109,15 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.3"
+version = "R1.2.4"
 
 ## Release Notes
-Latest Release R1.2.3
+Latest Release R1.2.4
+* Bug fixes involving Double.MIN_VALUE
+* Added MixtureDistribution class
+  - Cause some refactoring of distribution related interfaces
+
+Release R1.2.3
 * Significant improvements to the `ksl.simopt` package for simulation optimization
 	- Refactored `ProblemDefinition` class. Moved penalty function modeling into `ProblemDefintion`
 	- Added cross-entropy solver
