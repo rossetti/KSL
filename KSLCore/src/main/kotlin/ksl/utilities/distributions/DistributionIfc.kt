@@ -26,6 +26,7 @@ import ksl.utilities.random.rvariable.GetRVariableIfc
  *
  */
 interface DistributionIfc : DistributionFunctionIfc, ParametersIfc, GetRVariableIfc {
+
     fun instance(): DistributionIfc
 
 }

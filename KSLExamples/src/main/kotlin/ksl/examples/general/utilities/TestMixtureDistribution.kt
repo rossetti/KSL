@@ -11,10 +11,11 @@ fun main() {
 
 fun testMixtureDistribution1() {
     // test mixture
-    val list = listOf<ContinuousDistributionIfc>(Normal(), Exponential())
+    val n = Normal()
+    val e = Exponential()
+    val list = listOf<ContinuousDistributionIfc>(n, e)
     val cdf = doubleArrayOf(0.5, 1.0)
     val mixtureDistribution = MixtureDistribution(list, cdf)
-    //val e = Exponential()
     // test p = 0.75
     //val p = 0.75
     for (i in 0..10){

@@ -20,7 +20,8 @@ package ksl.utilities.distributions
 
 import ksl.utilities.random.ParametersIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
+import ksl.utilities.random.rvariable.RVParametersTypeIfc
 
 interface ContinuousDistributionIfc : CDFIfc, PDFIfc, DomainIfc,
-    GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc, MeanIfc, VarianceIfc {
+    GetRVariableIfc, InverseCDFIfc, ParametersIfc, InvertibleCDFIfc, MeanIfc, VarianceIfc, DistributionIfc {
 }
