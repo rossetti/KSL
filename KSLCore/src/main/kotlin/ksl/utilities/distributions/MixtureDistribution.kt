@@ -42,7 +42,7 @@ class MixtureDistribution(
     private fun computeWeights(incomingCDF: DoubleArray): DoubleArray {
         var cp = 0.0
         val list = mutableListOf<Double>()
-        for ((i, v) in incomingCDF.withIndex()) {
+        for ((i, _) in incomingCDF.withIndex()) {
             val pp = incomingCDF[i] - cp
             cp = incomingCDF[i]
             list.add(pp)
@@ -52,11 +52,30 @@ class MixtureDistribution(
 
     private val myCDF = cdf.copyOf()
 
+    /**
+     *  The mixing weights as a CDF
+     */
+    @Suppress("unused")
     val mixingCDF: DoubleArray
         get() = myCDF.copyOf()
 
+    /**
+     *  The mixing weights.
+     */
     val weights: DoubleArray
         get() = myWeights.copyOf()
+
+    /**
+     *  The distributions that are mixed.
+     */
+    val distributions: List<ContinuousDistributionIfc>
+        get() {
+            val list = mutableListOf<ContinuousDistributionIfc>()
+            for(distribution in cdfList){
+                list.add(distribution.instance() as ContinuousDistributionIfc)
+            }
+            return list
+        }
 
     override fun domain(): Interval {
         return myDomain.instance()
@@ -152,7 +171,7 @@ class MixtureDistribution(
         // recompute the weights
         val incomingWeights = computeWeights(incomingCDF.toDoubleArray())
         // copy into myCDF and myWeights
-        for ((i, v) in myCDF.withIndex()) {
+        for ((i, _) in myCDF.withIndex()) {
             myCDF[i] = incomingCDF[i]
             myWeights[i] = incomingWeights[i]
         }
@@ -200,6 +219,7 @@ class MixtureDistribution(
      *  a list of double arrays.  The first array is the CDF of the mixture.
      *  Then, each parameter array from the list of supplied distributions.
      */
+    @Suppress("unused")
     fun parameterArrays() : List<DoubleArray> {
         val list = mutableListOf<DoubleArray>()
         list.add(myCDF)
