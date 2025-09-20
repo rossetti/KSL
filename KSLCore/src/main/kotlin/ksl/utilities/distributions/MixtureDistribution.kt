@@ -195,6 +195,16 @@ class MixtureDistribution(
         return list.toDoubleArray()
     }
 
+    fun parameterArrays() : List<DoubleArray> {
+        val list = mutableListOf<DoubleArray>()
+        list.add(myCDF)
+        for (cd in cdfList) {
+            val pArray = cd.parameters()
+            list.add(pArray)
+        }
+        return list
+    }
+
     override fun randomVariable(
         streamNumber: Int,
         streamProvider: RNStreamProviderIfc
