@@ -109,10 +109,14 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.4"
+version = "R1.2.5"
 
 ## Release Notes
-Latest Release R1.2.4
+Latest Release R1.2.5
+* Bug fix in MixtureDistribution class involving numParameters property
+* Changed score() function to public from protected in PDFScoringModel
+
+Release R1.2.4
 * Bug fixes involving Double.MIN_VALUE
 * Added MixtureDistribution class
   - Cause some refactoring of distribution related interfaces
