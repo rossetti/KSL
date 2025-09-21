@@ -46,7 +46,7 @@ abstract class PDFScoringModel(
     // for possible extensions that use the number of parameters as part of the scoring
 //    private var useNumParametersOption: Boolean = DEFAULT_NUM_PARAMETER_OPTION
 
-    protected abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
+    abstract fun score(data: DoubleArray, cdf: ContinuousDistributionIfc) : Score
 
     abstract fun newInstance(): PDFScoringModel
 
