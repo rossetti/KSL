@@ -21,6 +21,7 @@ class MixtureDistribution(
 
     private val myDomain: Interval
     private val myWeights: DoubleArray
+    private val myCDF : DoubleArray
 
     /**
      *  The total number of parameters in the mixing distribution.
@@ -33,6 +34,7 @@ class MixtureDistribution(
         require(cdfList.size >= 2) { "The number of random variables in the list must be greater than or equal to two." }
         require(cdf.size == cdfList.size) { "The number of elements in the cdf must equal the number of elements in the list" }
         require(KSLRandom.isValidCDF(cdf)) { "The cdf was not a valid CDF" }
+        myCDF = cdf.copyOf()
         var minLL = Double.POSITIVE_INFINITY
         var maxUL = Double.NEGATIVE_INFINITY
         for (cdf in cdfList) {
@@ -61,8 +63,6 @@ class MixtureDistribution(
         }
         return list.toDoubleArray()
     }
-
-    private val myCDF = cdf.copyOf()
 
     /**
      *  The mixing weights as a CDF
