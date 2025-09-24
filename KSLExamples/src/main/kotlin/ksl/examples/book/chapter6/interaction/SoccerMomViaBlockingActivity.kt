@@ -1,4 +1,4 @@
-package ksl.examples.general.models.interaction
+package ksl.examples.book.chapter6.interaction
 
 import ksl.modeling.entity.ProcessModel
 import ksl.simulation.Model

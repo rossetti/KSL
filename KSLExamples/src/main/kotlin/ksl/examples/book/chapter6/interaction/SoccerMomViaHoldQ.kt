@@ -1,30 +1,29 @@
-package ksl.examples.general.models.interaction
+package ksl.examples.book.chapter6.interaction
 
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
-import ksl.modeling.entity.Signal
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 
 fun main(){
     val model = Model()
-    val sm = SoccerMomViaSignal(model)
+    val sm = SoccerMomViaHoldQ(model)
     model.lengthOfReplication = 150.0
     model.numberOfReplications = 1
     model.simulate()
     model.print()
 }
 
-class SoccerMomViaSignal(
+class SoccerMomViaHoldQ(
     parent: ModelElement,
     name: String? = null
 ) : ProcessModel(parent, name) {
 
-    private val daughterToExitSignal = Signal(this, name = "DaughterToExitSignal")
-    private val daughterToPlaySignal = Signal(this, name = "DaughterToPlaySignal")
-    private val daughterToLoadSignal = Signal(this, name = "DaughterToLoadSignal")
-    private val momToShopSignal = Signal(this, name = "MomToShopSignal")
+    private val waitForDaughterToExitQ = HoldQueue(this, name = "WaitForDaughterToExitQ")
+    private val waitForDaughterToPlayQ = HoldQueue(this, name = "WaitForDaughterToPlayQ")
+    private val waitForDaughterToLoadQ = HoldQueue(this, name = "WaitForDaughterToLoadQ")
+    private val waitForMomToShopQ = HoldQueue(this, name = "WaitForMomToShopQ")
 
     override fun initialize() {
         val m = Mother()
@@ -41,18 +40,18 @@ class SoccerMomViaSignal(
             activate(daughter.daughterProcess)
             println("$time> mom = ${this@Mother.name} suspending for daughter to exit van")
             //suspend mom's process
-            waitFor(daughterToExitSignal)
+            hold(waitForDaughterToExitQ)
             println("$time> mom = ${this@Mother.name} running errands...")
             delay(45.0)
             println("$time> mom = ${this@Mother.name} completed errands")
-            if (momToShopSignal.waitingQ.contains(daughter)){
+            if (waitForMomToShopQ.contains(daughter)){
                 println("$time> mom, ${this@Mother.name}, mom resuming daughter done playing after errands")
-                momToShopSignal.signal(daughter)
+                waitForMomToShopQ.removeAndResume(daughter)
             } else {
                 println("$time> mom, ${this@Mother.name}, mom suspending because daughter is still playing")
-                waitFor(daughterToPlaySignal)
+                hold(waitForDaughterToPlayQ)
             }
-            waitFor(daughterToLoadSignal)
+            hold(waitForDaughterToLoadQ)
             println("$time> mom = ${this@Mother.name} driving home")
             delay(30.0)
             println("$time> mom = ${this@Mother.name} arrived home")
@@ -68,25 +67,25 @@ class SoccerMomViaSignal(
             println("$time> daughter, ${this@Daughter.name}, exited the van")
             // resume mom process
             println("$time> daughter, ${this@Daughter.name}, resuming mom")
-            daughterToExitSignal.signal(mother)
+            waitForDaughterToExitQ.removeAndResume(mother)
             println("$time> daughter, ${this@Daughter.name}, starting playing")
-//            delay(30.0)
-            delay(60.0) //TODO
+            delay(30.0)
+//            delay(60.0) //TODO
             println("$time> daughter, ${this@Daughter.name}, finished playing")
             // suspend if mom isn't here
-            if (daughterToPlaySignal.waitingQ.contains(mother)){
+            if (waitForDaughterToPlayQ.contains(mother)){
                 // mom's errand was completed and mom suspended because daughter was playing
-                daughterToPlaySignal.signal(mother)
+                waitForDaughterToPlayQ.removeAndResume(mother)
             } else {
                 println("$time> daughter, ${this@Daughter.name}, mom errands not completed suspending")
-                waitFor(momToShopSignal)
+                hold(waitForMomToShopQ)
             }
             println("$time> daughter, ${this@Daughter.name}, entering van")
             delay(2.0)
             println("$time> daughter, ${this@Daughter.name}, entered van")
-            //resume mom process
+            //TODO resume mom process
             println("$time> daughter, ${this@Daughter.name}, entered van, resuming mom")
-            daughterToLoadSignal.signal(mother)
+            waitForDaughterToLoadQ.removeAndResume(mother)
         }
     }
 }
