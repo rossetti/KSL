@@ -4,8 +4,9 @@ import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.InverseCDFRV
 import ksl.utilities.random.rvariable.RVariableIfc
+import ksl.utilities.random.rvariable.ShiftedRV
 
-class ContinuousShiftedDistribution(
+class ShiftedContinuousDistribution(
     theShift: Double,
     private val distribution: ContinuousDistributionIfc,
     name: String? = null
@@ -13,6 +14,7 @@ class ContinuousShiftedDistribution(
 
     init {
         require(theShift >= 0.0) { "The shift should not be < 0.0" }
+
     }
 
     var shift : Double = theShift
@@ -26,11 +28,14 @@ class ContinuousShiftedDistribution(
     }
 
     override fun domain(): Interval {
-        TODO("Not yet implemented")
+        val d = distribution.domain()
+        val dl = d.lowerLimit + shift
+        val du = d.upperLimit + shift
+        return Interval(dl, du)
     }
 
     override fun instance(): ContinuousDistributionIfc{
-        return ContinuousShiftedDistribution(shift, distribution.instance())
+        return ShiftedContinuousDistribution(shift, distribution.instance())
     }
 
     /**
@@ -94,7 +99,8 @@ class ContinuousShiftedDistribution(
         streamNumber: Int,
         streamProvider: RNStreamProviderIfc
     ): RVariableIfc {
-        return InverseCDFRV(instance(), streamNumber, streamProvider)
+        val rv = distribution.randomVariable(streamNumber, streamProvider)
+        return ShiftedRV(shift, rv, streamNumber, streamProvider)
     }
 
 }
