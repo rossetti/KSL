@@ -2,7 +2,6 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.InverseCDFRV
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.ShiftedRV
 
@@ -14,7 +13,6 @@ class ShiftedContinuousDistribution(
 
     init {
         require(theShift >= 0.0) { "The shift should not be < 0.0" }
-
     }
 
     var shift : Double = theShift
