@@ -62,7 +62,7 @@ class EstimationResult(
                 }
             }
         }
-    
+
     /**
      *  If the original data has been shifted, this returns the shifted data.
      *  If the original data has not been shifted, this returns the original data.
