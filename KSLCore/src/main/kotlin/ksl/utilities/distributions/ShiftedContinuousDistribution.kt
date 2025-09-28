@@ -1,6 +1,7 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
+import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.ShiftedRV
@@ -106,3 +107,15 @@ class ShiftedContinuousDistribution(
     }
 
 }
+
+//fun createDistribution() : ContinuousDistributionIfc? {
+//    if (parameters == null) {
+//        return null
+//    }
+//    val d = PDFModeler.createDistribution(parameters) ?: return null
+//    if (shiftedData != null) {
+//        return ShiftedContinuousDistribution(shiftedData!!.shift, d)
+//    } else {
+//        return d
+//    }
+//}
