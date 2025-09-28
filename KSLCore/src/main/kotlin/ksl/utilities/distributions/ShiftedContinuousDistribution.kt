@@ -5,6 +5,13 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.ShiftedRV
 
+/**
+ * This class models a continuous distribution that has been shifted by
+ * a positive constant.
+ * @param theShift the shift parameter. It must be greater than or equal to 0.0
+ * @param distribution the distribution to be shifted.
+ * @param name an optional name for the distribution
+ */
 class ShiftedContinuousDistribution(
     theShift: Double,
     private val distribution: ContinuousDistributionIfc,
