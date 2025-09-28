@@ -85,7 +85,7 @@ class PDFModeler(
      *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
-    var defaultZeroTolerance : Double = PDFModeler.defaultZeroTolerance
+    var defaultZeroTolerance: Double = PDFModeler.defaultZeroTolerance
         set(value) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
@@ -109,8 +109,10 @@ class PDFModeler(
         streamNumber: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
     ): List<BootstrapEstimate> {
-        return bootStrapParameterEstimates(result.estimator, numBootstrapSamples, level,
-            streamNumber, streamProvider, result.distribution)
+        return bootStrapParameterEstimates(
+            result.estimator, numBootstrapSamples, level,
+            streamNumber, streamProvider, result.distribution
+        )
     }
 
     /**
@@ -423,7 +425,7 @@ class PDFModeler(
         // KSL histogram
         val hPlot = histogram.histogramPlot()
         // histogram with density overlay
- //       val hdPlot = HistogramDensityPlot(data)
+        //       val hdPlot = HistogramDensityPlot(data)
         // box plot
         val bp = BoxPlot(myData)
         // observation plot
@@ -557,7 +559,7 @@ class PDFModeler(
     fun showAllGoodnessOfFitSummariesInBrowser(
         pdfModelingResults: PDFModelingResults,
         resultsFileName: String = "PDF_Modeling_Goodness_Of_Fit_Summaries"
-    ){
+    ) {
         KSLFileUtil.openInBrowser(
             fileName = resultsFileName,
             htmlGoodnessOfFitSummaries(pdfModelingResults)
@@ -570,7 +572,7 @@ class PDFModeler(
      */
     fun htmlGoodnessOfFitSummaries(
         pdfModelingResults: PDFModelingResults
-    ) : String {
+    ): String {
         val sb = StringBuilder()
         sb.appendLine(htmlScoringSummary(pdfModelingResults, defaultRankingMethod))
         sb.appendLine("<div>")
@@ -578,7 +580,7 @@ class PDFModeler(
         sb.appendLine("Goodness of Fit Results for All Fitted Distributions")
         sb.appendLine("</h1>")
         sb.appendLine("</div>")
-        for(result in pdfModelingResults.resultsSortedByScoring){
+        for (result in pdfModelingResults.resultsSortedByScoring) {
             sb.append(htmlGoodnessOfFitSummary(result))
         }
         return sb.toString()
@@ -687,7 +689,7 @@ class PDFModeler(
         visualizationResultsFileName: String = "PDF_Modeling_Visualization_Summary",
         scoringResultsFileName: String = "PDF_Modeling_Scoring_Summary",
         goodnessOfFitResultsFileName: String = "PDF_Modeling_GoodnessOfFit_Summary",
-    ) : PDFModelingResults {
+    ): PDFModelingResults {
         KSLFileUtil.openInBrowser(
             fileName = statResultsFileName,
             htmlStatisticalSummary()
@@ -818,7 +820,7 @@ class PDFModeler(
             return model
         }
 
-        var defaultLogisticFunctionFactor : Double = 0.25
+        var defaultLogisticFunctionFactor: Double = 0.25
             set(value) {
                 require((0.0 < value) && (value < 1.0)) { "The factor must be within (0,1)" }
                 field = value
@@ -839,14 +841,14 @@ class PDFModeler(
             // e.g. all the BIC values (the BIC value for each distribution)
             // make the map to hold the raw score values for each metric
             val metricData = mutableMapOf<MetricIfc, MutableList<Double>>()
-            for(m in metrics){
+            for (m in metrics) {
                 metricData[m] = mutableListOf()
             }
             // Now extract the data. List<Scores> within ScoringResult has the data.
             // Each score has the metric and its associated raw score value
-            for(sr in scoringResults){
+            for (sr in scoringResults) {
                 // scoring results go across the alternatives
-                for(score in sr.scores){
+                for (score in sr.scores) {
                     // get the list for the metric and add the associated score
                     metricData[score.metric]!!.add(score.value)
                 }
@@ -854,7 +856,7 @@ class PDFModeler(
             // We need to build the logistic functions based on the metric score values
             // make the map and assign the value function for each metric then return
             val metricValueFunctionMap = mutableMapOf<MetricIfc, ValueFunctionIfc>()
-            for((metric, data) in metricData){
+            for ((metric, data) in metricData) {
                 val f = LogisticFunction.create(data.toDoubleArray(), defaultLogisticFunctionFactor)
                 metricValueFunctionMap[metric] = f
             }
@@ -865,7 +867,7 @@ class PDFModeler(
          *  How close we consider a double is to 0.0 to consider it 0.0
          *  Default is 0.95
          */
-        var defaultConfidenceLevel : Double = 0.95
+        var defaultConfidenceLevel: Double = 0.95
             set(level) {
                 require(!(level <= 0.0 || level >= 1.0)) { "Confidence Level must be (0,1)" }
                 field = level
@@ -875,7 +877,7 @@ class PDFModeler(
          *  How close we consider a double is to 0.0 to consider it 0.0
          *  Default is 0.001
          */
-        var defaultZeroTolerance : Double = 0.001
+        var defaultZeroTolerance: Double = 0.001
             set(value) {
                 require(value > 0.0) { "The default zero precision must be > 0.0" }
                 field = value
@@ -1141,6 +1143,23 @@ class PDFModeler(
 
         /**
          *  Constructs an instance of the appropriate continuous probability distribution
+         *  for the provided [estimationResult].  If no probability distribution
+         *  is defined for the supplied result, then null is returned.
+         */
+        fun createDistribution(estimationResult: EstimationResult): ContinuousDistributionIfc? {
+            if (estimationResult.parameters == null) {
+                return null
+            }
+            val d = createDistribution(estimationResult.parameters) ?: return null
+            return if (estimationResult.shiftedData != null) {
+                ShiftedContinuousDistribution(estimationResult.shiftedData!!.shift, d)
+            } else {
+                d
+            }
+        }
+
+        /**
+         *  Constructs an instance of the appropriate continuous probability distribution
          *  for the provided random variable [parameters].  If no probability distribution
          *  is defined for the supplied type of random variable, then null is returned.
          */
@@ -1272,7 +1291,7 @@ class PDFModeler(
             streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider
         ): IntegerFrequency {
             val cdfFreq = IntegerFrequency(name = "Distribution Frequency")
-            val estMap : MutableBiMap<RVParametersTypeIfc, Int> = HashBiMap()
+            val estMap: MutableBiMap<RVParametersTypeIfc, Int> = HashBiMap()
             var cnt = 1
             for (estimator in estimators) {
                 estMap[estimator.rvType] = cnt
@@ -1283,7 +1302,7 @@ class PDFModeler(
             for ((i, rv) in invMap) {
                 cellLabels[i] = rv.toString()
             }
-            val bsPop = DPopulation(data, streamNum,streamProvider)
+            val bsPop = DPopulation(data, streamNum, streamProvider)
             for (i in 1..numBootstrapSamples) {
                 val d = bsPop.sample(data.size)
                 val pdfModeler = PDFModeler(d, scoringModels)
