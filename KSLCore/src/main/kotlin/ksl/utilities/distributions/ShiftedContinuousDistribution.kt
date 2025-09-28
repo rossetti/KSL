@@ -101,4 +101,8 @@ class ShiftedContinuousDistribution(
         return ShiftedRV(shift, rv, streamNumber, streamProvider)
     }
 
+    override fun toString(): String {
+        return "$shift + $distribution"
+    }
+
 }
