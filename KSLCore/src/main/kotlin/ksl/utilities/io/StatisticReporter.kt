@@ -45,7 +45,7 @@ val D2FORMAT: DecimalFormat = DecimalFormat(".##")
  * @author rossetti
  * @param listOfStats a list containing the StatisticAccessorIfc instances
  */
-class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()) {
+class StatisticReporter  @JvmOverloads constructor (listOfStats: MutableList<StatisticIfc> = mutableListOf()) {
 
     private val myStats: MutableList<StatisticIfc> = listOfStats
     private val myRowFormat: StringBuilder = StringBuilder(DEFAULT_ROW_FORMAT)
@@ -82,6 +82,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * containing the statistical data with confidence intervals
      * specified the supplied [level]. The default level is 0.95.
      */
+    @JvmOverloads
     fun asDataFrame(level: Double = 0.95) : DataFrame<StatisticData> {
         val list = mutableListOf<StatisticData>()
         for(element in myStats){
@@ -175,6 +176,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * The summary statistics are presented with half-widths
      */
     @Suppress("unused")
+    @JvmOverloads
     fun printHalfWidthSummaryReport(title: String? = null, level: Double = 0.95){
         println(halfWidthSummaryReport(title, level).toString())
     }
@@ -186,6 +188,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param confLevel confidence level for the half-widths
      * @return a StringBuilder holding the report
      */
+    @JvmOverloads
     fun halfWidthSummaryReport(title: String? = null, confLevel: Double = 0.95): StringBuilder {
         val sb = StringBuilder()
         val formatter = Formatter(sb)
@@ -226,6 +229,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @return the string builder containing the report
      */
     @Suppress("unused")
+    @JvmOverloads
     fun summaryReportAsMarkDown(title: String? = null, df: DecimalFormat?): StringBuilder {
         val sb = StringBuilder()
         val formatter = Formatter(sb)
@@ -268,6 +272,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
     /**
      * Gets the summary report rows as a list of strings
      */
+    @JvmOverloads
     fun summaryReportRow(statistic: StatisticIfc, df: DecimalFormat? = null): List<String> {
         val list: MutableList<String> = ArrayList()
         list.add(statistic.name)
@@ -289,6 +294,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @return the string builder containing the report
      */
     @Suppress("unused")
+    @JvmOverloads
     fun halfWidthSummaryReportAsMarkDown(
         title: String? = null,
         level: Double = 0.95,
@@ -358,6 +364,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      *
      * @param title an optional title for the report
      */
+    @JvmOverloads
     fun printSummaryReport(title: String? = null){
         println(summaryReport(title).toString())
     }
@@ -368,6 +375,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param title an optional title for the report
      * @return the StringBuilder
      */
+    @JvmOverloads
     fun summaryReport(title: String? = null): StringBuilder {
         val sb = StringBuilder()
         val formatter = Formatter(sb)
@@ -415,6 +423,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param maxRows maximum number of rows in each tabular
      * @return a List of StringBuilders
      */
+    @JvmOverloads
     fun summaryReportAsLaTeXTabular(maxRows: Int = 60): List<StringBuilder> {
         val builders: MutableList<StringBuilder> = ArrayList()
         if (!myStats.isEmpty()) {
@@ -488,6 +497,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param confLevel the confidence level for the half-width calculation
      * @return a List of StringBuilders
      */
+    @JvmOverloads
     fun halfWidthSummaryReportAsLaTeXTabular(
         maxRows: Int = 60,
         confLevel: Double = 0.95
@@ -556,6 +566,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param confLevel the confidence level
      * @return the tables as StringBuilders
      */
+    @JvmOverloads
     fun halfWidthSummaryReportAsLaTeXTables(
         maxRows: Int = 60,
         confLevel: Double = 0.95
@@ -587,6 +598,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param maxRows the maximum number of rows in a table
      * @return the tables as StringBuilders
      */
+    @JvmOverloads
     fun summaryReportAsLaTeXTables(maxRows: Int = 60): List<StringBuilder> {
         val list = summaryReportAsLaTeXTabular(maxRows)
         val caption = "\\caption{Statistical Summary Report} \n"
@@ -615,6 +627,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * @param header true means 1st line is header
      * @return the csv as a StringBuilder
      */
+    @JvmOverloads
     fun csvStatistics(header: Boolean = true): StringBuilder {
         val sb = StringBuilder()
         if (!myStats.isEmpty()) {
@@ -634,6 +647,7 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
      * The confidence intervals for the statistics on the report
      *  with the key being the name of the statistic
      */
+    @JvmOverloads
     fun confidenceIntervals(level: Double = 0.95): Map<String, Interval>{
         return confidenceIntervals(this.myStats, level)
     }
@@ -644,6 +658,8 @@ class StatisticReporter(listOfStats: MutableList<StatisticIfc> = mutableListOf()
          *  Converts a list of statistics to a map of confidence intervals
          *  with the key being the name of the statistic
          */
+        @JvmOverloads
+        @JvmStatic
         fun confidenceIntervals(list: List<StatisticIfc>, level: Double = 0.95) : Map<String, Interval>{
             val map = mutableMapOf<String, Interval>()
             for(s in list){
