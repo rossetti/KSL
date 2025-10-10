@@ -1,5 +1,7 @@
 package ksl.modeling.spatial
 
+import ksl.modeling.entity.ProcessModel
+
 typealias TripIteratorIfc = Iterator<Movement>
 
 enum class TripResult {
@@ -36,6 +38,20 @@ data class Movement(
     val endingLocation: LocationIfc,
     val velocity: Double,
     val priority: Int
+)
+
+data class Collision(
+    val location: LocationIfc,
+    val collidingEntity: ProcessModel.Entity,
+    val entities: Set<ProcessModel.Entity>,
+    val timeOfCollision: Double,
+    val movement: Movement
+)
+
+data class Cancellation(
+    val reason: String,
+    val timeOfCancellation: Double,
+    val lastMovement: Movement? = null
 )
 
 interface MovementControllerIfc : Iterable<Movement> {
