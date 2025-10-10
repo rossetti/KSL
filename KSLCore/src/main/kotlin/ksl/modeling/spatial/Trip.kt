@@ -15,14 +15,16 @@ data class Trip(
     val currentLocation: LocationIfc,
     val timeStarted: Double,
     val originDepartureTime: Double,
+    val timeEnded: Double,
     val distanceTravelled: Double,
     val cancellation: Cancellation? = null,
     val collision: Collision? = null
 ) {
     init {
-        require(timeStarted >= 0.0) { "The time the trip started must be greater than zero" }
-        require(originDepartureTime >= 0.0) { "The origin's departure time must be greater than zero" }
-        require(distanceTravelled >= 0.0) { "The distance's travelled must be greater than zero" }
+        require(timeStarted >= 0.0) { "The time the trip started must be greater than or equal to zero" }
+        require(timeEnded >= timeStarted) { "The time the trip ended must be greater than or equal to the time the trip started." }
+        require(originDepartureTime >= 0.0) { "The origin's departure time must be greater than or equal to zero" }
+        require(distanceTravelled >= 0.0) { "The distance's travelled must be greater than or equal to zero" }
     }
 
     val completed: Boolean
