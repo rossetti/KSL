@@ -49,8 +49,8 @@ data class Collision(
 )
 
 data class Cancellation(
-    val reason: String,
     val timeOfCancellation: Double,
+    val reason: String? = null,
     val lastMovement: Movement? = null
 )
 
