@@ -44,7 +44,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  receiver. If no receiver is present, the processed qObject are sent silently nowhere.
  *  @param name the name of the station
  */
-open class ActivityStation(
+@Suppress("unused")
+open class ActivityStation @JvmOverloads constructor(
     parent: ModelElement,
     activityTime: RVariableIfc = ConstantRV.ZERO,
     nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
