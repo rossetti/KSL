@@ -25,7 +25,6 @@ import ksl.modeling.queue.QueueCIfc
 import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
@@ -51,7 +50,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  receiver implemented. If no receiver is present, there will be a run-time error.
  *  @param name the name of the station
  */
-open class SingleQStation(
+@Suppress("unused")
+open class SingleQStation @JvmOverloads constructor(
     parent: ModelElement,
     activityTime: RVariableIfc = ConstantRV.ZERO,
     resource: SResource? = null,
@@ -71,6 +71,7 @@ open class SingleQStation(
      *  receiver implemented. If no receiver is present, there will be a run-time error.
      *  @param name the name of the station
      */
+    @JvmOverloads
     constructor(
         parent: ModelElement,
         activityTime: RVariableIfc = ConstantRV.ZERO,
@@ -78,7 +79,7 @@ open class SingleQStation(
         nextReceiver: QObjectReceiverIfc = NotImplementedReceiver,
         name: String? = null
     ) : this(parent, activityTime, null, nextReceiver, name) {
-        require(initialCapacity > 0) { "initialCapacity must be positive." }
+        require(initialCapacity > 0) { "The initial capacity must be positive." }
         myResource.initialCapacity = initialCapacity
     }
 
@@ -89,6 +90,12 @@ open class SingleQStation(
      */
     @set:KSLControl(controlType = ControlType.BOOLEAN)
     var useQObjectForActivityTime: Boolean = false
+
+    /**
+     *  If set and the station does not use the qObject for determining the activity time,
+     *  then the supplied function will be used.
+     */
+    var activityTime: StationActivityTimeIfc? = null
 
     protected val myResource: SResource = resource ?: SResource(this, 1, "${this.name}:R")
     override val resource: SResourceCIfc
@@ -147,12 +154,22 @@ open class SingleQStation(
     }
 
     /**
-     *  Could be overridden to supply different approach for determining the service delay
+     *  Could be overridden to supply different approach for determining the activity delay.
+     *  The current approach does the following.
+     *  1. Checks the `useQObjectForActivityTime` option and if true uses the
+     *  qObject's valueObject to determine the activity time. If this option is used, an illegal state
+     *  exception will occur if the qObject's valueObject property has not been set.
+     *  2. Checks if the `activityTime` property has been set and if so uses the
+     *  supplied `StationActivityTimeIfc` to determine the activity time.
+     *  3. If neither the first two options are used, then the activity time
+     *  will be determined by the supplied `RVariableIfc`, which is zero by default.
      */
     protected open fun activityTime(qObject: QObject) : Double {
         if (useQObjectForActivityTime) {
-            return qObject.valueObject?.value ?: myActivityTimeRV.value
+            checkNotNull(qObject.valueObject) {"The station was told to use the qObject's valueObject for the activity time, but it was null"}
+            return qObject.valueObject!!.value
         }
+        activityTime?.let { return it.activityTime(qObject, this) }
         return myActivityTimeRV.value
     }
 

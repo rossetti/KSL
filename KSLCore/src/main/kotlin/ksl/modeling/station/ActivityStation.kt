@@ -22,7 +22,6 @@ import ksl.modeling.variable.RandomVariableCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
@@ -59,6 +58,12 @@ open class ActivityStation(
      */
     var useQObjectForActivityTime: Boolean = false
 
+    /**
+     *  If set and the station does not use the qObject for determining the activity time,
+     *  then the supplied function will be used.
+     */
+    var activityTime: StationActivityTimeIfc? = null
+
     protected var myActivityTimeRV: RandomVariable = RandomVariable(this, activityTime, "${this.name}:ActivityRV")
     override val activityTimeRV: RandomVariableCIfc
         get() = myActivityTimeRV
@@ -68,12 +73,22 @@ open class ActivityStation(
     }
 
     /**
-     *  Could be overridden to supply different approach for determining the service delay
+     *  Could be overridden to supply different approach for determining the activity delay.
+     *  The current approach does the following.
+     *  1. Checks the `useQObjectForActivityTime` option and if true uses the
+     *  qObject's valueObject to determine the activity time. If this option is used, an illegal state
+     *  exception will occur if the qObject's valueObject property has not been set.
+     *  2. Checks if the `activityTime` property has been set and if so uses the
+     *  supplied `StationActivityTimeIfc` to determine the activity time.
+     *  3. If neither the first two options are used, then the activity time
+     *  will be determined by the supplied `RVariableIfc`, which is zero by default.
      */
     protected open fun activityTime(qObject: QObject) : Double {
         if (useQObjectForActivityTime) {
-            return qObject.valueObject?.value ?: myActivityTimeRV.value
+            checkNotNull(qObject.valueObject) {"The station was told to use the qObject's valueObject for the activity time, but it was null"}
+            return qObject.valueObject!!.value
         }
+        activityTime?.let { return it.activityTime(qObject, this) }
         return myActivityTimeRV.value
     }
 
