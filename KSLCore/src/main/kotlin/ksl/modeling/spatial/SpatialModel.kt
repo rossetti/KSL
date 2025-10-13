@@ -56,6 +56,9 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      */
     var defaultVelocity: GetValueIfc = ConstantRV.ONE
 
+    //TODO make this abstract
+    var defaultMovementController: MovementControllerIfc = DefaultMovementController()
+
     /**
      *  The default initial location.
      */

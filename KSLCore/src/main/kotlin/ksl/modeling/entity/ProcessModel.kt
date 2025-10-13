@@ -1988,8 +1988,42 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+
+            override suspend fun trip(
+                origin: LocationIfc,
+                destination: LocationIfc,
+                movementController: MovementControllerIfc,
+                autoMoveToOrigin: Boolean,
+                suspensionName: String?
+            ) : Trip {
+                require(!isMoving) { "The entity_id = $id is already moving" }
+                require(!onTrip) { "The entity_id = $id is already on a trip" }
+                if (currentLocation != origin){
+                    if (autoMoveToOrigin){
+                        currentLocation = origin
+                    } else {
+                        throw IllegalStateException("The entity_id = $id is not at the supplied origin and the autoMoveToOrigin option is false.")
+                    }
+                }
+                val tripIterator = movementController.iterator()
+                val startTime = time
+                var totalDistance = 0.0
+                //TODO beforTrip()
+                while(tripIterator.hasNext()){
+                    //TODO  check for cancellation
+                    val m = tripIterator.next()
+                    //TODO  detect collision here
+                    //TODO beforeMovement()
+                    move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
+                    totalDistance = totalDistance + m.startingLocation.distanceTo(m.endingLocation)
+                    //TODO afterMovement()
+                }
+                //TODO afterTrip()
+                TODO("Not implemented yet")
+            }
+
             //TODO  should the validity of the locations be checked here?
-            
+
             override suspend fun move(
                 fromLoc: LocationIfc,
                 toLoc: LocationIfc,

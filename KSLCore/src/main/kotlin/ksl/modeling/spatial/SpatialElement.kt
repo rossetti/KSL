@@ -37,6 +37,8 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>, VelocityIfc {
     val modelElement: ModelElement
     val observableComponent: ObservableComponent<SpatialElementIfc>
 
+    var movementController: MovementControllerIfc
+
     fun distanceTo(location: LocationIfc): Double {
         return currentLocation.distanceTo(location)
     }
@@ -76,10 +78,13 @@ class SpatialElement(
     override var isMoving: Boolean = false
     override var onTrip: Boolean = false
 
+
     /**
      * The default velocity for the movement within the spatial model
      */
     override var velocity: GetValueIfc = spatialModel.defaultVelocity
+
+    override var movementController: MovementControllerIfc = spatialModel.defaultMovementController
 
     override var initialLocation: LocationIfc = initLocation
         set(location) {
@@ -99,6 +104,7 @@ class SpatialElement(
 
     override var previousLocation: LocationIfc = initialLocation
         private set
+
 
     override fun initializeSpatialElement() {
         previousLocation = initialLocation

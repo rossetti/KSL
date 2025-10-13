@@ -14,7 +14,6 @@ data class Trip(
     val destination: LocationIfc,
     val currentLocation: LocationIfc,
     val timeStarted: Double,
-    val originDepartureTime: Double,
     val timeEnded: Double,
     val distanceTravelled: Double,
     val cancellation: Cancellation? = null,
@@ -23,7 +22,6 @@ data class Trip(
     init {
         require(timeStarted >= 0.0) { "The time the trip started must be greater than or equal to zero" }
         require(timeEnded >= timeStarted) { "The time the trip ended must be greater than or equal to the time the trip started." }
-        require(originDepartureTime >= 0.0) { "The origin's departure time must be greater than or equal to zero" }
         require(distanceTravelled >= 0.0) { "The distance's travelled must be greater than or equal to zero" }
     }
 
@@ -60,4 +58,10 @@ data class Cancellation(
 
 interface MovementControllerIfc : Iterable<Movement> {
     //TODO the controller needs to determine the priority of the movements
+}
+
+class DefaultMovementController() : MovementControllerIfc {
+    override fun iterator(): Iterator<Movement> {
+        TODO("Not yet implemented")
+    }
 }
