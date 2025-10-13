@@ -1244,6 +1244,17 @@ interface KSLProcessBuilder {
         delay(delayDuration.value, delayPriority, suspensionName)
     }
 
+    suspend fun trip(
+        origin: LocationIfc,
+        destination: LocationIfc,
+        movementController: MovementControllerIfc,
+        suspensionName: String? = null
+    ) : Trip {
+        require(!entity.isMoving) { "The entity_id = ${entity.id} is already moving" }
+        require(!entity.onTrip) { "The entity_id = ${entity.id} is already on a trip" }
+        TODO("Not implemented yet")
+    }
+
     /**
      *  Causes movement of the entity from the specified location to the specified location at
      *  the supplied velocity.  If the entity is not currently at [fromLoc] then its

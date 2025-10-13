@@ -59,5 +59,5 @@ data class Cancellation(
 )
 
 interface MovementControllerIfc : Iterable<Movement> {
-
+    //TODO the controller needs to determine the priority of the movements
 }

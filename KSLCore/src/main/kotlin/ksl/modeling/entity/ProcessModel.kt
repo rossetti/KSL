@@ -365,6 +365,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         suspendedEntities.clear()
     }
 
+    //TODO consider adding parameters for initialLocation and velocity to Entity
+
     /** An entity is something that can experience processes and as such may wait in queue. It is a
      * subclass of QObject.  The general approach is to use the process() function to define
      * a process that a subclass of Entity can follow.  Entity instances may use resources, signals,
@@ -373,13 +375,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * @param aName an optional name for the entity
      */
     open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc {
+        SpatialElementIfc by SpatialElement(this@ProcessModel) {
 
         /**
          * The default velocity for the entity's movement within the spatial model
          * of its ProcessModel
          */
-        override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
+ //       override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
 
         /**
          *  If supplied, this process will be the process activated by an EntityGenerator
@@ -1986,6 +1988,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+            //TODO  should the validity of the locations be checked here?
+            
             override suspend fun move(
                 fromLoc: LocationIfc,
                 toLoc: LocationIfc,
