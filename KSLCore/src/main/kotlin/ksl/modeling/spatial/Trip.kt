@@ -4,12 +4,12 @@ import ksl.modeling.entity.ProcessModel
 
 typealias TripIteratorIfc = Iterator<Movement>
 
-enum class TripResult {
-    COMPLETED, CANCELLED, COLLISION
+enum class TripStatus {
+    COMPLETED, CANCELLED, IN_PROGRESS
 }
 
 data class Trip(
-    val tripResult: TripResult,
+    val tripStatus: TripStatus,
     val origin: LocationIfc,
     val destination: LocationIfc,
     val currentLocation: LocationIfc,
@@ -26,13 +26,13 @@ data class Trip(
     }
 
     val completed: Boolean
-        get() = tripResult == TripResult.COMPLETED
+        get() = tripStatus == TripStatus.COMPLETED
 
     val cancelled: Boolean
-        get() = tripResult == TripResult.CANCELLED
+        get() = tripStatus == TripStatus.CANCELLED
 
-    val collided: Boolean
-        get() = tripResult == TripResult.COLLISION
+    val inProgress: Boolean
+        get() = tripStatus == TripStatus.IN_PROGRESS
 }
 
 data class Movement(

@@ -2008,6 +2008,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val tripIterator = movementController.iterator()
                 val startTime = time
                 var totalDistance = 0.0
+                onTrip = true
                 //TODO beforTrip()
                 while(tripIterator.hasNext()){
                     //TODO  check for cancellation
@@ -2018,6 +2019,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     totalDistance = totalDistance + m.startingLocation.distanceTo(m.endingLocation)
                     //TODO afterMovement()
                 }
+                onTrip = false
                 //TODO afterTrip()
                 TODO("Not implemented yet")
             }
