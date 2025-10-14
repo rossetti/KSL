@@ -381,7 +381,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * The default velocity for the entity's movement within the spatial model
          * of its ProcessModel
          */
- //       override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
+        //       override var velocity: GetValueIfc = this@ProcessModel.spatialModel.defaultVelocity
 
         /**
          *  If supplied, this process will be the process activated by an EntityGenerator
@@ -1666,8 +1666,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ITEMS
                 // enqueue the amount request so that it is a candidate for selection
-                val request = blockingQ.enqueueAmountRequest(entity,
-                    predicate, amount, blockingPriority)
+                val request = blockingQ.enqueueAmountRequest(
+                    entity,
+                    predicate, amount, blockingPriority
+                )
                 waitForRequestedItems(blockingQ, request)
                 // The entity wanting the items has been resumed because it can be filled or
                 // because its request can be immediately filled. The request should be able to be filled.
@@ -1687,8 +1689,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = suspensionName
                 currentSuspendType = SuspendType.WAIT_FOR_ANY_ITEMS
                 // enqueue the channel request so that it is a candidate for selection
-                val request = blockingQ.enqueueChannelRequest(entity,
-                    predicate, blockingPriority)
+                val request = blockingQ.enqueueChannelRequest(
+                    entity,
+                    predicate, blockingPriority
+                )
                 waitForRequestedItems(blockingQ, request)
                 // The entity wanting the items has been resumed because it can be filled or
                 // because its request can be immediately filled. The request should be able to be filled.
@@ -1995,11 +1999,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movementController: MovementControllerIfc,
                 autoMoveToOrigin: Boolean,
                 suspensionName: String?
-            ) : TripIfc {
+            ): TripIfc {
                 require(!isMoving) { "The entity_id = $id is already moving" }
                 require(!onTrip) { "The entity_id = $id is already on a trip" }
-                if (currentLocation != origin){
-                    if (autoMoveToOrigin){
+                if (currentLocation != origin) {
+                    if (autoMoveToOrigin) {
                         currentLocation = origin
                     } else {
                         throw IllegalStateException("The entity_id = $id is not at the supplied origin and the autoMoveToOrigin option is false.")
@@ -2008,15 +2012,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val trip = Trip(origin, destination)
                 myCurrentTrip = trip
                 //TODO beforTrip()
-                while(trip.inProgress){
+                while (trip.inProgress) {
                     val m = movementController.computeMovement(trip)
-                    if (m.velocity == 0.0){
+                    if (m.velocity == 0.0) {
                         //TODO
                         break
                     } else {
                         //TODO beforeMovement()
-                        move(m.startingLocation, m.endingLocation, m.velocity,
-                            m.priority, suspensionName)
+                        trip.currentVelocity = m.velocity
+                        move(
+                            m.startingLocation, m.endingLocation, m.velocity,
+                            m.priority, suspensionName
+                        )
                         //TODO afterMovement()
                     }
                 }
@@ -3102,13 +3109,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         //TODO cancelling trips
 
-        private inner class Trip (
+        private inner class Trip(
             override val origin: LocationIfc,
             override val destination: LocationIfc
         ) : TripIfc {
             init {
-                require(spatialModel.isValid(origin)){"The trip origin: $origin is not valid for the entity's spatial model."}
-                require(spatialModel.isValid(destination)){"The trip destination: $destination is not valid for the entity's spatial model."}
+                require(spatialModel.isValid(origin)) { "The trip origin: $origin is not valid for the entity's spatial model." }
+                require(spatialModel.isValid(destination)) { "The trip destination: $destination is not valid for the entity's spatial model." }
             }
 
             override val spatialModel: SpatialModel
@@ -3118,18 +3125,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 get() = this@Entity.velocity
 
             override var tripStatus: TripStatus = TripStatus.IN_PROGRESS
+                private set
 
             override var currentLocation: LocationIfc = origin
+                private set
 
             override var currentVelocity: Double = 0.0
-
+                set(value) {
+                    require(value >= 0.0) { "The current velocity of the trip must be >= 0.0." }
+                    field = value
+                }
             override val timeStarted: Double = time
             override var timeEnded: Double = Double.POSITIVE_INFINITY
-                set(value){
+                private set(value) {
                     require(value >= timeStarted) { "The time the trip ended must be greater than or equal to the time the trip started." }
                     field = value
                 }
             override var distanceTravelled: Double = 0.0
+                private set
 
             override var cancellation: Cancellation? = null
 
@@ -3141,6 +3154,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             val inProgress: Boolean
                 get() = tripStatus == TripStatus.IN_PROGRESS
+
+            /**
+             *  Causes the trip to advance its state based on the supplied movement
+             *  @param movement
+             */
+            fun advance(movement: Movement) {
+                require(movement.velocity > 0.0) { "The velocity was 0.0 when trying to advance the trip." }
+                require(movement.distance > 0.0) { "Tried to advance the trip with a movement having 0.0 distance" }
+                distanceTravelled = distanceTravelled + movement.distance
+                currentLocation = movement.endingLocation
+                if (atDestination){
+                    tripStatus = TripStatus.COMPLETED
+                    timeEnded = time
+                    //TODO capture final movement?
+                }
+            }
 
         }
     }
@@ -3202,69 +3231,69 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  The default queuing priority. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        const val QUEUE_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
+        const val QUEUE_PRIORITY: Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for seizing resources. The default is KSLEvent.VERY_HIGH_PRIORITY
          */
-        const val SEIZE_PRIORITY : Int = KSLEvent.HIGH_PRIORITY
+        const val SEIZE_PRIORITY: Int = KSLEvent.HIGH_PRIORITY
 
         /**
          *  The default priority for requesting movable resources. The default is KSLEvent.HIGH_PRIORITY
          */
-        const val TRANSPORT_REQUEST_PRIORITY : Int = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val TRANSPORT_REQUEST_PRIORITY: Int = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for requesting conveyor cells. The default is KSLEvent.HIGH_PRIORITY
          */
-        const val CONVEYOR_REQUEST_PRIORITY : Int = KSLEvent.MEDIUM_HIGH_PRIORITY
+        const val CONVEYOR_REQUEST_PRIORITY: Int = KSLEvent.MEDIUM_HIGH_PRIORITY
 
         /**
          *  The default priority for releasing conveyor cells. The default is KSLEvent.VERY_HIGH_PRIORITY + 9.
          *  This makes the priority slightly less than very high.
          */
-        const val CONVEYOR_EXIT_PRIORITY : Int = KSLEvent.HIGH_PRIORITY + 9
+        const val CONVEYOR_EXIT_PRIORITY: Int = KSLEvent.HIGH_PRIORITY + 9
 
         /**
          *  The default priority for time delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val DELAY_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
+        const val DELAY_PRIORITY: Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for move delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val MOVE_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
+        const val MOVE_PRIORITY: Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for queueing for signals. By default, it is KSLEvent.MEDIUM_PRIORITY.
          */
-        const val WAIT_FOR_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
+        const val WAIT_FOR_PRIORITY: Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_HIGH_PRIORITY - 10.
          */
-        const val RESUME_PRIORITY : Int = KSLEvent.VERY_HIGH_PRIORITY
+        const val RESUME_PRIORITY: Int = KSLEvent.VERY_HIGH_PRIORITY
 
         /**
          *  The default priority for resuming suspends. By default, it is KSLEvent.VERY_VERY_HIGH_PRIORITY - 9.
          *  This makes the priority slightly higher than VERY_VERY_HIGH.
          */
-        const val RELEASE_PRIORITY : Int = KSLEvent.VERY_HIGH_PRIORITY - 9
+        const val RELEASE_PRIORITY: Int = KSLEvent.VERY_HIGH_PRIORITY - 9
 
         /**
          *  The default priority for interrupt delays. The default is KSLEvent.MEDIUM_PRIORITY
          */
-        const val INTERRUPT_PRIORITY : Int = KSLEvent.MEDIUM_PRIORITY
+        const val INTERRUPT_PRIORITY: Int = KSLEvent.MEDIUM_PRIORITY
 
         /**
          *  The default priority for yielding control to the executive. The default is KSLEvent.LOW_PRIORITY.
          */
-        const val YIELD_PRIORITY : Int = KSLEvent.MEDIUM_LOW_PRIORITY
+        const val YIELD_PRIORITY: Int = KSLEvent.MEDIUM_LOW_PRIORITY
 
         /**
          *  The default priority for resuming from a blockage. The default is KSLEvent.VERY_HIGH_PRIORITY -10
          */
-        const val BLOCKAGE_PRIORITY : Int = KSLEvent.HIGH_PRIORITY - 10
+        const val BLOCKAGE_PRIORITY: Int = KSLEvent.HIGH_PRIORITY - 10
 
         val logger: KLogger = KotlinLogging.logger {}
     }
