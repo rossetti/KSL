@@ -2007,22 +2007,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val trip = Trip(origin, destination)
                 myCurrentTrip = trip
-//                val tripIterator = movementController.iterator()
-//                val startTime = time
-//                var totalDistance = 0.0
-//                onTrip = true
-//                //TODO beforTrip()
-//                while(tripIterator.hasNext()){
-//                    //TODO  check for cancellation
-//                    val m = tripIterator.next()
-//                    //TODO  detect collision here
-//                    //TODO beforeMovement()
-//                    move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
-//                    totalDistance = totalDistance + m.startingLocation.distanceTo(m.endingLocation)
-//                    //TODO afterMovement()
-//                }
-//                onTrip = false
-                //TODO afterTrip()
+                //TODO beforTrip()
+                while(trip.inProgress){
+                    val m = movementController.computeMovement(trip)
+                    if (m.velocity == 0.0){
+                        //TODO
+                        break
+                    } else {
+                        //TODO beforeMovement()
+                        move(m.startingLocation, m.endingLocation, m.velocity,
+                            m.priority, suspensionName)
+                        //TODO afterMovement()
+                    }
+                }
                 TODO("Not implemented yet")
             }
 
@@ -3103,7 +3100,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         val onTrip: Boolean
             get() = myCurrentTrip != null
 
-        inner class Trip (
+        //TODO cancelling trips
+
+        private inner class Trip (
             override val origin: LocationIfc,
             override val destination: LocationIfc
         ) : TripIfc {
@@ -3111,20 +3110,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(spatialModel.isValid(origin)){"The trip origin: $origin is not valid for the entity's spatial model."}
                 require(spatialModel.isValid(destination)){"The trip destination: $destination is not valid for the entity's spatial model."}
             }
+
+            override val spatialModel: SpatialModel
+                get() = this@Entity.spatialModel
+
+            override val velocity: GetValueIfc
+                get() = this@Entity.velocity
+
             override var tripStatus: TripStatus = TripStatus.IN_PROGRESS
-                internal set
+
             override var currentLocation: LocationIfc = origin
-                internal set
+
             override var currentVelocity: Double = 0.0
-                internal set
+
             override val timeStarted: Double = time
             override var timeEnded: Double = Double.POSITIVE_INFINITY
-                internal set(value){
+                set(value){
                     require(value >= timeStarted) { "The time the trip ended must be greater than or equal to the time the trip started." }
                     field = value
                 }
             override var distanceTravelled: Double = 0.0
-                internal set
+
             override var cancellation: Cancellation? = null
 
             val completed: Boolean
@@ -3135,6 +3141,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             val inProgress: Boolean
                 get() = tripStatus == TripStatus.IN_PROGRESS
+
         }
     }
 

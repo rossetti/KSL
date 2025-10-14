@@ -1,17 +1,18 @@
 package ksl.modeling.spatial
 
-import ksl.modeling.entity.ProcessModel
-
-typealias TripIteratorIfc = Iterator<Movement>
+import ksl.modeling.entity.ProcessModel.Companion.MOVE_PRIORITY
 
 enum class TripStatus {
     COMPLETED, CANCELLED, IN_PROGRESS
 }
 
-interface MoverIfc {
+interface MoverIfc : VelocityIfc {
+    val spatialModel: SpatialModel
     val destination: LocationIfc
     val currentLocation: LocationIfc
     val currentVelocity: Double
+    val atDestination: Boolean
+        get() = currentLocation.isLocationEqualTo(destination)
 }
 
 interface TripIfc : MoverIfc {
@@ -41,23 +42,23 @@ data class Movement(
     val startingLocation: LocationIfc,
     val endingLocation: LocationIfc,
     val velocity: Double,
-    val priority: Int
-){
+    val priority: Int = MOVE_PRIORITY
+) {
     init {
-        require(velocity >= 0.0) {"The velocity must be >= 0.0"}
+        require(velocity >= 0.0) { "The velocity must be >= 0.0" }
     }
 
     val distance: Double
         get() = startingLocation.distanceTo(endingLocation)
 }
 
-data class Collision(
-    val location: LocationIfc,
-    val collidingEntity: ProcessModel.Entity,
-    val entities: Set<ProcessModel.Entity>,
-    val timeOfCollision: Double,
-    val movement: Movement
-)
+//data class Collision(
+//    val location: LocationIfc,
+//    val collidingEntity: ProcessModel.Entity,
+//    val entities: Set<ProcessModel.Entity>,
+//    val timeOfCollision: Double,
+//    val movement: Movement
+//)
 
 data class Cancellation(
     val timeOfCancellation: Double,
@@ -66,12 +67,28 @@ data class Cancellation(
 )
 
 fun interface MovementControllerIfc {
-    fun computeMovement(mover: MoverIfc) : Movement
+    fun computeMovement(mover: MoverIfc): Movement
 }
 
+/**
+ *  The default movement controller computes a movement that will take the mover
+ *  directly from its current location to the desired location in one movement.
+ */
 class DefaultMovementController() : MovementControllerIfc {
     override fun computeMovement(mover: MoverIfc): Movement {
-        TODO("Not yet implemented")
+        // handle the case where current location == destination
+        val velocity = if (mover.atDestination) {
+            0.0
+        } else {
+            mover.velocity.value
+        }
+        // assume that the mover moves directly to the destination
+        val m = Movement(
+            mover.currentLocation,
+            mover.destination,
+            velocity,
+            MOVE_PRIORITY
+        )
+        return m
     }
-
 }
