@@ -1995,7 +1995,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movementController: MovementControllerIfc,
                 autoMoveToOrigin: Boolean,
                 suspensionName: String?
-            ) : Trip {
+            ) : TripIfc {
                 require(!isMoving) { "The entity_id = $id is already moving" }
                 require(!onTrip) { "The entity_id = $id is already on a trip" }
                 if (currentLocation != origin){
@@ -2005,21 +2005,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         throw IllegalStateException("The entity_id = $id is not at the supplied origin and the autoMoveToOrigin option is false.")
                     }
                 }
-                val tripIterator = movementController.iterator()
-                val startTime = time
-                var totalDistance = 0.0
-                onTrip = true
-                //TODO beforTrip()
-                while(tripIterator.hasNext()){
-                    //TODO  check for cancellation
-                    val m = tripIterator.next()
-                    //TODO  detect collision here
-                    //TODO beforeMovement()
-                    move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
-                    totalDistance = totalDistance + m.startingLocation.distanceTo(m.endingLocation)
-                    //TODO afterMovement()
-                }
-                onTrip = false
+                val trip = Trip(origin, destination)
+                myCurrentTrip = trip
+//                val tripIterator = movementController.iterator()
+//                val startTime = time
+//                var totalDistance = 0.0
+//                onTrip = true
+//                //TODO beforTrip()
+//                while(tripIterator.hasNext()){
+//                    //TODO  check for cancellation
+//                    val m = tripIterator.next()
+//                    //TODO  detect collision here
+//                    //TODO beforeMovement()
+//                    move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
+//                    totalDistance = totalDistance + m.startingLocation.distanceTo(m.endingLocation)
+//                    //TODO afterMovement()
+//                }
+//                onTrip = false
                 //TODO afterTrip()
                 TODO("Not implemented yet")
             }
@@ -3092,6 +3094,47 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) : this(this@Entity.currentLocation, toLoc, velocity, movePriority, name) {
                 require(velocity > 0.0) { "The velocity must be > 0.0" }
             }
+        }
+
+        private var myCurrentTrip: Trip? = null
+        val currentTrip: TripIfc?
+            get() = myCurrentTrip
+
+        val onTrip: Boolean
+            get() = myCurrentTrip != null
+
+        inner class Trip (
+            override val origin: LocationIfc,
+            override val destination: LocationIfc
+        ) : TripIfc {
+            init {
+                require(spatialModel.isValid(origin)){"The trip origin: $origin is not valid for the entity's spatial model."}
+                require(spatialModel.isValid(destination)){"The trip destination: $destination is not valid for the entity's spatial model."}
+            }
+            override var tripStatus: TripStatus = TripStatus.IN_PROGRESS
+                internal set
+            override var currentLocation: LocationIfc = origin
+                internal set
+            override var currentVelocity: Double = 0.0
+                internal set
+            override val timeStarted: Double = time
+            override var timeEnded: Double = Double.POSITIVE_INFINITY
+                internal set(value){
+                    require(value >= timeStarted) { "The time the trip ended must be greater than or equal to the time the trip started." }
+                    field = value
+                }
+            override var distanceTravelled: Double = 0.0
+                internal set
+            override var cancellation: Cancellation? = null
+
+            val completed: Boolean
+                get() = tripStatus == TripStatus.COMPLETED
+
+            val cancelled: Boolean
+                get() = tripStatus == TripStatus.CANCELLED
+
+            val inProgress: Boolean
+                get() = tripStatus == TripStatus.IN_PROGRESS
         }
     }
 

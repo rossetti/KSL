@@ -27,7 +27,6 @@ interface SpatialElementIfc : ObservableIfc<SpatialElementIfc>, VelocityIfc {
     val spatialModel: SpatialModel
     val isTracked: Boolean
     var isMoving: Boolean
-    var onTrip: Boolean
     val spatialID: Int
     val spatialName: String
     val status: SpatialModel.Status
@@ -76,8 +75,6 @@ class SpatialElement(
     override var isTracked: Boolean = false
         internal set
     override var isMoving: Boolean = false
-    override var onTrip: Boolean = false
-
 
     /**
      * The default velocity for the movement within the spatial model
@@ -110,6 +107,5 @@ class SpatialElement(
         previousLocation = initialLocation
         currentLocation = initialLocation
         isMoving = false
-        onTrip = false
     }
 }

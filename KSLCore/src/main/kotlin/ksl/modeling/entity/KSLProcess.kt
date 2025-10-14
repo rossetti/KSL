@@ -1247,20 +1247,16 @@ interface KSLProcessBuilder {
     /**
      *  Causes the entity to take a trip from the origin location to the destination location using
      *  the provided movement controller.  A trip consists of a sequence of movements that ultimately
-     *  result in one of three cases:
+     *  result in one of two cases:
      *
      *  1. A successful trip to the destination, with the current location of the entity at the destination location.
-     *  2. A partial trip to some (intermediate) location because the trip was cancelled.
-     *  3. A partial trip to some (intermediate) location because a collision occurred during the trip.
+     *  2. A partial trip to some (intermediate) location because the trip was not completed.
      *
-     *  The returned class Trip encapsulates the result of the trip and can be tested to determine which case occurred
+     *  The returned TripIfc encapsulates the result of the trip and can be tested to determine which case occurred
      *  during the trip.
      *
      *  The movements that occur during a trip are considered atomic. That is, they cannot be interrupted once started.
-     *  A collision will be detected prior to the movement that will cause the collision. A detected collision will
-     *  be handled by the movement controller, which may or may not permit the collision to occur. If the collision occurs
-     *  then, this is noted in the resulting Trip.  If a trip is cancelled
-     *  during a movement, the current movement will complete, but subsequent movements will not occur.
+     *  If a trip is cancelled during a movement, the current movement will complete, but subsequent movements will not occur.
      *
      *  @param origin the origin of the trip. This represents the starting location of the trip.
      *  @param destination the destination for the trip. This represents the desired location for ending the trip.
@@ -1280,7 +1276,7 @@ interface KSLProcessBuilder {
         movementController: MovementControllerIfc = entity.movementController,
         autoMoveToOrigin: Boolean = true,
         suspensionName: String? = null
-    ) : Trip
+    ) : TripIfc
 
     /**
      *  Causes movement of the entity from the specified location to the specified location at
