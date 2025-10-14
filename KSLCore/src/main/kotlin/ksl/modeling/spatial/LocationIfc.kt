@@ -22,6 +22,9 @@ import ksl.utilities.IdentityIfc
 
 interface LocationIfc : IdentityIfc {
 
+    /**
+     *  The spatial model associated with the location
+     */
     val spatialModel: SpatialModel
 
     /**
@@ -46,7 +49,7 @@ interface LocationIfc : IdentityIfc {
      */
     fun isLocationEqualTo(location: LocationIfc) : Boolean {
         if (!spatialModel.isValid(location)){
-            return false;
+            return false
         }
         return spatialModel.compareLocations(this, location)
     }
