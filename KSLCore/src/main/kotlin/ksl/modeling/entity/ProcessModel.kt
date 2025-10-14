@@ -3162,7 +3162,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 get() = tripStatus == TripStatus.COMPLETED
 
             val cancelled: Boolean
-                get() = tripStatus == TripStatus.CANCELLED
+                get() = tripStatus == TripStatus.CANCELLED //TODO STOPPED?
 
             val inProgress: Boolean
                 get() = tripStatus == TripStatus.IN_PROGRESS
@@ -3171,7 +3171,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  Causes the trip to advance its state based on the supplied movement
              *  @param movement
              */
-            fun advance(movement: Movement) {
+            fun advance(movement: Movement) { //TODO why Movement, why velocity?
                 require(movement.velocity > 0.0) { "The velocity was 0.0 when trying to advance the trip." }
                 require(movement.distance > 0.0) { "Tried to advance the trip with a movement having 0.0 distance" }
                 distanceTravelled = distanceTravelled + movement.distance
