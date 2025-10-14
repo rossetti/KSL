@@ -56,8 +56,12 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      */
     var defaultVelocity: GetValueIfc = ConstantRV.ONE
 
-    //TODO make this abstract
-    var defaultMovementController: MovementControllerIfc = DefaultMovementController()
+    /**
+     *  The default movement controller for movers within the spatial model.
+     *  By default, this is DefaultMovementController, which computes the move
+     *  as a single movement from the origin to the destination
+     */
+    var defaultMovementController: MovementControllerIfc = DefaultMovementController
 
     /**
      *  The default initial location.
@@ -94,6 +98,10 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
         }
     }
 
+    /**
+     *  Causes the spatial model to stop tracking any spatial elements.
+     */
+    @Suppress("unused")
     fun stopAllTracking(){
         val list = ArrayList(myElements)
         for(e in list){
@@ -122,6 +130,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      * been added to this spatial model then this method should return true
      *
      */
+    @Suppress("unused")
     fun isTracking(element: SpatialElementIfc): Boolean {
         return myElements.contains(element)
     }
@@ -190,6 +199,7 @@ abstract class SpatialModel() : Observable<SpatialElementIfc>() {
      *
      * Requirement: The elements must be valid within the spatial model.
      */
+    @Suppress("unused")
     fun compareLocations(firstElement: SpatialElementIfc, secondElement: SpatialElementIfc): Boolean {
         require(isValid(firstElement)) { "The element ${firstElement.spatialName} is not a valid element for the spatial model ${this.name}" }
         require(isValid(secondElement)) { "The element ${firstElement.spatialName} is not a valid element for the spatial model ${this.name}" }

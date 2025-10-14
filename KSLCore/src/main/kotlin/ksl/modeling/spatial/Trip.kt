@@ -74,7 +74,7 @@ fun interface MovementControllerIfc {
  *  The default movement controller computes a movement that will take the mover
  *  directly from its current location to the desired location in one movement.
  */
-class DefaultMovementController() : MovementControllerIfc {
+object DefaultMovementController : MovementControllerIfc {
     override fun computeMovement(mover: MoverIfc): Movement {
         // handle the case where current location == destination
         val velocity = if (mover.atDestination) {
