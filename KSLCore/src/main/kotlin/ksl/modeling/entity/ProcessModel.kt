@@ -2002,6 +2002,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): TripIfc {
                 require(!isMoving) { "The entity_id = $id is already moving" }
                 require(!onTrip) { "The entity_id = $id is already on a trip" }
+                if (origin.isLocationEqualTo(destination)){
+                    val trip = Trip(origin, destination)
+                    return trip
+                }
                 if (currentLocation != origin) {
                     if (autoMoveToOrigin) {
                         currentLocation = origin
@@ -3113,10 +3117,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override val origin: LocationIfc,
             override val destination: LocationIfc
         ) : TripIfc {
-            init {
-                require(spatialModel.isValid(origin)) { "The trip origin: $origin is not valid for the entity's spatial model." }
-                require(spatialModel.isValid(destination)) { "The trip destination: $destination is not valid for the entity's spatial model." }
-            }
 
             override val spatialModel: SpatialModel
                 get() = this@Entity.spatialModel
@@ -3124,12 +3124,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override val velocity: GetValueIfc
                 get() = this@Entity.velocity
 
-            override var tripStatus: TripStatus = TripStatus.IN_PROGRESS
+            override var tripStatus: TripStatus
                 private set
 
-            override var currentLocation: LocationIfc = origin
+            override var currentLocation: LocationIfc
                 private set
 
+            init {
+                require(spatialModel.isValid(origin)) { "The trip origin: $origin is not valid for the entity's spatial model." }
+                require(spatialModel.isValid(destination)) { "The trip destination: $destination is not valid for the entity's spatial model." }
+                tripStatus = if (origin.isLocationEqualTo(destination)){
+                    currentLocation = destination
+                    TripStatus.COMPLETED
+                } else {
+                    currentLocation = origin
+                    TripStatus.IN_PROGRESS
+                }
+            }
+            //TODO why is the current velocity of the trip needed?
             override var currentVelocity: Double = 0.0
                 set(value) {
                     require(value >= 0.0) { "The current velocity of the trip must be >= 0.0." }
