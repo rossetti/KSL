@@ -26,6 +26,30 @@ interface TripIfc : MoverIfc {
     val cancellation: Cancellation? //TODO this needs more thought
 }
 
+enum class MovementType {
+    /**
+     *  Intermediate indicates that the movement is part of trip that is in progress.
+     */
+    INTERMEDIATE,
+
+    /**
+     *  Last indicates that the movement is the last movement of a completed trip.
+     */
+    LAST,
+
+    /**
+     *  Collision indicates that the movement may result in a collision. It does
+     *  not mean that the collision will occur.
+     */
+    COLLISION,
+
+    /**
+     *  Stopped indicates that the movement caused the trip to stop such that it
+     *  will not complete.
+     */
+    STOPPED
+}
+
 /**
  *  A movement represents a potential step towards an ending location from
  *  a starting location. The velocity of a movement may be 0.0. This indicates
