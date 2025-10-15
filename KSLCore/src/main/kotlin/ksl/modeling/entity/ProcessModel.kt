@@ -3156,6 +3156,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override var distanceTravelled: Double = 0.0
                 private set
 
+            override var lastMovement: Movement? = null
+
             override var cancellation: Cancellation? = null
 
             val completed: Boolean

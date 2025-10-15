@@ -23,6 +23,7 @@ interface TripIfc : MoverIfc {
     val timeStarted: Double
     val timeEnded: Double
     val distanceTravelled: Double
+    val lastMovement: Movement?
     val cancellation: Cancellation? //TODO this needs more thought
 }
 
