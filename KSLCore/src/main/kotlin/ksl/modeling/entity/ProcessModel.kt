@@ -1992,6 +1992,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.NONE
             }
 
+//            private suspend fun move(movement: Movement, suspensionName: String?){
+//                move(
+//                    movement.startingLocation, movement.endingLocation, movement.velocity,
+//                    movement.priority, suspensionName
+//                )
+//            }
 
             override suspend fun trip(
                 origin: LocationIfc,
@@ -2002,7 +2008,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): TripIfc {
                 require(!isMoving) { "The entity_id = $id is already moving" }
                 require(!onTrip) { "The entity_id = $id is already on a trip" }
-                if (origin.isLocationEqualTo(destination)){
+                if (origin.isLocationEqualTo(destination)) {
                     val trip = Trip(origin, destination)
                     return trip
                 }
@@ -2017,21 +2023,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myCurrentTrip = trip
                 //TODO beforTrip()
                 while (trip.inProgress) {
-                    val m = movementController.computeMovement(trip)
-                    if (m.velocity == 0.0) {
-                        //TODO
-                        break
-                    } else {
-                        //TODO beforeMovement()
-                        trip.currentVelocity = m.velocity
-                        move(
-                            m.startingLocation, m.endingLocation, m.velocity,
-                            m.priority, suspensionName
-                        )
-                        //TODO afterMovement()
+                    val m = movementController.computeMovement(trip) ?: break
+                    when (m.movementType) {
+                        MovementType.INTERMEDIATE, MovementType.LAST -> {
+                            //TODO beforeMovement()
+                            move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
+                            trip.lastMovement = m
+                            //TODO afterMovement()
+                        }
+
+                        MovementType.COLLISION, MovementType.STOPPED -> {
+                            trip.lastMovement = m
+                            break
+                        }
                     }
                 }
-                TODO("Not implemented yet")
+                return trip
             }
 
             //TODO  should the validity of the locations be checked here?
@@ -3133,7 +3140,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(spatialModel.isValid(origin)) { "The trip origin: $origin is not valid for the entity's spatial model." }
                 require(spatialModel.isValid(destination)) { "The trip destination: $destination is not valid for the entity's spatial model." }
-                tripStatus = if (origin.isLocationEqualTo(destination)){
+                tripStatus = if (origin.isLocationEqualTo(destination)) {
                     currentLocation = destination
                     TripStatus.COMPLETED
                 } else {
@@ -3141,12 +3148,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     TripStatus.IN_PROGRESS
                 }
             }
-            //TODO why is the current velocity of the trip needed?
-            override var currentVelocity: Double = 0.0
-                set(value) {
-                    require(value >= 0.0) { "The current velocity of the trip must be >= 0.0." }
-                    field = value
-                }
+
             override val timeStarted: Double = time
             override var timeEnded: Double = Double.POSITIVE_INFINITY
                 private set(value) {
@@ -3158,13 +3160,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override var lastMovement: Movement? = null
 
-            override var cancellation: Cancellation? = null
-
             val completed: Boolean
                 get() = tripStatus == TripStatus.COMPLETED
 
-            val cancelled: Boolean
-                get() = tripStatus == TripStatus.CANCELLED //TODO STOPPED?
+            val stopped: Boolean
+                get() = tripStatus == TripStatus.STOPPED
 
             val inProgress: Boolean
                 get() = tripStatus == TripStatus.IN_PROGRESS
@@ -3178,7 +3178,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(movement.distance > 0.0) { "Tried to advance the trip with a movement having 0.0 distance" }
                 distanceTravelled = distanceTravelled + movement.distance
                 currentLocation = movement.endingLocation
-                if (atDestination){
+                if (atDestination) {
                     tripStatus = TripStatus.COMPLETED
                     timeEnded = time
                     //TODO capture final movement?
