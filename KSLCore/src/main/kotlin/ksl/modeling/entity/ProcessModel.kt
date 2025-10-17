@@ -2028,12 +2028,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         MovementType.INTERMEDIATE, MovementType.LAST -> {
                             //TODO beforeMovement()
                             move(m.startingLocation, m.endingLocation, m.velocity, m.priority, suspensionName)
-                            trip.lastMovement = m
+                            trip.lastMovement = m //TODO need to advance the trip
                             //TODO afterMovement()
                         }
 
                         MovementType.COLLISION, MovementType.STOPPED -> {
-                            trip.lastMovement = m
+                            trip.lastMovement = m //TODO?
                             break
                         }
                     }
