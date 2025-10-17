@@ -2038,6 +2038,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                myCurrentTrip = null
                 return trip
             }
 
