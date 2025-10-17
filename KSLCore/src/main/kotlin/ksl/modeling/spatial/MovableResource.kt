@@ -42,6 +42,8 @@ open class MovableResource(
     name: String? = null,
 ) : Resource(parent, name, 1), MovableResourceIfc, MoveableResourceCIfc {
 
+    override var movementController: MovementControllerIfc = DefaultMovementController
+
     /**
      *  The pools that currently contain the resource. Called
      *  from MovableResourcePool.addResource() to indicate to the movable resource

@@ -52,6 +52,8 @@ open class SpatialModelElement(
     override val observableComponent: ObservableComponent<SpatialElementIfc>
         get() = mySpatialElement.observableComponent
 
+    override var movementController: MovementControllerIfc = DefaultMovementController
+
     override fun initializeSpatialElement() {
         mySpatialElement.initializeSpatialElement()
     }
