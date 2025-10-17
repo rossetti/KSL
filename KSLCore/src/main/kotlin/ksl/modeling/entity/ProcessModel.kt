@@ -2039,7 +2039,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     }
                 }
                 // if we get here, the trip must not be IN_PROGRESS. It must either be COMPLETED or STOPPED
-                require(!trip.inProgress) {"After trip movements have occurred and the trip is still IN_PROGRESS"}
+                require(!trip.inProgress) {"After trip movements have occurred, the trip is still IN_PROGRESS"}
                 myCurrentTrip = null
                 return trip
             }
