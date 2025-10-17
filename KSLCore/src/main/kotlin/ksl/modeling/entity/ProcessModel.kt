@@ -2042,8 +2042,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return trip
             }
 
-            //TODO  should the validity of the locations be checked here?
-
             override suspend fun move(
                 fromLoc: LocationIfc,
                 toLoc: LocationIfc,
