@@ -32,8 +32,8 @@ interface LocationIfc : IdentityIfc {
      * the spatial model's distance metric
      * @return the distance between the two locations
      */
-    fun distanceTo(location: LocationIfc): Double{
-        require(spatialModel.isValid(location)){"The location ${location.name} is not valid for spatial model ${spatialModel.name}"}
+    fun distanceTo(location: LocationIfc): Double {
+        require(spatialModel.isValid(location)) { "The location ${location.name} is not valid for spatial model ${spatialModel.name}" }
         return spatialModel.distance(this, location)
     }
 
@@ -47,8 +47,8 @@ interface LocationIfc : IdentityIfc {
      * they are not valid within same spatial model, then this method
      * returns false.
      */
-    fun isLocationEqualTo(location: LocationIfc) : Boolean {
-        if (!spatialModel.isValid(location)){
+    fun isLocationEqualTo(location: LocationIfc): Boolean {
+        if (!spatialModel.isValid(location)) {
             return false
         }
         return spatialModel.compareLocations(this, location)
