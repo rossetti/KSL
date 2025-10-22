@@ -21,6 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.MovableResourcePool
 import ksl.simulation.ModelElement
+import ksl.utilities.io.KSL
 
 /**
  *  Determines the requests that will be allocated from the specified amount available from the
@@ -203,6 +204,9 @@ class RequestQ @JvmOverloads constructor(
             return 0
         }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+        if (selectedRequests.isEmpty()) {
+            return 0
+        }
         // the selected request can be satisfied at the current time, tell the entities to stop waiting
         // the entity will ask the resource for its allocation
         var sum = 0
@@ -210,6 +214,9 @@ class RequestQ @JvmOverloads constructor(
         // ensure that res
         while (itr.hasNext() && sum <= amountAvailable) {
             val request = itr.next()
+            if (request.entity.id == 17L){
+                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
+            }
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
         }

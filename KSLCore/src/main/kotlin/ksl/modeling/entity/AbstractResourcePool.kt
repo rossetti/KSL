@@ -104,4 +104,8 @@ abstract class AbstractResourcePool<T: Resource>(
             myFractionBusy.value = avgNR / avgMR
         }
     }
+
+    override fun toString(): String {
+        return "$name: c(t) = $capacity b(t) = $numBusy a(t) = $numAvailableUnits"
+    }
 }
