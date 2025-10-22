@@ -1902,7 +1902,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val thePool = request.resourcePool ?: resourcePool
                 // a probably redundant check to ensure the resource pool can actually allocate the units
                 require(thePool.canAllocate(resourceSelectionRule, amountNeeded))
-                { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name}" }
+                { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name} \n $thePool" }
                 // This causes both the selection rule and the allocation rule to be invoked
                 val allocation = thePool.allocate(
                     entity, amountNeeded, queue,
@@ -2108,9 +2108,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} before deallocating: pool = ${pooledAllocation.resourcePool}" }
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
+//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} after deallocating: pool = ${pooledAllocation.resourcePool}" }
                 // then check the queue for additional work
                 // get the queue from the allocation being released
+//                require(pooledAllocation.resourcePool.numAvailableUnits > 0) {"$time > entity_id = ${entity.id} : After RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} the number of available units (${pooledAllocation.resourcePool.numAvailableUnits}) was not > 0." }
                 pooledAllocation.queue.processWaitingRequests(
                     pooledAllocation.resourcePool.numAvailableUnits,
                     releasePriority

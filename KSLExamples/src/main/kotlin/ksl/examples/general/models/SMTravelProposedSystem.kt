@@ -21,6 +21,7 @@ import ksl.utilities.collections.HashBasedTable
 import ksl.utilities.divideConstant
 import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.simulation.Model
+import ksl.utilities.io.KSL
 
 fun main() {
     val model = Model("SMTravelProject")
@@ -294,12 +295,17 @@ class SMTravelProposedSystem(
         val currentCallProcess: KSLProcess = process {
             myNumBusyTrunkLines.increment()
             myNumCallsInSystem.increment()
+            printTrace("call arrival")
             if (customerType != "regular") {
+                printTrace("delaying to enter card number")
                 delay(myCardHolderEnterNumTimeRV)
+                printTrace("completed enter card number")
             }
             if (!pool.hasAvailableUnits) {
                 // customer will have to wait because no operators are available
+                printTrace("delaying to estimate waiting time")
                 delay(timeToEstimateWait)
+                printTrace("completed estimate waiting time")
                 val estimatedWaitingTime = estimateWaitingTime()
                 if (estimatedWaitingTime > waitingTolerance) {
                     myNumBusyTrunkLines.decrement()
@@ -312,15 +318,31 @@ class SMTravelProposedSystem(
             myProbOfAbandonment.value = 0.0
             myWorkInQ.increment(expectedServiceTime)
             val timeEnteredQ = time
+            printTrace("before SEIZE of pool : ${pool.name}")
             val a = seize(resourcePool = pool, queue = myCustomerQ )
+            printTrace("after SEIZE of pool : ${pool.name}")
             waitingTime = time - timeEnteredQ
             myWorkInQ.decrement(expectedServiceTime)
+            printTrace("before DELAY for service time of $serviceTime")
             delay(serviceTime)
+            printTrace("after DELAY for service ")
             myNumBusyTrunkLines.decrement()
             myWaitingTimeByType[customerType]!!.value = waitingTime
+            printTrace("before DELAY for after call work of $afterCallTime ")
             delay(afterCallTime)
+            printTrace("after DELAY for after call work")
+            printTrace("before RELEASE of pool : ${pool.name}")
             release(a)
+            printTrace("after RELEASE of pool : ${pool.name}")
             myNumCallsInSystem.decrement()
+        }
+
+        private fun printTrace(msg: String) {
+            KSL.out.println("$time > $msg : entity_id = $id : customer type = $customerType : callType = $callType : pool = ${pool.name}")
+            KSL.out.println("\t \t \t pool = ${myGoldPool.name} has available units: ${myGoldPool.hasAvailableUnits} : a(t) = ${myGoldPool.numAvailableUnits} : b(t) = ${myGoldPool.numBusy} : c(t) = ${myGoldPool.capacity} : q(t) = ${myCustomerQ.size}")
+            KSL.out.println("\t \t \t pool = ${mySilverPool.name} has available units: ${mySilverPool.hasAvailableUnits} : a(t) = ${mySilverPool.numAvailableUnits} : b(t) = ${mySilverPool.numBusy} : c(t) = ${mySilverPool.capacity} : q(t) = ${myCustomerQ.size}")
+            KSL.out.println("\t \t \t pool = ${myRegularPool.name} has available units: ${myRegularPool.hasAvailableUnits} : a(t) = ${myRegularPool.numAvailableUnits} : b(t) = ${myRegularPool.numBusy} : c(t) = ${myRegularPool.capacity} : q(t) = ${myCustomerQ.size}")
+ //           KSL.out.println("pool = ${pool.name} has available units: ${pool.hasAvailableUnits} : a(t) = ${pool.numAvailableUnits} : b(t) = ${pool.numBusy} : c(t) = ${pool.capacity} : q(t) = ${myCustomerQ.size}")
         }
 
     }
