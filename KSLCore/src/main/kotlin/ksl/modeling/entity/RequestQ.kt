@@ -29,6 +29,9 @@ import ksl.utilities.io.KSL
  *  amount available.
  */
 fun interface RequestSelectionRuleIfc {
+    //TODO need to revise the signature to include the resource or pool that is being released
+    // needs to be able to determine the amount available and if the request is waiting on the resource/pool that was released
+    // if it is not waiting on the thing that now has units available it should not be selected.
 
     /**
      *  Determines the requests that will be allocated from the specified amount available from the
@@ -214,6 +217,7 @@ class RequestQ @JvmOverloads constructor(
         // ensure that res
         while (itr.hasNext() && sum <= amountAvailable) {
             val request = itr.next()
+            //TODO
             if (request.entity.id == 17L){
                 KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
             }
