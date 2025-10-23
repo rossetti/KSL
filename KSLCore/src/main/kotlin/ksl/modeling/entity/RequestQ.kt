@@ -46,6 +46,14 @@ fun interface RequestSelectionRuleIfc {
 
 }
 
+fun interface ResourceRequestSelectionRuleIfc {
+    fun selectRequests(resource: Resource, requestQ: RequestQ): List<ProcessModel.Entity.Request>
+}
+
+fun interface ResourcePoolRequestSelectionRuleIfc {
+    fun selectRequests(resourcePool: ResourcePool, requestQ: RequestQ): List<ProcessModel.Entity.Request>
+}
+
 /**
  *  Returns a list of requests that can be allocated at the current time based on the amount
  *  available criteria. Each request that can be fully allocated by the amount available is
@@ -207,6 +215,14 @@ class RequestQ @JvmOverloads constructor(
             return 0
         }
         val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
+        return processSelectedRequests(amountAvailable, selectedRequests, resumePriority)
+    }
+
+    private fun processSelectedRequests(
+        amountAvailable: Int,
+        selectedRequests: List<ProcessModel.Entity.Request>,
+        resumePriority: Int
+    ): Int {
         if (selectedRequests.isEmpty()) {
             return 0
         }
@@ -225,5 +241,22 @@ class RequestQ @JvmOverloads constructor(
             sum = sum + request.amountRequested
         }
         return sum
+    }
+
+    internal fun processWaitingRequests(allocation: Allocation, resumePriority: Int): Int {
+        val resource = allocation.resource as Resource
+        if (resource.numAvailableUnits <= 0) {
+            return 0
+        }
+
+        TODO("Not implemented yet")
+    }
+
+    internal fun processWaitingRequests(pooledAllocation: ResourcePoolAllocation, resumePriority: Int): Int {
+        val resourcePool = pooledAllocation.resourcePool
+        if (resourcePool.numAvailableUnits <= 0){
+            return 0
+        }
+        TODO("Not implemented yet")
     }
 }
