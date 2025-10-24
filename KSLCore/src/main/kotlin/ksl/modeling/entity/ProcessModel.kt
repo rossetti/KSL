@@ -588,14 +588,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          * @param amountNeeded the amount needed to fill the request
          */
         inner class Request internal constructor(
-            amountNeeded: Int = 1,
+            val amountRequested: Int = 1
         ) : QObject() {
             init {
-                require(amountNeeded >= 1) { "The amount needed for the request must be >= 1" }
+                require(amountRequested >= 1) { "The amount requested for the request must be >= 1" }
             }
 
             val entity = this@Entity
-            val amountRequested = amountNeeded
 
             var resource: Resource? = null
                 internal set

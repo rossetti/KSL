@@ -12,7 +12,7 @@ import ksl.simulation.ModelElement
 abstract class AbstractResourcePool<T: Resource>(
     parent: ModelElement,
     name: String? = null
-) : ModelElement(parent, name) {
+) : ModelElement(parent, name), ResourceIfc {
 
     /**
      *  Tracks which queues have requests targeting the resource pool.
@@ -33,7 +33,22 @@ abstract class AbstractResourcePool<T: Resource>(
         get() = myFractionBusy
     val resources: List<ResourceCIfc>
         get() = myResources
-    val numAvailableUnits: Int
+
+    /**
+     *  The pool is considered in active if all of its associated resources
+     *  are inactive
+     */
+    override val isInactive: Boolean
+        get() {
+            for (r in myResources) {
+                if (!r.isInactive) {
+                    return false
+                }
+            }
+            return true
+        }
+
+    override val numAvailableUnits: Int
         get() {
             var sum = 0
             for (r in myResources) {
@@ -41,9 +56,9 @@ abstract class AbstractResourcePool<T: Resource>(
             }
             return sum
         }
-    val hasAvailableUnits: Boolean
+    override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
-    val capacity: Int
+    override val capacity: Int
         get() {
             var sum = 0
             for (r in myResources) {
@@ -51,7 +66,7 @@ abstract class AbstractResourcePool<T: Resource>(
             }
             return sum
         }
-    val numBusy: Int
+    override val numBusy: Int
         get() {
             var sum = 0
             for (r in myResources) {
@@ -86,6 +101,7 @@ abstract class AbstractResourcePool<T: Resource>(
     /**
      * @return returns a list of idle resources. It may be empty.
      */
+    @Suppress("unused")
     fun findIdleResources(): List<T> {
         return findIdleResources(myResources)
     }
