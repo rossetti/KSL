@@ -45,7 +45,7 @@ fun interface RequestSelectionRuleIfc {
     fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 
 }
-
+//TODO this could be just ResourceIfc
 fun interface ResourceRequestSelectionRuleIfc {
     fun selectRequests(resource: Resource, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 }
@@ -218,6 +218,7 @@ class RequestQ @JvmOverloads constructor(
         return processSelectedRequests(amountAvailable, selectedRequests, resumePriority)
     }
 
+    //TODO the purpose of this function is to resume the requests that are selected for allocation
     private fun processSelectedRequests(
         amountAvailable: Int,
         selectedRequests: List<ProcessModel.Entity.Request>,
@@ -243,6 +244,7 @@ class RequestQ @JvmOverloads constructor(
         return sum
     }
 
+    //TODO why allocation?  Only thing being used is resource state
     internal fun processWaitingRequests(allocation: Allocation, resumePriority: Int): Int {
         val resource = allocation.resource as Resource
         if (resource.numAvailableUnits <= 0) {
