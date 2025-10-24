@@ -57,6 +57,8 @@ open class ResourcePool @JvmOverloads constructor(
      * @param name the name of the pool
      * @author rossetti
      */
+    @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         numResources: Int = 1,
