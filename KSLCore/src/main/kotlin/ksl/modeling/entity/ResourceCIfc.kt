@@ -6,18 +6,13 @@ import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
 import ksl.utilities.statistic.StateAccessorIfc
 
-interface ResourceCIfc : DefaultReportingOptionIfc {
+interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
 
     /**
      * The initial capacity of the resource at the start of the replication. The initial
      * capacity must be greater than 0.
      */
     var initialCapacity: Int
-
-    /**
-     *  The current capacity of the resource. In general, it can be 0 or greater
-     */
-    val capacity: Int
 
     /**
      *  Access to the busy state. Busy means at least 1 unit of the resource is allocated.
@@ -49,18 +44,6 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
      */
     val previousState: StateAccessorIfc
 
-    /** Checks if the resource is idle, has no units allocated
-     */
-    val isIdle: Boolean
-
-    /** Checks to see if the resource is busy, has some units allocated
-     */
-    val isBusy: Boolean
-
-    /** Checks to see if the resource is inactive
-     */
-    val isInactive: Boolean
-
     /**
      * Statistical response representing the number of busy units of the resource.
      */
@@ -79,26 +62,9 @@ interface ResourceCIfc : DefaultReportingOptionIfc {
     val seizeCounter: CounterCIfc
 
     /**
-     *  If c(t) is the current capacity and b(t) is the current number busy,
-     *  then a(t) = c(t) - b(t) is the current number of available units.
-     *  Under some capacity change situations, a(t) may be negative.
-     */
-    val numAvailableUnits: Int
-
-    /**
-     *  If a(t) is greater than zero
-     */
-    val hasAvailableUnits: Boolean
-
-    /**
      *  If b(t) is greater than zero
      */
     val hasBusyUnits: Boolean
-
-    /**
-     *  The number of busy units at any time t, b(t)
-     */
-    val numBusy: Int
 
     /**
      *  The number of times that the resource has been seized (allocated)
