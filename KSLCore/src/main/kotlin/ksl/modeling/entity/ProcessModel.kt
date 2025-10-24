@@ -585,7 +585,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  Represents some amount of units needed from 1 or more resources
          *
-         * @param amountNeeded the amount needed to fill the request
+         * @param amountRequested the amount needed to fill the request
          */
         inner class Request internal constructor(
             val amountRequested: Int = 1
