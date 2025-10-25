@@ -200,6 +200,19 @@ class RequestQ @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  Returns a list of requests waiting for the specified resource that have requested
+     *  a number of units of the resource that is less than or equal to the number of units
+     *  available.  Thus, any request in the list could be satisfied at the current time.
+     *  
+     *  @param resource the resource to check
+     *  @return the list with the items ordered by the queue discipline. If no items are
+     *  selected, then the returned list will be empty.
+     */
+    fun filterRequestsByResource(resource: ResourceIfc) : List<ProcessModel.Entity.Request>{
+        return filteredOrderedList { it.resource == resource && it.amountRequested <= resource.numAvailableUnits }
+    }
+
     /** The method processes a request queue to allocate units to the next waiting request. If there
      * is a sufficient amount available for the next request, then the next request in the queue is processed
      * and its associated entity is resumed from waiting for the request. The entity then proceeds to
