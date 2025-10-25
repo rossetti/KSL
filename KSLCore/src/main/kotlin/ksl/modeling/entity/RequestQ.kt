@@ -235,7 +235,6 @@ class RequestQ @JvmOverloads constructor(
      *  @return the list with the items ordered by the queue discipline. If no items are
      *  selected, then the returned list will be empty.
      */
-    @Suppress("unused")
     fun selectRequestsByResource(resource: ResourceIfc): List<ProcessModel.Entity.Request> {
         if (isEmpty) {
             return emptyList()
@@ -364,10 +363,23 @@ class RequestQ @JvmOverloads constructor(
             return 0
         }
         var sum = 0
-        for(request in selected) {
+        val itr = selected.iterator()
+        // ensure that res
+        while (itr.hasNext() && sum <= resource.numAvailableUnits) {
+            val request = itr.next()
+            //TODO
+            if (request.entity.id == 17L) {
+                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
+            }
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
         }
+//        return sum
+//        var sum = 0
+//        for(request in selected) {
+//            request.entity.resumeProcess(0.0, resumePriority)
+//            sum = sum + request.amountRequested
+//        }
         return sum
     }
 
