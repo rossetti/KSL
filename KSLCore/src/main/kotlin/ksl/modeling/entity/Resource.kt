@@ -870,7 +870,8 @@ open class Resource @JvmOverloads constructor(
         if (myCapacityChangeQSet.size == 1) {
             // there is only one queue, no reason to decide, just notify it
             val queue = myCapacityChangeQSet.first()
-            val n = queue.processWaitingRequests(available, priority)
+            //val n = queue.processWaitingRequests(available, priority)
+            val n = queue.processWaitingRequestsForResource(this, priority)
             logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $available available units." }
             return
         }
@@ -882,7 +883,8 @@ open class Resource @JvmOverloads constructor(
         while (itr.hasNext()) {
             val queue = itr.next()
             // need to ensure that notifications stop if all available will be allocated
-            val n = queue.processWaitingRequests(amountAvailable, priority)
+           // val n = queue.processWaitingRequests(amountAvailable, priority)
+            val n = queue.processWaitingRequestsForResource(this, priority)
             logger.trace { "$time > Resource: $name will allocate $n units from the positive capacity change having $amountAvailable available units." }
             amountAvailable = amountAvailable - n
             // there is no point in notifying after the resource has no units available

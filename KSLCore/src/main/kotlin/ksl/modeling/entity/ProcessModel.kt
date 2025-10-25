@@ -2075,7 +2075,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
-                    allocation.myQueue.processWaitingRequests(allocation.myResource.numAvailableUnits, releasePriority)
+                    allocation.myQueue.processWaitingRequestsForResource(allocation.myResource, releasePriority)
+//                    allocation.myQueue.processWaitingRequests(allocation.myResource.numAvailableUnits, releasePriority)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : RELEASE: entity_id = ${entity.id} : allocation_id = ${allocation.id}" }
 
@@ -2113,10 +2114,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // then check the queue for additional work
                 // get the queue from the allocation being released
 //                require(pooledAllocation.resourcePool.numAvailableUnits > 0) {"$time > entity_id = ${entity.id} : After RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} the number of available units (${pooledAllocation.resourcePool.numAvailableUnits}) was not > 0." }
-                pooledAllocation.queue.processWaitingRequests(
-                    pooledAllocation.resourcePool.numAvailableUnits,
+//                pooledAllocation.queue.processWaitingRequests(
+//                    pooledAllocation.resourcePool.numAvailableUnits,
+//                    releasePriority
+//                )
+                pooledAllocation.queue.processWaitingRequestsForResource(
+                    pooledAllocation.resourcePool,
                     releasePriority
                 )
+
             }
 
             override suspend fun interruptDelay(
