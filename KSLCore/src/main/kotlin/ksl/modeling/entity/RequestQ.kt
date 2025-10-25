@@ -128,6 +128,7 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param resource the resource to check
      */
+    @Suppress("unused")
     fun countRequestsFor(resource: ResourceCIfc): Int {
         var count = 0
         for (request in myList) {
@@ -143,6 +144,7 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param pool the resource pool to check
      */
+    @Suppress("unused")
     fun countRequestsFor(pool: ResourcePool): Int {
         var count = 0
         for (request in myList) {
@@ -158,6 +160,7 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param pool the movable resource pool to check
      */
+    @Suppress("unused")
     fun countRequestsFor(pool: MovableResourcePool): Int {
         var count = 0
         for (request in myList) {
@@ -192,6 +195,7 @@ class RequestQ @JvmOverloads constructor(
      * The default is false.
      * @param afterTermination a function to invoke after the process is successfully terminated
      */
+    @Suppress("unused")
     fun removeAllAndTerminate(
         waitStats: Boolean = false,
         afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
@@ -205,7 +209,7 @@ class RequestQ @JvmOverloads constructor(
     /**
      *  Returns a list of requests waiting for the specified resource that have requested
      *  a number of units of the resource that is less than or equal to the number of units
-     *  available.  Thus, any request in the list could be satisfied at the current time.
+     *  available.  Thus, any request in the returned list could be satisfied at the current time.
      *
      *  @param resource the resource to check
      *  @return the list with the items ordered by the queue discipline. If no items are
@@ -216,12 +220,64 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
+     *  Returns a list of requests that can be allocated at the current time based on the amount
+     *  available in the resource. Each request that can be fully allocated until the amount available is
+     *  used up is returned. The list is ordered in the same order as the RequestQ.  No partial filling is
+     *  permitted.
+     *
+     *  The search will collect those requests that can be fully filled. This may cause skipping over of waiting requests.
+     *  For example, suppose there is only 2 units left to allocate and the current
+     *  request needs 3 units. The search will skip the current request and check the remaining
+     *  requests until it finds the next request that needs 2 or fewer units. The search keeps
+     *  allocating until all waiting requests are checked or until all available capacity is allocated.
+     *
+     *  @param resource the resource to check
+     *  @return the list with the items ordered by the queue discipline. If no items are
+     *  selected, then the returned list will be empty.
+     */
+    @Suppress("unused")
+    fun selectRequestsByResource(resource: ResourceIfc): List<ProcessModel.Entity.Request> {
+        if (isEmpty) {
+            return emptyList()
+        }
+        val filtered = filterRequestsByResource(resource)
+        // filtered holds items that are waiting for the resource and their amount requested
+        // is less than or equal to the number of available units
+        if (filtered.isEmpty()) {
+            return emptyList()
+        }
+        // no need to select if there is only one waiting
+        if (filtered.size == 1) {
+            return filtered
+        }
+        // 2 or more could be satisfied
+        val list = mutableListOf<ProcessModel.Entity.Request>()
+        // process the filtered requests in order until all the available that can be
+        // allocated are allocated. This may cause skipping over of waiting requests.
+        // For example, suppose there are is only 1 unit left to allocate and the current
+        // request needs 2 units. The search will skip the current request and check the remaining
+        // requests until it finds a request that can be fully filled or none are found.
+        var amountAvailable = resource.numAvailableUnits
+        for (request in filtered) {
+            if (request.amountRequested <= amountAvailable) {
+                list.add(request)
+                amountAvailable = amountAvailable - request.amountRequested
+                if (amountAvailable == 0){
+                    break
+                }
+            }
+        }
+        return list
+    }
+
+    /**
      *   Returns the next request that can be fully satisfied by the resource. If no requests
      *   can be satisfied, then null is returned. The selection is based on the
      *   queue discipline.
      *   @param resource the resource to check
      *   @return the selected request or null
      */
+    @Suppress("unused")
     fun nextRequestForResource(resource: ResourceIfc): ProcessModel.Entity.Request? {
         if (isEmpty) {
             return null
@@ -289,21 +345,27 @@ class RequestQ @JvmOverloads constructor(
         return sum
     }
 
-    //TODO why allocation?  Only thing being used is resource state
-    internal fun processWaitingRequests(allocation: Allocation, resumePriority: Int): Int {
-        val resource = allocation.resource as Resource
+    /**
+     *  The purpose of this function is to resume requests that have been selected for allocation.
+     *  This function is called when a resource or resource pool has some units released. The requests
+     *  that will be resumed are based on the available units in the resource and the order
+     *  in which they are waiting in the request queue.
+     */
+    internal fun processWaitingRequests(resource: ResourceIfc, resumePriority: Int): Int {
         if (resource.numAvailableUnits <= 0) {
             return 0
         }
-
-        TODO("Not implemented yet")
-    }
-
-    internal fun processWaitingRequests(pooledAllocation: ResourcePoolAllocation, resumePriority: Int): Int {
-        val resourcePool = pooledAllocation.resourcePool
-        if (resourcePool.numAvailableUnits <= 0) {
+        //TODO use selection rule or default function
+        val selected = selectRequestsByResource(resource)
+        if (selected.isEmpty()){
             return 0
         }
-        TODO("Not implemented yet")
+        var sum = 0
+        for(request in selected) {
+            request.entity.resumeProcess(0.0, resumePriority)
+            sum = sum + request.amountRequested
+        }
+        return sum
     }
+
 }
