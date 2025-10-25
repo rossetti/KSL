@@ -24,7 +24,7 @@ import ksl.simulation.Model
 import ksl.utilities.io.KSL
 
 fun main() {
-    val model = Model("SMTravelProject")
+    val model = Model("SMTravelProject", autoCSVReports = true)
     model.numberOfReplications = 20
     model.lengthOfReplication = 12.0*60.0
     val smTravelSystem = SMTravelProposedSystem(model, "SMTravelProposedSystem") //TODO has an error
