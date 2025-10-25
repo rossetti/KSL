@@ -350,8 +350,11 @@ class RequestQ @JvmOverloads constructor(
      *  This function is called when a resource or resource pool has some units released. The requests
      *  that will be resumed are based on the available units in the resource and the order
      *  in which they are waiting in the request queue.
+     *  @param resource the resource that may have waiting requests
+     *  @param resumePriority the priority to resume the requests
+     *  @return the total amount to be allocated from the resource because of the processing.
      */
-    internal fun processWaitingRequests(resource: ResourceIfc, resumePriority: Int): Int {
+    internal fun processWaitingRequestsForResource(resource: ResourceIfc, resumePriority: Int): Int {
         if (resource.numAvailableUnits <= 0) {
             return 0
         }
