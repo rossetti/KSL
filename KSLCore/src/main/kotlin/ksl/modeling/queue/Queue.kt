@@ -22,6 +22,7 @@ import ksl.modeling.variable.*
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.RandomIfc
+import ksl.utilities.random.permute
 import ksl.utilities.random.rng.RNStreamIfc
 import java.util.*
 import java.util.function.Predicate
@@ -207,6 +208,17 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         get() = myList.toList()
 
     /**
+     *  Returns a list containing the elements in the queue in
+     *  the order defined by its queue discipline. The items
+     *  are not removed from the queue. The random
+     *  queue discipline returns a permuted version of the list.
+     *  That is, in a random order.
+     */
+    fun orderedList(): List<T> {
+        return myDiscipline.orderedList()
+    }
+
+    /**
      * Adds the supplied listener to this queue
      *
      * @param listener Must not be null, cannot already be added
@@ -355,7 +367,20 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
     /**
      * Finds all the QObjects in the Queue that satisfy the condition and
      * returns a list containing them.  The items are not removed
-     * from the queue.
+     * from the queue. The order of the items maintains the queue discipline.
+     *
+     * @param predicate the condition for the search
+     * @return the list of items that match the predicate in the order as
+     * determined by the queue discipline
+     */
+    fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
+        return myDiscipline.filteredOrderedList(predicate)
+    }
+
+    /**
+     * Finds all the QObjects in the Queue that satisfy the condition and
+     * returns a list containing them.  The items are not removed
+     * from the queue. The order of the items will not maintain the queue discipline.
      *
      * @param predicate the condition for the search
      * @return the list of items that match the predicate
@@ -367,7 +392,7 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
     /**
      * Finds all the QObjects in the Queue that satisfy the condition and
      * returns a list containing them.  The items are not removed
-     * from the queue.
+     * from the queue. The order of the items will not maintain the queue discipline.
      *
      * @param predicate the condition for the search
      * @return the list of items that match the predicate
@@ -380,7 +405,7 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
      * Finds and removes all the QObjects in the Queue that satisfy the
      * condition and adds them to the deletedItems collection
      *
-     * @param condition The condition to check
+     * @param predicate The condition to check
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return a list of the removed items, which may be empty if none are removed
      */
@@ -762,6 +787,22 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
          */
         internal abstract fun priorityChanged()
 
+        /**
+         *  Creates a new list containing all the elements in the queue. The
+         *  order of the elements will maintain the queue discipline
+         */
+        internal abstract fun orderedList() : List<T>
+
+        /**
+         * Finds all the QObjects in the Queue that satisfy the condition and
+         * returns a list containing them.  The items are not removed
+         * from the queue. The list obeys the queue discipline
+         *
+         * @param predicate the condition for the search
+         * @return the list of items that match the predicate
+         */
+        internal abstract fun filteredOrderedList(predicate: (T) -> Boolean) : List<T>
+
     }
 
     inner class FIFODiscipline : QueueDiscipline() {
@@ -786,6 +827,14 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
 
         override fun priorityChanged() {
         }
+
+        override fun orderedList(): List<T> {
+            return myList.toList()
+        }
+
+        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
+            return myList.filter(predicate)
+        }
     }
 
     private inner class LIFODiscipline : QueueDiscipline() {
@@ -809,6 +858,14 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         }
 
         override fun priorityChanged() {
+        }
+
+        override fun orderedList(): List<T> {
+            return myList.toList().asReversed()
+        }
+
+        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
+            return myList.filter(predicate).asReversed()
         }
     }
 
@@ -866,6 +923,13 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
             myList.sort()
         }
 
+        override fun orderedList(): List<T> {
+            return myList.toList()
+        }
+
+        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
+            return myList.filter(predicate)
+        }
     }
 
     private inner class RandomDiscipline : QueueDiscipline() {
@@ -900,6 +964,14 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         }
 
         override fun priorityChanged() {
+        }
+
+        override fun orderedList(): List<T> {
+            return myList.toMutableList().permute(initialStreamNumber)
+        }
+
+        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
+            return myList.filter(predicate).toMutableList().permute(initialStreamNumber)
         }
     }
 }
