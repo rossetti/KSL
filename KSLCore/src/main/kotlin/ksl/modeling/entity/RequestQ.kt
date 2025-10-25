@@ -45,6 +45,7 @@ fun interface RequestSelectionRuleIfc {
     fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 
 }
+
 //TODO this could be just ResourceIfc
 fun interface ResourceRequestSelectionRuleIfc {
     fun selectRequests(resource: Resource, requestQ: RequestQ): List<ProcessModel.Entity.Request>
@@ -101,14 +102,15 @@ class RequestQ @JvmOverloads constructor(
      *  @return the next request to receive an allocation or null if no requests were selected for allocation
      */
     internal fun nextRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
-        if (isEmpty){
+        //TODO this will need to be by resource
+        if (isEmpty) {
             return null
         }
         // no need to select if there is only one waiting
-        if (size == 1){
+        if (size == 1) {
             if (amountAvailable >= this[0].amountRequested) {
                 return this[0]
-            } else  {
+            } else {
                 return null
             }
         }
@@ -126,9 +128,9 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param resource the resource to check
      */
-    fun countRequestsFor(resource: ResourceCIfc) : Int {
+    fun countRequestsFor(resource: ResourceCIfc): Int {
         var count = 0
-        for(request in myList){
+        for (request in myList) {
             if (request.resource == resource) {
                 count++
             }
@@ -141,9 +143,9 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param pool the resource pool to check
      */
-    fun countRequestsFor(pool: ResourcePool) : Int {
+    fun countRequestsFor(pool: ResourcePool): Int {
         var count = 0
-        for(request in myList){
+        for (request in myList) {
             if (request.resourcePool == pool) {
                 count++
             }
@@ -156,9 +158,9 @@ class RequestQ @JvmOverloads constructor(
      *  that are waiting in the queue.
      * @param pool the movable resource pool to check
      */
-    fun countRequestsFor(pool: MovableResourcePool) : Int {
+    fun countRequestsFor(pool: MovableResourcePool): Int {
         var count = 0
-        for(request in myList){
+        for (request in myList) {
             if (request.resourcePool == pool) {
                 count++
             }
@@ -204,13 +206,43 @@ class RequestQ @JvmOverloads constructor(
      *  Returns a list of requests waiting for the specified resource that have requested
      *  a number of units of the resource that is less than or equal to the number of units
      *  available.  Thus, any request in the list could be satisfied at the current time.
-     *  
+     *
      *  @param resource the resource to check
      *  @return the list with the items ordered by the queue discipline. If no items are
      *  selected, then the returned list will be empty.
      */
-    fun filterRequestsByResource(resource: ResourceIfc) : List<ProcessModel.Entity.Request>{
+    fun filterRequestsByResource(resource: ResourceIfc): List<ProcessModel.Entity.Request> {
         return filteredOrderedList { it.resource == resource && it.amountRequested <= resource.numAvailableUnits }
+    }
+
+    /**
+     *   Returns the next request that can be fully satisfied by the resource. If no requests
+     *   can be satisfied, then null is returned. The selection is based on the
+     *   queue discipline.
+     *   @param resource the resource to check
+     *   @return the selected request or null
+     */
+    fun nextRequestForResource(resource: ResourceIfc): ProcessModel.Entity.Request? {
+        if (isEmpty) {
+            return null
+        }
+        // no need to select if there is only one waiting
+        if (size == 1) {
+            if (this[0].resource != resource) {
+                return null
+            }
+            return if (resource.numAvailableUnits >= this[0].amountRequested) {
+                this[0]
+            } else {
+                null
+            }
+        }
+        val filtered = filterRequestsByResource(resource)
+        return if (filtered.isEmpty()) {
+            null
+        } else {
+            filtered.first()
+        }
     }
 
     /** The method processes a request queue to allocate units to the next waiting request. If there
@@ -248,7 +280,7 @@ class RequestQ @JvmOverloads constructor(
         while (itr.hasNext() && sum <= amountAvailable) {
             val request = itr.next()
             //TODO
-            if (request.entity.id == 17L){
+            if (request.entity.id == 17L) {
                 KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
             }
             request.entity.resumeProcess(0.0, resumePriority)
@@ -269,7 +301,7 @@ class RequestQ @JvmOverloads constructor(
 
     internal fun processWaitingRequests(pooledAllocation: ResourcePoolAllocation, resumePriority: Int): Int {
         val resourcePool = pooledAllocation.resourcePool
-        if (resourcePool.numAvailableUnits <= 0){
+        if (resourcePool.numAvailableUnits <= 0) {
             return 0
         }
         TODO("Not implemented yet")
