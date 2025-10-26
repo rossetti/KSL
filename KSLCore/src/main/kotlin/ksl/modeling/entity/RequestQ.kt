@@ -30,7 +30,7 @@ import ksl.simulation.ModelElement
 fun interface RequestSelectionRuleIfc {
 
     /**
-     *  Determines the requests that will be allocated from the specified amount available from the
+     *  Determines the requests that can be allocated from the specified amount available from the
      *  request queue. The total amount requested by the returned requests must not exceed the
      *  amount available.
      *
@@ -43,29 +43,6 @@ fun interface RequestSelectionRuleIfc {
 
 }
 
-
-/**
- *  Returns a list of requests that can be allocated at the current time based on the amount
- *  available criteria. Each request that can be fully allocated by the amount available is
- *  returned. The list is ordered in the same order as the RequestQ.  No partial filling is
- *  permitted in this default rule.
- */
-//object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
-//    override fun selectRequests(resource: ResourceIfc, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
-//        val list = mutableListOf<ProcessModel.Entity.Request>()
-//        if (amountAvailable <= 0) {
-//            return list
-//        }
-//        var startingAmount = amountAvailable
-//        for (request in requestQ) {
-//            if (request.amountRequested <= startingAmount) {
-//                list.add(request)
-//                startingAmount = startingAmount - request.amountRequested
-//            }
-//        }
-//        return list
-//    }
-//}
 
 /**
  *  If the user supplies a request selection rule then the default
@@ -84,6 +61,11 @@ class RequestQ @JvmOverloads constructor(
     discipline: Discipline = Discipline.FIFO
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
+    /**
+     *  A rule to select requests. Null by default. The default behavior is to use
+     *  the selectRequestsByResource() function. If a rule is supplied, then
+     *  the selectRequestsByResource() function will not be used.
+     */
     var requestSelectionRule: RequestSelectionRuleIfc? = null
 
     /**
@@ -92,7 +74,7 @@ class RequestQ @JvmOverloads constructor(
      * @param resource the resource to check
      */
     @Suppress("unused")
-    fun countRequestsFor(resource: ResourceCIfc): Int {
+    fun countRequestsFor(resource: Resource): Int {
         var count = 0
         for (request in myList) {
             if (request.resource == resource) {
@@ -188,11 +170,11 @@ class RequestQ @JvmOverloads constructor(
      *  used up is returned. The list is ordered in the same order as the RequestQ.  No partial filling is
      *  permitted.
      *
-     *  The search will collect those requests that can be fully filled. This may cause skipping over of waiting requests.
-     *  For example, suppose there is only 2 units left to allocate and the current
+     *  The search will select those requests that can be fully filled. This may cause skipping over of waiting requests.
+     *  For example, suppose there are only 2 units left to allocate and the current
      *  request needs 3 units. The search will skip the current request and check the remaining
      *  requests until it finds the next request that needs 2 or fewer units. The search keeps
-     *  allocating until all waiting requests are checked or until all available capacity is allocated.
+     *  selecting until all waiting requests are checked or until all available capacity is used.
      *
      *  @param resource the resource to check
      *  @return the list with the items ordered by the queue discipline. If no items are
@@ -205,17 +187,15 @@ class RequestQ @JvmOverloads constructor(
         val filtered = filterRequestsByResource(resource)
         // filtered holds items that are waiting for the resource and their amount requested
         // is less than or equal to the number of available units
-        if (filtered.isEmpty()) {
-            return emptyList()
-        }
-        // no need to select if there is only one waiting
-        if (filtered.size == 1) {
+        // no need to select if there are no requests waiting for the resource
+        // no need to select if there is only one waiting for the resource
+        if (filtered.isEmpty() || filtered.size == 1) {
             return filtered
         }
         // 2 or more could be satisfied
         val list = mutableListOf<ProcessModel.Entity.Request>()
-        // process the filtered requests in order until all the available that can be
-        // allocated are allocated. This may cause skipping over of waiting requests.
+        // process the filtered requests in order until all the available units that can be
+        // provided are used. This may cause skipping over of waiting requests.
         // For example, suppose there are is only 1 unit left to allocate and the current
         // request needs 2 units. The search will skip the current request and check the remaining
         // requests until it finds a request that can be fully filled or none are found.
@@ -239,7 +219,6 @@ class RequestQ @JvmOverloads constructor(
      *   @param resource the resource to check
      *   @return the selected request or null
      */
-    @Suppress("unused")
     fun nextRequestForResource(resource: ResourceIfc): ProcessModel.Entity.Request? {
         if (isEmpty) {
             return null
