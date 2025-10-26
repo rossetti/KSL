@@ -148,7 +148,7 @@ class RequestQ @JvmOverloads constructor(
     fun countRequestsFor(pool: ResourcePool): Int {
         var count = 0
         for (request in myList) {
-            if (request.resourcePool == pool) {
+            if (request.resource == pool) {
                 count++
             }
         }
@@ -164,7 +164,7 @@ class RequestQ @JvmOverloads constructor(
     fun countRequestsFor(pool: MovableResourcePool): Int {
         var count = 0
         for (request in myList) {
-            if (request.resourcePool == pool) {
+            if (request.resource == pool) {
                 count++
             }
         }
@@ -336,7 +336,7 @@ class RequestQ @JvmOverloads constructor(
             val request = itr.next()
             //TODO
             if (request.entity.id == 17L) {
-                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
+                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resource}")
             }
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
@@ -369,7 +369,7 @@ class RequestQ @JvmOverloads constructor(
             val request = itr.next()
             //TODO
             if (request.entity.id == 17L) {
-                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resourcePool}")
+                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resource}")
             }
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
