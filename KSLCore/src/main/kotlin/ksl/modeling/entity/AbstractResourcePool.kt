@@ -56,8 +56,7 @@ abstract class AbstractResourcePool<T: Resource>(
             }
             return sum
         }
-    override val hasAvailableUnits: Boolean
-        get() = numAvailableUnits > 0
+
     override val capacity: Int
         get() {
             var sum = 0

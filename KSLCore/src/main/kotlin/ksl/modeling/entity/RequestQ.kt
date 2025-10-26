@@ -21,7 +21,6 @@ package ksl.modeling.entity
 import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.MovableResourcePool
 import ksl.simulation.ModelElement
-import ksl.utilities.io.KSL
 
 /**
  *  Determines the requests that will be allocated from the specified amount available from the
@@ -29,31 +28,21 @@ import ksl.utilities.io.KSL
  *  amount available.
  */
 fun interface RequestSelectionRuleIfc {
-    //TODO need to revise the signature to include the resource or pool that is being released
-    // needs to be able to determine the amount available and if the request is waiting on the resource/pool that was released
-    // if it is not waiting on the thing that now has units available it should not be selected.
 
     /**
      *  Determines the requests that will be allocated from the specified amount available from the
      *  request queue. The total amount requested by the returned requests must not exceed the
      *  amount available.
      *
-     * @param amountAvailable the amount available
+     * @param resource the resource to select requests for
      * @param requestQ the queue to search
      * @return the requests that were selected
      */
-    fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request>
+    @Suppress("unused")
+    fun selectRequests(resource: ResourceIfc, requestQ: RequestQ): List<ProcessModel.Entity.Request>
 
 }
 
-//TODO this could be just ResourceIfc
-fun interface ResourceRequestSelectionRuleIfc {
-    fun selectRequests(resource: Resource, requestQ: RequestQ): List<ProcessModel.Entity.Request>
-}
-
-fun interface ResourcePoolRequestSelectionRuleIfc {
-    fun selectRequests(resourcePool: ResourcePool, requestQ: RequestQ): List<ProcessModel.Entity.Request>
-}
 
 /**
  *  Returns a list of requests that can be allocated at the current time based on the amount
@@ -61,22 +50,22 @@ fun interface ResourcePoolRequestSelectionRuleIfc {
  *  returned. The list is ordered in the same order as the RequestQ.  No partial filling is
  *  permitted in this default rule.
  */
-object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
-    override fun selectRequests(amountAvailable: Int, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
-        val list = mutableListOf<ProcessModel.Entity.Request>()
-        if (amountAvailable <= 0) {
-            return list
-        }
-        var startingAmount = amountAvailable
-        for (request in requestQ) {
-            if (request.amountRequested <= startingAmount) {
-                list.add(request)
-                startingAmount = startingAmount - request.amountRequested
-            }
-        }
-        return list
-    }
-}
+//object DefaultRequestSelectionRule : RequestSelectionRuleIfc {
+//    override fun selectRequests(resource: ResourceIfc, requestQ: RequestQ): List<ProcessModel.Entity.Request> {
+//        val list = mutableListOf<ProcessModel.Entity.Request>()
+//        if (amountAvailable <= 0) {
+//            return list
+//        }
+//        var startingAmount = amountAvailable
+//        for (request in requestQ) {
+//            if (request.amountRequested <= startingAmount) {
+//                list.add(request)
+//                startingAmount = startingAmount - request.amountRequested
+//            }
+//        }
+//        return list
+//    }
+//}
 
 /**
  *  If the user supplies a request selection rule then the default
@@ -95,33 +84,7 @@ class RequestQ @JvmOverloads constructor(
     discipline: Discipline = Discipline.FIFO
 ) : Queue<ProcessModel.Entity.Request>(parent, name, discipline) {
 
-    var requestSelectionRule: RequestSelectionRuleIfc = DefaultRequestSelectionRule
-
-    /**
-     *  @param amountAvailable the current amount available to allocate to waiting requests
-     *  @return the next request to receive an allocation or null if no requests were selected for allocation
-     */
-    internal fun nextRequest(amountAvailable: Int): ProcessModel.Entity.Request? {
-        //TODO this will need to be by resource
-        if (isEmpty) {
-            return null
-        }
-        // no need to select if there is only one waiting
-        if (size == 1) {
-            if (amountAvailable >= this[0].amountRequested) {
-                return this[0]
-            } else {
-                return null
-            }
-        }
-        // only invoke the rule if there are 2 or more requests from which to select
-        val list = requestSelectionRule.selectRequests(amountAvailable, this)
-        return if (list.isEmpty()) {
-            null
-        } else {
-            list[0]
-        }
-    }
+    var requestSelectionRule: RequestSelectionRuleIfc? = null
 
     /**
      *  Returns the number of requests targeting the supplied resource
@@ -300,50 +263,6 @@ class RequestQ @JvmOverloads constructor(
         }
     }
 
-    /** The method processes a request queue to allocate units to the next waiting request. If there
-     * is a sufficient amount available for the next request, then the next request in the queue is processed
-     * and its associated entity is resumed from waiting for the request. The entity then proceeds to
-     * have its request allocated.
-     *
-     * @param amountAvailable the amount of units that are available to allocate to the next request
-     * @param resumePriority the priority associated with resuming the waiting entity that gets its request filled
-     * @return the total amount to be allocated for the resumed entities.  This must be less than or equal to
-     * the amount available
-     */
-    internal fun processWaitingRequests(amountAvailable: Int, resumePriority: Int): Int {
-        if (amountAvailable <= 0) {
-            return 0
-        }
-        val selectedRequests = requestSelectionRule.selectRequests(amountAvailable, this)
-        return processSelectedRequests(amountAvailable, selectedRequests, resumePriority)
-    }
-
-    //TODO the purpose of this function is to resume the requests that are selected for allocation
-    private fun processSelectedRequests(
-        amountAvailable: Int,
-        selectedRequests: List<ProcessModel.Entity.Request>,
-        resumePriority: Int
-    ): Int {
-        if (selectedRequests.isEmpty()) {
-            return 0
-        }
-        // the selected request can be satisfied at the current time, tell the entities to stop waiting
-        // the entity will ask the resource for its allocation
-        var sum = 0
-        val itr = selectedRequests.iterator()
-        // ensure that res
-        while (itr.hasNext() && sum <= amountAvailable) {
-            val request = itr.next()
-            //TODO
-            if (request.entity.id == 17L) {
-                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resource}")
-            }
-            request.entity.resumeProcess(0.0, resumePriority)
-            sum = sum + request.amountRequested
-        }
-        return sum
-    }
-
     /**
      *  The purpose of this function is to resume requests that have been selected for allocation.
      *  This function is called when a resource or resource pool has some units released. The requests
@@ -357,8 +276,8 @@ class RequestQ @JvmOverloads constructor(
         if (resource.numAvailableUnits <= 0) {
             return 0
         }
-        //TODO use selection rule or default function
-        val selected = selectRequestsByResource(resource)
+        val selected = requestSelectionRule?.selectRequests(resource, this)
+            ?: selectRequestsByResource(resource)
         if (selected.isEmpty()){
             return 0
         }
@@ -367,19 +286,9 @@ class RequestQ @JvmOverloads constructor(
         // ensure that res
         while (itr.hasNext() && sum <= resource.numAvailableUnits) {
             val request = itr.next()
-            //TODO
-            if (request.entity.id == 17L) {
-                KSL.out.println("$time > entity_id = ${request.entity.id} is being resumed from queue $name after waiting for pool ${request.resource}")
-            }
             request.entity.resumeProcess(0.0, resumePriority)
             sum = sum + request.amountRequested
         }
-//        return sum
-//        var sum = 0
-//        for(request in selected) {
-//            request.entity.resumeProcess(0.0, resumePriority)
-//            sum = sum + request.amountRequested
-//        }
         return sum
     }
 
