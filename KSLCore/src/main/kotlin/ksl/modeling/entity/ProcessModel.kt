@@ -2119,6 +2119,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 //                    pooledAllocation.resourcePool.numAvailableUnits,
 //                    releasePriority
 //                )
+                //TODO Is this the problem?
                 pooledAllocation.queue.processWaitingRequestsForResource(
                     pooledAllocation.resourcePool,
                     releasePriority
