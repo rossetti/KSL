@@ -119,7 +119,7 @@ open class Resource @JvmOverloads constructor(
      *  that the notification will occur.  For the case of resources that have queue because
      *  of defined structure (ResourceWithQ, MovableResourceWithQ, ResourcePoolWithQ, MovableResourcePoolWithQ),
      *  the registration of the queue is automatic when the resource is constructed or when added to the pool.
-     *  If you use a general, not attached queue to hold requests (via the seize() function) then, you should
+     *  If you use a general, not attached queue to hold requests (via the `seize()` function) then, you should
      *  consider using this function to register the queue. A queue may be registered with more than one
      *  resource and a resource may have many queues registered.
      */

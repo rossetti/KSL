@@ -37,11 +37,10 @@ import ksl.modeling.queue.Queue
 import ksl.modeling.spatial.*
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
-import ksl.utilities.IdentityIfc
 import ksl.utilities.random.rvariable.ConstantRV
 import kotlin.coroutines.*
 
-val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
+val alwaysTrue: (qObject: ModelElement.QObject) -> Boolean = { _ -> true }
 
 /**
  * Used to exit (terminate) a currently executing ProcessCoroutine.
@@ -49,7 +48,7 @@ val alwaysTrue: (T: ModelElement.QObject) -> Boolean = { _ -> true }
  *  @param afterTermination a function to invoke after the process is successfully terminated
  */
 class ProcessTerminatedException(
-    val afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null,
+    val afterTermination: ((entity: Entity) -> Unit)? = null,
     m: String = "Process Terminated!"
 ) : RuntimeException(m)
 
@@ -63,7 +62,7 @@ interface KSLProcess {
     val isRunning: Boolean
     val isActivated: Boolean
     val currentStateName: String
-    val entity: ProcessModel.Entity
+    val entity: Entity
 
     /**
      *  The simulation time that the process first started (activated) after being created.
@@ -102,97 +101,6 @@ enum class SuspendType {
     EXIT
 }
 
-///**
-// *  Because an entity that is executing a process cannot resume itself
-// *  after suspending itself, we need a mechanism to allow the entity
-// *  to register itself before suspending.
-// *
-// *  Allows entities to suspend themselves by providing a callback mechanism
-// *  to allow the entity to register (attach) itself before suspending, with
-// *  the assurance that the SuspensionObserver will (eventually) tell the entity
-// *  to resume.
-// */
-//interface SuspensionObserver {
-//
-//    val name: String
-//
-//    fun attach(entity: ProcessModel.Entity)
-//    fun detach(entity: ProcessModel.Entity)
-//}
-
-///**
-// *  An abstraction that represents a general suspension point within a process. Suspensions are
-// *  one-shot. That is, once resumed they cannot be used again unless passed through
-// *  the suspend(suspension: Suspension) function for a KSLProcess.
-// *
-// *  To be useful, a suspension must be used as an argument of the suspend(suspension: Suspension) function for a KSLProcess.
-// *  The main purpose of this class is to better facilitate process interaction coordination between
-// *  entities that must suspend and resume each other to try to make the interaction less error-prone.
-// *
-// *  @param name the name of the suspension. Useful for debugging and
-// *  tracking of suspensions. Defaults to null. If null, a useful name is created based on its identity.
-// *  @param type the type of suspension. By default, this is the general type, SuspendType.SUSPEND.
-// */
-//class Suspension(
-//    internal val entity: Entity,
-//    name: String? = null,
-//    val type: SuspendType = SuspendType.SUSPEND
-//) : IdentityIfc by Identity(name) {
-//
-//    /**
-//     * The entity that is suspended. This property is set by
-//     * the suspend(suspension: Suspension) function before the entity suspends
-//     */
-//    private var suspendedEntity: Entity? = null
-//
-//    internal fun suspending(suspendingEntity: Entity){
-//        require(suspendingEntity == entity) {"The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}"}
-//        isResumed = false
-//        suspendedEntity = suspendingEntity
-//    }
-//
-//    /**
-//     *  True indicates that the suspension is suspending for the associated entity.
-//     */
-//    val isSuspending: Boolean
-//        get() = suspendedEntity != null
-//
-//    /**
-//     *  A suspension is once only. Once done it cannot be reused.
-//     *  This flag indicates if the suspension has occurred and been resumed.
-//     *  True means that the resumption has occurred. False means that
-//     *  the resumption has not yet occurred.  This flag is set to false
-//     *  internally by the suspend(suspension: Suspension) function when
-//     *  the suspension is used.  Once the suspension has been resumed, this property
-//     *  remains true, unless the suspension is passed again through the suspend(suspension: Suspension) function
-//     */
-//    var isResumed: Boolean = false
-//        private set
-//
-//    /**
-//     *  Causes the suspension to be resumed at the current time (i.e. without any delay).
-//     *  Errors will result if the suspension is not associated with a suspending entity
-//     *  via the suspend(suspension: Suspension) function or if the suspension has already
-//     *  been resumed.
-//     *
-//     * @param priority the priority associated with the resume. Can be used
-//     * to order resumptions that occur at the same time.
-//     */
-//    fun resume(priority: Int = KSLEvent.DEFAULT_PRIORITY) {
-//        require(!isResumed) { "The suspension with label $label and type $type associated with entity ${entity.name} has already been resumed." }
-//        require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${entity.name} is not associated with a suspended entity." }
-//        suspendedEntity?.resumeProcess(priority = priority)
-//        isResumed = true
-//        suspendedEntity = null
-//    }
-//
-//    override fun toString(): String {
-//        val sb = StringBuilder()
-//        sb.appendLine("Suspension: id = $id, label = $label, type = $type, done = $isResumed for entity (id = ${entity.id}, name = ${entity.name}")
-//        return sb.toString()
-//    }
-//}
-
 /**
  * KSLProcessBuilder provides the functionality for describing a process.  A process is an instance
  * of a coroutine that can be suspended and resumed.  The methods of the KSLProcessBuilder are the suspending
@@ -208,7 +116,7 @@ interface KSLProcessBuilder {
     /**
      *  The entity associated with the process
      */
-    val entity: ProcessModel.Entity
+    val entity: Entity
 
     /**
      *  The simulation time that the process first started (activated) after being created.
@@ -226,7 +134,7 @@ interface KSLProcessBuilder {
      *
      * @param suspensionName a name for the suspension point. Can be used to determine which suspension point
      * the entity is in when there are multiple suspension points, assuming that every suspension point
-     * has a unique suspension name..
+     * has a unique suspension name.
      */
     @Deprecated(
         "The general suspend function is error prone and may be replaced with other constructs in future releases",
@@ -266,7 +174,7 @@ interface KSLProcessBuilder {
      *  control back to the event executive. This permits other events scheduled for the current time
      *  to proceed due to the ordering of events.
      *
-     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  @param yieldPriority a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
      *  @param suspensionName the name of the yield. can be used to identify which yield the entity is experiencing if there
      *   are more than one suspension points within the process. The user is responsible for uniqueness.
@@ -286,7 +194,7 @@ interface KSLProcessBuilder {
      * @param yieldBeforeWaiting indicates that the process should yield (instantaneously) control back to the
      * event executive prior to starting to wait for the blockage. The default is true. This yield allows blockages that
      * need to occur prior to but at the same time as the beginning of the wait.
-     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  @param yieldPriority a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
      *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
      *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
@@ -312,7 +220,7 @@ interface KSLProcessBuilder {
      * @param yieldBeforeWaiting indicates that the process should yield (instantaneously) control back to the
      * event executive prior to starting to wait for the blockage. The default is true. This yield allows blockages that
      * need to occur prior to but at the same time as the beginning of the wait.
-     *  @param yieldPriority, a priority can be used to determine the order of events for
+     *  @param yieldPriority a priority can be used to determine the order of events for
      *  delays that might be scheduled to complete at the same time. Lower yield priorities go first.
      *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
      *   are more than one waitFor suspension points within the process. The user is responsible for uniqueness.
@@ -1436,7 +1344,7 @@ interface KSLProcessBuilder {
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
      *  @param transportQ the queue that the entity waits in if the resource is busy
-     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  @param requestPriority a priority can be used to determine the priority of the underlying (seize) call
      *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
@@ -1494,7 +1402,7 @@ interface KSLProcessBuilder {
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  @param requestPriority a priority can be used to determine the priority of the underlying (seize) call
      *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
@@ -1549,7 +1457,7 @@ interface KSLProcessBuilder {
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  @param requestPriority a priority can be used to determine the priority of the underlying (seize) call
      *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
@@ -1610,7 +1518,7 @@ interface KSLProcessBuilder {
      *  @param toLoc the location to which the entity is supposed to move
      *  @param emptyVelocity the velocity associated with the movement to the entity's location
      *  @param transportVelocity the velocity associated with the movement to the desired location
-     *  @param requestPriority, a priority can be used to determine the priority of the underlying (seize) call
+     *  @param requestPriority a priority can be used to determine the priority of the underlying (seize) call
      *  associated with the transport request. This is not the priority associated with waiting in a queue.
      *  @param emptyMovePriority, since the move is scheduled, a priority can be used to determine the order of events for
      *  moves that might be scheduled to complete at the same time.
@@ -2014,7 +1922,7 @@ interface KSLProcessBuilder {
      * @param numCellsNeeded the number of cells needed (requested)
      * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time, this priority determines which goes first. Similar to
-     * the seize resource priority.
+     * the priority used to seize resources.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return a representation of the allocated cells on the conveyor. The user should use this as a ticket
@@ -2132,7 +2040,7 @@ interface KSLProcessBuilder {
      * @param numCellsNeeded the number of cells needed (requested)
      * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
-     * the seize resource priority.
+     * the priority used to seize resources.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
@@ -2171,7 +2079,7 @@ interface KSLProcessBuilder {
      * @param numCellsNeeded the number of cells needed (requested)
      * @param requestPriority the priority of the access. If there are multiple entities that
      * access the conveyor at the same time this priority determines which goes first. Similar to
-     * the seize resource priority.
+     * the priority used to seize resources.
      * @param suspensionName the name of the suspension point the entity is experiencing if there
      *   are more than one delay suspension points within the process. The user is responsible for uniqueness.
      * @return the returned item encapsulates what happened during the ride and contains information about
