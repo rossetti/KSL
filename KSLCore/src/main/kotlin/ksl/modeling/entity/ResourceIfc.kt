@@ -1,6 +1,8 @@
 package ksl.modeling.entity
 
-interface ResourceIfc {
+import ksl.utilities.NameIfc
+
+interface ResourceIfc : NameIfc {
 
     /**
      *  The current capacity of the resource. In general, it can be 0 or greater
