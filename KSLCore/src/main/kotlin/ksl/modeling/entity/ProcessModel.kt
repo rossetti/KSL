@@ -593,17 +593,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             init {
                 require(amountRequested >= 1) { "The amount requested for the request must be >= 1" }
             }
-
             val entity = this@Entity
-
             abstract val resource: ResourceIfc
-
-//            var resource: Resource? = null
-//                internal set
-//            var resourcePool: ResourcePool? = null
-//                internal set
-//            var movableResourcePool: MovableResourcePool? = null
-
         }
 
         inner class ResourceRequest internal constructor (
@@ -625,9 +616,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         inner class MovableResourcePoolRequest internal constructor (
-            amountRequested: Int = 1,
             internal var myMovableResourcePool: MovableResourcePool
-        ) : Request(amountRequested){
+        ) : Request(amountRequested = 1){
             override val resource: ResourceIfc
                 get() = myMovableResourcePool
         }
@@ -1838,7 +1828,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
                 val request = ResourceRequest(amountNeeded, resource)
-               // request.resource = resource
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 waitForResource(request, resource, queue)
@@ -1846,7 +1835,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.remove(request) // take the request out of the queue after possible wait
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResource != resource) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource ${resource.name} to resource ${request.myResource.name}" }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource ${resource.name} to resource ${request.resource.name}" }
                 }
                 // the resource could be different because the request could have been moved, use the resource attached to the request
                 val theResource = request.myResource
@@ -1909,7 +1898,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
                 val request = ResourcePoolRequest(amountNeeded, resourcePool)
-//                request.resourcePool = resourcePool
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
@@ -1957,7 +1945,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
                 val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
-//                request.movableResourcePool = movableResourcePool
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 // this causes the selection rule to be invoked to see if resources are available
@@ -2105,7 +2092,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
                     allocation.myQueue.processWaitingRequestsForResource(allocation.myResource, releasePriority)
-//                    allocation.myQueue.processWaitingRequests(allocation.myResource.numAvailableUnits, releasePriority)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : RELEASE: entity_id = ${entity.id} : allocation_id = ${allocation.id}" }
 
@@ -2137,22 +2123,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} before deallocating: pool = ${pooledAllocation.resourcePool}" }
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
-//                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} after deallocating: pool = ${pooledAllocation.resourcePool}" }
                 // then check the queue for additional work
                 // get the queue from the allocation being released
-//                require(pooledAllocation.resourcePool.numAvailableUnits > 0) {"$time > entity_id = ${entity.id} : After RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} the number of available units (${pooledAllocation.resourcePool.numAvailableUnits}) was not > 0." }
-//                pooledAllocation.queue.processWaitingRequests(
-//                    pooledAllocation.resourcePool.numAvailableUnits,
-//                    releasePriority
-//                )
-                //TODO Is this the problem?
                 pooledAllocation.queue.processWaitingRequestsForResource(
                     pooledAllocation.resourcePool,
                     releasePriority
                 )
-
             }
 
             override suspend fun interruptDelay(
