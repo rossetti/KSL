@@ -25,7 +25,7 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.2.5"
+version = "R1.2.6"
 
 repositories {
 
@@ -40,9 +40,9 @@ dependencies {
     api(group = "org.slf4j", name = "slf4j-api", version = "2.0.17")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.18")
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.20")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.18")
+    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.20")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
