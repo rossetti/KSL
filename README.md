@@ -109,10 +109,16 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.5"
+version = "R1.2.6"
 
 ## Release Notes
-Latest Release R1.2.5
+Latest Release R1.2.6
+* Fixed issue where a RequestQ is shared amongst multiple resources or resource pools. The release logic
+was not checking if the resource associated with the waiting requests was associated with the release. This
+caused waiting requests to be resumed with the resource not having available units. New and correct functionality
+was added to RequestQ. This required that the resource associated with the release was passed to the request selection logic.
+
+Release R1.2.5
 * Bug fix in MixtureDistribution class involving numParameters property
 * Changed score() function to public from protected in PDFScoringModel
 
