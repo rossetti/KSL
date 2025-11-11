@@ -83,7 +83,6 @@ class TabularOutputFile(
         dataTableName = fixedFileName + "_Data"
         val cmd = createTableCommand(dataTableName)
         val executed = myDb.executeCommand(cmd)
-        println(cmd)
         if (!executed) {
             throw IllegalStateException("Unable to create tabular file: $path")
         }
