@@ -38,8 +38,10 @@ fun main(){
 
 //    testBoxMuller()
 //      serializing()
-    testMRound()
+//    testMRound()
 
+    val k = Int.MAX_VALUE + Int.MAX_VALUE
+    println("k=$k")
  //   testRV()
  //   testAI()
 }
