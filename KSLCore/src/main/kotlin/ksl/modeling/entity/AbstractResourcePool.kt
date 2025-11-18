@@ -52,6 +52,12 @@ abstract class AbstractResourcePool<T: Resource>(
         get() {
             var sum = 0
             for (r in myResources) {
+                if (r.numAvailableUnits == Integer.MAX_VALUE) {
+                    return Integer.MAX_VALUE
+                }
+                if (sum > Integer.MAX_VALUE - r.numAvailableUnits) {
+                    return Integer.MAX_VALUE
+                }
                 sum = sum + r.numAvailableUnits
             }
             return sum
@@ -67,6 +73,12 @@ abstract class AbstractResourcePool<T: Resource>(
         get() {
             var sum = 0
             for (r in myResources) {
+                if (r.capacity == Integer.MAX_VALUE) {
+                    return Integer.MAX_VALUE
+                }
+                if (sum > Integer.MAX_VALUE - r.capacity) {
+                    return Integer.MAX_VALUE
+                }
                 sum = sum + r.capacity
             }
             return sum
