@@ -18,19 +18,19 @@
 package ksl.modeling.entity
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ksl.modeling.entity.CapacitySchedule.CapacityItem
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.countGreaterEqualTo
 import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
 interface CapacityChangeListenerIfc {
     fun scheduleStarted(schedule: CapacitySchedule)
     fun scheduleEnded(schedule: CapacitySchedule)
-    fun capacityChange(item: CapacitySchedule.CapacityItem)
+    fun capacityChange(item: CapacityItem)
 }
 
 /** A CapacityItemData represents the data for an item on a CapacitySchedule. CapacityItems are placed
@@ -54,13 +54,45 @@ data class CapacityItemData(
     }
 }
 
+/**
+ *  A data class to represent the data associated with a CapacitySchedule.
+ *  @param capacityItems the items on the schedule
+ *  @param initialStartTime the start time of the schedule. Defaults to 0.0
+ *  @param isScheduleRepeatable indicates if the schedule should repeat. The default is false.
+ *  @param isAutoStartFlag indicates if the schedule should automatically start itself. The default is true.
+ */
 @Serializable
 data class CapacityScheduleData @JvmOverloads constructor(
+    val capacityItems: List<CapacityItemData>,
     var initialStartTime: Double = 0.0,
     var isScheduleRepeatable: Boolean = false,
-    var isAutoStartFlag: Boolean = true,
-    val capacityItems: List<CapacityItemData>
+    var isAutoStartFlag: Boolean = true
 ) : ToJSONIfc {
+
+    /**
+     *  A data class to represent the data associated with a CapacitySchedule.
+     *
+     * @param capacities the capacities for each duration. The array must not be empty. All capacity
+     * values must be greater than or equal to 0
+     * @param duration the common duration for each capacity value. Must be greater than 0.0
+     *  @param initialStartTime the start time of the schedule. Defaults to 0.0
+     *  @param isScheduleRepeatable indicates if the schedule should repeat. The default is false.
+     *  @param isAutoStartFlag indicates if the schedule should automatically start itself. The default is true.
+     */
+    @Suppress("unused")
+    constructor(
+        capacities: IntArray,
+        duration: Double,
+        initialStartTime: Double = 0.0,
+        isScheduleRepeatable: Boolean = false,
+        isAutoStartFlag: Boolean = true
+    ) : this(
+        capacityItems = CapacitySchedule.createCapacityItemData(capacities, duration),
+        initialStartTime = initialStartTime,
+        isScheduleRepeatable = isScheduleRepeatable,
+        isAutoStartFlag = isAutoStartFlag
+    )
+
     init {
         require(initialStartTime >= 0) { "The initial start time must be >= 0" }
         for (item in capacityItems) {
@@ -188,15 +220,14 @@ interface CapacityScheduleCIfc : JsonSettingsIfc<CapacityScheduleData> {
      */
     var capacityScheduleData: CapacityScheduleData
         get() = CapacityScheduleData(
+            items,
             initialStartTime = initialStartTime,
             isScheduleRepeatable = isScheduleRepeatable,
-            isAutoStartFlag = isAutoStartFlag,
-            items
+            isAutoStartFlag = isAutoStartFlag
         )
         /**
          *  Clears the current settings of the schedule and
          *  reconfigures the schedule's settings based on the provided capacity schedule data
-         *  @param settings the new settings to apply to the schedule
          */
         set(settings) {
             isAutoStartFlag = settings.isAutoStartFlag
@@ -205,6 +236,26 @@ interface CapacityScheduleCIfc : JsonSettingsIfc<CapacityScheduleData> {
             clearSchedule()
             addItemData(settings.capacityItems)
         }
+
+    /**
+     *  A convenience function for setting the capacities based on an array of data. The current
+     *  schedule will be cleared and the new schedule will be based on the supplied capacity values
+     *  supplied from the array.
+     *
+     * @param capacities the capacities for each duration. The array must not be empty. All capacity
+     * values must be greater than or equal to 0
+     * @param duration the common duration for each capacity value. Must be greater than 0.0
+     */
+    @Suppress("unused")
+    fun setCapacities(
+        capacities:IntArray,
+        duration: Double,
+        initialStartTime: Double = 0.0,
+        isScheduleRepeatable: Boolean = false,
+        isAutoStartFlag: Boolean = true
+    ) {
+        capacityScheduleData = CapacityScheduleData(capacities, duration, initialStartTime, isScheduleRepeatable, isAutoStartFlag)
+    }
 
     /**
      *  Returns the current settings in the form of the data type that
@@ -291,6 +342,7 @@ class CapacitySchedule @JvmOverloads constructor(
      * @author rossetti
      */
     @JvmOverloads
+    @Suppress("unused")
     constructor(
         parent: ModelElement,
         capacityScheduleData: CapacityScheduleData,
@@ -302,6 +354,37 @@ class CapacitySchedule @JvmOverloads constructor(
     ) {
         addItemData(capacityScheduleData.capacityItems)
     }
+
+    /**
+     *  Creates a CapacitySchedule based on capacity schedule data
+     * @param parent the parent model element holding the schedule
+     * @param capacities the capacities for each duration. The array must not be empty. All capacity
+     * values must be greater than or equal to 0
+     * @param duration the common duration for each capacity value. Must be greater than 0.0
+     * @param capacityScheduleData the schedule data
+     * @param eventPriority the default priority of the events used to start each item on the schedule
+     * @param name an optional name for the schedule
+     * @author rossetti
+     */
+    @JvmOverloads
+    @Suppress("unused")
+    constructor(
+        parent: ModelElement,
+        capacities: IntArray,
+        duration: Double,
+        startTime: Double = 0.0,
+        autoStartOption: Boolean = true,
+        repeatable: Boolean = false,
+        eventPriority: Int = KSLEvent.DEFAULT_PRIORITY,
+        name: String? = null
+    ) : this(
+        parent, CapacityScheduleData(
+            capacities,
+            duration,
+            startTime,
+            repeatable,
+            autoStartOption), eventPriority, name
+    )
 
     /**
      * The schedule repeat flag controls whether
@@ -374,6 +457,7 @@ class CapacitySchedule @JvmOverloads constructor(
     /**
      * If scheduled to start, this cancels the start of the schedule.
      */
+    @Suppress("unused")
     fun cancelScheduleStart() {
         if (myStartScheduleEvent != null) {
             myStartScheduleEvent?.cancel = true
@@ -581,6 +665,7 @@ class CapacitySchedule @JvmOverloads constructor(
         var startTime: Double = 0.0
             internal set
 
+        @Suppress("unused")
         fun cancelStart() {
             startEvent?.cancel = true
         }
@@ -591,6 +676,27 @@ class CapacitySchedule @JvmOverloads constructor(
 
         fun toCapacityItemData(): CapacityItemData {
             return CapacityItemData(capacity, duration, priority)
+        }
+    }
+
+    companion object {
+
+        /**
+         *  Creates capacity items for a CapacitySchedule based on the array of capacity values and the
+         *  supplied duration.
+         * @param capacities the capacities for each duration. The array must not be empty. All capacity
+         * values must be greater than or equal to 0
+         * @param duration the common duration for each capacity value. Must be greater than 0.0
+         */
+        fun createCapacityItemData(capacities: IntArray, duration: Double): List<CapacityItemData> {
+            require(duration > 0.0) { "The duration must be > 0.0" }
+            require(capacities.isNotEmpty()) { "The capacities array must not be empty" }
+            require(capacities.countGreaterEqualTo(0) == capacities.size) { "All capacities must be >= 0" }
+            val list = mutableListOf<CapacityItemData>()
+            for (capacity in capacities) {
+                list.add(CapacityItemData(capacity, duration))
+            }
+            return list
         }
     }
 }
@@ -623,7 +729,7 @@ class CapacityListener : CapacityChangeListenerIfc {
         println("time = ${schedule.time} Schedule Ended")
     }
 
-    override fun capacityChange(item: CapacitySchedule.CapacityItem) {
+    override fun capacityChange(item: CapacityItem) {
         println("time = ${item.schedule.time}  : ${item.name} started with capacity ${item.capacity} for duration ${item.duration}")
     }
 
