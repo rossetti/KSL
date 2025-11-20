@@ -27,6 +27,9 @@ import ksl.utilities.countGreaterEqualTo
 import ksl.utilities.io.JsonSettingsIfc
 import ksl.utilities.io.ToJSONIfc
 
+/**
+ *  An interface to define a protocol for listening to capacity changes within a CapacitySchedule.
+ */
 interface CapacityChangeListenerIfc {
     fun scheduleStarted(schedule: CapacitySchedule)
     fun scheduleEnded(schedule: CapacitySchedule)
@@ -43,7 +46,7 @@ interface CapacityChangeListenerIfc {
  * @param priority the priority of the change
  */
 @Serializable
-data class CapacityItemData(
+data class CapacityItemData @JvmOverloads constructor(
     var capacity: Int,
     var duration: Double,
     var priority: Int = KSLEvent.DEFAULT_PRIORITY
