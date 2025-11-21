@@ -100,6 +100,10 @@ class Model @JvmOverloads constructor(
     private var myCSVRepReport: CSVReplicationReport? = null
     private var myCSVExpReport: CSVExperimentReport? = null
 
+    /**
+     *  If this property is true, then the console printed summary report will automatically
+     *  be printed to the console when the simulation run is completed. The default is false.
+     */
     var autoPrintSummaryReport: Boolean = false
 
     /**
@@ -110,8 +114,15 @@ class Model @JvmOverloads constructor(
 
     /**
      *  If supplied, the configuration used by the model configuration manager.
+     *  Setting this property causes the isConfigured property to report false until
+     *  the configuration is applied when the experiment is set up.  If null
+     *  is supplied, then isConfigured will always report false.
      */
     var configuration: Map<String, String>? = null
+        set(value) {
+            isConfigured = false
+            field = value
+        }
 
     /**
      *  Indicates if a configuration has been applied. If you supply a configuration
@@ -119,15 +130,10 @@ class Model @JvmOverloads constructor(
      *  the model will be configured and this property will then report true.
      *  No future configurations will be applied while this property is set to true. If you want
      *  future experiments to apply a configuration, then this property should be set to false.
+     *  The only way to set this property to false is to set the configuration property.
      */
     var isConfigured: Boolean = false
-
-    /**
-     *
-     * @return the pre-defined default text output file for the simulation
-     */
-    val out: LogPrintWriter
-        get() = outputDirectory.out
+        private set
 
     /**
      *  Controls the execution of events
