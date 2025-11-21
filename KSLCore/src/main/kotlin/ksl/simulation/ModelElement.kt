@@ -31,6 +31,7 @@ import ksl.modeling.station.QObjectReceiverIfc
 import ksl.modeling.station.QObjectSenderIfc
 import ksl.utilities.*
 import ksl.utilities.distributions.InvertibleCDFIfc
+import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.robj.BernoulliPicker
@@ -231,6 +232,13 @@ abstract class ModelElement internal constructor(
      */
     val model : Model
         get() = myModel
+
+    /**
+     *
+     * @return the pre-defined default text output file for the simulation
+     */
+    val out: LogPrintWriter
+        get() = myModel.outputDirectory.out
 
     val streamProvider: RNStreamProvider
         get() = myModel.myRNStreamProvider
