@@ -22,6 +22,9 @@ import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
 import ksl.utilities.Identity
 
+//TODO  pass in ExperimentRunParametersIfc, ModelConfigurationManager, configuration Map<String, String>
+// revise base constructor and provide alternate constructors that meets current constructor signature
+
 /**
  *  A scenario represents the specification of a model to run, with some
  *  inputs.  Each scenario will produce a simulation run.
