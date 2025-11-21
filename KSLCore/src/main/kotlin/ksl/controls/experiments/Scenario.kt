@@ -20,6 +20,7 @@ package ksl.controls.experiments
 
 import ksl.simulation.ExperimentIfc
 import ksl.simulation.Model
+import ksl.simulation.ModelConfigurationManagerIfc
 import ksl.utilities.Identity
 
 //TODO  pass in ExperimentRunParametersIfc, ModelConfigurationManager, configuration Map<String, String>
@@ -52,6 +53,7 @@ class Scenario @JvmOverloads constructor(
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
+    modelConfiguration: Map<String, String>? = null
 ) : Identity(name), ExperimentIfc by model {
 
     /**
@@ -74,6 +76,7 @@ class Scenario @JvmOverloads constructor(
 
     private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
+    private var myModelConfiguration: MutableMap<String, String>? = null
 
     /**
      * returns the last generated simulation run
@@ -85,7 +88,7 @@ class Scenario @JvmOverloads constructor(
      *  prior to being run. This would allow for the assignment properties or invoking
      *  of additional logic prior to simulating the model.
      */
-    var setup: ScenarioSetupIfc? = null
+    var setup: ScenarioSetupIfc? = null  //TODO I don't think that this is needed any more
 
     init {
         if (inputs.isNotEmpty()){
@@ -94,6 +97,13 @@ class Scenario @JvmOverloads constructor(
                 myInputs[n] = v
             }
         }
+        if (modelConfiguration != null && modelConfiguration.isNotEmpty()){
+            myModelConfiguration = mutableMapOf()
+            for((k, v) in modelConfiguration) {
+                myModelConfiguration?.set(k, v)
+            }
+        }
+        //TODO no way to reset these parameters in this implementation
         model.numberOfReplications = numberReplications
         model.lengthOfReplication = lengthOfReplication
         model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
@@ -107,15 +117,25 @@ class Scenario @JvmOverloads constructor(
     fun simulate() {
         // store the current name
         val experimentName = model.experimentName
+        // store the current configuration
+        val configuration = model.configuration
         // change the name for the run to the name of the scenario
         model.experimentName = name
-        setup?.setup(model)
+        // if needed cause the model use the supplied configuration
+        if (model.modelConfigurationManager != null) {
+            if (myModelConfiguration != null) {
+                model.configuration = myModelConfiguration!!
+            }
+        }
+        setup?.setup(model) //TODO need to delete?
         simulationRun = simulationRunner.simulate(
             modelIdentifier = model.simulationName,
             inputs = myInputs,
-            experimentRunParameters = model.extractRunParameters())
+            experimentRunParameters = model.extractRunParameters()) //TODO need to check on this
         // put the name back to its original value
         model.experimentName = experimentName
+        // restore the current configuration
+        model.configuration = configuration
     }
 
 }
@@ -123,7 +143,7 @@ class Scenario @JvmOverloads constructor(
 /**
  *  Can be used to supply logic to configure a model prior to simulating a scenario.
  */
-fun interface ScenarioSetupIfc {
+fun interface ScenarioSetupIfc {//TODO I don't think that this is needed any more
     fun setup(model: Model)
 }
 
