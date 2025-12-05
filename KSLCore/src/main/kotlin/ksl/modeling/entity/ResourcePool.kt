@@ -114,8 +114,8 @@ open class ResourcePool @JvmOverloads constructor(
      *  the returned list will be empty.  In general, the returned list may have more
      *  units available than the requested amount.
      *
-     * @param amountNeeded the amount needed by a request
      * @param resourceSelectionRule the resource selection rule to use for selecting the resources
+     * @param amountNeeded the amount needed by a request
      * @return a list, which may be empty, that has resources that can satisfy the requested amount
      */
     protected open fun selectResources(

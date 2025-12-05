@@ -225,6 +225,7 @@ class ProposedModelClass2(
         rateFunctionCardHolders = PiecewiseConstantRateFunction(durations, ratesPerMinuteCardholder)
         rateFunctionRegular = PiecewiseConstantRateFunction(durations, ratesPerMinuteRegular)
 
+        val rule = CapacityChangeRule.IGNORE
 
         myRegularOperatorSchedule.addItem(7, duration = 60.0) // 7
         myRegularOperatorSchedule.addItem(13, duration = 60.0) //8
@@ -238,7 +239,7 @@ class ProposedModelClass2(
         myRegularOperatorSchedule.addItem(20, duration = 60.0) // 4
         myRegularOperatorSchedule.addItem(15, duration = 60.0) //5
         myRegularOperatorSchedule.addItem(8, duration = 60.0)//6
-        regularOperators.useSchedule(myRegularOperatorSchedule, CapacityChangeRule.IGNORE)
+        regularOperators.useSchedule(myRegularOperatorSchedule, rule)
 
         mySilverOperatorSchedule.addItem(5, duration = 60.0) // 7
         mySilverOperatorSchedule.addItem(13, duration = 60.0) // 8
@@ -252,7 +253,7 @@ class ProposedModelClass2(
         mySilverOperatorSchedule.addItem(14, duration = 60.0) // 4
         mySilverOperatorSchedule.addItem(14, duration = 60.0) // 5
         mySilverOperatorSchedule.addItem(11, duration = 60.0) // 6
-        silverOperators.useSchedule(mySilverOperatorSchedule, CapacityChangeRule.IGNORE)
+        silverOperators.useSchedule(mySilverOperatorSchedule, rule)
 
         myGoldOperatorSchedule.addItem(2, duration = 60.0) // 7
         myGoldOperatorSchedule.addItem(6, duration = 60.0) // 8
@@ -266,7 +267,7 @@ class ProposedModelClass2(
         myGoldOperatorSchedule.addItem(6, duration = 60.0) // 4
         myGoldOperatorSchedule.addItem(6, duration = 60.0) // 5
         myGoldOperatorSchedule.addItem(5, duration = 60.0) // 6
-        goldOperators.useSchedule(myGoldOperatorSchedule, CapacityChangeRule.IGNORE)
+        goldOperators.useSchedule(myGoldOperatorSchedule, rule)
 
 
     }
