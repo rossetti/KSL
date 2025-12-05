@@ -247,6 +247,12 @@ class RequestQ @JvmOverloads constructor(
      *  This function is called when a resource or resource pool has some units released. The requests
      *  that will be resumed are based on the available units in the resource and the order
      *  in which they are waiting in the request queue.
+     *  This internal function is called from the following locations:
+     *
+     *  1. release(Allocation) function
+     *  2. release(ResourcePoolAllocation) function
+     *  3. Resource.notifyWaitingRequestsOfCapacityIncrease()
+     *
      *  @param resource the resource that may have waiting requests
      *  @param resumePriority the priority to resume the requests
      *  @return the total amount to be allocated from the resource because of the processing.
@@ -260,6 +266,8 @@ class RequestQ @JvmOverloads constructor(
         if (selected.isEmpty()){
             return 0
         }
+        //TODO need to evaluate effect of capacity change on this
+        // check numAvailableUnits calculation for pools and under capacity change conditions
         var sum = 0
         val itr = selected.iterator()
         // ensure that res

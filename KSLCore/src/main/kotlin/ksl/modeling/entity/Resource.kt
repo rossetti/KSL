@@ -286,7 +286,8 @@ open class Resource @JvmOverloads constructor(
         }
 
     override val numAvailableUnits: Int
-        get() = capacity - numBusy
+        //get() = capacity - numBusy
+         get() = maxOf(0, capacity - numBusy)
 
     override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
@@ -560,6 +561,8 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** Causes the resource to deallocate the amount associated with the allocation
+     *  The primary use of this function is to support the release() function
+     *  of the process view.
      *
      * @param allocation the allocation to be deallocated
      */
