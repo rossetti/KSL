@@ -1916,9 +1916,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // the resource pool could be different because the request could have been moved, use the resource pool attached to the request
                 val thePool = request.myResourcePool
-                // a probably redundant check to ensure the resource pool can actually allocate the units
+                // check to ensure the resource pool can actually allocate the units
+                // this check ensures that an entity that was resumed due to resource availability (deallocation/release) can actually be
+                // allocated by the time that the resumption occurs
                 require(thePool.canAllocate(resourceSelectionRule, amountNeeded))
-                { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name} \n $thePool" }
+                { "replication = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name} \n $thePool" }
                 // This causes both the selection rule and the allocation rule to be invoked
                 val allocation = thePool.allocate(
                     entity, amountNeeded, queue,

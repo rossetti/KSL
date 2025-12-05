@@ -252,7 +252,7 @@ class RequestQ @JvmOverloads constructor(
      *  1. release(Allocation) function
      *  2. release(ResourcePoolAllocation) function
      *  3. Resource.notifyWaitingRequestsOfCapacityIncrease()
-     *  
+     *
      *  @param resource the resource that may have waiting requests
      *  @param resumePriority the priority to resume the requests
      *  @return the total amount to be allocated from the resource because of the processing.
