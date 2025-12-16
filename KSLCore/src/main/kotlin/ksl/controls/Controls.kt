@@ -123,7 +123,7 @@ class Controls(aModel: Model) {
                         logger.trace { "The property return type, ${property.returnType.classifier.toString()} is not valid for ${kslControl.controlType}" }
                     }
                 } else {
-                    logger.trace { "Member property, ${property.name}, has has no control annotations" }
+                    logger.trace { "Member property, ${property.name}, has no control annotations" }
                 }
             } else {
                 logger.trace { "Member property, ${property.name}, reported as not a mutable property" }
