@@ -69,6 +69,22 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      */
     constructor(vararg jarPaths: String) : this(jarPaths.map { Paths.get(it) })
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("DynamicJarClassLoader:")
+            appendLine("Paths to JAR Files:")
+            val paths = getLoadedJarPaths()
+            for(path in paths){
+                appendLine(path)
+            }
+            appendLine("Classes in JAR Files:")
+            for(name in classNames){
+                appendLine(name)
+            }
+        }
+        return sb.toString()
+    }
+
     /**
      * Get the list of loaded JAR paths as a list of strings
      */
