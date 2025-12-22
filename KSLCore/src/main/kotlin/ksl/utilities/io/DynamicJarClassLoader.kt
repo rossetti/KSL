@@ -435,7 +435,9 @@ fun main() {
 
     println()
     println("Try DynamicJarClassLoader")
-    test1(jarName)
+    val loader = DynamicJarClassLoader(jarName)
+    println(loader)
+    //test1(jarName)
 }
 
 fun test1(jarName: String) {
