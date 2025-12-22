@@ -438,6 +438,7 @@ fun main() {
     val loader = DynamicJarClassLoader(jarName)
     println(loader)
     //test1(jarName)
+    test2(jarName)
 }
 
 fun test1(jarName: String) {
@@ -449,6 +450,31 @@ fun test1(jarName: String) {
             for (name in names) {
                 println(name)
             }
+        }
+    } catch (e: IllegalArgumentException) {
+        println("Configuration error: ${e.message}")
+    } catch (e: ClassNotFoundException) {
+        println("Class not found in JAR: ${e.message}")
+    } catch (e: NoClassDefFoundError) {
+        println("Missing dependency class: ${e.message}")
+    } catch (e: SecurityException) {
+        println("Security restriction: ${e.message}")
+    } catch (e: Exception) {
+        println("Unexpected error: ${e.message}")
+    }
+}
+
+fun test2(jarName: String) {
+    println("=== Test 2 ===")
+    try {
+        DynamicJarClassLoader(jarName).use { loader ->
+           // val testInstance: Any = loader.createInstance("work.TestKSLKt")
+
+            val functions = loader.getFunctions("work.Ch7Example7Kt")
+            for(function in functions){
+                println(function)
+            }
+            //loader.callFunction(testInstance, "main")
         }
     } catch (e: IllegalArgumentException) {
         println("Configuration error: ${e.message}")
