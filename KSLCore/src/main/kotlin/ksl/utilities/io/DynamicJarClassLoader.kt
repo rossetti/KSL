@@ -80,6 +80,7 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      * Load a class by its fully qualified name
      */
     fun loadClass(className: String): Class<*> {
+        require(classNames.contains(className)) {"The class named $className is not a class than can be loaded."}
         return try {
             classLoader.loadClass(className)
         } catch (e: ClassNotFoundException) {
