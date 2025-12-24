@@ -20,7 +20,7 @@ plugins {
     `java-library`
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
-    id("org.jetbrains.dokka") version "2.0.0"
+    id("org.jetbrains.dokka") version "2.1.0"
     id("com.vanniktech.maven.publish") version "0.33.0"
 }
 
