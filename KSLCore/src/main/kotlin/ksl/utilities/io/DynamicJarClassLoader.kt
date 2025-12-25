@@ -26,6 +26,7 @@ val KProperty0<*>.isLazyInitialized: Boolean
         isAccessible = true
         return (getDelegate() as Lazy<*>).isInitialized()
     }
+
 /**
  * Returns the value of the given lazy property if initialized, null
  * otherwise.
@@ -171,11 +172,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         }
         val functions = mutableListOf<KFunction<*>>()
         for (method in loadedClass.declaredMethods) {
-     //       println("method: $method")
+            //       println("method: $method")
             val modifiers = method.modifiers
             if (Modifier.isStatic(modifiers)) {
                 val cf = method.kotlinFunction
-                if ((cf != null)){
+                if ((cf != null)) {
                     functions.add(cf)
                 }
             }
@@ -349,19 +350,6 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     companion object {
 
         /**
-         * Data class to hold class metadata from Kotlin reflection
-         */
-        data class ClassInfo(
-            val name: String,
-            val qualifiedName: String,
-            val isAbstract: Boolean,
-            val isData: Boolean,
-            val isSealed: Boolean,
-            val isInner: Boolean,
-            val isCompanion: Boolean
-        )
-
-        /**
          * Extracts the class names contained within the JAR file.
          *
          * @param jarFilePath the path to the JAR File
@@ -418,12 +406,12 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
          * @param parentClass The parent KClass to search for subclasses
          * @return Set of class names that extend or implement the parent class
          */
-        fun findSubclasses(jarFilePath: Path, parentClass: KClass<*>): Set<String> {
+        fun findSubclasses(jarFilePath: Path, parentClass: Class<*>): List<String> {
             val jarFile = jarFilePath.toFile()
             if (!jarFile.exists()) {
-                return emptySet()
+                return emptyList()
             }
-            val subclasses = mutableSetOf<String>()
+            val subclasses = mutableListOf<String>()
             // Create a URLClassLoader to load classes from the JAR
             val jarUrl = jarFile.toURI().toURL()
             URLClassLoader(
@@ -441,34 +429,29 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
                                 .removeSuffix(".class")
 
                             try {
-                                // Load the class and convert to KClass
-                                val javaClass = classLoader.loadClass(className)
-                                val kClass = javaClass.kotlin
-
-                                // Check if it's a subclass of the parent using Kotlin reflection
-                                if (kClass != parentClass && kClass.isSubclassOf(parentClass)) {
-                                    subclasses.add(className)
+                                // Load the class
+                                val loadedClass = classLoader.loadClass(className)
+                                if (parentClass.isAssignableFrom(loadedClass) && loadedClass != parentClass) {
+                                    subclasses.add(loadedClass.name)
                                 }
-
                             } catch (e: Exception) {
                                 // Skip classes that can't be loaded or reflected
                             }
                         }
                 }
             }
-
             return subclasses
         }
 
         /**
          * Alternative method that returns KClass objects instead of class names
          */
-        fun findSubclassObjects(jarFilePath: Path, parentClass: KClass<*>): Set<KClass<*>> {
+        fun findSubclassObjects(jarFilePath: Path, parentClass: Class<*>): List<Class<*>> {
             val jarFile = jarFilePath.toFile()
             if (!jarFile.exists()) {
-                return emptySet()
+                return emptyList()
             }
-            val subclasses = mutableSetOf<KClass<*>>()
+            val subclasses = mutableListOf<Class<*>>()
             val jarUrl = jarFile.toURI().toURL()
             URLClassLoader(
                 arrayOf(jarUrl),
@@ -484,81 +467,27 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
                                 .removeSuffix(".class")
 
                             try {
-                                val javaClass = classLoader.loadClass(className)
-                                val kClass = javaClass.kotlin
-
-                                if (kClass != parentClass && kClass.isSubclassOf(parentClass)) {
-                                    subclasses.add(kClass)
+                                val loadedClass = classLoader.loadClass(className)
+                                if (parentClass.isAssignableFrom(loadedClass) && loadedClass != parentClass) {
+                                    subclasses.add(loadedClass)
                                 }
-
                             } catch (e: Exception) {
                                 // Skip classes that can't be loaded or reflected
                             }
                         }
                 }
             }
-
             return subclasses
         }
 
-        /**
-         * Find subclasses with additional metadata using Kotlin reflection
-         */
-        fun findSubclassesWithMetadata(jarFilePath: Path, parentClass: KClass<*>): Set<ClassInfo> {
-            val jarFile = jarFilePath.toFile()
-            if (!jarFile.exists()) {
-                return emptySet()
-            }
-            val subclasses = mutableSetOf<ClassInfo>()
-            val jarUrl = jarFile.toURI().toURL()
-            URLClassLoader(
-                arrayOf(jarUrl),
-                Thread.currentThread().contextClassLoader
-            ).use { classLoader ->
-
-                JarFile(jarFile).use { jar ->
-                    jar.entries().asSequence()
-                        .filter { it.name.endsWith(".class") }
-                        .forEach { entry ->
-                            val className = entry.name
-                                .replace('/', '.')
-                                .removeSuffix(".class")
-
-                            try {
-                                val javaClass = classLoader.loadClass(className)
-                                val kClass = javaClass.kotlin
-
-                                if (kClass != parentClass && kClass.isSubclassOf(parentClass)) {
-                                    subclasses.add(
-                                        ClassInfo(
-                                            name = className,
-                                            qualifiedName = kClass.qualifiedName ?: className,
-                                            isAbstract = kClass.isAbstract,
-                                            isData = kClass.isData,
-                                            isSealed = kClass.isSealed,
-                                            isInner = kClass.isInner,
-                                            isCompanion = kClass.isCompanion
-                                        )
-                                    )
-                                }
-
-                            } catch (e: Exception) {
-                                // Skip classes that can't be loaded or reflected
-                            }
-                        }
-                }
-            }
-
-            return subclasses
-        }
     }
 }
 
 fun main() {
     val jarName =
         "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
- //   test1(jarName)
- //   test2(jarName, "work.Ch7Example7Kt")
+    //   test1(jarName)
+    //   test2(jarName, "work.Ch7Example7Kt")
     test3(jarName, "work.Ch7Example7Kt", "main")
 }
 
@@ -690,6 +619,7 @@ fun test3(jarName: String, className: String, methodName: String) {
         println("Unexpected error: ${e.message}")
     }
 }
+
 //
 ///**
 // * Example usage
