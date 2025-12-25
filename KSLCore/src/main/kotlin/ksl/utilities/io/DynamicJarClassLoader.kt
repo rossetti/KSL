@@ -14,8 +14,25 @@ import java.net.URL
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.jar.JarFile
+import kotlin.reflect.jvm.isAccessible
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.sequences.forEach
+import kotlin.reflect.KProperty0
+import kotlin.use
+
+val KProperty0<*>.isLazyInitialized: Boolean
+    get() {
+        // Prevent IllegalAccessException from JVM access check
+        isAccessible = true
+        return (getDelegate() as Lazy<*>).isInitialized()
+    }
+/**
+ * Returns the value of the given lazy property if initialized, null
+ * otherwise.
+ */
+val <T> KProperty0<T>.orNull: T?
+    get() = if (isLazyInitialized) get() else null
+
 
 /**
  * Utility for dynamically loading and instantiating classes from JAR files
@@ -106,11 +123,7 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         }
     }
 
-    fun findSubClasses(superClassName: String): List<Class<*>> {
-        if (!classNames.contains(superClassName)) {
-            return emptyList()
-        }
-        val superClass = classLoader.loadClass(superClassName)
+    fun findSubClasses(superClass: Class<*>): List<Class<*>> {
         val subclasses = mutableListOf<Class<*>>()
         for (name in classNames) {
             val loadedClass = classLoader.loadClass(name)
@@ -158,10 +171,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         }
         val functions = mutableListOf<KFunction<*>>()
         for (method in loadedClass.declaredMethods) {
+     //       println("method: $method")
             val modifiers = method.modifiers
             if (Modifier.isStatic(modifiers)) {
                 val cf = method.kotlinFunction
-                if (cf != null) {
+                if ((cf != null)){
                     functions.add(cf)
                 }
             }
@@ -324,7 +338,9 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      * Close the class loader
      */
     override fun close() {
-        if (!(::classLoader.getDelegate() as Lazy<*>).isInitialized()) {
+        //TODO something wrong with this
+//        val delegateInstance = ::classLoader.getDelegate()
+        if (!(::classLoader.isLazyInitialized)) {
             return
         }
         classLoader.close()
@@ -539,7 +555,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
 }
 
 fun main() {
-//    // val jarName = "/Users/rossetti/Documents/GitHub/KSLTestModel/build/libs/KSLTestModel.jar"
+    val jarName =
+        "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
+ //   test1(jarName)
+ //   test2(jarName, "work.Ch7Example7Kt")
+    test3(jarName, "work.Ch7Example7Kt", "main")
+}
+
+fun test0() {
+    //    // val jarName = "/Users/rossetti/Documents/GitHub/KSLTestModel/build/libs/KSLTestModel.jar"
     val jarName =
         "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
 //    test1(jarName)
@@ -588,16 +612,48 @@ fun test1(jarName: String) {
     println("=== Test 1 ===")
     try {
         val jarPath = Paths.get(jarName)
-        val names = DynamicJarClassLoader.classNamesInJarFile(jarPath)
+        val loader = DynamicJarClassLoader(jarPath)
         println("Class names:")
-        for (name in names) {
+        for (name in loader.classNames) {
             println(name)
         }
         println()
-        val names2 = DynamicJarClassLoader.findSubclasses(jarPath, ModelElement::class)
-        println("Class names:")
-        for (name in names2) {
-            println(name)
+        val subClasses = loader.findSubClasses(ModelElement::class.java)
+        println("Subclasses of : ksl.simulation.ModelElement")
+        for (subClass in subClasses) {
+            println(subClass.name)
+        }
+        loader.close()
+    } catch (e: IllegalArgumentException) {
+        println("Configuration error: ${e.message}")
+    } catch (e: ClassNotFoundException) {
+        println("Class not found in JAR: ${e.message}")
+    } catch (e: NoClassDefFoundError) {
+        println("Missing dependency class: ${e.message}")
+    } catch (e: SecurityException) {
+        println("Security restriction: ${e.message}")
+    } catch (e: Exception) {
+        println("Unexpected error: ${e.message}")
+    }
+}
+
+fun test2(jarName: String, className: String) {
+    println("=== Test 2 ===")
+    try {
+        DynamicJarClassLoader(jarName).use { loader ->
+            val loadedClass = loader.loadClass(className)
+            println("Loaded class:${loadedClass.name}")
+            println("Constructors:")
+            val constructors = loader.publicConstructors(loadedClass)
+            constructors.forEach { println(it) }
+            println()
+            println("Static Methods:")
+            val staticMethods = loader.declaredStaticFunctions(loadedClass)
+            staticMethods.forEach { println(it) }
+            println()
+            println("Non-Static Methods")
+            val nonStaticMethods = loader.declaredNonStaticFunctions(loadedClass)
+            nonStaticMethods.forEach { println(it) }
         }
     } catch (e: IllegalArgumentException) {
         println("Configuration error: ${e.message}")
@@ -612,30 +668,28 @@ fun test1(jarName: String) {
     }
 }
 
-//fun test2(jarName: String) {
-//    println("=== Test 2 ===")
-//    try {
-//        DynamicJarClassLoader(jarName).use { loader ->
-//            val testInstance = loader.createInstance<Any>("work.Ch7Example7Kt")
-//
-////            val functions = loader.getFunctions("work.Ch7Example7Kt")
-////            for(function in functions){
-////                println(function)
-////            }
-//            //loader.callFunction(testInstance, "main")
-//        }
-//    } catch (e: IllegalArgumentException) {
-//        println("Configuration error: ${e.message}")
-//    } catch (e: ClassNotFoundException) {
-//        println("Class not found in JAR: ${e.message}")
-//    } catch (e: NoClassDefFoundError) {
-//        println("Missing dependency class: ${e.message}")
-//    } catch (e: SecurityException) {
-//        println("Security restriction: ${e.message}")
-//    } catch (e: Exception) {
-//        println("Unexpected error: ${e.message}")
-//    }
-//}
+fun test3(jarName: String, className: String, methodName: String) {
+    println("=== Test 3 ===")
+    try {
+        DynamicJarClassLoader(jarName).use { loader ->
+            val loadedClass = loader.loadClass(className)
+            println("Loaded class:${loadedClass.name}")
+            println("Running function: $methodName:")
+            val function = loader.declaredStaticFunction(loadedClass, methodName)
+            function?.call()
+        }
+    } catch (e: IllegalArgumentException) {
+        println("Configuration error: ${e.message}")
+    } catch (e: ClassNotFoundException) {
+        println("Class not found in JAR: ${e.message}")
+    } catch (e: NoClassDefFoundError) {
+        println("Missing dependency class: ${e.message}")
+    } catch (e: SecurityException) {
+        println("Security restriction: ${e.message}")
+    } catch (e: Exception) {
+        println("Unexpected error: ${e.message}")
+    }
+}
 //
 ///**
 // * Example usage
