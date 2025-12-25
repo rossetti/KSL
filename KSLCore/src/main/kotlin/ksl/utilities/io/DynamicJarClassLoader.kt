@@ -9,10 +9,12 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.*
 import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Modifier
 import java.net.URL
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.jar.JarFile
+import kotlin.reflect.jvm.kotlinFunction
 import kotlin.sequences.forEach
 
 /**
@@ -74,11 +76,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
             appendLine("DynamicJarClassLoader:")
             appendLine("Paths to JAR Files:")
             val paths = getLoadedJarPaths()
-            for(path in paths){
+            for (path in paths) {
                 appendLine(path)
             }
             appendLine("Classes in JAR Files:")
-            for(name in classNames){
+            for (name in classNames) {
                 appendLine(name)
             }
         }
@@ -96,12 +98,95 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      * Load a class by its fully qualified name
      */
     fun loadClass(className: String): Class<*> {
-        require(classNames.contains(className)) {"The class named $className is not a class than can be loaded."}
+        require(classNames.contains(className)) { "The class named $className is not a class than can be loaded." }
         return try {
             classLoader.loadClass(className)
         } catch (e: ClassNotFoundException) {
             throw IllegalArgumentException("Class not found: $className", e)
         }
+    }
+
+    fun findSubClasses(superClassName: String): List<Class<*>> {
+        if (!classNames.contains(superClassName)) {
+            return emptyList()
+        }
+        val superClass = classLoader.loadClass(superClassName)
+        val subclasses = mutableListOf<Class<*>>()
+        for (name in classNames) {
+            val loadedClass = classLoader.loadClass(name)
+            // Check if it is a subclass (assignable from) the target class
+            if (superClass.isAssignableFrom(loadedClass) && loadedClass != superClass) {
+                subclasses.add(loadedClass)
+            }
+        }
+        return subclasses
+    }
+
+    fun publicConstructors(className: String): List<KFunction<Any>> {
+        if (!classNames.contains(className)) {
+            return emptyList()
+        }
+        val constructors = mutableListOf<KFunction<Any>>()
+        val loadedClass = classLoader.loadClass(className)
+        for (constructor in loadedClass.constructors) {
+            val cf = constructor.kotlinFunction
+            if (cf != null) {
+                constructors.add(cf)
+            }
+        }
+        return constructors
+    }
+
+    fun declaredStaticFunctions(className: String): List<KFunction<*>> {
+        if (!classNames.contains(className)) {
+            return emptyList()
+        }
+        val functions = mutableListOf<KFunction<*>>()
+        val loadedClass = classLoader.loadClass(className)
+        for (method in loadedClass.declaredMethods) {
+            val modifiers = method.modifiers
+            if (Modifier.isStatic(modifiers)) {
+                val cf = method.kotlinFunction
+                if (cf != null) {
+                    functions.add(cf)
+                }
+            }
+        }
+        return functions
+    }
+
+    fun declaredStaticFunction(className: String, functionName: String): KFunction<*>? {
+        val functions = declaredStaticFunctions(className)
+        if (functions.isEmpty()) {
+            return null
+        }
+        return functions.find { it.name == functionName }
+    }
+
+    fun declaredNonStaticFunctions(className: String): List<KFunction<*>> {
+        if (!classNames.contains(className)) {
+            return emptyList()
+        }
+        val functions = mutableListOf<KFunction<*>>()
+        val loadedClass = classLoader.loadClass(className)
+        for (method in loadedClass.declaredMethods) {
+            val modifiers = method.modifiers
+            if (!Modifier.isStatic(modifiers)) {
+                val cf = method.kotlinFunction
+                if (cf != null) {
+                    functions.add(cf)
+                }
+            }
+        }
+        return functions
+    }
+
+    fun declaredNonStaticFunction(className: String, functionName: String): KFunction<*>? {
+        val functions = declaredNonStaticFunctions(className)
+        if (functions.isEmpty()) {
+            return null
+        }
+        return functions.find { it.name == functionName }
     }
 
     /**
@@ -202,7 +287,7 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      * Close the class loader
      */
     override fun close() {
-        if (!(::classLoader.getDelegate() as Lazy<*>).isInitialized()){
+        if (!(::classLoader.getDelegate() as Lazy<*>).isInitialized()) {
             return
         }
         classLoader.close()
@@ -417,39 +502,65 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
 }
 
 fun main() {
-    // val jarName = "/Users/rossetti/Documents/GitHub/KSLTestModel/build/libs/KSLTestModel.jar"
+//    // val jarName = "/Users/rossetti/Documents/GitHub/KSLTestModel/build/libs/KSLTestModel.jar"
     val jarName =
         "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
-    val jarPath = Paths.get(jarName)
-    val names = DynamicJarClassLoader.classNamesInJarFile(jarPath)
-    println("Class names:")
-    for (name in names) {
-        println(name)
-    }
+//    test1(jarName)
+    // test2(jarName)
+
     println()
-    val names2 = DynamicJarClassLoader.findSubclasses(jarPath, ModelElement::class)
-    println("Class names:")
-    for (name in names2) {
-        println(name)
-    }
+//    println("Try DynamicJarClassLoader")
+//    val jar2 = "build/libs/KSLTestModel-all.jar"
+    //   val loader = DynamicJarClassLoader(jar2)
+    //   KSL.out.println(loader)
 
     println()
     println("Try DynamicJarClassLoader")
     val loader = DynamicJarClassLoader(jarName)
     println(loader)
-    //test1(jarName)
-    test2(jarName)
+    println()
+    val clazz = loader.loadClass("work.Ch7Example7Kt")
+    println("Constructors:")
+    clazz.constructors.forEach {
+        println(it)
+    }
+    println("Methods")
+    clazz.methods.forEach { println(it) }
+    // klass.members.forEach {println(it)}
+    println("Declared Methods")
+    //clazz.declaredMethods.forEach { println(it) }
+    for (method in clazz.declaredMethods) {
+        println("java: $method")
+        val kFunction = method.kotlinFunction
+        println("kFunction: ${kFunction?.name}")
+//        if (kFunction != null && kFunction.name == "main") {
+//            kFunction.call()
+//        }
+    }
+    val klass = clazz.kotlin
+    println("Declared Functions:")
+    klass.declaredFunctions.forEach { println(it) }
+    println("Static Functions:")
+    klass.staticFunctions.forEach { println(it) }
+    //  klass.declaredMemberFunctions.forEach { println(it) }
+
+    //   KSL.out.println(loader)
 }
 
 fun test1(jarName: String) {
     println("=== Test 1 ===")
     try {
-        DynamicJarClassLoader(jarName).use { loader ->
-            val names = loader.classNames
-            println("Class names:")
-            for (name in names) {
-                println(name)
-            }
+        val jarPath = Paths.get(jarName)
+        val names = DynamicJarClassLoader.classNamesInJarFile(jarPath)
+        println("Class names:")
+        for (name in names) {
+            println(name)
+        }
+        println()
+        val names2 = DynamicJarClassLoader.findSubclasses(jarPath, ModelElement::class)
+        println("Class names:")
+        for (name in names2) {
+            println(name)
         }
     } catch (e: IllegalArgumentException) {
         println("Configuration error: ${e.message}")
@@ -468,12 +579,12 @@ fun test2(jarName: String) {
     println("=== Test 2 ===")
     try {
         DynamicJarClassLoader(jarName).use { loader ->
-           // val testInstance: Any = loader.createInstance("work.TestKSLKt")
+            val testInstance = loader.createInstance<Any>("work.Ch7Example7Kt")
 
-            val functions = loader.getFunctions("work.Ch7Example7Kt")
-            for(function in functions){
-                println(function)
-            }
+//            val functions = loader.getFunctions("work.Ch7Example7Kt")
+//            for(function in functions){
+//                println(function)
+//            }
             //loader.callFunction(testInstance, "main")
         }
     } catch (e: IllegalArgumentException) {
