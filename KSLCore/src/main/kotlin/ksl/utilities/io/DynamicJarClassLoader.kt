@@ -122,12 +122,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return subclasses
     }
 
-    fun publicConstructors(className: String): List<KFunction<Any>> {
-        if (!classNames.contains(className)) {
+    fun publicConstructors(loadedClass: Class<*>): List<KFunction<*>> {
+        if (!classNames.contains(loadedClass.name)) {
             return emptyList()
         }
-        val constructors = mutableListOf<KFunction<Any>>()
-        val loadedClass = classLoader.loadClass(className)
+        val constructors = mutableListOf<KFunction<*>>()
         for (constructor in loadedClass.constructors) {
             val cf = constructor.kotlinFunction
             if (cf != null) {
@@ -137,12 +136,27 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return constructors
     }
 
+    fun publicConstructors(className: String): List<KFunction<*>> {
+        if (!classNames.contains(className)) {
+            return emptyList()
+        }
+        val loadedClass = classLoader.loadClass(className)
+        return publicConstructors(loadedClass)
+    }
+
     fun declaredStaticFunctions(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
         }
-        val functions = mutableListOf<KFunction<*>>()
         val loadedClass = classLoader.loadClass(className)
+        return declaredStaticFunctions(loadedClass)
+    }
+
+    fun declaredStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
+        if (!classNames.contains(loadedClass.name)) {
+            return emptyList()
+        }
+        val functions = mutableListOf<KFunction<*>>()
         for (method in loadedClass.declaredMethods) {
             val modifiers = method.modifiers
             if (Modifier.isStatic(modifiers)) {
@@ -156,7 +170,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     }
 
     fun declaredStaticFunction(className: String, functionName: String): KFunction<*>? {
-        val functions = declaredStaticFunctions(className)
+        if (!classNames.contains(className)) {
+            return null
+        }
+        val loadedClass = classLoader.loadClass(className)
+        return declaredStaticFunction(loadedClass, functionName)
+    }
+
+    fun declaredStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
+        val functions = declaredStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
             return null
         }
@@ -167,8 +189,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         if (!classNames.contains(className)) {
             return emptyList()
         }
-        val functions = mutableListOf<KFunction<*>>()
         val loadedClass = classLoader.loadClass(className)
+        return declaredNonStaticFunctions(loadedClass)
+    }
+
+    fun declaredNonStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
+        if (!classNames.contains(loadedClass.name)) {
+            return emptyList()
+        }
+        val functions = mutableListOf<KFunction<*>>()
         for (method in loadedClass.declaredMethods) {
             val modifiers = method.modifiers
             if (!Modifier.isStatic(modifiers)) {
@@ -182,95 +211,103 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     }
 
     fun declaredNonStaticFunction(className: String, functionName: String): KFunction<*>? {
-        val functions = declaredNonStaticFunctions(className)
+        if (!classNames.contains(className)) {
+            return null
+        }
+        val loadedClass = classLoader.loadClass(className)
+        return declaredNonStaticFunction(loadedClass, functionName)
+    }
+
+    fun declaredNonStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
+        val functions = declaredNonStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
             return null
         }
         return functions.find { it.name == functionName }
     }
 
-    /**
-     * Load a class and return it as a Kotlin KClass for reflection
-     */
-    fun loadKClass(className: String): KClass<*> {
-        return loadClass(className).kotlin
-    }
+//    /**
+//     * Load a class and return it as a Kotlin KClass for reflection
+//     */
+//    fun loadKClass(className: String): KClass<*> {
+//        return loadClass(className).kotlin
+//    }
 
-    /**
-     * Create an instance using the no-argument constructor
-     */
-    fun <T : Any> createInstance(className: String): T {
-        val kClass = loadKClass(className)
-        val noArgConstructor = kClass.constructors.find { it.parameters.isEmpty() }
-            ?: throw IllegalArgumentException("No no-arg constructor found for $className")
-
-        @Suppress("UNCHECKED_CAST")
-        return noArgConstructor.call() as T
-    }
-
-    /**
-     * Create an instance using a constructor with parameters
-     */
-    fun <T : Any> createInstance(className: String, vararg args: Any?): T {
-        val kClass = loadKClass(className)
-        val constructor = findMatchingConstructor(kClass, args)
-            ?: throw IllegalArgumentException(
-                "No matching constructor found for $className with ${args.size} arguments"
-            )
-
-        @Suppress("UNCHECKED_CAST")
-        return constructor.call(*args) as T
-    }
-
-    /**
-     * Find a constructor that matches the provided arguments
-     */
-    private fun findMatchingConstructor(kClass: KClass<*>, args: Array<out Any?>): KFunction<Any>? {
-        return kClass.constructors.find { constructor ->
-            val params = constructor.parameters
-            if (params.size != args.size) return@find false
-
-            params.zip(args).all { (param, arg) ->
-                arg == null || param.type.classifier?.let { classifier ->
-                    (classifier as? KClass<*>)?.javaObjectType?.isInstance(arg) ?: false
-                } ?: false
-            }
-        }
-    }
-
-    /**
-     * Get all constructors for a class
-     */
-    fun getConstructors(className: String): List<KFunction<Any>> {
-        val kClass = loadKClass(className)
-        return kClass.constructors.toList()
-    }
-
-    /**
-     * Get information about a constructor
-     */
-    fun getConstructorInfo(constructor: KFunction<*>): String {
-        val params = constructor.parameters.joinToString(", ") { param ->
-            "${param.name}: ${param.type}"
-        }
-        return "Constructor($params)"
-    }
-
-    /**
-     * Get all public functions of a loaded class
-     */
-    fun getFunctions(className: String): List<KFunction<*>> {
-        val kClass = loadKClass(className)
-        return kClass.functions.filter { it.visibility == kotlin.reflect.KVisibility.PUBLIC }
-    }
-
-    /**
-     * Get all properties of a loaded class
-     */
-    fun getProperties(className: String): List<String> {
-        val kClass = loadKClass(className)
-        return kClass.memberProperties.map { "${it.name}: ${it.returnType}" }
-    }
+//    /**
+//     * Create an instance using the no-argument constructor
+//     */
+//    fun <T : Any> createInstance(className: String): T {
+//        val kClass = loadKClass(className)
+//        val noArgConstructor = kClass.constructors.find { it.parameters.isEmpty() }
+//            ?: throw IllegalArgumentException("No no-arg constructor found for $className")
+//
+//        @Suppress("UNCHECKED_CAST")
+//        return noArgConstructor.call() as T
+//    }
+//
+//    /**
+//     * Create an instance using a constructor with parameters
+//     */
+//    fun <T : Any> createInstance(className: String, vararg args: Any?): T {
+//        val kClass = loadKClass(className)
+//        val constructor = findMatchingConstructor(kClass, args)
+//            ?: throw IllegalArgumentException(
+//                "No matching constructor found for $className with ${args.size} arguments"
+//            )
+//
+//        @Suppress("UNCHECKED_CAST")
+//        return constructor.call(*args) as T
+//    }
+//
+//    /**
+//     * Find a constructor that matches the provided arguments
+//     */
+//    private fun findMatchingConstructor(kClass: KClass<*>, args: Array<out Any?>): KFunction<Any>? {
+//        return kClass.constructors.find { constructor ->
+//            val params = constructor.parameters
+//            if (params.size != args.size) return@find false
+//
+//            params.zip(args).all { (param, arg) ->
+//                arg == null || param.type.classifier?.let { classifier ->
+//                    (classifier as? KClass<*>)?.javaObjectType?.isInstance(arg) ?: false
+//                } ?: false
+//            }
+//        }
+//    }
+//
+//    /**
+//     * Get all constructors for a class
+//     */
+//    fun getConstructors(className: String): List<KFunction<Any>> {
+//        val kClass = loadKClass(className)
+//        return kClass.constructors.toList()
+//    }
+//
+//    /**
+//     * Get information about a constructor
+//     */
+//    fun getConstructorInfo(constructor: KFunction<*>): String {
+//        val params = constructor.parameters.joinToString(", ") { param ->
+//            "${param.name}: ${param.type}"
+//        }
+//        return "Constructor($params)"
+//    }
+//
+//    /**
+//     * Get all public functions of a loaded class
+//     */
+//    fun getFunctions(className: String): List<KFunction<*>> {
+//        val kClass = loadKClass(className)
+//        return kClass.functions.filter { it.visibility == kotlin.reflect.KVisibility.PUBLIC }
+//    }
+//
+//    /**
+//     * Get all properties of a loaded class
+//     */
+//    fun getProperties(className: String): List<String> {
+//        val kClass = loadKClass(className)
+//        return kClass.memberProperties.map { "${it.name}: ${it.returnType}" }
+//    }
 
     /**
      * Call a function on an instance
@@ -575,161 +612,161 @@ fun test1(jarName: String) {
     }
 }
 
-fun test2(jarName: String) {
-    println("=== Test 2 ===")
-    try {
-        DynamicJarClassLoader(jarName).use { loader ->
-            val testInstance = loader.createInstance<Any>("work.Ch7Example7Kt")
-
-//            val functions = loader.getFunctions("work.Ch7Example7Kt")
-//            for(function in functions){
-//                println(function)
-//            }
-            //loader.callFunction(testInstance, "main")
-        }
-    } catch (e: IllegalArgumentException) {
-        println("Configuration error: ${e.message}")
-    } catch (e: ClassNotFoundException) {
-        println("Class not found in JAR: ${e.message}")
-    } catch (e: NoClassDefFoundError) {
-        println("Missing dependency class: ${e.message}")
-    } catch (e: SecurityException) {
-        println("Security restriction: ${e.message}")
-    } catch (e: Exception) {
-        println("Unexpected error: ${e.message}")
-    }
-}
-
-/**
- * Example usage
- */
-fun testExamples() {
-    // Example 1: Single JAR file
-    println("=== Example 1: Single JAR File ===")
-    try {
-        DynamicJarClassLoader("example.jar").use { loader ->
-            val instance: Any = loader.createInstance("com.example.MyClass")
-            println("Created instance: $instance")
-
-            val constructors = loader.getConstructors("com.example.MyClass")
-            println("\nAvailable constructors:")
-            constructors.forEach { println("  ${loader.getConstructorInfo(it)}") }
-        }
-    } catch (e: IllegalArgumentException) {
-        println("Configuration error: ${e.message}")
-    } catch (e: ClassNotFoundException) {
-        println("Class not found in JAR: ${e.message}")
-    } catch (e: NoClassDefFoundError) {
-        println("Missing dependency class: ${e.message}")
-    } catch (e: SecurityException) {
-        println("Security restriction: ${e.message}")
-    } catch (e: Exception) {
-        println("Unexpected error: ${e.message}")
-    }
-
-    // Example 2: Multiple JAR files using List
-    println("\n=== Example 2: Multiple JAR Files (List) ===")
-    try {
-        val jarFileStrings = listOf("library1.jar", "library2.jar", "app.jar")
-        val jarFiles = jarFileStrings.map { Paths.get(it) }
-        DynamicJarClassLoader(jarFiles).use { loader ->
-            // Can load classes from any of the JARs
-            val instance1: Any = loader.createInstance("com.library1.Utility")
-            val instance2: Any = loader.createInstance("com.library2.Helper")
-            val instance3: Any = loader.createInstance("com.app.MainClass")
-
-            println("Loaded classes from multiple JARs:")
-            println("  Instance 1: $instance1")
-            println("  Instance 2: $instance2")
-            println("  Instance 3: $instance3")
-        }
-    } catch (e: IllegalArgumentException) {
-        println("Configuration error: ${e.message}")
-        println("Check that all JAR file paths are valid")
-    } catch (e: ClassNotFoundException) {
-        println("Class not found: ${e.message}")
-        println("Verify the class name and that it exists in one of the JARs")
-    } catch (e: NoClassDefFoundError) {
-        println("Dependency missing: ${e.message}")
-        println("Ensure all required dependency JARs are included")
-    } catch (e: InstantiationException) {
-        println("Cannot instantiate: ${e.message}")
-        println("The class may be abstract or an interface")
-    } catch (e: IllegalAccessException) {
-        println("Access denied: ${e.message}")
-        println("The constructor may be private or protected")
-    } catch (e: SecurityException) {
-        println("Security restriction: ${e.message}")
-    } catch (e: Exception) {
-        println("Unexpected error: ${e.message}")
-        e.printStackTrace()
-    }
-
-    // Example 3: Multiple JAR files using vararg
-    println("\n=== Example 3: Multiple JAR Files (Vararg) ===")
-    try {
-        DynamicJarClassLoader("core.jar", "plugins.jar", "extensions.jar").use { loader ->
-            val instance: Any = loader.createInstance(
-                "com.example.Person",
-                "John Doe",
-                30
-            )
-            println("Created instance: $instance")
-
-            val result = loader.callFunction(instance, "greet")
-            println("Function result: $result")
-        }
-    } catch (e: IllegalArgumentException) {
-        println("Invalid argument: ${e.message}")
-    } catch (e: ClassNotFoundException) {
-        println("Class not found: ${e.message}")
-    } catch (e: NoSuchMethodException) {
-        println("Method not found: ${e.message}")
-        println("Check that the method name and parameters are correct")
-    } catch (e: InvocationTargetException) {
-        println("Method threw an exception: ${e.targetException.message}")
-        e.targetException.printStackTrace()
-    } catch (e: NoClassDefFoundError) {
-        println("Missing dependency: ${e.message}")
-    } catch (e: Exception) {
-        println("Unexpected error: ${e.message}")
-    }
-
-    // Example 5: Loading classes with dependencies across JARs
-    println("\n=== Example 5: Classes with Cross-JAR Dependencies ===")
-    try {
-        // Load both the main JAR and its dependency JAR
-        DynamicJarClassLoader("dependency.jar", "main.jar").use { loader ->
-            // MainClass from main.jar uses classes from dependency.jar
-            val instance: Any = loader.createInstance("com.main.MainClass")
-            println("Created instance with cross-JAR dependencies: $instance")
-
-            val result = loader.callFunction(instance, "processWithDependency")
-            println("Result: $result")
-        }
-    } catch (e: IllegalArgumentException) {
-        println("Configuration error: ${e.message}")
-        println("Ensure all JAR files are specified and exist")
-    } catch (e: ClassNotFoundException) {
-        println("Class not found: ${e.message}")
-        println("The class may not exist in any of the loaded JARs")
-    } catch (e: NoClassDefFoundError) {
-        println("Dependency resolution failed: ${e.message}")
-        println("A required dependency class is missing. Common causes:")
-        println("  - Dependency JAR not included in the loader")
-        println("  - Wrong order of JARs (load dependencies first)")
-        println("  - Version mismatch between JARs")
-    } catch (e: LinkageError) {
-        println("Class linking error: ${e.message}")
-        println("This may indicate incompatible class versions or duplicate classes")
-    } catch (e: InvocationTargetException) {
-        println("Method execution failed: ${e.targetException.message}")
-        println("The called method threw an exception:")
-        e.targetException.printStackTrace()
-    } catch (e: SecurityException) {
-        println("Security restriction: ${e.message}")
-    } catch (e: Exception) {
-        println("Unexpected error: ${e.message}")
-        e.printStackTrace()
-    }
-}
+//fun test2(jarName: String) {
+//    println("=== Test 2 ===")
+//    try {
+//        DynamicJarClassLoader(jarName).use { loader ->
+//            val testInstance = loader.createInstance<Any>("work.Ch7Example7Kt")
+//
+////            val functions = loader.getFunctions("work.Ch7Example7Kt")
+////            for(function in functions){
+////                println(function)
+////            }
+//            //loader.callFunction(testInstance, "main")
+//        }
+//    } catch (e: IllegalArgumentException) {
+//        println("Configuration error: ${e.message}")
+//    } catch (e: ClassNotFoundException) {
+//        println("Class not found in JAR: ${e.message}")
+//    } catch (e: NoClassDefFoundError) {
+//        println("Missing dependency class: ${e.message}")
+//    } catch (e: SecurityException) {
+//        println("Security restriction: ${e.message}")
+//    } catch (e: Exception) {
+//        println("Unexpected error: ${e.message}")
+//    }
+//}
+//
+///**
+// * Example usage
+// */
+//fun testExamples() {
+//    // Example 1: Single JAR file
+//    println("=== Example 1: Single JAR File ===")
+//    try {
+//        DynamicJarClassLoader("example.jar").use { loader ->
+//            val instance: Any = loader.createInstance("com.example.MyClass")
+//            println("Created instance: $instance")
+//
+//            val constructors = loader.getConstructors("com.example.MyClass")
+//            println("\nAvailable constructors:")
+//            constructors.forEach { println("  ${loader.getConstructorInfo(it)}") }
+//        }
+//    } catch (e: IllegalArgumentException) {
+//        println("Configuration error: ${e.message}")
+//    } catch (e: ClassNotFoundException) {
+//        println("Class not found in JAR: ${e.message}")
+//    } catch (e: NoClassDefFoundError) {
+//        println("Missing dependency class: ${e.message}")
+//    } catch (e: SecurityException) {
+//        println("Security restriction: ${e.message}")
+//    } catch (e: Exception) {
+//        println("Unexpected error: ${e.message}")
+//    }
+//
+//    // Example 2: Multiple JAR files using List
+//    println("\n=== Example 2: Multiple JAR Files (List) ===")
+//    try {
+//        val jarFileStrings = listOf("library1.jar", "library2.jar", "app.jar")
+//        val jarFiles = jarFileStrings.map { Paths.get(it) }
+//        DynamicJarClassLoader(jarFiles).use { loader ->
+//            // Can load classes from any of the JARs
+//            val instance1: Any = loader.createInstance("com.library1.Utility")
+//            val instance2: Any = loader.createInstance("com.library2.Helper")
+//            val instance3: Any = loader.createInstance("com.app.MainClass")
+//
+//            println("Loaded classes from multiple JARs:")
+//            println("  Instance 1: $instance1")
+//            println("  Instance 2: $instance2")
+//            println("  Instance 3: $instance3")
+//        }
+//    } catch (e: IllegalArgumentException) {
+//        println("Configuration error: ${e.message}")
+//        println("Check that all JAR file paths are valid")
+//    } catch (e: ClassNotFoundException) {
+//        println("Class not found: ${e.message}")
+//        println("Verify the class name and that it exists in one of the JARs")
+//    } catch (e: NoClassDefFoundError) {
+//        println("Dependency missing: ${e.message}")
+//        println("Ensure all required dependency JARs are included")
+//    } catch (e: InstantiationException) {
+//        println("Cannot instantiate: ${e.message}")
+//        println("The class may be abstract or an interface")
+//    } catch (e: IllegalAccessException) {
+//        println("Access denied: ${e.message}")
+//        println("The constructor may be private or protected")
+//    } catch (e: SecurityException) {
+//        println("Security restriction: ${e.message}")
+//    } catch (e: Exception) {
+//        println("Unexpected error: ${e.message}")
+//        e.printStackTrace()
+//    }
+//
+//    // Example 3: Multiple JAR files using vararg
+//    println("\n=== Example 3: Multiple JAR Files (Vararg) ===")
+//    try {
+//        DynamicJarClassLoader("core.jar", "plugins.jar", "extensions.jar").use { loader ->
+//            val instance: Any = loader.createInstance(
+//                "com.example.Person",
+//                "John Doe",
+//                30
+//            )
+//            println("Created instance: $instance")
+//
+//            val result = loader.callFunction(instance, "greet")
+//            println("Function result: $result")
+//        }
+//    } catch (e: IllegalArgumentException) {
+//        println("Invalid argument: ${e.message}")
+//    } catch (e: ClassNotFoundException) {
+//        println("Class not found: ${e.message}")
+//    } catch (e: NoSuchMethodException) {
+//        println("Method not found: ${e.message}")
+//        println("Check that the method name and parameters are correct")
+//    } catch (e: InvocationTargetException) {
+//        println("Method threw an exception: ${e.targetException.message}")
+//        e.targetException.printStackTrace()
+//    } catch (e: NoClassDefFoundError) {
+//        println("Missing dependency: ${e.message}")
+//    } catch (e: Exception) {
+//        println("Unexpected error: ${e.message}")
+//    }
+//
+//    // Example 5: Loading classes with dependencies across JARs
+//    println("\n=== Example 5: Classes with Cross-JAR Dependencies ===")
+//    try {
+//        // Load both the main JAR and its dependency JAR
+//        DynamicJarClassLoader("dependency.jar", "main.jar").use { loader ->
+//            // MainClass from main.jar uses classes from dependency.jar
+//            val instance: Any = loader.createInstance("com.main.MainClass")
+//            println("Created instance with cross-JAR dependencies: $instance")
+//
+//            val result = loader.callFunction(instance, "processWithDependency")
+//            println("Result: $result")
+//        }
+//    } catch (e: IllegalArgumentException) {
+//        println("Configuration error: ${e.message}")
+//        println("Ensure all JAR files are specified and exist")
+//    } catch (e: ClassNotFoundException) {
+//        println("Class not found: ${e.message}")
+//        println("The class may not exist in any of the loaded JARs")
+//    } catch (e: NoClassDefFoundError) {
+//        println("Dependency resolution failed: ${e.message}")
+//        println("A required dependency class is missing. Common causes:")
+//        println("  - Dependency JAR not included in the loader")
+//        println("  - Wrong order of JARs (load dependencies first)")
+//        println("  - Version mismatch between JARs")
+//    } catch (e: LinkageError) {
+//        println("Class linking error: ${e.message}")
+//        println("This may indicate incompatible class versions or duplicate classes")
+//    } catch (e: InvocationTargetException) {
+//        println("Method execution failed: ${e.targetException.message}")
+//        println("The called method threw an exception:")
+//        e.targetException.printStackTrace()
+//    } catch (e: SecurityException) {
+//        println("Security restriction: ${e.message}")
+//    } catch (e: Exception) {
+//        println("Unexpected error: ${e.message}")
+//        e.printStackTrace()
+//    }
+//}
