@@ -158,15 +158,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return publicConstructors(loadedClass)
     }
 
-    fun declaredStaticFunctions(className: String): List<KFunction<*>> {
+    fun declaredPublicStaticFunctions(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
         }
         val loadedClass = classLoader.loadClass(className)
-        return declaredStaticFunctions(loadedClass)
+        return declaredPublicStaticFunctions(loadedClass)
     }
 
-    fun declaredStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
+    fun declaredPublicStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
         if (!classNames.contains(loadedClass.name)) {
             return emptyList()
         }
@@ -184,38 +184,38 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions
     }
 
-    fun declaredStaticFunction(className: String, functionName: String): KFunction<*>? {
+    fun declaredPublicStaticFunction(className: String, functionName: String): KFunction<*>? {
         if (!classNames.contains(className)) {
             return null
         }
         val loadedClass = classLoader.loadClass(className)
-        return declaredStaticFunction(loadedClass, functionName)
+        return declaredPublicStaticFunction(loadedClass, functionName)
     }
 
-    fun declaredStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
-        val functions = declaredStaticFunctions(loadedClass)
+    fun declaredPublicStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
+        val functions = declaredPublicStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
             return null
         }
         return functions.find { it.name == functionName }
     }
 
-    fun declaredNonStaticFunctions(className: String): List<KFunction<*>> {
+    fun declaredPublicNonStaticFunctions(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
         }
         val loadedClass = classLoader.loadClass(className)
-        return declaredNonStaticFunctions(loadedClass)
+        return declaredPublicNonStaticFunctions(loadedClass)
     }
 
-    fun declaredNonStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
+    fun declaredPublicNonStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
         if (!classNames.contains(loadedClass.name)) {
             return emptyList()
         }
         val functions = mutableListOf<KFunction<*>>()
         for (method in loadedClass.declaredMethods) {
             val modifiers = method.modifiers
-            if (!Modifier.isStatic(modifiers)) {
+            if (Modifier.isPublic(modifiers) && !Modifier.isStatic(modifiers)) {
                 val cf = method.kotlinFunction
                 if (cf != null) {
                     functions.add(cf)
@@ -225,16 +225,16 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions
     }
 
-    fun declaredNonStaticFunction(className: String, functionName: String): KFunction<*>? {
+    fun declaredPublicNonStaticFunction(className: String, functionName: String): KFunction<*>? {
         if (!classNames.contains(className)) {
             return null
         }
         val loadedClass = classLoader.loadClass(className)
-        return declaredNonStaticFunction(loadedClass, functionName)
+        return declaredPublicNonStaticFunction(loadedClass, functionName)
     }
 
-    fun declaredNonStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
-        val functions = declaredNonStaticFunctions(loadedClass)
+    fun declaredPublicNonStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
+        val functions = declaredPublicNonStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
             return null
         }
@@ -324,23 +324,21 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
 //        return kClass.memberProperties.map { "${it.name}: ${it.returnType}" }
 //    }
 
-    /**
-     * Call a function on an instance
-     */
-    fun callFunction(instance: Any, functionName: String, vararg args: Any?): Any? {
-        val kClass = instance::class
-        val function = kClass.functions.find { it.name == functionName }
-            ?: throw IllegalArgumentException("Function $functionName not found")
-
-        return function.call(instance, *args)
-    }
+//    /**
+//     * Call a function on an instance
+//     */
+//    fun callFunction(instance: Any, functionName: String, vararg args: Any?): Any? {
+//        val kClass = instance::class
+//        val function = kClass.functions.find { it.name == functionName }
+//            ?: throw IllegalArgumentException("Function $functionName not found")
+//
+//        return function.call(instance, *args)
+//    }
 
     /**
      * Close the class loader
      */
     override fun close() {
-        //TODO something wrong with this
-//        val delegateInstance = ::classLoader.getDelegate()
         if (!(::classLoader.isLazyInitialized)) {
             return
         }
@@ -486,9 +484,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
 fun main() {
     val jarName =
         "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
-    //   test1(jarName)
+    test1(jarName)
     //   test2(jarName, "work.Ch7Example7Kt")
-    test3(jarName, "work.Ch7Example7Kt", "main")
+    test2(jarName, "work.StemFairMixerEnhanced")
+    //test3(jarName, "work.Ch7Example7Kt", "main")
+
 }
 
 fun test0() {
@@ -577,11 +577,11 @@ fun test2(jarName: String, className: String) {
             constructors.forEach { println(it) }
             println()
             println("Static Methods:")
-            val staticMethods = loader.declaredStaticFunctions(loadedClass)
+            val staticMethods = loader.declaredPublicStaticFunctions(loadedClass)
             staticMethods.forEach { println(it) }
             println()
             println("Non-Static Methods")
-            val nonStaticMethods = loader.declaredNonStaticFunctions(loadedClass)
+            val nonStaticMethods = loader.declaredPublicNonStaticFunctions(loadedClass)
             nonStaticMethods.forEach { println(it) }
         }
     } catch (e: IllegalArgumentException) {
@@ -604,7 +604,7 @@ fun test3(jarName: String, className: String, methodName: String) {
             val loadedClass = loader.loadClass(className)
             println("Loaded class:${loadedClass.name}")
             println("Running function: $methodName:")
-            val function = loader.declaredStaticFunction(loadedClass, methodName)
+            val function = loader.declaredPublicStaticFunction(loadedClass, methodName)
             function?.call()
         }
     } catch (e: IllegalArgumentException) {
