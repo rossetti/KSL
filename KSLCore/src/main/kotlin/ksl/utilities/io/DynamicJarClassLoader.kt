@@ -36,15 +36,38 @@ val <T> KProperty0<T>.orNull: T?
 
 
 /**
- * Utility for dynamically loading and instantiating classes from JAR files
+ * Utility for dynamically loading and instantiating classes from JAR files.
+ * The parent loader for the underlying loader will be the class loader that loaded
+ * this class. Class loading does not occur until the first call to load a class.
+ *
+ * If a JAR file does not exist on one of the paths then an IllegalArgumentException
+ * will occur. An IOException will occur if a referenced file is not a valid JAR file.
+ *
+ * This class should be referenced with the "use" functionality of Kotlin to ensure
+ * that the underlying loader mechanism is closed, or the close() function should be used.
+ *
+ * @param jarPaths a list of paths that reference valid JAR files. The list must not be empty.
  */
 class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
 
     /**
-     *  The class names found within the JAR files
+     *  The class names found within the JAR files.  These names are determined
+     *  directly from the JAR files. No loading of classes occurs to determine
+     *  the names.
      */
     val classNames: Set<String>
+
     private val urlArray: Array<URL>
+
+    /**
+     *  The list of URL representations for the JAR files
+     */
+    val urlList: List<URL>
+        get() = urlArray.toList()
+
+    /**
+     *  This is lazy instantiated when the first loaded class occurs.
+     */
     private val classLoader: URLClassLoader by lazy {
         URLClassLoader(urlArray, this.javaClass.classLoader)
     }
@@ -113,7 +136,11 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     }
 
     /**
-     * Load a class by its fully qualified name
+     * Load a class by its fully qualified name. The name must be a valid class name
+     * within the supporting JAR files.
+     *
+     * @param className the fully qualified name of the class.
+     * @return the java Class representation
      */
     fun loadClass(className: String): Class<*> {
         require(classNames.contains(className)) { "The class named $className is not a class than can be loaded." }
@@ -124,6 +151,12 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         }
     }
 
+    /**
+     *  @param superClass the java class representation of a class that should have subclasses
+     *  within the JAR files. This class does not need to have been loaded by this loader.
+     *  @return java class representations of any subclass of the supplied class that are found
+     *  within the JAR files
+     */
     fun findSubClasses(superClass: Class<*>): List<Class<*>> {
         val subclasses = mutableListOf<Class<*>>()
         for (name in classNames) {
@@ -136,6 +169,13 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return subclasses
     }
 
+    /**
+     *  Retrieves the public constructors of the supplied java class
+     *  @param loadedClass this class should have been loaded by this loader
+     *  via the loadClass() function
+     *  @return a list containing the KFunction representations of the public
+     *  constructors of the supplied class
+     */
     fun publicConstructors(loadedClass: Class<*>): List<KFunction<*>> {
         if (!classNames.contains(loadedClass.name)) {
             return emptyList()
@@ -150,6 +190,13 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return constructors
     }
 
+    /**
+     *  Retrieves the public constructors of the supplied class name.
+     *
+     *  @param className the fully qualified class name of a class within the JAR files
+     *  @return a list containing the KFunction representations of the public
+     *  constructors of the supplied class
+     */
     fun publicConstructors(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
@@ -158,6 +205,13 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return publicConstructors(loadedClass)
     }
 
+    /**
+     *  Retrieves the public static functions of the supplied class name.
+     *
+     *  @param className the fully qualified class name of a class within the JAR files
+     *  @return a list containing the KFunction representations of the public
+     *  static functions of the supplied class
+     */
     fun declaredPublicStaticFunctions(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
@@ -166,6 +220,14 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return declaredPublicStaticFunctions(loadedClass)
     }
 
+    /**
+     *  Retrieves the public static functions of the supplied class name.
+     *
+     *  @param loadedClass this class should have been loaded by this loader
+     *  via the loadClass() function
+     *  @return a list containing the KFunction representations of the public
+     *  static functions of the supplied class
+     */
     fun declaredPublicStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
         if (!classNames.contains(loadedClass.name)) {
             return emptyList()
@@ -184,6 +246,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions
     }
 
+    /**
+     *  Retrieves the public static function of the supplied class name based on the supplied
+     *  function name.
+     *
+     *  @param className the fully qualified class name of a class within the JAR files
+     *  @param functionName the name of the function to be retrieved
+     *  @return the KFunction representations of the public
+     *  static functions of the supplied class or null
+     */
     fun declaredPublicStaticFunction(className: String, functionName: String): KFunction<*>? {
         if (!classNames.contains(className)) {
             return null
@@ -192,6 +263,16 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return declaredPublicStaticFunction(loadedClass, functionName)
     }
 
+    /**
+     *  Retrieves the public static function of the supplied class name based on the supplied
+     *  function name.
+     *
+     *  @param loadedClass this class should have been loaded by this loader
+     *  via the loadClass() function
+     *  @param functionName the name of the function to be retrieved
+     *  @return the KFunction representations of the public
+     *  static functions of the supplied class or null
+     */
     fun declaredPublicStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
         val functions = declaredPublicStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
@@ -200,6 +281,13 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions.find { it.name == functionName }
     }
 
+    /**
+     *  Retrieves the public non-static (instance) functions of the supplied class.
+     *
+     *  @param className the fully qualified class name of a class within the JAR files
+     *  @return a list containing the KFunction representations of the public
+     *  instance functions of the supplied class
+     */
     fun declaredPublicNonStaticFunctions(className: String): List<KFunction<*>> {
         if (!classNames.contains(className)) {
             return emptyList()
@@ -208,6 +296,14 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return declaredPublicNonStaticFunctions(loadedClass)
     }
 
+    /**
+     *  Retrieves the public non-static (instance) functions of the supplied class.
+     *
+     *  @param loadedClass this class should have been loaded by this loader
+     *  via the loadClass() function
+     *  @return a list containing the KFunction representations of the public
+     *  instance functions of the supplied class
+     */
     fun declaredPublicNonStaticFunctions(loadedClass: Class<*>): List<KFunction<*>> {
         if (!classNames.contains(loadedClass.name)) {
             return emptyList()
@@ -225,6 +321,15 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions
     }
 
+    /**
+     *  Retrieves the public non-static (instance) function of the supplied class name based on the supplied
+     *  function name.
+     *
+     *  @param className the fully qualified class name of a class within the JAR files
+     *  @param functionName the name of the function to be retrieved
+     *  @return the KFunction representations of the public
+     *  instance functions of the supplied class or null
+     */
     fun declaredPublicNonStaticFunction(className: String, functionName: String): KFunction<*>? {
         if (!classNames.contains(className)) {
             return null
@@ -233,6 +338,16 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return declaredPublicNonStaticFunction(loadedClass, functionName)
     }
 
+    /**
+     *  Retrieves the public non-static (instance) function of the supplied class name based on the supplied
+     *  function name.
+     *
+     *  @param loadedClass this class should have been loaded by this loader
+     *  via the loadClass() function
+     *  @param functionName the name of the function to be retrieved
+     *  @return the KFunction representations of the public
+     *  instance functions of the supplied class or null
+     */
     fun declaredPublicNonStaticFunction(loadedClass: Class<*>, functionName: String): KFunction<*>? {
         val functions = declaredPublicNonStaticFunctions(loadedClass)
         if (functions.isEmpty()) {
@@ -242,10 +357,10 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     }
 
     /**
-     *  A Kotlin object declaration defines a (static) singleton object with the underlying synthetic
+     *  A Kotlin object declaration defines a (static) singleton object within the underlying synthetic
      *  class defined with a class name the same as the name of the object. This function returns
      *  the associated object reference as an Any reference or null.
-     *  
+     *
      *  @param singletonName the name of the object that was declared by object definition
      *  @return the reference to the object as an Any, null if not available
      */
