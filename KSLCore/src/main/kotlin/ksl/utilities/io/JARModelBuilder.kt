@@ -15,8 +15,10 @@ import java.nio.file.Paths
  *  ModelBuilderIfc. If not supplied, the JAR will be searched for the first class that implements the
  *  interface. If no classes are found that implement the interface, then an exception occurs.
  *
- *  Because of the underlying JAR files and class loading, it is important to close objects after using
- *  this class for model building.  Once closed it can no longer be used for building models.
+ *  Because of the underlying JAR files and class loading, it is important to not store long-lasting
+ *  references to the models built from the builder. This could have important memory issues because
+ *  of how java class loading operates. See this [article](https://java.jiderhamn.se/2012/01/01/classloader-leaks-ii-find-and-work-around-unwanted-references/).
+ *  for more information.
  *
  * @param jarPath the path to the JAR file. The file must be a JAR file and contain a class that implements
  * the ModelBuilderIfc interface.
@@ -25,12 +27,12 @@ import java.nio.file.Paths
 class JARModelBuilder(
     jarPath: Path,
     modelBuilderClassName: String? = null
-) : ModelBuilderIfc, AutoCloseable {
+) : ModelBuilderIfc {
 
-    private var myBuilder: ModelBuilderIfc? = null
-
-    val isBuildable: Boolean
-        get() = myBuilder != null
+    /**
+     *  Note that this reference is instantiated by a custom class loader related to the JAR file
+     */
+    private val myBuilder: ModelBuilderIfc
 
     init {
         val myLoader = DynamicJarClassLoader(jarPath)
@@ -59,10 +61,10 @@ class JARModelBuilder(
             // if not a singleton then try to create it from a no argument constructor
             builder = myLoader.noArgumentInstance(modelBuilderClass)
         }
+        myLoader.close()
         require(builder != null) { "Unable to instantiate a ModelBuilderIfc instance for the JAR: $jarPath" }
         // if not a singleton then try to create it from a no argument constructor
         myBuilder = builder as ModelBuilderIfc
-        myLoader.close()
     }
 
     /**
@@ -81,12 +83,7 @@ class JARModelBuilder(
         experimentRunParameters: ExperimentRunParametersIfc?,
         defaultKSLDatabaseObserverOption: Boolean
     ): Model {
-        require(myBuilder != null) { "The model builder is not available for building" }
-        return myBuilder!!.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
-    }
-
-    override fun close() {
-        myBuilder = null
+        return myBuilder.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
     }
 
 }
