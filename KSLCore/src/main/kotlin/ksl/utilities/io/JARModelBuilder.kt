@@ -16,6 +16,12 @@ import java.nio.file.Paths
  *  ModelBuilderIfc. If not supplied, the JAR will be searched for the first class that implements the
  *  interface. If no classes are found that implement the interface, then an exception occurs.
  *
+ *  The simplest approach is to include a Kotlin object reference declaration that implements the
+ *  ModelBuilderIfc interface in the compiled code within the JAR file. Then, you supply the name of
+ *  the object/class as the [modelBuilderClassName] parameter.  If you don't supply an object reference
+ *  declaration, then there must be one class within the JAR file that implements the ModelBuilderIfc
+ *  interface and it must have a public zero argument constructor.
+ *
  *  The JARModelBuilder should not be closed until all required models are built. Once the builder
  *  is closed, no additional models can be built.  It is important to close the builder once
  *  all models have been built.
