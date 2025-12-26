@@ -14,13 +14,19 @@ import java.nio.file.Paths
  *
  *  It is much more efficient to supply a class name found within the JAR file that implements the
  *  ModelBuilderIfc. If not supplied, the JAR will be searched for the first class that implements the
- *  interface. If no classes are found that implement the interface, then an exception occurs.
+ *  ModelBuilderIfc interface. If no classes are found that implement the interface, then an exception occurs.
  *
  *  The simplest approach is to include a Kotlin object reference declaration that implements the
  *  ModelBuilderIfc interface in the compiled code within the JAR file. Then, you supply the name of
  *  the object/class as the [modelBuilderClassName] parameter.  If you don't supply an object reference
  *  declaration, then there must be one class within the JAR file that implements the ModelBuilderIfc
- *  interface and it must have a public zero argument constructor.
+ *  interface, and it must have a public zero argument constructor.
+ *
+ *  If the required KSLCore release's jar file is on the classpath for the implementation that uses
+ *  the JARModelBuilder, then the jar file does not need to be a "fat" jar.  As long as the jar file
+ *  has all the necessary user-defined class definitions needed to construct an instance of the desired
+ *  model, then the necessary KSL classes will be loaded via the class loader's parent through
+ *  delegation. The parent loader will be the loader required to instantiate this class.
  *
  *  The JARModelBuilder should not be closed until all required models are built. Once the builder
  *  is closed, no additional models can be built.  It is important to close the builder once
