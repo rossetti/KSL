@@ -241,6 +241,27 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
         return functions.find { it.name == functionName }
     }
 
+    /**
+     *  A Kotlin object declaration defines a (static) singleton object with the underlying synthetic
+     *  class defined with a class name the same as the name of the object. This function returns
+     *  the associated object reference as an Any reference or null.
+     *  
+     *  @param singletonName the name of the object that was declared by object definition
+     *  @return the reference to the object as an Any, null if not available
+     */
+    fun singletonObjectReference(singletonName: String) : Any? {
+        if (!classNames.contains(singletonName)) {
+            return null
+        }
+        val loadedClass = classLoader.loadClass(singletonName)
+        try {
+            val staticInstance = loadedClass.getDeclaredField("INSTANCE")
+            return staticInstance.get(null)
+        } catch (e: NoSuchFieldException) {
+            return null
+        }
+    }
+
 //    /**
 //     * Load a class and return it as a Kotlin KClass for reflection
 //     */
