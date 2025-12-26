@@ -170,6 +170,80 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
     }
 
     /**
+     *  Retrieves the no argument constructor of the supplied class name or null
+     *  if one does not exist or is inaccessible.
+     *
+     * @param className the fully qualified class name for the desired constructor
+     * @return the no argument constructor represented as a KFunction
+     */
+    fun noArgumentConstructor(className: String) : KFunction<*>? {
+        if (!classNames.contains(className)) {
+            return null
+        }
+        val loadedClass = classLoader.loadClass(className)
+        return noArgumentConstructor(loadedClass)
+    }
+
+    /**
+     *  Retrieves the no argument constructor of the supplied class or null
+     *  if one does not exist or is inaccessible.
+     *
+     * @param loadedClass the class that was loaded via this loader
+     * @return the no argument constructor represented as a KFunction
+     */
+    fun noArgumentConstructor(loadedClass: Class<*>) : KFunction<*>? {
+        if (!classNames.contains(loadedClass.name)) {
+            return null
+        }
+        val constructor = loadedClass.getDeclaredConstructor() ?: return null
+        val modifiers = constructor.modifiers
+        if (!Modifier.isPublic(modifiers)) {
+            return null
+        }
+        // It is public, make sure that the constructor is accessible if it's synthetic
+        constructor.isAccessible = true
+        return constructor.kotlinFunction
+    }
+
+    /**
+     *  Creates an instance of the class using its no argument constructor.
+     *
+     * @param className the class to instantiate via no argument constructor
+     * @return the instance as an Any or null
+     */
+    fun noArgumentInstance(className: String) : Any? {
+        if (!classNames.contains(className)) {
+            return null
+        }
+        val loadedClass = classLoader.loadClass(className)
+        return noArgumentInstance(loadedClass)
+    }
+
+    /**
+     *  Creates an instance of the class via its no argument constructor.
+     *
+     * @param loadedClass the class to instantiate via no argument constructor
+     * @return the instance as an Any or null
+     */
+    fun noArgumentInstance(loadedClass: Class<*>) : Any? {
+        if (!classNames.contains(loadedClass.name)) {
+            return null
+        }
+        val constructor = loadedClass.getDeclaredConstructor() ?: return null
+        val modifiers = constructor.modifiers
+        if (!Modifier.isPublic(modifiers)) {
+            return null
+        }
+        // It is public, make sure that the constructor is accessible if it's synthetic
+        constructor.isAccessible = true
+        try {
+            return constructor.newInstance()
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    /**
      *  Retrieves the public constructors of the supplied java class
      *  @param loadedClass this class should have been loaded by this loader
      *  via the loadClass() function
