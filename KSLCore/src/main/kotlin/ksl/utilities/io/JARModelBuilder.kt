@@ -73,7 +73,8 @@ class JARModelBuilder(
     /**
      *  The returned model will have been instantiated by the underlying class loader.
      *  Be sure not to store long-lasting references to the model instances because
-     *  this may have memory implications that prevent garbage collection.
+     *  this may have memory implications that prevent garbage collection of the loader
+     *  and any classes that it loaded.
      */
     override fun build(
         modelConfiguration: Map<String, String>?,
