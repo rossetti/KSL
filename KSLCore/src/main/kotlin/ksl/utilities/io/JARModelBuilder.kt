@@ -3,6 +3,7 @@ package ksl.utilities.io
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import java.net.URL
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -14,6 +15,10 @@ import java.nio.file.Paths
  *  It is much more efficient to supply a class name found within the JAR file that implements the
  *  ModelBuilderIfc. If not supplied, the JAR will be searched for the first class that implements the
  *  interface. If no classes are found that implement the interface, then an exception occurs.
+ *
+ *  The JARModelBuilder should not be closed until all required models are built. Once the builder
+ *  is closed, no additional models can be built.  It is important to close the builder once
+ *  all models have been built.
  *
  *  Because of the underlying JAR files and class loading, it is important to not store long-lasting
  *  references to the models built from the builder. This could have important memory issues because
@@ -27,15 +32,20 @@ import java.nio.file.Paths
 class JARModelBuilder(
     jarPath: Path,
     modelBuilderClassName: String? = null
-) : ModelBuilderIfc {
+) : ModelBuilderIfc, AutoCloseable {
 
     /**
      *  Note that this reference is instantiated by a custom class loader related to the JAR file
      */
     private val myBuilder: ModelBuilderIfc
 
+    private val myLoader = DynamicJarClassLoader(jarPath)
+
+    private var myLoaderOpenFlag: Boolean = false
+
+    val builderClassName: String
+
     init {
-        val myLoader = DynamicJarClassLoader(jarPath)
         val modelBuilderClass: Class<*> = if (modelBuilderClassName != null) {
             require(modelBuilderClassName.isNotBlank()) { "The supplied model building class name cannot be blank" }
             require(myLoader.classNames.contains(modelBuilderClassName)) { "ModelBuilder class name: $modelBuilderClassName is not in the JAR file : $jarPath" }
@@ -61,16 +71,30 @@ class JARModelBuilder(
             // if not a singleton then try to create it from a no argument constructor
             builder = myLoader.noArgumentInstance(modelBuilderClass)
         }
-        myLoader.close()
         require(builder != null) { "Unable to instantiate a ModelBuilderIfc instance for the JAR: $jarPath" }
         // if not a singleton then try to create it from a no argument constructor
         myBuilder = builder as ModelBuilderIfc
+        myLoaderOpenFlag = true
+        builderClassName = modelBuilderClass.name
     }
 
     /**
      * Constructor for a JAR file
      */
-    constructor(jarPath: String) : this(Paths.get(jarPath))
+    constructor(jarPath: String, modelBuilderClassName: String? = null)
+            : this(Paths.get(jarPath), modelBuilderClassName)
+
+    val classNames: Set<String>
+        get() = myLoader.classNames
+
+    /**
+     *  The list of URL representations for the JAR files
+     */
+    val jarURL: URL
+        get() = myLoader.urlList.first()
+
+    val jarPath: Path
+        get() = myLoader.jarPaths.first()
 
     /**
      *  The returned model will have been instantiated by the underlying class loader.
@@ -83,7 +107,44 @@ class JARModelBuilder(
         experimentRunParameters: ExperimentRunParametersIfc?,
         defaultKSLDatabaseObserverOption: Boolean
     ): Model {
+        require(myLoaderOpenFlag) { "The JARModelBuilder has been closed. Cannot build more models." }
         return myBuilder.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
     }
 
+    override fun toString(): String {
+        val sb = StringBuilder().apply {
+            appendLine("JARModelBuilder:")
+            appendLine("Builder class name: $builderClassName")
+            appendLine("Building status: $myLoaderOpenFlag")
+            appendLine("JAR URL: $jarURL")
+            appendLine("JAR Path: $jarPath")
+            appendLine()
+            appendLine("Classes in JAR Files:")
+            for (name in classNames) {
+                appendLine(name)
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Closes the underlying class loader. Once the loading mechanism is closed,
+     * no additional model building is permitted.
+     */
+    override fun close() {
+        myLoaderOpenFlag = false
+        myLoader.close()
+    }
+}
+
+fun main() {
+    val jarPath = "build/libs/KSLTestModel.jar"
+    //val mb = JARModelBuilder(jarPath, "work.STEMFairScheduledCase")
+    val mb = JARModelBuilder(jarPath)
+    println(mb)
+    val model = mb.build()
+    //println(model)
+    model.simulate()
+    model.print()
+    mb.close()
 }
