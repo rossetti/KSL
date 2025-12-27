@@ -50,6 +50,7 @@ class JARModelBuilder(
     // pass in the class loader? validate it?
     // set up or initialize the builder. Don't create it until setup
     // lazy the builder reference
+    // need a function to set the builder based on a class name
 
     /**
      *  Note that this reference is instantiated by a custom class loader related to the JAR file
