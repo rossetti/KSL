@@ -46,6 +46,11 @@ class JARModelBuilder(
     modelBuilderClassName: String? = null
 ) : ModelBuilderIfc, AutoCloseable {
 
+    //TODO think of how this can be used from GUI
+    // pass in the class loader? validate it?
+    // set up or initialize the builder. Don't create it until setup
+    // lazy the builder reference
+
     /**
      *  Note that this reference is instantiated by a custom class loader related to the JAR file
      */
