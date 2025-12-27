@@ -42,59 +42,9 @@ import java.nio.file.Paths
  * @param modelBuilderClassName the (optional) name of the class within the JAR file that implements the ModelBuilderIfc
  */
 class JARModelBuilder(
-    jarPath: Path,
+    private val loader: DynamicJarClassLoader,
     modelBuilderClassName: String? = null
 ) : ModelBuilderIfc, AutoCloseable {
-
-    //TODO think of how this can be used from GUI
-    // pass in the class loader? validate it?
-    // set up or initialize the builder. Don't create it until setup
-    // lazy the builder reference
-    // need a function to set the builder based on a class name
-
-    /**
-     *  Note that this reference is instantiated by a custom class loader related to the JAR file
-     */
-    private val myBuilder: ModelBuilderIfc
-
-    private val myLoader = DynamicJarClassLoader(jarPath)
-
-    private var myLoaderOpenFlag: Boolean = false
-
-    val builderClassName: String
-
-    init {
-        val modelBuilderClass: Class<*> = if (modelBuilderClassName != null) {
-            require(modelBuilderClassName.isNotBlank()) { "The supplied model building class name cannot be blank" }
-            require(myLoader.classNames.contains(modelBuilderClassName)) { "ModelBuilder class name: $modelBuilderClassName is not in the JAR file : $jarPath" }
-            // directly load it
-            val loadedClass = myLoader.loadClass(modelBuilderClassName)
-            val superClass = ModelBuilderIfc::class.java
-            require(superClass.isAssignableFrom(loadedClass) && loadedClass != superClass) {
-                "The supplied model builder class $modelBuilderClassName does not implement the ModelBuilderIfc interface."
-            }
-            loadedClass
-        } else {
-            // Need to try to find a class that implements the ModelBuilderIfc within the JAR
-            val modelBuilders = myLoader.findSubClasses(ModelBuilderIfc::class.java)
-            require(modelBuilders.isNotEmpty()) { "No model builder class name was provided and the JAR did not contain at least one ModelBuilderIfc, JAR file : $jarPath" }
-            // assume that it is the first one
-            val c: Class<*> = modelBuilders.first()
-            c
-        }
-        // the Class must now represent a valid class that implements the ModelBuilderIfc interface
-        // first try to load it as a singleton object that implements the interface
-        var builder = myLoader.singletonObjectReference(modelBuilderClass.name)
-        if (builder == null) {
-            // if not a singleton then try to create it from a no argument constructor
-            builder = myLoader.noArgumentInstance(modelBuilderClass)
-        }
-        require(builder != null) { "Unable to instantiate a ModelBuilderIfc instance for the JAR: $jarPath" }
-        // if not a singleton then try to create it from a no argument constructor
-        myBuilder = builder as ModelBuilderIfc
-        myLoaderOpenFlag = true
-        builderClassName = modelBuilderClass.name
-    }
 
     /**
      * Constructor for a JAR file
@@ -102,17 +52,84 @@ class JARModelBuilder(
     constructor(jarPath: String, modelBuilderClassName: String? = null)
             : this(Paths.get(jarPath), modelBuilderClassName)
 
+    /**
+     * Constructor for a JAR file
+     */
+    constructor(jarPath: Path, modelBuilderClassName: String? = null)
+            : this(DynamicJarClassLoader(jarPath), modelBuilderClassName)
+
+    private val modelBuildingClasses: Map<String, Class<*>> = loader.findSubClasses(ModelBuilderIfc::class.java)
+
+    init {
+        //validate loader by checking that it has at least one model building class
+        require(modelBuildingClasses.isNotEmpty()) { "No classes that implement the ModelBuilderIfc interface were found in the loader." }
+    }
+
+    /**
+     *  Assume if the loader was validated that it is open. It should remain open until closed
+     *  via the close() function.
+     */
+    private var myLoaderOpenFlag: Boolean = true
+
+    /**
+     *  The class names in the loader that implement the ModelBuilderIfc interface
+     */
+    @Suppress("unused")
+    val modelBuilderClassNames: List<String> = modelBuildingClasses.keys.toList()
+
+    /**
+     *  Note that this reference is instantiated by a custom class loader related to the JAR file
+     */
+    private var myBuilder: ModelBuilderIfc? = null
+
+    var builderClassName: String? = null
+        private set
+
+    init {
+        // if provided validate set up the model builder using the class name
+        if (modelBuilderClassName != null) {
+            initializeBuilder(modelBuilderClassName)
+        }
+    }
+
+    /**
+     *  All class names within the loader
+     */
     val classNames: Set<String>
-        get() = myLoader.classNames
+        get() = loader.classNames
 
     /**
      *  The list of URL representations for the JAR files
      */
     val jarURL: URL
-        get() = myLoader.urlList.first()
+        get() = loader.urlList.first()
 
     val jarPath: Path
-        get() = myLoader.jarPaths.first()
+        get() = loader.jarPaths.first()
+
+    /**
+     *  Initializes the builder so that model building can occur.  This function must be called
+     *  before the first time build() is called.
+     *
+     *  @param modelBuilderClassName the fully qualified name within the JAR file that implements the ModelBuilderIfc
+     *  interface and will serve as the builder.
+     */
+    fun initializeBuilder(modelBuilderClassName: String) {
+        require(modelBuilderClassName.isNotBlank()) { "The supplied model building class name cannot be blank" }
+        require(modelBuildingClasses.contains(modelBuilderClassName)) { "The supplied model builder class name $modelBuilderClassName is not present in the loader." }
+        // the Class must now represent a valid class that implements the ModelBuilderIfc interface
+        val modelBuilderClass = modelBuildingClasses[modelBuilderClassName]!!
+        // first try to load it as a singleton object that implements the interface
+        var builder = loader.singletonObjectReference(modelBuilderClass)
+        if (builder == null) {
+            // if not a singleton then try to create it from a no argument constructor
+            builder = loader.noArgumentInstance(modelBuilderClass)
+        }
+        require(builder != null) { "Unable to instantiate a ModelBuilderIfc instance for the JAR: $jarPath" }
+        // cast it to the required interface
+        myBuilder = builder as ModelBuilderIfc
+        builderClassName = modelBuilderClassName
+    }
 
     /**
      *  The returned model will have been instantiated by the underlying class loader.
@@ -126,7 +143,10 @@ class JARModelBuilder(
         defaultKSLDatabaseObserverOption: Boolean
     ): Model {
         require(myLoaderOpenFlag) { "The JARModelBuilder has been closed. Cannot build more models." }
-        return myBuilder.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
+        if (myBuilder == null) {
+            initializeBuilder(modelBuilderClassNames.first())
+        }
+        return myBuilder!!.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
     }
 
     override fun toString(): String {
@@ -151,7 +171,7 @@ class JARModelBuilder(
      */
     override fun close() {
         myLoaderOpenFlag = false
-        myLoader.close()
+        loader.close()
     }
 }
 

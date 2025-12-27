@@ -157,13 +157,13 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      *  @return java class representations of any subclass of the supplied class that are found
      *  within the JAR files
      */
-    fun findSubClasses(superClass: Class<*>): List<Class<*>> {
-        val subclasses = mutableListOf<Class<*>>()
+    fun findSubClasses(superClass: Class<*>): Map<String, Class<*>> {
+        val subclasses = mutableMapOf<String, Class<*>>()
         for (name in classNames) {
             val loadedClass = classLoader.loadClass(name)
             // Check if it is a subclass (assignable from) the target class
             if (superClass.isAssignableFrom(loadedClass) && loadedClass != superClass) {
-                subclasses.add(loadedClass)
+                subclasses[name] = loadedClass
             }
         }
         return subclasses
@@ -435,6 +435,26 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
      *  class defined with a class name the same as the name of the object. This function returns
      *  the associated object reference as an Any reference or null.
      *
+     *  @param loadedClass the name of the object that was declared by object definition
+     *  @return the reference to the object as an Any, null if not available
+     */
+    fun singletonObjectReference(loadedClass: Class<*>) : Any? {
+        if (!classNames.contains(loadedClass.name)) {
+            return null
+        }
+        try {
+            val staticInstance = loadedClass.getDeclaredField("INSTANCE")
+            return staticInstance.get(null)
+        } catch (e: NoSuchFieldException) {
+            return null
+        }
+    }
+
+    /**
+     *  A Kotlin object declaration defines a (static) singleton object within the underlying synthetic
+     *  class defined with a class name the same as the name of the object. This function returns
+     *  the associated object reference as an Any reference or null.
+     *
      *  @param singletonName the name of the object that was declared by object definition
      *  @return the reference to the object as an Any, null if not available
      */
@@ -443,12 +463,7 @@ class DynamicJarClassLoader(val jarPaths: List<Path>) : AutoCloseable {
             return null
         }
         val loadedClass = classLoader.loadClass(singletonName)
-        try {
-            val staticInstance = loadedClass.getDeclaredField("INSTANCE")
-            return staticInstance.get(null)
-        } catch (e: NoSuchFieldException) {
-            return null
-        }
+        return singletonObjectReference(loadedClass)
     }
 
 //    /**
@@ -759,7 +774,7 @@ fun test1(jarName: String) {
         println()
         val subClasses = loader.findSubClasses(ModelElement::class.java)
         println("Subclasses of : ksl.simulation.ModelElement")
-        for (subClass in subClasses) {
+        for ((name, subClass) in subClasses) {
             println(subClass.name)
         }
         loader.close()
