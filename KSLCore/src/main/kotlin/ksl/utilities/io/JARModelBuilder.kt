@@ -176,7 +176,10 @@ class JARModelBuilder(
 }
 
 fun main() {
-    val jarPath = "build/libs/KSLTestModel.jar"
+    val jarPath =
+        "/Users/rossetti/Library/CloudStorage/OneDrive-UniversityofArkansas/MyDocuments/old code/KSLTestModel/build/libs/KSLTestModel.jar"
+
+//    val jarPath = "build/libs/KSLTestModel.jar"
     //val mb = JARModelBuilder(jarPath, "work.STEMFairScheduledCase")
     val mb = JARModelBuilder(jarPath)
     println(mb)
