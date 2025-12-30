@@ -42,22 +42,22 @@ data class ProbPoint(
 /**
  *  Returns the probabilities as an array
  */
-fun List<ProbPoint>.probabilities() : DoubleArray {
-    return DoubleArray(this.size){ i -> this[i].prob}
+fun List<ProbPoint>.probabilities(): DoubleArray {
+    return DoubleArray(this.size) { i -> this[i].prob }
 }
 
 /**
  *  Returns the values as an array
  */
-fun List<ProbPoint>.values() : DoubleArray {
-    return DoubleArray(this.size){ i -> this[i].value}
+fun List<ProbPoint>.values(): DoubleArray {
+    return DoubleArray(this.size) { i -> this[i].value }
 }
 
 /**
  *  Returns the cumulative distribution probabilities as an array
  */
-fun List<ProbPoint>.cdf() : DoubleArray {
-    return DoubleArray(this.size){ i -> this[i].cumProb}
+fun List<ProbPoint>.cdf(): DoubleArray {
+    return DoubleArray(this.size) { i -> this[i].cumProb }
 }
 
 /**
@@ -75,18 +75,20 @@ fun List<ProbPoint>.cdf() : DoubleArray {
  * @param name   an optional name/label
  */
 class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null) :
-    Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical {
+    Distribution(name), DiscreteDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.DEmpirical,
+    LossFunctionDistributionIfc {
 
-        @Suppress("unused")
-        constructor(
-            data: List<ProbPoint>,
-            name: String? = null
-        ): this(data.probabilities(), data.cdf(), name)
+    @Suppress("unused")
+    constructor(
+        data: List<ProbPoint>,
+        name: String? = null
+    ) : this(data.probabilities(), data.cdf(), name)
 
     /**
      * Holds the list of probability points
      */
     private val myProbabilityPoints = mutableListOf<ProbPoint>()
+
     @Suppress("unused")
     val probabilityPoints: List<ProbPoint>
         get() = myProbabilityPoints
@@ -182,8 +184,8 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
      * @return The probability associated with x
      */
     override fun pmf(x: Double): Double {
-        for(pp in myProbabilityPoints) {
-            if (pp.value == x){
+        for (pp in myProbabilityPoints) {
+            if (pp.value == x) {
                 return pp.prob
             }
         }
@@ -192,8 +194,8 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
     }
 
     override fun pmf(i: Int): Double {
-        for(pp in myProbabilityPoints) {
-            if (pp.value == i.toDouble()){
+        for (pp in myProbabilityPoints) {
+            if (pp.value == i.toDouble()) {
                 return pp.prob
             }
         }
@@ -291,16 +293,42 @@ class DEmpiricalCDF(values: DoubleArray, cdf: DoubleArray, name: String? = null)
         return DEmpiricalRV(values, cdf, streamNumber, streamProvider)
     }
 
+    /**
+     * First order loss function G1(x) = E[max(X-x,0)]
+     */
+    override fun firstOrderLossFunction(x: Double): Double {
+        var m = 0.0
+        for ((p, v) in myProbabilityPoints) {
+            if (v >= x) {
+                m = m + p * (v - x)
+            }
+        }
+        return m
+    }
+
+    /**
+     * Second order loss function G2(x) = (1/2)E[max(X-x,0)*max(X-x-1,0)]
+     */
+    override fun secondOrderLossFunction(x: Double): Double {
+        var m = 0.0
+        for ((p, v) in myProbabilityPoints) {
+            if (v >= x) {
+                m = m + p * (v - x) * (v - x - 1.0)
+            }
+        }
+        return 0.5 * m
+    }
+
     companion object {
 
         /**
          *  Creates a DEmpirical based on a probability mass function
          */
-        fun makeDEmpirical(range: IntRange, pmf: PMFIfc) : DEmpiricalCDF {
+        fun makeDEmpirical(range: IntRange, pmf: PMFIfc): DEmpiricalCDF {
             val vp = pmf.pmf(range)
             val values = vp.keys.toList()
             val cdfArray = KSLRandom.makeCDF(vp.values.toDoubleArray())
-            val valueArray = DoubleArray(vp.size){ values[it].toDouble()}
+            val valueArray = DoubleArray(vp.size) { values[it].toDouble() }
             return DEmpiricalCDF(valueArray, cdfArray)
         }
 
@@ -412,8 +440,8 @@ fun main() {
     println("invCDF(0.2) = " + d.invCDF(0.2))
     println("invCDF(0.983) = " + d.invCDF(0.983))
     println("invCDF(" + d.cdf(1.0) + ") = " + d.invCDF(d.cdf(1.0)))
-    for(i in 1..10){
-        val x = i/2.0
+    for (i in 1..10) {
+        val x = i / 2.0
         println("pmf($x) = ${d.pmf(x)}")
     }
     println("done")
