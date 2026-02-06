@@ -111,7 +111,7 @@ class RQInventoryModel(
         get() = (costPerOrder * orderFrequency)
 
     val holdingCostPerPeriod: Double
-        get() = (holdingCostRatePerPeriod * expectedOnHandInventory)
+        get() = (holdingCostPerUnitPerPeriod * expectedOnHandInventory)
 
     val backOrderCostPerPeriod: Double
         get() = (backOrderCostPerUnitPerPeriod * expectedBackOrders)
