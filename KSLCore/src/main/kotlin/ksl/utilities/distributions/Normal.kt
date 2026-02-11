@@ -18,7 +18,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.PI
@@ -28,22 +27,27 @@ import kotlin.math.sqrt
 
 
 /** Models normally distributed random variables
- * @param theMean of the distribution
- * @param theVariance must be &gt; 0
+ * @param mean of the distribution
+ * @param variance must be &gt; 0
  * @param name an optional name/label
  */
-class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = null) :
+class Normal(mean: Double = 0.0, variance: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc,
     LossFunctionDistributionIfc, InverseCDFIfc, GetRVariableIfc,
     RVParametersTypeIfc by RVType.Normal, MomentsIfc {
 
     init {
-        require(theVariance > 0) { "Variance must be positive" }
+        require(variance > 0) { "Variance must be positive" }
+        require(mean.isFinite()) { "The mean must be finite" }
     }
 
-    override var mean : Double = theMean
+    override var mean: Double = mean
+        set(value) {
+            require(value.isFinite()) { "The mean must be finite" }
+            field = value
+        }
 
-    override var variance : Double = theVariance
+    override var variance: Double = variance
         set(value) {
             require(value > 0) { "Variance must be positive" }
             field = value
@@ -56,7 +60,7 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
     constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], null)
 
     override fun instance(): Normal {
-        return Normal(mean, variance)
+        return Normal(this@Normal.mean, this@Normal.variance)
     }
 
     override fun domain(): Interval {
@@ -64,25 +68,25 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
     }
 
     override fun mean(): Double {
-        return mean
+        return this@Normal.mean
     }
 
     override fun variance(): Double {
-        return variance
+        return this@Normal.variance
     }
 
     override fun cdf(x: Double): Double {
-        return stdNormalCDF((x - mean) / standardDeviation())
+        return stdNormalCDF((x - this@Normal.mean) / standardDeviation())
     }
 
     override fun pdf(x: Double): Double {
-        val z = (x - mean) / standardDeviation()
+        val z = (x - this@Normal.mean) / standardDeviation()
         return stdNormalPDF(z) / standardDeviation()
     }
 
     override fun invCDF(p: Double): Double {
         val z = stdNormalInvCDF(p)
-        return z * standardDeviation() + mean
+        return z * standardDeviation() + this@Normal.mean
     }
 
     override fun sumLogLikelihood(data: DoubleArray): Double {
@@ -93,11 +97,11 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         val no2 = n / 2.0
         var sumSQDev = 0.0
         for (x in data) {
-            sumSQDev = sumSQDev + (x - mean) * (x - mean)
+            sumSQDev = sumSQDev + (x - this@Normal.mean) * (x - this@Normal.mean)
         }
-        val sumLL = -no2 * (ln2pi + ln(variance)) - (sumSQDev / (2.0 * variance))
-        require(sumLL != Double.NEGATIVE_INFINITY) {"${this} : Log-Likelihood was negative $sumLL"}
-        require(sumLL != Double.POSITIVE_INFINITY) {"${this} : Log-Likelihood was positive $sumLL"}
+        val sumLL = -no2 * (ln2pi + ln(this@Normal.variance)) - (sumSQDev / (2.0 * this@Normal.variance))
+        require(sumLL != Double.NEGATIVE_INFINITY) { "${this} : Log-Likelihood was negative $sumLL" }
+        require(sumLL != Double.POSITIVE_INFINITY) { "${this} : Log-Likelihood was positive $sumLL" }
         return sumLL
     }
 
@@ -114,15 +118,15 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
         get() = 0.0
 
     override fun complementaryCDF(x: Double): Double {
-        return stdNormalComplementaryCDF((x - mean) / standardDeviation())
+        return stdNormalComplementaryCDF((x - this@Normal.mean) / standardDeviation())
     }
 
     override fun firstOrderLossFunction(x: Double): Double {
-        return standardDeviation() * stdNormalFirstOrderLossFunction((x - mean) / standardDeviation())
+        return standardDeviation() * stdNormalFirstOrderLossFunction((x - this@Normal.mean) / standardDeviation())
     }
 
     override fun secondOrderLossFunction(x: Double): Double {
-        return variance * stdNormalSecondOrderLossFunction((x - mean) / standardDeviation())
+        return this@Normal.variance * stdNormalSecondOrderLossFunction((x - this@Normal.mean) / standardDeviation())
     }
 
     /** Sets the parameters for the distribution
@@ -130,8 +134,8 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
      * @param params an array of doubles representing the parameters for the distribution
      */
     override fun parameters(params: DoubleArray) {
-        mean = params[0]
-        variance = params[1]
+        this@Normal.mean = params[0]
+        this@Normal.variance = params[1]
     }
 
     /** Gets the parameters for the distribution
@@ -139,15 +143,15 @@ class Normal(theMean: Double = 0.0, theVariance: Double = 1.0, name: String? = n
      * @return Returns an array of the parameters for the distribution
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(mean, variance)
+        return doubleArrayOf(this@Normal.mean, this@Normal.variance)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NormalRV {
-        return NormalRV(mean, variance, streamNumber, streamProvider)
+        return NormalRV(this@Normal.mean, this@Normal.variance, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "Normal(mean=$mean, variance=$variance)"
+        return "Normal(mean=${this@Normal.mean}, variance=${this@Normal.variance})"
     }
 
     companion object {

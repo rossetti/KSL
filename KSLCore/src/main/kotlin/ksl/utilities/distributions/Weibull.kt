@@ -19,8 +19,6 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.countLessEqualTo
-import ksl.utilities.countLessThan
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import ksl.utilities.statistic.Statistic
@@ -30,25 +28,25 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** This class defines a Weibull distribution
- * @param theShape The shape parameter of the distribution
- * @param theScale The scale parameter of the distribution
+ * @param shape The shape parameter of the distribution
+ * @param scale The scale parameter of the distribution
  * @param name an optional name/label
  */
-class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = null) :
+class Weibull(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc,
     RVParametersTypeIfc by RVType.Weibull, MomentsIfc {
     init {
-        require(theShape > 0) { "Shape parameter must be positive" }
-        require(theScale > 0) { "Scale parameter must be positive" }
+        require(shape > 0) { "Shape parameter must be positive" }
+        require(scale > 0) { "Scale parameter must be positive" }
     }
 
-    var shape : Double = theShape
+    var shape : Double = shape
         set(value) {
             require(value > 0) { "Shape parameter must be positive" }
             field = value
         }
 
-    var scale : Double = theScale
+    var scale : Double = scale
         set(value) {
             require(value > 0) { "Scale parameter must be positive" }
             field = value
@@ -61,7 +59,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], null)
 
     override fun instance(): Weibull {
-        return Weibull(shape, scale)
+        return Weibull(this@Weibull.shape, this@Weibull.scale)
     }
 
     override fun domain(): Interval {
@@ -73,8 +71,8 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * @param theScale The scale parameter must be &gt; 0.0
      */
     fun parameters(theShape: Double, theScale: Double) {
-        shape = theShape
-        scale = theScale
+        this@Weibull.shape = theShape
+        this@Weibull.scale = theScale
     }
 
     /** Sets the parameters for the distribution with
@@ -84,8 +82,8 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * the distribution
      */
     override fun parameters(params: DoubleArray) {
-        shape = params[0]
-        scale = params[1]
+        this@Weibull.shape = params[0]
+        this@Weibull.scale = params[1]
     }
 
     /** Gets the parameters for the distribution
@@ -93,20 +91,20 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * @return Returns an array of the parameters for the distribution
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(shape, scale)
+        return doubleArrayOf(this@Weibull.shape, this@Weibull.scale)
     }
 
     override fun mean(): Double { // shape = alpha, scale = beta
-        val ia = 1.0 / shape
+        val ia = 1.0 / this@Weibull.shape
         val gia = Gamma.gammaFunction(ia)
-        return scale * ia * gia
+        return this@Weibull.scale * ia * gia
     }
 
     override fun variance(): Double {
-        val ia = 1.0 / shape
+        val ia = 1.0 / this@Weibull.shape
         val gia = Gamma.gammaFunction(ia)
         val g2ia = Gamma.gammaFunction(2.0 * ia)
-        return scale * scale * ia * (2.0 * g2ia - ia * gia * gia)
+        return this@Weibull.scale * this@Weibull.scale * ia * (2.0 * g2ia - ia * gia * gia)
     }
 
     override fun cdf(x: Double): Double {
@@ -114,7 +112,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
             return 1.0
         }
         return if (x > 0.0) {
-            1.0 - exp(-(x / scale).pow(shape))
+            1.0 - exp(-(x / this@Weibull.scale).pow(this@Weibull.shape))
         } else {
             0.0
         }
@@ -124,9 +122,9 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         if (x <= 0) {
             return 0.0
         }
-        val e1 = -(x / scale).pow(shape)
-        var f = shape * scale.pow(-shape)
-        f = f * x.pow(shape - 1.0)
+        val e1 = -(x / this@Weibull.scale).pow(this@Weibull.shape)
+        var f = this@Weibull.shape * this@Weibull.scale.pow(-this@Weibull.shape)
+        f = f * x.pow(this@Weibull.shape - 1.0)
         f = f * exp(e1)
         return f
     }
@@ -138,7 +136,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         }
         return if (p >= 1.0) {
             Double.POSITIVE_INFINITY
-        } else scale * (-ln(1.0 - p)).pow(1.0 / shape)
+        } else this@Weibull.scale * (-ln(1.0 - p)).pow(1.0 / this@Weibull.shape)
     }
 
     /**
@@ -146,14 +144,14 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * @return the 3rd moment
      */
     val moment3: Double
-        get() = shape.pow(3.0) * exp(Gamma.logGammaFunction(1.0 + 3.0 * (1.0 / scale)))
+        get() = this@Weibull.shape.pow(3.0) * exp(Gamma.logGammaFunction(1.0 + 3.0 * (1.0 / this@Weibull.scale)))
 
     /**
      *
      * @return the 4th moment
      */
     val moment4: Double
-        get() = shape.pow(4.0) * exp(Gamma.logGammaFunction(1.0 + 4.0 * (1.0 / scale)))
+        get() = this@Weibull.shape.pow(4.0) * exp(Gamma.logGammaFunction(1.0 + 4.0 * (1.0 / this@Weibull.scale)))
 
 
     /** Gets the kurtosis of the distribution
@@ -161,10 +159,10 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * @return the kurtosis
      */
     fun kurtosis(): Double {
-        val c1 = (shape + 1.0) / shape
-        val c2 = (shape + 2.0) / shape
-        val c3 = (shape + 3.0) / shape
-        val c4 = (shape + 4.0) / shape
+        val c1 = (this@Weibull.shape + 1.0) / this@Weibull.shape
+        val c2 = (this@Weibull.shape + 2.0) / this@Weibull.shape
+        val c3 = (this@Weibull.shape + 3.0) / this@Weibull.shape
+        val c4 = (this@Weibull.shape + 4.0) / this@Weibull.shape
         val gc1 = Gamma.gammaFunction(c1)
         val gc2 = Gamma.gammaFunction(c2)
         val gc3 = Gamma.gammaFunction(c3)
@@ -179,9 +177,9 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
      * @return the skewness
      */
     fun skewness(): Double {
-        val c1 = (shape + 1.0) / shape
-        val c2 = (shape + 2.0) / shape
-        val c3 = (shape + 3.0) / shape
+        val c1 = (this@Weibull.shape + 1.0) / this@Weibull.shape
+        val c2 = (this@Weibull.shape + 2.0) / this@Weibull.shape
+        val c3 = (this@Weibull.shape + 3.0) / this@Weibull.shape
         val gc1 = Gamma.gammaFunction(c1)
         val gc2 = Gamma.gammaFunction(c2)
         val gc3 = Gamma.gammaFunction(c3)
@@ -191,7 +189,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): WeibullRV {
-        return WeibullRV(shape, scale, streamNumber, streamProvider)
+        return WeibullRV(this@Weibull.shape, this@Weibull.scale, streamNumber, streamProvider)
     }
 
     override val mean: Double
@@ -204,7 +202,7 @@ class Weibull(theShape: Double = 1.0, theScale: Double = 1.0, name: String? = nu
         get() = kurtosis()
 
     override fun toString(): String {
-        return "Weibull(shape=$shape, scale=$scale)"
+        return "Weibull(shape=${this@Weibull.shape}, scale=${this@Weibull.scale})"
     }
 
     companion object {
