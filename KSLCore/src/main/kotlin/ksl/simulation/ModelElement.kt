@@ -2065,7 +2065,7 @@ abstract class ModelElement internal constructor(
             qObjCounter++
         }
 
-        final override val currentTime: Double
+        final override val currentTime: Double //TODO is this needed?
             get() = this@ModelElement.time
 
         /**

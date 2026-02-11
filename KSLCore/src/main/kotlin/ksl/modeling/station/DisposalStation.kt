@@ -40,7 +40,7 @@ open class DisposalStation(
         get() = mySystemTime
 
     override fun receive(arrivingQObject: ModelElement.QObject) {
-        mySystemTime.value = arrivingQObject.currentTime - arrivingQObject.createTime
+        mySystemTime.value = arrivingQObject.currentTime - arrivingQObject.createTime //TODO no need for currentTime attribute
         myNumDisposed.increment()
         myNumInSystem?.decrement()
     }
