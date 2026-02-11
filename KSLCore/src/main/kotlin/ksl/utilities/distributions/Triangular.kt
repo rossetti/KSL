@@ -19,12 +19,10 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.random.rvariable.RVType
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TriangularRV
 import kotlin.math.ln
 import kotlin.math.pow
@@ -32,41 +30,41 @@ import kotlin.math.sqrt
 
 /** Represents the Triangular distribution with
  * parameters - minimum value, maximum value and most likely value
- * @param theMin The minimum value of the distribution
- * @param theMode The mode of the distribution
- * @param theMax The maximum value of the distribution
+ * @param min The minimum value of the distribution
+ * @param mode The mode of the distribution
+ * @param max The maximum value of the distribution
  * @param name an optional label/name
  */
 class Triangular(
-    theMin: Double = 0.0,
-    theMode: Double = 0.0,
-    theMax: Double = 1.0,
+    min: Double = 0.0,
+    mode: Double = 0.0,
+    max: Double = 1.0,
     name: String? = null
 ) : Distribution(name), ContinuousDistributionIfc, GetRVariableIfc,
     RVParametersTypeIfc by RVType.Triangular, MomentsIfc {
 
     init {
-        require(theMin <= theMode) { "min must be <= mode" }
-        require(theMin < theMax) { "min must be < max" }
-        require(theMode <= theMax) { "mode must be <= max" }
+        require(min <= mode) { "min must be <= mode" }
+        require(min < max) { "min must be < max" }
+        require(mode <= max) { "mode must be <= max" }
     }
 
     /**
      * myMin the minimum value of the distribution
      */
-    var minimum : Double = theMin
+    var minimum : Double = min
         private set
 
     /**
      * myMax the maximum value of the distribution
      */
-    var maximum : Double = theMax
+    var maximum : Double = max
         private set
 
     /**
      * myMax the maximum value of the distribution
      */
-    var mode : Double = theMode
+    var mode : Double = mode
         private set
 
     /**
@@ -82,7 +80,7 @@ class Triangular(
     constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], parameters[2], null)
 
     override fun instance(): Triangular {
-        return Triangular(minimum, mode, maximum)
+        return Triangular(minimum, this@Triangular.mode, maximum)
     }
 
     override fun domain(): Interval {
@@ -106,43 +104,43 @@ class Triangular(
     }
 
     override fun mean(): Double {
-        return (minimum + maximum + mode) / 3.0
+        return (minimum + maximum + this@Triangular.mode) / 3.0
     }
 
     val moment3: Double
         get() {
             return 1.0 / 10.0 * (minimum * minimum * minimum +
-                    mode * mode * mode +
+                    this@Triangular.mode * this@Triangular.mode * this@Triangular.mode +
                     maximum * maximum * maximum +
-                    minimum * minimum * mode +
+                    minimum * minimum * this@Triangular.mode +
                     minimum * minimum * maximum +
-                    mode * mode * minimum +
-                    mode * mode * maximum +
+                    this@Triangular.mode * this@Triangular.mode * minimum +
+                    this@Triangular.mode * this@Triangular.mode * maximum +
                     maximum * maximum * minimum +
-                    maximum * maximum * mode +
-                    minimum * mode * maximum)
+                    maximum * maximum * this@Triangular.mode +
+                    minimum * this@Triangular.mode * maximum)
         }
 
     val moment4: Double
         get() {
             return 1.0 / 135.0 * (
-                    (minimum * minimum + mode * mode + maximum * maximum - minimum * mode - minimum * maximum - mode * maximum) *
-                            (minimum * minimum + mode * mode + maximum * maximum - minimum * mode - minimum * maximum - mode * maximum)) +
-                    4.0 * (1.0 / 270.0 * (minimum + mode - 2.0 * maximum) *
-                    (minimum + maximum - 2.0 * mode) *
-                    (mode + maximum - 2.0 * minimum) *
-                    ((minimum + mode + maximum) / 3.0)) +
-                    1.0 / 3.0 * (minimum * minimum + mode * mode + maximum * maximum - minimum * mode - minimum * maximum - mode * maximum) *
-                    ((minimum + mode + maximum) / 3.0) *
-                    ((minimum + mode + maximum) / 3.0) +
-                    (minimum + mode + maximum) / 3.0 *
-                    ((minimum + mode + maximum) / 3.0) *
-                    ((minimum + mode + maximum) / 3.0) *
-                    ((minimum + mode + maximum) / 3.0)
+                    (minimum * minimum + this@Triangular.mode * this@Triangular.mode + maximum * maximum - minimum * this@Triangular.mode - minimum * maximum - this@Triangular.mode * maximum) *
+                            (minimum * minimum + this@Triangular.mode * this@Triangular.mode + maximum * maximum - minimum * this@Triangular.mode - minimum * maximum - this@Triangular.mode * maximum)) +
+                    4.0 * (1.0 / 270.0 * (minimum + this@Triangular.mode - 2.0 * maximum) *
+                    (minimum + maximum - 2.0 * this@Triangular.mode) *
+                    (this@Triangular.mode + maximum - 2.0 * minimum) *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0)) +
+                    1.0 / 3.0 * (minimum * minimum + this@Triangular.mode * this@Triangular.mode + maximum * maximum - minimum * this@Triangular.mode - minimum * maximum - this@Triangular.mode * maximum) *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0) *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0) +
+                    (minimum + this@Triangular.mode + maximum) / 3.0 *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0) *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0) *
+                    ((minimum + this@Triangular.mode + maximum) / 3.0)
         }
 
     override fun variance(): Double {
-        return (minimum * minimum + maximum * maximum + mode * mode - maximum * minimum - minimum * mode - maximum * mode) / 18.0
+        return (minimum * minimum + maximum * maximum + this@Triangular.mode * this@Triangular.mode - maximum * minimum - minimum * this@Triangular.mode - maximum * this@Triangular.mode) / 18.0
     }
 
     override fun pdf(x: Double): Double {
@@ -153,15 +151,15 @@ class Triangular(
             return 0.0
         }
         //  x is in [minimum, maximum]
-        if (KSLMath.equal(x, mode)){
+        if (KSLMath.equal(x, this@Triangular.mode)){
             return 2.0/range
         }
         //  x is in [minimum, maximum] and not equal to the mode
-        if ((minimum <= x) && (x < mode)) {
-            return (2.0*(x-minimum))/(range*(mode-minimum))
+        if ((minimum <= x) && (x < this@Triangular.mode)) {
+            return (2.0*(x-minimum))/(range*(this@Triangular.mode -minimum))
         }
-        if ((mode < x) && (x <= maximum)) {
-            return (2.0*(maximum-x))/(range*(maximum-mode))
+        if ((this@Triangular.mode < x) && (x <= maximum)) {
+            return (2.0*(maximum-x))/(range*(maximum- this@Triangular.mode))
         }
         return 0.0
 
@@ -210,7 +208,7 @@ class Triangular(
 
     override fun cdf(x: Double): Double {
         // Right triangular, mode = max
-        if (mode == maximum) {
+        if (this@Triangular.mode == maximum) {
             return if (x < minimum) {
                 0.0
             } else if (x in minimum..maximum) {
@@ -222,7 +220,7 @@ class Triangular(
         }
 
         // Left triangular, min = mode
-        if (minimum == mode) {
+        if (minimum == this@Triangular.mode) {
             return if (x < minimum) {
                 0.0
             } else if (x in minimum..maximum) {
@@ -236,10 +234,10 @@ class Triangular(
         // regular triangular min < mode < max
         return if (x < minimum) {
             0.0
-        } else if (x in minimum..mode) {
-            (x - minimum) * (x - minimum) / (range * (mode - minimum))
-        } else if (mode < x && x <= maximum) {
-            1.0 - (maximum - x) * (maximum - x) / (range * (maximum - mode))
+        } else if (x in minimum..this@Triangular.mode) {
+            (x - minimum) * (x - minimum) / (range * (this@Triangular.mode - minimum))
+        } else if (this@Triangular.mode < x && x <= maximum) {
+            1.0 - (maximum - x) * (maximum - x) / (range * (maximum - this@Triangular.mode))
         } else {
             1.0
         }
@@ -250,7 +248,7 @@ class Triangular(
 
         // if X ~ triang(0,(mode-min)/(max-min),1) then Y = min + (max-min)*X ~ triang(min, mode, max)
         // get parameters for triang(0,(mode-min)/(max-min),1)
-        val c = (mode - minimum) / range
+        val c = (this@Triangular.mode - minimum) / range
 
         // get the invCDF for a triang(0,c,1)
         val x: Double = if (c == 0.0) { // left triangular, mode equals min
@@ -288,7 +286,7 @@ class Triangular(
     override val skewness: Double
         get() {
             val mu3 =
-                -(minimum + maximum - 2.0 * mode) * (minimum + mode - 2.0 * maximum) * (maximum + mode - 2.0 * minimum) / 270.0
+                -(minimum + maximum - 2.0 * this@Triangular.mode) * (minimum + this@Triangular.mode - 2.0 * maximum) * (maximum + this@Triangular.mode - 2.0 * minimum) / 270.0
             val mu2 = variance()
             return mu3 / mu2.pow(3.0 / 2.0)
         }
@@ -312,15 +310,15 @@ class Triangular(
      * @return Returns an array of the parameters for the distribution
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(minimum, mode, maximum)
+        return doubleArrayOf(minimum, this@Triangular.mode, maximum)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): TriangularRV {
-        return TriangularRV(minimum, mode, maximum, streamNumber, streamProvider)
+        return TriangularRV(minimum, this@Triangular.mode, maximum, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "Triangular(minimum=$minimum, mode=$mode, maximum=$maximum)"
+        return "Triangular(minimum=$minimum, mode=${this@Triangular.mode}, maximum=$maximum)"
     }
 
     companion object {

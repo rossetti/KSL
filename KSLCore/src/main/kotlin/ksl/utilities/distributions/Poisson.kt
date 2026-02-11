@@ -18,7 +18,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
@@ -26,14 +25,14 @@ import kotlin.math.*
 /**
  * Represents a Poisson random variable. A Poisson random
  * variable represents the number of occurrences of an event with time or space.
- * @param theMean the mean rate
+ * @param mean the mean rate
  * @param name an optional label/name
  */
-class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
+class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
     DiscretePMFInRangeDistributionIfc, LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.Poisson {
 
     init {
-        require(theMean > 0.0) { "Mean must be > 0)" }
+        require(mean > 0.0) { "Mean must be > 0)" }
     }
 
     /**
@@ -46,7 +45,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     /**
      * the mean (parameter) of the poisson
      */
-    var mean : Double = theMean
+    var mean : Double = mean
         set(value) {
             require(value > 0.0) { "Mean must be > 0)" }
             field = value
@@ -60,29 +59,29 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     constructor(parameters: DoubleArray) : this(parameters[0], null)
 
     override fun instance(): Poisson {
-        return Poisson(mean)
+        return Poisson(this@Poisson.mean)
     }
 
     override fun mean(): Double {
-        return mean
+        return this@Poisson.mean
     }
 
     override fun variance(): Double {
-        return mean
+        return this@Poisson.mean
     }
 
     /**
      * @return the mode of the distribution
      */
     val mode: Int
-        get() = if (floor(mean) == mean) {
-            mean.toInt() - 1
+        get() = if (floor(this@Poisson.mean) == this@Poisson.mean) {
+            this@Poisson.mean.toInt() - 1
         } else {
-            floor(mean).toInt()
+            floor(this@Poisson.mean).toInt()
         }
 
     fun cdf(x: Int): Double {
-        return poissonCDF(x, mean, useRecursiveAlgorithm)
+        return poissonCDF(x, this@Poisson.mean, useRecursiveAlgorithm)
     }
 
     override fun cdf(x: Double): Double {
@@ -96,7 +95,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     }
 
     override fun firstOrderLossFunction(x: Double): Double {
-        val mu = mean
+        val mu = this@Poisson.mean
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
@@ -111,7 +110,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     }
 
     override fun secondOrderLossFunction(x: Double): Double {
-        val mu = mean
+        val mu = this@Poisson.mean
         val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -133,9 +132,9 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
     }
 
     fun thirdOrderLossFunction(x: Double): Double {
-        val term1 = mean.pow(3.0) * complementaryCDF(x - 3)
-        val term2 = 3 * mean * mean * x * complementaryCDF(x - 2)
-        val term3 = 3 * mean * x * (x + 1) * complementaryCDF(x - 1)
+        val term1 = this@Poisson.mean.pow(3.0) * complementaryCDF(x - 3)
+        val term2 = 3 * this@Poisson.mean * this@Poisson.mean * x * complementaryCDF(x - 2)
+        val term3 = 3 * this@Poisson.mean * x * (x + 1) * complementaryCDF(x - 1)
         val term4 = x * (x + 1) * (x + 2) * complementaryCDF(x)
         return (term1 - term2 + term3 - term4) / 3.0
     }
@@ -147,11 +146,11 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
         }
         return if (p >= 1.0) {
             Double.POSITIVE_INFINITY
-        } else poissonInvCDF(p, mean, useRecursiveAlgorithm).toDouble()
+        } else poissonInvCDF(p, this@Poisson.mean, useRecursiveAlgorithm).toDouble()
     }
 
     override fun pmf(i: Int): Double {
-        return poissonPMF(i, mean, useRecursiveAlgorithm)
+        return poissonPMF(i, this@Poisson.mean, useRecursiveAlgorithm)
     }
 
     /**
@@ -186,7 +185,7 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
      * the distribution
      */
     override fun parameters(params: DoubleArray) {
-        mean = params[0]
+        this@Poisson.mean = params[0]
     }
 
     /**
@@ -195,15 +194,15 @@ class Poisson(theMean: Double = 1.0, name: String? = null) : Distribution(name),
      * @return Returns an array of the parameters for the distribution
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(mean)
+        return doubleArrayOf(this@Poisson.mean)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): PoissonRV {
-        return PoissonRV(mean, streamNumber, streamProvider)
+        return PoissonRV(this@Poisson.mean, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "Poisson(mean=$mean)"
+        return "Poisson(mean=${this@Poisson.mean})"
     }
 
     companion object {

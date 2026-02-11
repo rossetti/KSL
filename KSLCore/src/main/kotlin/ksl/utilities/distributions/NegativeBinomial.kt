@@ -18,7 +18,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
@@ -26,22 +25,22 @@ import kotlin.math.*
 /** The number of failures before the rth success in a sequence of independent Bernoulli trials
  * with probability p of success on each trial.  The range of this random variable is {0, 1, 2, ....}
  *
- * @param theProbSuccess The success probability, must be in range (0,1)
- * @param theNumSuccesses The desired number of successes
+ * @param probSuccess The success probability, must be in range (0,1)
+ * @param numSuccesses The desired number of successes
  * @param name an optional name/label
  */
-class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1.0, name: String? = null) :
+class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, name: String? = null) :
     Distribution(name), DiscretePMFInRangeDistributionIfc,
     LossFunctionDistributionIfc, GetRVariableIfc, RVParametersTypeIfc by RVType.NegativeBinomial {
 
     init {
-        require(!(theProbSuccess <= 0.0 || theProbSuccess >= 1.0)) { "Success Probability must be (0,1)" }
-        require(theNumSuccesses > 0) { "Number of trials until rth success must be > 0" }
+        require(!(probSuccess <= 0.0 || probSuccess >= 1.0)) { "Success Probability must be (0,1)" }
+        require(numSuccesses > 0) { "Number of trials until rth success must be > 0" }
     }
 
     /** the probability of success, p
      */
-    var probOfSuccess : Double = theProbSuccess
+    var probOfSuccess : Double = probSuccess
         set(prob) {
             require(!(prob <= 0.0 || prob >= 1.0)) { "Probability must be in (0,1)" }
             field = prob
@@ -53,7 +52,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
 
     /** the desired number of successes to wait for
      */
-    var numSuccesses = theNumSuccesses
+    var numSuccesses = numSuccesses
         set(value) {
             require(value > 0) { "The desired number of successes must be > 0" }
             field = value
@@ -75,14 +74,14 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
     constructor(parameter: DoubleArray) : this(parameter[0], parameter[1], null)
 
     override fun instance(): NegativeBinomial {
-        return NegativeBinomial(probOfSuccess, numSuccesses)
+        return NegativeBinomial(probOfSuccess, this@NegativeBinomial.numSuccesses)
     }
 
     /** the mode of the distribution
      */
     val mode: Int
-        get() = if (numSuccesses > 1.0) {
-            floor((numSuccesses - 1.0) * probOfFailure / probOfSuccess).toInt()
+        get() = if (this@NegativeBinomial.numSuccesses > 1.0) {
+            floor((this@NegativeBinomial.numSuccesses - 1.0) * probOfFailure / probOfSuccess).toInt()
         } else {
             0
         }
@@ -93,7 +92,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      */
     override fun parameters(params: DoubleArray) {
         probOfSuccess = params[0]
-        numSuccesses = params[1]
+        this@NegativeBinomial.numSuccesses = params[1]
     }
 
     /**
@@ -102,15 +101,15 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      *
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(probOfSuccess, numSuccesses)
+        return doubleArrayOf(probOfSuccess, this@NegativeBinomial.numSuccesses)
     }
 
     override fun mean(): Double {
-        return numSuccesses * probOfFailure / probOfSuccess
+        return this@NegativeBinomial.numSuccesses * probOfFailure / probOfSuccess
     }
 
     override fun variance(): Double {
-        return numSuccesses * probOfFailure / (probOfSuccess * probOfSuccess)
+        return this@NegativeBinomial.numSuccesses * probOfFailure / (probOfSuccess * probOfSuccess)
     }
 
     /**
@@ -121,7 +120,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      * @return the probability
      */
     override fun pmf(i: Int): Double {
-        return negBinomialPMF(i, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
+        return negBinomialPMF(i, this@NegativeBinomial.numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
     }
 
     /**
@@ -157,7 +156,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
      * @return The probability, P{X &lt;=j}
      */
     fun cdf(j: Int): Double {
-        return negBinomialCDF(j, numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
+        return negBinomialCDF(j, this@NegativeBinomial.numSuccesses, probOfSuccess, recursiveAlgorithmFlag)
     }
 
     override fun invCDF(p: Double): Double {
@@ -170,11 +169,11 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         }
 
         // check for geometric case
-        if (KSLMath.equal(numSuccesses, 1.0)) {
+        if (KSLMath.equal(this@NegativeBinomial.numSuccesses, 1.0)) {
             val x = ceil(ln(1.0 - p) / ln(1.0 - probOfSuccess) - 1.0)
             return 0.0 + x
         }
-        return negBinomialInvCDF(p, numSuccesses, probOfSuccess, recursiveAlgorithmFlag).toDouble()
+        return negBinomialInvCDF(p, this@NegativeBinomial.numSuccesses, probOfSuccess, recursiveAlgorithmFlag).toDouble()
     }
 
     override fun firstOrderLossFunction(x: Double): Double {
@@ -182,7 +181,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
-            val r = numSuccesses
+            val r = this@NegativeBinomial.numSuccesses
             val p = probOfSuccess
             val b = (1.0 - p) / p
             val g0 = complementaryCDF(x)
@@ -207,7 +206,7 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
             }
             s + sbm
         } else if (x > 0.0) {
-            val r = numSuccesses
+            val r = this@NegativeBinomial.numSuccesses
             val p = probOfSuccess
             val b = (1.0 - p) / p
             val g0 = complementaryCDF(x)
@@ -223,11 +222,11 @@ class NegativeBinomial(theProbSuccess: Double = 0.5, theNumSuccesses: Double = 1
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NegativeBinomialRV {
-        return NegativeBinomialRV(probOfSuccess, numSuccesses, streamNumber, streamProvider)
+        return NegativeBinomialRV(probOfSuccess, this@NegativeBinomial.numSuccesses, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "NegativeBinomial(probOfSuccess=$probOfSuccess, numSuccesses=$numSuccesses)"
+        return "NegativeBinomial(probOfSuccess=$probOfSuccess, numSuccesses=${this@NegativeBinomial.numSuccesses})"
     }
 
     companion object {

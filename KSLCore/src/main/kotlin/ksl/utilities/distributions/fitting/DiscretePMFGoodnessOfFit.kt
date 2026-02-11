@@ -1,11 +1,6 @@
 package ksl.utilities.distributions.fitting
 
 import ksl.utilities.distributions.*
-import ksl.utilities.multiplyConstant
-import ksl.utilities.removeAt
-import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.HistogramIfc
-import ksl.utilities.statistic.Statistic
 
 open class DiscretePMFGoodnessOfFit(
     data: DoubleArray,
@@ -46,7 +41,7 @@ fun testPoisson() {
 }
 
 fun tesNegBinomial() {
-    val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
+    val dist = NegativeBinomial(0.2, numSuccesses = 4.0)
     val rv = dist.randomVariable()
     rv.advanceToNextSubStream()
     val data = rv.sample(200)

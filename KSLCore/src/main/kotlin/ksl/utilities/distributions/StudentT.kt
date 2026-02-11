@@ -22,7 +22,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.*
@@ -36,17 +35,17 @@ import kotlin.math.*
  * than or equal to 1.0
  *
  * @author rossetti
- * @param theDegreesOfFreedom  degrees of freedom
+ * @param degreesOfFreedom  degrees of freedom
  * @param name an optional name/label
  */
-class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distribution(name),
+class StudentT(degreesOfFreedom: Double = 1.0, name: String? = null) : Distribution(name),
     ContinuousDistributionIfc, InverseCDFIfc, GetRVariableIfc {
 
     init {
-        require(theDegreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }
+        require(degreesOfFreedom >= 1) { "The degrees of freedom must be >= 1.0" }
     }
 
-    var degreesOfFreedom: Double = theDegreesOfFreedom
+    var degreesOfFreedom: Double = degreesOfFreedom
         set(value) {
             require(value >= 1) { "The degrees of freedom must be >= 1.0" }
             field = value
@@ -59,7 +58,7 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
     constructor(parameters: DoubleArray) : this(parameters[0], null)
 
     override fun instance(): StudentT {
-        return StudentT(degreesOfFreedom)
+        return StudentT(this@StudentT.degreesOfFreedom)
     }
 
     override fun domain(): Interval {
@@ -81,11 +80,11 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         }
 
     override fun parameters(params: DoubleArray) {
-        degreesOfFreedom = params[0]
+        this@StudentT.degreesOfFreedom = params[0]
     }
 
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(degreesOfFreedom)
+        return doubleArrayOf(this@StudentT.degreesOfFreedom)
     }
 
     override fun mean(): Double {
@@ -93,42 +92,42 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
     }
 
     override fun variance(): Double {
-        return if (degreesOfFreedom > 2.0) {
-            degreesOfFreedom / (degreesOfFreedom - 2.0)
+        return if (this@StudentT.degreesOfFreedom > 2.0) {
+            this@StudentT.degreesOfFreedom / (this@StudentT.degreesOfFreedom - 2.0)
         } else {
             Double.NaN
         }
     }
 
     override fun pdf(x: Double): Double {
-        if (degreesOfFreedom == 1.0) {
+        if (this@StudentT.degreesOfFreedom == 1.0) {
             val d = PI * (1.0 + x * x)
             return 1.0 / d
         }
-        if (degreesOfFreedom == 2.0) {
+        if (this@StudentT.degreesOfFreedom == 2.0) {
             return (2.0 + x * x).pow(-1.5)
         }
-        val b1 = 1.0 / sqrt(degreesOfFreedom * Math.PI)
-        val p = (degreesOfFreedom + 1.0) / 2.0
+        val b1 = 1.0 / sqrt(this@StudentT.degreesOfFreedom * Math.PI)
+        val p = (this@StudentT.degreesOfFreedom + 1.0) / 2.0
         val lnn1 = Gamma.gammaFunction(p)
-        val lnd1 = Gamma.gammaFunction(degreesOfFreedom / 2.0)
+        val lnd1 = Gamma.gammaFunction(this@StudentT.degreesOfFreedom / 2.0)
         val tmp = lnn1 - lnd1
         val b2 = exp(tmp)
-        val b3 = 1.0 / (1.0 + x * x / degreesOfFreedom).pow(p)
+        val b3 = 1.0 / (1.0 + x * x / this@StudentT.degreesOfFreedom).pow(p)
         return b1 * b2 * b3
     }
 
     override fun cdf(x: Double): Double {
-        if (degreesOfFreedom == 1.0) {
+        if (this@StudentT.degreesOfFreedom == 1.0) {
             return 0.5 + 1.0 / PI * atan(x)
         }
-        if (degreesOfFreedom == 2.0) {
+        if (this@StudentT.degreesOfFreedom == 2.0) {
             var d = x / sqrt(2.0 + x * x)
             d = 1.0 + d
             return d / 2.0
         }
-        val y = degreesOfFreedom / (x * x + degreesOfFreedom)
-        val a = degreesOfFreedom / 2.0
+        val y = this@StudentT.degreesOfFreedom / (x * x + this@StudentT.degreesOfFreedom)
+        val a = this@StudentT.degreesOfFreedom / 2.0
         val b = 1.0 / 2.0
         val rBeta = Beta.regularizedIncompleteBetaFunction(y, a, b)
         return 0.5 * (1.0 + sign(x) * (1.0 - rBeta))
@@ -142,10 +141,10 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
         if (p >= 1.0) {
             return Double.POSITIVE_INFINITY
         }
-        if (degreesOfFreedom == 1.0) {
+        if (this@StudentT.degreesOfFreedom == 1.0) {
             return tan(PI * (p - 0.5))
         }
-        if (degreesOfFreedom == 2.0) {
+        if (this@StudentT.degreesOfFreedom == 2.0) {
             val n = 2.0 * p - 1.0
             val d = sqrt(2.0 * p * (1.0 - p))
             return n / d
@@ -159,11 +158,11 @@ class StudentT(theDegreesOfFreedom: Double = 1.0, name: String? = null) : Distri
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): StudentTRV {
-        return StudentTRV(degreesOfFreedom, streamNumber, streamProvider)
+        return StudentTRV(this@StudentT.degreesOfFreedom, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "StudentT(degreesOfFreedom=$degreesOfFreedom)"
+        return "StudentT(degreesOfFreedom=${this@StudentT.degreesOfFreedom})"
     }
 
     companion object {

@@ -18,7 +18,6 @@
 package ksl.utilities.distributions
 
 import ksl.utilities.Interval
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.*
 import kotlin.math.PI
@@ -34,24 +33,24 @@ import kotlin.math.sqrt
  * Note: these parameters are the actual mean and variance of the lognormal distribution, not some underlying
  * normal distribution as in many implementations.
  *
- * @param theMean must be &gt; 0
- * @param theVariance must be &gt; 0
+ * @param mean must be &gt; 0
+ * @param variance must be &gt; 0
  * @param name an optional name/label
  */
-class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? = null) :
+class Lognormal(mean: Double = 1.0, variance: Double = 1.0, name: String? = null) :
     Distribution(name), ContinuousDistributionIfc, LossFunctionDistributionIfc, InverseCDFIfc,
     GetRVariableIfc, RVParametersTypeIfc by RVType.Lognormal, MomentsIfc {
 
     init {
-        require(theMean > 0) { "Mean must be positive" }
-        require(theVariance > 0) { "Variance must be positive" }
-        parameters(theMean, theVariance)
+        require(mean > 0) { "Mean must be positive" }
+        require(variance > 0) { "Variance must be positive" }
+        parameters(mean, variance)
     }
 
-    override var mean : Double = theMean
+    override var mean : Double = mean
         private set
 
-    override var variance : Double = theVariance
+    override var variance : Double = variance
         private set
 
     /** Sets the parameters of a lognormal distribution to
@@ -59,23 +58,23 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
      * actual mean and variance of the lognormal, not the underlying
      * normal as in many other implementations.
      *
-     * @param theMean must be &gt; 0
-     * @param theVariance must be &gt; 0
+     * @param mean must be &gt; 0
+     * @param variance must be &gt; 0
      */
-    fun parameters(theMean: Double, theVariance: Double) {
-        require(theMean > 0) { "Mean must be positive" }
-        mean = theMean
-        require(theVariance > 0) { "Variance must be positive" }
-        variance = theVariance
-        val d = variance + mean * mean
-        val t = mean * mean
+    fun parameters(mean: Double, variance: Double) {
+        require(mean > 0) { "Mean must be positive" }
+        this.mean = mean
+        require(variance > 0) { "Variance must be positive" }
+        this.variance = variance
+        val d = this.variance + this.mean * this.mean
+        val t = this.mean * this.mean
         normalMean = ln(t / sqrt(d))
         normalStdDev = sqrt(ln(d / t))
     }
 
-    override fun mean() : Double = mean
+    override fun mean() : Double = this.mean
 
-    override fun variance() : Double = variance
+    override fun variance() : Double = this.variance
 
     /** The mean of the underlying normal
      *
@@ -110,7 +109,7 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
     constructor(parameters: DoubleArray) : this(parameters[0], parameters[1], null)
 
     override fun instance(): Lognormal {
-        return Lognormal(mean, variance)
+        return Lognormal(this.mean, this.variance)
     }
 
     override fun domain(): Interval {
@@ -123,8 +122,8 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
      */
     val moment3: Double
         get() {
-            val calculatingM = -(1.0 / 2.0) * ln(variance / (mean * mean * mean * mean) + 1.0)
-            val calculatingS = ln(variance / (mean * mean) + mean * mean)
+            val calculatingM = -(1.0 / 2.0) * ln(this@Lognormal.variance / (this@Lognormal.mean * this@Lognormal.mean * this@Lognormal.mean * this@Lognormal.mean) + 1.0)
+            val calculatingS = ln(this@Lognormal.variance / (this@Lognormal.mean * this@Lognormal.mean) + this@Lognormal.mean * this@Lognormal.mean)
             return exp(3.0 * calculatingM + 9.0 * calculatingS / 2.0)
         }
 
@@ -134,8 +133,8 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
      */
     val moment4: Double
         get() {
-            val calculatingM = -(1.0 / 2.0) * ln(variance / (mean * mean * mean * mean) + 1.0)
-            val calculatingS = ln(variance / (mean * mean) + mean * mean)
+            val calculatingM = -(1.0 / 2.0) * ln(this@Lognormal.variance / (this@Lognormal.mean * this@Lognormal.mean * this@Lognormal.mean * this@Lognormal.mean) + 1.0)
+            val calculatingS = ln(this@Lognormal.variance / (this@Lognormal.mean * this@Lognormal.mean) + this@Lognormal.mean * this@Lognormal.mean)
             return exp(4.0 * calculatingM + 8.0 * calculatingS)
         }
 
@@ -204,12 +203,12 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
      * @return Returns an array of the parameters for the distribution
      */
     override fun parameters(): DoubleArray {
-        return doubleArrayOf(mean, variance)
+        return doubleArrayOf(this@Lognormal.mean, this@Lognormal.variance)
     }
 
     override fun firstOrderLossFunction(x: Double): Double {
         if (x <= 0.0) {
-            return mean - x
+            return this@Lognormal.mean - x
         }
         val z = (ln(x) - normalMean) / normalStdDev
         val t1 = Normal.stdNormalCDF(normalStdDev - z)
@@ -218,8 +217,8 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
     }
 
     override fun secondOrderLossFunction(x: Double): Double {
-        val m = mean
-        val m2 = variance + m * m
+        val m = this@Lognormal.mean
+        val m2 = this@Lognormal.variance + m * m
         return if (x <= 0.0) {
             0.5 * (m2 - 2.0 * x * m + x * x)
         } else {
@@ -232,11 +231,11 @@ class Lognormal(theMean: Double = 1.0, theVariance: Double = 1.0, name: String? 
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): LognormalRV {
-        return LognormalRV(mean, variance, streamNumber, streamProvider)
+        return LognormalRV(this@Lognormal.mean, this@Lognormal.variance, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "Lognormal(mean=$mean, variance=$variance)"
+        return "Lognormal(mean=${this@Lognormal.mean}, variance=${this@Lognormal.variance})"
     }
 
 }
