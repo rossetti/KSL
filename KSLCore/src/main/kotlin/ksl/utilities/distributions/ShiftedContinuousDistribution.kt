@@ -8,39 +8,39 @@ import ksl.utilities.random.rvariable.ShiftedRV
 /**
  * This class models a continuous distribution that has been shifted by
  * a positive constant.
- * @param theShift the shift parameter. It must be greater than or equal to 0.0
+ * @param shift the shift parameter. It must be greater than or equal to 0.0
  * @param distribution the distribution to be shifted.
  * @param name an optional name for the distribution
  */
 class ShiftedContinuousDistribution(
-    theShift: Double,
+    shift: Double,
     private val distribution: ContinuousDistributionIfc,
     name: String? = null
 ) : Distribution(name), ContinuousDistributionIfc {
 
     init {
-        require(theShift >= 0.0) { "The shift should not be < 0.0" }
+        require(shift >= 0.0) { "The shift should not be < 0.0" }
     }
 
-    var shift : Double = theShift
+    var shift : Double = shift
         set(value) {
             require(value >= 0.0) { "The shift should not be < 0.0" }
             field = value
         }
 
     override fun pdf(x: Double): Double {
-        return distribution.pdf(x - shift)
+        return distribution.pdf(x - this@ShiftedContinuousDistribution.shift)
     }
 
     override fun domain(): Interval {
         val d = distribution.domain()
-        val dl = d.lowerLimit + shift
-        val du = d.upperLimit + shift
+        val dl = d.lowerLimit + this@ShiftedContinuousDistribution.shift
+        val du = d.upperLimit + this@ShiftedContinuousDistribution.shift
         return Interval(dl, du)
     }
 
     override fun instance(): ContinuousDistributionIfc{
-        return ShiftedContinuousDistribution(shift, distribution.instance())
+        return ShiftedContinuousDistribution(this@ShiftedContinuousDistribution.shift, distribution.instance())
     }
 
     /**
@@ -53,7 +53,7 @@ class ShiftedContinuousDistribution(
      * @param params the shift as param[0]
      */
     override fun parameters(params: DoubleArray) {
-        shift = params[0]
+        this@ShiftedContinuousDistribution.shift = params[0]
         if (params.size == 1) {
             return
         }
@@ -65,15 +65,15 @@ class ShiftedContinuousDistribution(
     }
 
     override fun cdf(x: Double): Double {
-        return if (x < shift) {
+        return if (x < this@ShiftedContinuousDistribution.shift) {
             0.0
         } else {
-            distribution.cdf(x - shift)
+            distribution.cdf(x - this@ShiftedContinuousDistribution.shift)
         }
     }
 
     override fun mean(): Double {
-        return shift + distribution.mean()
+        return this@ShiftedContinuousDistribution.shift + distribution.mean()
     }
 
     /**
@@ -85,7 +85,7 @@ class ShiftedContinuousDistribution(
     override fun parameters(): DoubleArray {
         val x = distribution.parameters()
         val y = DoubleArray(x.size + 1)
-        y[0] = shift
+        y[0] = this@ShiftedContinuousDistribution.shift
         for (i in x.indices) {
             y[i + 1] = x[i]
         }
@@ -97,7 +97,7 @@ class ShiftedContinuousDistribution(
     }
 
     override fun invCDF(p: Double): Double {
-        return distribution.invCDF(p) + shift
+        return distribution.invCDF(p) + this@ShiftedContinuousDistribution.shift
     }
 
     override fun randomVariable(
@@ -105,11 +105,11 @@ class ShiftedContinuousDistribution(
         streamProvider: RNStreamProviderIfc
     ): RVariableIfc {
         val rv = distribution.randomVariable(streamNumber, streamProvider)
-        return ShiftedRV(shift, rv, streamNumber, streamProvider)
+        return ShiftedRV(this@ShiftedContinuousDistribution.shift, rv, streamNumber, streamProvider)
     }
 
     override fun toString(): String {
-        return "$shift + $distribution"
+        return "${this@ShiftedContinuousDistribution.shift} + $distribution"
     }
 
 }

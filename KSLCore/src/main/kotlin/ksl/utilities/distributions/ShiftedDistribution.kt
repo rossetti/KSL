@@ -17,7 +17,6 @@
  */
 package ksl.utilities.distributions
 
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.InverseCDFRV
 import ksl.utilities.random.rvariable.RVariableIfc
@@ -29,30 +28,28 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *
  * Constructs a shifted distribution based on the provided distribution
  *
- * @param theDistribution the distribution to shift
- * @param theShift        The linear shift
+ * @param distribution the distribution to shift
+ * @param shift        The linear shift
  * @param name         an optional name/label
  */
-open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Double, name: String? = null) :
+open class ShiftedDistribution(protected var distribution: DistributionIfc, shift: Double, name: String? = null) :
     Distribution(name) {
 
     init {
-        require(theShift >= 0.0) { "The shift should not be < 0.0" }
+        require(shift >= 0.0) { "The shift should not be < 0.0" }
     }
 
-    protected var distribution: DistributionIfc = theDistribution
+    //    protected var myLossFunctionDistribution: LossFunctionDistributionIfc? = null
 
-//    protected var myLossFunctionDistribution: LossFunctionDistributionIfc? = null
-
-    var shift : Double = theShift
+    var shift : Double = shift
         set(value) {
             require(value >= 0.0) { "The shift should not be < 0.0" }
             field = value
         }
 
     override fun instance(): ShiftedDistribution {
-        val d = distribution.instance()
-        return ShiftedDistribution(d, shift)
+        val d = this@ShiftedDistribution.distribution.instance()
+        return ShiftedDistribution(d, this@ShiftedDistribution.shift)
     }
 
     /**
@@ -76,7 +73,7 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
      * @param params the shift as param[0]
      */
     override fun parameters(params: DoubleArray) {
-        shift = params[0]
+        this@ShiftedDistribution.shift = params[0]
         if (params.size == 1) {
             return
         }
@@ -84,19 +81,19 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
         for (i in y.indices) {
             y[i] = params[i + 1]
         }
-        distribution.parameters(y)
+        this@ShiftedDistribution.distribution.parameters(y)
     }
 
     override fun cdf(x: Double): Double {
-        return if (x < shift) {
+        return if (x < this@ShiftedDistribution.shift) {
             0.0
         } else {
-            distribution.cdf(x - shift)
+            this@ShiftedDistribution.distribution.cdf(x - this@ShiftedDistribution.shift)
         }
     }
 
     override fun mean(): Double {
-        return shift + distribution.mean()
+        return this@ShiftedDistribution.shift + this@ShiftedDistribution.distribution.mean()
     }
 
     /**
@@ -106,9 +103,9 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
      * the parameters of the underlying distribution
      */
     override fun parameters(): DoubleArray {
-        val x = distribution.parameters()
+        val x = this@ShiftedDistribution.distribution.parameters()
         val y = DoubleArray(x.size + 1)
-        y[0] = shift
+        y[0] = this@ShiftedDistribution.shift
         for (i in x.indices) {
             y[i + 1] = x[i]
         }
@@ -116,11 +113,11 @@ open class ShiftedDistribution(theDistribution: DistributionIfc, theShift: Doubl
     }
 
     override fun variance(): Double {
-        return distribution.variance()
+        return this@ShiftedDistribution.distribution.variance()
     }
 
     override fun invCDF(p: Double): Double {
-        return distribution.invCDF(p) + shift
+        return this@ShiftedDistribution.distribution.invCDF(p) + this@ShiftedDistribution.shift
     }
 
 //    override fun firstOrderLossFunction(x: Double): Double {
