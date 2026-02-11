@@ -19,39 +19,37 @@ package ksl.utilities.distributions
 
 import ksl.utilities.Interval
 import ksl.utilities.math.KSLMath
-import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.GetRVariableIfc
-import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.random.rvariable.TruncatedRV
 
 /**
  * Constructs a truncated distribution based on the provided distribution
  *
- * @param theDistribution the distribution to truncate, must not be null
- * @param theCDFLowerLimit        The lower limit of the range of support of the distribution
- * @param theCDFUpperLimit        The upper limit of the range of support of the distribution
- * @param theLowerLimit      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
- * @param theUpperLimit      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
+ * @param distribution the distribution to truncate, must not be null
+ * @param cdfLowerLimit        The lower limit of the range of support of the distribution
+ * @param cdfUpperLimit        The upper limit of the range of support of the distribution
+ * @param lowerLimit      The truncated lower limit (if moved in from cdfLL), must be &gt;= cdfLL
+ * @param upperLimit      The truncated upper limit (if moved in from cdfUL), must be &lt;= cdfUL
  * @param name         an optional name/label
 
  */
 class TruncatedDistribution(
-    theDistribution: DistributionIfc,
-    theCDFLowerLimit: Double,
-    theCDFUpperLimit: Double,
-    theLowerLimit: Double,
-    theUpperLimit: Double,
+    distribution: DistributionIfc,
+    cdfLowerLimit: Double,
+    cdfUpperLimit: Double,
+    lowerLimit: Double,
+    upperLimit: Double,
     name: String? = null
 ) : Distribution(name), GetRVariableIfc {
 
     constructor(
-        theDistribution: DistributionIfc,
+        distribution: DistributionIfc,
         distDomain: Interval,
         truncInterval: Interval,
         name: String? = null
     ) : this(
-        theDistribution,
+        distribution,
         distDomain.lowerLimit,
         distDomain.upperLimit,
         truncInterval.lowerLimit,
@@ -60,13 +58,13 @@ class TruncatedDistribution(
     )
 
     init {
-        require(theLowerLimit < theUpperLimit) { "The lower limit must be < the upper limit" }
-        require(theLowerLimit >= theCDFLowerLimit) { "The lower limit must be >= $theCDFLowerLimit" }
-        require(theUpperLimit <= theCDFUpperLimit) { "The upper limit must be <= $theCDFUpperLimit" }
-        require(!(theLowerLimit == theCDFLowerLimit && theUpperLimit == theCDFUpperLimit)) { "There was no truncation over the interval of support" }
+        require(lowerLimit < upperLimit) { "The lower limit must be < the upper limit" }
+        require(lowerLimit >= cdfLowerLimit) { "The lower limit must be >= $cdfLowerLimit" }
+        require(upperLimit <= cdfUpperLimit) { "The upper limit must be <= $cdfUpperLimit" }
+        require(!(lowerLimit == cdfLowerLimit && upperLimit == cdfUpperLimit)) { "There was no truncation over the interval of support" }
     }
 
-    var distribution: DistributionIfc = theDistribution
+    var distribution: DistributionIfc = distribution
         private set
 
     var lowerLimit : Double = 0.0
@@ -85,12 +83,14 @@ class TruncatedDistribution(
         get() = cdfAtUpperLimit - cdfAtLowerLimit
 
     init {
-        setDistribution(theDistribution, theCDFLowerLimit, theCDFUpperLimit, theLowerLimit, theUpperLimit)
+        setDistribution(distribution, cdfLowerLimit, cdfUpperLimit, lowerLimit, upperLimit)
     }
 
     override fun instance(): TruncatedDistribution {
-        val d = distribution.instance()
-        return TruncatedDistribution(d, cdfLowerLimit, cdfUpperLimit, lowerLimit, upperLimit)
+        val d = this@TruncatedDistribution.distribution.instance()
+        return TruncatedDistribution(d, this@TruncatedDistribution.cdfLowerLimit,
+            this@TruncatedDistribution.cdfUpperLimit, this@TruncatedDistribution.lowerLimit, this@TruncatedDistribution.upperLimit
+        )
     }
 
     /**
@@ -121,22 +121,22 @@ class TruncatedDistribution(
         require(truncLL >= cdfLL) { "The lower limit must be >= $cdfLL" }
         require(truncUL <= cdfUL) { "The upper limit must be <= $cdfUL" }
         require(!(truncLL == cdfLL && truncUL == cdfUL)) { "There was no truncation over the interval of support" }
-        lowerLimit = truncLL
-        upperLimit = truncUL
-        cdfLowerLimit = cdfLL
-        cdfUpperLimit = cdfUL
+        this@TruncatedDistribution.lowerLimit = truncLL
+        this@TruncatedDistribution.upperLimit = truncUL
+        this@TruncatedDistribution.cdfLowerLimit = cdfLL
+        this@TruncatedDistribution.cdfUpperLimit = cdfUL
         if (truncLL > cdfLL && truncUL < cdfUL) {
             // truncation on both ends
-            cdfAtUpperLimit = distribution.cdf(upperLimit)
-            cdfAtLowerLimit = distribution.cdf(lowerLimit)
+            cdfAtUpperLimit = this@TruncatedDistribution.distribution.cdf(this@TruncatedDistribution.upperLimit)
+            cdfAtLowerLimit = this@TruncatedDistribution.distribution.cdf(this@TruncatedDistribution.lowerLimit)
         } else if (truncUL < cdfUL) { // truncation on upper tail
             // must be that upperLimit < UL, and lowerLimit == LL
-            cdfAtUpperLimit = distribution.cdf(upperLimit)
+            cdfAtUpperLimit = this@TruncatedDistribution.distribution.cdf(this@TruncatedDistribution.upperLimit)
             cdfAtLowerLimit = 0.0
         } else { //truncation on the lower tail
             // must be that upperLimit == UL, and lowerLimit > LL
             cdfAtUpperLimit = 1.0
-            cdfAtLowerLimit = distribution.cdf(lowerLimit)
+            cdfAtLowerLimit = this@TruncatedDistribution.distribution.cdf(this@TruncatedDistribution.lowerLimit)
         }
         require(
             !KSLMath.equal(
@@ -162,7 +162,7 @@ class TruncatedDistribution(
         for (i in y.indices) {
             y[i] = params[i + 4]
         }
-        distribution.parameters(y)
+        this@TruncatedDistribution.distribution.parameters(y)
     }
 
     /**
@@ -177,12 +177,12 @@ class TruncatedDistribution(
      * for the underlying distribution
      */
     override fun parameters(): DoubleArray {
-        val x = distribution.parameters()
+        val x = this@TruncatedDistribution.distribution.parameters()
         val y = DoubleArray(x.size + 4)
-        y[0] = cdfLowerLimit
-        y[1] = cdfUpperLimit
-        y[2] = lowerLimit
-        y[3] = upperLimit
+        y[0] = this@TruncatedDistribution.cdfLowerLimit
+        y[1] = this@TruncatedDistribution.cdfUpperLimit
+        y[2] = this@TruncatedDistribution.lowerLimit
+        y[3] = this@TruncatedDistribution.upperLimit
         for (i in x.indices) {
             y[i + 4] = x[i]
         }
@@ -190,10 +190,10 @@ class TruncatedDistribution(
     }
 
     override fun cdf(x: Double): Double {
-        return if (x < lowerLimit) {
+        return if (x < this@TruncatedDistribution.lowerLimit) {
             0.0
-        } else if (x in lowerLimit..upperLimit) {
-            val F = distribution.cdf(x)
+        } else if (x in this@TruncatedDistribution.lowerLimit..this@TruncatedDistribution.upperLimit) {
+            val F = this@TruncatedDistribution.distribution.cdf(x)
             (F - cdfAtLowerLimit) / myDeltaFUFL
         } else {
             //if (x > myUpperLimit)
@@ -202,7 +202,7 @@ class TruncatedDistribution(
     }
 
     override fun mean(): Double {
-        val mu = distribution.mean()
+        val mu = this@TruncatedDistribution.distribution.mean()
         return mu / myDeltaFUFL
     }
 
@@ -210,8 +210,8 @@ class TruncatedDistribution(
         // Var[X] = E[X^2] - E[X]*E[X]
         // first get 2nd moment of truncated distribution
         // E[X^2] = 2nd moment of original cdf/(F(b)-F(a)
-        var mu = distribution.mean()
-        val s2 = distribution.variance()
+        var mu = this@TruncatedDistribution.distribution.mean()
+        val s2 = this@TruncatedDistribution.distribution.variance()
         // 2nd moment of original cdf
         var m2 = s2 + mu * mu
         // 2nd moment of truncated
@@ -223,11 +223,14 @@ class TruncatedDistribution(
 
     override fun invCDF(p: Double): Double {
         val v = cdfAtLowerLimit + myDeltaFUFL * p
-        return distribution.invCDF(v)
+        return this@TruncatedDistribution.distribution.invCDF(v)
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): TruncatedRV {
-        return TruncatedRV(distribution, cdfLowerLimit, cdfUpperLimit, lowerLimit, upperLimit, streamNumber, streamProvider)
+        return TruncatedRV(this@TruncatedDistribution.distribution,
+            this@TruncatedDistribution.cdfLowerLimit,
+            this@TruncatedDistribution.cdfUpperLimit,
+            this@TruncatedDistribution.lowerLimit, this@TruncatedDistribution.upperLimit, streamNumber, streamProvider)
     }
 
 }
