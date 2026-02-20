@@ -17,7 +17,7 @@ fun test1() {
     val reorderQty = 2
     val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
     rqModel.initialOnHand = 0
-    rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6)
+    rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6, streamNum = 2)
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
 
     m.lengthOfReplication = 110000.0

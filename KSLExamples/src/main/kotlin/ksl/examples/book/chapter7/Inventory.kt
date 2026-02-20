@@ -5,6 +5,7 @@ import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
 import ksl.modeling.variable.*
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.toDouble
 
 interface InventoryFillerIfc {
     /**
@@ -35,8 +36,11 @@ abstract class Inventory(
     val onHandResponse: TWResponseCIfc
         get() = myOnHand
 
-    val probOfStockOnHandResponse: ResponseIfc = myOnHand.attachIndicator(
-                             { x -> x > 0 }, name = "${this.name}:PTimeWithStockOnHand")
+    val probOfStockOnHandResponse = TWResponseFunction({ x -> (x > 0).toDouble() },
+        myOnHand, name = "${this.name}:PTimeWithStockOnHand")
+
+        //myOnHand.attachIndicator(
+       //                      { x -> x > 0 }, name = "${this.name}:PTimeWithStockOnHand")
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
@@ -65,6 +69,11 @@ abstract class Inventory(
 
     val onOrderedResponse: TWResponseCIfc
         get() = myOnOrder
+
+    protected val myNumReplenishmentOrders: Counter = Counter(this, "${this.name}:NumReplenishmentOrders")
+
+    val numReplenishmentOrders: CounterCIfc
+        get() = myNumReplenishmentOrders
 
     val inventoryPosition: Int
         get() = onHand + onOrder - amountBackOrdered
@@ -135,6 +144,7 @@ abstract class Inventory(
 
     protected open fun requestReplenishment(orderAmt: Int) {
         myOnOrder.increment(orderAmt.toDouble())
+        myNumReplenishmentOrders.increment()
         replenishmentFiller.fillInventory(orderAmt)
     }
 

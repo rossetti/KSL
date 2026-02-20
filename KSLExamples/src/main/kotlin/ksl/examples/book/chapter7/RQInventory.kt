@@ -2,8 +2,6 @@ package ksl.examples.book.chapter7
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
-import ksl.modeling.variable.Counter
-import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.ModelElement
@@ -47,11 +45,6 @@ class RQInventory(
         set(value) {
             setInitialPolicyParameters(myInitialReorderPt, value)
         }
-
-    private val myNumReplenishment: Counter = Counter(this, "${this.name}:NumReplenishmentOrders")
-
-    val numReplenishments: CounterCIfc
-        get() = myNumReplenishment
 
     private val myOrderingFrequency = Response(this, "${this.name}:OrderingFrequency")
 
@@ -132,7 +125,7 @@ class RQInventory(
     }
 
     override fun replenishmentArrival(orderAmount: Int) {
-        myNumReplenishment.increment()
+        //myNumReplenishment.increment()
         myOnOrder.decrement(orderAmount.toDouble())
         myOnHand.increment(orderAmount.toDouble())
         // need to fill any back orders
@@ -180,7 +173,7 @@ class RQInventory(
     override fun replicationEnded() {
         myHoldingCost.value = unitHoldingCost * myOnHand.withinReplicationStatistic.weightedAverage
         myBackorderCost.value = unitBackOrderCost * myAmountBackOrdered.withinReplicationStatistic.weightedAverage
-        myOrderingFrequency.value = myNumReplenishment.value/(time - myNumReplenishment.timeOfWarmUp)
+        myOrderingFrequency.value = myNumReplenishmentOrders.value/(time - myNumReplenishmentOrders.timeOfWarmUp)
         myOrderingCost.value = costPerOrder * myOrderingFrequency.value
         myOrderingAndHoldingCost.value = myOrderingCost.value + myHoldingCost.value
         myTotalCost.value = myOrderingCost.value + myHoldingCost.value + myBackorderCost.value

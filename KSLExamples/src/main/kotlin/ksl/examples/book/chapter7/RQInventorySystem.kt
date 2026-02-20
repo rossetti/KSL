@@ -51,7 +51,7 @@ class RQInventorySystem(
     val leadTime: RandomVariableCIfc
         get() = leadTimeRV
 
-    private var timeBetweenDemandRV = ExponentialRV(365.0 / 14.0)
+    private var timeBetweenDemandRV = ExponentialRV(365.0 / 14.0, 1)
 
     private val myDemandGenerator = EventGenerator(this, this::sendDemand,
         timeBetweenDemandRV, timeBetweenDemandRV)
