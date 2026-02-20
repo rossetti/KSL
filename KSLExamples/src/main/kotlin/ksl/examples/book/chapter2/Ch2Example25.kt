@@ -34,7 +34,7 @@ import ksl.utilities.statistic.BootstrapSampler
  *  Illustrates how to perform goodness of fit testing for a discrete distribution.
  */
 fun main() {
-    val dist = NegativeBinomial(0.2, theNumSuccesses = 4.0)
+    val dist = NegativeBinomial(0.2, numSuccesses = 4.0)
     val rv = dist.randomVariable(streamNumber = 3)
     rv.advanceToNextSubStream()
     val data = rv.sample(200)
