@@ -93,6 +93,10 @@ class SResource(
             }
             field = value
         }
+    /**
+     * The capacity of the resource at time any time t
+     */
+    private var myCapacity = initialCapacity
 
     override val capacity: Int
         get() = myCapacity
@@ -102,11 +106,6 @@ class SResource(
 
     override val numTimesReleased: Int
         get() = myNumTimesReleased
-
-    /**
-     * The capacity of the resource at time any time t
-     */
-    private var myCapacity = capacity
 
     /**
      * Counts how many times the resource has units become busy
@@ -126,7 +125,11 @@ class SResource(
     override val numBusyUnits: TWResponseCIfc
         get() = myNumBusy
 
-    private val myUtil: TWResponseFunction = TWResponseFunction({ x -> x / (capacity) }, myNumBusy, "${this.name}:Util")
+    private fun utilCapture(x: Double) : Double {
+        return x/myCapacity
+    }
+
+    private val myUtil: TWResponseFunction = TWResponseFunction(this::utilCapture, myNumBusy, "${this.name}:Util")
     override val utilization: TWResponseCIfc
         get() = myUtil
 
