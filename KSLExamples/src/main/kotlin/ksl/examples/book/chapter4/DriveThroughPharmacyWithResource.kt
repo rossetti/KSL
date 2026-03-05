@@ -40,6 +40,7 @@ fun main() {
     val dtp = DriveThroughPharmacyWithResource(model, 1, name = "Pharmacy")
     dtp.arrivalGenerator.initialTimeBtwEvents = ExponentialRV(6.0, 1)
     dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+//    dtp.resource.initialCapacity = 2
     model.simulate()
     model.print()
 //    val hp = dtp.systemTimeHistogram.histogramPlot()
