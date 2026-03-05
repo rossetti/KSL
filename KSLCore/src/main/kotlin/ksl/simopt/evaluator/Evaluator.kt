@@ -345,6 +345,9 @@ class Evaluator @JvmOverloads constructor(
          * string and the key provides information about how to process the JSON.
          * The intent is that the map should be sufficient to build an appropriate `Model` instance.
          * The map is optional. The function should return a model that is usable.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
