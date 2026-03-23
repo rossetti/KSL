@@ -1,3 +1,6 @@
+import org.jetbrains.dokka.DokkaConfiguration
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
+
 /*
  * The KSL provides a discrete-event simulation library for the Kotlin programming language.
  *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
@@ -171,6 +174,7 @@ dokka {
     }
 
     dokkaSourceSets.main {
+        documentedVisibilities.set(setOf(VisibilityModifier.Public, VisibilityModifier.Protected))
         sourceLink {
             localDirectory.set(file("src/main/kotlin"))
             remoteUrl("https://github.com/rossetti/KSL/tree/main/KSLCore/src/main/kotlin")
