@@ -14,6 +14,7 @@ import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMa
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
+import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
 import ksl.simopt.solvers.algorithms.RSplineSolver
 import ksl.simopt.solvers.algorithms.RSplineSolver.Companion.defaultInitialSampleSize
 import ksl.simopt.solvers.algorithms.RandomRestartSolver
@@ -1089,6 +1090,89 @@ abstract class Solver(
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
+            sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
+            printer?.let { sa.emitter.attach(it) }
+            return sa
+        }
+
+        /**
+         * Factory function to instantiate a dynamically tuned Simulated Annealing solver.
+         * This function automatically estimates an optimal starting temperature based on the
+         * problem landscape and constructs an exponential cooling schedule perfectly fitted
+         * to the maximum number of iterations.
+         *
+         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
+         * @param modelBuilder The model builder interface used to create models for evaluation.
+         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
+         * provided by the problem definition.
+         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
+         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
+         * stochastic noise. Defaults to 50.
+         * @param targetAcceptanceProbability Desired initial probability of accepting worse solutions (default 0.8).
+         * @param estimationSampleSize Number of random walk steps used to estimate the initial temperature (default 100).
+         * @param stoppingTemperature The target temperature at the final iteration.
+         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
+         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
+         * is null (no cache).
+         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
+         * observe the optimization process.
+         * @param experimentRunParameters the run parameters to apply to the model during the building process
+         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
+         * to the model. The default is false.
+         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         */
+        @JvmStatic
+        fun simulatedAnnealingSolver(
+            problemDefinition: ProblemDefinition,
+            modelBuilder: ModelBuilderIfc,
+            startingPoint: MutableMap<String, Double>? = null,
+            maxIterations: Int = defaultMaxNumberIterations,
+            replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(defaultReplicationsPerEvaluation),
+            targetAcceptanceProbability: Double = 0.8,
+            estimationSampleSize: Int = 100,
+            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
+            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
+            simulationRunCache: SimulationRunCacheIfc? = null,
+            printer: ((Solver) -> Unit)? = null,
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            defaultKSLDatabaseObserverOption: Boolean = false
+        ): SimulatedAnnealing {
+
+            val evaluator = Evaluator.createProblemEvaluator(
+                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+            )
+
+            // 1. Estimate the optimal starting temperature using a brief random walk
+            val estimatedInitialTemp = SimulatedAnnealing.estimateInitialTemperature(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                targetAcceptanceProbability = targetAcceptanceProbability,
+                sampleSize = estimationSampleSize,
+                replicationsPerEvaluation = FixedReplicationsPerEvaluation(1) // Keep the walk cheap
+            )
+
+            // 2. Create the perfectly tuned exponential cooling schedule
+            // (Using the secondary constructor we built that calculates the optimal cooling rate)
+            val schedule = ExponentialCoolingSchedule(
+                initialTemperature = estimatedInitialTemp,
+                stoppingTemperature = stoppingTemperature,
+                maxIterations = maxIterations
+            )
+
+            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+            // 3. Instantiate and return the solver
+
+            val sa = SimulatedAnnealing(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                initialTemperature = estimatedInitialTemp,
+                coolingSchedule = schedule,
+                maxIterations = maxIterations,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+            )
+
             sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
             printer?.let { sa.emitter.attach(it) }
             return sa
