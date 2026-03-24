@@ -1107,9 +1107,9 @@ abstract class Solver(
          * provided by the problem definition.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
+         * stochastic noise. Defaults to 30.
          * @param targetAcceptanceProbability Desired initial probability of accepting worse solutions (default 0.8).
-         * @param estimationSampleSize Number of random walk steps used to estimate the initial temperature (default 100).
+         * @param estimationSampleSize Number of random walk steps used to estimate the initial temperature (default 30).
          * @param stoppingTemperature The target temperature at the final iteration.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
@@ -1129,7 +1129,7 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(defaultReplicationsPerEvaluation),
             targetAcceptanceProbability: Double = 0.8,
-            estimationSampleSize: Int = 100,
+            estimationSampleSize: Int = 30,
             stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
