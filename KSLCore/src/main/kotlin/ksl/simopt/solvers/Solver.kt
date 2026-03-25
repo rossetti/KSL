@@ -47,6 +47,10 @@ interface IterationEmitterIfc {
     val iterationEmitter: Emitter<SolverStateSnapshot>
 }
 
+class IterationEmitter : IterationEmitterIfc {
+    override val iterationEmitter: Emitter<SolverStateSnapshot> = Emitter()
+}
+
 data class SolverStateSnapshot(
     val iterationNumber: Int,
     val bestSolutionSoFar: Solution,
@@ -57,7 +61,6 @@ data class SolverStateSnapshot(
     val numReplicationsRequested: Int,
     val solverSpecificState: Map<String, Double> // e.g., mapOf("temperature" to 50.0)
 )
-
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
