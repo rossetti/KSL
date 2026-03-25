@@ -31,6 +31,7 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
 
+//TODO need to stop directly emitting the solver instance!!
 interface SolverEmitterIfc {
     val emitter: Emitter<Solver>
 }
@@ -38,6 +39,24 @@ interface SolverEmitterIfc {
 class SolverEmitter : SolverEmitterIfc {
     override val emitter: Emitter<Solver> = Emitter()
 }
+
+/**
+ *  A promise to emit the solver's state
+ */
+interface IterationEmitterIfc {
+    val iterationEmitter: Emitter<SolverStateSnapshot>
+}
+
+data class SolverStateSnapshot(
+    val iterationNumber: Int,
+    val bestSolutionSoFar: Solution,
+    val penalizedSolutionGap : Double,
+    val unPenalizedSolutionGap : Double,
+    val numOracleCalls: Int,
+    val numReplicationsRequested: Int,
+    val solverSpecificState: Map<String, Double> // e.g., mapOf("temperature" to 50.0)
+)
+
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -776,6 +795,15 @@ abstract class Solver(
             appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
             appendLine("Number of simulation calls = $numOracleCalls")
             appendLine("Number of replications requested = $numReplicationsRequested")
+            appendLine("Evaluator:")
+            appendLine("totalEvaluations = ${evaluator.totalEvaluations}")
+            appendLine("totalOracleEvaluations = ${evaluator.totalOracleEvaluations}")
+            appendLine("totalCachedEvaluations = ${evaluator.totalCachedEvaluations}")
+            appendLine("totalRequestsReceived = ${evaluator.totalRequestsReceived}")
+            appendLine("totalCachedReplications = ${evaluator.totalCachedReplications}")
+            appendLine("totalOracleReplications = ${evaluator.totalOracleReplications}")
+            appendLine("totalReplications = ${evaluator.totalReplications}")
+            appendLine()
             appendLine("==================================================================")
             if (::myInitialSolution.isInitialized) {
                 appendLine("Initial Solution:")

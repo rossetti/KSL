@@ -26,6 +26,14 @@ class Emitter<TType> {
     private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
     var emissionsOn : Boolean = true
 
+    /**
+     * Returns true if emissions are turned on AND there is at least
+     * one active subscriber listening to this emitter.
+     * Useful for avoiding expensive object creation if no one is listening.
+     */
+    val isObserved: Boolean
+        get() = emissionsOn && callbacks.isNotEmpty()
+
     fun emit(newValue: TType) {
         if (!emissionsOn){
             return
