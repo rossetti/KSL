@@ -8,12 +8,12 @@ import ksl.utilities.observers.Emitter
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 
 interface SolutionEmitterIfc {
-    val emitter : Emitter<Solution>
+    val solutionEmitter : Emitter<Solution>
 }
 
 @Suppress("unused")
 class SolutionEmitter : SolutionEmitterIfc {
-    override val emitter: Emitter<Solution> = Emitter()
+    override val solutionEmitter: Emitter<Solution> = Emitter()
 }
 
 /**

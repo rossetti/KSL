@@ -31,13 +31,11 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
 
-//TODO need to stop directly emitting the solver instance!!
-interface SolverEmitterIfc {
-    val emitter: Emitter<Solver>
-}
-
-class SolverEmitter : SolverEmitterIfc {
-    override val emitter: Emitter<Solver> = Emitter()
+enum class SolverStatus {
+    INITIALIZED, // Emitted after state reset, right before iteration 0
+    STARTED,     // Emitted right as the algorithmic while-loop begins
+    COMPLETED,   // Emitted when the run finishes naturally
+    ERROR        // Emitted if an unhandled exception breaks the loop
 }
 
 /**
@@ -51,15 +49,39 @@ class IterationEmitter : IterationEmitterIfc {
     override val iterationEmitter: Emitter<SolverStateSnapshot> = Emitter()
 }
 
+interface LifeCycleEmitterIfc {
+    val lifeCycleEmitter: Emitter<SolverStatus>
+}
+
+class LifeCycleEmitter : LifeCycleEmitterIfc {
+    override val lifeCycleEmitter: Emitter<SolverStatus> = Emitter()
+}
+
+/**
+ * An immutable representation of a solver's state at a specific point in time during the optimization process.
+ * * This class is designed to be emitted or recorded at the end of algorithmic iterations (or macro-steps).
+ * Because it is strictly an immutable snapshot, it can be safely stored in historical lists or passed
+ * across threads without risking the "live reference" mutation problem.
+ *
+ * @param iterationNumber The current algorithmic iteration or step at which this snapshot was taken.
+ * @param numOracleCalls The cumulative total number of times the simulation oracle has been invoked by the solver up to this point.
+ * @param numReplicationsRequested The cumulative total number of individual simulation replications requested across all oracle calls up to this point.
+ * @param bestSolutionSoFar The best [Solution] discovered by the solver up to this iteration.
+ * @param estimatedObjFncValue The objective function value associated with the [bestSolutionSoFar].
+ * @param penalizedObjFncValue The penalized objective function value associated with the [bestSolutionSoFar].
+ * @param currentSolution The latest solution found. It may not be the best due to algorithm trajectories.
+ * @param solverSpecificState An optional map containing algorithm-specific metrics that do not apply generally to all solvers
+ * (e.g., `mapOf("temperature" to 50.0)` for Simulated Annealing, or `"splineCalls"` for R-SPLINE). Defaults to `null`.
+ */
 data class SolverStateSnapshot(
     val iterationNumber: Int,
-    val bestSolutionSoFar: Solution,
-    val objectiveValue: Double,
-    val penalizedSolutionGap : Double,
-    val unPenalizedSolutionGap : Double,
     val numOracleCalls: Int,
     val numReplicationsRequested: Int,
-    val solverSpecificState: Map<String, Double> // e.g., mapOf("temperature" to 50.0)
+    val bestSolutionSoFar: Solution,
+    val currentSolution: Solution,
+    val estimatedObjFncValue: Double = bestSolutionSoFar.estimatedObjFncValue,
+    val penalizedObjFncValue: Double = bestSolutionSoFar.penalizedObjFncValue,
+    val solverSpecificState: Map<String, Double>? = null
 )
 
 /**
@@ -95,7 +117,8 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-) : IdentityIfc by Identity(name), Comparator<Solution>, SolverEmitterIfc by SolverEmitter() {
+) : IdentityIfc by Identity(name), Comparator<Solution>, IterationEmitterIfc by IterationEmitter(),
+    LifeCycleEmitterIfc by LifeCycleEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -139,6 +162,19 @@ abstract class Solver(
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         name
     )
+
+    /**
+     *  If a listener is attached to the solver via its iterationEmitter property,
+     *  then snapshots of the solver's state are captured at the end of each iteration
+     *  according to this specified frequency. For example, if the frequency is 10,
+     *  then every 10th iteration is emitted. The default is 1.  If nothing listens
+     *  for emissions, then no snapshots are emitted.
+     */
+    var snapShotFrequency: Int = 1
+        set(value) {
+            require(value > 0) { "snapshot frequency must be > 0" }
+            field = value
+        }
 
     /**
      *  The outer iterative process. See [IterativeProcess] for
@@ -405,7 +441,14 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun runAllIterations() {
-        myMainIterativeProcess.run()
+        try {
+            myMainIterativeProcess.run()
+        } catch (e: Exception) {
+        // Catches anything that breaks the internal loop or initialization.
+            lifeCycleEmitter.emit(SolverStatus.ERROR)
+            // Re-throw so the framework user knows their run failed.
+            throw e
+        }
     }
 
     /**
@@ -600,6 +643,33 @@ abstract class Solver(
     }
 
     /**
+     * Creates an immutable snapshot of the solver's current state.
+     * This is typically called at the end of an iteration to broadcast the state
+     * to any attached listeners safely.
+     */
+    protected open fun makeSolverStateSnapshot(): SolverStateSnapshot {
+        // Grab the best solution currently tracked by the solver.
+        return SolverStateSnapshot(
+            iterationNumber = iterationCounter,
+            numOracleCalls = numOracleCalls,
+            numReplicationsRequested = numReplicationsRequested,
+            bestSolutionSoFar = bestSolution,
+            currentSolution = currentSolution,
+            // Delegate to the subclass hook to fetch algorithm-specific state
+            solverSpecificState = extractSolverSpecificState()
+        )
+    }
+
+    /**
+     * A hook for subclasses to inject their specific internal state metrics into the snapshot
+     * without having to override the entire [makeSolverStateSnapshot] method.
+     * * @return A map of algorithm-specific state variables, or null if none exist.
+     */
+    protected open fun extractSolverSpecificState(): Map<String, Double>? {
+        return null
+    }
+
+    /**
      * Generates a neighboring point based on the current point represented by the input map.
      * This method determines the next potential point in the iterative process, either through a
      * neighbor generator or by randomizing the value of a randomly selected input variable.
@@ -707,7 +777,7 @@ abstract class Solver(
         numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
         crnOption: Boolean = false,
         cachingAllowed: Boolean = true
-    ): Map<ModelInputs, Solution>{
+    ): Map<ModelInputs, Solution> {
         val caching = if (crnOption) false else cachingAllowed
         val requests = prepareModelInputs(inputs, numReps)
         return requestEvaluations(requests, crnOption, caching)
@@ -783,7 +853,8 @@ abstract class Solver(
     ): Map<ModelInputs, Solution> {
         //TODO this is a long running call, consider coroutines to support this
         numOracleCalls = numOracleCalls + modelInputs.size
-        val evaluationRequest = EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
+        val evaluationRequest =
+            EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
         return evaluator.evaluate(evaluationRequest)
     }
 
@@ -859,7 +930,11 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
-            // emitter.emit(this@Solver)
+            lifeCycleEmitter.emit(SolverStatus.INITIALIZED)
+            if(iterationEmitter.isObserved){
+                iterationEmitter.emit(makeSolverStateSnapshot())
+            }
+            lifeCycleEmitter.emit(SolverStatus.STARTED)
         }
 
         override fun hasNextStep(): Boolean {
@@ -892,7 +967,11 @@ abstract class Solver(
             iterationCounter++
             logger.info { "Running: iteration = $iterationCounter of solver name: $name" }
             mainIteration()
-            emitter.emit(this@Solver)
+            if (iterationCounter % snapShotFrequency == 0 && iterationEmitter.isObserved) {
+                val snapshot = makeSolverStateSnapshot()
+                iterationEmitter.emit(snapshot)
+            }
+
             logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
@@ -904,6 +983,7 @@ abstract class Solver(
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name iterations." }
+            lifeCycleEmitter.emit(SolverStatus.COMPLETED)
         }
 
     }
@@ -994,7 +1074,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): StochasticHillClimber {
@@ -1011,7 +1091,7 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { shc.emitter.attach(it) }
+            printer?.let { shc.iterationEmitter.attach(it) }
             return shc
         }
 
@@ -1024,8 +1104,6 @@ abstract class Solver(
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -1047,8 +1125,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1066,8 +1143,7 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 shc, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { shc.emitter.attach(it) }
+            printer?.let { shc.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1105,7 +1181,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
@@ -1123,7 +1199,7 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { sa.emitter.attach(it) }
+            printer?.let { sa.iterationEmitter.attach(it) }
             return sa
         }
 
@@ -1153,19 +1229,23 @@ abstract class Solver(
          * to the model. The default is false.
          * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
          */
+        @Suppress("unused")
         @JvmStatic
-        fun simulatedAnnealingSolver(
+        @JvmOverloads
+        fun simulatedAnnealingSolverWithInitializedTemperature(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
-            replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(defaultReplicationsPerEvaluation),
+            replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(
+                defaultReplicationsPerEvaluation
+            ),
             targetAcceptanceProbability: Double = 0.8,
             estimationSampleSize: Int = 30,
             stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
@@ -1206,7 +1286,7 @@ abstract class Solver(
             )
 
             sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { sa.emitter.attach(it) }
+            printer?.let { sa.iterationEmitter.attach(it) }
             return sa
         }
 
@@ -1224,8 +1304,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
@@ -1245,8 +1323,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1265,8 +1342,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 sa, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { sa.emitter.attach(it) }
+            //TODO implement nested tracking
+            printer?.let { sa.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1303,7 +1380,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): CrossEntropySolver {
@@ -1322,7 +1399,7 @@ abstract class Solver(
             if (startingPoint != null) {
                 ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { ce.emitter.attach(it) }
+            printer?.let { ce.iterationEmitter.attach(it) }
             return ce
         }
 
@@ -1340,8 +1417,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
@@ -1361,15 +1436,17 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder,
-                solutionCache = solutionCache, simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters, defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1381,8 +1458,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 ce, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { ce.emitter.attach(it) }
+            //TODO implement nested tracking
+            printer?.let { ce.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1420,7 +1497,7 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RSplineSolver {
@@ -1440,7 +1517,7 @@ abstract class Solver(
             if (startingPoint != null) {
                 solver.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { solver.emitter.attach(it) }
+            printer?.let { solver.iterationEmitter.attach(it) }
             return solver
         }
 
@@ -1460,7 +1537,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
          * observe the restart optimization process.
          * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
          *    observe the inner solver optimization process.
@@ -1483,8 +1559,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
+            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1504,8 +1579,8 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 solver, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { solver.emitter.attach(it) }
+            //TODO implement nested tracking
+            printer?.let { solver.iterationEmitter.attach(it) }
             return restartSolver
         }
     }
