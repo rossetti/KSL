@@ -50,6 +50,7 @@ interface IterationEmitterIfc {
 data class SolverStateSnapshot(
     val iterationNumber: Int,
     val bestSolutionSoFar: Solution,
+    val objectiveValue: Double,
     val penalizedSolutionGap : Double,
     val unPenalizedSolutionGap : Double,
     val numOracleCalls: Int,
