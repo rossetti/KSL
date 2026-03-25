@@ -26,43 +26,37 @@ class Evaluator @JvmOverloads constructor(
     /**
      *  The total number of evaluations performed. An evaluation may have many replications.
      */
-    var totalEvaluations: Int = 0
+    override var totalEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the simulation oracle.
      */
-    var totalOracleEvaluations: Int = 0
+    override var totalOracleEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluations performed via the cache.
      */
-    var totalCachedEvaluations: Int = 0
+    override var totalCachedEvaluations: Int = 0
         private set
 
     /**
      *  The total number of evaluation requests that were received.
      */
-    var totalRequestsReceived: Int = 0
+    override var totalRequestsReceived: Int = 0
         private set
-
-    /**
-     *  The total number of replications requested across all evaluation requests.
-     */
-    val totalReplications: Int
-        get() = totalOracleReplications + totalCachedReplications
 
     /**
      *  The total number of replications performed by the simulation oracle.
      */
-    var totalOracleReplications: Int = 0
+    override var totalOracleReplications: Int = 0
         private set
 
     /**
      *  The total number of replications satisfied by the cache.
      */
-    var totalCachedReplications: Int = 0
+    override var totalCachedReplications: Int = 0
         private set
 
     /**
