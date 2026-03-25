@@ -2,60 +2,77 @@ package ksl.simopt.solvers.trackers
 
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverStateSnapshot
+import ksl.simopt.solvers.SolverStatus
 import ksl.utilities.observers.Emitter
 
 /**
- * An abstract base class designed to safely consume [SolverStateSnapshot] events
- * from a solver's IterationEmitter.
- * * It manages the lifecycle of the emitter connection and implements [AutoCloseable]
- * to ensure that observers are cleanly detached when tracking is complete.
+ * An abstract base class that safely tracks a [Solver]'s state and lifecycle.
+ * It automatically detaches its listeners and cleans up resources when the solver
+ * emits a terminal lifecycle event ([SolverStatus.COMPLETED] or [SolverStatus.ERROR]).
  *
- * @param solver The solver whose iteration emitter we want to track.
+ * @param solver The solver whose emitters we want to track.
  */
 abstract class AbstractSolverStateTracker(
-    private val solver: Solver // Assuming your Solver class exposes `iterationEmitter`
+    protected val solver: Solver
 ) : AutoCloseable {
 
-    // Holds the active connection to the emitter so it can be detached later
-    private var connection: Emitter.Connection? = null
+    private var dataConnection: Emitter.Connection? = null
+    private var lifecycleConnection: Emitter.Connection? = null
 
     /**
-     * Attaches this consumer to the solver's iteration emitter.
-     * Begins funneling emitted snapshots to the [consume] template method.
+     * Attaches this tracker to the solver's emitters.
      */
     fun startTracking() {
-        if (connection == null) {
-            connection = solver.iterationEmitter.attach { snapshot ->
-                consume(snapshot)
+        if (dataConnection != null || lifecycleConnection != null) {
+            return // Already tracking
+        }
+
+        // 1. Listen for the mathematical state snapshots
+        dataConnection = solver.iterationEmitter.attach { snapshot ->
+            consume(snapshot)
+        }
+
+        // 2. Listen for execution lifecycle changes
+        lifecycleConnection = solver.lifeCycleEmitter.attach { status ->
+            // Pass the event to subclasses in case they want to react to INITIALIZED or STARTED
+            onLifecycleEvent(status)
+
+            // Self-terminate on completion or crash
+            if (status == SolverStatus.COMPLETED || status == SolverStatus.ERROR) {
+                close()
             }
         }
     }
 
     /**
-     * Stops tracking and detaches from the emitter.
-     * Safely ignores multiple calls.
-     */
-    fun stopTracking() {
-        connection?.let {
-            solver.iterationEmitter.detach(it)
-            connection = null
-        }
-    }
-
-    /**
-     * Fulfills the [AutoCloseable] contract.
-     * Subclasses can override this to close their specific resources (like files or database connections),
-     * but they MUST call super.close() to ensure the emitter is detached.
+     * Safely detaches from the solver's emitters and cleans up resources.
+     * This is called automatically when the solver finishes or crashes,
+     * but can also be called manually via Kotlin's `use` block.
      */
     override fun close() {
-        stopTracking()
+        dataConnection?.let { solver.iterationEmitter.detach(it) }
+        lifecycleConnection?.let { solver.lifeCycleEmitter.detach(it) }
+
+        dataConnection = null
+        lifecycleConnection = null
+
+        // Delegate to the subclass to close files, database connections, etc.
+        onCloseResources()
     }
 
     /**
-     * Template method that concrete subclasses must implement.
-     * This defines HOW the specific tracker handles the snapshot data.
-     *
-     * @param snapshot The immutable state payload emitted by the solver.
+     * Defines how the concrete tracker handles the mathematical state payload.
      */
     protected abstract fun consume(snapshot: SolverStateSnapshot)
+
+    /**
+     * Optional hook for subclasses to react to lifecycle changes
+     * (e.g., drawing an empty chart on INITIALIZED).
+     */
+    protected open fun onLifecycleEvent(status: SolverStatus) {}
+
+    /**
+     * Optional hook for subclasses to close their specific resources.
+     */
+    protected open fun onCloseResources() {}
 }
