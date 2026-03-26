@@ -321,7 +321,13 @@ class ProblemDefinition @JvmOverloads constructor(
         get() = myInputDefinitions.values.map { it.interval.midPoint }.toDoubleArray()
 
     /**
-     *  The mid-point of each input variable's range as an input map
+     *  The mid-point of each input variable's range as mutable map.
+     *  The key is the name of the input variable, and the value is the mid-point of the variable's range.
+     *  This can be used to generate a starting point for the problem based on the mid-point of the input variable ranges.
+     *  Or, you can change the associated value for a particular input variable to generate a starting point that is
+     *  not based on the mid-point of the variable's range.
+     *  Then, use the [toInputMap] function to convert the map into an input map that can be used as a starting
+     *  point for the problem.
      */
     val midPoints: MutableMap<String, Double>
         get() = myInputDefinitions.values.associate { it.midPoint }.toMutableMap()
