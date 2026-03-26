@@ -1054,7 +1054,6 @@ abstract class Solver(
          * is randomly generated from the problem definition.
          * @param maxIterations The maximum number of hill climbing iterations to perform.
          * @param replicationsPerEvaluation The number of simulations or evaluations performed per solution to estimate its quality.
-         * @param printer An optional function to receive updates about solutions found during the search.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -1074,7 +1073,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): StochasticHillClimber {
@@ -1091,7 +1089,6 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { shc.iterationEmitter.attach(it) }
             return shc
         }
 
@@ -1107,8 +1104,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1125,7 +1120,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1143,7 +1137,6 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 shc, maxNumRestarts
             )
-            printer?.let { shc.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1162,8 +1155,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1181,7 +1172,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
@@ -1199,7 +1189,6 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { sa.iterationEmitter.attach(it) }
             return sa
         }
 
@@ -1222,8 +1211,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1245,7 +1232,6 @@ abstract class Solver(
             stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
@@ -1286,7 +1272,6 @@ abstract class Solver(
             )
 
             sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { sa.iterationEmitter.attach(it) }
             return sa
         }
 
@@ -1304,8 +1289,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1323,7 +1306,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1342,8 +1324,6 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 sa, maxNumRestarts
             )
-            //TODO implement nested tracking
-            printer?.let { sa.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1361,8 +1341,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1380,7 +1358,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): CrossEntropySolver {
@@ -1399,7 +1376,6 @@ abstract class Solver(
             if (startingPoint != null) {
                 ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { ce.iterationEmitter.attach(it) }
             return ce
         }
 
@@ -1417,8 +1393,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1436,7 +1410,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1458,8 +1431,6 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 ce, maxNumRestarts
             )
-            //TODO implement nested tracking
-            printer?.let { ce.iterationEmitter.attach(it) }
             return restartSolver
         }
 
@@ -1477,8 +1448,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1497,7 +1466,6 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RSplineSolver {
@@ -1517,7 +1485,6 @@ abstract class Solver(
             if (startingPoint != null) {
                 solver.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { solver.iterationEmitter.attach(it) }
             return solver
         }
 
@@ -1537,9 +1504,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * observe the restart optimization process.
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1559,7 +1523,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((SolverStateSnapshot) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1579,8 +1542,6 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 solver, maxNumRestarts
             )
-            //TODO implement nested tracking
-            printer?.let { solver.iterationEmitter.attach(it) }
             return restartSolver
         }
     }

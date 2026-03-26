@@ -206,7 +206,10 @@ class InputMap internal constructor(
     }
 
     override fun toString(): String {
-        return "InputMap($map)"
+        val nameStr = map.keys.joinToString(prefix = "(", separator = ", ", postfix = ")=")
+        val valueStr = inputValues.joinToString(prefix = "(",
+            transform = {String.format("%.3f", it)}, postfix = ")")
+        return "$nameStr$valueStr"
     }
 
 }

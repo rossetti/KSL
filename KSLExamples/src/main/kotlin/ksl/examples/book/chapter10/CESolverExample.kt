@@ -6,6 +6,7 @@ import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.RandomRestartSolver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
@@ -35,11 +36,12 @@ fun runCESolver(
         startingPoint = null,
         maxIterations = 100,
         replicationsPerEvaluation = 50,
-        printer = printer,
         simulationRunCache = simulationRunCache,
         experimentRunParameters = experimentRunParameters,
         defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
     )
+    val tracker = ConsoleSolverStateTracker(solver)
+    tracker.startTracking()
     solver.runAllIterations()
     println()
     println("Solver Results:")

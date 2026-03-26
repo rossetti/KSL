@@ -2,50 +2,98 @@ package ksl.simopt.solvers.trackers
 
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverStateSnapshot
+import ksl.simopt.solvers.SolverStatus
+import ksl.utilities.io.KSL
+import ksl.utilities.io.KSLFileUtil
 import java.io.File
+import java.io.FileWriter
 import java.io.PrintWriter
 
 /**
- * A self-terminating tracker that logs optimization progress to a CSV file.
- * Automatically handles lifecycle events to safely close the file stream.
+ * An autonomous tracker that logs continuous optimization progress to a CSV file.
+ * Automatically manages OS file locks to support multiple sequential solver runs
+ * appending cleanly to the same file.
+ *
+ * @param solver The solver to track.
+ * @param outputFile The file to write the CSV data to.
+ * @param columns A list of [TrackerColumn]s defining the CSV structure. Defaults to [defaultColumns].
  */
+@Suppress("unused")
 class CsvSolverStateTracker(
     solver: Solver,
-    outputFile: File
+    private val outputFile: File,
+    private val columns: List<TrackerColumn> = defaultColumns
 ) : AbstractSolverStateTracker(solver) {
 
-    // Wrap the file output in a buffered PrintWriter for high-performance I/O
-    private val writer = PrintWriter(outputFile.bufferedWriter())
+    /**
+     * Convenience constructor that creates a CSV file in the KSL output directory.
+     */
+    constructor(solver: Solver, fileName: String) : this(
+        solver,
+        KSLFileUtil.createFileWithExtension(fileName, "csv", KSL.outDir)
+    )
 
-    init {
-        // Updated header to match the revised SolverStateSnapshot properties
-        writer.println("Iteration,OracleCalls,Replications,EstimatedObjValue,PenalizedObjValue,BestPoint,CurrentPoint,Metrics")
+    private var writer: PrintWriter? = null
+    private var isFirstRun = true
+
+    override fun onLifecycleEvent(status: SolverStatus) {
+        when (status) {
+            SolverStatus.INITIALIZED -> {
+                // Open the file in APPEND mode (true) so we don't overwrite previous runs
+                writer = PrintWriter(FileWriter(outputFile, true).buffered())
+
+                // Only print the header row if the file is completely empty
+                if (isFirstRun && outputFile.length() == 0L) {
+                    val headerRow = columns.joinToString(",") { it.headerName }
+                    writer?.println(headerRow)
+                }
+                isFirstRun = false
+            }
+            SolverStatus.COMPLETED, SolverStatus.ERROR -> {
+                // Safely flush and release the OS file lock
+                writer?.flush()
+                writer?.close()
+                writer = null
+            }
+            else -> {}
+        }
     }
 
     override fun consume(snapshot: SolverStateSnapshot) {
-        val iteration = snapshot.iterationNumber
-        val oracleCalls = snapshot.numOracleCalls
-        val replications = snapshot.numReplicationsRequested
-        val estObjValue = snapshot.estimatedObjFncValue
-        val penObjValue = snapshot.penalizedObjFncValue
-
-        // Sanitize string representations so commas in the solution maps do not break CSV columns
-        // (Assuming your Solution class exposes an inputMap or similar iterable property)
-        val bestPoint = snapshot.bestSolutionSoFar.inputMap.toString().replace(",", ";")
-        val currentPoint = snapshot.currentSolution.inputMap.toString().replace(",", ";")
-
-        // Handle the optional map gracefully
-        val metrics = snapshot.solverSpecificState?.toString()?.replace(",", ";") ?: ""
-
-        // Write the constructed row directly to the buffer
-        writer.println("$iteration,$oracleCalls,$replications,$estObjValue,$penObjValue,\"$bestPoint\",\"$currentPoint\",\"$metrics\"")
+        // Build the data row dynamically by passing BOTH the snapshot and the context
+        val dataRow = columns.joinToString(",") { column ->
+            column.stringifier(snapshot, trackingContext)
+        }
+        writer?.println(dataRow)
     }
 
-    /**
-     * Triggered automatically by the base class when COMPLETED or ERROR is received.
-     */
-    override fun onCloseResources() {
-        writer.flush()
-        writer.close()
+    companion object {
+        // --- Context Metadata Columns ---
+        val RUN_NUMBER = TrackerColumn("RunNumber") { _, ctx -> ctx.runNumber.toString() }
+        val EXPERIMENT = TrackerColumn("ExperimentName") { _, ctx -> ctx.experimentName }
+
+        // --- Standard Metrics Columns ---
+        val ITERATION = TrackerColumn("Iteration") { snap, _ -> snap.iterationNumber.toString() }
+        val ORACLE_CALLS = TrackerColumn("OracleCalls") { snap, _ -> snap.numOracleCalls.toString() }
+        val REPLICATIONS = TrackerColumn("Replications") { snap, _ -> snap.numReplicationsRequested.toString() }
+        val EST_OBJ_VALUE = TrackerColumn("EstimatedObjValue") { snap, _ -> snap.estimatedObjFncValue.toString() }
+        val PEN_OBJ_VALUE = TrackerColumn("PenalizedObjValue") { snap, _ -> snap.penalizedObjFncValue.toString() }
+
+        // Maps and complex strings are safely wrapped in quotes with internal commas replaced
+        val BEST_POINT = TrackerColumn("BestPoint") { snap, _ ->
+            "\"${snap.bestSolutionSoFar.inputMap.toString().replace(",", ";")}\""
+        }
+        val CURRENT_POINT = TrackerColumn("CurrentPoint") { snap, _ ->
+            "\"${snap.currentSolution.inputMap.toString().replace(",", ";")}\""
+        }
+        val METRICS = TrackerColumn("Metrics") { snap, _ ->
+            "\"${snap.solverSpecificState?.toString()?.replace(",", ";") ?: ""}\""
+        }
+
+        /** The default list of columns covering standard optimization metrics. */
+        val defaultColumns: List<TrackerColumn> = listOf(
+            RUN_NUMBER, EXPERIMENT, ITERATION, ORACLE_CALLS, REPLICATIONS, EST_OBJ_VALUE,
+            PEN_OBJ_VALUE, BEST_POINT, CURRENT_POINT, METRICS
+        )
     }
 }

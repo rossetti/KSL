@@ -103,7 +103,6 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                printer = printer,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
@@ -117,7 +116,6 @@ fun solverFactory(
                 initialTemperature = initialTemperature,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                printer = printer,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -130,7 +128,6 @@ fun solverFactory(
                 startingPoint = null,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                printer = printer,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -142,7 +139,6 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 startingPoint = null,
                 maxIterations = 100,
-                printer = printer,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -154,8 +150,6 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                restartPrinter = printer,
-                printer = null,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -169,8 +163,6 @@ fun solverFactory(
                 initialTemperature = initialTemperature,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                restartPrinter = printer,
-                printer = null,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -182,8 +174,6 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
-                restartPrinter = printer,
-                printer = null,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
@@ -194,8 +184,6 @@ fun solverFactory(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
-                restartPrinter = printer,
-                printer = null,
                 simulationRunCache = simulationRunCache,
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
