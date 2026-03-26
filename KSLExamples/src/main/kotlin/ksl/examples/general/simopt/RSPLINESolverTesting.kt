@@ -1,6 +1,7 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 
 fun main() {
 
@@ -14,8 +15,9 @@ fun main() {
         modelBuilder = modelBuilder,
         startingPoint = null,
         maxIterations = 100,
-        printer = printer,
     )
+    val tracker = ConsoleSolverStateTracker(solver)
+    tracker.startTracking()
     solver.runAllIterations()
     println()
     println("Solver Results:")

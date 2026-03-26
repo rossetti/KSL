@@ -1,6 +1,8 @@
 package ksl.examples.general.simopt
 
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
+import ksl.simopt.solvers.trackers.CsvSolverStateTracker
 
 
 fun main() {
@@ -18,8 +20,11 @@ fun main() {
         initialTemperature = initialTemperature,
         maxIterations = 10,
         replicationsPerEvaluation = 50,
-        printer = printer,
     )
+    val tracker = ConsoleSolverStateTracker(solver)
+    tracker.startTracking()
+    val csvTracker = CsvSolverStateTracker(solver, "SA_${modelIdentifier}")
+    csvTracker.startTracking()
     solver.runAllIterations()
     println()
     println("Solver Results:")

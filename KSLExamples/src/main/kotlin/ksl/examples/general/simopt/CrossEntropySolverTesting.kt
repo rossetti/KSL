@@ -6,6 +6,7 @@ import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 
 fun main() {
 
@@ -20,8 +21,9 @@ fun main() {
         startingPoint = null,
         maxIterations = 100,
         replicationsPerEvaluation = 50,
-        printer = printer,
     )
+    val tracker = ConsoleSolverStateTracker(solver)
+    tracker.startTracking()
     solver.runAllIterations()
     println()
     println("Solver Results:")

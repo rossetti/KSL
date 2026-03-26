@@ -6,15 +6,27 @@ import ksl.simopt.solvers.SolverStatus
 import ksl.utilities.observers.Emitter
 
 /**
- * An abstract base class that safely tracks a [Solver]'s state and lifecycle.
- * It automatically detaches its listeners and cleans up resources when the solver
- * emits a terminal lifecycle event ([SolverStatus.COMPLETED] or [SolverStatus.ERROR]).
+ * An abstract base class that autonomously tracks a [Solver]'s state and lifecycle.
+ * It remains permanently attached to the solver, allowing it to record multiple
+ * subsequent runs seamlessly without user intervention.
  *
  * @param solver The solver whose emitters we want to track.
  */
 abstract class AbstractSolverStateTracker(
     protected val solver: Solver
-) : AutoCloseable {
+) {
+    /** * A user-defined label for the current experiment run.
+     * Users can mutate this between solver runs to semantically group their data.
+     */
+    var experimentName: String = "DefaultExperiment"
+
+    // Autonomously managed by the tracker based on lifecycle events
+    private var currentRunNumber: Int = 0
+
+    /** * Generates the current context to be passed down to column extractors.
+     */
+    protected val trackingContext: TrackingContext
+        get() = TrackingContext(currentRunNumber, experimentName)
 
     private var dataConnection: Emitter.Connection? = null
     private var lifecycleConnection: Emitter.Connection? = null
@@ -22,6 +34,7 @@ abstract class AbstractSolverStateTracker(
     /**
      * Attaches this tracker to the solver's emitters.
      */
+    @Suppress("unused")
     fun startTracking() {
         if (dataConnection != null || lifecycleConnection != null) {
             return // Already tracking
@@ -34,30 +47,27 @@ abstract class AbstractSolverStateTracker(
 
         // 2. Listen for execution lifecycle changes
         lifecycleConnection = solver.lifeCycleEmitter.attach { status ->
-            // Pass the event to subclasses in case they want to react to INITIALIZED or STARTED
-            onLifecycleEvent(status)
-
-            // Self-terminate on completion or crash
-            if (status == SolverStatus.COMPLETED || status == SolverStatus.ERROR) {
-                close()
+            // Autonomously increment the run counter when a new run begins
+            if (status == SolverStatus.INITIALIZED) {
+                currentRunNumber++
             }
+
+            // Pass the event to subclasses
+            onLifecycleEvent(status)
         }
     }
 
     /**
-     * Safely detaches from the solver's emitters and cleans up resources.
-     * This is called automatically when the solver finishes or crashes,
-     * but can also be called manually via Kotlin's `use` block.
+     * Safely detaches from the solver's emitters.
+     * In the continuous tracking architecture, this is usually only called manually
+     * if the user explicitly wants to silence the tracker.
      */
-    override fun close() {
+    fun stopTracking() {
         dataConnection?.let { solver.iterationEmitter.detach(it) }
         lifecycleConnection?.let { solver.lifeCycleEmitter.detach(it) }
 
         dataConnection = null
         lifecycleConnection = null
-
-        // Delegate to the subclass to close files, database connections, etc.
-        onCloseResources()
     }
 
     /**
@@ -67,12 +77,7 @@ abstract class AbstractSolverStateTracker(
 
     /**
      * Optional hook for subclasses to react to lifecycle changes
-     * (e.g., drawing an empty chart on INITIALIZED).
+     * (e.g., opening/closing files on INITIALIZED/COMPLETED).
      */
     protected open fun onLifecycleEvent(status: SolverStatus) {}
-
-    /**
-     * Optional hook for subclasses to close their specific resources.
-     */
-    protected open fun onCloseResources() {}
 }

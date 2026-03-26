@@ -23,7 +23,14 @@ package ksl.utilities.observers
  */
 class Emitter<TType> {
     class Connection
-    private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
+
+    // @Volatile ensures that if different threads attach/detach,
+    // the updated reference is immediately visible to the emit thread.
+    @Volatile
+    private var callbacks: Map<Connection, (TType) -> Unit> = emptyMap()
+
+    //private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
+
     var emissionsOn : Boolean = true
 
     /**
@@ -45,12 +52,18 @@ class Emitter<TType> {
 
     fun attach(callback: (newValue: TType) -> Unit) : Connection {
         val connection = Connection()
-        callbacks[connection] = callback
+    //    callbacks[connection] = callback
+        // 3. The '+' operator creates a NEW map containing the old entries plus the new pair.
+        // We then reassign the 'callbacks' reference to this new map.
+        callbacks = callbacks + (connection to callback)
+
         return connection
     }
 
     fun detach(connection : Connection) {
-        callbacks.remove(connection)
+        // 4. The '-' operator creates a NEW map excluding the given key.
+        callbacks = callbacks - connection
+ //       callbacks.remove(connection)
     }
 }
 
