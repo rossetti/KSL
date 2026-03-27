@@ -13,6 +13,7 @@ import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultRe
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CoolingScheduleIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
 import ksl.simopt.solvers.algorithms.RSplineSolver
@@ -22,6 +23,7 @@ import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRes
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
@@ -362,6 +364,7 @@ abstract class Solver(
      *  The difference between the current solution's unpenalized objective function value
      *  and the previous solution's unpenalized objective function value.
      */
+    @Suppress("unused")
     val unPenalizedSolutionGap: Double
         get() = currentSolution.estimatedObjFncValue - previousSolution.estimatedObjFncValue
 
@@ -488,7 +491,7 @@ abstract class Solver(
      * the user can override this function to provide more extensive comparison or supply
      * an instance of the [Comparator<Solution>] interface via the [solutionComparer] property
      * Returns -1 if first is less than the second solution, 0 if the solutions are to be considered
-     * equivalent, and 1 if the first is larger than the second solution.
+     * equivalent, 1 if the first is larger than the second solution.
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
@@ -1065,7 +1068,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun stochasticHillClimbingSolver(
+        fun createStochasticHillClimbingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
@@ -1088,7 +1091,7 @@ abstract class Solver(
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
+            shc.startingPoint = problemDefinition.toInputMap(sp)
             return shc
         }
 
@@ -1112,7 +1115,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun stochasticHillClimbingSolverWithRestarts(
+        fun createRandomRestartStochasticHillClimbingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
@@ -1141,33 +1144,40 @@ abstract class Solver(
         }
 
         /**
-         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         * Creates a configured Simulated Annealing solver ready for execution.
          *
-         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
-         * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
-         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
-         * accepting worse solutions at the start of the process. Defaults to 1000.0.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
-         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
-         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
-         * is null (no cache).
-         * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
-         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         * This factory handles the instantiation of the underlying [Evaluator] and binds it to the
+         * [SimulatedAnnealing] algorithm. It also allows for the injection of a specific starting point
+         * and delegates initial temperature calculations to the provided [TemperatureConfiguration].
+         *
+         * @param problemDefinition The formal definition of the optimization problem (variables, constraints, objectives).
+         * @param modelBuilder The builder responsible for constructing the simulation model for evaluations.
+         * @param startingPoint An optional [InputMap] specifying the exact starting coordinates for the solver.
+         * If null, the solver will generate a random feasible starting point.
+         * @param temperatureConfiguration Dictates whether the solver uses a statically defined temperature or
+         * autonomously calibrates its starting temperature via a random walk.
+         * Defaults to [TemperatureConfiguration.AutoCalibrate].
+         * @param coolingSchedule The strategy for reducing the temperature over time. Defaults to an
+         * [ExponentialCoolingSchedule].
+         * @param stoppingTemperature The temperature threshold at which the algorithm will terminate.
+         * @param maxIterations The maximum number of simulated annealing steps to perform.
+         * @param replicationsPerEvaluation The default number of simulation replications to run per point evaluation.
+         * @param solutionCache A cache to store evaluated solutions and prevent redundant simulation runs.
+         * @param simulationRunCache An optional cache for individual simulation replication data.
+         * @param experimentRunParameters Optional parameters defining the simulation run lengths, warmups, etc.
+         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers to the evaluator.
+         * @return A fully configured [SimulatedAnnealing] solver instance.
          */
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun simulatedAnnealingSolver(
+        fun createSimulatedAnnealingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
-            initialTemperature: Double = defaultInitialTemperature,
+            temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
+            coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
+            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -1176,132 +1186,62 @@ abstract class Solver(
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val sa = SimulatedAnnealing(
+            val solver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                initialTemperature = initialTemperature,
+                temperatureConfiguration = temperatureConfiguration,
+                coolingSchedule = coolingSchedule,
+                stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            return sa
+            // Inject the specific starting point if the user provided one
+            solver.startingPoint = problemDefinition.toInputMap(sp)
+            return solver
         }
 
         /**
-         * Factory function to instantiate a dynamically tuned Simulated Annealing solver.
-         * This function automatically estimates an optimal starting temperature based on the
-         * problem landscape and constructs an exponential cooling schedule perfectly fitted
-         * to the maximum number of iterations.
+         * Creates a Random Restart solver that utilizes Simulated Annealing for its inner optimization phases.
+         * * **Architecture Note on Auto-Calibration:**
+         * If [temperatureConfiguration] is set to [TemperatureConfiguration.AutoCalibrate], the inner SA solver
+         * will dynamically recalculate a new starting temperature at the beginning of *every single restart*.
+         * This ensures the initial temperature is perfectly tuned to the local landscape of each new random starting point.
          *
-         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
-         * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 30.
-         * @param targetAcceptanceProbability Desired initial probability of accepting worse solutions (default 0.8).
-         * @param estimationSampleSize Number of random walk steps used to estimate the initial temperature (default 30).
-         * @param stoppingTemperature The target temperature at the final iteration.
-         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
-         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
-         * is null (no cache).
-         * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
-         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         * @param problemDefinition The formal definition of the optimization problem.
+         * @param modelBuilder The builder responsible for constructing the simulation model.
+         * @param maxNumRestarts The total number of macro-iterations (restarts) the outer solver should perform.
+         * @param startingPoint An optional [InputMap] specifying the starting coordinates for the *first* restart.
+         * All subsequent restarts will automatically generate random feasible starting points.
+         * @param temperatureConfiguration The temperature strategy applied to each inner SA run. Defaults to AutoCalibrate.
+         * @param coolingSchedule The cooling strategy applied to each inner SA run.
+         * @param stoppingTemperature The stopping threshold for each inner SA run.
+         * @param maxIterations The maximum number of SA steps per restart.
+         * @param replicationsPerEvaluation The default number of simulation replications to run per evaluation.
+         * @param solutionCache A cache to store evaluated solutions across all restarts.
+         * @param simulationRunCache An optional cache for individual simulation replication data.
+         * @param experimentRunParameters Optional parameters defining the simulation run properties.
+         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers.
+         * @return A [RandomRestartSolver] wrapping a dynamically configuring [SimulatedAnnealing] inner solver.
          */
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun simulatedAnnealingSolverWithInitializedTemperature(
-            problemDefinition: ProblemDefinition,
-            modelBuilder: ModelBuilderIfc,
-            startingPoint: MutableMap<String, Double>? = null,
-            maxIterations: Int = defaultMaxNumberIterations,
-            replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(
-                defaultReplicationsPerEvaluation
-            ),
-            targetAcceptanceProbability: Double = 0.8,
-            estimationSampleSize: Int = 30,
-            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
-            solutionCache: SolutionCacheIfc = MemorySolutionCache(),
-            simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
-        ): SimulatedAnnealing {
-
-            val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
-            )
-
-            // 1. Estimate the optimal starting temperature using a brief random walk
-            val estimatedInitialTemp = SimulatedAnnealing.estimateInitialTemperature(
-                problemDefinition = problemDefinition,
-                evaluator = evaluator,
-                targetAcceptanceProbability = targetAcceptanceProbability,
-                sampleSize = estimationSampleSize,
-                replicationsPerEvaluation = FixedReplicationsPerEvaluation(1) // Keep the walk cheap
-            )
-
-            // 2. Create the perfectly tuned exponential cooling schedule
-            // (Using the secondary constructor we built that calculates the optimal cooling rate)
-            val schedule = ExponentialCoolingSchedule(
-                initialTemperature = estimatedInitialTemp,
-                stoppingTemperature = stoppingTemperature,
-                maxIterations = maxIterations
-            )
-
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            // 3. Instantiate and return the solver
-
-            val sa = SimulatedAnnealing(
-                problemDefinition = problemDefinition,
-                evaluator = evaluator,
-                initialTemperature = estimatedInitialTemp,
-                coolingSchedule = schedule,
-                maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation,
-            )
-
-            sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            return sa
-        }
-
-        /**
-         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
-         *
-         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
-         * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param maxNumRestarts The maximum number of restarts to be performed.
-         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
-         * accepting worse solutions at the start of the process. Defaults to 1000.0.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
-         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
-         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
-         * is null (no cache).
-         * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
-         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
-         */
-        @Suppress("unused")
-        @JvmStatic
-        @JvmOverloads
-        fun simulatedAnnealingSolverWithRestarts(
+        fun createRandomRestartSimulatedAnnealingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
-            initialTemperature: Double = defaultInitialTemperature,
+            startingPoint: MutableMap<String, Double>? = null,
+            temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
+            coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
+            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -1309,21 +1249,35 @@ abstract class Solver(
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
+
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sa = SimulatedAnnealing(
+
+            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+
+            val saSolver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                initialTemperature = initialTemperature,
+                temperatureConfiguration = temperatureConfiguration,
+                coolingSchedule = coolingSchedule,
+                stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
+
             val restartSolver = RandomRestartSolver(
-                sa, maxNumRestarts
+                saSolver, maxNumRestarts
             )
+
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            restartSolver.startingPoint = problemDefinition.toInputMap(sp)
             return restartSolver
         }
 
@@ -1349,7 +1303,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun crossEntropySolver(
+        fun createCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
@@ -1401,7 +1355,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun crossEntropySolverWithRestarts(
+        fun createRandomRestartCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
@@ -1456,7 +1410,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rSplineSolver(
+        fun createRsplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
@@ -1512,7 +1466,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rSplineSolverWithRestarts(
+        fun createRandomRestartRsplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,

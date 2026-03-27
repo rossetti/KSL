@@ -237,7 +237,7 @@ data class Solution(
             appendLine("penality function value = $penaltyFncValue")
             appendLine("Inputs:")
             for((name, value) in inputMap){
-                appendLine("Name = $name = $value)")
+                appendLine("$name = $value")
             }
             appendLine("Estimated Objective Function:")
             appendLine("name = ${estimatedObjFnc.name}")
@@ -246,33 +246,23 @@ data class Solution(
             appendLine("count = ${estimatedObjFnc.count}")
             if (problemDefinition.hasLinearConstraints){
                 appendLine("Linear Constraints:")
-                val linearConstraints= problemDefinition.linearConstraints
-                for(lc in linearConstraints){
-                    val lhs = lc.computeLHS(inputMap)
-                    val rhs = lc.rhsValue
-                    val diff = lhs - rhs
-                    appendLine("LHS = $lhs ${lc.inequalityString} RHS = $rhs : (LHS-RHS) = $diff ")
+                for(lc in problemDefinition.linearConstraints){
+                    appendLine(lc.resultsAsString(inputMap))
                 }
             }
             if (problemDefinition.hasFunctionalConstraints){
                 appendLine("Functional Constraints:")
-                val functionalConstraints= problemDefinition.functionalConstraints
-                for(lc in functionalConstraints){
-                    val lhs = lc.computeLHS(inputMap)
-                    val rhs = lc.rhsValue
-                    val diff = lhs - rhs
-                    appendLine("LHS = $lhs ${lc.inequalityString} RHS = $rhs  : (LHS-RHS) = $diff ")
+                for(fc in problemDefinition.functionalConstraints){
+                    appendLine(fc.resultsAsString(inputMap))
                 }
             }
             if (problemDefinition.hasResponseConstraints){
                 appendLine("Response Constraints:")
-                val responseConstraints= problemDefinition.responseConstraints
-                val lhSides = responseAverages
-                for(lc in responseConstraints){
-                    val lhs = lhSides[lc.responseName]!!
-                    val rhs = lc.rhsValue
-                    val diff = lhs - rhs
-                    appendLine("${lc.responseName}: LHS = $lhs ${lc.inequalityString} RHS = $rhs : (LHS-RHS) = $diff")
+                for(rc in problemDefinition.responseConstraints){
+                    val estResponse = responseEstimatesMap[rc.responseName]
+                    if (estResponse != null) {
+                        appendLine(rc.resultsAsString(estResponse))
+                    }
                 }
             }
         }

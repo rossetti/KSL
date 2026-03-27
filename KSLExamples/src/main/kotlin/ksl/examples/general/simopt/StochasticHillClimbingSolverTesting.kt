@@ -9,8 +9,7 @@ fun main() {
  //   val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val printer = selectPrinter(modelIdentifier)
-    val solver = Solver.stochasticHillClimbingSolver(
+    val solver = Solver.createStochasticHillClimbingSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
@@ -24,8 +23,8 @@ fun main() {
     println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
 }
 
 fun selectPrinter(modelIdentifier: String): (Solver) -> Unit {

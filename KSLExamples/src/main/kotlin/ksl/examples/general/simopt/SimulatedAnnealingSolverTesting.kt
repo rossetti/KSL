@@ -7,18 +7,15 @@ import ksl.simopt.solvers.trackers.CsvSolverStateTracker
 
 fun main() {
 
-  //  val modelIdentifier = "RQInventoryModel"
-    val modelIdentifier = "LKInventoryModel"
-    val initialTemperature = 1000.0
+    val modelIdentifier = "RQInventoryModel"
+ //   val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val printer = selectPrinter(modelIdentifier)
-    val solver = Solver.simulatedAnnealingSolver(
+    val solver = Solver.createSimulatedAnnealingSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
-        initialTemperature = initialTemperature,
-        maxIterations = 10,
+        maxIterations = 100,
         replicationsPerEvaluation = 50,
     )
     val tracker = ConsoleSolverStateTracker(solver)
@@ -30,7 +27,7 @@ fun main() {
     println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
 
 }

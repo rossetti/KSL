@@ -5,12 +5,11 @@ import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 
 fun main() {
 
-  //  val modelIdentifier = "RQInventoryModel"
-    val modelIdentifier = "LKInventoryModel"
+    val modelIdentifier = "RQInventoryModel"
+ //   val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val printer = selectPrinter(modelIdentifier)
-    val solver = Solver.rSplineSolver(
+    val solver = Solver.createRsplineSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
@@ -23,8 +22,8 @@ fun main() {
     println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
 }
 
 
