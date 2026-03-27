@@ -34,19 +34,21 @@ class FunctionalConstraint(
         this.validNames = validNames.distinct()
     }
 
-    override fun toString() : String {
-        val sb = StringBuilder().apply{
-            append("Equation: ")
-            val names = validNames.joinToString(", ")
-            append("f($names)")
-            if (inequalityType == InequalityType.LESS_THAN) {
-                append(" <= ")
-            } else {
-                append(" >= ")
-            }
-            append("$rhsValue ")
-        }
-        return sb.toString()
+    override fun toString(): String {
+        val names = validNames.joinToString(", ")
+        return "Functional Constraint: f($names) $inequalityString $rhsValue"
+    }
+
+    override fun resultsAsString(inputs: Map<String, Double>): String {
+        val lhs = computeLHS(inputs)
+        val v = violation(inputs)
+
+        val status = if (v > 0.0) "[VIOLATED] " else "[SATISFIED]"
+        val lhsStr = String.format("%10.4f", lhs)
+        val rhsStr = String.format("%10.4f", rhsValue)
+        val violStr = String.format("%10.4f", v)
+
+        return "  $status  LHS: $lhsStr  $inequalityString  RHS: $rhsStr  | Violation: $violStr"
     }
 
     /**

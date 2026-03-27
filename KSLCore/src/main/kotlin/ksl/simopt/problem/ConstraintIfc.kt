@@ -3,6 +3,23 @@ package ksl.simopt.problem
 interface ConstraintIfc {
 
     /**
+     * Evaluates the constraint against the provided inputs and generates a
+     * formatted string reporting the result (LHS, RHS, and Violation).
+     *
+     * @param inputs The map of input variables.
+     * @return A formatted report string.
+     */
+    fun resultsAsString(inputs: Map<String, Double>): String
+    
+    /**
+     * An optional, constraint-specific penalty function.
+     * If null, the solver will fall back to the type-level default penalty function
+     * defined in the ProblemDefinition.
+     */
+    val penaltyFunction: PenaltyFunctionIfc?
+        get() = null
+
+    /**
      *  The type of inequality less than or greater than
      */
     val inequalityType: InequalityType

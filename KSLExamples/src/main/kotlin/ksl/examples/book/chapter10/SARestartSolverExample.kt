@@ -20,13 +20,10 @@ fun runSimulatedAnnealingWithRestarts(
 ) {
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
-    val printer = ::printRQInventoryModel
-    val initialTemperature = 100.0
-    val solver = Solver.simulatedAnnealingSolverWithRestarts(
+    val solver = Solver.createRandomRestartSimulatedAnnealingSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
-        initialTemperature = initialTemperature,
-        maxIterations = 10,
+        maxIterations = 100,
         replicationsPerEvaluation = 50,
         simulationRunCache = simulationRunCache,
         experimentRunParameters = experimentRunParameters,
@@ -42,8 +39,8 @@ fun runSimulatedAnnealingWithRestarts(
     println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
     println()
     println("Approximate screening:")
     val solutions = solver.bestSolutions.possiblyBest()

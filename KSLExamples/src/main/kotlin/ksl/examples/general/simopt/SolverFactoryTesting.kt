@@ -1,20 +1,13 @@
 package ksl.examples.general.simopt
 
-import ksl.simopt.cache.MemorySimulationRunCache
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.algorithms.StochasticSolver
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.ModelBuilderIfc
-import ksl.utilities.io.KSL
-import ksl.utilities.io.toTabularFile
-import org.jetbrains.kotlinx.dataframe.api.describe
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.schema
-import org.jetbrains.kotlinx.dataframe.api.toDataFrame
-import org.jetbrains.kotlinx.dataframe.io.writeCsv
-import org.jetbrains.kotlinx.dataframe.io.writeExcel
 
 enum class SolverType {
     SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
@@ -96,7 +89,7 @@ fun solverFactory(
 ): StochasticSolver {
     return when(solverType){
         SolverType.SHC -> {
-            Solver.stochasticHillClimbingSolver(
+            Solver.createStochasticHillClimbingSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 startingPoint = null,
@@ -108,12 +101,10 @@ fun solverFactory(
             )
         }
         SolverType.SA -> {
-            val initialTemperature = 1000.0
-            Solver.simulatedAnnealingSolver(
+            Solver.createSimulatedAnnealingSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 startingPoint = null,
-                initialTemperature = initialTemperature,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
@@ -122,7 +113,7 @@ fun solverFactory(
             )
         }
         SolverType.CE -> {
-            Solver.crossEntropySolver(
+            Solver.createCrossEntropySolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 startingPoint = null,
@@ -134,7 +125,7 @@ fun solverFactory(
             )
         }
         SolverType.R_SPLINE -> {
-            Solver.rSplineSolver(
+            Solver.createRsplineSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 startingPoint = null,
@@ -145,7 +136,7 @@ fun solverFactory(
             )
         }
         SolverType.SHC_RS -> {
-            Solver.stochasticHillClimbingSolverWithRestarts(
+            Solver.createRandomRestartStochasticHillClimbingSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
@@ -156,11 +147,9 @@ fun solverFactory(
             )
         }
         SolverType.SA_RS -> {
-            val initialTemperature = 1000.0
-            Solver.simulatedAnnealingSolverWithRestarts(
+            Solver.createRandomRestartSimulatedAnnealingSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
-                initialTemperature = initialTemperature,
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
@@ -169,7 +158,7 @@ fun solverFactory(
             )
         }
         SolverType.CE_RS -> {
-            Solver.crossEntropySolverWithRestarts(
+            Solver.createRandomRestartCrossEntropySolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
@@ -180,7 +169,7 @@ fun solverFactory(
             )
         }
         SolverType.R_SPLINE_RS -> {
-            Solver.rSplineSolverWithRestarts(
+            Solver.createRandomRestartRsplineSolver(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 maxIterations = 100,

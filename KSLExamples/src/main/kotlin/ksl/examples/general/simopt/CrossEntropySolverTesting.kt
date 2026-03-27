@@ -1,21 +1,15 @@
 package ksl.examples.general.simopt
 
-import ksl.simopt.evaluator.Evaluator
-import ksl.simopt.evaluator.Solution
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.CENormalSampler
-import ksl.simopt.solvers.algorithms.CESamplerIfc
-import ksl.simopt.solvers.algorithms.CrossEntropySolver
 import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 
 fun main() {
 
-  //  val modelIdentifier = "RQInventoryModel"
-    val modelIdentifier = "LKInventoryModel"
+    val modelIdentifier = "RQInventoryModel"
+//    val modelIdentifier = "LKInventoryModel"
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val printer = selectPrinter(modelIdentifier)
-    val solver = Solver.crossEntropySolver(
+    val solver = Solver.createCrossEntropySolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
         startingPoint = null,
@@ -29,8 +23,8 @@ fun main() {
     println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
 
 }
 

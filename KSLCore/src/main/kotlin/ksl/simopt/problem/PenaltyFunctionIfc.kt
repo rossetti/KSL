@@ -1,21 +1,16 @@
 package ksl.simopt.problem
 
-import ksl.simopt.evaluator.Solution
-
 /**
- *  A penalty function that is applied to the solution to the optimization problem.
- *  The penalty function is a function of the current solution and the current iteration
- *  count. A penalty function is added to the objective function to penalize infeasible
- *  solutions.
+ *  A penalty function that is applied to the violation of a constraint of an optimization problem.
+ *  The penalty function is a function of the violation and the current iteration
+ *  count. The penalty for the constraint is added to the objective function of the
+ *  problem.
  */
 fun interface PenaltyFunctionIfc {
-
     /**
-     *  The penalty function.
-     *  @param solution The solution for which the penalty is being computed.
-     *  @param iterationCounter The current iteration count. The iteration associated
-     *  with the solver's process.
+     * @param violation The magnitude of the constraint violation.
+     * @param iterationCounter The current solver iteration (k).
+     * @param sampleCount The number of times this response has been sampled N(x).
      */
-    fun penalty(solution: Solution, iterationCounter: Int): Double
-
+    fun penalty(violation: Double, iterationCounter: Int, sampleCount: Int): Double
 }

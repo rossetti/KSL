@@ -21,7 +21,8 @@ class ResponseConstraint(
     val rhsValue: Double,
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
-    val tolerance: Double = 0.0
+    val tolerance: Double = 0.0,
+    val penaltyFunction: PenaltyFunctionIfc? = null
 ) {
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
@@ -35,19 +36,53 @@ class ResponseConstraint(
     val inequalityString: String
         get() = if (inequalityType == InequalityType.LESS_THAN) "<=" else ">="
 
-    override fun toString() : String {
-        val sb = StringBuilder().apply{
-            append("Equation: ")
-            append(responseName)
-            if (inequalityType == InequalityType.LESS_THAN) {
-                append(" <= ")
-            } else {
-                append(" >= ")
-            }
-            append("$rhsValue ")
-            append("\t Target: $target Tolerance: $tolerance")
+    override fun toString(): String {
+        return "Response Constraint: $responseName $inequalityString $rhsValue (Target: $target, Tolerance: $tolerance)"
+    }
+
+    /**
+     * Evaluates the response constraint against the provided simulation estimate
+     * and generates a formatted string reporting the result and statistics.
+     *
+     * @param estResponse The estimated response from the simulation.
+     * @return A formatted report string.
+     */
+    fun resultsAsString(estResponse: EstimatedResponse): String {
+        // Ensure we are evaluating the correct response
+        require(estResponse.name == responseName) {
+            "Supplied response name '${estResponse.name}' does not match constraint '$responseName'"
         }
-        return sb.toString()
+
+        val lhs = estResponse.average
+        val v = violation(estResponse.average)
+
+        val status = if (v > 0.0) "[VIOLATED] " else "[SATISFIED]"
+        val lhsStr = String.format("%10.4f", lhs)
+        val rhsStr = String.format("%10.4f", rhsValue)
+        val violStr = String.format("%10.4f", v)
+
+        // --- SMART FORMATTING FOR STANDARD ERROR ---
+        val se = estResponse.standardError
+        val seStr = if (se > 0.0 && se < 0.0001) {
+            String.format("%8.2e", se)
+        } else {
+            String.format("%8.4f", se)
+        }
+
+        // --- SMART FORMATTING FOR HALF-WIDTH ---
+        // Assuming halfWidth() requires the estResponse as an argument.
+        // If your halfWidth() function takes no arguments, change this to just halfWidth()
+        val hw = estResponse.halfWidth()
+        val hwStr = if (hw > 0.0 && hw < 0.0001) {
+            String.format("%8.2e", hw)
+        } else {
+            String.format("%8.4f", hw)
+        }
+
+        // Pad the response name to 15 characters so columns align across different constraints
+        val nameStr = responseName.padEnd(15)
+
+        return "  $status $nameStr | LHS: $lhsStr $inequalityString RHS: $rhsStr | Viol: $violStr | (N=${estResponse.count}, SE=$seStr, 95% HW=$hwStr)"
     }
 
     /**
@@ -101,6 +136,17 @@ class ResponseConstraint(
 //        println("rhsValue - responseValue = ${rhsValue - responseValue}")
 //        println("-slack(responseValue) = ${-slack(responseValue)}")
         return maxOf(0.0, -slack(responseValue))
+    }
+
+    /**
+     * Overloaded violation function that accepts an EstimatedResponse.
+     */
+    fun violation(estimatedResponse: EstimatedResponse): Double {
+        require(estimatedResponse.name == responseName) {
+            "Supplied response name '${estimatedResponse.name}' does not match constraint '$responseName'"
+        }
+        // Delegate the math to your existing violation(Double) function
+        return violation(estimatedResponse.average)
     }
 
     /**
