@@ -99,6 +99,10 @@ class Evaluator @JvmOverloads constructor(
         require(cache != null) { "The cache must not be null for cache based evaluation" }
         // check with the cache for solutions
         val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
+
+        // Increment by the number of unique input sets found in the cache
+        totalCachedEvaluations += cachedSolutions.size
+
         EvaluatorIfc.logger.trace { "Number of solutions found in the cache: ${cachedSolutions.size}" }
         if (cachedSolutions.isEmpty()) {
             // nothing found in the cache, just evaluate by simulation
