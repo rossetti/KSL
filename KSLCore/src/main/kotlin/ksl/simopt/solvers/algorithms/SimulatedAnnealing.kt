@@ -303,13 +303,21 @@ class SimulatedAnnealing @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder("Simulated Annealing solver with parameters: \n")
-        sb.append("Initial temperature: $initialTemperature\n")
-        sb.append("Stopping temperature: $stoppingTemperature\n")
-        sb.append(super.toString())
-        sb.append("Current temperature: $currentTemperature\n")
-        sb.append("Last acceptance probability: $lastAcceptanceProbability\n")
-        return sb.toString()
+        val tempConfigStr = when (val config = temperatureConfiguration) {
+            is TemperatureConfiguration.Fixed -> "Fixed(temperature=${config.temperature})"
+            is TemperatureConfiguration.AutoCalibrate -> "AutoCalibrate(targetProb=${config.targetProbability}, samples=${config.sampleSize})"
+        }
+
+        return """
+        SimulatedAnnealing(
+            temperatureConfiguration = $tempConfigStr,
+            coolingSchedule = ${coolingSchedule::class.simpleName},
+            initialTemperature = $initialTemperature,
+            stoppingTemperature = $stoppingTemperature,
+            solutionEqualityChecker = ${solutionEqualityChecker::class.simpleName},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
     }
 
     companion object {

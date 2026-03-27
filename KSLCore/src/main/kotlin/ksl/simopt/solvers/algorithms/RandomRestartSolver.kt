@@ -53,6 +53,16 @@ class RandomRestartSolver(
         logger.info { "Current best: ${currentSolution.asString()}" }
     }
 
+    override fun toString(): String {
+        return """
+        RandomRestartSolver(
+            clearCacheBetweenRuns = $clearCacheBetweenRuns,
+            innerSolver = ${restartingSolver.toString().prependIndent("    ").trimStart()},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
+    }
+
     companion object {
         /**
          * Represents the default maximum number restarts to be executed

@@ -862,53 +862,68 @@ abstract class Solver(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder().apply {
-            appendLine("==================================================================")
-            appendLine("Solver name = $name")
-            appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
-            appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
-            appendLine("Maximum Number Iterations = $maximumNumberIterations")
-            appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
-            appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
-            appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
-            appendLine("Number of simulation calls = $numOracleCalls")
-            appendLine("Number of replications requested = $numReplicationsRequested")
-            appendLine("Evaluator:")
-            appendLine("totalEvaluations = ${evaluator.totalEvaluations}")
-            appendLine("totalOracleEvaluations = ${evaluator.totalOracleEvaluations}")
-            appendLine("totalCachedEvaluations = ${evaluator.totalCachedEvaluations}")
-            appendLine("totalRequestsReceived = ${evaluator.totalRequestsReceived}")
-            appendLine("totalCachedReplications = ${evaluator.totalCachedReplications}")
-            appendLine("totalOracleReplications = ${evaluator.totalOracleReplications}")
-            appendLine("totalReplications = ${evaluator.totalReplications}")
-            appendLine()
-            appendLine("==================================================================")
-            if (::myInitialSolution.isInitialized) {
-                appendLine("Initial Solution:")
-                appendLine("$myInitialSolution")
-                appendLine("==================================================================")
-            }
-            if (currentSolution.isValid) {
-                appendLine("Current Solution:")
-                appendLine("$currentSolution")
-                appendLine("Previous solution penalized objective function value (POFV) = ${previousSolution.penalizedObjFncValue}")
-                appendLine("Current solution POFV - Previous solution POFV  = $penalizedSolutionGap")
-                appendLine("==================================================================")
-                if (compare(bestSolution, currentSolution) < 0) {
-                    appendLine("A better solution was found than the current solution.")
-                    appendLine("Best Solution:")
-                    appendLine("$bestSolution")
-                    appendLine("==================================================================")
-                }
-            }
-            appendLine("Best Solutions Found:")
-            for (solution in myBestSolutions.orderedSolutions) {
-                appendLine(solution.asString())
-            }
-            appendLine("==================================================================")
-        }
-        return sb.toString()
+        return """
+        Solver(
+            name = $name,
+            problemDefinition = ${problemDefinition.name},
+            maximumNumberIterations = $maximumNumberIterations,
+            snapShotFrequency = $snapShotFrequency,
+            ensureProblemFeasibleRequests = $ensureProblemFeasibleRequests,
+            maxFeasibleSamplingIterations = $maxFeasibleSamplingIterations,
+            solutionPrecision = $solutionPrecision,
+            replicationsPerEvaluation = ${replicationsPerEvaluation::class.simpleName},
+            startingPoint = ${if (startingPoint != null) "Provided" else "Not Provided (Will Auto-Generate)"},
+            neighborGenerator = ${neighborGenerator?.let { it::class.simpleName } ?: "None"},
+            solutionComparer = ${solutionComparer?.let { it::class.simpleName } ?: "Default"},
+            solutionQualityEvaluator = ${solutionQualityEvaluator?.let { it::class.simpleName } ?: "None"}
+        )
+    """.trimIndent()
     }
+
+    /**
+     * Prints the current results of the optimization run to the console.
+     * This includes details about the solver's performance,
+     */
+    fun printResults() {
+        println(solverResult)
+    }
+
+    /**
+     * Captures the current results of the optimization run.
+     * Guarantees a valid result object, returning a pending state if not yet executed.
+     */
+    val solverResult: SolverResult
+        get() {
+            val sName = this.name ?: this::class.simpleName ?: "UnknownSolver"
+            val pName = this.problemDefinition.name
+
+            // 1. Return the informative "NotExecuted" state if no work has been done
+            if (iterationCounter == 0 && evaluator.totalRequestsReceived == 0) {
+                return SolverResult.NotExecuted(sName, pName)
+            }
+
+            // 2. Otherwise, gather the metrics and return the "Completed" state
+            val evalMetrics = EvaluatorMetrics(
+                totalRequestsReceived = this.evaluator.totalRequestsReceived,
+                totalEvaluations = this.evaluator.totalEvaluations,
+                totalOracleEvaluations = this.evaluator.totalOracleEvaluations,
+                totalCachedEvaluations = this.evaluator.totalCachedEvaluations,
+                totalReplications = this.evaluator.totalReplications,
+                totalOracleReplications = this.evaluator.totalOracleReplications,
+                totalCachedReplications = this.evaluator.totalCachedReplications
+            )
+
+            return SolverResult.Completed(
+                solverName = sName,
+                problemName = pName,
+                initialSolution = this.myInitialSolution,
+                currentSolution = this.currentSolution,
+                bestSolution = this.bestSolution,
+                totalIterations = this.iterationCounter,
+                evaluatorMetrics = evalMetrics,
+                isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied()
+            )
+        }
 
     protected inner class MainIterativeProcess :
         IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
