@@ -27,7 +27,7 @@ enum class SolverType {
 
 
 fun main() {
-    val solverType = SolverType.R_SPLINE
+    val solverType = SolverType.SHC
     val constrained = true
     val c = if (constrained) "Constrained" else "Unconstrained"
 
