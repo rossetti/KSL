@@ -81,11 +81,47 @@ interface CounterCIfc : ValueIfc, IdentityIfc {
     fun addCountLimitStoppingAction(initialCountLimit: Int): CountActionIfc
 }
 
+/**
+ * A Counter tracks cumulative non-negative values over the course of a simulation.
+ *
+ * Unlike a standard [Variable], a Counter is specifically designed for tally-based
+ * metrics (e.g., number of parts produced, number of customers served). It provides
+ * built-in support for threshold-based actions, such as stopping the simulation
+ * when a target production count is met.
+ *
+ * ### Key Behaviors:
+ * - **Monotonicity**: Increments must be non-negative to ensure the counter
+ * represents a cumulative total.
+ * - **Lifecycle Management**: Automatically resets to [initialValue] at the start
+ * of each replication to ensure experimental repeatability.
+ * - **Threshold Signaling**: When the counter reaches [replicationCountLimit],
+ * it triggers all registered [CountActionIfc] callbacks.
+ * - **Across-Replication Statistics**: Automatically captures the final value
+ * of each replication for higher-level statistical analysis.
+ *
+ * ### Usage Example:
+ * ```kotlin
+ * val partsProduced = Counter(this, "PartsProduced", countLimit = 100.0, stopOnLimit = true)
+ * // The simulation will now automatically call executive.stop() when value hits 100.0
+ * partsProduced.increment()
+ * ```
+ *
+ * @param parent The [ModelElement] that owns this counter, typically a [Model].
+ * @param name An optional descriptive name for the counter, used in logs and reports.
+ * @param initialValue The value the counter starts with at the beginning of
+ * every replication. Defaults to 0.0.
+ * @param countLimit The threshold at which [CountActionIfc] actions are triggered.
+ * Defaults to [Double.POSITIVE_INFINITY].
+ * @param stopOnLimit If true, a [StoppingAction] is automatically attached to
+ * this counter, which will terminate the simulation replication once the
+ * [countLimit] is reached. Note: This only applies if [countLimit] is finite.
+ */
 open class Counter @JvmOverloads constructor(
     parent: ModelElement,
     name: String? = null,
     initialValue: Double = 0.0,
     countLimit: Double = Double.POSITIVE_INFINITY,
+    stopOnLimit: Boolean = false
 ) : ModelElement(parent, name), CounterIfc, CounterCIfc, DoublePairEmitterIfc by DoublePairEmitter() {
     //TODO timed update stuff
     override var emissionsOn: Boolean = false
@@ -102,8 +138,13 @@ open class Counter @JvmOverloads constructor(
     init {
         require(initialValue >= 0.0) { "The initial value $initialValue must be >= 0" }
         require(domain.contains(initialValue)) {"The initial value must be in counter's range $domain"}
+        require(!countLimit.isNaN()) { "countLimit cannot be NaN" }
         require(countLimit >= 0.0) { "The initial count limit value $countLimit must be >= 0" }
         require(domain.contains(countLimit)) {"The count limit must be in counter's range $domain"}
+        // 2. Determine if we should attach the stopping action
+        if (stopOnLimit && countLimit.isFinite()) {
+            addCountLimitStoppingAction(countLimit.toInt())
+        }
     }
 
     /**
