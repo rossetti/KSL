@@ -23,6 +23,10 @@ class FixedReplicationsPerEvaluation(
     }
 
     override fun toString(): String {
-        return "Fixed replications per evaluation: $numReplications"
+        return """
+        FixedReplicationsPerEvaluation(
+            numReplications = $numReplications
+        )
+    """.trimIndent()
     }
 }
