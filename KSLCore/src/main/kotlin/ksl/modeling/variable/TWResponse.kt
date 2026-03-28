@@ -38,6 +38,21 @@ interface TWResponseCIfc : ResponseCIfc {
 /**
  *  A time-weighted response represents a time-persistent type variable for which time-based statistics
  *  are automatically collected when the value of the response variable is assigned.
+ *
+ * ### How it Works:
+ * Unlike a [Counter], which just sums values, a [TWResponse] calculates the
+ * area under the curve of the variable's value over time divided by the total time.
+ * This is done by tracking the previous value and the time of the last change.
+ * Whenever the value is updated, it calculates the weight (time since last change) and collects
+ * the previous value with that weight into the within-replication statistic.
+ *
+ * ### Statistical Persistence:
+ * - **Warm-up**: When [warmUp] is called, the accumulated area is cleared, but the
+ * current value is retained to start the fresh statistics.
+ * - **Replication End**: The [replicationEnded] method automatically performs a
+ * final "update" to ensure the area from the last change until the end of the
+ * simulation is captured.
+ *
  *  @param parent the parent model element containing this response
  *  @param name the unique name of the response. If a name is not assigned (null), a name will be assigned.
  *  A common naming convention would be to name the response based on the parent's name to ensure uniqueness within
@@ -60,7 +75,7 @@ open class TWResponse @JvmOverloads constructor(
     allowedDomain: Interval = Interval(0.0, Double.POSITIVE_INFINITY),
     countLimit: Double = Double.POSITIVE_INFINITY,
 ) : Response(parent, name, initialValue, allowedDomain, countLimit), TimeWeightedIfc, TWResponseCIfc {
-    
+
     init {
         require(allowedDomain.contains(initialValue)) { "The initial value $initialValue must be within the specified limits: $allowedDomain" }
     }
@@ -78,7 +93,7 @@ open class TWResponse @JvmOverloads constructor(
     override var initialValue: Double = initialValue
         set(value) {
             require(domain.contains(value)) { "The initial value, $value must be within the specified limits: $domain" }
-            require(model.isNotRunning) {"The initial value must be set before the simulation is running."}
+            require(model.isNotRunning) { "The initial value must be set before the simulation is running." }
             field = value
         }
 
@@ -112,10 +127,10 @@ open class TWResponse @JvmOverloads constructor(
         timeOfChange = time
         myWithinReplicationStatistic.collect(previousValue, weight)
         notifyModelElementObservers(Status.UPDATE)
-        if (emissionsOn){
+        if (emissionsOn) {
             emitter.emit(Pair(timeOfChange, myValue))
         }
-        if(myWithinReplicationStatistic.count == replicationCountLimit){
+        if (myWithinReplicationStatistic.count == replicationCountLimit) {
             notifyCountLimitActions()
         }
     }

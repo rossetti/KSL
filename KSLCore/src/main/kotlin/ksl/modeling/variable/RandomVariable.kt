@@ -29,10 +29,10 @@ import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  * A random variable (RandomVariable) is a function that maps a probability space to a real number.
- * A random variable uses a RandomIfc to provide the underlying mapping to a real number via the value() method.
+ * A random variable uses a RVariableIfc to provide the underlying mapping to a real number via the value() method.
  * <p>
- * To construct a RandomVariable the user must provide an instance of a class that implements the RandomIfc interface as the initial random source.
- * This source is used to initialize the source of randomness for each replication.
+ * To construct a RandomVariable the user must provide an instance of a class that implements the RVariableIfc interface
+ * as the initial random source. This source is used to initialize the source of randomness for each replication.
  * <p>
  * WARNING:  For efficiency, this class uses a direct reference to the supplied initial random source.
  * It simply wraps the supplied object reference to a random source so that it can be utilized within

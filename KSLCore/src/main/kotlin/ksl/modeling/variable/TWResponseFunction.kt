@@ -7,6 +7,15 @@ import ksl.simulation.ModelElement
  *  Applies the supplied function to the observed value of the time-weighted
  *  response variable and collects time-weighted statistics on the functional.
  *
+ * ### Use Case:
+ * If you have a [TWResponse] tracking `QueueLength`, you can use a [TWResponseFunction]
+ * to track `QueueLength > 0`. This effectively tells you the **probability that
+ * the queue is not empty**.
+ *
+ * ```kotlin
+ * val emptyStatus = TWResponseFunction({ if (it > 0) 1.0 else 0.0 }, queueLength)
+ * ```
+ *
  *  @param function the function of the observed response to tally
  *  @param observedResponse the response that is being observed
  *  @param name the name of the functional response
