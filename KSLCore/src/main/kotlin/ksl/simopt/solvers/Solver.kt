@@ -13,7 +13,9 @@ import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultRe
 import ksl.simopt.solvers.FixedGrowthRateReplicationSchedule.Companion.defaultMaxNumReplications
 import ksl.simopt.solvers.algorithms.CENormalSampler
 import ksl.simopt.solvers.algorithms.CESamplerIfc
+import ksl.simopt.solvers.algorithms.CoolingScheduleIfc
 import ksl.simopt.solvers.algorithms.CrossEntropySolver
+import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
 import ksl.simopt.solvers.algorithms.RSplineSolver
 import ksl.simopt.solvers.algorithms.RSplineSolver.Companion.defaultInitialSampleSize
 import ksl.simopt.solvers.algorithms.RandomRestartSolver
@@ -21,6 +23,7 @@ import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRes
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
 import ksl.simulation.IterativeProcessStatusIfc
@@ -30,13 +33,58 @@ import ksl.utilities.IdentityIfc
 import ksl.utilities.observers.Emitter
 import ksl.utilities.random.rng.RNStreamIfc
 
-interface SolverEmitterIfc {
-    val emitter: Emitter<Solver>
+enum class SolverStatus {
+    INITIALIZED, // Emitted after state reset, right before iteration 0
+    STARTED,     // Emitted right as the algorithmic while-loop begins
+    COMPLETED,   // Emitted when the run finishes naturally
+    ERROR        // Emitted if an unhandled exception breaks the loop
 }
 
-class SolverEmitter : SolverEmitterIfc {
-    override val emitter: Emitter<Solver> = Emitter()
+/**
+ *  A promise to emit the solver's state
+ */
+interface IterationEmitterIfc {
+    val iterationEmitter: Emitter<SolverStateSnapshot>
 }
+
+class IterationEmitter : IterationEmitterIfc {
+    override val iterationEmitter: Emitter<SolverStateSnapshot> = Emitter()
+}
+
+interface LifeCycleEmitterIfc {
+    val lifeCycleEmitter: Emitter<SolverStatus>
+}
+
+class LifeCycleEmitter : LifeCycleEmitterIfc {
+    override val lifeCycleEmitter: Emitter<SolverStatus> = Emitter()
+}
+
+/**
+ * An immutable representation of a solver's state at a specific point in time during the optimization process.
+ * * This class is designed to be emitted or recorded at the end of algorithmic iterations (or macro-steps).
+ * Because it is strictly an immutable snapshot, it can be safely stored in historical lists or passed
+ * across threads without risking the "live reference" mutation problem.
+ *
+ * @param iterationNumber The current algorithmic iteration or step at which this snapshot was taken.
+ * @param numOracleCalls The cumulative total number of times the simulation oracle has been invoked by the solver up to this point.
+ * @param numReplicationsRequested The cumulative total number of individual simulation replications requested across all oracle calls up to this point.
+ * @param bestSolutionSoFar The best [Solution] discovered by the solver up to this iteration.
+ * @param estimatedObjFncValue The objective function value associated with the [bestSolutionSoFar].
+ * @param penalizedObjFncValue The penalized objective function value associated with the [bestSolutionSoFar].
+ * @param currentSolution The latest solution found. It may not be the best due to algorithm trajectories.
+ * @param solverSpecificState An optional map containing algorithm-specific metrics that do not apply generally to all solvers
+ * (e.g., `mapOf("temperature" to 50.0)` for Simulated Annealing, or `"splineCalls"` for R-SPLINE). Defaults to `null`.
+ */
+data class SolverStateSnapshot(
+    val iterationNumber: Int,
+    val numOracleCalls: Int,
+    val numReplicationsRequested: Int,
+    val bestSolutionSoFar: Solution,
+    val currentSolution: Solution,
+    val estimatedObjFncValue: Double = bestSolutionSoFar.estimatedObjFncValue,
+    val penalizedObjFncValue: Double = bestSolutionSoFar.penalizedObjFncValue,
+    val solverSpecificState: Map<String, Double>? = null
+)
 
 /**
  *  A solver is an iterative algorithm that searches for the optimal solution to a defined problem.
@@ -71,7 +119,8 @@ abstract class Solver(
     maximumIterations: Int,
     var replicationsPerEvaluation: ReplicationPerEvaluationIfc,
     name: String? = null
-) : IdentityIfc by Identity(name), Comparator<Solution>, SolverEmitterIfc by SolverEmitter() {
+) : IdentityIfc by Identity(name), Comparator<Solution>, IterationEmitterIfc by IterationEmitter(),
+    LifeCycleEmitterIfc by LifeCycleEmitter() {
 
     init {
         require(maximumIterations > 0) { "maximum number of iterations must be > 0" }
@@ -115,6 +164,19 @@ abstract class Solver(
         FixedReplicationsPerEvaluation(replicationsPerEvaluation),
         name
     )
+
+    /**
+     *  If a listener is attached to the solver via its iterationEmitter property,
+     *  then snapshots of the solver's state are captured at the end of each iteration
+     *  according to this specified frequency. For example, if the frequency is 10,
+     *  then every 10th iteration is emitted. The default is 1.  If nothing listens
+     *  for emissions, then no snapshots are emitted.
+     */
+    var snapShotFrequency: Int = 1
+        set(value) {
+            require(value > 0) { "snapshot frequency must be > 0" }
+            field = value
+        }
 
     /**
      *  The outer iterative process. See [IterativeProcess] for
@@ -302,6 +364,7 @@ abstract class Solver(
      *  The difference between the current solution's unpenalized objective function value
      *  and the previous solution's unpenalized objective function value.
      */
+    @Suppress("unused")
     val unPenalizedSolutionGap: Double
         get() = currentSolution.estimatedObjFncValue - previousSolution.estimatedObjFncValue
 
@@ -381,7 +444,14 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun runAllIterations() {
-        myMainIterativeProcess.run()
+        try {
+            myMainIterativeProcess.run()
+        } catch (e: Exception) {
+        // Catches anything that breaks the internal loop or initialization.
+            lifeCycleEmitter.emit(SolverStatus.ERROR)
+            // Re-throw so the framework user knows their run failed.
+            throw e
+        }
     }
 
     /**
@@ -421,7 +491,7 @@ abstract class Solver(
      * the user can override this function to provide more extensive comparison or supply
      * an instance of the [Comparator<Solution>] interface via the [solutionComparer] property
      * Returns -1 if first is less than the second solution, 0 if the solutions are to be considered
-     * equivalent, and 1 if the first is larger than the second solution.
+     * equivalent, 1 if the first is larger than the second solution.
      *
      * @param first the first solution within the comparison
      * @param second the second solution within the comparison
@@ -576,6 +646,33 @@ abstract class Solver(
     }
 
     /**
+     * Creates an immutable snapshot of the solver's current state.
+     * This is typically called at the end of an iteration to broadcast the state
+     * to any attached listeners safely.
+     */
+    protected open fun makeSolverStateSnapshot(): SolverStateSnapshot {
+        // Grab the best solution currently tracked by the solver.
+        return SolverStateSnapshot(
+            iterationNumber = iterationCounter,
+            numOracleCalls = numOracleCalls,
+            numReplicationsRequested = numReplicationsRequested,
+            bestSolutionSoFar = bestSolution,
+            currentSolution = currentSolution,
+            // Delegate to the subclass hook to fetch algorithm-specific state
+            solverSpecificState = extractSolverSpecificState()
+        )
+    }
+
+    /**
+     * A hook for subclasses to inject their specific internal state metrics into the snapshot
+     * without having to override the entire [makeSolverStateSnapshot] method.
+     * * @return A map of algorithm-specific state variables, or null if none exist.
+     */
+    protected open fun extractSolverSpecificState(): Map<String, Double>? {
+        return null
+    }
+
+    /**
      * Generates a neighboring point based on the current point represented by the input map.
      * This method determines the next potential point in the iterative process, either through a
      * neighbor generator or by randomizing the value of a randomly selected input variable.
@@ -683,7 +780,7 @@ abstract class Solver(
         numReps: Int = replicationsPerEvaluation.numReplicationsPerEvaluation(this),
         crnOption: Boolean = false,
         cachingAllowed: Boolean = true
-    ): Map<ModelInputs, Solution>{
+    ): Map<ModelInputs, Solution> {
         val caching = if (crnOption) false else cachingAllowed
         val requests = prepareModelInputs(inputs, numReps)
         return requestEvaluations(requests, crnOption, caching)
@@ -759,49 +856,74 @@ abstract class Solver(
     ): Map<ModelInputs, Solution> {
         //TODO this is a long running call, consider coroutines to support this
         numOracleCalls = numOracleCalls + modelInputs.size
-        val evaluationRequest = EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
+        val evaluationRequest =
+            EvaluationRequest(problemDefinition.modelIdentifier, modelInputs, crnOption, cachingAllowed)
         return evaluator.evaluate(evaluationRequest)
     }
 
     override fun toString(): String {
-        val sb = StringBuilder().apply {
-            appendLine("==================================================================")
-            appendLine("Solver name = $name")
-            appendLine("Replications Per Evaluation = $replicationsPerEvaluation")
-            appendLine("Ensure Problem Feasible Requests = $ensureProblemFeasibleRequests")
-            appendLine("Maximum Number Iterations = $maximumNumberIterations")
-            appendLine("Begin Execution Time = ${myMainIterativeProcess.beginExecutionTime}")
-            appendLine("End Execution Time = ${myMainIterativeProcess.endExecutionTime}")
-            appendLine("Elapsed Execution Time = ${myMainIterativeProcess.elapsedExecutionTime}")
-            appendLine("Number of simulation calls = $numOracleCalls")
-            appendLine("Number of replications requested = $numReplicationsRequested")
-            appendLine("==================================================================")
-            if (::myInitialSolution.isInitialized) {
-                appendLine("Initial Solution:")
-                appendLine("$myInitialSolution")
-                appendLine("==================================================================")
-            }
-            if (currentSolution.isValid) {
-                appendLine("Current Solution:")
-                appendLine("$currentSolution")
-                appendLine("Previous solution penalized objective function value (POFV) = ${previousSolution.penalizedObjFncValue}")
-                appendLine("Current solution POFV - Previous solution POFV  = $penalizedSolutionGap")
-                appendLine("==================================================================")
-                if (compare(bestSolution, currentSolution) < 0) {
-                    appendLine("A better solution was found than the current solution.")
-                    appendLine("Best Solution:")
-                    appendLine("$bestSolution")
-                    appendLine("==================================================================")
-                }
-            }
-            appendLine("Best Solutions Found:")
-            for (solution in myBestSolutions.orderedSolutions) {
-                appendLine(solution.asString())
-            }
-            appendLine("==================================================================")
-        }
-        return sb.toString()
+        return """
+        Solver(
+            name = $name,
+            problemDefinition = ${problemDefinition.name},
+            maximumNumberIterations = $maximumNumberIterations,
+            snapShotFrequency = $snapShotFrequency,
+            ensureProblemFeasibleRequests = $ensureProblemFeasibleRequests,
+            maxFeasibleSamplingIterations = $maxFeasibleSamplingIterations,
+            solutionPrecision = $solutionPrecision,
+            replicationsPerEvaluation = ${replicationsPerEvaluation.toString().prependIndent("    ").trimStart()},
+            startingPoint = ${if (startingPoint != null) "Provided" else "Not Provided (Will Auto-Generate)"},
+            neighborGenerator = ${neighborGenerator?.let { it::class.simpleName } ?: "None"},
+            solutionComparer = ${solutionComparer?.let { it::class.simpleName } ?: "Default"},
+            solutionQualityEvaluator = ${solutionQualityEvaluator?.let { it::class.simpleName } ?: "None"}
+        )
+    """.trimIndent()
     }
+
+    /**
+     * Prints the current results of the optimization run to the console.
+     * This includes details about the solver's performance,
+     */
+    fun printResults() {
+        println(solverResult)
+    }
+
+    /**
+     * Captures the current results of the optimization run.
+     * Guarantees a valid result object, returning a pending state if not yet executed.
+     */
+    val solverResult: SolverResult
+        get() {
+            val sName = this.name ?: this::class.simpleName ?: "UnknownSolver"
+            val pName = this.problemDefinition.name
+
+            // 1. Return the informative "NotExecuted" state if no work has been done
+            if (iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
+                return SolverResult.NotExecuted(sName, pName)
+            }
+
+            // 2. Gather the newly refactored metrics
+            val evalMetrics = EvaluatorMetrics(
+                totalEvaluatorCalls = this.evaluator.totalEvaluatorCalls,
+                totalDesignPointsEvaluated = this.evaluator.totalDesignPointsEvaluated,
+                totalReplicationsRequested = this.evaluator.totalReplicationsRequested,
+                totalOracleReplications = this.evaluator.totalOracleReplications,
+                totalCachedReplications = this.evaluator.totalCachedReplications
+            )
+
+            // 3. Return the completed state
+            return SolverResult.Completed(
+                solverName = sName,
+                problemName = pName,
+                initialSolution = this.initialSolution,
+                currentSolution = this.currentSolution,
+                bestSolution = this.bestSolution,
+                totalIterations = this.iterationCounter,
+                evaluatorMetrics = evalMetrics,
+                isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied(),
+                executionTimeMillis = this.iterativeProcess.elapsedExecutionTime.inWholeMilliseconds
+            )
+        }
 
     protected inner class MainIterativeProcess :
         IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
@@ -826,7 +948,11 @@ abstract class Solver(
                 logger.info { "Initialized solver $name : penalized objective function value: ${solution.penalizedObjFncValue}" }
                 logger.trace { "Initial solution = $solution" }
             }
-            // emitter.emit(this@Solver)
+            lifeCycleEmitter.emit(SolverStatus.INITIALIZED)
+            if(iterationEmitter.isObserved){
+                iterationEmitter.emit(makeSolverStateSnapshot())
+            }
+            lifeCycleEmitter.emit(SolverStatus.STARTED)
         }
 
         override fun hasNextStep(): Boolean {
@@ -859,7 +985,11 @@ abstract class Solver(
             iterationCounter++
             logger.info { "Running: iteration = $iterationCounter of solver name: $name" }
             mainIteration()
-            emitter.emit(this@Solver)
+            if (iterationCounter % snapShotFrequency == 0 && iterationEmitter.isObserved) {
+                val snapshot = makeSolverStateSnapshot()
+                iterationEmitter.emit(snapshot)
+            }
+
             logger.info { "Completed: iteration = $iterationCounter of $maximumNumberIterations iterations : penalized objective function value: ${currentSolution.penalizedObjFncValue}" }
             logger.trace { "Executing afterMainIteration(): iteration = $iterationCounter of solver $name" }
             afterMainIteration()
@@ -871,6 +1001,7 @@ abstract class Solver(
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             super.endIterations()
             logger.info { "Ended: solver $name iterations." }
+            lifeCycleEmitter.emit(SolverStatus.COMPLETED)
         }
 
     }
@@ -937,11 +1068,10 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem to solve, including parameters and constraints.
          * @param modelBuilder An interface for building the simulation model required for evaluations.
-         * @param startingPoint An optional initial solution to start the search from. If null, a default starting point
-         * is randomly generated from the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param maxIterations The maximum number of hill climbing iterations to perform.
          * @param replicationsPerEvaluation The number of simulations or evaluations performed per solution to estimate its quality.
-         * @param printer An optional function to receive updates about solutions found during the search.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
@@ -953,7 +1083,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun stochasticHillClimbingSolver(
+        fun createStochasticHillClimbingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
@@ -961,7 +1091,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): StochasticHillClimber {
@@ -970,16 +1099,17 @@ abstract class Solver(
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val shc = StochasticHillClimber(
+            val solver = StochasticHillClimber(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            shc.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { shc.emitter.attach(it) }
-            return shc
+            // Inject the specific starting point if the user provided one
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
         }
 
         /**
@@ -988,16 +1118,14 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1006,16 +1134,15 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun stochasticHillClimbingSolverWithRestarts(
+        fun createRandomRestartStochasticHillClimbingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1033,124 +1160,152 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 shc, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { shc.emitter.attach(it) }
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
         /**
-         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         * Creates a configured Simulated Annealing solver ready for execution.
          *
-         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
-         * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
-         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
-         * accepting worse solutions at the start of the process. Defaults to 1000.0.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
-         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
-         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
-         * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
-         * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
-         * @return An instance of SimulatedAnnealing that encapsulates the optimization process and results.
+         * This factory handles the instantiation of the underlying [Evaluator] and binds it to the
+         * [SimulatedAnnealing] algorithm. It also allows for the injection of a specific starting point
+         * and delegates initial temperature calculations to the provided [TemperatureConfiguration].
+         *
+         * @param problemDefinition The formal definition of the optimization problem (variables, constraints, objectives).
+         * @param modelBuilder The builder responsible for constructing the simulation model for evaluations.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
+         * @param temperatureConfiguration Dictates whether the solver uses a statically defined temperature or
+         * autonomously calibrates its starting temperature via a random walk.
+         * Defaults to [TemperatureConfiguration.AutoCalibrate].
+         * @param coolingSchedule The strategy for reducing the temperature over time. Defaults to an
+         * [ExponentialCoolingSchedule].
+         * @param stoppingTemperature The temperature threshold at which the algorithm will terminate.
+         * @param maxIterations The maximum number of simulated annealing steps to perform.
+         * @param replicationsPerEvaluation The default number of simulation replications to run per point evaluation.
+         * @param solutionCache A cache to store evaluated solutions and prevent redundant simulation runs.
+         * @param simulationRunCache An optional cache for individual simulation replication data.
+         * @param experimentRunParameters Optional parameters defining the simulation run lengths, warmups, etc.
+         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers to the evaluator.
+         * @return A fully configured [SimulatedAnnealing] solver instance.
          */
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun simulatedAnnealingSolver(
+        fun createSimulatedAnnealingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             startingPoint: MutableMap<String, Double>? = null,
-            initialTemperature: Double = defaultInitialTemperature,
+            temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
+            coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
+            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val sa = SimulatedAnnealing(
+            val solver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                initialTemperature = initialTemperature,
+                temperatureConfiguration = temperatureConfiguration,
+                coolingSchedule = coolingSchedule,
+                stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            sa.startingPoint = evaluator.problemDefinition.toInputMap(sp)
-            printer?.let { sa.emitter.attach(it) }
-            return sa
+            // Inject the specific starting point if the user provided one
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
         }
 
         /**
-         * Creates and configures a simulated annealing optimization algorithm for a given problem definition.
+         * Creates a Random Restart solver that utilizes Simulated Annealing for its inner optimization phases.
+         * * **Architecture Note on Auto-Calibration:**
+         * If [temperatureConfiguration] is set to [TemperatureConfiguration.AutoCalibrate], the inner SA solver
+         * will dynamically recalculate a new starting temperature at the beginning of *every single restart*.
+         * This ensures the initial temperature is perfectly tuned to the local landscape of each new random starting point.
          *
-         * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
-         * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param maxNumRestarts The maximum number of restarts to be performed.
-         * @param initialTemperature The initial temperature for the annealing process. Determines the likelihood of
-         * accepting worse solutions at the start of the process. Defaults to 1000.0.
-         * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
-         * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
-         * stochastic noise. Defaults to 50.
-         * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
-         * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
-         * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
-         * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
-         * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
+         * @param problemDefinition The formal definition of the optimization problem.
+         * @param modelBuilder The builder responsible for constructing the simulation model.
+         * @param maxNumRestarts The total number of macro-iterations (restarts) the outer solver should perform.
+         * @param startingPoint An optional [MutableMap] specifying the starting coordinates for the *first* restart.
+         * All subsequent restarts will automatically generate random feasible starting points.
+         * @param temperatureConfiguration The temperature strategy applied to each inner SA run. Defaults to AutoCalibrate.
+         * @param coolingSchedule The cooling strategy applied to each inner SA run.
+         * @param stoppingTemperature The stopping threshold for each inner SA run.
+         * @param maxIterations The maximum number of SA steps per restart.
+         * @param replicationsPerEvaluation The default number of simulation replications to run per evaluation.
+         * @param solutionCache A cache to store evaluated solutions across all restarts.
+         * @param simulationRunCache An optional cache for individual simulation replication data.
+         * @param experimentRunParameters Optional parameters defining the simulation run properties.
+         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers.
+         * @return A [RandomRestartSolver] wrapping a dynamically configuring [SimulatedAnnealing] inner solver.
          */
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun simulatedAnnealingSolverWithRestarts(
+        fun createRandomRestartSimulatedAnnealingSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
-            initialTemperature: Double = defaultInitialTemperature,
+            startingPoint: MutableMap<String, Double>? = null,
+            temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.AutoCalibrate(),
+            coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
+            stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
+
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sa = SimulatedAnnealing(
+
+            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
+
+            val saSolver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
-                initialTemperature = initialTemperature,
+                temperatureConfiguration = temperatureConfiguration,
+                coolingSchedule = coolingSchedule,
+                stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
+
             val restartSolver = RandomRestartSolver(
-                sa, maxNumRestarts
+                saSolver, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { sa.emitter.attach(it) }
+
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
@@ -1159,8 +1314,8 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
@@ -1168,8 +1323,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1178,7 +1331,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun crossEntropySolver(
+        fun createCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
@@ -1187,7 +1340,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): CrossEntropySolver {
@@ -1204,9 +1356,8 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             if (startingPoint != null) {
-                ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+                ce.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { ce.emitter.attach(it) }
             return ce
         }
 
@@ -1217,6 +1368,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
@@ -1224,10 +1377,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1236,24 +1385,26 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun crossEntropySolverWithRestarts(
+        fun createRandomRestartCrossEntropySolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
-                problemDefinition = problemDefinition, modelBuilder = modelBuilder,
-                solutionCache = solutionCache, simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters, defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                problemDefinition = problemDefinition,
+                modelBuilder = modelBuilder,
+                solutionCache = solutionCache,
+                simulationRunCache = simulationRunCache,
+                experimentRunParameters = experimentRunParameters,
+                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1265,8 +1416,11 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 ce, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { ce.emitter.attach(it) }
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
@@ -1278,14 +1432,12 @@ abstract class Solver(
          * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
          * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1294,7 +1446,7 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rSplineSolver(
+        fun createRsplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             initialNumReps: Int = defaultInitialSampleSize,
@@ -1304,7 +1456,6 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RSplineSolver {
@@ -1322,9 +1473,8 @@ abstract class Solver(
                 maxNumReplications = maxNumReplications
             )
             if (startingPoint != null) {
-                solver.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
-            printer?.let { solver.emitter.attach(it) }
             return solver
         }
 
@@ -1335,6 +1485,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
          * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
@@ -1344,10 +1496,6 @@ abstract class Solver(
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
-         * @param restartPrinter Optional callback function to print or handle intermediate solutions. Can be used to
-         * observe the restart optimization process.
-         * @param printer Optional callback function to print or handle intermediate solutions. Can be used to
-         *    observe the inner solver optimization process.
          * @param experimentRunParameters the run parameters to apply to the model during the building process
          * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
          * to the model. The default is false.
@@ -1356,10 +1504,11 @@ abstract class Solver(
         @Suppress("unused")
         @JvmStatic
         @JvmOverloads
-        fun rSplineSolverWithRestarts(
+        fun createRandomRestartRsplineSolver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             initialNumReps: Int = defaultInitialSampleSize,
             sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
             maxNumReplications: Int = defaultMaxNumReplications,
@@ -1367,8 +1516,6 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            restartPrinter: ((Solver) -> Unit)? = null,
-            printer: ((Solver) -> Unit)? = null,
             experimentRunParameters: ExperimentRunParametersIfc? = null,
             defaultKSLDatabaseObserverOption: Boolean = false
         ): RandomRestartSolver {
@@ -1388,8 +1535,11 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 solver, maxNumRestarts
             )
-            restartPrinter?.let { restartSolver.emitter.attach(it) }
-            printer?.let { solver.emitter.attach(it) }
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
     }

@@ -81,7 +81,6 @@ class ProblemDefinition @JvmOverloads constructor(
     val objFncFactor: Double
         get() = if (optimizationType == OptimizationType.MINIMIZE) 1.0 else -1.0
 
-
     /**
      *  Computes the objective function value for the provided solution.
      *  Ensures that the returned value is oriented according to the optimization type.
@@ -285,12 +284,15 @@ class ProblemDefinition @JvmOverloads constructor(
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
 
-    /**
-     *  The user may supply a penalty function to use when computing
-     *  the constraint violation penalty; otherwise the default
-     *  penalty function is used.
-     */
-    var penaltyFunction: PenaltyFunctionIfc = DefaultPenaltyFunction.defaultPenaltyFunction
+
+    /** Default penalty applied to linear constraints if no custom penalty is provided. */
+    var defaultLinearPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+
+    /** Default penalty applied to functional constraints if no custom penalty is provided. */
+    var defaultFunctionalPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
+
+    /** Default penalty applied to response constraints if no custom penalty is provided. */
+    var defaultResponsePenalty: PenaltyFunctionIfc = PenaltyFunctionWithMemory.defaultPenaltyFunction
 
     /**
      * The lower bounds for each input variable
@@ -321,7 +323,13 @@ class ProblemDefinition @JvmOverloads constructor(
         get() = myInputDefinitions.values.map { it.interval.midPoint }.toDoubleArray()
 
     /**
-     *  The mid-point of each input variable's range as an input map
+     *  The mid-point of each input variable's range as mutable map.
+     *  The key is the name of the input variable, and the value is the mid-point of the variable's range.
+     *  This can be used to generate a starting point for the problem based on the mid-point of the input variable ranges.
+     *  Or, you can change the associated value for a particular input variable to generate a starting point that is
+     *  not based on the mid-point of the variable's range.
+     *  Then, use the [toInputMap] function to convert the map into an input map that can be used as a starting
+     *  point for the problem.
      */
     val midPoints: MutableMap<String, Double>
         get() = myInputDefinitions.values.associate { it.midPoint }.toMutableMap()
@@ -668,15 +676,57 @@ class ProblemDefinition @JvmOverloads constructor(
         return violations
     }
 
+
     /**
-     *  Returns the total violation penalty associated with the constraints for the problem.
-     *  Ensures that the returned value is oriented according to the optimization type.
-     *  @param solution The solution for which the penalty is being computed.
-     *  to compute the penality associated with the response constraints.
+     * Computes the total additive penalty for the provided solution by evaluating
+     * individual constraint violations.
+     * Ensures that the returned value is oriented according to the optimization type.
+     *
+     * @param solution The solution for which the penalty is being computed.
+     * @return the total penalty value, adjusted by objFncFactor.
      */
     @Suppress("unused")
     fun penaltyFncValue(solution: Solution): Double {
-        return penaltyFunction.penalty(solution, solution.evaluationNumber) * objFncFactor
+        var totalPenalty = 0.0
+        val iterationCounter = solution.evaluationNumber
+
+        // 1. Penalize Linear Constraints (Deterministic)
+        for (lc in linearConstraints) {
+            val v = lc.violation(solution.inputMap)
+            if (v > 0.0) {
+                val penaltyFnc = lc.penaltyFunction ?: defaultLinearPenalty
+                // Pass 1 explicitly since there is no sampling noise to dampen
+                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
+            }
+        }
+
+        // 2. Penalize Functional Constraints (Deterministic)
+        for (fc in functionalConstraints) {
+            val v = fc.violation(solution.inputMap)
+            if (v > 0.0) {
+                val penaltyFnc = fc.penaltyFunction ?: defaultFunctionalPenalty
+                // Pass 1 explicitly since there is no sampling noise to dampen
+                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
+            }
+        }
+
+        // 3. Penalize Response Constraints (Stochastic)
+        for (rc in responseConstraints) {
+            val estResponse = solution.responseEstimatesMap[rc.responseName]
+            if (estResponse != null) {
+                val v = rc.violation(estResponse.average)
+                if (v > 0.0) {
+                    val penaltyFnc = rc.penaltyFunction ?: defaultResponsePenalty
+                    // Explicitly extract the sample count N(x) to feed the memory dampener
+                    val count = estResponse.count.toInt()
+                    totalPenalty += penaltyFnc.penalty(v, iterationCounter, count)
+                }
+            }
+        }
+
+        // 4. Apply the objFncFactor to correctly orient the penalty
+        // (Add for Minimization, Subtract for Maximization)
+        return totalPenalty * objFncFactor
     }
 
     /**

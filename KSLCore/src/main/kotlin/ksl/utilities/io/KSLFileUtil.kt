@@ -57,6 +57,7 @@ object KSLFileUtil {
      *
      * @return the path as a string
      */
+    @Suppress("unused")
     val programLaunchDirectoryAsString: String
         get() = System.getProperty("user.dir")
 
@@ -87,7 +88,7 @@ object KSLFileUtil {
      * path do not exist, they are created.  If the referenced file exists it is written over.
      *
      * @param pathToFile the path to the file that will be underneath the PrintWriter, must not be null
-     * @return the returned PrintWriter, or a PrintWriter wrapping System.out if some problem occurs
+     * @return the returned PrintWriter, or a PrintWriter wrapping [System.out] if some problem occurs.
      */
     fun createPrintWriter(pathToFile: Path): PrintWriter {
         // make the intermediate directories
@@ -101,14 +102,14 @@ object KSLFileUtil {
      * If the file exists it is written over.
      *
      * @param file the file support the returned PrintWriter, must not be null
-     * @return the PrintWriter, may be System.out if an IOException occurred
+     * @return the PrintWriter, may be [System.out] if an IOException occurred.
      */
     fun createPrintWriter(file: File): PrintWriter {
         return try {
             PrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating PrintWriter for " + file.absolutePath
-            logger.error(ex) { "$str" }
+            logger.error(ex) { str }
             PrintWriter(System.out)
         }
     }
@@ -117,7 +118,7 @@ object KSLFileUtil {
      * Makes the file in the directory that the program launched within
      *
      * @param fileName the name of the file to make
-     * @return the created PrintWriter, may be System.out if an IOException occurred
+     * @return the created PrintWriter, may be [System.out] if an IOException occurred.
      */
     fun createPrintWriter(fileName: String): PrintWriter {
         return createPrintWriter(programLaunchDirectory.resolve(fileName))
@@ -127,7 +128,7 @@ object KSLFileUtil {
      * Makes a PrintWriter from the given path, any IOExceptions are caught and logged.
      *
      * @param pathToFile the path to the file that will be underneath the PrintWriter, must not be null
-     * @return the returned PrintWriter, or System.out if some IOException occurred
+     * @return the returned PrintWriter, or [System.out] if some IOException occurred.
      */
     fun createLogPrintWriter(pathToFile: Path): LogPrintWriter {
         // make the intermediate directories
@@ -141,14 +142,14 @@ object KSLFileUtil {
      * If the file exists it will be written over.
      *
      * @param file the file support the returned PrintWriter, must not be null
-     * @return the LogPrintWriter, may be a PrintWriter wrapping System.out if an IOException occurred
+     * @return the LogPrintWriter, may be a PrintWriter wrapping [System.out] if an IOException occurred.
      */
     fun createLogPrintWriter(file: File): LogPrintWriter {
         return try {
             LogPrintWriter(FileWriter(file), true)
         } catch (ex: IOException) {
             val str = "Problem creating LogPrintWriter for " + file.absolutePath
-            logger.error(ex) { "$str" }
+            logger.error(ex) { str }
             LogPrintWriter(System.out)
         }
     }
@@ -196,110 +197,61 @@ object KSLFileUtil {
         return pathToFile.toFile()
     }
 
-//    /**
-//     * Uses Desktop.getDesktop() to open the file
-//     *
-//     * @param file the file
-//     * @throws IOException if file cannot be opened
-//     */
-//    @Throws(IOException::class)
-//    fun openFile(file: File?) {
-//        if (file == null) {
-//            JOptionPane.showMessageDialog(
-//                null,
-//                "Cannot open the supplied file because it was null",
-//                "Warning",
-//                JOptionPane.WARNING_MESSAGE
-//            )
-//            return
-//        }
-//        if (!file.exists()) {
-//            JOptionPane.showMessageDialog(
-//                null,
-//                "Cannot open the supplied file because it does not exist.",
-//                "Warning",
-//                JOptionPane.WARNING_MESSAGE
-//            )
-//            return
-//        }
-//        if (Desktop.isDesktopSupported()) {
-//            Desktop.getDesktop().open(file)
-//        } else {
-//            JOptionPane.showMessageDialog(
-//                null,
-//                "Cannot open the supplied file because it \n AWT Desktop is not supported!",
-//                "Warning",
-//                JOptionPane.WARNING_MESSAGE
-//            )
-//            return
-//        }
-//    }
+    /**
+     * Creates a file in the directory that the program was launched from.
+     * Parent directories are created if they do not exist.
+     *
+     * @param fileName the name of the file to create
+     * @return the created File instance
+     */
+    @Suppress("unused")
+    fun createFile(fileName: String): File {
+        return createFile(programLaunchDirectory.resolve(fileName))
+    }
 
-//    /**
-//     * Creates a PDF representation of a LaTeX file within the
-//     * provided directory with the given name.
-//     *
-//     * @param pdfcmd   the command for making the pdf within the OS
-//     * @param dirname  must not be null
-//     * @param filename must not be null, must have .tex extension
-//     * @return the process exit value
-//     * @throws IOException          if file does not exist or end with .tex
-//     * @throws InterruptedException if it was interrupted
-//     */
-//    @Throws(IOException::class, InterruptedException::class)
-//    fun makePDFFromLaTeX(pdfcmd: String?, dirname: String?, filename: String?): Int {
-//        requireNotNull(dirname) { "The directory name was null" }
-//        requireNotNull(filename) { "The file name was null" }
-//        val d = File(dirname)
-//        d.mkdir()
-//        val f = File(d, filename)
-//        if (!f.exists()) {
-//            d.delete()
-//            throw IOException("The file did not exist")
-//        }
-//        if (f.length() == 0L) {
-//            d.delete()
-//            throw IOException("The file was empty")
-//        }
-//        val fn = f.name
-//        val g = fn.split("\\.").toTypedArray()
-//        require(g[1] == "tex") { "The file was not a tex file" }
-//        val b = ProcessBuilder()
-//        b.command(pdfcmd, f.name)
-//        b.directory(d)
-//        val process = b.start()
-//        process.waitFor()
-//        return process.exitValue()
-//    }
-//
-//    /**
-//     * Creates a PDF representation of a LaTeX file within the
-//     * with the given name. Uses pdflatex if it
-//     * exists
-//     *
-//     * @param pdfCmdString must not be null, the appropriate OS system command to convert tex file
-//     * @param file         must not be null, must have .tex extension
-//     * @return the process exit value
-//     * @throws IOException          if file does not exist or end with .tex
-//     * @throws InterruptedException if it was interrupted
-//     */
-//    @Throws(IOException::class, InterruptedException::class)
-//    fun makePDFFromLaTeX(pdfCmdString: String, file: File?): Int {
-//        Objects.requireNonNull(pdfCmdString, "The latex to pdf command string was null")
-//        requireNotNull(file) { "The file was null" }
-//        if (!file.exists()) {
-//            throw IOException("The file did not exist")
-//        }
-//        if (file.length() == 0L) {
-//            throw IOException("The file was empty")
-//        }
-//        require(isTexFileName(file.name)) { "The file was not a tex file" }
-//        val b = ProcessBuilder()
-//        b.command(pdfCmdString, file.name)
-//        val process = b.start()
-//        process.waitFor()
-//        return process.exitValue()
-//    }
+    /**
+     * Creates a file within a specific parent directory.
+     * Parent directories are created if they do not exist.
+     *
+     * @param parentDir the path to the directory that will contain the file
+     * @param fileName the name of the file to create
+     * @return the created File instance
+     */
+    @Suppress("unused")
+    fun createFile(parentDir: Path, fileName: String): File {
+        return createFile(parentDir.resolve(fileName))
+    }
+
+    /**
+     * Creates a file in the standard KSL output directory.
+     * Parent directories are created if they do not exist.
+     *
+     * @param fileName the name of the file to create
+     * @return the created File instance
+     */
+    @Suppress("unused")
+    fun createOutFile(fileName: String): File {
+        return createFile(KSL.outDir.resolve(fileName))
+    }
+
+    /**
+     * Creates a file with a guaranteed extension in the specified parent directory.
+     * If the file name is null, a temporary name is generated.
+     *
+     * @param fileName the desired name of the file (can be null)
+     * @param extension the required extension (e.g., "csv", "txt")
+     * @param parentDir the directory to place the file in (defaults to KSL.outDir)
+     * @return the created File instance
+     */
+    @Suppress("unused")
+    fun createFileWithExtension(
+        fileName: String?,
+        extension: String?,
+        parentDir: Path = KSL.outDir
+    ): File {
+        val fullFileName = createFileName(fileName, extension)
+        return createFile(parentDir.resolve(fullFileName))
+    }
 
     /**
      * @param fileName the string path representation of the file
@@ -315,7 +267,7 @@ object KSLFileUtil {
      * @return the string without the extensions
      */
     fun removeFileExtension(filename: String?, removeAllExtensions: Boolean): String? {
-        if (filename == null || filename.isEmpty()) {
+        if (filename.isNullOrEmpty()) {
             return filename
         }
         val extPattern = "(?<!^)[.]" + if (removeAllExtensions) ".*" else "[^.]*$"
@@ -323,9 +275,9 @@ object KSLFileUtil {
     }
 
     /**
-     * This method will check for the dot ‘.' occurrence in the given filename.
-     * If it exists, then it will find the last position of the dot ‘.'
-     * and return the characters after that, the characters after the last dot ‘.' known as the file extension.
+     * This method will check for the dot '.' occurrence in the given filename.
+     * If it exists, then it will find the last position of the dot '.'
+     * and return the characters after that, the characters after the last dot '.' known as the file extension.
      * Special Cases:
      *
      *
@@ -342,9 +294,9 @@ object KSLFileUtil {
     }
 
     /**
-     * This method will check for the dot ‘.' occurrence in the given filename.
-     * If it exists, then it will find the last position of the dot ‘.'
-     * and return the characters after that, the characters after the last dot ‘.' known as the file extension.
+     * This method will check for the dot '.' occurrence in the given filename.
+     * If it exists, then it will find the last position of the dot '.'
+     * and return the characters after that, the characters after the last dot '.' known as the file extension.
      * Special Cases:
      *
      *
@@ -366,6 +318,7 @@ object KSLFileUtil {
      * @param fileName the name of the file as a string
      * @return true if the extension for the file is txt or TXT
      */
+    @Suppress("unused")
     fun isTextFileName(fileName: String?): Boolean {
         if (fileName == null) {
             return false
@@ -380,6 +333,7 @@ object KSLFileUtil {
      * @param pathToFile the path to the file, if null, return false
      * @return true if extension on path is txt
      */
+    @Suppress("unused")
     fun isTextFile(pathToFile: Path?): Boolean {
         if (pathToFile == null) {
             return false
@@ -394,6 +348,7 @@ object KSLFileUtil {
      * @param fileName the name of the file as a string
      * @return true if the extension for the file is txt or TXT
      */
+    @Suppress("unused")
     fun isCSVFileName(fileName: String?): Boolean {
         if (fileName == null) {
             return false
@@ -408,6 +363,7 @@ object KSLFileUtil {
      * @param pathToFile the path to the file, if null return false
      * @return true if extension on path is csv
      */
+    @Suppress("unused")
     fun isCSVFile(pathToFile: Path?): Boolean {
         if (pathToFile == null) {
             return false
@@ -422,6 +378,7 @@ object KSLFileUtil {
      * @param fileName the name of the file as a string
      * @return true if the extension for the file is tex
      */
+    @Suppress("unused")
     fun isTexFileName(fileName: String?): Boolean {
         if (fileName == null) {
             return false
@@ -452,6 +409,7 @@ object KSLFileUtil {
      * @param name the name
      * @return the formed String
      */
+    @Suppress("unused")
     fun createCSVFileName(name: String?): String {
         return createFileName(name, "csv")
     }
@@ -462,12 +420,13 @@ object KSLFileUtil {
      * @param name the name
      * @return the formed String
      */
+    @Suppress("unused")
     fun createTxtFileName(name: String?): String {
         return createFileName(name, "txt")
     }
 
     /**
-     * Makes a String that has the form name.ext
+     * Makes a String that has the form 'name.ext'
      * If an extension already exists it is replaced.
      *
      * @param theName the name
@@ -479,7 +438,7 @@ object KSLFileUtil {
         var ext = theFileExtension
         if (name == null) {
             myFileCounter_ = myFileCounter_ + 1
-            name = "Temp" + myFileCounter_
+            name = "Temp$myFileCounter_"
         }
         if (ext == null) {
             ext = "txt"
@@ -496,6 +455,11 @@ object KSLFileUtil {
         return s
     }
 
+    /**
+     *  Deletes the directory represented by the path and all of its contents.
+     *  If the path is not a directory, it is deleted as a file.
+     */
+    @Suppress("unused")
     fun deleteDirectory(pathToDir: Path): Boolean {
         return deleteDirectory(pathToDir.toFile())
     }
@@ -533,6 +497,7 @@ object KSLFileUtil {
      * @throws IOException if a problem occurs
      */
     @Throws(IOException::class)
+    @Suppress("unused")
     fun copyDirectory(source: Path, destination: Path) {
         copyDirectory(source.toFile(), destination.toFile())
     }
@@ -658,7 +623,7 @@ object KSLFileUtil {
     /**
      * @param df a format to apply to the values of the array when writing the strings
      * @param array  the array to convert
-     * @return a comma delimited string of the array, if empty or null, returns the empty string
+     * @return a comma-delimited string of the array, if empty or null, returns the empty string
      */
     fun toCSVString(array: DoubleArray, df: DecimalFormat? = null): String {
         if (array.isEmpty()) {
@@ -757,6 +722,7 @@ object KSLFileUtil {
      * @param pathToFile the path to a file holding the data
      * @return the data as an array
      */
+    @Suppress("unused")
     fun scanToArray(pathToFile: Path): DoubleArray {
         try {
             Scanner(pathToFile.toFile()).use { scanner ->
@@ -772,13 +738,27 @@ object KSLFileUtil {
         return DoubleArray(0)
     }
 
+    /**
+     *  Opens the file in the browser.
+     *  The file must be an HTML file and the system must have a default browser configured.
+     *  If the file is not an HTML file or if there is no default browser, an IOException may be thrown.
+      * @param file the HTML file to open, must not be null
+     */
     fun openInBrowser(file: File) {
         val desktop = Desktop.getDesktop()
         desktop.browse(file.toURI())
     }
 
-    fun openInBrowser(fileName: String, html: String, dir: Path = KSL.plotDir): File {
-        val file = createTemporaryFile(fileName, dir)
+    /**
+     *  Opens the HTML file in the browser.  The file is created in the specified directory with the given file name.
+     *  The file will have a .html extension. If the directory does not exist, it will be created.
+      * @param fileName the name of the file, must not be null
+     * @param html the HTML string to write to the file, must not be null
+     * @param dir the directory to create the file in, defaults to KSL.outDir, must not be null
+     * @return the created temporary HTML file
+     */
+    fun openInBrowser(fileName: String, html: String, dir: Path = KSL.outDir): File {
+        val file = createTemporaryHTMLFile(fileName, dir)
         FileWriter(file).use {
             it.write(html)
         }
@@ -786,7 +766,15 @@ object KSLFileUtil {
         return file
     }
 
-    fun createTemporaryFile(fileName: String, dir: Path = KSL.outDir): File {
+    /**
+     * Creates a temporary HTML file in the specified directory with the given file name.
+     * The file will have a .html extension.
+     * If the directory does not exist, it will be created.
+     * @param fileName the name of the file, must not be null
+     * @param dir the directory to create the file in, defaults to KSL.outDir, must not be null
+     * @return the created temporary HTML file
+     */
+    fun createTemporaryHTMLFile(fileName: String, dir: Path = KSL.outDir): File {
         val tmpDir = File(dir.toString())
         if (!tmpDir.exists()) {
             tmpDir.mkdir()
@@ -794,6 +782,12 @@ object KSLFileUtil {
         return File.createTempFile(fileName, ".html", tmpDir)
     }
 
+    /**
+     * Opens a file dialog to select a file to open.
+     * The dialog will open in the directory that the program was launched from.
+     * @return the selected file or null if no file was selected
+     */
+    @Suppress("unused")
     fun chooseFile(): File? {
         val dialog = FileDialog(null as Frame?, "Select File to Open")
         dialog.directory = this.programLaunchDirectory.toString()
@@ -818,62 +812,143 @@ object KSLFileUtil {
  *  Wraps String.format() to print a formatted string.
  *  The [fmt] string must be valid for String.format()
  */
+@Suppress("unused")
 fun printf(fmt:String, vararg args: Any?){
     print(String.format(fmt, args))
 }
 
+/**
+ *  Writes the list of double arrays to the PrintWriter, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param out the PrintWriter to write to, must not be null
+ */
+@Suppress("unused")
 fun List<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
     KSLFileUtil.write(this, out, df)
 }
 
+/**
+ *  Writes the array of double arrays to the PrintWriter, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param out the PrintWriter to write to, must not be null
+ */
 fun Array<DoubleArray>.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
     KSLFileUtil.write(this, out, df)
 }
 
+/**
+ *  Writes the array of double arrays to [KSLFileUtil.SOUT], each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param df a format to apply to the values of the array when writing the strings
+ */
 fun Array<DoubleArray>.print(df: DecimalFormat? = null) {
     KSLFileUtil.write(this, KSLFileUtil.SOUT, df)
 }
 
+/**
+ *  Writes the array of double arrays to a file, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param pathToFile the path to the file, must not be null
+ */
+@Suppress("unused")
 fun Array<DoubleArray>.writeToFile(pathToFile: Path, df: DecimalFormat? = null) {
     KSLFileUtil.writeToFile(this, pathToFile, df)
 }
 
+/**
+ *  Writes the array to a file. Each element in the array is on a new line.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param fileName the name of the file, must not be null, file will appear in KSL.getInstance().getOutDir()
+ */
+@Suppress("unused")
 fun Array<DoubleArray>.writeToFile(fileName: String, df: DecimalFormat? = null) {
     KSLFileUtil.writeToFile(this, fileName, df)
 }
 
+/**
+ * Writes the array of doubles to the PrintWriter, each element on a new line.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param out the PrintWriter to write to, must not be null. If not supplied, writes to [KSLFileUtil.SOUT]
+ */
+@Suppress("unused")
 fun DoubleArray.write(out: PrintWriter = KSLFileUtil.SOUT, df: DecimalFormat? = null) {
     KSLFileUtil.write(this, out, df)
 }
 
+/**
+ * Writes the array of doubles to a file, each element on a new line.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param pathToFile the path to the file, must not be null.
+ */
+@Suppress("unused")
 fun DoubleArray.writeToFile(pathToFile: Path, df: DecimalFormat? = null) {
     KSLFileUtil.writeToFile(this, pathToFile, df)
 }
 
+/**
+ * Writes the array of doubles to a file, each element on a new line.
+ *  @param df a format to apply to the values of the array when writing the strings
+ *  @param fileName the name of the file, must not be null.
+ */
+@Suppress("unused")
 fun DoubleArray.writeToFile(fileName: String, df: DecimalFormat? = null) {
     KSLFileUtil.writeToFile(this, fileName, df)
 }
 
+/**
+ *  Writes the array of int arrays to the PrintWriter, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param out the PrintWriter to write to, must not be null. If not supplied, writes to [KSLFileUtil.SOUT]
+ */
 fun Array<IntArray>.write(out: PrintWriter = KSLFileUtil.SOUT) {
     KSLFileUtil.write(this, out)
 }
 
+/**
+ *  Writes the array of int arrays to a file, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param pathToFile the path to the file, must not be null
+ */
+@Suppress("unused")
 fun Array<IntArray>.writeToFile(pathToFile: Path) {
     KSLFileUtil.writeToFile(this, pathToFile)
 }
 
+/**
+ *  Writes the array of int arrays to a file, each array on a new line,
+ *  and each element in the array separated by a comma.
+ *  @param fileName the name of the file, must not be null.
+ */
+@Suppress("unused")
 fun Array<IntArray>.writeToFile(fileName: String) {
     KSLFileUtil.writeToFile(this, fileName)
 }
 
+/**
+ * Writes the array of ints to the PrintWriter, each element on a new line.
+ *  @param out the PrintWriter to write to, must not be null. If not supplied, writes to [KSLFileUtil.SOUT]
+ */
 fun IntArray.write(out: PrintWriter = KSLFileUtil.SOUT) {
     KSLFileUtil.write(this, out)
 }
 
+/**
+ * Writes the array of ints to a file, each element on a new line.
+ *  @param pathToFile the path to the file, must not be null
+ */
+@Suppress("unused")
 fun IntArray.writeToFile(pathToFile: Path) {
     KSLFileUtil.writeToFile(this, pathToFile)
 }
 
+/**
+ * Writes the array of ints to a file, each element on a new line.
+ *  @param fileName the name of the file, must not be null.
+ */
+@Suppress("unused")
 fun IntArray.writeToFile(fileName: String) {
     KSLFileUtil.writeToFile(this, fileName)
 }

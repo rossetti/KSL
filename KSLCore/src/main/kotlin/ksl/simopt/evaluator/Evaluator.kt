@@ -6,7 +6,6 @@ import ksl.simopt.cache.SolutionCacheIfc
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simulation.ExperimentRunParametersIfc
-import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
 
 /**
@@ -23,46 +22,16 @@ class Evaluator @JvmOverloads constructor(
     override val cache: SolutionCacheIfc? = null,
 ) : EvaluatorIfc {
 
-    /**
-     *  The total number of evaluations performed. An evaluation may have many replications.
-     */
-    var totalEvaluations: Int = 0
+    override var totalEvaluatorCalls: Int = 0
         private set
 
-    /**
-     *  The total number of evaluations performed via the simulation oracle.
-     */
-    var totalOracleEvaluations: Int = 0
+    override var totalDesignPointsEvaluated: Int = 0
         private set
 
-    /**
-     *  The total number of evaluations performed via the cache.
-     */
-    var totalCachedEvaluations: Int = 0
+    override var totalOracleReplications: Int = 0
         private set
 
-    /**
-     *  The total number of evaluation requests that were received.
-     */
-    var totalRequestsReceived: Int = 0
-        private set
-
-    /**
-     *  The total number of replications requested across all evaluation requests.
-     */
-    val totalReplications: Int
-        get() = totalOracleReplications + totalCachedReplications
-
-    /**
-     *  The total number of replications performed by the simulation oracle.
-     */
-    var totalOracleReplications: Int = 0
-        private set
-
-    /**
-     *  The total number of replications satisfied by the cache.
-     */
-    var totalCachedReplications: Int = 0
+    override var totalCachedReplications: Int = 0
         private set
 
     /**
@@ -73,18 +42,18 @@ class Evaluator @JvmOverloads constructor(
     @Suppress("unused")
     fun resetEvaluationCounts() {
         EvaluatorIfc.logger.trace { "Resetting evaluator counts" }
-        totalEvaluations = 0
-        totalOracleEvaluations = 0
-        totalCachedEvaluations = 0
-        totalRequestsReceived = 0
+        totalEvaluatorCalls = 0
+        totalDesignPointsEvaluated = 0
         totalOracleReplications = 0
         totalCachedReplications = 0
     }
 
     override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
         EvaluatorIfc.logger.trace { "Evaluator: evaluate() : $evaluationRequest" }
-        totalEvaluations++
-        totalRequestsReceived = totalRequestsReceived + evaluationRequest.modelInputs.size
+        // 1. Increment the call counter (used as the batch/generation ID)
+        totalEvaluatorCalls++
+        // 2. Increment the total unique design points requested
+        totalDesignPointsEvaluated = totalDesignPointsEvaluated + evaluationRequest.modelInputs.size
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed) {
             // The provider should handle the CRN and or simulate the requests with no caching.
             // For CRN, we don't do caching even if the cache exists because we don't want to mix dependent results.
@@ -105,6 +74,7 @@ class Evaluator @JvmOverloads constructor(
         require(cache != null) { "The cache must not be null for cache based evaluation" }
         // check with the cache for solutions
         val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
+
         EvaluatorIfc.logger.trace { "Number of solutions found in the cache: ${cachedSolutions.size}" }
         if (cachedSolutions.isEmpty()) {
             // nothing found in the cache, just evaluate by simulation
@@ -173,9 +143,11 @@ class Evaluator @JvmOverloads constructor(
                 // Determine the number of replications stored in the cache for the associated solution.
                 val numRepsInCache = cachedSolution.count.toInt()
                 if (numRepsInCache >= modelInput.numReplications) {
+                    // Full cache hit
                     // The cache will satisfy all the replications. There is no need to include the input request in the revised inputs.
                     totalCachedReplications = totalCachedReplications + modelInput.numReplications
                 } else {
+                    // Partial cache hit
                     // The cached solution doesn't have enough replications. We need to simulate more replications.
                     val requiredReps = modelInput.numReplications - numRepsInCache
                     // make the new request
@@ -203,7 +175,7 @@ class Evaluator @JvmOverloads constructor(
         evaluationRequest: EvaluationRequest
     ): Map<ModelInputs, Solution> {
         val modelInputs = evaluationRequest.modelInputs
-        totalOracleEvaluations = totalOracleEvaluations + modelInputs.size
+        // 3. Only count the replications actually sent to the simulation oracle
         totalOracleReplications = totalOracleReplications + modelInputs.totalReplications()
         // run the evaluations
         //TODO this is the long-running task
@@ -248,7 +220,7 @@ class Evaluator @JvmOverloads constructor(
             inputMap,
             estimatedObjFnc,
             responseEstimates,
-            totalEvaluations
+            totalEvaluatorCalls
         )
         return solution
     }
@@ -275,20 +247,17 @@ class Evaluator @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder().apply {
-            appendLine("Evaluator:")
-            appendLine("totalEvaluations = $totalEvaluations")
-            appendLine("totalOracleEvaluations = $totalOracleEvaluations")
-            appendLine("totalCachedEvaluations = $totalCachedEvaluations")
-            appendLine("totalRequestsReceived = $totalRequestsReceived")
-            appendLine("totalCachedReplications = $totalCachedReplications")
-            appendLine("totalOracleReplications = $totalOracleReplications")
-            appendLine("totalReplications = $totalReplications")
-            appendLine()
-            appendLine("Problem Definition:")
-            append("$problemDefinition")
-        }
-        return sb.toString()
+        return """
+            Evaluator:
+            totalEvaluatorCalls = $totalEvaluatorCalls
+            totalDesignPointsEvaluated = $totalDesignPointsEvaluated
+            totalReplicationsRequested = $totalReplicationsRequested
+            totalOracleReplications = $totalOracleReplications
+            totalCachedReplications = $totalCachedReplications
+            
+            Problem Definition:
+            $problemDefinition
+        """.trimIndent()
     }
 
 

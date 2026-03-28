@@ -6,6 +6,7 @@ import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitial
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultStoppingTemperature
 import kotlin.math.ln
 import kotlin.math.pow
+import kotlin.math.E
 
 /**
  * Defines the interface for a cooling schedule used in optimization algorithms such as simulated annealing.
@@ -77,6 +78,7 @@ class LinearCoolingSchedule(
     override var initialTemperature: Double = initialTemperature
         set(value) {
             require(value > 0.0) { "The initial temperature must be positive" }
+            require(value > stoppingTemperature) { "Initial temperature must be greater than stopping temperature" }
             field = value
         }
 
@@ -99,7 +101,8 @@ class LinearCoolingSchedule(
  * @param coolingRate The rate at which the temperature decreases in each iteration. Defaults to 0.95.
  * Must be a value between 0.0 (exclusive) and 1.0 (exclusive).
  *
- * @throws IllegalArgumentException if the cooling rate is not between 0.0 and 1.0, or if the initial temperature is not positive.
+ * @throws IllegalArgumentException if the cooling rate is not between 0.0 and 1.0, or if the initial
+ * temperature is not positive.
  */
 class ExponentialCoolingSchedule(
     initialTemperature: Double,
@@ -110,9 +113,59 @@ class ExponentialCoolingSchedule(
         require(coolingRate < 1.0) { "Cooling rate must be less than 1.0" }
     }
 
+    /**
+     * Secondary constructor that dynamically calculates the optimal cooling rate based
+     * on the desired initial temperature, stopping temperature, and max iterations.
+     * @param initialTemperature The starting temperature for the cooling schedule.
+     * @param stoppingTemperature The desired temperature at the final iteration.
+     * @param maxIterations The total number of iterations to reach the stopping temperature.
+     */
+    constructor(
+        initialTemperature: Double,
+        stoppingTemperature: Double = defaultStoppingTemperature,
+        maxIterations: Int = defaultMaxNumberIterations
+    ) : this(
+        initialTemperature = initialTemperature,
+        coolingRate = calculateOptimalCoolingRate(initialTemperature, stoppingTemperature, maxIterations)
+    )
+
     override fun nextTemperature(iteration: Int): Double {
         require(iteration > 0) { "The iteration must be positive. It was $iteration." }
         return initialTemperature * coolingRate.pow(iteration)
+    }
+
+    companion object {
+        /**
+         * Calculates the optimal exponential cooling rate required to transition from the
+         * [initialTemperature] to the [stoppingTemperature] over exactly [maxIterations].
+         */
+        fun calculateOptimalCoolingRate(
+            initialTemperature: Double,
+            stoppingTemperature: Double = defaultStoppingTemperature,
+            maxIterations: Int = defaultMaxNumberIterations
+        ): Double {
+            require(initialTemperature > 0.0) { "Initial temperature must be positive" }
+            require(stoppingTemperature > 0.0) { "Stopping temperature must be positive" }
+            require(maxIterations > 0) { "Max iterations must be strictly positive" }
+            require(initialTemperature > stoppingTemperature) {
+                "Initial temperature ($initialTemperature) must be greater than stopping temperature ($stoppingTemperature)"
+            }
+            // Formula: alpha = (T_stop / T_initial) ^ (1 / maxIterations)
+            return (stoppingTemperature / initialTemperature).pow(1.0 / maxIterations)
+        }
+
+        /**
+         * Factory method that creates an [ExponentialCoolingSchedule] using a dynamically
+         * calculated cooling rate perfectly tuned to the provided boundary parameters.
+         */
+        fun createTargetedSchedule(
+            initialTemperature: Double,
+            stoppingTemperature: Double = defaultStoppingTemperature,
+            maxIterations: Int = defaultMaxNumberIterations
+        ): ExponentialCoolingSchedule {
+            val optimalRate = calculateOptimalCoolingRate(initialTemperature, stoppingTemperature, maxIterations)
+            return ExponentialCoolingSchedule(initialTemperature, optimalRate)
+        }
     }
 }
 
@@ -131,6 +184,8 @@ class LogarithmicCoolingSchedule(
 ) : CoolingSchedule (initialTemperature) {
 
     override fun nextTemperature(iteration: Int): Double {
-        return initialTemperature / ln(iteration.toDouble() + 1.0)
+        // Starts at ln(E) = 1.0 when iteration = 1, ensuring T_1 = T_0
+        // Then slowly increases the denominator for subsequent iterations
+        return initialTemperature / ln(iteration.toDouble() - 1.0 + E)
     }
 }

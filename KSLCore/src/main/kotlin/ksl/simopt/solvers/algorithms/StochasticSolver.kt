@@ -188,6 +188,17 @@ abstract class StochasticSolver(
 
     }
 
+    override fun toString(): String {
+        return """
+        StochasticSolver(
+            streamNumber = $streamNumber,
+            streamProvider = ${streamProvider::class.simpleName},
+            startingPointGenerator = ${startingPointGenerator?.let { it::class.simpleName } ?: "Default"},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
+    }
+
     companion object {
         /**
          * Represents the default maximum number of iterations to be executed

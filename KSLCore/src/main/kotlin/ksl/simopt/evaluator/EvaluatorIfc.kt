@@ -7,6 +7,34 @@ import ksl.simopt.cache.SolutionCacheIfc
 interface EvaluatorIfc {
 
     /**
+     * The total number of times the evaluate() method has been invoked.
+     * This essentially tracks the number of "batches" or "generations" processed.
+     */
+    val totalEvaluatorCalls: Int
+
+    /**
+     * The total number of unique design points (ModelInputs) requested for evaluation
+     * across all evaluator calls.
+     */
+    val totalDesignPointsEvaluated: Int
+
+    /**
+     *  The total number of replications requested across all evaluation requests.
+     */
+    val totalReplicationsRequested: Int
+        get() = totalOracleReplications + totalCachedReplications
+
+    /**
+     * The total number of replications actually executed by the simulation oracle.
+     */
+    val totalOracleReplications: Int
+
+    /**
+     * The total number of replications successfully bypassed/satisfied by the cache.
+     */
+    val totalCachedReplications: Int
+
+    /**
      *  A possible cache to hold evaluated solutions
      */
     val cache: SolutionCacheIfc?
