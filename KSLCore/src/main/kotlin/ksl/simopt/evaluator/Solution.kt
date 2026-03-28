@@ -225,49 +225,101 @@ data class Solution(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder().apply{
-            appendLine("Solution id = $id")
-            if (!isValid){
-                appendLine("The solution is invalid!")
+        val validStr = if (isValid) "Valid" else "INVALID"
+
+        val sb = StringBuilder().apply {
+            appendLine("Solution(id = $id, status = $validStr, evaluation = $evaluationNumber)")
+
+            appendLine("  Objectives:")
+            appendLine("    Estimated = $estimatedObjFncValue")
+            appendLine("    Penalized = $penalizedObjFncValue")
+            appendLine("    Granular  = $granularObjFncValue")
+            appendLine("    Penalty   = $penaltyFncValue")
+
+            appendLine("  Estimated Objective Function Details:")
+            appendLine("    Name      = ${estimatedObjFnc.name}")
+            appendLine("    Average   = ${estimatedObjFnc.average}")
+            appendLine("    Variance  = ${estimatedObjFnc.variance}")
+            appendLine("    Count     = ${estimatedObjFnc.count}")
+
+            appendLine("  Inputs:")
+            for ((name, value) in inputMap) {
+                appendLine("    $name = $value")
             }
-            appendLine("evaluation number = $evaluationNumber")
-            appendLine("objective function value = $estimatedObjFncValue")
-            appendLine("penalized objective function = $penalizedObjFncValue")
-            appendLine("granular function value = $granularObjFncValue")
-            appendLine("penality function value = $penaltyFncValue")
-            appendLine("Inputs:")
-            for((name, value) in inputMap){
-                appendLine("$name = $value")
-            }
-            appendLine("Estimated Objective Function:")
-            appendLine("name = ${estimatedObjFnc.name}")
-            appendLine("average = ${estimatedObjFnc.average}")
-            appendLine("variance = ${estimatedObjFnc.variance}")
-            appendLine("count = ${estimatedObjFnc.count}")
-            if (problemDefinition.hasLinearConstraints){
-                appendLine("Linear Constraints:")
-                for(lc in problemDefinition.linearConstraints){
-                    appendLine(lc.resultsAsString(inputMap))
+
+            if (problemDefinition.hasLinearConstraints) {
+                appendLine("  Linear Constraints:")
+                for (lc in problemDefinition.linearConstraints) {
+                    appendLine("    ${lc.resultsAsString(inputMap)}")
                 }
             }
-            if (problemDefinition.hasFunctionalConstraints){
-                appendLine("Functional Constraints:")
-                for(fc in problemDefinition.functionalConstraints){
-                    appendLine(fc.resultsAsString(inputMap))
+
+            if (problemDefinition.hasFunctionalConstraints) {
+                appendLine("  Functional Constraints:")
+                for (fc in problemDefinition.functionalConstraints) {
+                    appendLine("    ${fc.resultsAsString(inputMap)}")
                 }
             }
-            if (problemDefinition.hasResponseConstraints){
-                appendLine("Response Constraints:")
-                for(rc in problemDefinition.responseConstraints){
+
+            if (problemDefinition.hasResponseConstraints) {
+                appendLine("  Response Constraints:")
+                for (rc in problemDefinition.responseConstraints) {
                     val estResponse = responseEstimatesMap[rc.responseName]
                     if (estResponse != null) {
-                        appendLine(rc.resultsAsString(estResponse))
+                        appendLine("    ${rc.resultsAsString(estResponse)}")
                     }
                 }
             }
         }
-        return sb.toString()
+
+        // trimEnd() removes the very last trailing newline so it embeds cleanly in other strings
+        return sb.toString().trimEnd()
     }
+
+//    override fun toString(): String {
+//        val sb = StringBuilder().apply{
+//            appendLine("Solution id = $id")
+//            if (!isValid){
+//                appendLine("The solution is invalid!")
+//            }
+//            appendLine("evaluation number = $evaluationNumber")
+//            appendLine("objective function value = $estimatedObjFncValue")
+//            appendLine("penalized objective function = $penalizedObjFncValue")
+//            appendLine("granular function value = $granularObjFncValue")
+//            appendLine("penality function value = $penaltyFncValue")
+//            appendLine("Inputs:")
+//            for((name, value) in inputMap){
+//                appendLine("$name = $value")
+//            }
+//            appendLine("Estimated Objective Function:")
+//            appendLine("name = ${estimatedObjFnc.name}")
+//            appendLine("average = ${estimatedObjFnc.average}")
+//            appendLine("variance = ${estimatedObjFnc.variance}")
+//            appendLine("count = ${estimatedObjFnc.count}")
+//            if (problemDefinition.hasLinearConstraints){
+//                appendLine("Linear Constraints:")
+//                for(lc in problemDefinition.linearConstraints){
+//                    appendLine(lc.resultsAsString(inputMap))
+//                }
+//            }
+//            if (problemDefinition.hasFunctionalConstraints){
+//                appendLine("Functional Constraints:")
+//                for(fc in problemDefinition.functionalConstraints){
+//                    appendLine(fc.resultsAsString(inputMap))
+//                }
+//            }
+//            if (problemDefinition.hasResponseConstraints){
+//                appendLine("Response Constraints:")
+//                for(rc in problemDefinition.responseConstraints){
+//                    val estResponse = responseEstimatesMap[rc.responseName]
+//                    if (estResponse != null) {
+//                        appendLine(rc.resultsAsString(estResponse))
+//                    }
+//                }
+//            }
+//        }
+//        return sb.toString()
+//    }
 
     companion object {
         var solutionCounter : Int = 0

@@ -871,7 +871,7 @@ abstract class Solver(
             ensureProblemFeasibleRequests = $ensureProblemFeasibleRequests,
             maxFeasibleSamplingIterations = $maxFeasibleSamplingIterations,
             solutionPrecision = $solutionPrecision,
-            replicationsPerEvaluation = ${replicationsPerEvaluation::class.simpleName},
+            replicationsPerEvaluation = ${replicationsPerEvaluation.toString().prependIndent("    ").trimStart()},
             startingPoint = ${if (startingPoint != null) "Provided" else "Not Provided (Will Auto-Generate)"},
             neighborGenerator = ${neighborGenerator?.let { it::class.simpleName } ?: "None"},
             solutionComparer = ${solutionComparer?.let { it::class.simpleName } ?: "Default"},
@@ -898,21 +898,20 @@ abstract class Solver(
             val pName = this.problemDefinition.name
 
             // 1. Return the informative "NotExecuted" state if no work has been done
-            if (iterationCounter == 0 && evaluator.totalRequestsReceived == 0) {
+            if (iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
                 return SolverResult.NotExecuted(sName, pName)
             }
 
-            // 2. Otherwise, gather the metrics and return the "Completed" state
+            // 2. Gather the newly refactored metrics
             val evalMetrics = EvaluatorMetrics(
-                totalRequestsReceived = this.evaluator.totalRequestsReceived,
-                totalEvaluations = this.evaluator.totalEvaluations,
-                totalOracleEvaluations = this.evaluator.totalOracleEvaluations,
-                totalCachedEvaluations = this.evaluator.totalCachedEvaluations,
-                totalReplications = this.evaluator.totalReplications,
+                totalEvaluatorCalls = this.evaluator.totalEvaluatorCalls,
+                totalDesignPointsEvaluated = this.evaluator.totalDesignPointsEvaluated,
+                totalReplicationsRequested = this.evaluator.totalReplicationsRequested,
                 totalOracleReplications = this.evaluator.totalOracleReplications,
                 totalCachedReplications = this.evaluator.totalCachedReplications
             )
 
+            // 3. Return the completed state
             return SolverResult.Completed(
                 solverName = sName,
                 problemName = pName,
@@ -1068,8 +1067,8 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem to solve, including parameters and constraints.
          * @param modelBuilder An interface for building the simulation model required for evaluations.
-         * @param startingPoint An optional initial solution to start the search from. If null, a default starting point
-         * is randomly generated from the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param maxIterations The maximum number of hill climbing iterations to perform.
          * @param replicationsPerEvaluation The number of simulations or evaluations performed per solution to estimate its quality.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
@@ -1099,15 +1098,17 @@ abstract class Solver(
                 simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
-            val shc = StochasticHillClimber(
+            val solver = StochasticHillClimber(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
-            shc.startingPoint = problemDefinition.toInputMap(sp)
-            return shc
+            // Inject the specific starting point if the user provided one
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
+            return solver
         }
 
         /**
@@ -1116,6 +1117,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
          * stochastic noise. Defaults to 50.
@@ -1134,6 +1137,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
@@ -1155,6 +1159,11 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 shc, maxNumRestarts
             )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
@@ -1167,8 +1176,8 @@ abstract class Solver(
          *
          * @param problemDefinition The formal definition of the optimization problem (variables, constraints, objectives).
          * @param modelBuilder The builder responsible for constructing the simulation model for evaluations.
-         * @param startingPoint An optional [InputMap] specifying the exact starting coordinates for the solver.
-         * If null, the solver will generate a random feasible starting point.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param temperatureConfiguration Dictates whether the solver uses a statically defined temperature or
          * autonomously calibrates its starting temperature via a random walk.
          * Defaults to [TemperatureConfiguration.AutoCalibrate].
@@ -1208,7 +1217,6 @@ abstract class Solver(
                 experimentRunParameters = experimentRunParameters,
                 defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
             )
-            val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
             val solver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
@@ -1219,7 +1227,9 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             // Inject the specific starting point if the user provided one
-            solver.startingPoint = problemDefinition.toInputMap(sp)
+            if (startingPoint != null) {
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return solver
         }
 
@@ -1233,7 +1243,7 @@ abstract class Solver(
          * @param problemDefinition The formal definition of the optimization problem.
          * @param modelBuilder The builder responsible for constructing the simulation model.
          * @param maxNumRestarts The total number of macro-iterations (restarts) the outer solver should perform.
-         * @param startingPoint An optional [InputMap] specifying the starting coordinates for the *first* restart.
+         * @param startingPoint An optional [MutableMap] specifying the starting coordinates for the *first* restart.
          * All subsequent restarts will automatically generate random feasible starting points.
          * @param temperatureConfiguration The temperature strategy applied to each inner SA run. Defaults to AutoCalibrate.
          * @param coolingSchedule The cooling strategy applied to each inner SA run.
@@ -1292,7 +1302,9 @@ abstract class Solver(
 
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
-            restartSolver.startingPoint = problemDefinition.toInputMap(sp)
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
@@ -1301,8 +1313,8 @@ abstract class Solver(
          *
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
@@ -1343,7 +1355,7 @@ abstract class Solver(
                 replicationsPerEvaluation = replicationsPerEvaluation
             )
             if (startingPoint != null) {
-                ce.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+                ce.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
             return ce
         }
@@ -1355,6 +1367,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param ceSampler The cross-entropy sampler. By default, it is [CENormalSampler]
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param replicationsPerEvaluation The number of replications to use during each evaluation to reduce
@@ -1374,6 +1388,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             ceSampler: CESamplerIfc = CENormalSampler(problemDefinition),
             maxIterations: Int = defaultMaxNumberIterations,
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
@@ -1400,6 +1415,11 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 ce, maxNumRestarts
             )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
 
@@ -1411,8 +1431,8 @@ abstract class Solver(
          * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
          * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
-         * @param startingPoint Optional initial solution to start the optimization. Defaults to the starting point
-         * provided by the problem definition.
+         * @param startingPoint Optional initial coordinates to start the optimization.
+         * If left null, the solver will automatically generate a random feasible starting point upon initialization.
          * @param maxIterations The maximum number of iterations the algorithm will run. Defaults to 1000.
          * @param solutionCache Specifies if the evaluator uses a solution cache. By default, this is [MemorySolutionCache].
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
@@ -1452,7 +1472,7 @@ abstract class Solver(
                 maxNumReplications = maxNumReplications
             )
             if (startingPoint != null) {
-                solver.startingPoint = evaluator.problemDefinition.toInputMap(startingPoint)
+                solver.startingPoint = problemDefinition.toInputMap(startingPoint)
             }
             return solver
         }
@@ -1464,6 +1484,8 @@ abstract class Solver(
          * @param problemDefinition The definition of the optimization problem, including constraints and objectives.
          * @param modelBuilder The model builder interface used to create models for evaluation.
          * @param maxNumRestarts The maximum number of restarts to be performed.
+         * @param startingPoint An optional starting point. If provided, the FIRST run of the solver will begin here.
+         * All subsequent restarts will begin at purely random, auto-generated coordinates
          * @param initialNumReps The initial number of replications to use during each evaluation. Defaults to defaultInitialSampleSize.
          * @param sampleSizeGrowthRate The growth rate of the sample size as the solver progresses. Defaults to defaultSampleSizeGrowthRate.
          * @param maxNumReplications The maximum number of replications by growth rate. Defaults to defaultMaxNumReplications.
@@ -1485,6 +1507,7 @@ abstract class Solver(
             problemDefinition: ProblemDefinition,
             modelBuilder: ModelBuilderIfc,
             maxNumRestarts: Int = defaultMaxRestarts,
+            startingPoint: MutableMap<String, Double>? = null,
             initialNumReps: Int = defaultInitialSampleSize,
             sampleSizeGrowthRate: Double = defaultReplicationGrowthRate,
             maxNumReplications: Int = defaultMaxNumReplications,
@@ -1511,6 +1534,11 @@ abstract class Solver(
             val restartSolver = RandomRestartSolver(
                 solver, maxNumRestarts
             )
+            // The random restart solver orchestrates the starting points. We pass the user's
+            // specific point to the macro-solver, which feeds it to the SA solver on run #1.
+            if (startingPoint != null) {
+                restartSolver.startingPoint = problemDefinition.toInputMap(startingPoint)
+            }
             return restartSolver
         }
     }

@@ -6,14 +6,30 @@ import ksl.simopt.evaluator.Solution
  * Encapsulates the precise usage statistics of the evaluator during the optimization run.
  */
 data class EvaluatorMetrics(
-    val totalRequestsReceived: Int,
-    val totalEvaluations: Int,
-    val totalOracleEvaluations: Int,
-    val totalCachedEvaluations: Int,
-    val totalReplications: Int,
+    val totalEvaluatorCalls: Int,
+    val totalDesignPointsEvaluated: Int,
+    val totalReplicationsRequested: Int,
     val totalOracleReplications: Int,
     val totalCachedReplications: Int
-)
+) {
+    override fun toString(): String {
+        // Calculate the percentage of computational effort saved by the cache
+        val savedPct = if (totalReplicationsRequested > 0) {
+            (totalCachedReplications.toDouble() / totalReplicationsRequested) * 100
+        } else 0.0
+
+        return """
+            Evaluator Invocations   : $totalEvaluatorCalls
+            Design Points Evaluated : $totalDesignPointsEvaluated
+              
+            Total Replications Req. : $totalReplicationsRequested
+              ├─ Executed by Oracle : $totalOracleReplications
+              └─ Satisfied by Cache : $totalCachedReplications
+              
+            Cache Savings           : ${String.format("%.1f", savedPct)}% of simulation budget
+        """.trimIndent()
+    }
+}
 
 /**
  * A strongly-typed, immutable snapshot of a solver's result state.
@@ -40,7 +56,7 @@ sealed class SolverResult {
                 Status  : Not Executed
                 
                 The solver has not yet performed any evaluations or iterations. 
-                Call solve() or run() to generate results.
+                Call runAllIterations() to generate results.
                 =================================================================
             """.trimIndent()
         }
@@ -61,18 +77,23 @@ sealed class SolverResult {
         val executionTimeMillis: Long? = null
     ) : SolverResult() {
 
+        override fun toString(): String {
+            return toReportString()
+        }
+
         override fun toReportString(): String {
             val termReason = if (isStoppingCriteriaMet) "Stopping Criteria Satisfied" else "Execution Halted/Error"
             val timeString = executionTimeMillis?.let { "${it}ms" } ?: "Not Tracked"
 
-            // Safely handle bestSolution just in case it wasn't tracked
-            val bestEstObj = bestSolution?.estimatedObjFncValue?.let { String.format("%.6f", it) } ?: "N/A"
-            val bestPenObj = bestSolution?.penalizedObjFncValue?.let { String.format("%.6f", it) } ?: "N/A"
-            val bestCoords = bestSolution?.inputMap?.toString() ?: "N/A"
+            // Format the best solution safely in case it is null
+            val bestSolStr = bestSolution?.toString() ?: "No valid best solution found."
 
+            /* * We use `prependIndent("        ").trimStart()` to inject the multiline strings
+             * perfectly aligned under their respective headers without breaking the trimIndent() margin.
+             */
             return """
                 =================================================================
-                OPTIMIZATION RESULTS
+                SOLVER RESULTS
                 =================================================================
                 Solver          : $solverName
                 Problem         : $problemName
@@ -83,31 +104,17 @@ sealed class SolverResult {
                 Total Iterations        : $totalIterations
                 
                 --- Evaluator Usage ---
-                Requests Received       : ${evaluatorMetrics.totalRequestsReceived}
-                
-                Evaluations (Points)    : ${evaluatorMetrics.totalEvaluations}
-                  ├─ Oracle Executed    : ${evaluatorMetrics.totalOracleEvaluations}
-                  └─ Cache Hits         : ${evaluatorMetrics.totalCachedEvaluations}
-                  
-                Replications (Sim Runs) : ${evaluatorMetrics.totalReplications}
-                  ├─ Oracle Executed    : ${evaluatorMetrics.totalOracleReplications}
-                  └─ Cache Hits         : ${evaluatorMetrics.totalCachedReplications}
+                ${evaluatorMetrics.toString().prependIndent("                ").trimStart()}
                 
                 --- Trajectory Summary ---
                 [INITIAL POINT]
-                Est. Objective : ${String.format("%.6f", initialSolution.estimatedObjFncValue)}
-                Pen. Objective : ${String.format("%.6f", initialSolution.penalizedObjFncValue)}
-                Coordinates    : ${initialSolution.inputMap}
+                ${initialSolution.toString().prependIndent("                ").trimStart()}
 
                 [FINAL/CURRENT POINT]
-                Est. Objective : ${String.format("%.6f", currentSolution.estimatedObjFncValue)}
-                Pen. Objective : ${String.format("%.6f", currentSolution.penalizedObjFncValue)}
-                Coordinates    : ${currentSolution.inputMap}
+                ${currentSolution.toString().prependIndent("                ").trimStart()}
 
                 [BEST POINT FOUND]
-                Est. Objective : $bestEstObj
-                Pen. Objective : $bestPenObj
-                Coordinates    : $bestCoords
+                ${bestSolStr.prependIndent("                ").trimStart()}
                 =================================================================
             """.trimIndent()
         }

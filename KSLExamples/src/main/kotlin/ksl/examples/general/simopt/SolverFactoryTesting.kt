@@ -13,8 +13,6 @@ enum class SolverType {
     SHC, SA, CE, R_SPLINE, SHC_RS, SA_RS, CE_RS, R_SPLINE_RS
 }
 
-
-
 fun main() {
 //    var simulationRunCache = MemorySimulationRunCache()
       val modelIdentifier = "RQInventoryModel"
@@ -56,15 +54,16 @@ fun runSolver(
 ) {
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
-    val printer = selectPrinter(modelIdentifier)
     val solver = solverFactory(solverType, problemDefinition, modelBuilder,
-        printer, simulationRunCache, experimentRunParameters, defaultKSLDatabaseObserverOption)
+         simulationRunCache, experimentRunParameters, defaultKSLDatabaseObserverOption)
 //   solver.useRandomlyBestStartingPoint()
 //   solver.advanceToNextSubStream()
     solver.runAllIterations()
     println()
-    println("Solver Results:")
     println(solver)
+    println()
+    println("Solver Results Summary:")
+    solver.printResults()
     println()
     println("Final Solution:")
     println(solver.bestSolution.asString())
@@ -82,7 +81,6 @@ fun solverFactory(
     solverType: SolverType,
     problemDefinition: ProblemDefinition,
     modelBuilder: ModelBuilderIfc,
-    printer: (Solver) -> Unit,
     simulationRunCache: SimulationRunCacheIfc? = null,
     experimentRunParameters: ExperimentRunParametersIfc? = null,
     defaultKSLDatabaseObserverOption: Boolean = false
