@@ -68,7 +68,7 @@ sealed class SolverResult {
     data class Completed(
         val solverName: String,
         val problemName: String,
-        val initialSolution: Solution,
+        val initialSolution: Solution?,
         val currentSolution: Solution,
         val bestSolution: Solution?,
         val totalIterations: Int,
@@ -86,6 +86,7 @@ sealed class SolverResult {
             val timeString = executionTimeMillis?.let { "${it}ms" } ?: "Not Tracked"
 
             // Format the best solution safely in case it is null
+            val initSolStr = initialSolution?.toString() ?: "Not Applicable (Population-based or not provided)"
             val bestSolStr = bestSolution?.toString() ?: "No valid best solution found."
 
             /* * We use `prependIndent("        ").trimStart()` to inject the multiline strings
@@ -108,7 +109,7 @@ sealed class SolverResult {
                 
                 --- Trajectory Summary ---
                 [INITIAL POINT]
-                ${initialSolution.toString().prependIndent("                ").trimStart()}
+                ${initSolStr.prependIndent("                ").trimStart()}
 
                 [FINAL/CURRENT POINT]
                 ${currentSolution.toString().prependIndent("                ").trimStart()}

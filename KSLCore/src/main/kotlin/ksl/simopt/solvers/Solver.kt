@@ -915,12 +915,13 @@ abstract class Solver(
             return SolverResult.Completed(
                 solverName = sName,
                 problemName = pName,
-                initialSolution = this.myInitialSolution,
+                initialSolution = this.initialSolution,
                 currentSolution = this.currentSolution,
                 bestSolution = this.bestSolution,
                 totalIterations = this.iterationCounter,
                 evaluatorMetrics = evalMetrics,
-                isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied()
+                isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied(),
+                executionTimeMillis = this.iterativeProcess.elapsedExecutionTime.inWholeMilliseconds
             )
         }
 
