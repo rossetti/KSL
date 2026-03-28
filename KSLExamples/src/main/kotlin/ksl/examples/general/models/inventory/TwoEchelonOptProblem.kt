@@ -41,7 +41,7 @@ fun main() {
     // solver = solver as CrossEntropySolver
     // solver = solver as RandomRestartSolver
 
-    //TODO  advance random number streams if you want to have different random numbers for each solver run
+    //TODO  advance random number streams if you want to have different random numbers for a solver run
     //solver.rnStream.advanceToNextSubStream()
 
     //TODO attach trackers
