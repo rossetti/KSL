@@ -55,12 +55,13 @@ class FixedGrowthRateReplicationSchedule(
     }
 
     override fun toString(): String {
-        return "FixedGrowthRateReplicationSchedule(" +
-                "initialNumReps=$initialNumReps, " +
-                "growthRate=$growthRate, " +
-                "maxNumReplications=$maxNumReplications, " +
-                "currentNumReplications=$currentNumReplications" +
-                ")"
+        return """
+        FixedGrowthRateReplicationSchedule(
+            initialNumReps = $initialNumReps,
+            growthRate = $growthRate,
+            maxNumReplications = $maxNumReplications
+        )
+    """.trimIndent()
     }
 
     companion object {

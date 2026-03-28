@@ -207,15 +207,18 @@ class CrossEntropySolver @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder("Cross-Entropy Solver with parameters: \n")
-        sb.appendLine("Elite Pct: $elitePct")
-        sb.appendLine("No improvement threshold: ${solutionChecker.noImproveThreshold}")
-        sb.appendLine("CE Sample Size: $ceSampleSize")
-        sb.appendLine("Elite Size: ${eliteSize()}")
-        sb.appendLine("CE Sampler:")
-        sb.appendLine("$ceSampler")
-        sb.append(super.toString())
-        return sb.toString()
+        return """
+        CrossEntropySolver(
+            elitePct = $elitePct,
+            ceSampleSize = $ceSampleSize,
+            eliteSize = ${eliteSize()},
+            eliteSizeFn = ${if (eliteSizeFn != null) "Provided" else "None"},
+            sampleSizeFn = ${if (sampleSizeFn != null) "Provided" else "None"},
+            noImproveThreshold = ${solutionChecker.noImproveThreshold},
+            ceSampler = ${ceSampler::class.simpleName},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
     }
 
     companion object {

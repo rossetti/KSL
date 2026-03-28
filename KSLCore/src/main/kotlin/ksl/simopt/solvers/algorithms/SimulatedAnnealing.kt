@@ -10,6 +10,7 @@ import ksl.simopt.solvers.ReplicationPerEvaluationIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import ksl.utilities.random.rvariable.KSLRandom
 import kotlin.math.exp
+import kotlin.math.ln
 
 //TODO default initial temperature
 
@@ -40,8 +41,8 @@ import kotlin.math.exp
 class SimulatedAnnealing @JvmOverloads constructor(
     problemDefinition: ProblemDefinition,
     evaluator: EvaluatorIfc,
-    initialTemperature: Double = defaultInitialTemperature,
-    var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
+    val temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.Fixed(defaultInitialTemperature),
+    var coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
     stoppingTemperature: Double = defaultStoppingTemperature,
     maxIterations: Int = defaultMaxNumberIterations,
     replicationsPerEvaluation: ReplicationPerEvaluationIfc,
@@ -51,14 +52,13 @@ class SimulatedAnnealing @JvmOverloads constructor(
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
-        require(initialTemperature > 0.0) { "The initial temperature must be positive" }
         require(stoppingTemperature > 0.0) { "The final temperature must be positive" }
     }
 
     /**
      *  Changing the initial temperature will also change it for the associated cooling schedule.
      */
-    var initialTemperature: Double = initialTemperature
+    var initialTemperature: Double = defaultInitialTemperature
         set(value) {
             require(value > 0.0) { "The initial temperature must be positive" }
             field = value
@@ -68,12 +68,11 @@ class SimulatedAnnealing @JvmOverloads constructor(
     /**
      * Represents the temperature threshold at which the simulated annealing algorithm will stop iterating.
      * The stopping temperature serves as a termination criterion, ensuring the optimization process concludes
-     * when the system has sufficiently cooled.
+     * when the system has sufficiently cooled. The target temperature below which the optimization process should stop.
+     *  Must be greater than 0.0.
      *
      * This value must always be positive. An exception will be thrown if a non-positive temperature is set.
      *
-     * @property stoppingTemperature The target temperature below which the optimization process should stop.
-     *                                Must be greater than 0.0.
      * @throws IllegalArgumentException if a value less than or equal to 0.0 is assigned.
      */
     var stoppingTemperature: Double = stoppingTemperature
@@ -147,22 +146,23 @@ class SimulatedAnnealing @JvmOverloads constructor(
     constructor(
         problemDefinition : ProblemDefinition,
         evaluator: EvaluatorIfc,
-        initialTemperature: Double = defaultInitialTemperature,
-        coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(initialTemperature),
+        temperatureConfiguration: TemperatureConfiguration = TemperatureConfiguration.Fixed(defaultInitialTemperature),
+        coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
         stoppingTemperature: Double = defaultStoppingTemperature,
         maxIterations: Int = defaultMaxNumberIterations,
         replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
         streamNum: Int = 0,
         streamProvider: RNStreamProviderIfc = KSLRandom.DefaultRNStreamProvider,
         name: String? = null
-    ) : this( problemDefinition = problemDefinition,
+    ) : this(
+        problemDefinition = problemDefinition,
         evaluator = evaluator,
-        initialTemperature = initialTemperature,
+        temperatureConfiguration = temperatureConfiguration,
         coolingSchedule = coolingSchedule,
         stoppingTemperature = stoppingTemperature,
         maxIterations = maxIterations,
         replicationsPerEvaluation = FixedReplicationsPerEvaluation(replicationsPerEvaluation),
-       streamNum, streamProvider, name = name
+        streamNum, streamProvider, name = name
     )
 
     /**
@@ -197,11 +197,69 @@ class SimulatedAnnealing @JvmOverloads constructor(
 
     override fun initializeIterations() {
         solutionChecker.clear()
+        // 1. This evaluates the starting point and sets currentSolution and myInitialSolution
         super.initializeIterations()
+
+        // 2. Resolve the initial temperature based on the configuration
+        initialTemperature = when (val config = temperatureConfiguration) {
+            is TemperatureConfiguration.Fixed -> config.temperature
+            is TemperatureConfiguration.AutoCalibrate -> {
+                logger.info { "Solver: $name : Auto-calibrating initial temperature..." }
+                calibrateTemperature(config.targetProbability, config.sampleSize)
+            }
+        }
         currentTemperature = initialTemperature
+
+        require(currentTemperature > stoppingTemperature) {
+            "Solver: $name : initial temperature ($currentTemperature) must be strictly greater " +
+                    "than the stopping temperature ($stoppingTemperature). Otherwise, the annealing process cannot occur."
+        }
         lastAcceptanceProbability = 1.0
         costDifference = Double.NaN
         logger.trace { "Solver: $name : initialized with temperature $currentTemperature" }
+    }
+
+    /**
+     * Executes a brief random walk to estimate the objective function landscape and calculate
+     * an appropriate starting temperature. Because this uses `requestEvaluation()`, all
+     * evaluations accurately count toward the solver's `numOracleCalls`.
+     */
+    private fun calibrateTemperature(targetAcceptanceProbability: Double, sampleSize: Int): Double {
+        var totalWorseningCost = 0.0
+        var worseningMovesCount = 0
+
+        // Use the evaluated baseline established by super.initializeIterations()
+        var previousWalkSolution = currentSolution
+
+        for (i in 0 until sampleSize) {
+            val nextPoint = generateNeighbor(previousWalkSolution.inputMap, rnStream)
+
+            // AUTOMATIC TRACKING: requestEvaluation inherently increments `numOracleCalls`!
+            val nextSolution = requestEvaluation(nextPoint)
+
+            val costDiff = nextSolution.penalizedObjFncValue - previousWalkSolution.penalizedObjFncValue
+
+            if (costDiff > 0.0) {
+                totalWorseningCost += costDiff
+                worseningMovesCount++
+            }
+            previousWalkSolution = nextSolution
+        }
+
+        // Reset the tracker's current solution back to the true initial point so the optimization
+        // starts exactly where the user intended, rather than where the random walk ended.
+        currentSolution = myInitialSolution
+
+        if (worseningMovesCount == 0) {
+            logger.warn { "Solver: $name : Calibration found no worsening moves. Falling back to default temperature $defaultInitialTemperature." }
+            return defaultInitialTemperature
+        }
+
+        val averageWorseningCost = totalWorseningCost / worseningMovesCount
+        val estimatedTemp = -averageWorseningCost / ln(targetAcceptanceProbability)
+
+        logger.info { "Solver: $name : Calibration complete. Estimated Initial Temperature: $estimatedTemp" }
+        return estimatedTemp
     }
 
     override fun mainIteration() {
@@ -245,13 +303,21 @@ class SimulatedAnnealing @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        val sb = StringBuilder("Simulated Annealing solver with parameters: \n")
-        sb.append("Initial temperature: $initialTemperature\n")
-        sb.append("Stopping temperature: $stoppingTemperature\n")
-        sb.append(super.toString())
-        sb.append("Current temperature: $currentTemperature\n")
-        sb.append("Last acceptance probability: $lastAcceptanceProbability\n")
-        return sb.toString()
+        val tempConfigStr = when (val config = temperatureConfiguration) {
+            is TemperatureConfiguration.Fixed -> "Fixed(temperature=${config.temperature})"
+            is TemperatureConfiguration.AutoCalibrate -> "AutoCalibrate(targetProb=${config.targetProbability}, samples=${config.sampleSize})"
+        }
+
+        return """
+        SimulatedAnnealing(
+            temperatureConfiguration = $tempConfigStr,
+            coolingSchedule = ${coolingSchedule::class.simpleName},
+            initialTemperature = $initialTemperature,
+            stoppingTemperature = $stoppingTemperature,
+            solutionEqualityChecker = ${solutionEqualityChecker::class.simpleName},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
     }
 
     companion object {
@@ -298,6 +364,75 @@ class SimulatedAnnealing @JvmOverloads constructor(
                 field = value
             }
 
+        /**
+         * Estimates a sensible initial temperature by executing an unbiased random walk
+         * over the objective function landscape and measuring the average cost increase.
+         *
+         * @param problemDefinition The problem being solved.
+         * @param evaluator The evaluator responsible for assessing solutions.
+         * @param targetAcceptanceProbability The desired initial probability of accepting a worse solution (e.g., 0.8).
+         * @param sampleSize The number of random walk steps to take.
+         * @param replicationsPerEvaluation Strategy for replications (typically 1 is fine for a rough temperature estimate).
+         * @return A dynamically calculated initial temperature.
+         */
+        @JvmStatic
+        fun estimateInitialTemperature(
+            problemDefinition: ProblemDefinition,
+            evaluator: EvaluatorIfc,
+            targetAcceptanceProbability: Double = 0.8,
+            sampleSize: Int = 100,
+            replicationsPerEvaluation: ReplicationPerEvaluationIfc = FixedReplicationsPerEvaluation(1)
+        ): Double {
+            require(targetAcceptanceProbability > 0.0 && targetAcceptanceProbability < 1.0) {
+                "Target probability must be strictly between 0 and 1"
+            }
+
+            // 1. Construct the reusable Random Walk solver
+            val randomWalk = RandomWalkSolver(
+                problemDefinition = problemDefinition,
+                evaluator = evaluator,
+                maxIterations = sampleSize,
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = "TempEstimationRandomWalk"
+            )
+
+            // 2. Initialize the solver to generate the starting point/solution
+            randomWalk.initialize()
+
+            var totalWorseningCost = 0.0
+            var worseningMovesCount = 0
+
+            // Grab the initial solution as our baseline
+            var previousSolution = randomWalk.currentSolution
+
+            // 3. Step through the random walk manually using the base class functions
+            while (randomWalk.hasNextIteration()) {
+                randomWalk.runNextIteration()
+
+                val newSolution = randomWalk.currentSolution
+
+                // Calculate the cost difference
+                val costDiff = newSolution.penalizedObjFncValue - previousSolution.penalizedObjFncValue
+
+                // We only care about worsening moves for the temperature calculation
+                if (costDiff > 0.0) {
+                    totalWorseningCost += costDiff
+                    worseningMovesCount++
+                }
+
+                // Update for the next step
+                previousSolution = newSolution
+            }
+
+            // 4. Fallback in the highly unlikely event that the walk only found improvements
+            if (worseningMovesCount == 0) {
+                return defaultInitialTemperature
+            }
+
+            // 5. Calculate and return the target temperature
+            val averageWorseningCost = totalWorseningCost / worseningMovesCount
+            return -averageWorseningCost / ln(targetAcceptanceProbability)
+        }
     }
 
 

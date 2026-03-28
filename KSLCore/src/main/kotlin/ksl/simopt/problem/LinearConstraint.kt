@@ -23,20 +23,22 @@ data class LinearConstraint(
         }
     }
 
-    override fun toString() : String {
-        val sb = StringBuilder().apply{
-            append("Equation: ")
-            for ((name, coefficient) in equation) {
-                append("$coefficient * $name + ")
-            }
-            if (inequalityType == InequalityType.LESS_THAN) {
-                append(" <= ")
-            } else {
-                append(" >= ")
-            }
-            append("$rhsValue ")
-        }
-        return sb.toString()
+    override fun resultsAsString(inputs: Map<String, Double>): String {
+        val lhs = computeLHS(inputs)
+        val v = violation(inputs)
+
+        val status = if (v > 0.0) "[VIOLATED] " else "[SATISFIED]"
+        val lhsStr = String.format("%10.4f", lhs)
+        val rhsStr = String.format("%10.4f", rhsValue)
+        val violStr = String.format("%10.4f", v)
+
+        return "  $status  LHS: $lhsStr  $inequalityString  RHS: $rhsStr  | Violation: $violStr"
+    }
+
+    override fun toString(): String {
+        // Cleans up the equation string to prevent dangling '+' signs
+        val equationStr = equation.entries.joinToString(" + ") { "${it.value} * ${it.key}" }
+        return "Linear Constraint: $equationStr $inequalityString $rhsValue"
     }
 
     /**

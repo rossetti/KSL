@@ -677,6 +677,24 @@ class RSplineSolver @JvmOverloads constructor(
         }
     }
 
+    override fun toString(): String {
+        return """
+        RSplineSolver(
+            perturbation = $perturbation,
+            initialLineSearchStepSize = $initialLineSearchStepSize,
+            lineSearchStepSizeMultiplier = $lineSearchStepSizeMultiplier,
+            lineSearchIterMax = $lineSearchIterMax,
+            spliMaxIterations = $spliMaxIterations,
+            splineCallGrowthRate = $splineCallGrowthRate,
+            initialMaxSplineCallLimit = $initialMaxSplineCallLimit,
+            maxSplineCallLimit = $maxSplineCallLimit,
+            neighborhoodFinder = ${neighborhoodFinder::class.simpleName},
+            solutionEqualityChecker = ${solutionChecker::class.simpleName},
+            base = ${super.toString().prependIndent("    ").trimStart()}
+        )
+    """.trimIndent()
+    }
+
     companion object {
 
         /**

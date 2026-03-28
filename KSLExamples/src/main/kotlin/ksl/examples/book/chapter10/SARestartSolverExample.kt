@@ -2,6 +2,9 @@ package ksl.examples.book.chapter10
 
 import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
+import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
+import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
 import ksl.simulation.ExperimentRunParametersIfc
 import org.jetbrains.kotlinx.dataframe.api.print
 import org.jetbrains.kotlinx.dataframe.api.schema
@@ -17,27 +20,29 @@ fun runSimulatedAnnealingWithRestarts(
 ) {
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
-    val printer = ::printRQInventoryModel
-    val initialTemperature = 1000.0
-    val solver = Solver.simulatedAnnealingSolverWithRestarts(
+    val solver = Solver.createRandomRestartSimulatedAnnealingSolver(
         problemDefinition = problemDefinition,
         modelBuilder = modelBuilder,
-        initialTemperature = initialTemperature,
         maxIterations = 100,
         replicationsPerEvaluation = 50,
-        restartPrinter = printer,
-        printer = null,
         simulationRunCache = simulationRunCache,
         experimentRunParameters = experimentRunParameters,
         defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
     )
+    val tracker = NestedConsoleSolverStateTracker(solver, solver.restartingSolver)
+    tracker.startTracking()
+    val csvTracker =
+        NestedCsvSolverStateTracker(solver, solver.restartingSolver, "SA_Restart_${problemDefinition.modelIdentifier}")
+    csvTracker.startTracking()
     solver.runAllIterations()
     println()
-    println("Solver Results:")
     println(solver)
     println()
-    println("Final Solution:")
-    println(solver.bestSolution.asString())
+    println("Solver Results Summary:")
+    solver.printResults()
+    println()
+    println("Final (Best) Solution Found:")
+    println(solver.bestSolution.toString())
     println()
     println("Approximate screening:")
     val solutions = solver.bestSolutions.possiblyBest()

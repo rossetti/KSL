@@ -1,4 +1,4 @@
-import org.jetbrains.dokka.DokkaConfiguration
+
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 /*
@@ -38,14 +38,14 @@ repositories {
 dependencies {
 
     // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api(group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.7")
+    api("io.github.oshai:kotlin-logging-jvm:7.0.7")
 
-    api(group = "org.slf4j", name = "slf4j-api", version = "2.0.17")
+    api("org.slf4j:slf4j-api:2.0.17")
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.5.20")
+    implementation("ch.qos.logback:logback-classic:1.5.32")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation(group = "ch.qos.logback", name = "logback-core", version = "1.5.20")
+    implementation("ch.qos.logback:logback-core:1.5.32")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
 // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
@@ -77,9 +77,6 @@ dependencies {
 //    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
 
-    // https://mvnrepository.com/artifact/org.ktorm/ktorm-core
-//    implementation("org.ktorm:ktorm-core:3.5.0")
-
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     api("org.hipparchus:hipparchus-core:4.0.1")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
@@ -88,18 +85,18 @@ dependencies {
 //    implementation("com.google.guava:guava:33.4.8-jre")
 
     // https://db.apache.org/derby/releases
-    implementation(group = "org.apache.derby", name = "derby", version = "10.17.1.0")
-    implementation(group = "org.apache.derby", name = "derbyshared", version = "10.17.1.0")
-    implementation(group = "org.apache.derby", name = "derbyclient", version = "10.17.1.0")
-    implementation(group = "org.apache.derby", name = "derbytools", version = "10.17.1.0")
+    implementation("org.apache.derby:derby:10.17.1.0")
+    implementation("org.apache.derby:derbyshared:10.17.1.0")
+    implementation("org.apache.derby:derbyclient:10.17.1.0")
+    implementation("org.apache.derby:derbytools:10.17.1.0")
 
-    implementation(group = "org.postgresql", name = "postgresql", version = "42.7.7")
+    implementation("org.postgresql:postgresql:42.7.7")
 
-    implementation(group = "org.xerial", name = "sqlite-jdbc", version = "3.50.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.50.2.0")
 
     // https://mvnrepository.com/artifact/org.duckdb/duckdb_jdbc
     implementation("org.duckdb:duckdb_jdbc:1.3.1.0")
-    implementation(group = "com.zaxxer", name = "HikariCP", version = "6.3.0")
+    implementation("com.zaxxer:HikariCP:6.3.0")
 
     // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
 //    implementation("org.dhatim:fastexcel-reader:0.14.0")
@@ -107,9 +104,9 @@ dependencies {
 //    implementation("org.dhatim:fastexcel:0.14.0")
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi
-    api(group = "org.apache.poi", name = "poi", version = "5.4.1")
+    api("org.apache.poi:poi:5.5.1")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
-    implementation(group = "org.apache.poi", name = "poi-ooxml", version = "5.4.1")
+    implementation("org.apache.poi:poi-ooxml:5.5.1")
     // required POI to update their dependencies to remove the vulnerability
 
 //    implementation(kotlin("stdlib-jdk8"))
