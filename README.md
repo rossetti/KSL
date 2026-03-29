@@ -109,10 +109,34 @@ KSLTesting - a separate project that does some basic testing related to the KSL
 
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.2.6"
+version = "R1.2.7"
 
 ## Release Notes
-Latest Release R1.2.6
+Latest Release R1.2.7
+- Revised the simopt package
+	- **Penalty Function:**
+		- Removed `DefaultPenaltyFunction`**: The legacy `DefaultPenaltyFunction` class has been completely removed. Its aggregation responsibilities have been shifted directly into `ProblemDefinition`, and its mathematical duties have been replaced by more robust, context-aware penalty classes.
+		- **Updated `PenaltyFunctionIfc` Interface**: The interface signature has been updated to `penalty(violation: Double, iterationCounter: Int, sampleCount: Int)`. It remains a single abstract method (SAM) interface, allowing users to continue defining custom penalty functions on the fly using Kotlin lambdas.
+		- **Introduced `PenaltyFunctionWithMemory`**: Added a new penalty class specifically designed for Simulation Optimization based on the principles of Park and Kim (2015). It utilizes the `sampleCount` (memory) of a simulated response to mathematically dampen stochastic noise, preventing standard error from infinitely penalizing valid boundary solutions.
+		- **Introduced `DynamicPolynomialPenalty`**: Added a standard dynamic penalty class optimized for deterministic constraints (Linear and Functional) where memory-based noise dampening is unnecessary.
+		- **Granular Penalty Defaults in `ProblemDefinition`**: `ProblemDefinition` now supports assigning different default penalty functions based on the constraint type. By default, Linear and Functional constraints utilize `DynamicPolynomialPenalty`, while Response constraints safely utilize `PenaltyFunctionWithMemory`.
+		- **Standardized Violation Logic**: Refactored the internal math for all `ConstraintIfc` implementations (Linear, Functional, and Response). All constraints now internally normalize greater-than/less-than operators via an `inequalityFactor`, ensuring that the `.violation()` method universally returns a strictly positive `Double` (`v > 0.0`) when a constraint is violated, and exactly `0.0` when satisfied or feasible. 
+	- **Replication-Based Tabulation:** Redesigned the `Evaluator` metrics to track computational effort by *replications* 
+	- **New `EvaluatorMetrics` Class:** Introduced a dedicated metrics snapshot class that natively computes and reports "Cache Savings %", allowing users to immediately see the simulation budget saved by the `SolutionCache`.
+	- **Clarified Evaluator Calls vs. Points:** Renamed `totalEvaluations` to `totalEvaluatorCalls` to strictly represent the number of batches/invocations. The breadth of the search is now accurately tracked via `totalDesignPointsEvaluated`.
+	- **Solution Batch IDs:** The `evaluationNumber` property on `Solution` objects is now explicitly tied to the `totalEvaluatorCalls` ID, correctly grouping solutions by the generation/batch in which they were created.
+	- **Standardized "Warm Start" Support:** Updated all `RandomRestartSolver` factory methods (SHC, CE, SA, R-SPLINE) to accept an optional deterministic `startingPoint`.
+	- **Lazy Initialization of Starting Points:** Refactored all `Solver` companion object factory methods (e.g., `createStochasticHillClimbingSolver`, `createSimulatedAnnealingSolver`) to implement lazy instantiation of the `startingPoint`. 
+	- **Solver Configuration Logging:** The solver's `toString()` output now reflects user intent, reporting `"Not Provided (Will Auto-Generate)"` when a starting point is omitted, rather than masking it with a silently pre-populated point.
+	- **Improved Solver Reporting:** Revised the solver reporting of results and solution output results with better console output.
+	- **Simulated Annealing:** Added SimulatedAnnealing.estimateInitialTemperature(), which automatically calculates an optimal starting temperature based on the specific problem's landscape and a target acceptance probability. Added a new constructor and calculateOptimalCoolingRate() helper to ExponentialCoolingSchedule. This allows the cooling rate (α) to be dynamically calculated so the temperature reaches the stopping threshold precisely on the final iteration, preventing premature cooling. Fixed Logarithmic Cooling "Heating" Bug: Corrected a mathematical flaw in LogarithmicCoolingSchedule where the initial denominator evaluated to less than 1.0, causing the temperature to temporarily spike above the initial temperature during the first iteration. Added validation to LinearCoolingSchedule and the base CoolingSchedule logic to ensure the initial temperature is strictly greater than the stopping temperature, preventing mathematically invalid negative cooling steps.  Added a strict safeguard inside SimulatedAnnealing.initializeIterations() that throws an immediate exception if the solver is started with an initial temperature less than or equal to the stopping temperature, preventing silent logic failures where the solver bypasses the annealing phase entirely.
+    - **New RandomWalkSolver:** Introduced a standalone unbiased random walk algorithm. While primarily added to facilitate the dynamic temperature estimation, it is now available as a first-class StochasticSolver subclass for general landscape analysis and baseline benchmarking.
+- Fixed bug in SResource which caused utilization to be incorrectly calculated when user changed the capacity.
+- Improved documentation of Counters and other related statistical collection
+- Revised constructor signature of Counter to permit setting a stopping limit (and action) at construction.
+
+
+Release R1.2.6
 * Fixed issue where a RequestQ is shared amongst multiple resources or resource pools. The release logic
 was not checking if the resource associated with the waiting requests was associated with the release. This
 caused waiting requests to be resumed with the resource not having available units. New and correct functionality
