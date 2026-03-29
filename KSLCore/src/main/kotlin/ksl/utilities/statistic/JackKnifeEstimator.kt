@@ -48,7 +48,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
 
     /**
      *
-     * @param level the level to set must be (0,1)
+     * The level to set must be (0,1)
      */
     var defaultCILevel: Double = 0.95
         set(level) {
@@ -86,8 +86,8 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
     }
 
 
-    /**  nxoe - (n-1)xjne[i], where n is the number of observations, oe= original estimate
-     * and jne[i] is the ith leave one out estimate
+    /**  ```nxoe - (n-1)xjne[i]```, where n is the number of observations, oe= original estimate
+     * and ```jne[i]``` is the ith leave one out estimate
      *
      * @return an array containing the jackknife pseudo-values
      */

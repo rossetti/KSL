@@ -3,7 +3,6 @@ package ksl.utilities.random.rvariable
 import ksl.utilities.copyWithout
 import ksl.utilities.isStrictlyIncreasing
 import ksl.utilities.random.rng.RNStreamProviderIfc
-import ksl.utilities.random.rvariable.parameters.DEmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.PWCEmpiricalRVParameters
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.HistogramIfc
@@ -14,8 +13,8 @@ import ksl.utilities.statistic.HistogramIfc
  *  A piecewise linear approximation forms the basis for the CDF where the breakpoints
  *  form the linear segments. There must be at least 1 interval (and two breakpoints).
  *
- *  @param breakPoints The break points defining the intervals such that p[j] is
- *  associated with breakpoints b[j] and b[j+1] for j = 0, 1,..., n-1, where n
+ *  @param breakPoints The break points defining the intervals such that ```p[j]``` is
+ *  associated with breakpoints ```b[j] and b[j+1] for j = 0, 1,..., n-1```, where n
  *  is the number of break points. The number of breakpoints should be 1 more than
  *  the number of proportions. The breakpoints must be strictly increasing and finite.
  *  @param proportions A double array holding the proportion associated with the intervals defined
