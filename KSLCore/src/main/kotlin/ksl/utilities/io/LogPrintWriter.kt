@@ -24,7 +24,7 @@ import java.io.Writer
 import java.util.*
 
 /** A wrapper for a PrintWriter.  This class has all the functionality of
- * PrintWriter but has a public property OUTPUT_ON that can be set to false
+ * PrintWriter but has a public property OUTPUT_ON that can be set to `false`
  * to turn off any printing or set to true to turn printing on.
  * @author rossetti
  */
@@ -46,13 +46,11 @@ class LogPrintWriter : PrintWriter {
 
     /**
      * @param fileName the file name
-     * @throws FileNotFoundException the exception
      */
     constructor(fileName: String) : super(fileName) {}
 
     /**
      * @param file the file
-     * @throws FileNotFoundException the exception
      */
     constructor(file: File) : super(file) {}
 
@@ -71,16 +69,12 @@ class LogPrintWriter : PrintWriter {
     /**
      * @param fileName the file name to use
      * @param csn name of the character set
-     * @throws FileNotFoundException an exception
-     * @throws UnsupportedEncodingException an exception
      */
     constructor(fileName: String, csn: String) : super(fileName, csn) {}
 
     /**
      * @param file the file
      * @param csn name of the character set
-     * @throws FileNotFoundException an exception
-     * @throws UnsupportedEncodingException an exception
      */
     constructor(file: File, csn: String) : super(file, csn) {}
 

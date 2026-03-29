@@ -1528,7 +1528,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
          */
         @JvmStatic
         @JvmOverloads
-        fun createPostgreSQLKSLDatabase(
+        fun createPostgresSQLKSLDatabase(
             dbName: String,
             dbServerName: String = "localhost",
             user: String = "postgres",

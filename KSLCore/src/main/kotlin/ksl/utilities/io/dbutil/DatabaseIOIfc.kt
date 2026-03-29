@@ -257,7 +257,6 @@ interface DatabaseIOIfc {
      * @param skipFirstRow   if true the first row of each sheet is skipped
      * @param schemaName the name of the schema containing the named tables
      * @param tableNames     the names of the sheets and tables in the order that needs to be written
-     * @throws IOException an io exception
      */
     fun importWorkbookToSchema(
         pathToWorkbook: Path,

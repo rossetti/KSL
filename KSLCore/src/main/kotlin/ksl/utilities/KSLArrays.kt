@@ -481,10 +481,10 @@ object KSLArrays {
     }
 
     /**
-     * @param a the double[nRow][nCol] array, must not be null, must be rectangular with nRow rows
-     * @param b the double[nRows] array, must not be null, must have nRow elements
+     * @param a the ```double[nRow][nCol]``` array, must not be null, must be rectangular with nRow rows
+     * @param b the ```double[nRows]``` array, must not be null, must have nRow elements
      * @return post multiplies a by b, a result with nRow elements representing the dot product of
-     * b with each row of a.
+     * b with each row of a
      */
     @JvmStatic
     @Suppress("unused")
@@ -673,7 +673,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array
-     * @return a new array containing a[i]*b[i]
+     * @return a new array containing ```a[i]*b[i]```
      */
     @JvmStatic
     @Suppress("unused")
@@ -691,7 +691,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array and must not have any zero elements
-     * @return the array containing a[i]/b[i]
+     * @return the array containing ```a[i]/b[i]```
      */
     @JvmStatic
     @Suppress("unused")
@@ -1171,11 +1171,11 @@ object KSLArrays {
 
     /**
      * Subtracts the arrays element by element. Arrays must have the same length and must not be empty.
-     * Computes the sum of the squares forthe differences.
+     * Computes the sum of the squares for the differences.
      *
      * @param a the first array
      * @param b the second array
-     * @return the sum of  (a[i]-b[i])^2 for the elements
+     * @return the sum of  ```(a[i]-b[i])^2``` for the elements
      */
     @JvmStatic
     @Suppress("unused")
@@ -1187,11 +1187,11 @@ object KSLArrays {
 
     /**
      * Subtracts the arrays element by element. Arrays must have the same length and must not be empty.
-     * Computes the average of the squares forthe differences.
+     * Computes the average of the squares for the differences.
      *
      * @param a the first array. Cannot be empty.
      * @param b the second array. Cannot be empty
-     * @return the average of sum of (a[i]-b[i])^2 for the elements
+     * @return the average of sum of ```(a[i]-b[i])^2``` for the elements
      */
     @JvmStatic
     @Suppress("unused")
@@ -1222,7 +1222,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array
-     * @return the array containing a[i]+b[i]
+     * @return the array containing ```a[i]+b[i]```
      */
     @JvmStatic
     @Suppress("unused")
@@ -1240,7 +1240,7 @@ object KSLArrays {
      *
      * @param a the first array
      * @param b the second array
-     * @return the new array containing a[i]-b[i]
+     * @return the new array containing ```a[i]-b[i]```
      */
     @JvmStatic
     @Suppress("unused")
@@ -1646,7 +1646,7 @@ object KSLArrays {
     }
 
     /**
-     * Transposes the array returned transpose[x][y] = array[y][x]
+     * Transposes the array returned ```transpose[x][y] = array[y][x]```
      *
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
@@ -1667,7 +1667,7 @@ object KSLArrays {
     }
 
     /**
-     * Transposes the array returned transpose[x][y] = array[y][x]
+     * Transposes the array returned ```transpose[x][y] = array[y][x]```
      *
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
@@ -1688,7 +1688,7 @@ object KSLArrays {
     }
 
     /**
-     * Transposes the array returned transpose[x][y] = array[y][x]
+     * Transposes the array returned ```transpose[x][y] = array[y][x]```
      *
      * @param array an array with m rows and n columns
      * @return an array with n columns and m rows
@@ -1709,7 +1709,7 @@ object KSLArrays {
     }
 
     /**
-     * Transposes the array returned transpose[x][y] = array[y][x]
+     * Transposes the array returned ```transpose[x][y] = array[y][x]```
      *
      * @param array an array with m rows and n columns, must be rectangular
      * @return an array with n columns and m rows
@@ -2247,11 +2247,11 @@ object KSLArrays {
 
     /**
      * Contributed by Andrew Gibson
-     * round the 1D array x to a multiple of granularity (double[])
+     * round the 1D array x to a multiple of granularity ```(double[])```
      *
      * @param x           - the input
      * @param granularity - the granularity to which to round x
-     * @return - 1 1D array of elements i s.t. x[i] is rounded to granularity[i]
+     * @return - 1 1D array of elements i, such that. ```x[i]``` is rounded to ```granularity[i]```
      */
     @JvmStatic
     @Suppress("unused")
@@ -2658,9 +2658,9 @@ object KSLArrays {
     }
 
     /**
-     *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+     *  Computes the difference, ```(d[i] = x[i+k] - x[i]) for i = 0 until x.size - k```
      *  This is the discrete difference operator.  For example, if k = 1, then
-     *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+     *  ```d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]```
      *  and returns the new array of differences.
      */
     @JvmStatic
@@ -2672,7 +2672,7 @@ object KSLArrays {
 
     /**
      * Returns a new array of size (x.size -k) that is lagged by k elements
-     * y[i] = x[i+k] for i=0, 1,...
+     * ```y[i] = x[i+k] for i=0, 1,...```
      */
     @JvmStatic
     @Suppress("unused")
@@ -2683,7 +2683,7 @@ object KSLArrays {
 
     /**
      * Returns a new array of size (x.size -k) that is lagged by k elements
-     * y[i] = x[i+k] for i=0, 1,...
+     * ```y[i] = x[i+k] for i=0, 1,...```
      */
     @JvmStatic
     @Suppress("unused")
@@ -2811,7 +2811,7 @@ object KSLArrays {
      *  represent a set, the values must be unique. That is, no duplicates
      *  are permitted within an individual array.
      *
-     *  Example:
+     *  ```Example:
      *      val a = intArrayOf(1, 2)
      *     val b = intArrayOf(3, 4)
      *     val c = intArrayOf(5)
@@ -2819,7 +2819,7 @@ object KSLArrays {
      *     val index = 4
      *     val result = cartesianProductRow(array, index)
      *     println("The element at index $index is: ${result.joinToString()}")
-     *
+     *    ```
      *     Prints:
      *     The element at index 4 is: 1, 4, 5, 7
      */
@@ -3138,9 +3138,9 @@ inline fun <reified T> to2DArray(lists: List<List<T>>): Array<Array<T>> {
 }
 
 /**
- *  Computes the difference, (d[i] = x[i+k] - x[i]) for i = 0 until x.size - k
+ *  Computes the difference, ```(d[i] = x[i+k] - x[i]) for i = 0 until x.size - k```
  *  This is the discrete difference operator.  For example, if k = 1, then
- *  d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]
+ *  ```d[0] = x[1] - x[0], d[1] = x[2] - x[1], ..., d[x.size - 2] = x[x.size -1 ]- x[x.size -2]```
  *  and returns the new array of differences.
  */
 @Suppress("unused")
@@ -3150,7 +3150,7 @@ fun DoubleArray.diff(k: Int = 1): DoubleArray {
 
 /**
  * Returns a new array of size (x.size -k) that is lagged by k elements
- * y[i] = x[i+k] for i=0,1,...
+ * ```y[i] = x[i+k] for i=0,1,...```
  */
 @Suppress("unused")
 fun DoubleArray.lag(k: Int = 1): DoubleArray {
@@ -3668,7 +3668,7 @@ fun DoubleArray.divideConstant(c: Double): DoubleArray {
  * Multiplies the two arrays element by element. Arrays must have same length.
  *
  * @param b the second array
- * @return the array containing a[i]*b[i]
+ * @return the array containing ```a[i]*b[i]```
  */
 @Suppress("unused")
 fun DoubleArray.multiplyElements(b: DoubleArray): DoubleArray {
@@ -3701,7 +3701,7 @@ fun Array<DoubleArray>.trimToRectangular(): Array<DoubleArray> {
 }
 
 /**  Converts the 2-D array to a 1-D array by processing
- *   the source [src] array row-wise and concatenating the rows.
+ *   the source array row-wise and concatenating the rows.
  *   For example, if the data is organized as follows:
  *
  *   1  2   3
@@ -3920,7 +3920,7 @@ fun DoubleArray.sumOfSquareRoots(): Double {
  * Adds the two arrays, element by element. Arrays must have the same length and must not be null.
  *
  * @param b the second array
- * @return the array containing a[i]+b[i]
+ * @return the array containing ```a[i]+b[i]```
  */
 @Suppress("unused")
 fun DoubleArray.addElements(b: DoubleArray): DoubleArray {
@@ -4148,7 +4148,7 @@ fun Array<DoubleArray>.toMapOfRows(rowNames: List<String> = emptyList()): Map<St
 
 /**
  *  Computes the statistics for the 2D array of doubles by rows.
- *  If the row name is not supplied, then the row is called rowj where j is the
+ *  If the row name is not supplied, then the row is called row_j where j is the
  *  number of the missing row name.
  *  @param rowNames the names of the rows (optional)
  */
@@ -4210,7 +4210,7 @@ fun List<String>.parseToDoubles(parseFail: Double = Double.NaN): DoubleArray {
 }
 
 /**
- * Transposes the n rows by m columns array returned transpose[x][y] = array[y][x]
+ * Transposes the n rows by m columns array returned ```transpose[x][y] = array[y][x]```
  *
  * @return an array with n columns and m rows
  */
@@ -4220,7 +4220,7 @@ fun Array<IntArray>.transpose(): Array<IntArray> {
 }
 
 /**
- * Transposes the n rows by m columns array returned transpose[x][y] = array[y][x]
+ * Transposes the n rows by m columns array returned ```transpose[x][y] = array[y][x]```
  *
  * @return an array with n columns and m rows
  */
@@ -4230,7 +4230,7 @@ fun Array<DoubleArray>.transpose(): Array<DoubleArray> {
 }
 
 /**
- * Transposes the n rows by m columns array returned transpose[x][y] = array[y][x]
+ * Transposes the n rows by m columns array returned ```transpose[x][y] = array[y][x]```
  *
  * @return an array with n columns and m rows
  */

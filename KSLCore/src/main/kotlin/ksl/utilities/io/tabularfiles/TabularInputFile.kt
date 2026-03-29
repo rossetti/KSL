@@ -44,7 +44,7 @@ import kotlin.math.min
  * Use the methods of this class to read rows.
  *
  * @see ksl.utilities.io.tabularfiles.TabularFile
- * @see ksl.examples.utilities.TestTabularWork  For example code
+ * See ```ksl.examples.utilities.TestTabularWork```  For example code
  */
 class TabularInputFile internal constructor(columnTypes: Map<String, DataType>, path: Path) :
     TabularFile(columnTypes, path) {
