@@ -46,7 +46,7 @@ import kotlin.math.max
  * @param columnTypes a map that defines the column names and their data types
  * @param path the path to the file for writing the data
  * @see ksl.utilities.io.tabularfiles.TabularFile
- * @see ksl.examples.utilities.TestTabularWork  For example code
+ * See ```ksl.examples.utilities.TestTabularWork```  For example code
  */
 class TabularOutputFile(
     columnTypes: Map<String, DataType>,

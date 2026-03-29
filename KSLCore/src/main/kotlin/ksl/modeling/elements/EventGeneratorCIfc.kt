@@ -26,8 +26,8 @@ interface EventGeneratorTimeUntilFirstEventRVCIfc {
 interface EventGeneratorInitialEventTimeProcessesCIfc {
     /**
      *  Often the time of the first event and the time between events is
-     *  the same distribution. This property causes both [initialTimeUntilFirstEvent]
-     *  and [initialTimeBtwEvents] to be set to the same random variable.
+     *  the same distribution. This property causes both [eventTimeProcess]
+     *  and [eventTimeProcess] to be set to the same random variable.
      */
     fun setInitialEventTimeProcesses(eventTimeProcess: GetValueIfc)
 }
@@ -63,8 +63,8 @@ interface EventGeneratorInitialTimeBtwEventsCIfc {
 interface EventGeneratorInitialEventTimeProcessesRVCIfc {
     /**
      *  Often the time of the first event and the time between events is
-     *  the same distribution. This property causes both [initialTimeUntilFirstEvent]
-     *  and [initialTimeBtwEvents] to be set to the same random variable.
+     *  the same distribution. This property causes both [eventTimeProcess]
+     *  and [eventTimeProcess] to be set to the same random variable.
      */
     fun setInitialEventTimeProcesses(eventTimeProcess: RVariableIfc)
 }
