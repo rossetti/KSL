@@ -113,6 +113,6 @@ fun testPostgresLocalHostKSLDb() {
 }
 
 fun createPostgresLocalHostKSLDb(){
-    val db = KSLDatabase.createPostgreSQLKSLDatabase(dbName = "test", user = "test", pWord = "test")
+    val db = KSLDatabase.createPostgresSQLKSLDatabase(dbName = "test", user = "test", pWord = "test")
     db.printAllTablesAsText()
 }
