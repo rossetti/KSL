@@ -228,7 +228,7 @@ interface RegressionResultsIfc {
 
     /**
      *  The test statistics for testing if parameter j is significant.
-     *  This is parameters[i] divided by parametersStdError[i].
+     *  This is ```parameters[i]``` divided by ```parametersStdError[i]```.
      */
     val parameterTStatistics: DoubleArray
         get() = KSLArrays.divideElements(parameters, parametersStdError)

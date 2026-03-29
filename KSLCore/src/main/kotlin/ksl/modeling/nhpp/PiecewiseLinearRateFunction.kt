@@ -26,8 +26,8 @@ package ksl.modeling.nhpp
  * least 2 rates.  Any rates
  * rate[0] beginning rate of segment 0, duration[0] duration of segment 0
  * i &gt;=1
- * rate[i] ending rate of segment i-1, beginning rate of segment i,
- * duration[i] duration of segment i
+ * ```rate[i]``` ending rate of segment i-1, beginning rate of segment i,
+ * ```duration[i]``` duration of segment i
  *
  * @param durations the durations
  * @param rates the rates
