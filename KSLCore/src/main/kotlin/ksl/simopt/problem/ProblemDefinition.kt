@@ -718,6 +718,8 @@ class ProblemDefinition @JvmOverloads constructor(
                 if (v > 0.0) {
                     val penaltyFnc = rc.penaltyFunction ?: defaultResponsePenalty
                     // Explicitly extract the sample count N(x) to feed the memory dampener
+                    //TODO this may not be correct, the Park and Kim paper uses the new observation count
+                    // this is all observations
                     val count = estResponse.count.toInt()
                     totalPenalty += penaltyFnc.penalty(v, iterationCounter, count)
                 }
