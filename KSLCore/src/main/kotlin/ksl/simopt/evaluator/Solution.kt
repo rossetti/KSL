@@ -221,7 +221,7 @@ data class Solution(
     }
 
     fun asString(): String {
-        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = $penalizedObjFncValue : 95%ci = ${estimatedObjFnc.confidenceInterval()} : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
+        return "id = $id : n = ${estimatedObjFnc.count} : objFnc = ${estimatedObjFnc.average} : 95%ci = ${estimatedObjFnc.confidenceInterval()} : : penalizedObjFnc = $penalizedObjFncValue : inputs : ${inputMap.inputValues.joinToString { it.toString() }} "
     }
 
     override fun toString(): String {
@@ -241,6 +241,8 @@ data class Solution(
             appendLine("    Average   = ${estimatedObjFnc.average}")
             appendLine("    Variance  = ${estimatedObjFnc.variance}")
             appendLine("    Count     = ${estimatedObjFnc.count}")
+            val ci = estimatedObjFnc.confidenceInterval()
+            appendLine("    95%CI     = $ci")
 
             appendLine("  Inputs:")
             for ((name, value) in inputMap) {

@@ -225,7 +225,7 @@ class Solutions(
             appendLine("allowInfeasibleSolutions = $allowInfeasibleSolutions")
             appendLine("orderedSolutions:")
             for (solution in orderedSolutions) {
-                appendLine(solution.asString())
+                appendLine(solution.toString())
             }
         }
         return sb.toString()
