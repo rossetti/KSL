@@ -4,10 +4,15 @@ import ksl.simopt.cache.SimulationRunCacheIfc
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.algorithms.CoolingScheduleIfc
+import ksl.simopt.solvers.algorithms.ExponentialCoolingSchedule
 import ksl.simopt.solvers.algorithms.RandomRestartSolver
 import ksl.simopt.solvers.algorithms.RandomRestartSolver.Companion.defaultMaxRestarts
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing
+import ksl.simopt.solvers.algorithms.SimulatedAnnealing.Companion.defaultInitialTemperature
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
 import ksl.simopt.solvers.algorithms.StochasticSolver
+import ksl.simopt.solvers.algorithms.TemperatureConfiguration
 import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
 import ksl.simopt.solvers.trackers.CsvSolverStateTracker
 import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
@@ -27,9 +32,16 @@ enum class SolverType {
 
 
 fun main() {
+
+    // runAnySolver()
+
+    runSimulatedAnnealing()
+}
+
+fun runAnySolver(){
     val solverType = SolverType.SHC
     val constrained = true
-    val c = if (constrained) "Constrained" else "Unconstrained"
+    val modelString = if (constrained) "Constrained" else "Unconstrained"
 
     var solver = setupSolver(constrained = constrained, solverType)
 
@@ -41,6 +53,34 @@ fun main() {
     // solver = solver as CrossEntropySolver
     // solver = solver as RandomRestartSolver
 
+    runSolverForResults(solverType, solver, modelString)
+}
+
+fun runSimulatedAnnealing(){
+    val solverType = SolverType.SA
+    val constrained = true
+    val modelString = if (constrained) "Constrained" else "Unconstrained"
+    // If you want to tune the parameters of the Simulated Annealing solver,
+    // then uncomment the lines below and adjust as needed.
+//    val temperatureConfig = TemperatureConfiguration.AutoCalibrate(
+//        targetProbability = 0.8,
+//        sampleSize = 100)
+
+    // For testing purposes, you can also just set a fixed initial temperature.
+    // You will likely want to adjust this value based on the problem and model.
+    val temperatureConfig = TemperatureConfiguration.Fixed(1000.0)
+
+    val solver = setupSimulatedAnnealing(
+        constrained = constrained,
+        temperatureConfiguration = temperatureConfig)
+    // You can vary the maximum number of iterations for the solver.
+    // solver.maximumNumberIterations = 200
+    runSolverForResults(solverType, solver, modelString)
+}
+
+fun runSolverForResults(solverType: SolverType,
+                solver: StochasticSolver,
+                modelString: String) {
     //TODO  advance random number streams if you want to have different random numbers for a solver run
     //solver.rnStream.advanceToNextSubStream()
 
@@ -51,17 +91,17 @@ fun main() {
         val csvTracker =
             NestedCsvSolverStateTracker(
                 solver, solver.restartingSolver,
-                "${solverType}_Restart_$c"
+                "${solverType}_Restart_$modelString"
             )
         csvTracker.startTracking()
     } else {
         val tracker = ConsoleSolverStateTracker(solver)
         tracker.startTracking()
-        val csvTracker = CsvSolverStateTracker(solver, "${solverType}_$c")
+        val csvTracker = CsvSolverStateTracker(solver, "${solverType}_$modelString")
         csvTracker.startTracking()
     }
     println()
-    println("Running solver with type = $solverType and $c problem definition")
+    println("Running solver with type = $solverType and $modelString problem definition")
     solver.runAllIterations()
 
     println()
@@ -107,7 +147,6 @@ fun main() {
     println("Simulating model at best solution found...")
     model.simulate()
     model.print()
-
 }
 
 fun setupStochasticHillClimber(
@@ -119,6 +158,28 @@ fun setupStochasticHillClimber(
     else unconstrainedTwoEchelonProblemDefinition()
     val solver = Solver.createStochasticHillClimbingSolver(
         problemDefinition, modelBuilder, startingPoint = null, maxIterations = 100, replicationsPerEvaluation = 50,
+    )
+    return solver
+}
+
+fun setupSimulatedAnnealing(
+    constrained: Boolean = false,
+    temperatureConfiguration: TemperatureConfiguration,
+    coolingSchedule: CoolingScheduleIfc = ExponentialCoolingSchedule(defaultInitialTemperature),
+    stoppingTemperature: Double = SimulatedAnnealing.defaultStoppingTemperature,
+    modelBuilder: ModelBuilderIfc = BuildTwoEchelonModel,
+): SimulatedAnnealing {
+    val problemDefinition = if (constrained)
+        constrainedTwoEchelonProblemDefinition()
+    else unconstrainedTwoEchelonProblemDefinition()
+    val solver = Solver.createSimulatedAnnealingSolver(
+        problemDefinition, modelBuilder,
+        startingPoint = null,
+        temperatureConfiguration = temperatureConfiguration,
+        coolingSchedule = coolingSchedule,
+        stoppingTemperature = stoppingTemperature,
+        maxIterations = 100,
+        replicationsPerEvaluation = 50,
     )
     return solver
 }
