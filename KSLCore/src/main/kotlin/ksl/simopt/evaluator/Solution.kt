@@ -24,14 +24,14 @@ class SolutionEmitter : SolutionEmitterIfc {
  *
  *  @param inputMap the inputs (name,value) pairs associated with the solution
  *  @param estimatedObjFnc the estimated objective function from the simulation oracle
- *  @param responseEstimates the estimates of the responses associated with the response constraints
+ *  @param responseEstimatesMap the estimates of the responses associated with the response constraints
  *  @param evaluationNumber the iteration number of the solver request. That is, the number of times that
  *  the simulation oracle has been asked to evaluate (any) input.
  */
 data class Solution(
     val inputMap: InputMap,
     val estimatedObjFnc: EstimatedResponse,
-    val responseEstimates: List<EstimatedResponse>,
+    val responseEstimatesMap: Map<String, EstimatedResponse>,
     val evaluationNumber: Int,
     val isValid: Boolean = true
 ) : Comparable<Solution>, FeasibilityIfc by inputMap, EstimatedResponseIfc by estimatedObjFnc {
@@ -46,41 +46,62 @@ data class Solution(
     val problemDefinition: ProblemDefinition
         get() = inputMap.problemDefinition
 
-    val responseEstimatesMap: Map<String, EstimatedResponse>
-        get() = responseEstimates.associateBy { it.name }
+    /**
+     *  Returns the average of the named response or null if not found.
+     *
+     * @param responseName the name of the response to look up
+     */
+    fun average(responseName: String): Double? = responseEstimatesMap[responseName]?.average
 
     /**
-     *  The response estimate averages
+     *  Returns the variance of the named response or null if not found.
+     *
+     * @param responseName the name of the response to look up
+     */
+    fun variance(responseName: String): Double? = responseEstimatesMap[responseName]?.variance
+
+    /**
+     *  Returns the standard deviation of the named response or null if not found.
+     *
+     * @param responseName the name of the response to look up
+     */
+    fun standardDeviation(responseName: String): Double? = responseEstimatesMap[responseName]?.standardDeviation
+
+    /**
+     *  Returns the count of the named response or null if not found.
+     *
+     * @param responseName the name of the response to look up
+     */
+    fun count(responseName: String): Double? = responseEstimatesMap[responseName]?.count
+
+    /**
+     *  The response estimate averages.
      */
     val responseAverages: Map<String, Double>
-        get() = responseEstimates.associate { Pair(it.name, it.average) }
+        get() = responseEstimatesMap.mapValues { it.value.average }
 
     /**
      *  The variance of the estimated responses
      */
-    @Suppress("unused")
     val responseVariances: Map<String, Double>
-        get() = responseEstimates.associate { Pair(it.name, it.variance) }
+        get() = responseEstimatesMap.mapValues { it.value.variance }
 
     /**
      *  The number of times that the response has been sampled. The sample
      *  size of the response estimates.
      */
-    @Suppress("unused")
     val responseCounts: Map<String, Double>
-        get() = responseEstimates.associate { Pair(it.name, it.count) }
+        get() = responseEstimatesMap.mapValues { it.value.count }
 
     /**
      *  The standard deviations of the estimated responses
      */
-    @Suppress("unused")
     val responseStandardDeviations: Map<String, Double>
-        get() = responseEstimates.associate { Pair(it.name, it.standardDeviation) }
+        get() = responseEstimatesMap.mapValues { it.value.standardDeviation }
 
     /**
      *  The violation amount for each response constraint
      */
-    @Suppress("unused")
     val responseViolations: Map<String, Double>
         get() = problemDefinition.responseConstraintViolations(responseAverages)
 
@@ -90,7 +111,7 @@ data class Solution(
     fun toResponseMap(): ResponseMap {
         val responseMap = problemDefinition.emptyResponseMap()
         responseMap.add(estimatedObjFnc)
-        for (estimate in responseEstimates) {
+        for (estimate in responseEstimatesMap.values) {
             responseMap.add(estimate)
         }
         return responseMap
@@ -105,7 +126,7 @@ data class Solution(
         val map = mutableMapOf<String, Double>()
         map.putAll(inputMap)
         map.putAll(estimatedObjFnc.asMappedData())
-        for (estimate in responseEstimates) {
+        for (estimate in responseEstimatesMap.values) {
             map.putAll(estimate.asMappedData())
         }
         return map
@@ -114,28 +135,24 @@ data class Solution(
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
-    @Suppress("unused")
     val objFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.estimatedObjFncValue }
 
     /**
      *  Allows comparison of solutions by the estimated objective function
      */
-    @Suppress("unused")
     val penalizedObjFuncComparator: Comparator<Solution>
         get() = compareBy<Solution> { it.penalizedObjFncValue }
 
-    /**
-     *  The total penalty associated with violating the response constraints
-     */
-    @Suppress("unused")
-    val responseConstraintViolationPenalty: Double
-        get() = problemDefinition.totalResponseConstraintViolations(responseAverages)
+//    /**
+//     *  The total penalty associated with violating the response constraints
+//     */
+//    val responseConstraintViolationPenalty: Double
+//        get() = problemDefinition.totalResponseConstraintViolations(responseAverages)
 
     /**
      *  The current value of the penalty function
      */
-    @Suppress("unused")
     val penaltyFncValue: Double
         get() = problemDefinition.penaltyFncValue(this)
 
@@ -199,7 +216,6 @@ data class Solution(
      *
      *  @param overallCILevel the overall confidence across all response constraints.
      */
-    @Suppress("unused")
     fun responseConstraintOneSidedIntervals(overallCILevel: Double = 0.99): List<Interval> {
         require(!(overallCILevel <= 0.0 || overallCILevel >= 1.0)) { "Confidence Level must be (0,1)" }
         val intervals = mutableListOf<Interval>()
@@ -277,51 +293,6 @@ data class Solution(
         // trimEnd() removes the very last trailing newline so it embeds cleanly in other strings
         return sb.toString().trimEnd()
     }
-
-//    override fun toString(): String {
-//        val sb = StringBuilder().apply{
-//            appendLine("Solution id = $id")
-//            if (!isValid){
-//                appendLine("The solution is invalid!")
-//            }
-//            appendLine("evaluation number = $evaluationNumber")
-//            appendLine("objective function value = $estimatedObjFncValue")
-//            appendLine("penalized objective function = $penalizedObjFncValue")
-//            appendLine("granular function value = $granularObjFncValue")
-//            appendLine("penality function value = $penaltyFncValue")
-//            appendLine("Inputs:")
-//            for((name, value) in inputMap){
-//                appendLine("$name = $value")
-//            }
-//            appendLine("Estimated Objective Function:")
-//            appendLine("name = ${estimatedObjFnc.name}")
-//            appendLine("average = ${estimatedObjFnc.average}")
-//            appendLine("variance = ${estimatedObjFnc.variance}")
-//            appendLine("count = ${estimatedObjFnc.count}")
-//            if (problemDefinition.hasLinearConstraints){
-//                appendLine("Linear Constraints:")
-//                for(lc in problemDefinition.linearConstraints){
-//                    appendLine(lc.resultsAsString(inputMap))
-//                }
-//            }
-//            if (problemDefinition.hasFunctionalConstraints){
-//                appendLine("Functional Constraints:")
-//                for(fc in problemDefinition.functionalConstraints){
-//                    appendLine(fc.resultsAsString(inputMap))
-//                }
-//            }
-//            if (problemDefinition.hasResponseConstraints){
-//                appendLine("Response Constraints:")
-//                for(rc in problemDefinition.responseConstraints){
-//                    val estResponse = responseEstimatesMap[rc.responseName]
-//                    if (estResponse != null) {
-//                        appendLine(rc.resultsAsString(estResponse))
-//                    }
-//                }
-//            }
-//        }
-//        return sb.toString()
-//    }
 
     companion object {
         var solutionCounter : Int = 0

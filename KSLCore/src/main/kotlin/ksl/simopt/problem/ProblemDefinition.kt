@@ -1216,13 +1216,13 @@ class ProblemDefinition @JvmOverloads constructor(
         val inputMap = midPoints()
         inputMap.makeInfeasible()
         val objFunc = EstimatedResponse(objFnResponseName, Double.MAX_VALUE, Double.NaN, 1.0)
-        val list = mutableListOf<EstimatedResponse>()
+        val map = mutableMapOf<String, EstimatedResponse>()
         for (rc in responseConstraints) {
             val rValue = rc.ltRHSValue + Int.MAX_VALUE
             val er = EstimatedResponse(rc.responseName, rValue, Double.NaN, 1.0)
-            list.add(er)
+            map[rc.responseName] = er
         }
-        return Solution(inputMap, objFunc, list, 0, false)
+        return Solution(inputMap, objFunc, map, 0, false)
     }
 
     /**

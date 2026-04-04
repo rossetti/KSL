@@ -26,14 +26,14 @@ import kotlin.math.ln
  * @param problemDefinition the problem being solved
  * @param evaluator The evaluator responsible for calculating the objective function value of a solution.
  *                  It must implement the [EvaluatorIfc] interface.
- * @param initialTemperature The starting temperature for the simulated annealing algorithm. Must be greater than 0.0.
+ * @param temperatureConfiguration The temperature configuration for the simulated annealing algorithm.
  * @param coolingSchedule the cooling schedule for the annealing process
  * @param stoppingTemperature the temperature used to stop the annealing process. If the current temperature goes
  * below this temperature, the search process stops.
  * @param maxIterations the maximum number of iterations permitted for the search process
  * @param replicationsPerEvaluation An instance of `ReplicationPerEvaluationIfc`
  * defining the strategy for determining the number of replications per evaluation.
- * @param rnStream An optional random number stream used for stochastic behavior.
+ * @param streamNum An optional random number stream used for stochastic behavior.
  * Defaults to `KSLRandom.defaultRNStream()`.
  * @param name An optional name for this solver instance.
  *
@@ -131,7 +131,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
      *
      * @param problemDefinition the problem being solved
      * @param evaluator An implementation of the EvaluatorIfc interface, used to evaluate candidate solutions.
-     * @param initialTemperature The starting temperature for the simulated annealing process. Must be a positive value.
+     * @param temperatureConfiguration The temperature configuration for the simulated annealing algorithm.
      * @param coolingSchedule Defines the cooling mechanism to reduce the temperature during the iteration process.
      * Defaults to an ExponentialCoolingSchedule with the specified initialTemperature.
      * @param stoppingTemperature The temperature at which the simulated annealing process stops. Defaults to 0.001.

@@ -206,20 +206,18 @@ class Evaluator @JvmOverloads constructor(
     ): Solution {
         val objFnName = problemDefinition.objFnResponseName
         val estimatedObjFnc = responseMap[objFnName]!!
-        val responseEstimates = mutableListOf<EstimatedResponse>()
-        for ((name, _) in responseMap) {
-            if (name != objFnName) {
-                val estimate = responseMap[name]!!
-                responseEstimates.add(estimate)
-            }
-        }
+
+        // Filter out the objective function to create the constraints map.
+        // filterKeys automatically returns a Map<String, EstimatedResponse>
+        val responseEstimatesMap = responseMap.filterKeys { it != objFnName }
+
         // Need to make the InputMap. This will not be the same object used to make the request.
         // But, it will have the same values.
         val inputMap = InputMap(problemDefinition, request.inputs.toMutableMap())
         val solution = Solution(
             inputMap,
             estimatedObjFnc,
-            responseEstimates,
+            responseEstimatesMap,
             totalEvaluatorCalls
         )
         return solution
@@ -236,7 +234,7 @@ class Evaluator @JvmOverloads constructor(
         secondSolution: Solution,
     ): Solution {
         require(firstSolution.inputMap == secondSolution.inputMap) { "The inputs must be the same in order to merge the solutions" }
-        require(firstSolution.responseEstimates.size == secondSolution.responseEstimates.size) { "Cannot merge solutions with different response sizes" }
+        require(firstSolution.responseEstimatesMap.size == secondSolution.responseEstimatesMap.size) { "Cannot merge solutions with different response sizes" }
         // We assume that the two solutions are from independent replications
         // convert and merge as response maps
         val r1 = firstSolution.toResponseMap()
