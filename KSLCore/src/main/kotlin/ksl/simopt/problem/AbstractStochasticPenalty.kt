@@ -57,9 +57,11 @@ abstract class AbstractStochasticPenalty(val constraint: ResponseConstraint) {
 
     /** * Returns true if the sample average currently strictly satisfies the constraint.
      */
-    protected fun isFeasible(est: EstimatedResponse): Boolean {
+    protected open fun isFeasible(est: EstimatedResponse): Boolean {
         return violation(est) == 0.0
     }
+
+    //TODO test for statistical feasibility, within tolerance, within target?
 
     // --- STATISTICAL UTILITIES ---
 
