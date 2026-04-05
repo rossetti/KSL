@@ -34,6 +34,13 @@ class FunctionalConstraint(
         this.validNames = validNames.distinct()
     }
 
+    /**
+     * Constraint-specific deterministic penalty function.
+     * Implemented as a mutable `var` to allow assignment after the constraint is instantiated,
+     * as the penalty function requires a reference to this constraint.
+     */
+    override var penaltyFunction: AbstractDeterministicPenalty = DynamicPolynomialPenalty(this)
+
     override fun toString(): String {
         val names = validNames.joinToString(", ")
         return "Functional Constraint: f($names) $inequalityString $rhsValue"
@@ -72,7 +79,7 @@ class FunctionalConstraint(
      *  @return true if the constraint is satisfied, false otherwise.
      */
     override fun isSatisfied(values: Map<String, Double>): Boolean {
-        return computeLHS(values) < ltRHSValue
+        return computeLHS(values) <= ltRHSValue
     }
 
 }

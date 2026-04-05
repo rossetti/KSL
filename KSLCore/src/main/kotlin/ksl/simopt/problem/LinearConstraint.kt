@@ -23,6 +23,13 @@ data class LinearConstraint(
         }
     }
 
+    /**
+     * Constraint-specific deterministic penalty function.
+     * Implemented as a mutable `var` to allow assignment after the constraint is instantiated,
+     * as the penalty function requires a reference to this constraint.
+     */
+    override var penaltyFunction: AbstractDeterministicPenalty = DynamicPolynomialPenalty(this)
+
     override fun resultsAsString(inputs: Map<String, Double>): String {
         val lhs = computeLHS(inputs)
         val v = violation(inputs)
@@ -120,7 +127,7 @@ data class LinearConstraint(
      *  @return true if the constraint is satisfied, false otherwise.
      */
     override fun isSatisfied(values: Map<String, Double>): Boolean {
-        return computeLHS(values) < ltRHSValue
+        return computeLHS(values) <= ltRHSValue
     }
 
     /**
@@ -132,7 +139,7 @@ data class LinearConstraint(
      */
     @Suppress("unused")
     fun isSatisfied(values: DoubleArray): Boolean {
-        return computeLHS(values) < ltRHSValue
+        return computeLHS(values) <= ltRHSValue
     }
 
     /**

@@ -284,16 +284,6 @@ class ProblemDefinition @JvmOverloads constructor(
     val functionalConstraints: List<FunctionalConstraint>
         get() = myFunctionalConstraints.toList()
 
-
-    /** Default penalty applied to linear constraints if no custom penalty is provided. */
-    var defaultLinearPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
-
-    /** Default penalty applied to functional constraints if no custom penalty is provided. */
-    var defaultFunctionalPenalty: PenaltyFunctionIfc = DynamicPolynomialPenalty.defaultPenaltyFunction
-
-    /** Default penalty applied to response constraints if no custom penalty is provided. */
-    var defaultResponsePenalty: PenaltyFunctionIfc = PenaltyFunctionWithMemory.defaultPenaltyFunction
-
     /**
      * The lower bounds for each input variable
      */
@@ -676,7 +666,6 @@ class ProblemDefinition @JvmOverloads constructor(
         return violations
     }
 
-
     /**
      * Computes the total additive penalty for the provided solution by evaluating
      * individual constraint violations.
@@ -685,49 +674,33 @@ class ProblemDefinition @JvmOverloads constructor(
      * @param solution The solution for which the penalty is being computed.
      * @return the total penalty value, adjusted by objFncFactor.
      */
-    @Suppress("unused")
     fun penaltyFncValue(solution: Solution): Double {
         var totalPenalty = 0.0
         val iterationCounter = solution.evaluationNumber
 
-        // 1. Penalize Linear Constraints (Deterministic)
-        for (lc in linearConstraints) {
-            val v = lc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = lc.penaltyFunction ?: defaultLinearPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
+        // 1. Evaluate Linear Constraints
+        if (myLinearConstraints.isNotEmpty()) {
+            for (lc in myLinearConstraints) {
+                totalPenalty += lc.penaltyFunction.calculatePenalty(solution, iterationCounter)
             }
         }
 
-        // 2. Penalize Functional Constraints (Deterministic)
-        for (fc in functionalConstraints) {
-            val v = fc.violation(solution.inputMap)
-            if (v > 0.0) {
-                val penaltyFnc = fc.penaltyFunction ?: defaultFunctionalPenalty
-                // Pass 1 explicitly since there is no sampling noise to dampen
-                totalPenalty += penaltyFnc.penalty(v, iterationCounter, 1)
+        // 2. Evaluate Functional Constraints
+        if (myFunctionalConstraints.isNotEmpty()) {
+            for (fc in myFunctionalConstraints) {
+                totalPenalty += fc.penaltyFunction.calculatePenalty(solution, iterationCounter)
             }
         }
 
-        // 3. Penalize Response Constraints (Stochastic)
-        for (rc in responseConstraints) {
-            val estResponse = solution.responseEstimatesMap[rc.responseName]
-            if (estResponse != null) {
-                val v = rc.violation(estResponse.average)
-                if (v > 0.0) {
-                    val penaltyFnc = rc.penaltyFunction ?: defaultResponsePenalty
-                    // Explicitly extract the sample count N(x) to feed the memory dampener
-                    //TODO this may not be correct, the Park and Kim paper uses the new observation count
-                    // this is all observations
-                    val count = estResponse.count.toInt()
-                    totalPenalty += penaltyFnc.penalty(v, iterationCounter, count)
-                }
+        // 3. Evaluate Response Constraints
+        if (myResponseConstraints.isNotEmpty()) {
+            for (rc in myResponseConstraints) {
+                totalPenalty += rc.penaltyFunction.calculatePenalty(solution, iterationCounter)
             }
         }
 
         // 4. Apply the objFncFactor to correctly orient the penalty
-        // (Add for Minimization, Subtract for Maximization)
+        // (Positive penalty added to a minimization objective; negative for maximization)
         return totalPenalty * objFncFactor
     }
 

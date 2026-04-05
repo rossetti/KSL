@@ -22,8 +22,15 @@ class ResponseConstraint(
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
     val tolerance: Double = 0.0,
-    val penaltyFunction: PenaltyFunctionIfc? = null
 ) {
+
+    /**
+     * A constraint-specific stochastic penalty function.
+     * Guaranteed to never be null. It defaults to DefaultResponsePenalty but
+     * can be reassigned to any custom AbstractStochasticPenalty.
+     */
+    var penaltyFunction: AbstractStochasticPenalty = DefaultResponsePenalty(this)
+    
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
         require(target >= 0.0) { "The target must be >= 0.0." }

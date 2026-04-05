@@ -12,12 +12,9 @@ interface ConstraintIfc {
     fun resultsAsString(inputs: Map<String, Double>): String
     
     /**
-     * An optional, constraint-specific penalty function.
-     * If null, the solver will fall back to the type-level default penalty function
-     * defined in the ProblemDefinition.
+     * Constraint-specific deterministic penalty function.
      */
-    val penaltyFunction: PenaltyFunctionIfc?
-        get() = null
+    var penaltyFunction: AbstractDeterministicPenalty
 
     /**
      *  The type of inequality less than or greater than
