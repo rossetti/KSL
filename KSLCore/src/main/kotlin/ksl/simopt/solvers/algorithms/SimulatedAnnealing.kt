@@ -205,7 +205,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
             is TemperatureConfiguration.Fixed -> config.temperature
             is TemperatureConfiguration.AutoCalibrate -> {
                 logger.info { "Solver: $name : Auto-calibrating initial temperature..." }
-                calibrateTemperature(config.targetProbability, config.sampleSize)
+                calibrateTemperature(config)
             }
         }
         currentTemperature = initialTemperature
@@ -224,18 +224,29 @@ class SimulatedAnnealing @JvmOverloads constructor(
      * an appropriate starting temperature. Because this uses `requestEvaluation()`, all
      * evaluations accurately count toward the solver's `numOracleCalls`.
      */
-    private fun calibrateTemperature(targetAcceptanceProbability: Double, sampleSize: Int): Double {
+    private fun calibrateTemperature(config: TemperatureConfiguration.AutoCalibrate): Double {
         var totalWorseningCost = 0.0
         var worseningMovesCount = 0
 
         // Use the evaluated baseline established by super.initializeIterations()
         var previousWalkSolution = currentSolution
+        var bestWalkSolution = currentSolution
 
-        for (i in 0 until sampleSize) {
+        for (i in 0 until config.numRandomWalkSteps) {
             val nextPoint = generateNeighbor(previousWalkSolution.inputMap, rnStream)
 
             // AUTOMATIC TRACKING: requestEvaluation inherently increments `numOracleCalls`!
-            val nextSolution = requestEvaluation(nextPoint)
+            // Apply custom replications if numRepsPerStep is specified
+            val nextSolution = if (config.numRepsPerStep > 0) {
+                requestEvaluation(nextPoint, config.numRepsPerStep)
+            } else {
+                requestEvaluation(nextPoint)
+            }
+
+            // Track the best solution found during the walk
+            if (nextSolution.penalizedObjFncValue < bestWalkSolution.penalizedObjFncValue) {
+                bestWalkSolution = nextSolution
+            }
 
             val costDiff = nextSolution.penalizedObjFncValue - previousWalkSolution.penalizedObjFncValue
 
@@ -246,9 +257,16 @@ class SimulatedAnnealing @JvmOverloads constructor(
             previousWalkSolution = nextSolution
         }
 
-        // Reset the tracker's current solution back to the true initial point so the optimization
-        // starts exactly where the user intended, rather than where the random walk ended.
-        currentSolution = myInitialSolution
+        // Apply starting point strategy
+        if (config.useBestStepForStartingPoint) {
+            myInitialSolution = bestWalkSolution
+            currentSolution = bestWalkSolution
+            logger.info { "Solver: $name : Calibration complete. Using the best found solution during calibration as the starting point." }
+        } else {
+            // Reset the tracker's current solution back to the true initial point so the optimization
+            // starts exactly where the user intended, rather than where the random walk ended.
+            currentSolution = myInitialSolution
+        }
 
         if (worseningMovesCount == 0) {
             logger.warn { "Solver: $name : Calibration found no worsening moves. Falling back to default temperature $defaultInitialTemperature." }
@@ -256,7 +274,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         }
 
         val averageWorseningCost = totalWorseningCost / worseningMovesCount
-        val estimatedTemp = -averageWorseningCost / ln(targetAcceptanceProbability)
+        val estimatedTemp = -averageWorseningCost / ln(config.targetProbability)
 
         logger.info { "Solver: $name : Calibration complete. Estimated Initial Temperature: $estimatedTemp" }
         return estimatedTemp
@@ -305,7 +323,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
     override fun toString(): String {
         val tempConfigStr = when (val config = temperatureConfiguration) {
             is TemperatureConfiguration.Fixed -> "Fixed(temperature=${config.temperature})"
-            is TemperatureConfiguration.AutoCalibrate -> "AutoCalibrate(targetProb=${config.targetProbability}, samples=${config.sampleSize})"
+            is TemperatureConfiguration.AutoCalibrate -> "AutoCalibrate(targetProb=${config.targetProbability}, samples=${config.numRandomWalkSteps})"
         }
 
         return """
