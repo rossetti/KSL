@@ -209,7 +209,6 @@ testoutput/
 
 \.idea/
 
-<<<<<<< HEAD
 KSLTesting/gradle/wrapper/
 
 KSLExtensions/gradle/wrapper/
@@ -219,27 +218,6 @@ KSLCore/gradle/wrapper/
 KSLExampleProject/gradle/wrapper/
 
 KSLExamples/gradle/wrapper/
-=======
-KSLCore/gradle/wrapper/gradle-wrapper.jar
-
-KSLCore/gradle/wrapper/gradle-wrapper.properties
-
-KSLExamples/gradle/wrapper/gradle-wrapper.jar
-
-KSLExamples/gradle/wrapper/gradle-wrapper.properties
-
-KSLExtensions/gradle/wrapper/gradle-wrapper.jar
-
-KSLExtensions/gradle/wrapper/gradle-wrapper.properties
-
-KSLTesting/gradle/wrapper/gradle-wrapper.jar
-
-KSLTesting/gradle/wrapper/gradle-wrapper.properties
-
-KSLExampleProject/gradle/wrapper/gradle-wrapper.jar
-
-KSLExampleProject/gradle/wrapper/gradle-wrapper.properties
->>>>>>> develop
 
 JSLKotlin/gradle/wrapper/gradle-wrapper.jar
 JSLKotlin/gradle/wrapper/gradle-wrapper.properties
@@ -264,3 +242,7 @@ KSLProjectTemplate/gradle/wrapper/gradle-wrapper.jar
 KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 *.hprof
 *.wal
+
+# Claude Code
+CLAUDE.md
+.claude/
