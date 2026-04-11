@@ -264,3 +264,6 @@ KSLProjectTemplate/gradle/wrapper/gradle-wrapper.jar
 KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 *.hprof
 *.wal
+
+# Claude Code worktrees and project data
+.claude/
