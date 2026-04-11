@@ -60,9 +60,17 @@ interface PlotIfc {
     fun buildPlot(): Plot
 
     /**
-     * An HTML representation of the plot for rendering
+     * An HTML representation of the plot for rendering as a standalone page (uses iFrame).
      */
     fun toHTML(): String
+
+    /**
+     * Returns an embeddable HTML fragment (a `<div>` and inline `<script>`) suitable
+     * for compositing into a larger HTML page. Unlike [toHTML], this does not include
+     * `<html>`, `<head>`, or `<body>` wrappers. The Lets-Plot JS library must be loaded
+     * once in the enclosing page's `<head>` for the fragment to render correctly.
+     */
+    fun toEmbeddedHTML(): String
 
     /**
      * @param fileName the name of the file without an extension
@@ -109,6 +117,20 @@ interface PlotIfc {
                 scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
             )
             return html
+        }
+
+        /**
+         * Produces an embeddable HTML fragment from a [Figure] — a `<div>` and inline
+         * `<script>` with no surrounding page structure. The caller is responsible for
+         * loading the Lets-Plot JS library once in the enclosing page's `<head>` via
+         * [PlotHtmlHelper.scriptUrl].
+         */
+        fun toEmbeddedHTML(figure: Figure): String {
+            val spec = figure.toSpec()
+            return PlotHtmlExport.buildHtmlFromRawSpecs(
+                spec, iFrame = false,
+                scriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+            )
         }
 
         /**

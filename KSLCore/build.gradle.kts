@@ -109,6 +109,9 @@ dependencies {
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     // required POI to update their dependencies to remove the vulnerability
 
+    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
+    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
+
 //    implementation(kotlin("stdlib-jdk8"))
 // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-test
 //    api("org.jetbrains.kotlin:kotlin-test:1.9.24")

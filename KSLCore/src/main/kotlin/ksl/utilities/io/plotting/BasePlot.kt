@@ -93,5 +93,12 @@ abstract class BasePlot() : PlotIfc {
         )
         return html
     }
+
+    /**
+     * Returns an embeddable HTML fragment (`<div>` + inline `<script>`) for compositing
+     * into a larger HTML page. The Lets-Plot JS library must be loaded once in the
+     * enclosing page's `<head>` for the fragment to render correctly.
+     */
+    override fun toEmbeddedHTML(): String = PlotIfc.toEmbeddedHTML(buildPlot())
 }
 

@@ -837,3 +837,75 @@ fun <T> DataFrame<T>.sample(sampleSize: Int, stream: RNStreamIfc = KSLRandom.def
     val sample: MutableList<Int> = rowIndices.sample(sampleSize, stream)
     return this[sample]
 }
+
+/**
+ * Renders this [DataFrame] as an HTML `<table>` string.
+ *
+ * Column alignment is inferred automatically: columns whose every cell is a finite
+ * [Double] (or the placeholder `"—"`) are right-aligned; all other columns are
+ * left-aligned. Non-finite Double values (`NaN`, `Infinity`, `-Infinity`) are
+ * formatted as `"—"` regardless of [precision].
+ *
+ * @param caption   optional `<caption>` element inserted at the top of the table
+ * @param precision number of decimal places used when formatting [Double] values;
+ *                  must be in `[0, 15]`
+ * @return a self-contained `<table>…</table>` HTML string (no surrounding page
+ *         structure); suitable for embedding in a larger HTML document
+ */
+fun <T> DataFrame<T>.toHtmlTable(caption: String? = null, precision: Int = 4): String {
+    require(precision in 0..15) { "precision must be in [0, 15], was $precision" }
+
+    val myFmt: (Any?) -> String = { v ->
+        when (v) {
+            is Double -> if (v.isNaN() || v.isInfinite()) "—" else "%.${precision}f".format(v)
+            null -> "—"
+            else -> v.toString()
+        }
+    }
+
+    val myColumnNames = columnNames()
+
+    // Determine right-alignment for columns that are all-numeric (Double or "—" placeholder)
+    val myRightAlign = myColumnNames.map { colName ->
+        val myCol = this[colName]
+        myCol.all { v -> v == null || (v is Double && (v.isNaN() || v.isInfinite())) || v is Double }
+    }
+
+    val mySb = StringBuilder()
+    mySb.appendLine("<table>")
+    if (caption != null) {
+        mySb.appendLine("  <caption>${caption.escapeHtml()}</caption>")
+    }
+    // Header
+    mySb.appendLine("  <thead>")
+    mySb.append("    <tr>")
+    myColumnNames.forEachIndexed { i, name ->
+        val myAlign = if (myRightAlign[i]) " style=\"text-align:right\"" else ""
+        mySb.append("<th$myAlign>${name.escapeHtml()}</th>")
+    }
+    mySb.appendLine("</tr>")
+    mySb.appendLine("  </thead>")
+    // Body
+    mySb.appendLine("  <tbody>")
+    for (myRow in rows()) {
+        mySb.append("    <tr>")
+        myColumnNames.forEachIndexed { i, name ->
+            val myVal = myRow[name]
+            val myText = myFmt(myVal)
+            val myAlign = if (myRightAlign[i]) " style=\"text-align:right\"" else ""
+            mySb.append("<td$myAlign>${myText.escapeHtml()}</td>")
+        }
+        mySb.appendLine("</tr>")
+    }
+    mySb.appendLine("  </tbody>")
+    mySb.append("</table>")
+    return mySb.toString()
+}
+
+/** Escapes the five predefined XML/HTML entities in a string. */
+private fun String.escapeHtml(): String = this
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
+    .replace("'", "&#39;")

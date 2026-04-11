@@ -1,0 +1,81 @@
+/*
+ * The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.utilities.io.report.extensions
+
+import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.statistic.BatchStatistic
+
+/**
+ * DSL extension functions on [ReportBuilder] for rendering [BatchStatistic] instances.
+ *
+ * [BatchStatistic] implements [ksl.utilities.statistic.StatisticIfc] (via
+ * [ksl.utilities.statistic.AbstractStatistic]), so the statistics on its batch means
+ * flow naturally through [ksl.utilities.io.report.ast.ReportNode.StatTable]. This
+ * extension adds the batch-specific configuration metadata that [StatisticIfc] does
+ * not expose — minimum batch size, maximum batches, rebatch count, total observations,
+ * and unbatched remainder.
+ */
+
+/**
+ * Appends a self-contained section that reports both the batch configuration and the
+ * statistics on batch means for a single [BatchStatistic].
+ *
+ * **Produces (inside a section titled [caption] or [bs.name][BatchStatistic.name]):**
+ * 1. A two-column `DataTable` labelled "Batch Configuration" with the batch parameters.
+ * 2. A `StatTable` labelled "Statistics on Batch Means" with the half-width summary.
+ *
+ * Usage:
+ * ```kotlin
+ * val doc = report("Steady-State Queue Length") {
+ *     batchStatistic(batchStat, confidenceLevel = 0.90)
+ * }
+ * ```
+ *
+ * @param bs              the batch statistic to report
+ * @param caption         optional section title; defaults to [bs.name][BatchStatistic.name]
+ * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
+ */
+fun ReportBuilder.batchStatistic(
+    bs: BatchStatistic,
+    caption: String? = null,
+    confidenceLevel: Double = 0.95
+) {
+    section(caption ?: bs.name) {
+        dataTable(
+            headers = listOf("Parameter", "Value"),
+            rows = listOf(
+                listOf("Min Batches",          bs.minNumBatches.toString()),
+                listOf("Min Batch Size",       bs.minBatchSize.toString()),
+                listOf("Max Batches Multiple", bs.minNumBatchesMultiple.toString()),
+                listOf("Max Batches",          bs.maxNumBatches.toString()),
+                listOf("Current Batch Size",   bs.currentBatchSize.toString()),
+                listOf("Num Batches",          bs.numBatches.toString()),
+                listOf("Num Rebatches",        bs.numRebatches.toString()),
+                listOf("Total Observations",   bs.totalNumberOfObservations.toLong().toString()),
+                listOf("Amount Unbatched",     bs.amountLeftUnbatched.toLong().toString())
+            ),
+            caption = "Batch Configuration"
+        )
+        statTable(
+            stats = listOf(bs),
+            caption = "Statistics on Batch Means",
+            confidenceLevel = confidenceLevel
+        )
+    }
+}
