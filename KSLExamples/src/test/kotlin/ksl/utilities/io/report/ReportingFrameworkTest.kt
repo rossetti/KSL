@@ -78,7 +78,7 @@ class ReportingFrameworkTest {
         repeat(30) { myStat.collect(it.toDouble() * 0.5) }
 
         val myDoc = report("Statistic Test") {
-            statistic(myStat, detail = false)
+            statistic(myStat)
         }
 
         val myText = myDoc.renderToText()
@@ -87,17 +87,21 @@ class ReportingFrameworkTest {
     }
 
     @Test
-    fun statisticDetailModeRendersExtendedContent() {
+    fun statisticPropertyTableRendersAllProperties() {
         val myStat = Statistic("Service Time")
         repeat(50) { myStat.collect(Math.random() * 10.0) }
 
-        val myDoc = report("Detail Test") {
-            statistic(myStat, detail = true)
+        val myDoc = report("Property Table Test") {
+            statistic(myStat)
         }
 
+        // StatPropertyTable always renders all 19 properties including diagnostic fields
         val myText = myDoc.renderToText()
         assertFalse(myText.isBlank())
         assertTrue(myText.contains("Service Time"))
+        assertTrue(myText.contains("Skewness"), "Full property table should include Skewness")
+        assertTrue(myText.contains("Kurtosis"), "Full property table should include Kurtosis")
+        assertTrue(myText.contains("Missing"),  "Full property table should include Missing")
     }
 
     // ── Test 3: Histogram extension ───────────────────────────────────────────

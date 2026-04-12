@@ -121,16 +121,15 @@ sealed class ReportNode {
      * A vertical `Property | Value` property sheet for a **single** [StatisticIfc].
      *
      * The natural complement to [StatTable]: where [StatTable] compares many statistics
-     * side-by-side, [StatPropertyTable] shows all properties of one statistic in a
-     * readable two-column layout. This mirrors [StatisticIfc.statisticsAsMap] and
-     * [ksl.utilities.io.toStatDataFrame], both of which use the same vertical orientation.
+     * side-by-side in a compact summary row, [StatPropertyTable] shows **all** properties
+     * of one statistic in a readable two-column layout. This mirrors the output of
+     * [StatisticIfc.statisticsAsMap] and [ksl.utilities.io.toStatDataFrame], both of
+     * which use the same vertical orientation.
      *
-     * Properties rendered:
-     * - `detail = false` (compact) — 9 rows: Count, Average, Std Dev, Std Error,
-     *   Half-width, Confidence Level, CI Lower, CI Upper, Min, Max
-     * - `detail = true` (full) — all 18 rows from [StatisticIfc.statisticsAsMap],
-     *   including Sum, Variance, Dev SS, Kurtosis, Skewness, Lag-1 Cov, Lag-1 Corr,
-     *   Von Neumann Test Statistic, and Missing
+     * **All 18 rows are always rendered** (no compact/full toggle):
+     * Count, Average, Std Dev, Std Error, Half-width, Confidence Level, CI Lower, CI Upper,
+     * Min, Max, Sum, Variance, Dev Sum of Sq, Kurtosis, Skewness, Lag-1 Covariance,
+     * Lag-1 Correlation, Von Neumann Test Statistic, Missing.
      *
      * The [confidenceLevel] from this node is always used for half-width and CI
      * computation — it is never read from the statistic's stored property.
@@ -138,13 +137,11 @@ sealed class ReportNode {
      * @param stat            the single statistic to display
      * @param caption         optional table caption; defaults to [stat.name][StatisticIfc.name]
      * @param confidenceLevel confidence level for half-width and CI rows; defaults to 0.95
-     * @param detail          false = compact 10-row view; true = full 18-row view
      */
     data class StatPropertyTable(
         val stat: StatisticIfc,
         val caption: String? = null,
-        val confidenceLevel: Double = 0.95,
-        val detail: Boolean = false
+        val confidenceLevel: Double = 0.95
     ) : ReportNode() {
         init {
             require(confidenceLevel in 0.0..1.0) {

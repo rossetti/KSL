@@ -80,7 +80,7 @@ fun demoStatisticReport() {
             "100 observations of customer service time. " +
             "True distribution: Normal(μ=10, σ=2)."
         )
-        statistic(myStat, detail = true)
+        statistic(myStat)
     }
     myDoc.showInBrowser()
     myDoc.writeHtml()
@@ -237,7 +237,7 @@ fun demoCompositeReport() {
         // ── Historical data ────────────────────────────────────────────────
         section("Historical Service-Time Data") {
             paragraph("20 observations collected during a pilot study.")
-            statistic(myStat, detail = false)
+            statistic(myStat)
         }
 
         // ── Multiple comparison ────────────────────────────────────────────

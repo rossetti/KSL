@@ -39,32 +39,27 @@ import ksl.utilities.statistic.StatisticIfc
  *
  * The section title is [stat.name][StatisticIfc.name]. Inside the section a
  * [ksl.utilities.io.report.ast.ReportNode.StatPropertyTable] is produced — a vertical
- * `Property | Value` table showing all statistical properties of this one variable.
- *
- * - `detail = false` — compact view: Count, Average, Std Dev, Std Error, Half-width,
- *   Confidence Level, CI Lower, CI Upper, Min, Max (10 rows)
- * - `detail = true`  — full view: all 18 rows from [StatisticIfc.statisticsAsMap],
- *   adding Sum, Variance, Dev SS, Kurtosis, Skewness, Lag-1 Cov, Lag-1 Corr,
- *   Von Neumann Test Statistic, and Missing
+ * `Property | Value` table showing **all 18 statistical properties** of this variable:
+ * Count, Average, Std Dev, Std Error, Half-width, Confidence Level, CI Lower, CI Upper,
+ * Min, Max, Sum, Variance, Dev Sum of Sq, Kurtosis, Skewness, Lag-1 Cov, Lag-1 Corr,
+ * Von Neumann Test Statistic, and Missing.
  *
  * Usage:
  * ```kotlin
  * val doc = report("Service Analysis") {
- *     statistic(serviceTime, detail = true)
+ *     statistic(serviceTime)
  * }
  * ```
  *
  * @param stat            the statistic to report
  * @param confidenceLevel confidence level for the half-width and CI rows; must be in (0, 1)
- * @param detail          false (default) = compact 10-row view; true = full 18-row view
  */
 fun ReportBuilder.statistic(
     stat: StatisticIfc,
-    confidenceLevel: Double = 0.95,
-    detail: Boolean = false
+    confidenceLevel: Double = 0.95
 ) {
     section(stat.name) {
-        statPropertyTable(stat, confidenceLevel = confidenceLevel, detail = detail)
+        statPropertyTable(stat, confidenceLevel = confidenceLevel)
     }
 }
 

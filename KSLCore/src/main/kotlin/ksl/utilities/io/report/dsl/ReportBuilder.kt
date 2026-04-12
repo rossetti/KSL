@@ -100,22 +100,21 @@ class ReportBuilder internal constructor(private val myTitle: String? = null) {
      * Appends a [ReportNode.StatPropertyTable] — a vertical `Property | Value` table
      * for a **single** [StatisticIfc].
      *
-     * Use this whenever a single statistic deserves its own full property sheet (e.g.
-     * inside a histogram section, a frequency section, or after a batch-means analysis).
-     * For a side-by-side comparison of **many** statistics use [statTable].
+     * Renders **all 18 statistical properties** of the given statistic in a two-column
+     * table. Use this whenever a single statistic deserves its own full property sheet
+     * (e.g. inside a histogram section, a frequency section, or after a batch-means
+     * analysis). For a side-by-side comparison of **many** statistics use [statTable].
      *
      * @param stat            the single statistic to display
      * @param caption         optional table caption; defaults to [stat.name][StatisticIfc.name]
      * @param confidenceLevel confidence level for the half-width and CI rows; defaults to 0.95
-     * @param detail          false = compact 10-row view; true = full 18-row view
      */
     fun statPropertyTable(
         stat: StatisticIfc,
         caption: String? = null,
-        confidenceLevel: Double = 0.95,
-        detail: Boolean = false
+        confidenceLevel: Double = 0.95
     ) {
-        myChildren += ReportNode.StatPropertyTable(stat, caption, confidenceLevel, detail)
+        myChildren += ReportNode.StatPropertyTable(stat, caption, confidenceLevel)
     }
 
     /**

@@ -111,36 +111,32 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
         myOutput.appendLine()
         val myCI = node.stat.confidenceInterval(node.confidenceLevel)
         val myHW = node.stat.halfWidth(node.confidenceLevel)
-        val myCompactRows = listOf(
-            listOf("Count",             ctx.fmt(node.stat.count)),
-            listOf("Average",           ctx.fmt(node.stat.average)),
-            listOf("Std Dev",           ctx.fmt(node.stat.standardDeviation)),
-            listOf("Std Error",         ctx.fmt(node.stat.standardError)),
-            listOf("Half-width",        ctx.fmt(myHW)),
-            listOf("Confidence Level",  ctx.fmt(node.confidenceLevel)),
-            listOf("CI Lower",          ctx.fmt(myCI.lowerLimit)),
-            listOf("CI Upper",          ctx.fmt(myCI.upperLimit)),
-            listOf("Min",               ctx.fmt(node.stat.min)),
-            listOf("Max",               ctx.fmt(node.stat.max))
+        val myRows = listOf(
+            listOf("Count",              ctx.fmt(node.stat.count)),
+            listOf("Average",            ctx.fmt(node.stat.average)),
+            listOf("Std Dev",            ctx.fmt(node.stat.standardDeviation)),
+            listOf("Std Error",          ctx.fmt(node.stat.standardError)),
+            listOf("Half-width",         ctx.fmt(myHW)),
+            listOf("Confidence Level",   ctx.fmt(node.confidenceLevel)),
+            listOf("CI Lower",           ctx.fmt(myCI.lowerLimit)),
+            listOf("CI Upper",           ctx.fmt(myCI.upperLimit)),
+            listOf("Min",                ctx.fmt(node.stat.min)),
+            listOf("Max",                ctx.fmt(node.stat.max)),
+            listOf("Sum",                ctx.fmt(node.stat.sum)),
+            listOf("Variance",           ctx.fmt(node.stat.variance)),
+            listOf("Dev Sum of Sq",      ctx.fmt(node.stat.deviationSumOfSquares)),
+            listOf("Kurtosis",           ctx.fmt(node.stat.kurtosis)),
+            listOf("Skewness",           ctx.fmt(node.stat.skewness)),
+            listOf("Lag-1 Covariance",   ctx.fmt(node.stat.lag1Covariance)),
+            listOf("Lag-1 Correlation",  ctx.fmt(node.stat.lag1Correlation)),
+            listOf("Von Neumann Stat",   ctx.fmt(node.stat.vonNeumannLag1TestStatistic)),
+            listOf("Missing",            ctx.fmt(node.stat.numberMissing))
         )
-        val myAllRows = if (node.detail) {
-            myCompactRows + listOf(
-                listOf("Sum",                ctx.fmt(node.stat.sum)),
-                listOf("Variance",           ctx.fmt(node.stat.variance)),
-                listOf("Dev Sum of Sq",      ctx.fmt(node.stat.deviationSumOfSquares)),
-                listOf("Kurtosis",           ctx.fmt(node.stat.kurtosis)),
-                listOf("Skewness",           ctx.fmt(node.stat.skewness)),
-                listOf("Lag-1 Covariance",   ctx.fmt(node.stat.lag1Covariance)),
-                listOf("Lag-1 Correlation",  ctx.fmt(node.stat.lag1Correlation)),
-                listOf("Von Neumann Stat",   ctx.fmt(node.stat.vonNeumannLag1TestStatistic)),
-                listOf("Missing",            ctx.fmt(node.stat.numberMissing))
-            )
-        } else myCompactRows
         val myTable = MarkDown.Table(
             listOf("Property", "Value"),
             listOf(MarkDown.ColFmt.LEFT, MarkDown.ColFmt.RIGHT)
         )
-        myAllRows.forEach { myTable.addRow(it) }
+        myRows.forEach { myTable.addRow(it) }
         myOutput.append(myTable.toString())
         myOutput.appendLine()
     }
