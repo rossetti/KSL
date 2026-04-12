@@ -123,25 +123,25 @@ $REPORT_CSS
         val myCI = node.stat.confidenceInterval(node.confidenceLevel)
         val myHW = node.stat.halfWidth(node.confidenceLevel)
         val myRows = listOf(
-            listOf("Count",              ctx.fmt(node.stat.count)),
-            listOf("Average",            ctx.fmt(node.stat.average)),
-            listOf("Std Dev",            ctx.fmt(node.stat.standardDeviation)),
-            listOf("Std Error",          ctx.fmt(node.stat.standardError)),
-            listOf("Half-width",         ctx.fmt(myHW)),
-            listOf("Confidence Level",   ctx.fmt(node.confidenceLevel)),
-            listOf("CI Lower",           ctx.fmt(myCI.lowerLimit)),
-            listOf("CI Upper",           ctx.fmt(myCI.upperLimit)),
-            listOf("Min",                ctx.fmt(node.stat.min)),
-            listOf("Max",                ctx.fmt(node.stat.max)),
-            listOf("Sum",                ctx.fmt(node.stat.sum)),
-            listOf("Variance",           ctx.fmt(node.stat.variance)),
-            listOf("Dev Sum of Sq",      ctx.fmt(node.stat.deviationSumOfSquares)),
-            listOf("Kurtosis",           ctx.fmt(node.stat.kurtosis)),
-            listOf("Skewness",           ctx.fmt(node.stat.skewness)),
-            listOf("Lag-1 Covariance",   ctx.fmt(node.stat.lag1Covariance)),
-            listOf("Lag-1 Correlation",  ctx.fmt(node.stat.lag1Correlation)),
-            listOf("Von Neumann Stat",   ctx.fmt(node.stat.vonNeumannLag1TestStatistic)),
-            listOf("Missing",            ctx.fmt(node.stat.numberMissing))
+            listOf("Count",              ctx.fmtProperty(node.stat.count)),
+            listOf("Average",            ctx.fmtProperty(node.stat.average)),
+            listOf("Std Dev",            ctx.fmtProperty(node.stat.standardDeviation)),
+            listOf("Std Error",          ctx.fmtProperty(node.stat.standardError)),
+            listOf("Half-width",         ctx.fmtProperty(myHW)),
+            listOf("Confidence Level",   ctx.fmtProperty(node.confidenceLevel)),
+            listOf("CI Lower",           ctx.fmtProperty(myCI.lowerLimit)),
+            listOf("CI Upper",           ctx.fmtProperty(myCI.upperLimit)),
+            listOf("Min",                ctx.fmtProperty(node.stat.min)),
+            listOf("Max",                ctx.fmtProperty(node.stat.max)),
+            listOf("Sum",                ctx.fmtProperty(node.stat.sum)),
+            listOf("Variance",           ctx.fmtProperty(node.stat.variance)),
+            listOf("Dev Sum of Sq",      ctx.fmtProperty(node.stat.deviationSumOfSquares)),
+            listOf("Kurtosis",           ctx.fmtProperty(node.stat.kurtosis)),
+            listOf("Skewness",           ctx.fmtProperty(node.stat.skewness)),
+            listOf("Lag-1 Covariance",   ctx.fmtProperty(node.stat.lag1Covariance)),
+            listOf("Lag-1 Correlation",  ctx.fmtProperty(node.stat.lag1Correlation)),
+            listOf("Von Neumann Stat",   ctx.fmtProperty(node.stat.vonNeumannLag1TestStatistic)),
+            listOf("Missing",            ctx.fmtProperty(node.stat.numberMissing))
         )
         myOutput.appendLine(buildHtmlTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
@@ -167,15 +167,15 @@ $REPORT_CSS
         val myCaption = node.caption ?: node.stat.name
         myOutput.appendLine("<p class=\"table-caption\">${myCaption.escapeHtml()}</p>")
         val myRows = listOf(
-            listOf("Count",                   ctx.fmt(node.stat.count)),
-            listOf("Weighted Average",         ctx.fmt(node.stat.weightedAverage)),
-            listOf("Unweighted Average",       ctx.fmt(node.stat.unWeightedAverage)),
-            listOf("Weighted Sum",             ctx.fmt(node.stat.weightedSum)),
-            listOf("Sum of Weights",           ctx.fmt(node.stat.sumOfWeights)),
-            listOf("Weighted Sum of Squares",  ctx.fmt(node.stat.weightedSumOfSquares)),
-            listOf("Min",                      ctx.fmt(node.stat.min)),
-            listOf("Max",                      ctx.fmt(node.stat.max)),
-            listOf("Missing",                  ctx.fmt(node.stat.numberMissing))
+            listOf("Count",                   ctx.fmtProperty(node.stat.count)),
+            listOf("Weighted Average",         ctx.fmtProperty(node.stat.weightedAverage)),
+            listOf("Unweighted Average",       ctx.fmtProperty(node.stat.unWeightedAverage)),
+            listOf("Weighted Sum",             ctx.fmtProperty(node.stat.weightedSum)),
+            listOf("Sum of Weights",           ctx.fmtProperty(node.stat.sumOfWeights)),
+            listOf("Weighted Sum of Squares",  ctx.fmtProperty(node.stat.weightedSumOfSquares)),
+            listOf("Min",                      ctx.fmtProperty(node.stat.min)),
+            listOf("Max",                      ctx.fmtProperty(node.stat.max)),
+            listOf("Missing",                  ctx.fmtProperty(node.stat.numberMissing))
         )
         myOutput.appendLine(buildHtmlTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()

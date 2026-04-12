@@ -32,8 +32,12 @@ import java.nio.file.Path
  * @param plotDir          directory for saved plot files; defaults to [KSL.plotDir]
  * @param confidenceLevel  default confidence level for [ksl.utilities.io.report.ast.ReportNode.StatTable]
  *                         nodes that do not specify their own; must be in (0, 1)
- * @param numericPrecision number of significant figures for formatted numeric values in tables;
- *                         must be in [0, 15]
+ * @param numericPrecision number of decimal places for formatted numeric values in comparison
+ *                         tables ([ksl.utilities.io.report.ast.ReportNode.StatTable],
+ *                         [ksl.utilities.io.report.ast.ReportNode.WeightedStatTable],
+ *                         [ksl.utilities.io.report.ast.ReportNode.DataTable]); also used as
+ *                         the significant-figure count for property sheet tables via
+ *                         [fmtProperty]; must be in [0, 15]
  * @param maxPlotsPerSection maximum number of plots rendered per section before a
  *                           truncation notice is emitted; prevents very large HTML files
  *                           in models with many responses
@@ -58,12 +62,31 @@ data class RenderContext(
     }
 
     /**
-     * Formats a [Double] value to a string using [numericPrecision] significant figures
-     * (`%g` format). Adapts between fixed and scientific notation based on magnitude,
-     * ensuring values of any scale remain readable without truncating significance.
+     * Formats a [Double] value to a string using [numericPrecision] **decimal places**
+     * (`%f` format). Produces fixed-width columns suitable for side-by-side comparison
+     * tables where vertical alignment across rows is important.
      * Returns `"—"` for [Double.isNaN] or [Double.isInfinite] values.
+     *
+     * Use [fmtProperty] instead when formatting values in a single-statistic property
+     * sheet where magnitudes can vary widely across rows.
      */
     fun fmt(value: Double): String = when {
+        value.isNaN() || value.isInfinite() -> "—"
+        else -> "%.${numericPrecision}f".format(value)
+    }
+
+    /**
+     * Formats a [Double] value to a string using [numericPrecision] **significant figures**
+     * (`%g` format). Adapts between fixed and scientific notation based on the magnitude of
+     * the value, ensuring that properties spanning many orders of magnitude (e.g. Lag-1
+     * covariance, Von Neumann test statistic, kurtosis) are rendered with consistent
+     * precision rather than fixed decimal places.
+     * Returns `"—"` for [Double.isNaN] or [Double.isInfinite] values.
+     *
+     * Use [fmt] instead when formatting columns in a multi-row comparison table where
+     * fixed decimal alignment is more important than adaptive precision.
+     */
+    fun fmtProperty(value: Double): String = when {
         value.isNaN() || value.isInfinite() -> "—"
         else -> "%.${numericPrecision}g".format(value)
     }
