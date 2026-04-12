@@ -19,10 +19,8 @@
 package ksl.utilities.io.report.renderer
 
 import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.report.ast.ReportNode
-import ksl.utilities.io.report.visitor.ReportVisitor
-import ksl.utilities.io.toHtmlTable
+import ksl.utilities.io.report.visitor.AbstractReportVisitor
 import org.jetbrains.letsPlot.core.util.PlotHtmlHelper
 import org.jetbrains.letsPlot.export.VersionChecker
 import java.io.File
@@ -61,7 +59,7 @@ import java.time.format.DateTimeFormatter
  *
  * @param ctx the render context supplying output paths and formatting preferences
  */
-class HtmlReportRenderer(private val ctx: RenderContext = RenderContext()) : ReportVisitor {
+class HtmlReportRenderer(private val ctx: RenderContext = RenderContext()) : AbstractReportVisitor() {
 
     private val myOutput: StringBuilder = StringBuilder()
     private var myDepth: Int = 0
@@ -151,35 +149,16 @@ $REPORT_CSS
 
     override fun visit(node: ReportNode.StatTable) {
         if (node.stats.isEmpty()) return
-        val myReporter = StatisticReporter(node.stats.toMutableList())
-        myReporter.reportLabelFlag = false
         if (node.caption != null) {
             myOutput.appendLine("<p class=\"table-caption\">${node.caption.escapeHtml()}</p>")
         }
-        // Compact half-width summary via DataFrame → toHtmlTable
-        val myDf = myReporter.asDataFrame(level = node.confidenceLevel)
-        myOutput.appendLine(myDf.toHtmlTable(precision = ctx.numericPrecision))
+        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt)
+        myOutput.appendLine(buildHtmlTable(COMPACT_STAT_HEADERS, myRows))
         myOutput.appendLine()
-
         if (node.detail) {
             myOutput.appendLine("<p class=\"table-caption\"><strong>Diagnostic Statistics</strong></p>")
-            // Build a diagnostic table manually from StatisticIfc fields
-            val myHeaders = listOf(
-                "Name", "Skewness", "Kurtosis",
-                "Lag-1 Corr", "VN Statistic", "VN p-value", "Missing"
-            )
-            val myRows = node.stats.map { stat ->
-                listOf(
-                    stat.name,
-                    ctx.fmt(stat.skewness),
-                    ctx.fmt(stat.kurtosis),
-                    ctx.fmt(stat.lag1Correlation),
-                    ctx.fmt(stat.vonNeumannLag1TestStatistic),
-                    ctx.fmt(stat.vonNeumannLag1TestStatisticPValue),
-                    ctx.fmt(stat.numberMissing)
-                )
-            }
-            myOutput.appendLine(buildHtmlTable(myHeaders, myRows))
+            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt)
+            myOutput.appendLine(buildHtmlTable(DIAGNOSTIC_STAT_HEADERS, myDiagRows))
             myOutput.appendLine()
         }
     }

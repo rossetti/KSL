@@ -19,10 +19,9 @@
 package ksl.utilities.io.report.renderer
 
 import ksl.utilities.io.MarkDown
-import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.plotting.PlotIfc
 import ksl.utilities.io.report.ast.ReportNode
-import ksl.utilities.io.report.visitor.ReportVisitor
+import ksl.utilities.io.report.visitor.AbstractReportVisitor
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -58,7 +57,7 @@ import java.nio.file.Path
  *
  * @param ctx the render context supplying output paths and formatting preferences
  */
-class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) : ReportVisitor {
+class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) : AbstractReportVisitor() {
 
     private val myOutput: StringBuilder = StringBuilder()
     private var myDepth: Int = 0
@@ -143,44 +142,25 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
 
     override fun visit(node: ReportNode.StatTable) {
         if (node.stats.isEmpty()) return
-        val myReporter = StatisticReporter(node.stats.toMutableList())
-        myReporter.reportLabelFlag = false
         if (node.caption != null) {
             myOutput.appendLine("**${node.caption}**")
             myOutput.appendLine()
         }
-        // Compact half-width summary table
-        myOutput.append(myReporter.halfWidthSummaryReportAsMarkDown(level = node.confidenceLevel))
+        // Compact summary table
+        val myFormats = listOf(MarkDown.ColFmt.LEFT) +
+                List(COMPACT_STAT_HEADERS.size - 1) { MarkDown.ColFmt.RIGHT }
+        val myTable = MarkDown.Table(COMPACT_STAT_HEADERS, myFormats)
+        compactStatRows(node.stats, node.confidenceLevel, ctx::fmt).forEach { myTable.addRow(it) }
+        myOutput.append(myTable.toString())
         myOutput.appendLine()
         if (node.detail) {
-            // Extended diagnostic table: skewness, kurtosis, lag-1 correlation, VN test, missing
             myOutput.appendLine("**Diagnostic Statistics**")
             myOutput.appendLine()
-            val myHeaders = listOf(
-                "Name", "Skewness", "Kurtosis",
-                "Lag-1 Corr", "VN Statistic", "VN p-value", "Missing"
-            )
-            val myFormats = listOf(
-                MarkDown.ColFmt.LEFT,
-                MarkDown.ColFmt.RIGHT, MarkDown.ColFmt.RIGHT,
-                MarkDown.ColFmt.RIGHT, MarkDown.ColFmt.RIGHT,
-                MarkDown.ColFmt.RIGHT, MarkDown.ColFmt.RIGHT
-            )
-            val myTable = MarkDown.Table(myHeaders, myFormats)
-            for (stat in node.stats) {
-                myTable.addRow(
-                    listOf(
-                        stat.name,
-                        ctx.fmt(stat.skewness),
-                        ctx.fmt(stat.kurtosis),
-                        ctx.fmt(stat.lag1Correlation),
-                        ctx.fmt(stat.vonNeumannLag1TestStatistic),
-                        ctx.fmt(stat.vonNeumannLag1TestStatisticPValue),
-                        ctx.fmt(stat.numberMissing)
-                    )
-                )
-            }
-            myOutput.append(myTable.toString())
+            val myDiagFormats = listOf(MarkDown.ColFmt.LEFT) +
+                    List(DIAGNOSTIC_STAT_HEADERS.size - 1) { MarkDown.ColFmt.RIGHT }
+            val myDiagTable = MarkDown.Table(DIAGNOSTIC_STAT_HEADERS, myDiagFormats)
+            diagnosticStatRows(node.stats, ctx::fmt).forEach { myDiagTable.addRow(it) }
+            myOutput.append(myDiagTable.toString())
             myOutput.appendLine()
         }
     }

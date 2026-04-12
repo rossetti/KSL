@@ -18,9 +18,8 @@
 
 package ksl.utilities.io.report.renderer
 
-import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.report.ast.ReportNode
-import ksl.utilities.io.report.visitor.ReportVisitor
+import ksl.utilities.io.report.visitor.AbstractReportVisitor
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -51,7 +50,7 @@ import java.nio.file.Path
  *
  * @param ctx the render context supplying output paths and formatting preferences
  */
-class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : ReportVisitor {
+class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : AbstractReportVisitor() {
 
     private val myOutput: StringBuilder = StringBuilder()
     private var myDepth: Int = 0
@@ -131,22 +130,18 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Rep
 
     override fun visit(node: ReportNode.StatTable) {
         if (node.stats.isEmpty()) return
-        val myReporter = StatisticReporter(node.stats.toMutableList())
-        myReporter.reportLabelFlag = false
         if (node.caption != null) {
             myOutput.appendLine(node.caption)
         }
-        if (node.detail) {
-            // Full view: summary report (count, avg, std dev) then all CSV fields
-            myOutput.append(myReporter.summaryReport())
-            myOutput.appendLine()
-            myOutput.appendLine("Full Statistics:")
-            myOutput.append(myReporter.csvStatistics(header = true))
-        } else {
-            // Compact half-width summary
-            myOutput.append(myReporter.halfWidthSummaryReport(confLevel = node.confidenceLevel))
-        }
+        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt)
+        myOutput.append(formatTextTable(COMPACT_STAT_HEADERS, myRows))
         myOutput.appendLine()
+        if (node.detail) {
+            myOutput.appendLine("Diagnostic Statistics")
+            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt)
+            myOutput.append(formatTextTable(DIAGNOSTIC_STAT_HEADERS, myDiagRows))
+            myOutput.appendLine()
+        }
     }
 
     override fun visit(node: ReportNode.WeightedStatPropertyTable) {

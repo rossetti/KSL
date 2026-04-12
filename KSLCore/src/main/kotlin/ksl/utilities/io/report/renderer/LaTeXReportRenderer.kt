@@ -18,7 +18,6 @@
 
 package ksl.utilities.io.report.renderer
 
-import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.plotting.PlotIfc
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.visitor.AbstractReportVisitor
@@ -169,42 +168,12 @@ class LaTeXReportRenderer(private val ctx: RenderContext = RenderContext()) : Ab
 
     override fun visit(node: ReportNode.StatTable) {
         if (node.stats.isEmpty()) return
-        val myReporter = StatisticReporter(node.stats.toMutableList())
-        myReporter.reportLabelFlag = false
-
-        if (node.caption != null) {
-            myOutput.appendLine()
-            myOutput.appendLine("""\textbf{${escapeLaTeX(node.caption)}}""")
-            myOutput.appendLine()
-        }
-
-        // Compact half-width summary — uses StatisticReporter's built-in LaTeX method
-        // which already wraps each chunk in \begin{table}…\end{table}
-        val myTables = myReporter.halfWidthSummaryReportAsLaTeXTables(confLevel = node.confidenceLevel)
-        for (myTable in myTables) {
-            myOutput.appendLine(myTable.toString())
-        }
-
+        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt)
+        myOutput.appendLine(buildLaTeXTable(COMPACT_STAT_HEADERS, myRows, caption = node.caption))
         if (node.detail) {
             myOutput.appendLine()
-            myOutput.appendLine("""\textbf{Diagnostic Statistics}""")
-            myOutput.appendLine()
-            val myHeaders = listOf(
-                "Name", "Skewness", "Kurtosis",
-                "Lag-1 Corr", "VN Statistic", "VN p-value", "Missing"
-            )
-            val myRows = node.stats.map { stat ->
-                listOf(
-                    stat.name,
-                    ctx.fmt(stat.skewness),
-                    ctx.fmt(stat.kurtosis),
-                    ctx.fmt(stat.lag1Correlation),
-                    ctx.fmt(stat.vonNeumannLag1TestStatistic),
-                    ctx.fmt(stat.vonNeumannLag1TestStatisticPValue),
-                    ctx.fmt(stat.numberMissing)
-                )
-            }
-            myOutput.appendLine(buildLaTeXTable(myHeaders, myRows, caption = "Diagnostic Statistics"))
+            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt)
+            myOutput.appendLine(buildLaTeXTable(DIAGNOSTIC_STAT_HEADERS, myDiagRows, caption = "Diagnostic Statistics"))
         }
     }
 
