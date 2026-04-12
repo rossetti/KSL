@@ -170,7 +170,7 @@ fun ReportBuilder.modaAnalysis(
         // ── 4. MCB for overall MODA value (reuses McaReportExtensions) ────────
         val myMcbOverall = moda.mcbForOverallValue()
         if (myMcbOverall != null) {
-            multipleComparison(myMcbOverall, confidenceLevel)
+            multipleComparison(myMcbOverall, altConfidenceLevel = confidenceLevel)
         }
 
         // ── 5. MCB per response — raw performance ─────────────────────────────
@@ -178,7 +178,7 @@ fun ReportBuilder.modaAnalysis(
         if (myMcbPerf.isNotEmpty()) {
             section("MCB for Response Performance") {
                 for ((_, myMca) in myMcbPerf) {
-                    multipleComparison(myMca, confidenceLevel)
+                    multipleComparison(myMca, altConfidenceLevel = confidenceLevel)
                 }
             }
         }
@@ -188,7 +188,7 @@ fun ReportBuilder.modaAnalysis(
         if (myMcbModa.isNotEmpty()) {
             section("MCB for Response MODA Values") {
                 for ((_, myMca) in myMcbModa) {
-                    multipleComparison(myMca, confidenceLevel)
+                    multipleComparison(myMca, altConfidenceLevel = confidenceLevel)
                 }
             }
         }
