@@ -18,7 +18,9 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.BatchStatistic
 
 /**
@@ -51,6 +53,35 @@ import ksl.utilities.statistic.BatchStatistic
  * @param caption         optional section title; defaults to [bs.name][BatchStatistic.name]
  * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
  */
+/**
+ * Builds a [ReportNode.Document] whose default content is the full batch-statistic
+ * section (batch configuration table and statistics on batch means).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * myBatchStat.toReport().showInBrowser()
+ * myBatchStat.toReport().writeMarkdown()
+ * ```
+ *
+ * Custom block replaces the default:
+ * ```kotlin
+ * myBatchStat.toReport("Queue Length Analysis") {
+ *     batchStatistic(this@toReport)         // standard section
+ *     paragraph("Confidence interval is tight enough for decision.")
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [BatchStatistic.name]
+ * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun BatchStatistic.toReport(
+    title: String = name,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = { batchStatistic(this@toReport, confidenceLevel = confidenceLevel) }
+): ReportNode.Document = report(title, block)
+
 fun ReportBuilder.batchStatistic(
     bs: BatchStatistic,
     caption: String? = null,

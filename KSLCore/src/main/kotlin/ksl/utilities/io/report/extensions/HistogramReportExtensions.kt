@@ -18,7 +18,9 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.HistogramIfc
 
@@ -107,6 +109,55 @@ fun ReportBuilder.histogram(
         plot(h.histogramPlot(), caption = myTitle)
     }
 }
+
+// ── toReport() ───────────────────────────────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] whose default content is the full histogram section
+ * (overview paragraph, bin frequency table, statistics on binned data, and plot).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * myHistogram.toReport().showInBrowser()
+ * myHistogram.toReport().writeMarkdown()
+ * ```
+ *
+ * Custom block replaces the default:
+ * ```kotlin
+ * myHistogram.toReport("Wait Time Analysis") {
+ *     histogram(this@toReport)              // standard histogram section
+ *     paragraph("Mean is within spec.")    // appended after
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [Histogram.name]
+ * @param confidenceLevel confidence level for the StatTable CI; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun Histogram.toReport(
+    title: String = name,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = { histogram(this@toReport, confidenceLevel = confidenceLevel) }
+): ReportNode.Document = report(title, block)
+
+/**
+ * Builds a [ReportNode.Document] for a [HistogramIfc] instance (e.g. [ksl.utilities.statistic.CachedHistogram]).
+ *
+ * Identical in structure to [Histogram.toReport] but accepts the interface type, making it
+ * usable with histograms obtained from a [ksl.simulation.Model] via
+ * [ksl.modeling.variable.HistogramResponseCIfc.histogram].
+ *
+ * @param title           document title; defaults to [HistogramIfc.name]
+ * @param confidenceLevel confidence level for the StatTable CI; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun HistogramIfc.toReport(
+    title: String = name,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = { histogram(this@toReport, confidenceLevel = confidenceLevel) }
+): ReportNode.Document = report(title, block)
 
 // ── Private formatting helpers ────────────────────────────────────────────────
 

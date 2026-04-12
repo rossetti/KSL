@@ -195,6 +195,36 @@ fun ReportBuilder.simulationResults(
 }
 
 /**
+ * Builds a [ReportNode.Document] whose default content is the simulation summary
+ * section (across-replication statistics table) for this reporter — without model
+ * metadata, since [SimulationReporter] does not expose the model reference directly.
+ *
+ * Use [Model.toReport] when you have the model available and want the full report
+ * including experiment configuration, histograms, frequencies, and time-series data.
+ *
+ * The [block] parameter is optional; omitting it produces the canonical summary.
+ * Supplying a block **replaces** the default:
+ * ```kotlin
+ * model.simulationReporter.toReport("My Study") {
+ *     simulationSummary(this@toReport)        // standard summary section
+ *     section("Custom Analysis") { ... }     // appended after
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to `"Simulation Report"`
+ * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun SimulationReporter.toReport(
+    title: String = "Simulation Report",
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = {
+        simulationSummary(this@toReport, confidenceLevel = confidenceLevel)
+    }
+): ReportNode.Document = report(title, block)
+
+/**
  * Convenience extension on [Model] that builds a [ReportNode.Document] in a single
  * call, automatically wiring the model's [SimulationReporter] and time-series responses
  * into a complete results report.
@@ -222,3 +252,40 @@ fun Model.buildReport(
     simulationResults(simulationReporter, this@buildReport)
     block()
 }
+
+/**
+ * Builds a complete [ReportNode.Document] for this model using the standard simulation
+ * results structure (experiment metadata, across-replication statistics, histograms,
+ * frequencies, and time-series responses).
+ *
+ * This is the preferred zero-code path for getting a full simulation report in any
+ * output format:
+ * ```kotlin
+ * model.simulate()
+ * model.toReport().showInBrowser()
+ * model.toReport().writeMarkdown()
+ * model.toReport().writeLaTeX()
+ * ```
+ *
+ * The [block] parameter is optional; omitting it produces the canonical report.
+ * Supplying a block **replaces** the default content — call [simulationResults] inside
+ * the block to include the standard sections alongside custom content:
+ * ```kotlin
+ * model.toReport("Extended Study") {
+ *     simulationResults(simulationReporter, this@toReport)
+ *     section("Custom Analysis") { multipleComparison(mca) }
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [Model.simulationName]
+ * @param confidenceLevel confidence level for all statistical tables; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun Model.toReport(
+    title: String = simulationName,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = {
+        simulationResults(simulationReporter, this@toReport, confidenceLevel)
+    }
+): ReportNode.Document = report(title, block)

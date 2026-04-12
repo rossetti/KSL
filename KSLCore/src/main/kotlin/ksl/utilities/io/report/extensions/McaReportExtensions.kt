@@ -19,7 +19,9 @@
 package ksl.utilities.io.report.extensions
 
 import ksl.utilities.io.plotting.ConfidenceIntervalsPlot
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
 
 /**
@@ -171,6 +173,39 @@ fun ReportBuilder.multipleComparison(
         }
     }
 }
+
+// ── toReport() ───────────────────────────────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] whose default content is the full multiple-comparison
+ * analysis section (alternative statistics, pairwise differences, MCB max/min intervals
+ * with plots, and screening results).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * mca.toReport().showInBrowser()
+ * mca.toReport().writeMarkdown()
+ * ```
+ *
+ * Custom block replaces the default:
+ * ```kotlin
+ * mca.toReport("Throughput Study") {
+ *     multipleComparison(this@toReport)     // standard MCA section
+ *     paragraph("Recommendation: ...")     // appended after
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [mca.name][MultipleComparisonAnalyzer.name]
+ *                        or `"Multiple Comparison Analysis"` when the name is blank
+ * @param confidenceLevel confidence level for MCB intervals and screening; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun MultipleComparisonAnalyzer.toReport(
+    title: String = name.ifBlank { "Multiple Comparison Analysis" },
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = { multipleComparison(this@toReport, confidenceLevel) }
+): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────
 

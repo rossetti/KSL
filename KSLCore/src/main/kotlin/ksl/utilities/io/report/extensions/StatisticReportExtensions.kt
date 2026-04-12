@@ -18,7 +18,10 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.StatisticReporter
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.StatisticIfc
 
 /**
@@ -94,3 +97,90 @@ fun ReportBuilder.statistics(
     if (stats.isEmpty()) return
     statTable(stats, caption = caption, confidenceLevel = confidenceLevel, detail = detail)
 }
+
+/**
+ * Appends a compact single-row [ksl.utilities.io.report.ast.ReportNode.StatTable] for
+ * [stat] without wrapping it in a section.
+ *
+ * Unlike [statistic], this produces a horizontal one-row summary table (count, mean,
+ * std dev, std error, half-width, CI lower/upper, min, max) rather than a full
+ * vertical property sheet. It is the preferred form when:
+ * - you want one row per statistic inside an existing section, or
+ * - you want to show a single statistic alongside other compact tables.
+ *
+ * Usage:
+ * ```kotlin
+ * section("Response Times") {
+ *     statisticCompact(serviceTime)
+ *     statisticCompact(queueWait)
+ * }
+ * ```
+ *
+ * @param stat            the statistic to show
+ * @param caption         optional caption above the table
+ * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
+ * @param detail          true = also append a diagnostic table (skewness, kurtosis, etc.)
+ */
+fun ReportBuilder.statisticCompact(
+    stat: StatisticIfc,
+    caption: String? = null,
+    confidenceLevel: Double = 0.95,
+    detail: Boolean = false
+) {
+    statTable(listOf(stat), caption = caption, confidenceLevel = confidenceLevel, detail = detail)
+}
+
+// ── toReport() — zero-code entry points ──────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] whose default content is a full property-sheet
+ * section for this statistic (identical to calling [statistic] inside a `report {}` block).
+ *
+ * The [block] parameter is optional; omitting it produces the canonical report.
+ * Supplying a block **replaces** the default content entirely — call [statistic]
+ * inside the block to include the standard section alongside custom content:
+ * ```kotlin
+ * myStat.toReport {
+ *     statistic(this@toReport)          // standard section
+ *     paragraph("Custom commentary.")  // appended after
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [StatisticIfc.name]
+ * @param confidenceLevel confidence level for half-width and CI rows; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun StatisticIfc.toReport(
+    title: String = name,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = { statistic(this@toReport, confidenceLevel) }
+): ReportNode.Document = report(title, block)
+
+/**
+ * Builds a [ReportNode.Document] whose default content is a compact half-width
+ * summary [ksl.utilities.io.report.ast.ReportNode.StatTable] for all statistics
+ * held by this reporter.
+ *
+ * The [block] parameter is optional; omitting it produces the canonical compact table.
+ * Supplying a block replaces the default:
+ * ```kotlin
+ * myReporter.toReport("Service Time Analysis") {
+ *     statistics(this@toReport.statistics)   // standard compact table
+ *     paragraph("Additional notes.")
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [StatisticReporter.reportTitle]
+ *                        when set, otherwise `"Statistical Report"`
+ * @param confidenceLevel confidence level for half-width and CI columns; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun StatisticReporter.toReport(
+    title: String = reportTitle ?: "Statistical Report",
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = {
+        statistics(this@toReport.statistics, confidenceLevel = confidenceLevel)
+    }
+): ReportNode.Document = report(title, block)

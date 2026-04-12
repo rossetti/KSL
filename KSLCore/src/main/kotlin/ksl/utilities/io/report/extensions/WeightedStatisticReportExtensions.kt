@@ -18,7 +18,9 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.WeightedStatistic
 
 /**
@@ -50,6 +52,33 @@ import ksl.utilities.statistic.WeightedStatistic
  * @param ws      the weighted statistic to report
  * @param caption optional table caption; defaults to [ws.name][WeightedStatistic.name]
  */
+/**
+ * Builds a [ReportNode.Document] whose default content is a vertical property-sheet
+ * section for this weighted statistic.
+ *
+ * Zero-code path:
+ * ```kotlin
+ * serverUtilization.toReport().showInBrowser()
+ * serverUtilization.toReport().writeMarkdown()
+ * ```
+ *
+ * Custom block replaces the default:
+ * ```kotlin
+ * serverUtilization.toReport("Utilization Analysis") {
+ *     weightedStatistic(this@toReport)      // standard section
+ *     paragraph("Target utilisation is 0.85.")
+ * }
+ * ```
+ *
+ * @param title  document title; defaults to [WeightedStatistic.name]
+ * @param block  optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun WeightedStatistic.toReport(
+    title: String = name,
+    block: ReportBuilder.() -> Unit = { weightedStatistic(this@toReport) }
+): ReportNode.Document = report(title, block)
+
 fun ReportBuilder.weightedStatistic(
     ws: WeightedStatistic,
     caption: String? = null

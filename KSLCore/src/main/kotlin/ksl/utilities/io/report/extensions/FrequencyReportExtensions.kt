@@ -18,7 +18,9 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.IntegerFrequency
 
 /**
@@ -98,6 +100,39 @@ fun ReportBuilder.integerFrequency(
         plot(freq.frequencyPlot(), caption = myTitle)
     }
 }
+
+// ── toReport() ───────────────────────────────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] whose default content is the full integer-frequency
+ * section (overview paragraph, frequency table, statistics on observed values, and plot).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * serverCount.toReport().showInBrowser()
+ * serverCount.toReport().writeMarkdown()
+ * ```
+ *
+ * Custom block replaces the default:
+ * ```kotlin
+ * serverCount.toReport("Number in System") {
+ *     integerFrequency(this@toReport)       // standard section
+ *     paragraph("Mode is ${this@toReport.mode}.")
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to [IntegerFrequency.name]
+ * @param confidenceLevel confidence level for the StatTable CI; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun IntegerFrequency.toReport(
+    title: String = name,
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = {
+        integerFrequency(this@toReport, confidenceLevel = confidenceLevel)
+    }
+): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────
 
