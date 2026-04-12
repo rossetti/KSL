@@ -40,7 +40,9 @@ interface ReportVisitor {
     fun exitSection(node: ReportNode.Section)
     fun visit(node: ReportNode.Heading)
     fun visit(node: ReportNode.Paragraph)
+    fun visit(node: ReportNode.StatPropertyTable)
     fun visit(node: ReportNode.StatTable)
+    fun visit(node: ReportNode.WeightedStatPropertyTable)
     fun visit(node: ReportNode.WeightedStatTable)
     fun visit(node: ReportNode.DataTable)
     fun visit(node: ReportNode.PlotNode)
@@ -53,16 +55,18 @@ interface ReportVisitor {
  * Extend this when only a subset of node types needs custom handling.
  */
 abstract class AbstractReportVisitor : ReportVisitor {
-    override fun enterDocument(node: ReportNode.Document)      {}
-    override fun exitDocument(node: ReportNode.Document)       {}
-    override fun enterSection(node: ReportNode.Section)        {}
-    override fun exitSection(node: ReportNode.Section)         {}
-    override fun visit(node: ReportNode.Heading)               {}
-    override fun visit(node: ReportNode.Paragraph)             {}
-    override fun visit(node: ReportNode.StatTable)             {}
-    override fun visit(node: ReportNode.WeightedStatTable)     {}
-    override fun visit(node: ReportNode.DataTable)             {}
-    override fun visit(node: ReportNode.PlotNode)              {}
-    override fun visit(node: ReportNode.RawText)               {}
-    override fun visit(node: ReportNode.PageBreak)             {}
+    override fun enterDocument(node: ReportNode.Document)              {}
+    override fun exitDocument(node: ReportNode.Document)               {}
+    override fun enterSection(node: ReportNode.Section)                {}
+    override fun exitSection(node: ReportNode.Section)                 {}
+    override fun visit(node: ReportNode.Heading)                       {}
+    override fun visit(node: ReportNode.Paragraph)                     {}
+    override fun visit(node: ReportNode.StatPropertyTable)             {}
+    override fun visit(node: ReportNode.StatTable)                     {}
+    override fun visit(node: ReportNode.WeightedStatPropertyTable)     {}
+    override fun visit(node: ReportNode.WeightedStatTable)             {}
+    override fun visit(node: ReportNode.DataTable)                     {}
+    override fun visit(node: ReportNode.PlotNode)                      {}
+    override fun visit(node: ReportNode.RawText)                       {}
+    override fun visit(node: ReportNode.PageBreak)                     {}
 }

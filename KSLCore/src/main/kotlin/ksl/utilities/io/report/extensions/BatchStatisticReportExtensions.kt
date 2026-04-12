@@ -38,7 +38,7 @@ import ksl.utilities.statistic.BatchStatistic
  *
  * **Produces (inside a section titled [caption] or [bs.name][BatchStatistic.name]):**
  * 1. A two-column `DataTable` labelled "Batch Configuration" with the batch parameters.
- * 2. A `StatTable` labelled "Statistics on Batch Means" with the half-width summary.
+ * 2. A `StatPropertyTable` labelled "Statistics on Batch Means" — a vertical property sheet.
  *
  * Usage:
  * ```kotlin
@@ -72,8 +72,8 @@ fun ReportBuilder.batchStatistic(
             ),
             caption = "Batch Configuration"
         )
-        statTable(
-            stats = listOf(bs),
+        statPropertyTable(
+            stat = bs,
             caption = "Statistics on Batch Means",
             confidenceLevel = confidenceLevel
         )

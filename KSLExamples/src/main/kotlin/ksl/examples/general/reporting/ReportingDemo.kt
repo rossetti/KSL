@@ -258,12 +258,12 @@ fun demoCompositeReport() {
 fun main() {
     // Run each demo in sequence. Each opens a browser tab and writes files
     // to kslOutput/. Comment out any demos you don't want to run.
-    demoSimulationReport()
-    demoStatisticReport()
-    demoHistogramReport()
-    demoFrequencyReport()
-    demoBatchStatisticReport()
-    demoWeightedStatisticReport()
-    demoMcaReport()
+//    demoSimulationReport()
+//    demoStatisticReport()
+//    demoHistogramReport()
+//    demoFrequencyReport()
+//   demoBatchStatisticReport()
+//    demoWeightedStatisticReport()
+//    demoMcaReport()
     demoCompositeReport()
 }

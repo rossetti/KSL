@@ -88,8 +88,8 @@ fun ReportBuilder.integerFrequency(
         dataTable(myHeaders, myRows, caption = "Frequency Table")
 
         // ── Statistics on observed integer values (explicit StatisticIfc bridge) ──
-        statTable(
-            stats = listOf(freq.statistic()),
+        statPropertyTable(
+            stat = freq.statistic(),
             caption = "Statistics on Observed Values",
             confidenceLevel = confidenceLevel
         )

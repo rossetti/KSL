@@ -97,15 +97,38 @@ class ReportBuilder internal constructor(private val myTitle: String? = null) {
     }
 
     /**
+     * Appends a [ReportNode.StatPropertyTable] — a vertical `Property | Value` table
+     * for a **single** [StatisticIfc].
+     *
+     * Use this whenever a single statistic deserves its own full property sheet (e.g.
+     * inside a histogram section, a frequency section, or after a batch-means analysis).
+     * For a side-by-side comparison of **many** statistics use [statTable].
+     *
+     * @param stat            the single statistic to display
+     * @param caption         optional table caption; defaults to [stat.name][StatisticIfc.name]
+     * @param confidenceLevel confidence level for the half-width and CI rows; defaults to 0.95
+     * @param detail          false = compact 10-row view; true = full 18-row view
+     */
+    fun statPropertyTable(
+        stat: StatisticIfc,
+        caption: String? = null,
+        confidenceLevel: Double = 0.95,
+        detail: Boolean = false
+    ) {
+        myChildren += ReportNode.StatPropertyTable(stat, caption, confidenceLevel, detail)
+    }
+
+    /**
      * Appends a [ReportNode.StatTable] for the given list of [StatisticIfc] instances.
      *
      * Covers [ksl.utilities.statistic.Statistic], [ksl.utilities.statistic.BatchStatistic],
      * and [ksl.utilities.statistic.Histogram] (all implement [StatisticIfc]).
+     * For a single statistic property sheet use [statPropertyTable].
      *
      * @param stats           statistics to tabulate
      * @param caption         optional table caption
      * @param confidenceLevel confidence level for half-width and CI; defaults to 0.95
-     * @param detail          false = compact summary; true = full 18-field diagnostic view
+     * @param detail          false = compact summary; true = compact + diagnostic table
      */
     fun statTable(
         stats: List<StatisticIfc>,
@@ -117,9 +140,27 @@ class ReportBuilder internal constructor(private val myTitle: String? = null) {
     }
 
     /**
+     * Appends a [ReportNode.WeightedStatPropertyTable] — a vertical `Property | Value`
+     * table for a **single** [WeightedStatistic].
+     *
+     * Use this whenever a single weighted statistic deserves its own property sheet.
+     * For a side-by-side comparison of **many** weighted statistics use [weightedStatTable].
+     *
+     * @param stat    the single weighted statistic to display
+     * @param caption optional table caption; defaults to [stat.name][WeightedStatistic.name]
+     */
+    fun weightedStatPropertyTable(
+        stat: WeightedStatistic,
+        caption: String? = null
+    ) {
+        myChildren += ReportNode.WeightedStatPropertyTable(stat, caption)
+    }
+
+    /**
      * Appends a [ReportNode.WeightedStatTable] for the given list of [WeightedStatistic]
      * instances. [WeightedStatistic] implements [ksl.utilities.statistic.WeightedStatisticIfc]
      * rather than [StatisticIfc] and must flow through this dedicated node.
+     * For a single weighted statistic property sheet use [weightedStatPropertyTable].
      *
      * @param stats   weighted statistics to tabulate
      * @param caption optional table caption

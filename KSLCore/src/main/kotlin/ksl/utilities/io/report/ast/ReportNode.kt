@@ -35,14 +35,16 @@ import ksl.utilities.statistic.WeightedStatistic
  * - [Section]  — collapsible/titled group of child nodes; may be nested
  *
  * **Content leaf nodes** (carry data, no children):
- * - [Heading]          — titled heading at a given level (1–6)
- * - [Paragraph]        — free-form text
- * - [StatTable]        — summary or diagnostic table for [List]<[StatisticIfc]>
- * - [WeightedStatTable]— table for [List]<[WeightedStatistic]> (not [StatisticIfc])
- * - [DataTable]        — general-purpose pre-formatted string table
- * - [PlotNode]         — a [PlotIfc] plot with an optional caption
- * - [RawText]          — verbatim pre-formatted text block
- * - [PageBreak]        — logical page/section separator
+ * - [Heading]                  — titled heading at a given level (1–6)
+ * - [Paragraph]                — free-form text
+ * - [StatPropertyTable]        — vertical `Property | Value` sheet for a **single** [StatisticIfc]
+ * - [StatTable]                — horizontal comparison table for [List]<[StatisticIfc]>
+ * - [WeightedStatPropertyTable]— vertical `Property | Value` sheet for a **single** [WeightedStatistic]
+ * - [WeightedStatTable]        — horizontal table for [List]<[WeightedStatistic]>
+ * - [DataTable]                — general-purpose pre-formatted string table
+ * - [PlotNode]                 — a [PlotIfc] plot with an optional caption
+ * - [RawText]                  — verbatim pre-formatted text block
+ * - [PageBreak]                — logical page/section separator
  */
 sealed class ReportNode {
 
@@ -116,19 +118,57 @@ sealed class ReportNode {
     }
 
     /**
-     * A statistics summary table for any [List] of [StatisticIfc] instances.
+     * A vertical `Property | Value` property sheet for a **single** [StatisticIfc].
      *
-     * Covers [ksl.utilities.statistic.Statistic], [ksl.utilities.statistic.BatchStatistic],
-     * and [ksl.utilities.statistic.Histogram] — all of which implement [StatisticIfc] via
-     * [ksl.utilities.statistic.AbstractStatistic].
+     * The natural complement to [StatTable]: where [StatTable] compares many statistics
+     * side-by-side, [StatPropertyTable] shows all properties of one statistic in a
+     * readable two-column layout. This mirrors [StatisticIfc.statisticsAsMap] and
+     * [ksl.utilities.io.toStatDataFrame], both of which use the same vertical orientation.
      *
-     * @param stats           the statistics to tabulate
+     * Properties rendered:
+     * - `detail = false` (compact) — 9 rows: Count, Average, Std Dev, Std Error,
+     *   Half-width, Confidence Level, CI Lower, CI Upper, Min, Max
+     * - `detail = true` (full) — all 18 rows from [StatisticIfc.statisticsAsMap],
+     *   including Sum, Variance, Dev SS, Kurtosis, Skewness, Lag-1 Cov, Lag-1 Corr,
+     *   Von Neumann Test Statistic, and Missing
+     *
+     * The [confidenceLevel] from this node is always used for half-width and CI
+     * computation — it is never read from the statistic's stored property.
+     *
+     * @param stat            the single statistic to display
+     * @param caption         optional table caption; defaults to [stat.name][StatisticIfc.name]
+     * @param confidenceLevel confidence level for half-width and CI rows; defaults to 0.95
+     * @param detail          false = compact 10-row view; true = full 18-row view
+     */
+    data class StatPropertyTable(
+        val stat: StatisticIfc,
+        val caption: String? = null,
+        val confidenceLevel: Double = 0.95,
+        val detail: Boolean = false
+    ) : ReportNode() {
+        init {
+            require(confidenceLevel in 0.0..1.0) {
+                "confidenceLevel must be in [0, 1], was $confidenceLevel"
+            }
+        }
+        override fun accept(visitor: ReportVisitor) = visitor.visit(this)
+    }
+
+    /**
+     * A horizontal summary/comparison table for any [List] of [StatisticIfc] instances.
+     *
+     * Each row is one statistic; columns are: Name, Count, Average, Std Dev,
+     * Half-width, CI Lower, CI Upper, Min, Max. When [detail] is true a second
+     * diagnostic table is appended with Skewness, Kurtosis, Lag-1 Corr, Von Neumann
+     * test statistic + p-value, and Missing.
+     *
+     * For reporting a **single** statistic as a property sheet use [StatPropertyTable].
+     *
+     * @param stats           the statistics to tabulate; must not be empty
      * @param caption         optional table caption
      * @param confidenceLevel confidence level for half-width and CI columns; defaults to 0.95
-     * @param detail          false (default) = compact half-width summary
-     *                        (name, count, mean, std dev, half-width, CI lower, CI upper, min, max);
-     *                        true = full diagnostic view including skewness, kurtosis,
-     *                        lag-1 correlation, Von Neumann test statistic + p-value, missing count
+     * @param detail          false (default) = compact half-width summary;
+     *                        true = compact summary + diagnostic table
      */
     data class StatTable(
         val stats: List<StatisticIfc>,
@@ -145,14 +185,36 @@ sealed class ReportNode {
     }
 
     /**
-     * A dedicated statistics table for [WeightedStatistic] instances.
+     * A vertical `Property | Value` property sheet for a **single** [WeightedStatistic].
+     *
+     * The weighted-statistic analogue of [StatPropertyTable]. Renders a two-column table
+     * whose rows are the 9 named properties of one [WeightedStatistic]: Count, Weighted
+     * Average, Unweighted Average, Weighted Sum, Sum of Weights, Weighted Sum of Squares,
+     * Min, Max, Missing.
+     *
+     * For reporting **many** weighted statistics side-by-side use [WeightedStatTable].
+     *
+     * @param stat    the single weighted statistic to display
+     * @param caption optional table caption; defaults to [stat.name][WeightedStatistic.name]
+     */
+    data class WeightedStatPropertyTable(
+        val stat: WeightedStatistic,
+        val caption: String? = null
+    ) : ReportNode() {
+        override fun accept(visitor: ReportVisitor) = visitor.visit(this)
+    }
+
+    /**
+     * A horizontal comparison table for a [List] of [WeightedStatistic] instances.
      *
      * [WeightedStatistic] implements [ksl.utilities.statistic.WeightedStatisticIfc] rather
      * than [StatisticIfc] and therefore cannot flow through [StatTable]. Columns rendered:
-     * name, count, weighted average, unweighted average, weighted sum, sum of weights,
-     * weighted sum of squares, min, max, missing count.
+     * Name, Count, Wtd Avg, Unwtd Avg, Wtd Sum, Sum Wts, Wtd SS, Min, Max, Missing.
      *
-     * @param stats   the weighted statistics to tabulate
+     * For reporting a **single** weighted statistic as a property sheet use
+     * [WeightedStatPropertyTable].
+     *
+     * @param stats   the weighted statistics to tabulate; must not be empty
      * @param caption optional table caption
      */
     data class WeightedStatTable(

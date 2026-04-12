@@ -99,6 +99,42 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Rep
         myOutput.appendLine()
     }
 
+    override fun visit(node: ReportNode.StatPropertyTable) {
+        val myCaption = node.caption ?: node.stat.name
+        myOutput.appendLine(myCaption)
+        val myCI = node.stat.confidenceInterval(node.confidenceLevel)
+        val myHW = node.stat.halfWidth(node.confidenceLevel)
+        val myCompactRows = listOf(
+            listOf("Count",             ctx.fmt(node.stat.count)),
+            listOf("Average",           ctx.fmt(node.stat.average)),
+            listOf("Std Dev",           ctx.fmt(node.stat.standardDeviation)),
+            listOf("Std Error",         ctx.fmt(node.stat.standardError)),
+            listOf("Half-width",        ctx.fmt(myHW)),
+            listOf("Confidence Level",  ctx.fmt(node.confidenceLevel)),
+            listOf("CI Lower",          ctx.fmt(myCI.lowerLimit)),
+            listOf("CI Upper",          ctx.fmt(myCI.upperLimit)),
+            listOf("Min",               ctx.fmt(node.stat.min)),
+            listOf("Max",               ctx.fmt(node.stat.max))
+        )
+        if (node.detail) {
+            val myFullRows = myCompactRows + listOf(
+                listOf("Sum",                ctx.fmt(node.stat.sum)),
+                listOf("Variance",           ctx.fmt(node.stat.variance)),
+                listOf("Dev Sum of Sq",      ctx.fmt(node.stat.deviationSumOfSquares)),
+                listOf("Kurtosis",           ctx.fmt(node.stat.kurtosis)),
+                listOf("Skewness",           ctx.fmt(node.stat.skewness)),
+                listOf("Lag-1 Covariance",   ctx.fmt(node.stat.lag1Covariance)),
+                listOf("Lag-1 Correlation",  ctx.fmt(node.stat.lag1Correlation)),
+                listOf("Von Neumann Stat",   ctx.fmt(node.stat.vonNeumannLag1TestStatistic)),
+                listOf("Missing",            ctx.fmt(node.stat.numberMissing))
+            )
+            myOutput.append(formatTextTable(listOf("Property", "Value"), myFullRows))
+        } else {
+            myOutput.append(formatTextTable(listOf("Property", "Value"), myCompactRows))
+        }
+        myOutput.appendLine()
+    }
+
     override fun visit(node: ReportNode.StatTable) {
         if (node.stats.isEmpty()) return
         val myReporter = StatisticReporter(node.stats.toMutableList())
@@ -116,6 +152,24 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Rep
             // Compact half-width summary
             myOutput.append(myReporter.halfWidthSummaryReport(confLevel = node.confidenceLevel))
         }
+        myOutput.appendLine()
+    }
+
+    override fun visit(node: ReportNode.WeightedStatPropertyTable) {
+        val myCaption = node.caption ?: node.stat.name
+        myOutput.appendLine(myCaption)
+        val myRows = listOf(
+            listOf("Count",                   ctx.fmt(node.stat.count)),
+            listOf("Weighted Average",         ctx.fmt(node.stat.weightedAverage)),
+            listOf("Unweighted Average",       ctx.fmt(node.stat.unWeightedAverage)),
+            listOf("Weighted Sum",             ctx.fmt(node.stat.weightedSum)),
+            listOf("Sum of Weights",           ctx.fmt(node.stat.sumOfWeights)),
+            listOf("Weighted Sum of Squares",  ctx.fmt(node.stat.weightedSumOfSquares)),
+            listOf("Min",                      ctx.fmt(node.stat.min)),
+            listOf("Max",                      ctx.fmt(node.stat.max)),
+            listOf("Missing",                  ctx.fmt(node.stat.numberMissing))
+        )
+        myOutput.append(formatTextTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
     }
 

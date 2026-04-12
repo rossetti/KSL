@@ -38,9 +38,14 @@ import ksl.utilities.statistic.StatisticIfc
  * Appends a self-contained section for a single [StatisticIfc] instance.
  *
  * The section title is [stat.name][StatisticIfc.name]. Inside the section a
- * [ksl.utilities.io.report.ast.ReportNode.StatTable] is produced for that one statistic.
- * When [detail] is `true` the table is extended with skewness, kurtosis, lag-1
- * correlation, Von Neumann test statistic, Von Neumann p-value, and missing count.
+ * [ksl.utilities.io.report.ast.ReportNode.StatPropertyTable] is produced — a vertical
+ * `Property | Value` table showing all statistical properties of this one variable.
+ *
+ * - `detail = false` — compact view: Count, Average, Std Dev, Std Error, Half-width,
+ *   Confidence Level, CI Lower, CI Upper, Min, Max (10 rows)
+ * - `detail = true`  — full view: all 18 rows from [StatisticIfc.statisticsAsMap],
+ *   adding Sum, Variance, Dev SS, Kurtosis, Skewness, Lag-1 Cov, Lag-1 Corr,
+ *   Von Neumann Test Statistic, and Missing
  *
  * Usage:
  * ```kotlin
@@ -50,9 +55,8 @@ import ksl.utilities.statistic.StatisticIfc
  * ```
  *
  * @param stat            the statistic to report
- * @param confidenceLevel confidence level for the half-width and CI columns; must be in (0, 1)
- * @param detail          false (default) = compact half-width summary;
- *                        true = compact summary + full diagnostic table
+ * @param confidenceLevel confidence level for the half-width and CI rows; must be in (0, 1)
+ * @param detail          false (default) = compact 10-row view; true = full 18-row view
  */
 fun ReportBuilder.statistic(
     stat: StatisticIfc,
@@ -60,7 +64,7 @@ fun ReportBuilder.statistic(
     detail: Boolean = false
 ) {
     section(stat.name) {
-        statTable(listOf(stat), confidenceLevel = confidenceLevel, detail = detail)
+        statPropertyTable(stat, confidenceLevel = confidenceLevel, detail = detail)
     }
 }
 

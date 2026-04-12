@@ -34,8 +34,11 @@ import ksl.utilities.statistic.WeightedStatistic
  */
 
 /**
- * Appends a [ksl.utilities.io.report.ast.ReportNode.WeightedStatTable] for a single
- * [WeightedStatistic].
+ * Appends a [ksl.utilities.io.report.ast.ReportNode.WeightedStatPropertyTable] — a
+ * vertical `Property | Value` table for a **single** [WeightedStatistic].
+ *
+ * Properties displayed: Count, Weighted Average, Unweighted Average, Weighted Sum,
+ * Sum of Weights, Weighted Sum of Squares, Min, Max, Missing.
  *
  * Usage:
  * ```kotlin
@@ -45,13 +48,15 @@ import ksl.utilities.statistic.WeightedStatistic
  * ```
  *
  * @param ws      the weighted statistic to report
- * @param caption optional caption displayed above the table; defaults to [ws.name][WeightedStatistic.name]
+ * @param caption optional table caption; defaults to [ws.name][WeightedStatistic.name]
  */
 fun ReportBuilder.weightedStatistic(
     ws: WeightedStatistic,
     caption: String? = null
 ) {
-    weightedStatTable(listOf(ws), caption = caption ?: ws.name)
+    section(ws.name) {
+        weightedStatPropertyTable(ws, caption = caption)
+    }
 }
 
 /**

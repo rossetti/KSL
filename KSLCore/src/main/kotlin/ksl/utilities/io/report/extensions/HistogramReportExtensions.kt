@@ -97,8 +97,8 @@ fun ReportBuilder.histogram(
         dataTable(myHeaders, myRows, caption = "Bin Frequencies")
 
         // ── Statistics on binned observations ─────────────────────────────────
-        statTable(
-            stats = listOf(h),
+        statPropertyTable(
+            stat = h,
             caption = "Statistics on Binned Data",
             confidenceLevel = confidenceLevel
         )
@@ -177,8 +177,8 @@ fun ReportBuilder.histogram(
             )
         }
         dataTable(myHeaders, myRows, caption = "Bin Frequencies")
-        statTable(
-            stats = listOf(h),
+        statPropertyTable(
+            stat = h,
             caption = "Statistics on Binned Data",
             confidenceLevel = confidenceLevel
         )
