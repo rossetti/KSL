@@ -40,11 +40,11 @@ class HistogramPlot @JvmOverloads constructor(
     init {
         title = "Histogram Plot"
         upperLimits = histogram.upperLimits
-        if (upperLimits.last().isInfinite()) {
+        if (upperLimits.last().isInfinite() || upperLimits.last() == Double.MAX_VALUE) {
             upperLimits[upperLimits.lastIndex] = histogram.max + 1.0
         }
         lowerLimits = histogram.lowerLimits
-        if (lowerLimits.first().isInfinite()) {
+        if (lowerLimits.first().isInfinite() || lowerLimits.first() == -Double.MAX_VALUE) {
             lowerLimits[0] = histogram.min - 1
         }
         data = if (proportions) {

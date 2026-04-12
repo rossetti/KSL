@@ -32,7 +32,7 @@ import java.nio.file.Path
  * @param plotDir          directory for saved plot files; defaults to [KSL.plotDir]
  * @param confidenceLevel  default confidence level for [ksl.utilities.io.report.ast.ReportNode.StatTable]
  *                         nodes that do not specify their own; must be in (0, 1)
- * @param numericPrecision number of decimal places for formatted numeric values in tables;
+ * @param numericPrecision number of significant figures for formatted numeric values in tables;
  *                         must be in [0, 15]
  * @param maxPlotsPerSection maximum number of plots rendered per section before a
  *                           truncation notice is emitted; prevents very large HTML files
@@ -58,12 +58,14 @@ data class RenderContext(
     }
 
     /**
-     * Formats a [Double] value to a string using [numericPrecision] decimal places.
+     * Formats a [Double] value to a string using [numericPrecision] significant figures
+     * (`%g` format). Adapts between fixed and scientific notation based on magnitude,
+     * ensuring values of any scale remain readable without truncating significance.
      * Returns `"—"` for [Double.isNaN] or [Double.isInfinite] values.
      */
     fun fmt(value: Double): String = when {
         value.isNaN() || value.isInfinite() -> "—"
-        else -> "%.${numericPrecision}f".format(value)
+        else -> "%.${numericPrecision}g".format(value)
     }
 
     /**
