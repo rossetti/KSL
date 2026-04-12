@@ -287,6 +287,16 @@ class MarkdownReportRenderer(private val ctx: RenderContext = RenderContext()) :
     fun result(): String = myOutput.toString()
 
     /**
+     * Returns the accumulated report as a Markdown [String].
+     *
+     * Useful for console output, logging, or test assertions without creating a file:
+     * ```kotlin
+     * val md = MarkdownReportRenderer(ctx).also { doc.accept(it) }.output()
+     * ```
+     */
+    fun output(): String = myOutput.toString()
+
+    /**
      * Writes the accumulated report to the given [PrintWriter].
      */
     fun writeTo(out: PrintWriter) {

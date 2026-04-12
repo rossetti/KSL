@@ -234,6 +234,16 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
     fun result(): String = myOutput.toString()
 
     /**
+     * Returns the accumulated report as a plain-text [String].
+     *
+     * Useful for console output, logging, or test assertions without creating a file:
+     * ```kotlin
+     * val text = TextReportRenderer(ctx).also { doc.accept(it) }.output()
+     * ```
+     */
+    fun output(): String = myOutput.toString()
+
+    /**
      * Writes the accumulated report to the given [PrintWriter].
      */
     fun writeTo(out: PrintWriter) {

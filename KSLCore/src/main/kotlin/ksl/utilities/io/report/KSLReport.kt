@@ -26,6 +26,7 @@ import ksl.utilities.io.report.renderer.MarkdownReportRenderer
 import ksl.utilities.io.report.renderer.RenderContext
 import ksl.utilities.io.report.renderer.TextReportRenderer
 import java.io.File
+import java.io.PrintWriter
 import java.nio.file.Path
 
 /**
@@ -121,6 +122,89 @@ fun ReportNode.Document.showInBrowser(ctx: RenderContext = RenderContext()): Fil
     val myRenderer = HtmlReportRenderer(ctx)
     accept(myRenderer)
     return myRenderer.showInBrowser()
+}
+
+// ── Console / string rendering ────────────────────────────────────────────────
+
+/**
+ * Renders this document to a plain-text [String] without creating any file.
+ *
+ * Useful for console output, logging, or test assertions:
+ * ```kotlin
+ * println(model.toReport().toText())
+ * logger.info(mca.toReport().toText())
+ * assertThat(stat.toReport().toText()).contains("Average")
+ * ```
+ *
+ * @param ctx shared render configuration
+ * @return the complete plain-text representation of this document
+ */
+fun ReportNode.Document.toText(ctx: RenderContext = RenderContext()): String {
+    val myRenderer = TextReportRenderer(ctx)
+    accept(myRenderer)
+    return myRenderer.output()
+}
+
+/**
+ * Renders this document to a Markdown [String] without creating any file.
+ *
+ * Useful for embedding in larger strings, piping to a markdown-aware terminal,
+ * or logging:
+ * ```kotlin
+ * println(model.toReport().toMarkdown())
+ * markdownLogger.log(mca.toReport().toMarkdown())
+ * ```
+ *
+ * @param ctx shared render configuration
+ * @return the complete Markdown representation of this document
+ */
+fun ReportNode.Document.toMarkdown(ctx: RenderContext = RenderContext()): String {
+    val myRenderer = MarkdownReportRenderer(ctx)
+    accept(myRenderer)
+    return myRenderer.output()
+}
+
+/**
+ * Renders this document as plain text and writes it to [out].
+ *
+ * Defaults to [System.out] with auto-flush, making it a direct console-output call:
+ * ```kotlin
+ * model.toReport().printText()                         // → System.out
+ * model.toReport().printText(PrintWriter(System.err))  // → System.err
+ * model.toReport().printText(myWriter)                 // → any PrintWriter
+ * ```
+ *
+ * @param out target writer; defaults to a [PrintWriter] wrapping [System.out]
+ * @param ctx shared render configuration
+ */
+fun ReportNode.Document.printText(
+    out: PrintWriter = PrintWriter(System.out, true),
+    ctx: RenderContext = RenderContext()
+) {
+    val myRenderer = TextReportRenderer(ctx)
+    accept(myRenderer)
+    myRenderer.writeTo(out)
+}
+
+/**
+ * Renders this document as Markdown and writes it to [out].
+ *
+ * Defaults to [System.out] with auto-flush:
+ * ```kotlin
+ * model.toReport().printMarkdown()          // → System.out
+ * model.toReport().printMarkdown(myWriter)  // → any PrintWriter
+ * ```
+ *
+ * @param out target writer; defaults to a [PrintWriter] wrapping [System.out]
+ * @param ctx shared render configuration
+ */
+fun ReportNode.Document.printMarkdown(
+    out: PrintWriter = PrintWriter(System.out, true),
+    ctx: RenderContext = RenderContext()
+) {
+    val myRenderer = MarkdownReportRenderer(ctx)
+    accept(myRenderer)
+    myRenderer.writeTo(out)
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
