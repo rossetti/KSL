@@ -12,6 +12,7 @@ import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
 import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
+import org.jetbrains.letsPlot.scale.scaleYDiscreteReversed
 
 class ConfidenceIntervalsPlot @JvmOverloads constructor(
     private val intervals: Map<String, Interval>,
@@ -50,7 +51,9 @@ class ConfidenceIntervalsPlot @JvmOverloads constructor(
                 geomPoint {
                     y = "CI"
                     x = "average"
-                } + geomVLine(xintercept = referencePoint, color = "red", linetype = "dashed") +
+                } +
+                geomVLine(xintercept = referencePoint, color = "red", linetype = "dashed") +
+                scaleYDiscreteReversed() +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
         return p
