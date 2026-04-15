@@ -114,15 +114,16 @@ fun ReportBuilder.moda(
             dataTable(myScoreHeaders, myScoreRows,
                 caption = "Raw Scores by Alternative and Metric")
 
-            // Transformed values (0–1) + overall weighted value
+            // Transformed values (0–1) + overall weighted value — sorted best-first
             val myValueHeaders = listOf("Alternative") + myMetricNames + listOf("Overall Value")
-            val myValueRows = myAlts.mapIndexed { idx, alt ->
+            val myValueRows = model.sortedMultiObjectiveValuesByAlternative().map { (alt, overallValue) ->
+                val idx = myAlts.indexOf(alt)
                 listOf(alt) +
                 myMetrics.map { m -> fmtD(myValuesByMetric[m]?.getOrNull(idx) ?: Double.NaN) } +
-                listOf(fmtD(model.multiObjectiveValue(alt)))
+                listOf(fmtD(overallValue))
             }
             dataTable(myValueHeaders, myValueRows,
-                caption = "Transformed Values (0–1) and Overall Weighted Value")
+                caption = "Transformed Values (0–1) and Overall Weighted Value (sorted by overall value)")
         }
 
         // ── 3. Rankings ───────────────────────────────────────────────────────
