@@ -57,11 +57,17 @@ import ksl.utilities.statistic.IntegerFrequency
  * @param freq            the integer frequency tabulation to report
  * @param caption         optional section title; defaults to [freq.name][IntegerFrequency.name]
  * @param confidenceLevel confidence level for the StatTable half-width and CI; must be in (0, 1)
+ * @param showStatistics  when `true` (default) a [ksl.utilities.io.report.ast.ReportNode.StatPropertyTable]
+ *                        is included summarising the statistics on the observed integer values.
+ *                        Set to `false` when the statistics on the raw integer values have no
+ *                        meaningful interpretation — e.g. rank-frequency distributions where
+ *                        the frequency table and plot already tell the complete story.
  */
 fun ReportBuilder.integerFrequency(
     freq: IntegerFrequency,
     caption: String? = null,
-    confidenceLevel: Double = 0.95
+    confidenceLevel: Double = 0.95,
+    showStatistics: Boolean = true
 ) {
     val myTitle = caption ?: freq.name
     section(myTitle) {
@@ -90,11 +96,13 @@ fun ReportBuilder.integerFrequency(
         dataTable(myHeaders, myRows, caption = "Frequency Table")
 
         // ── Statistics on observed integer values (explicit StatisticIfc bridge) ──
-        statPropertyTable(
-            stat = freq.statistic(),
-            caption = "Statistics on Observed Values",
-            confidenceLevel = confidenceLevel
-        )
+        if (showStatistics) {
+            statPropertyTable(
+                stat = freq.statistic(),
+                caption = "Statistics on Observed Values",
+                confidenceLevel = confidenceLevel
+            )
+        }
 
         // ── Frequency plot ────────────────────────────────────────────────────
         plot(freq.frequencyPlot(), caption = myTitle)

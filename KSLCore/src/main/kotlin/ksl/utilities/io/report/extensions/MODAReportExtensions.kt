@@ -286,7 +286,7 @@ fun ReportBuilder.modaAnalysis(
                     "Rank 1 means the alternative had the highest overall MODA value in that replication."
                 )
                 for ((altName, myFreq) in myRankFreqs) {
-                    integerFrequency(myFreq, caption = altName)
+                    integerFrequency(myFreq, caption = altName, showStatistics = false)
                 }
             }
         }
