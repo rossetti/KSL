@@ -18,84 +18,73 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
+import ksl.utilities.moda.AdditiveMODAModel
+import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.MODAAnalyzer
 
 /**
- * DSL extension functions on [ReportBuilder] for rendering
+ * DSL extension functions on [ReportBuilder] for rendering [AdditiveMODAModel] and
  * [MODAAnalyzer] results.
  *
- * [MODAAnalyzer.analyze] must be called before this extension is invoked;
- * results are undefined otherwise.
+ * **[AdditiveMODAModel]** — single deterministic analysis (e.g., distribution fitting,
+ * hand-crafted score tables). Use [moda] or [AdditiveMODAModel.toReport].
  *
- * The extension produces a self-contained section covering:
- * 1. Metric definitions (name, direction, weight, domain, units, description)
- * 2. Average performance matrix (alternatives × responses)
- * 3. MODA scores, values, and overall rankings from the average MODA model
- * 4. MCB analysis for overall MODA value (when available)
- * 5. MCB analysis per response on raw performance values (when available)
- * 6. MCB analysis per response on MODA values (when available)
+ * **[MODAAnalyzer]** — multi-replication simulation analysis. Wraps the average MODA
+ * model results with statistical comparison (MCB) and rank frequency distributions.
+ * Use [modaAnalysis] or [MODAAnalyzer.toReport].
  */
 
+// ── AdditiveMODAModel DSL extension ──────────────────────────────────────────
+
 /**
- * Appends a self-contained section reporting a [MODAAnalyzer] result.
+ * Appends a self-contained section reporting the results of an [AdditiveMODAModel].
  *
- * **`MODAAnalyzer.analyze()` must be called before invoking this function.**
- *
- * **Produces (inside a section titled [caption] or `"MODA Analysis"`):**
+ * **Produces (inside a section titled [caption] or [model.name][AdditiveMODAModel.name]):**
  *
  * 1. **Metric Definitions** — `DataTable` with columns
  *    `Metric | Direction | Weight | Domain Lower | Domain Upper | Units | Description`
- * 2. **Average Performance** — `DataTable` with one row per alternative and one
- *    column per response showing the average observed performance value
- * 3. **MODA Scores and Values (Average Model)** — three `DataTable`s:
- *    - `MODA Scores by Alternative and Metric` — raw metric scores before value-function transformation
- *    - `MODA Values and Ranks by Alternative and Metric` — transformed values and per-metric rank
- *    - `Overall MODA Values and Rankings` — additive composite value, overall rank, and top-alternative flag
- * 4. **MCB for Overall MODA Value** — full [multipleComparison] section on the composite
- *    MODA value across replications (omitted when [MODAAnalyzer.mcbForOverallValue] returns `null`)
- * 5. **MCB for Response Performance** — one [multipleComparison] sub-section per response
- *    on raw performance values (omitted when empty)
- * 6. **MCB for Response MODA Values** — one [multipleComparison] sub-section per response
- *    on MODA-transformed values (omitted when empty)
+ * 2. **Scores and Values** — two `DataTable`s:
+ *    - *Raw Scores* — metric values before value-function transformation
+ *    - *Transformed Values (0–1) and Overall Weighted Value* — value-function outputs
+ *      plus the additive composite overall value per alternative
+ * 3. **Rankings** — `DataTable` with per-metric rank, 1st-rank count, average rank,
+ *    overall rank, and top-alternative flag; rows sorted by overall value (best first)
  *
  * Usage:
  * ```kotlin
- * moda.analyze()
- * val doc = report("System Comparison Study") {
- *     modaAnalysis(moda, confidenceLevel = 0.95)
+ * val doc = report("Distribution Fitting Evaluation") {
+ *     moda(pdfModeler.evaluateScoringResults(scoringResults))
  * }
  * doc.showInBrowser()
  * ```
  *
- * @param moda            the analyzer whose results will be reported; [MODAAnalyzer.analyze]
- *                        must have been called first
- * @param caption         optional section title; defaults to `"MODA Analysis"`
- * @param confidenceLevel probability of correct selection for all MCB and screening tables;
- *                        must be in (0, 1)
+ * @param model   the additive MODA model whose results will be rendered
+ * @param caption optional section title; defaults to [model.name][AdditiveMODAModel.name]
+ *                or `"MODA Results"` when the name is blank
  */
-fun ReportBuilder.modaAnalysis(
-    moda: MODAAnalyzer,
-    caption: String? = null,
-    confidenceLevel: Double = 0.95
+fun ReportBuilder.moda(
+    model: AdditiveMODAModel,
+    caption: String? = null
 ) {
-    val myTitle = caption ?: "MODA Analysis"
-    section(myTitle) {
-        val myAvgModel = moda.averageMODA()
+    val myTitle = caption ?: model.name.ifBlank { "MODA Results" }
+    val myMetrics = model.metrics
+    val myAlts = model.alternatives
 
-        // ── Overview paragraph ────────────────────────────────────────────────
+    section(myTitle) {
         paragraph(
-            "Alternatives: ${myAvgModel.alternatives.size}  |  " +
-            "Responses: ${moda.responseNames.size}"
+            "Alternatives: ${myAlts.size}  |  Metrics: ${myMetrics.size}"
         )
 
         // ── 1. Metric definitions ─────────────────────────────────────────────
         section("Metric Definitions") {
-            val myMetricHeaders = listOf(
+            val myHeaders = listOf(
                 "Metric", "Direction", "Weight",
                 "Domain Lower", "Domain Upper", "Units", "Description"
             )
-            val myMetricRows = myAvgModel.metricData().map { md ->
+            val myRows = model.metricData().map { md ->
                 listOf(
                     md.metricName,
                     md.direction,
@@ -106,94 +95,274 @@ fun ReportBuilder.modaAnalysis(
                     md.description ?: "—"
                 )
             }
-            dataTable(myMetricHeaders, myMetricRows, caption = "Metric Definitions")
+            dataTable(myHeaders, myRows, caption = "Metric Definitions and Weights")
         }
 
-        // ── 2. Average performance matrix ─────────────────────────────────────
-        section("Average Performance") {
-            val myPerfMap = moda.averagePerformance()   // Map<alternative, Map<response, Double>>
-            val myResponses = moda.responseNames.toList().sorted()
-            val myAlternatives = myPerfMap.keys.toList().sorted()
-            val myPerfHeaders = listOf("Alternative") + myResponses
-            val myPerfRows = myAlternatives.map { alt ->
-                val myAltPerf = myPerfMap[alt] ?: emptyMap()
-                listOf(alt) + myResponses.map { resp -> fmtD(myAltPerf[resp] ?: Double.NaN) }
+        // ── 2. Raw scores and transformed values ──────────────────────────────
+        section("Scores and Values") {
+            val myScoresByMetric = model.scoresByMetric()   // Map<MetricIfc, List<Double>>
+            val myValuesByMetric = model.valuesByMetric()   // Map<MetricIfc, List<Double>>
+            val myMetricNames = myMetrics.map { it.name }
+
+            // Raw scores — one column per metric
+            val myScoreHeaders = listOf("Alternative") + myMetricNames
+            val myScoreRows = myAlts.mapIndexed { idx, alt ->
+                listOf(alt) + myMetrics.map { m ->
+                    fmtD(myScoresByMetric[m]?.getOrNull(idx) ?: Double.NaN)
+                }
             }
-            dataTable(
-                myPerfHeaders, myPerfRows,
-                caption = "Average Performance by Alternative and Response"
+            dataTable(myScoreHeaders, myScoreRows,
+                caption = "Raw Scores by Alternative and Metric")
+
+            // Transformed values (0–1) + overall weighted value
+            val myValueHeaders = listOf("Alternative") + myMetricNames + listOf("Overall Value")
+            val myValueRows = myAlts.mapIndexed { idx, alt ->
+                listOf(alt) +
+                myMetrics.map { m -> fmtD(myValuesByMetric[m]?.getOrNull(idx) ?: Double.NaN) } +
+                listOf(fmtD(model.multiObjectiveValue(alt)))
+            }
+            dataTable(myValueHeaders, myValueRows,
+                caption = "Transformed Values (0–1) and Overall Weighted Value")
+        }
+
+        // ── 3. Rankings ───────────────────────────────────────────────────────
+        section("Rankings") {
+            val myRanksByMetric = model.ranksByMetric()     // Map<MetricIfc, List<Double>>
+            val myOverallRanks  = model.alternativeRankedByMultiObjectiveValue()
+            val myTopAlts       = model.topAlternativesByMultiObjectiveValue()
+            val myFirstRankCounts = model.alternativeFirstRankCounts().toMap()
+            val myAvgRankings   = model.alternativeAverageRanking().toMap()
+
+            val myRankHeaders = listOf("Alternative") +
+                myMetrics.map { it.name } +
+                listOf("1st Rank Count", "Avg Rank", "Overall Rank", "Top")
+
+            // Rows sorted best-first by overall value
+            val myRankRows = model.sortedMultiObjectiveValuesByAlternative().map { (alt, _) ->
+                val idx = myAlts.indexOf(alt)
+                listOf(alt) +
+                myMetrics.map { m ->
+                    (myRanksByMetric[m]?.getOrNull(idx)?.toInt() ?: 0).toString()
+                } +
+                listOf(
+                    (myFirstRankCounts[alt] ?: 0).toString(),
+                    fmtD(myAvgRankings[alt] ?: Double.NaN),
+                    (myOverallRanks[alt] ?: 0).toString(),
+                    myTopAlts.contains(alt).toString()
+                )
+            }
+            dataTable(myRankHeaders, myRankRows, caption = "Alternative Rankings (sorted by overall value)")
+        }
+    }
+}
+
+// ── MODAAnalyzer DSL extension ────────────────────────────────────────────────
+
+/**
+ * Appends a self-contained section reporting a [MODAAnalyzer] result.
+ *
+ * **[MODAAnalyzer.analyze] must be called before invoking this function.**
+ *
+ * **Produces (inside a section titled [caption] or `"MODA Analysis"`):**
+ *
+ * 1. **Average Performance** — `DataTable` of mean observed values per alternative and response
+ * 2. **Average MODA Model** — full [moda] section for the model built from averaged data,
+ *    including metric definitions, scores/values, and rankings
+ * 3. **MCB for Overall MODA Value** *(when available)* — [multipleComparison] with
+ *    `direction = MAX` (a higher MODA composite value is always better)
+ * 4. **MCB for Response Performance** *(when available)* — one [multipleComparison] sub-section
+ *    per response; direction follows the metric's [MetricIfc.Direction]
+ * 5. **MCB for Response MODA Values** *(when available)* — one [multipleComparison] sub-section
+ *    per response with `direction = MAX` (value-function outputs are always bigger-is-better)
+ * 6. **Overall Rank Frequencies** *(when replications exist)* — one [integerFrequency] section
+ *    per alternative showing how often each overall rank was achieved across replications
+ *
+ * Usage:
+ * ```kotlin
+ * moda.analyze()
+ * val doc = report("System Comparison Study") {
+ *     modaAnalysis(moda, confidenceLevel = 0.95)
+ * }
+ * doc.showInBrowser()
+ * ```
+ *
+ * @param moda            the analyzer whose results will be reported;
+ *                        [MODAAnalyzer.analyze] must have been called first
+ * @param caption         optional section title; defaults to `"MODA Analysis"`
+ * @param confidenceLevel confidence level for all MCB and screening tables; must be in (0, 1)
+ */
+fun ReportBuilder.modaAnalysis(
+    moda: MODAAnalyzer,
+    caption: String? = null,
+    confidenceLevel: Double = 0.95
+) {
+    val myTitle = caption ?: "MODA Analysis"
+    section(myTitle) {
+        val myAvgModel = moda.averageMODA()
+
+        // Build metric direction lookup from the average model's metrics.
+        // (responseDefinitions is private on MODAAnalyzer; metrics carry the same information.)
+        val myDirByName: Map<String, MetricIfc.Direction> =
+            myAvgModel.metrics.associate { it.name to it.direction }
+
+        paragraph(
+            "Alternatives: ${myAvgModel.alternatives.size}  |  " +
+            "Responses: ${moda.responseNames.size}  |  " +
+            "Replications: ${moda.modaByReplication.size}"
+        )
+
+        // ── 1. Average performance across replications ────────────────────────
+        section("Average Performance") {
+            val myPerfMap  = moda.averagePerformance()            // alt → response → mean
+            val myResponses = moda.responseNames.toList().sorted()
+            val myAlts      = myPerfMap.keys.toList().sorted()
+            val myHeaders   = listOf("Alternative") + myResponses
+            val myRows      = myAlts.map { alt ->
+                val myAltPerf = myPerfMap[alt] ?: emptyMap()
+                listOf(alt) + myResponses.map { r -> fmtD(myAltPerf[r] ?: Double.NaN) }
+            }
+            dataTable(myHeaders, myRows,
+                caption = "Average Performance by Alternative and Response")
+        }
+
+        // ── 2. Average MODA model results (reuses moda() extension) ──────────
+        this.moda(myAvgModel, caption = "Average MODA Model")
+
+        // ── 3. MCB for overall MODA value — always MAX ────────────────────────
+        // MODA composite values are bigger-is-better by construction.
+        val myMcbOverall = moda.mcbForOverallValue()
+        if (myMcbOverall != null) {
+            multipleComparison(
+                myMcbOverall,
+                direction            = MCBDirection.MAX,
+                altConfidenceLevel   = confidenceLevel,
+                diffConfidenceLevel  = confidenceLevel,
+                probCorrectSelection = confidenceLevel
             )
         }
 
-        // ── 3. MODA scores, values, and rankings (average model) ──────────────
-        section("MODA Scores and Values (Average Model)") {
-            // 3a. Raw scores before value-function transformation
-            val myScoreData = myAvgModel.alternativeScoreData()
-            if (myScoreData.isNotEmpty()) {
-                val myScoreHeaders = listOf("Alternative", "Metric", "Score")
-                val myScoreRows = myScoreData.map { sd ->
-                    listOf(sd.alternative, sd.scoreName, fmtD(sd.scoreValue))
-                }
-                dataTable(myScoreHeaders, myScoreRows, caption = "MODA Scores by Alternative and Metric")
-            }
-
-            // 3b. Transformed values and per-metric ranks
-            val myValueData = myAvgModel.alternativeValueData()
-            if (myValueData.isNotEmpty()) {
-                val myValueHeaders = listOf("Alternative", "Metric", "Value", "Rank")
-                val myValueRows = myValueData.map { vd ->
-                    listOf(
-                        vd.alternative,
-                        vd.metricName,
-                        fmtD(vd.metricValue),
-                        vd.rank.toInt().toString()
-                    )
-                }
-                dataTable(myValueHeaders, myValueRows, caption = "MODA Values and Ranks by Alternative and Metric")
-            }
-
-            // 3c. Overall composite value, overall rank, top-alternative flag
-            val myOverallRanks = myAvgModel.alternativeRankedByMultiObjectiveValue()
-            val myTopAlternatives = myAvgModel.topAlternativesByMultiObjectiveValue()
-            val myOverallHeaders = listOf("Alternative", "Overall Value", "Rank", "Top Alternative")
-            val myOverallRows = myAvgModel.sortedMultiObjectiveValuesByAlternative().map { (alt, value) ->
-                listOf(
-                    alt,
-                    fmtD(value),
-                    (myOverallRanks[alt] ?: 0).toString(),
-                    myTopAlternatives.contains(alt).toString()
-                )
-            }
-            dataTable(myOverallHeaders, myOverallRows, caption = "Overall MODA Values and Rankings")
-        }
-
-        // ── 4. MCB for overall MODA value (reuses McaReportExtensions) ────────
-        val myMcbOverall = moda.mcbForOverallValue()
-        if (myMcbOverall != null) {
-            multipleComparison(myMcbOverall, altConfidenceLevel = confidenceLevel)
-        }
-
-        // ── 5. MCB per response — raw performance ─────────────────────────────
+        // ── 4. MCB per response — raw performance (direction follows metric) ──
         val myMcbPerf = moda.mcbForResponsePerformance()
         if (myMcbPerf.isNotEmpty()) {
             section("MCB for Response Performance") {
-                for ((_, myMca) in myMcbPerf) {
-                    multipleComparison(myMca, altConfidenceLevel = confidenceLevel)
+                for ((responseName, myMca) in myMcbPerf) {
+                    val myDir = when (myDirByName[responseName]) {
+                        MetricIfc.Direction.BiggerIsBetter -> MCBDirection.MAX
+                        else                               -> MCBDirection.MIN
+                    }
+                    multipleComparison(
+                        myMca,
+                        direction            = myDir,
+                        altConfidenceLevel   = confidenceLevel,
+                        diffConfidenceLevel  = confidenceLevel,
+                        probCorrectSelection = confidenceLevel
+                    )
                 }
             }
         }
 
-        // ── 6. MCB per response — MODA values ────────────────────────────────
+        // ── 5. MCB per response — MODA values (always MAX) ───────────────────
+        // Value-function outputs are in [0, 1] where 1 is always best,
+        // regardless of the original metric direction.
         val myMcbModa = moda.mcbForResponseMODAValues()
         if (myMcbModa.isNotEmpty()) {
             section("MCB for Response MODA Values") {
                 for ((_, myMca) in myMcbModa) {
-                    multipleComparison(myMca, altConfidenceLevel = confidenceLevel)
+                    multipleComparison(
+                        myMca,
+                        direction            = MCBDirection.MAX,
+                        altConfidenceLevel   = confidenceLevel,
+                        diffConfidenceLevel  = confidenceLevel,
+                        probCorrectSelection = confidenceLevel
+                    )
+                }
+            }
+        }
+
+        // ── 6. Overall rank frequencies across replications ───────────────────
+        val myRankFreqs = moda.overallRankFrequenciesByAlternative()
+        if (myRankFreqs.isNotEmpty()) {
+            section("Overall Rank Frequencies") {
+                paragraph(
+                    "Distribution of overall MODA rankings across " +
+                    "${moda.modaByReplication.size} replications. " +
+                    "Rank 1 means the alternative had the highest overall MODA value in that replication."
+                )
+                for ((altName, myFreq) in myRankFreqs) {
+                    integerFrequency(myFreq, caption = altName)
                 }
             }
         }
     }
 }
+
+// ── toReport() — zero-code entry points ──────────────────────────────────────
+
+/**
+ * Builds a [ReportNode.Document] whose default content is the full MODA results
+ * section for this model (metric definitions, scores/values, rankings).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * val model = pdfModeler.evaluateScoringResults(scoringResults)
+ * model.toReport().showInBrowser()
+ * model.toReport().writeMarkdown()
+ * model.toReport().printText()
+ * ```
+ *
+ * Supply a [block] to customise or extend the content:
+ * ```kotlin
+ * val model = pdfModeler.evaluateScoringResults(scoringResults)
+ * model.toReport("Distribution Fitting Study") {
+ *     moda(model)
+ *     paragraph("Recommended: ${model.sortedMultiObjectiveValuesByAlternative().first().first}")
+ * }
+ * ```
+ *
+ * @param title  document title; defaults to [AdditiveMODAModel.name] or `"MODA Results"`
+ * @param block  optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun AdditiveMODAModel.toReport(
+    title: String = name.ifBlank { "MODA Results" },
+    block: ReportBuilder.() -> Unit = { moda(this@toReport) }
+): ReportNode.Document = report(title, block)
+
+/**
+ * Builds a [ReportNode.Document] whose default content is the full MODA analysis
+ * (average performance, average model results, MCB comparisons, rank frequencies).
+ *
+ * **[MODAAnalyzer.analyze] must be called before invoking this function.**
+ *
+ * Zero-code path:
+ * ```kotlin
+ * modaAnalyzer.analyze()
+ * modaAnalyzer.toReport().showInBrowser()
+ * modaAnalyzer.toReport().writeMarkdown()
+ * modaAnalyzer.toReport().printText()
+ * ```
+ *
+ * Supply a [block] to customise or extend the content:
+ * ```kotlin
+ * modaAnalyzer.analyze()
+ * modaAnalyzer.toReport("System Comparison") {
+ *     modaAnalysis(modaAnalyzer, confidenceLevel = 0.90)
+ *     paragraph("Conclusion: prefer ${modaAnalyzer.averageMODA().sortedMultiObjectiveValuesByAlternative().first().first}.")
+ * }
+ * ```
+ *
+ * @param title           document title; defaults to `"MODA Analysis"`
+ * @param confidenceLevel confidence level for all MCB and screening tables; must be in (0, 1)
+ * @param block           optional DSL block; replaces the default when provided
+ * @return the assembled [ReportNode.Document]
+ */
+fun MODAAnalyzer.toReport(
+    title: String = "MODA Analysis",
+    confidenceLevel: Double = 0.95,
+    block: ReportBuilder.() -> Unit = {
+        modaAnalysis(this@toReport, confidenceLevel = confidenceLevel)
+    }
+): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────
 

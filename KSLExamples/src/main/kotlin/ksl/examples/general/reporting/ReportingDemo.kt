@@ -189,7 +189,7 @@ fun demoMcaReport() {
             "across 10 replications. Goal: identify the configuration " +
             "with highest throughput."
         )
-        multipleComparison(myMca, confidenceLevel = 0.95)
+        multipleComparison(myMca, altConfidenceLevel = 0.95)
     }
     myDoc.showInBrowser()
     myDoc.writeMarkdown()
@@ -243,7 +243,7 @@ fun demoCompositeReport() {
         // ── Multiple comparison ────────────────────────────────────────────
         section("Configuration Comparison") {
             paragraph("Choosing among 3 alternative server configurations.")
-            multipleComparison(myMca, confidenceLevel = 0.95)
+            multipleComparison(myMca, altConfidenceLevel = 0.95)
         }
     }
 
