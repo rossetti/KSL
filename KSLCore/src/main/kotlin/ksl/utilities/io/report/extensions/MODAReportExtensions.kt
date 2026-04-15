@@ -128,18 +128,16 @@ fun ReportBuilder.moda(
 
         // ── 3. Rankings ───────────────────────────────────────────────────────
         section("Rankings") {
-            val myRanksByMetric = model.ranksByMetric()     // Map<MetricIfc, List<Double>>
-            val myOverallRanks  = model.alternativeRankedByMultiObjectiveValue()
-            val myTopAlts       = model.topAlternativesByMultiObjectiveValue()
+            val myRanksByMetric   = model.ranksByMetric()   // Map<MetricIfc, List<Double>>
+            val mySortedAvgRanks  = model.alternativeAverageRanking(sortByAvgRanking = true)
             val myFirstRankCounts = model.alternativeFirstRankCounts().toMap()
-            val myAvgRankings   = model.alternativeAverageRanking().toMap()
 
             val myRankHeaders = listOf("Alternative") +
                 myMetrics.map { it.name } +
-                listOf("1st Rank Count", "Avg Rank", "Overall Rank", "Top")
+                listOf("1st Rank Count", "Avg Rank")
 
-            // Rows sorted best-first by overall value
-            val myRankRows = model.sortedMultiObjectiveValuesByAlternative().map { (alt, _) ->
+            // Rows sorted ascending by average rank (lowest avg rank = most consistently top-ranked)
+            val myRankRows = mySortedAvgRanks.map { (alt, avgRank) ->
                 val idx = myAlts.indexOf(alt)
                 listOf(alt) +
                 myMetrics.map { m ->
@@ -147,12 +145,10 @@ fun ReportBuilder.moda(
                 } +
                 listOf(
                     (myFirstRankCounts[alt] ?: 0).toString(),
-                    fmtD(myAvgRankings[alt] ?: Double.NaN),
-                    (myOverallRanks[alt] ?: 0).toString(),
-                    myTopAlts.contains(alt).toString()
+                    fmtD(avgRank)
                 )
             }
-            dataTable(myRankHeaders, myRankRows, caption = "Alternative Rankings (sorted by overall value)")
+            dataTable(myRankHeaders, myRankRows, caption = "Alternative Rankings (sorted by average rank)")
         }
     }
 }
