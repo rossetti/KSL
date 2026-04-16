@@ -61,11 +61,16 @@ import ksl.utilities.statistic.HistogramIfc
  * @param h               the histogram to report
  * @param caption         optional section title; defaults to [h.name][Histogram.name]
  * @param confidenceLevel confidence level for the StatTable half-width and CI; must be in (0, 1)
+ * @param showPlot        when `true` (default) a histogram bar-chart plot is appended after the
+ *                        frequency table. Set to `false` when the plot should be omitted — e.g.
+ *                        inside a statistical-summary section where plots live in a separate
+ *                        visualization section.
  */
 fun ReportBuilder.histogram(
     h: Histogram,
     caption: String? = null,
-    confidenceLevel: Double = 0.95
+    confidenceLevel: Double = 0.95,
+    showPlot: Boolean = true
 ) {
     val myTitle = caption ?: h.name
     section(myTitle) {
@@ -106,7 +111,9 @@ fun ReportBuilder.histogram(
         )
 
         // ── Histogram plot ────────────────────────────────────────────────────
-        plot(h.histogramPlot(), caption = myTitle)
+        if (showPlot) {
+            plot(h.histogramPlot(), caption = myTitle)
+        }
     }
 }
 
@@ -200,11 +207,14 @@ private fun formatPct(value: Double): String = when {
  * @param h               the histogram interface to report
  * @param caption         optional section title; defaults to [h.name][HistogramIfc.name]
  * @param confidenceLevel confidence level for the StatTable half-width and CI; must be in (0, 1)
+ * @param showPlot        when `true` (default) a histogram bar-chart plot is appended. Set to
+ *                        `false` to omit the plot (e.g. inside a statistical-summary section).
  */
 fun ReportBuilder.histogram(
     h: HistogramIfc,
     caption: String? = null,
-    confidenceLevel: Double = 0.95
+    confidenceLevel: Double = 0.95,
+    showPlot: Boolean = true
 ) {
     val myTitle = caption ?: h.name
     section(myTitle) {
@@ -238,6 +248,8 @@ fun ReportBuilder.histogram(
             caption = "Statistics on Binned Data",
             confidenceLevel = confidenceLevel
         )
-        plot(h.histogramPlot(), caption = myTitle)
+        if (showPlot) {
+            plot(h.histogramPlot(), caption = myTitle)
+        }
     }
 }
