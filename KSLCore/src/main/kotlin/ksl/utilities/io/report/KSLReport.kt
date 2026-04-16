@@ -52,15 +52,26 @@ import java.nio.file.Path
 /**
  * Renders this document to an HTML file and returns the written [File].
  *
- * @param path output file path; defaults to `KSL.outDir/<sanitised-title>.html`
- * @param ctx  shared render configuration (output directory, plot directory,
- *             confidence level, numeric precision, max plots per section)
+ * **CSS selection** (evaluated in priority order):
+ * 1. [cssPath] non-null → `<link rel="stylesheet" href="...">` is emitted; no inline `<style>` block
+ * 2. [css] non-null → the supplied string is inlined in a `<style>` block
+ * 3. Both null (default) → the built-in KSL stylesheet is inlined
+ *
+ * @param path    output file path; defaults to `KSL.outDir/<sanitised-title>.html`
+ * @param ctx     shared render configuration (output directory, plot directory,
+ *                confidence level, numeric precision, max plots per section)
+ * @param cssPath path to an external CSS file; when non-null a `<link>` tag is emitted
+ *                and [css] is ignored
+ * @param css     inline CSS string to embed in a `<style>` block; only used when
+ *                [cssPath] is `null`; when both are `null` the built-in stylesheet is used
  */
 fun ReportNode.Document.writeHtml(
     path: Path = KSL.outDir.resolve("${title.toSafeFileName()}.html"),
-    ctx: RenderContext = RenderContext()
+    ctx: RenderContext = RenderContext(),
+    cssPath: Path? = null,
+    css: String? = null
 ): File {
-    val myRenderer = HtmlReportRenderer(ctx)
+    val myRenderer = HtmlReportRenderer(ctx, cssPath, css)
     accept(myRenderer)
     return myRenderer.writeToFile(path)
 }
@@ -115,11 +126,24 @@ fun ReportNode.Document.writeLaTeX(
  * [ctx].[outputDir][RenderContext.outputDir], opens the file in the system
  * default browser, and returns the written [File].
  *
- * @param ctx shared render configuration; [RenderContext.outputDir] determines
- *            where the temporary file is placed
+ * **CSS selection** (evaluated in priority order):
+ * 1. [cssPath] non-null → `<link rel="stylesheet" href="...">` is emitted; no inline `<style>` block
+ * 2. [css] non-null → the supplied string is inlined in a `<style>` block
+ * 3. Both null (default) → the built-in KSL stylesheet is inlined
+ *
+ * @param ctx     shared render configuration; [RenderContext.outputDir] determines
+ *                where the temporary file is placed
+ * @param cssPath path to an external CSS file; when non-null a `<link>` tag is emitted
+ *                and [css] is ignored
+ * @param css     inline CSS string to embed in a `<style>` block; only used when
+ *                [cssPath] is `null`; when both are `null` the built-in stylesheet is used
  */
-fun ReportNode.Document.showInBrowser(ctx: RenderContext = RenderContext()): File {
-    val myRenderer = HtmlReportRenderer(ctx)
+fun ReportNode.Document.showInBrowser(
+    ctx: RenderContext = RenderContext(),
+    cssPath: Path? = null,
+    css: String? = null
+): File {
+    val myRenderer = HtmlReportRenderer(ctx, cssPath, css)
     accept(myRenderer)
     return myRenderer.showInBrowser()
 }

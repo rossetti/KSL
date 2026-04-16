@@ -57,9 +57,22 @@ import java.time.format.DateTimeFormatter
  *
  * All mutable state uses the `my` prefix per KSL coding conventions.
  *
- * @param ctx the render context supplying output paths and formatting preferences
+ * **CSS selection** (evaluated in priority order):
+ * 1. [cssPath] non-null → `<link rel="stylesheet" href="...">` is emitted; no inline `<style>` block
+ * 2. [css] non-null → the supplied string is inlined in a `<style>` block
+ * 3. Both null (default) → [REPORT_CSS] is inlined in a `<style>` block
+ *
+ * @param ctx     the render context supplying output paths and formatting preferences
+ * @param cssPath path to an external CSS file; when non-null a `<link>` tag is emitted
+ *                and [css] is ignored
+ * @param css     inline CSS string to embed in a `<style>` block; only used when
+ *                [cssPath] is `null`; when both are `null` [REPORT_CSS] is used
  */
-class HtmlReportRenderer(private val ctx: RenderContext = RenderContext()) : AbstractReportVisitor() {
+class HtmlReportRenderer(
+    private val ctx: RenderContext = RenderContext(),
+    private val cssPath: java.nio.file.Path? = null,
+    private val css: String? = null
+) : AbstractReportVisitor() {
 
     private val myOutput: StringBuilder = StringBuilder()
     private var myDepth: Int = 0
@@ -69,6 +82,14 @@ class HtmlReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
 
     override fun enterDocument(node: ReportNode.Document) {
         val myScriptUrl = PlotHtmlHelper.scriptUrl(VersionChecker.letsPlotJsVersion)
+        val myStyleBlock = when {
+            cssPath != null ->
+                """<link rel="stylesheet" href="${cssPath.toUri()}"/>"""
+            css != null ->
+                "<style>\n$css\n</style>"
+            else ->
+                "<style>\n$REPORT_CSS\n</style>"
+        }
         myOutput.appendLine(
             """<!DOCTYPE html>
 <html lang="en">
@@ -77,9 +98,7 @@ class HtmlReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>${node.title.escapeHtml()}</title>
 <script src="$myScriptUrl"></script>
-<style>
-$REPORT_CSS
-</style>
+$myStyleBlock
 </head>
 <body>
 <h1>${node.title.escapeHtml()}</h1>"""
