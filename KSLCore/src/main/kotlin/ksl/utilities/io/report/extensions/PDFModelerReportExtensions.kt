@@ -60,20 +60,27 @@ import ksl.utilities.statistic.BoxPlotSummary
  * 1. Overview paragraph — n, mean, std dev, zero count, negative count
  * 2. `StatPropertyTable` — full 18-row property sheet on the sample statistics
  * 3. **Box Plot Summary** sub-section — five-number summary + fence values as a
- *    `DataTable`; outlier description as a `Paragraph`
+ *    `DataTable`; outlier summary table (Category | Fence Range | Count | Obs. Min |
+ *    Obs. Max); when [showOutlierValues] is `true`, per-category detail tables listing
+ *    individual outlier values are appended after the summary table
  * 4. **Histogram** sub-section — bin frequency table + statistics on binned data
  *    (no plot; call [dataVisualization] for the histogram plot)
  * 5. **Shift Parameter Analysis** sub-section — estimated left-shift, zero/negative
  *    flags, tolerance, and bootstrap 95 % CI for the minimum
  *
- * @param modeler         the [PDFModeler] whose data will be summarised
- * @param caption         optional section title
- * @param confidenceLevel confidence level for the `StatPropertyTable` CI; must be in (0, 1)
+ * @param modeler           the [PDFModeler] whose data will be summarised
+ * @param caption           optional section title
+ * @param confidenceLevel   confidence level for the `StatPropertyTable` CI; must be in (0, 1)
+ * @param showOutlierValues when `false` (default) each outlier category is summarised
+ *                          in a single row (count, observed min/max). When `true`, a
+ *                          per-category `DataTable` listing every individual outlier
+ *                          value is appended for each non-empty category.
  */
 fun ReportBuilder.dataStatisticalSummary(
     modeler: PDFModeler,
     caption: String? = null,
-    confidenceLevel: Double = 0.95
+    confidenceLevel: Double = 0.95,
+    showOutlierValues: Boolean = false
 ) {
     val myTitle = caption ?: "Data Statistical Summary"
     section(myTitle) {
@@ -99,13 +106,71 @@ fun ReportBuilder.dataStatisticalSummary(
 
         // ── Box plot summary ──────────────────────────────────────────────────
         section("Box Plot Summary") {
-            val myBp = BoxPlotSummary(modeler.originalData)
+            val myBp     = BoxPlotSummary(modeler.originalData)
             val myBpRows = myBp.asMap().map { (k, v) -> listOf(k, fmtD(v)) }
             dataTable(
                 listOf("Property", "Value"), myBpRows,
                 caption = "Five-Number Summary and Fences"
             )
-            paragraph(myBp.outlierResults())
+
+            // ── Extract the four outlier groups once ──────────────────────────
+            val myExtLow   = myBp.lowerOuterPoints()
+            val myMildLow  = myBp.pointsBtwLowerInnerAndOuterFences()
+            val myMildHigh = myBp.pointsBtwUpperInnerAndOuterFences()
+            val myExtHigh  = myBp.upperOuterPoints()
+
+            // ── Option A: compact 4-row summary table (always shown) ──────────
+            val mySummaryHeaders = listOf("Category", "Fence Range", "Count", "Obs. Min", "Obs. Max")
+            val mySummaryRows = listOf(
+                listOf(
+                    "Extremely Low",
+                    "x \u2264 ${fmtD(myBp.lowerOuterFence)}",
+                    myExtLow.size.toString(),
+                    if (myExtLow.isEmpty()) "\u2014" else fmtD(myExtLow.first()),
+                    if (myExtLow.isEmpty()) "\u2014" else fmtD(myExtLow.last())
+                ),
+                listOf(
+                    "Mildly Low",
+                    "${fmtD(myBp.lowerOuterFence)} \u2264 x \u2264 ${fmtD(myBp.lowerInnerFence)}",
+                    myMildLow.size.toString(),
+                    if (myMildLow.isEmpty()) "\u2014" else fmtD(myMildLow.first()),
+                    if (myMildLow.isEmpty()) "\u2014" else fmtD(myMildLow.last())
+                ),
+                listOf(
+                    "Mildly High",
+                    "${fmtD(myBp.upperInnerFence)} \u2264 x \u2264 ${fmtD(myBp.upperOuterFence)}",
+                    myMildHigh.size.toString(),
+                    if (myMildHigh.isEmpty()) "\u2014" else fmtD(myMildHigh.first()),
+                    if (myMildHigh.isEmpty()) "\u2014" else fmtD(myMildHigh.last())
+                ),
+                listOf(
+                    "Extremely High",
+                    "x \u2265 ${fmtD(myBp.upperOuterFence)}",
+                    myExtHigh.size.toString(),
+                    if (myExtHigh.isEmpty()) "\u2014" else fmtD(myExtHigh.first()),
+                    if (myExtHigh.isEmpty()) "\u2014" else fmtD(myExtHigh.last())
+                )
+            )
+            dataTable(mySummaryHeaders, mySummaryRows, caption = "Outlier Summary")
+
+            // ── Option B: per-category value tables (only when requested) ─────
+            if (showOutlierValues) {
+                val myDetailGroups = listOf(
+                    "Extremely Low"  to myExtLow,
+                    "Mildly Low"     to myMildLow,
+                    "Mildly High"    to myMildHigh,
+                    "Extremely High" to myExtHigh
+                )
+                for ((myLabel, myPoints) in myDetailGroups) {
+                    if (myPoints.isNotEmpty()) {
+                        dataTable(
+                            headers = listOf("Value"),
+                            rows    = myPoints.map { listOf(fmtD(it)) },
+                            caption = "$myLabel Values (${myPoints.size})"
+                        )
+                    }
+                }
+            }
         }
 
         // ── Histogram (table + stats, no plot) ────────────────────────────────
