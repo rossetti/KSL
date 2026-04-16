@@ -29,13 +29,23 @@ import ksl.utilities.toDoubles
 import kotlin.math.floor
 
 class PMFModeler(
-    private val data: IntArray
+    data: IntArray
 ) {
 
-    //   constructor(data : IntArray) : this(data.toDoubles())
-    private val dataAsDoubles = data.toDoubles()
+    private val myData: IntArray = data.copyOf()
 
-    val frequency: IntegerFrequency = IntegerFrequency(data = data)
+    //   constructor(data : IntArray) : this(data.toDoubles())
+    private val dataAsDoubles = myData.toDoubles()
+
+    /**
+     * Returns a copy of the integer data used to construct this modeler.
+     * A copy is returned so that the modeler's internal state cannot be
+     * modified by the caller.
+     */
+    val data: IntArray
+        get() = myData.copyOf()
+
+    val frequency: IntegerFrequency = IntegerFrequency(data = myData)
 
     val statistics: StatisticIfc = frequency.statistic()
 
