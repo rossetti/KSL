@@ -56,9 +56,11 @@ import ksl.utilities.statistic.MultiBootstrap
  *
  * **BCa confidence interval availability:**
  * [bcaBootstrapCI][Bootstrap.bcaBootstrapCI] is only available on [Bootstrap] instances.
- * When rendering a `List<BootstrapEstimateIfc>` via [bootstrapEstimates], the BCa column
- * shows the actual interval for [Bootstrap] entries and `"—"` for plain
- * [ksl.utilities.statistic.BootstrapEstimate] entries.
+ * When rendering a `List<BootstrapEstimateIfc>` via [bootstrapEstimates], the BCa columns
+ * are **included only when at least one entry is a [Bootstrap] instance**. For mixed lists
+ * the BCa cells show `"—"` for plain [ksl.utilities.statistic.BootstrapEstimate] entries.
+ * When no entry is a [Bootstrap] (e.g. results from [ksl.utilities.statistic.BootstrapSampler]
+ * or [ksl.utilities.statistic.CaseBootstrapSampler]), the BCa columns are omitted entirely.
  */
 
 // ── DSL Function 1: Single Bootstrap Estimate ────────────────────────────────
@@ -168,9 +170,12 @@ fun ReportBuilder.bootstrapEstimate(
  * **Produces (inside a section titled `caption` or `"Bootstrap Estimates"`):**
  * 1. Overview paragraph — number of estimates k, common n, common B
  * 2. **Bootstrap Estimates Summary** `DataTable` — one row per estimate:
- *    Name | n | B | θ | E[θ*] | Bias | SE | Percentile CI | Basic CI | BCa CI;
- *    the BCa column shows the actual interval for [Bootstrap] entries and `"—"` for
- *    plain [ksl.utilities.statistic.BootstrapEstimate] entries
+ *    Name | n | B | θ | E[θ*] | Bias | SE | Percentile CI | Basic CI | BCa CI (optional);
+ *    the BCa columns are included only when at least one entry is a [Bootstrap] instance;
+ *    for mixed lists the BCa cells show `"—"` for plain
+ *    [ksl.utilities.statistic.BootstrapEstimate] entries; when no entry is a [Bootstrap]
+ *    (e.g. results from [ksl.utilities.statistic.BootstrapSampler]) the BCa columns are
+ *    omitted entirely
  * 3. When [showDetail] is `true`, one [bootstrapEstimate] sub-section per estimate
  *    (each with its own [showDensityPlot] setting)
  *
@@ -205,24 +210,27 @@ fun ReportBuilder.bootstrapEstimates(
         )
 
         // ── Summary table ─────────────────────────────────────────────────────
-        val myPct = (confidenceLevel * 100.0).toInt()
-        val myHeaders = listOf(
+        val myPct    = (confidenceLevel * 100.0).toInt()
+        // BCa columns are included only when at least one entry is a full Bootstrap instance.
+        // BootstrapSampler / CaseBootstrapSampler return plain BootstrapEstimate objects
+        // that do not retain original data, so BCa cannot be computed for them.
+        val myHasBca = estimates.any { it is Bootstrap }
+
+        val myBaseHeaders = listOf(
             "Name", "n", "B",
             "\u03b8", "E[\u03b8*]", "Bias", "SE",
             "Pct CI Lower", "Pct CI Upper",
-            "Basic CI Lower", "Basic CI Upper",
-            "BCa CI Lower", "BCa CI Upper"
+            "Basic CI Lower", "Basic CI Upper"
         )
+        val myHeaders = if (myHasBca)
+            myBaseHeaders + listOf("BCa CI Lower", "BCa CI Upper")
+        else
+            myBaseHeaders
+
         val mySummaryRows = estimates.map { be ->
             val myPctCI   = be.percentileBootstrapCI(confidenceLevel)
             val myBasicCI = be.basicBootstrapCI(confidenceLevel)
-            val (myBcaLow, myBcaHigh) = if (be is Bootstrap) {
-                val myBca = be.bcaBootstrapCI(confidenceLevel)
-                Pair(fmtD(myBca.lowerLimit), fmtD(myBca.upperLimit))
-            } else {
-                Pair("\u2014", "\u2014")
-            }
-            listOf(
+            val myBaseRow = listOf(
                 be.name,
                 be.originalDataSampleSize.toString(),
                 be.numberOfBootstraps.toString(),
@@ -230,10 +238,20 @@ fun ReportBuilder.bootstrapEstimates(
                 fmtD(be.acrossBootstrapAverage),
                 fmtD(be.bootstrapBiasEstimate),
                 fmtD(be.bootstrapStdErrEstimate),
-                fmtD(myPctCI.lowerLimit),  fmtD(myPctCI.upperLimit),
-                fmtD(myBasicCI.lowerLimit), fmtD(myBasicCI.upperLimit),
-                myBcaLow, myBcaHigh
+                fmtD(myPctCI.lowerLimit),   fmtD(myPctCI.upperLimit),
+                fmtD(myBasicCI.lowerLimit), fmtD(myBasicCI.upperLimit)
             )
+            if (myHasBca) {
+                val (myBcaLow, myBcaHigh) = if (be is Bootstrap) {
+                    val myBca = be.bcaBootstrapCI(confidenceLevel)
+                    Pair(fmtD(myBca.lowerLimit), fmtD(myBca.upperLimit))
+                } else {
+                    Pair("\u2014", "\u2014")
+                }
+                myBaseRow + listOf(myBcaLow, myBcaHigh)
+            } else {
+                myBaseRow
+            }
         }
         dataTable(myHeaders, mySummaryRows,
             caption = "Bootstrap Estimates Summary ($myPct% CI)")
