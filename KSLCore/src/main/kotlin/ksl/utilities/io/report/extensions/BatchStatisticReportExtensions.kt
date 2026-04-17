@@ -38,7 +38,7 @@ import ksl.utilities.statistic.BatchStatistic
  * Appends a self-contained section that reports both the batch configuration and the
  * statistics on batch means for a single [BatchStatistic].
  *
- * **Produces (inside a section titled [caption] or [bs.name][BatchStatistic.name]):**
+ * **Produces (inside a section titled `caption` or [bs.name][BatchStatistic.name]):**
  * 1. A two-column `DataTable` labelled "Batch Configuration" with the batch parameters.
  * 2. A `StatPropertyTable` labelled "Statistics on Batch Means" — a vertical property sheet.
  *

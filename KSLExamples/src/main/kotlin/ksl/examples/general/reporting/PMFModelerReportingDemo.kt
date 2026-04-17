@@ -175,7 +175,7 @@ fun demoPMFNegBinomialGOF() {
 /**
  * Demo 4 — custom DSL block that replaces the default report content.
  *
- * The custom block uses the captured local variables [myModeler] and [myGof]
+ * The custom block uses the captured local variables `myModeler` and `myGof`
  * (not `this@toReport` labels, which are not in scope at the call site).
  * An extra paragraph is appended after the GOF section.
  */

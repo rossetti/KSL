@@ -57,7 +57,7 @@ import ksl.utilities.toDoubles
  * Appends a self-contained section summarising the characteristics of the integer
  * data held by [modeler], with no plots.
  *
- * **Produces (inside a section titled [caption] or `"Discrete Data Summary"`):**
+ * **Produces (inside a section titled `caption` or `"Discrete Data Summary"`):**
  * 1. Overview paragraph — n, mean, variance, min, max, zero count, negative count
  * 2. **Integer Frequency** sub-section — full frequency table, statistics property
  *    sheet, and frequency bar chart (delegated to [integerFrequency])
@@ -155,7 +155,7 @@ fun ReportBuilder.discreteDataSummary(
  * Appends a self-contained section containing three exploratory plots for the
  * integer data held by [modeler]. No fitted distribution is assumed.
  *
- * **Produces (inside a section titled [caption] or `"Discrete Data Visualization"`):**
+ * **Produces (inside a section titled `caption` or `"Discrete Data Visualization"`):**
  * 1. **Frequency Distribution** sub-section — frequency bar chart
  * 2. **Observations** sub-section — integer values in observation order
  * 3. **Autocorrelation** sub-section — ACF plot
@@ -197,7 +197,7 @@ fun ReportBuilder.discreteVisualization(
  * Appends a self-contained section reporting the goodness-of-fit results for a
  * single [DiscretePMFGoodnessOfFit].
  *
- * **Produces (inside a section titled [caption] or `gof.distribution.toString()`):**
+ * **Produces (inside a section titled `caption` or `gof.distribution.toString()`):**
  * 1. Overview paragraph — distribution, estimated parameters, DOF, index of dispersion
  * 2. **Chi-Squared Bin Table** — Bin Label | P(Bin) | Observed | Expected | Note;
  *    `Note` column flags bins where expected count is less than 5

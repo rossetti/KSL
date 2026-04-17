@@ -60,7 +60,7 @@ import ksl.utilities.statistic.Statistic
  * Appends a self-contained section containing the ANOVA decomposition and global
  * model fit measures for [rr]. No plots are included.
  *
- * **Produces (inside a section titled [caption] or `"Regression Summary"`):**
+ * **Produces (inside a section titled `caption` or `"Regression Summary"`):**
  * 1. Overview paragraph — response name, predictor names, n, number of parameters,
  *    and whether an intercept term is estimated
  * 2. **Analysis of Variance** sub-section — `DataTable` with columns
@@ -142,7 +142,7 @@ fun ReportBuilder.regressionSummary(
  * Appends a self-contained section containing the regression coefficient table
  * and a significance summary for [rr]. No plots are included.
  *
- * **Produces (inside a section titled [caption] or `"Parameter Estimates"`):**
+ * **Produces (inside a section titled `caption` or `"Parameter Estimates"`):**
  * 1. Coefficient `DataTable` — Predictor | Estimate | Std Error | t₀ | p-value |
  *    CI Lower | CI Upper | Sig.; the CI columns use [confidenceLevel]
  * 2. Significance code legend paragraph (`***` p < 0.001, `**` p < 0.01,
@@ -220,7 +220,7 @@ fun ReportBuilder.regressionParameters(
  * Appends a self-contained section containing residual diagnostics and three
  * standard regression diagnostic plots for [rr].
  *
- * **Produces (inside a section titled [caption] or `"Regression Diagnostics"`):**
+ * **Produces (inside a section titled `caption` or `"Regression Diagnostics"`):**
  * 1. **Residuals and Influence Summary** `DataTable` — n, min/max/mean/std dev of
  *    residuals, mean and max leverage (hᵢᵢ), high-leverage count (hᵢᵢ > 2p/n),
  *    max Cook's distance, and influential-point count (Cook's D > 4/n)

@@ -122,7 +122,7 @@ fun demoRegressionSummaryOnly() {
 /**
  * Demo 3 — custom DSL block that replaces the default report content.
  *
- * The custom block uses the captured local variable [myOls] (not `this@toReport`)
+ * The custom block uses the captured local variable `myOls` (not `this@toReport`)
  * and selectively includes only summary and parameter sections, then appends an
  * interpretation paragraph.
  */

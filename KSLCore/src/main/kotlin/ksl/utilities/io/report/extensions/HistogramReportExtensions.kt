@@ -38,7 +38,7 @@ import ksl.utilities.statistic.HistogramIfc
  * Appends a self-contained section that reports the bin structure, over/underflow summary,
  * bin frequency table, statistics on binned observations, and a histogram plot.
  *
- * **Produces (inside a section titled [caption] or [h.name][Histogram.name]):**
+ * **Produces (inside a section titled `caption` or [h.name][Histogram.name]):**
  * 1. A [ksl.utilities.io.report.ast.ReportNode.Paragraph] summarising bin count, range,
  *    underflow count, overflow count, and total count.
  * 2. A `DataTable` ("Bin Frequencies") with columns:

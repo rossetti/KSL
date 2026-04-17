@@ -44,7 +44,7 @@ import ksl.utilities.io.report.dsl.ReportBuilder
  * **`SolverResult.NotExecuted`** — emits a single `Paragraph` stating that the
  * solver has not been run yet.
  *
- * **`SolverResult.Completed`** — emits (inside a section titled [caption] or the
+ * **`SolverResult.Completed`** — emits (inside a section titled `caption` or the
  * solver name):
  * 1. A `DataTable` ("Run Summary") — solver name, problem name, termination reason,
  *    stopping criteria satisfied, execution time, and total iterations

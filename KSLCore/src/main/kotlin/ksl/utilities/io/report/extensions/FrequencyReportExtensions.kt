@@ -37,7 +37,7 @@ import ksl.utilities.statistic.IntegerFrequency
  * Appends a self-contained section that reports the frequency distribution, summary
  * statistics on the observed integer values, and a frequency bar plot.
  *
- * **Produces (inside a section titled [caption] or [freq.name][IntegerFrequency.name]):**
+ * **Produces (inside a section titled `caption` or [freq.name][IntegerFrequency.name]):**
  * 1. A [ksl.utilities.io.report.ast.ReportNode.Paragraph] summarising the observed
  *    integer range, distinct value count, total observations, and over/underflow counts.
  * 2. A `DataTable` ("Frequency Table") with columns:

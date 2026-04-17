@@ -40,9 +40,9 @@ enum class MCBDirection { MAX, MIN, BOTH }
  * The extension produces a self-contained section covering:
  * 1. Per-alternative summary statistics (`StatTable`)
  * 2. Pairwise difference statistics (`DataTable`)
- * 3. MCB max intervals and plot — when [direction] is [MCBDirection.MAX] or [MCBDirection.BOTH]
- * 4. MCB min intervals and plot — when [direction] is [MCBDirection.MIN] or [MCBDirection.BOTH]
- * 5. Screening results — direction-matched to [direction]
+ * 3. MCB max intervals and plot — when `direction` is [MCBDirection.MAX] or [MCBDirection.BOTH]
+ * 4. MCB min intervals and plot — when `direction` is [MCBDirection.MIN] or [MCBDirection.BOTH]
+ * 5. Screening results — direction-matched to `direction`
  */
 
 /**
@@ -53,11 +53,11 @@ enum class MCBDirection { MAX, MIN, BOTH }
  *
  * 1. **Alternative Statistics** — `StatTable` at [altConfidenceLevel]
  * 2. **Pairwise Differences** — `DataTable` of half-width CIs at [diffConfidenceLevel]
- * 3. **MCB Max Intervals** *(when [direction] is [MCBDirection.MAX] or [MCBDirection.BOTH])* —
+ * 3. **MCB Max Intervals** *(when `direction` is [MCBDirection.MAX] or [MCBDirection.BOTH])* —
  *    `DataTable` with columns `Alternative | Lower | Upper | Possible Best` and a
  *    `ConfidenceIntervalsPlot`. An alternative is **Possible Best** for max when its
  *    upper interval limit is strictly greater than zero.
- * 4. **MCB Min Intervals** *(when [direction] is [MCBDirection.MIN] or [MCBDirection.BOTH])* —
+ * 4. **MCB Min Intervals** *(when `direction` is [MCBDirection.MIN] or [MCBDirection.BOTH])* —
  *    same structure. An alternative is **Possible Best** for min when its lower interval
  *    limit is strictly less than zero.
  * 5. **Screening** — direction-matched `DataTable`(s) of alternatives surviving screening

@@ -56,7 +56,7 @@ import ksl.utilities.statistic.BoxPlotSummary
  * Appends a self-contained section summarising the characteristics of the raw
  * data held by [modeler], with no plots.
  *
- * **Produces (inside a section titled [caption] or `"Data Statistical Summary"`):**
+ * **Produces (inside a section titled `caption` or `"Data Statistical Summary"`):**
  * 1. Overview paragraph — n, mean, std dev, zero count, negative count
  * 2. `StatPropertyTable` — full 18-row property sheet on the sample statistics
  * 3. **Box Plot Summary** sub-section — five-number summary + fence values as a
@@ -201,7 +201,7 @@ fun ReportBuilder.dataStatisticalSummary(
  * Appends a self-contained section containing four exploratory plots for the
  * data held by [modeler].
  *
- * **Produces (inside a section titled [caption] or `"Data Visualization"`):**
+ * **Produces (inside a section titled `caption` or `"Data Visualization"`):**
  * 1. **Histogram** sub-section — histogram bar chart
  * 2. **Box Plot** sub-section — box-and-whisker plot
  * 3. **Observations** sub-section — values in observation order
@@ -243,7 +243,7 @@ fun ReportBuilder.dataVisualization(
  * Appends a self-contained section reporting the goodness-of-fit results for a
  * single [ScoringResult].
  *
- * **Produces (inside a section titled [caption] or [result.name][ScoringResult.name]):**
+ * **Produces (inside a section titled `caption` or [result.name][ScoringResult.name]):**
  * 1. Overview paragraph — distribution name, RV family, parameter count
  * 2. **Bootstrap Parameter Estimates** sub-section — one `DataTable` per parameter,
  *    showing original estimate, bootstrap average, bias, standard error, number of
@@ -387,7 +387,7 @@ fun ReportBuilder.goodnessOfFit(
  * Appends a self-contained section containing a [goodnessOfFit] sub-section for
  * every distribution in [results], sorted by overall MODA value (best first).
  *
- * **Produces (inside a section titled [caption] or
+ * **Produces (inside a section titled `caption` or
  * `"Goodness of Fit — All Fitted Distributions"`):**
  * - Overview paragraph stating the number of distributions and sort criterion
  * - One collapsible [goodnessOfFit] sub-section per [ScoringResult]

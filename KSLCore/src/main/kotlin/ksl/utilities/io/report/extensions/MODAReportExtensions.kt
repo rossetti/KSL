@@ -42,7 +42,7 @@ import ksl.utilities.moda.MODAAnalyzer
 /**
  * Appends a self-contained section reporting the results of an [AdditiveMODAModel].
  *
- * **Produces (inside a section titled [caption] or [model.name][AdditiveMODAModel.name]):**
+ * **Produces (inside a section titled `caption` or [model.name][AdditiveMODAModel.name]):**
  *
  * 1. **Metric Definitions** — `DataTable` with columns
  *    `Metric | Direction | Weight | Domain Lower | Domain Upper | Units | Description`
@@ -160,7 +160,7 @@ fun ReportBuilder.moda(
  *
  * **[MODAAnalyzer.analyze] must be called before invoking this function.**
  *
- * **Produces (inside a section titled [caption] or `"MODA Analysis"`):**
+ * **Produces (inside a section titled `caption` or `"MODA Analysis"`):**
  *
  * 1. **Average Performance** — `DataTable` of mean observed values per alternative and response
  * 2. **Average MODA Model** — full [moda] section for the model built from averaged data,
