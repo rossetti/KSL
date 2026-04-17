@@ -46,9 +46,9 @@ import ksl.utilities.toDoubles
  * 5. [demoPMFGranularFunctions]   — individual functions composed into a single document
  */
 fun main() {
-    demoPMFEdaOnly()
-//    demoPMFPoissonGOF()
-//    demoPMFNegBinomialGOF()
+//    demoPMFEdaOnly()
+   demoPMFPoissonGOF()
+   demoPMFNegBinomialGOF()
 //    demoPMFCustomBlock()
 //    demoPMFGranularFunctions()
 }

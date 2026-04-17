@@ -18,6 +18,7 @@
 
 package ksl.utilities.io.report.extensions
 
+import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
 import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.io.plotting.ACFPlot
@@ -60,9 +61,11 @@ import ksl.utilities.toDoubles
  * 1. Overview paragraph — n, mean, variance, min, max, zero count, negative count
  * 2. **Integer Frequency** sub-section — full frequency table, statistics property
  *    sheet, and frequency bar chart (delegated to [integerFrequency])
- * 3. **Dispersion Analysis** sub-section — index of dispersion, Poisson variance
- *    test statistic, and an equidispersion/overdispersion/underdispersion interpretation;
- *    all computed directly from [PMFModeler.statistics]
+ * 3. **Dispersion Analysis** sub-section — index of dispersion; Poisson variance
+ *    test statistic T = (n−1)·S²/X̄; upper-tail, lower-tail, and two-sided p-values
+ *    from χ²(n−1) (Fisher 1950); equidispersion/overdispersion/underdispersion
+ *    interpretation; and a small-sample warning when n < 30. All values computed
+ *    directly from [PMFModeler.statistics].
  *
  * @param modeler         the [PMFModeler] whose data will be summarised
  * @param caption         optional section title
@@ -109,21 +112,38 @@ fun ReportBuilder.discreteDataSummary(
                 myIod > 1.0001 -> "Overdispersed (IoD > 1.0)"
                 else           -> "Equidispersed (IoD \u2248 1.0)"
             }
+
+            // Poisson variance test p-values via χ²(n−1)
+            val (myUpperP, myLowerP, myTwoSidedP) = poissonDispersionPValues(myPvt, myN)
+            val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
+
             val myDispRows = listOf(
-                listOf("Index of Dispersion (Var / Mean)",  fmtD(myIod)),
-                listOf("Poisson Variance Test Statistic",   fmtD(myPvt)),
-                listOf("Interpretation",                    myInterp)
+                listOf("Index of Dispersion (Var / Mean)",   fmtD(myIod),      myInterp),
+                listOf("Poisson Variance Test Statistic (T)", fmtD(myPvt),     "DOF = $myDofLabel"),
+                listOf("p-value (upper \u2014 overdispersion)",  fmtD(myUpperP),
+                    "P(\u03c7\u00b2($myDofLabel) \u2265 T)"),
+                listOf("p-value (lower \u2014 underdispersion)", fmtD(myLowerP),
+                    "P(\u03c7\u00b2($myDofLabel) \u2264 T)"),
+                listOf("p-value (two-sided)",                fmtD(myTwoSidedP), "2\u00b7min(upper, lower)")
             )
             dataTable(
-                listOf("Property", "Value"), myDispRows,
+                listOf("Property", "Value", "Note"), myDispRows,
                 caption = "Dispersion Indicators"
             )
+            if (myN < 30.0) {
+                paragraph(
+                    "\u26a0 Small-sample warning: the \u03c7\u00b2(n\u22121) approximation " +
+                    "for the Poisson variance test requires n \u2265 30. " +
+                    "The p-values above may not be reliable (n = ${myN.toInt()})."
+                )
+            }
             paragraph(
                 "The Index of Dispersion (IoD = Var/Mean) equals 1.0 for a Poisson process. " +
                 "IoD > 1.0 indicates overdispersion (variance exceeds the mean); " +
                 "IoD < 1.0 indicates underdispersion. " +
-                "The Poisson Variance Test Statistic is (n\u22121)\u00b7Var/Mean, " +
-                "distributed approximately as \u03c7\u00b2 with n\u22121 degrees of freedom under the Poisson hypothesis."
+                "The Poisson variance test statistic T = (n\u22121)\u00b7S\u00b2/X\u0305 " +
+                "follows approximately \u03c7\u00b2(n\u22121) under H\u2080: Poisson " +
+                "(Fisher 1950; Law 2015 \u00a76.5)."
             )
         }
     }
@@ -256,15 +276,35 @@ fun ReportBuilder.discreteGoodnessOfFit(
 
         // ── Dispersion tests ──────────────────────────────────────────────────
         section("Dispersion Tests") {
-            val myPvt = gof.poissonVarianceTestStatistic
+            val myPvt  = gof.poissonVarianceTestStatistic
+            val myN    = gof.histogram.count
+            val (myUpperP, myLowerP, myTwoSidedP) = poissonDispersionPValues(myPvt, myN)
+            val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
             val myDispRows = listOf(
-                listOf("Index of Dispersion (Var / Mean)",  fmtD(myIod), myIodInterp),
-                listOf("Poisson Variance Test Statistic",   fmtD(myPvt),
-                    "~\u03c7\u00b2(n\u22121) under Poisson hypothesis")
+                listOf("Index of Dispersion (Var / Mean)",    fmtD(myIod),      myIodInterp),
+                listOf("Poisson Variance Test Statistic (T)", fmtD(myPvt),      "DOF = $myDofLabel"),
+                listOf("p-value (upper \u2014 overdispersion)",  fmtD(myUpperP),
+                    "P(\u03c7\u00b2($myDofLabel) \u2265 T)"),
+                listOf("p-value (lower \u2014 underdispersion)", fmtD(myLowerP),
+                    "P(\u03c7\u00b2($myDofLabel) \u2264 T)"),
+                listOf("p-value (two-sided)",                fmtD(myTwoSidedP),  "2\u00b7min(upper, lower)")
             )
             dataTable(
                 listOf("Metric", "Value", "Note"), myDispRows,
                 caption = "Dispersion Test Statistics"
+            )
+            if (myN < 30.0) {
+                paragraph(
+                    "\u26a0 Small-sample warning: the \u03c7\u00b2(n\u22121) approximation " +
+                    "for the Poisson variance test requires n \u2265 30. " +
+                    "The p-values above may not be reliable (n = ${myN.toInt()})."
+                )
+            }
+            paragraph(
+                "The Index of Dispersion (IoD = Var/Mean) equals 1.0 for a Poisson process. " +
+                "The Poisson variance test statistic T = (n\u22121)\u00b7S\u00b2/X\u0305 " +
+                "follows approximately \u03c7\u00b2(n\u22121) under H\u2080: Poisson " +
+                "(Fisher 1950; Law 2015 \u00a76.5)."
             )
         }
 
@@ -365,4 +405,31 @@ fun DiscretePMFGoodnessOfFit.toReport(
 private fun fmtD(value: Double): String = when {
     value.isNaN() || value.isInfinite() -> "\u2014"
     else -> "%.4f".format(value)
+}
+
+/**
+ * Computes upper-tail, lower-tail, and two-sided p-values for the Poisson variance
+ * test statistic [pvt] = (n−1)·S²/X̄ using a χ²(n−1) reference distribution.
+ *
+ * - **Upper-tail p-value** = P(χ²(n−1) ≥ T): evidence of overdispersion (variance > mean)
+ * - **Lower-tail p-value** = P(χ²(n−1) ≤ T): evidence of underdispersion (variance < mean)
+ * - **Two-sided p-value** = 2·min(upper, lower): evidence against equidispersion in either direction
+ *
+ * Returns `Triple(NaN, NaN, NaN)` when [pvt] is not finite or [n] < 2.
+ *
+ * Reference: Fisher (1950); Law (2015) §6.5. Requires n ≥ 30 for reliable approximation.
+ *
+ * @param pvt the Poisson variance test statistic T = (n−1)·S²/X̄
+ * @param n   the sample size
+ * @return Triple(upperP, lowerP, twoSidedP)
+ */
+private fun poissonDispersionPValues(pvt: Double, n: Double): Triple<Double, Double, Double> {
+    if (pvt.isNaN() || pvt.isInfinite() || n < 2.0) {
+        return Triple(Double.NaN, Double.NaN, Double.NaN)
+    }
+    val myDof     = maxOf(1.0, n - 1.0)
+    val myChiDist = ChiSquaredDistribution(myDof)
+    val myUpperP  = myChiDist.complementaryCDF(pvt)
+    val myLowerP  = myChiDist.cdf(pvt)
+    return Triple(myUpperP, myLowerP, 2.0 * minOf(myUpperP, myLowerP))
 }
