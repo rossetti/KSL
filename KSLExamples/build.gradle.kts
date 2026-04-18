@@ -29,11 +29,6 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 kotlin {
