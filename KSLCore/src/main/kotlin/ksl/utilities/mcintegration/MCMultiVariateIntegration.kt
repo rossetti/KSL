@@ -97,11 +97,18 @@ class MCMultiVariateIntegration(
     }
 
     /**
-     *
      * @return true if the antithetic option is on
      */
     val isAntitheticOptionOn: Boolean
         get() = myAntitheticSampler != null
+
+    /** The multi-dimensional function h(x) = g(x)/w(x) being integrated. */
+    val function: FunctionMVIfc
+        get() = myFunction
+
+    /** The multivariate random variable sampler that defines the integration domain and density w(x). */
+    val sampler: MVRVariableIfc
+        get() = mySampler
 
 }
 

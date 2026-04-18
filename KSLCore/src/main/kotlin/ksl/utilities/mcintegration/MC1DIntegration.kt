@@ -81,10 +81,17 @@ class MC1DIntegration (
     }
 
     /**
-     *
      * @return true if the antithetic option is on
      */
     val isAntitheticOptionOn: Boolean
         get() = myAntitheticSampler != null
+
+    /** The function h(x) = g(x)/f(x) being integrated. */
+    val function: FunctionIfc
+        get() = myFunction
+
+    /** The random variable sampler that defines the integration domain and density f(x). */
+    val sampler: RVariableIfc
+        get() = mySampler
 
 }
