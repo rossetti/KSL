@@ -117,16 +117,23 @@ fun ReportBuilder.scenario(
  *    and `"Yes ⚠"` when [ksl.controls.experiments.SimulationRun.runErrorMsg] is non-empty
  * 3. One [scenario] sub-section per scenario in [ScenarioRunner.scenarioList]
  *
- * @param runner          the [ScenarioRunner] to report
- * @param confidenceLevel confidence level for response statistics; defaults to 0.95
- * @param showTimings     `true` includes Replication Timing sub-sections in each
- *                        embedded scenario run report; defaults to `false`
- * @param caption         optional section title; defaults to `"Scenario Runner"`
+ * @param runner            the [ScenarioRunner] to report
+ * @param confidenceLevel   confidence level for response statistics; defaults to 0.95
+ * @param showTimings       `true` includes Replication Timing sub-sections in each
+ *                          embedded scenario run report; defaults to `false`
+ * @param boxPlotResponses  list of response names for which a cross-scenario
+ *                          [ksl.utilities.io.plotting.MultiBoxPlot] (one box per scenario)
+ *                          is included in a **"Response Distributions"** sub-section placed
+ *                          after the Scenario Summary table; an empty list (default)
+ *                          suppresses all box plots; pass the union of all scenario response
+ *                          names to plot every shared response
+ * @param caption           optional section title; defaults to `"Scenario Runner"`
  */
 fun ReportBuilder.scenarioRunner(
     runner: ScenarioRunner,
     confidenceLevel: Double = 0.95,
     showTimings: Boolean = false,
+    boxPlotResponses: List<String> = emptyList(),
     caption: String? = null
 ) {
     section(caption ?: "Scenario Runner") {
@@ -175,7 +182,16 @@ fun ReportBuilder.scenarioRunner(
             )
         }
 
-        // ── 3. Per-scenario sections ──────────────────────────────────────────
+        // ── 3. Optional cross-scenario response distributions ─────────────────
+        if (boxPlotResponses.isNotEmpty()) {
+            section("Response Distributions") {
+                for (myResponseName in boxPlotResponses) {
+                    scenarioRunnerBoxPlot(runner, myResponseName)
+                }
+            }
+        }
+
+        // ── 4. Per-scenario sections ──────────────────────────────────────────
         for (s in runner.scenarioList) {
             scenario(s, confidenceLevel, showTimings)
         }
@@ -226,18 +242,24 @@ fun Scenario.toReport(
  * }
  * ```
  *
- * @param title           document title; defaults to the runner name
- * @param confidenceLevel confidence level for response statistics; defaults to 0.95
- * @param showTimings     `true` includes Replication Timing sub-sections;
- *                        defaults to `false`
- * @param block           optional DSL block; replaces the default when provided
+ * @param title             document title; defaults to the runner name
+ * @param confidenceLevel   confidence level for response statistics; defaults to 0.95
+ * @param showTimings       `true` includes Replication Timing sub-sections;
+ *                          defaults to `false`
+ * @param boxPlotResponses  list of response names for which a cross-scenario
+ *                          [ksl.utilities.io.plotting.MultiBoxPlot] is included; defaults
+ *                          to empty (no box plots)
+ * @param block             optional DSL block; replaces the default when provided
  * @return the assembled [ReportNode.Document]
  */
 fun ScenarioRunner.toReport(
     title: String = "Scenario Runner \u2014 $name",
     confidenceLevel: Double = 0.95,
     showTimings: Boolean = false,
-    block: ReportBuilder.() -> Unit = { scenarioRunner(this@toReport, confidenceLevel, showTimings) }
+    boxPlotResponses: List<String> = emptyList(),
+    block: ReportBuilder.() -> Unit = {
+        scenarioRunner(this@toReport, confidenceLevel, showTimings, boxPlotResponses)
+    }
 ): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────

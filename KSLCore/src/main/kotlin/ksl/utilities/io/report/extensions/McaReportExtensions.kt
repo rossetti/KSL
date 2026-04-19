@@ -91,6 +91,11 @@ enum class MCBDirection { MAX, MIN, BOTH }
  *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
  * @param probCorrectSelection probability of correct selection for screening; defaults to
  *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
+ * @param showBoxPlot         `true` inserts a **"Response Distributions"** sub-section
+ *                            immediately after the Alternative Statistics table; the section
+ *                            contains a [ksl.utilities.io.plotting.MultiBoxPlot] with one box
+ *                            per alternative sourced from
+ *                            [MultipleComparisonAnalyzer.observationsAsMap]; defaults to `false`
  */
 fun ReportBuilder.multipleComparison(
     mca: MultipleComparisonAnalyzer,
@@ -98,7 +103,8 @@ fun ReportBuilder.multipleComparison(
     indifferenceZone: Double = mca.defaultIndifferenceZone,
     altConfidenceLevel: Double = mca.defaultLevel,
     diffConfidenceLevel: Double = mca.defaultLevel,
-    probCorrectSelection: Double = mca.defaultLevel
+    probCorrectSelection: Double = mca.defaultLevel,
+    showBoxPlot: Boolean = false
 ) {
     val myTitle = mca.name.ifBlank { "Multiple Comparison Analysis" }
     section(myTitle) {
@@ -109,6 +115,13 @@ fun ReportBuilder.multipleComparison(
             caption = "Alternative Statistics",
             confidenceLevel = altConfidenceLevel
         )
+
+        // ── 1a. Optional response distributions box plot ──────────────────────
+        if (showBoxPlot) {
+            section("Response Distributions") {
+                multipleComparisonBoxPlot(mca)
+            }
+        }
 
         // ── 2. Pairwise difference statistics ────────────────────────────────
         section("Pairwise Differences") {
@@ -251,9 +264,14 @@ fun ReportBuilder.multipleComparison(
  * @param block  optional DSL block; replaces the default when provided
  * @return the assembled [ReportNode.Document]
  */
+/**
+ * @param showBoxPlot `true` includes a **"Response Distributions"** box-plot sub-section
+ *                    in the default content; defaults to `false`
+ */
 fun MultipleComparisonAnalyzer.toReport(
     title: String = name.ifBlank { "Multiple Comparison Analysis" },
-    block: ReportBuilder.() -> Unit = { multipleComparison(this@toReport) }
+    showBoxPlot: Boolean = false,
+    block: ReportBuilder.() -> Unit = { multipleComparison(this@toReport, showBoxPlot = showBoxPlot) }
 ): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────

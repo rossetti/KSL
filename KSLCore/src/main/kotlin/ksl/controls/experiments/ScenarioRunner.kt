@@ -180,4 +180,29 @@ class ScenarioRunner @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Returns a map of scenario name → per-replication observations for
+     * [responseName] across all executed scenarios.
+     *
+     * Keys are [Scenario.name] for each scenario whose [SimulationRun] has
+     * non-empty observations for [responseName]. Scenarios not yet executed
+     * or that produced no observations for the response are silently omitted.
+     * Returns an empty map when no scenarios have been executed.
+     *
+     * Suitable as the direct input to [ksl.utilities.statistic.Statistic.boxPlotSummaries]
+     * for constructing a [ksl.utilities.io.plotting.MultiBoxPlot].
+     *
+     * @param responseName the response to extract
+     */
+    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+        val myResult = linkedMapOf<String, DoubleArray>()
+        for (myScenario in scenarioList) {
+            val myObs = myScenario.simulationRun?.replicationObservations(responseName)
+            if (myObs != null && myObs.isNotEmpty()) {
+                myResult[myScenario.name] = myObs
+            }
+        }
+        return myResult
+    }
+
 }

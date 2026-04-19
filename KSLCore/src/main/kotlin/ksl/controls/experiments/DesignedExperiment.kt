@@ -270,6 +270,31 @@ class DesignedExperiment @JvmOverloads constructor(
     }
 
     /**
+     * Returns a map of design-point label → per-replication observations for
+     * [responseName] across all executed design points.
+     *
+     * Keys are `"Point 1"`, `"Point 2"`, … in execution order, matching the
+     * indices of [simulationRuns]. Design points for which [responseName] is
+     * absent or produced no observations are silently omitted.
+     * Returns an empty map when [simulationRuns] is empty.
+     *
+     * Suitable as the direct input to [ksl.utilities.statistic.Statistic.boxPlotSummaries]
+     * for constructing a [ksl.utilities.io.plotting.MultiBoxPlot].
+     *
+     * @param responseName the response to extract; should appear in [responseNames]
+     */
+    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+        val myResult = linkedMapOf<String, DoubleArray>()
+        simulationRuns.forEachIndexed { idx, myRun ->
+            val myObs = myRun.replicationObservations(responseName)
+            if (myObs != null && myObs.isNotEmpty()) {
+                myResult["Point ${idx + 1}"] = myObs
+            }
+        }
+        return myResult
+    }
+
+    /**
      *  Returns a data frame that has columns
      *  (point, exp_name, rep_id, [responseName], factor1, factor2, ..., factorN) where
      *  the values in the [responseName] column have the value of the response for the named experiments

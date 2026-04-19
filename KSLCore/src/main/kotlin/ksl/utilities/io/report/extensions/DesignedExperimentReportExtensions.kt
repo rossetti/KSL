@@ -80,20 +80,27 @@ import ksl.utilities.statistic.Statistic
  *    [simulationRun] section per executed design point, showing the complete run
  *    report including inputs, run parameters, and response statistics
  *
- * @param de              the [DesignedExperiment] to report
- * @param confidenceLevel confidence level for response statistics; defaults to 0.95
- * @param coded           `false` (default) = original measurement scale for the
- *                        design point matrix; `true` = coded (−1/+1) scale
- * @param showDetails     `true` includes per-design-point [simulationRun] sections;
- *                        defaults to `false` because these can be verbose for large
- *                        designs; useful for audit trails and small experiments
- * @param caption         optional section title; defaults to `"Designed Experiment"`
+ * @param de                the [DesignedExperiment] to report
+ * @param confidenceLevel   confidence level for response statistics; defaults to 0.95
+ * @param coded             `false` (default) = original measurement scale for the
+ *                          design point matrix; `true` = coded (−1/+1) scale
+ * @param showDetails       `true` includes per-design-point [simulationRun] sections;
+ *                          defaults to `false` because these can be verbose for large
+ *                          designs; useful for audit trails and small experiments
+ * @param boxPlotResponses  list of response names for which a
+ *                          [ksl.utilities.io.plotting.MultiBoxPlot] (one box per design
+ *                          point) is appended inside each response's sub-section of
+ *                          **"Response Statistics"**; an empty list (default) suppresses
+ *                          all box plots; pass [DesignedExperiment.responseNames] to
+ *                          plot every response
+ * @param caption           optional section title; defaults to `"Designed Experiment"`
  */
 fun ReportBuilder.designedExperiment(
     de: DesignedExperiment,
     confidenceLevel: Double = 0.95,
     coded: Boolean = false,
     showDetails: Boolean = false,
+    boxPlotResponses: List<String> = emptyList(),
     caption: String? = null
 ) {
     section(caption ?: "Designed Experiment") {
@@ -190,6 +197,9 @@ fun ReportBuilder.designedExperiment(
                             caption         = "Across-Replication Statistics: $myResponseName",
                             confidenceLevel = confidenceLevel
                         )
+                        if (myResponseName in boxPlotResponses) {
+                            designedExperimentBoxPlot(de, myResponseName)
+                        }
                     }
                 }
             }
@@ -307,13 +317,16 @@ fun ReportBuilder.designedExperimentRegression(
  * }
  * ```
  *
- * @param title           document title; defaults to the experiment name
- * @param confidenceLevel confidence level for response statistics; defaults to 0.95
- * @param coded           `false` (default) = original scale; `true` = coded scale
- *                        for the design point matrix
- * @param showDetails     `true` includes per-design-point [simulationRun] sections;
- *                        defaults to `false`
- * @param block           optional DSL block; replaces the default when provided
+ * @param title             document title; defaults to the experiment name
+ * @param confidenceLevel   confidence level for response statistics; defaults to 0.95
+ * @param coded             `false` (default) = original scale; `true` = coded scale
+ *                          for the design point matrix
+ * @param showDetails       `true` includes per-design-point [simulationRun] sections;
+ *                          defaults to `false`
+ * @param boxPlotResponses  list of response names for which a [MultiBoxPlot] is included;
+ *                          defaults to empty (no box plots); pass [DesignedExperiment.responseNames]
+ *                          for all responses
+ * @param block             optional DSL block; replaces the default when provided
  * @return the assembled [ReportNode.Document]
  */
 fun DesignedExperiment.toReport(
@@ -321,7 +334,8 @@ fun DesignedExperiment.toReport(
     confidenceLevel: Double = 0.95,
     coded: Boolean = false,
     showDetails: Boolean = false,
+    boxPlotResponses: List<String> = emptyList(),
     block: ReportBuilder.() -> Unit = {
-        designedExperiment(this@toReport, confidenceLevel, coded, showDetails)
+        designedExperiment(this@toReport, confidenceLevel, coded, showDetails, boxPlotResponses)
     }
 ): ReportNode.Document = report(title, block)
