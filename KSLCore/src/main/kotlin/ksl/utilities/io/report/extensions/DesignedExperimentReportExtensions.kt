@@ -19,6 +19,7 @@
 package ksl.utilities.io.report.extensions
 
 import ksl.controls.experiments.DesignedExperiment
+import ksl.controls.experiments.LinearModel
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
 import ksl.utilities.io.report.dsl.report
@@ -177,7 +178,7 @@ fun ReportBuilder.designedExperiment(
                 // Build a Statistic per design point using replication observations
                 val myStats = de.simulationRuns.mapIndexed { idx, myRun ->
                     val myObs = myRun.results[myResponseName]
-                    if (!myObs.isNullOrEmpty()) {
+                    if (myObs != null && myObs.isNotEmpty()) {
                         Statistic("Point ${idx + 1}", myObs)
                     } else null
                 }.filterNotNull()
@@ -210,6 +211,72 @@ fun ReportBuilder.designedExperiment(
                     )
                 }
             }
+        }
+    }
+}
+
+// ── DSL Function: Designed Experiment Regression (bridge) ────────────────────
+
+/**
+ * Appends a self-contained regression-analysis section for a single response from [de].
+ *
+ * This bridge function fits an OLS model to the across-replication mean responses at
+ * each design point and delegates all rendering to the existing [regressionSummary],
+ * [regressionParameters], and (optionally) [regressionDiagnostics] extension functions.
+ *
+ * **Produces (inside a section titled `caption` or `"Regression Analysis — <responseName>"`):**
+ * 1. **Regression Setup** `DataTable` — response name, factor count, term count (excluding
+ *    intercept), intercept flag, and display scale
+ * 2. **ANOVA and Model Fit** — via [regressionSummary]: ANOVA table, R², adjusted R²,
+ *    RMSE, and overall F-test p-value
+ * 3. **Coefficients** — via [regressionParameters]: coefficient estimates, standard errors,
+ *    t-statistics, p-values, and confidence intervals with significance codes
+ * 4. **Diagnostics** (when [showDiagnosticPlots] is `true`) — via [regressionDiagnostics]:
+ *    residual summary, normal probability plot, residuals-vs-fitted plot, and
+ *    residuals-vs-order plot
+ *
+ * **Prerequisite:** [de] must have been executed via `de.simulateAll()` before calling
+ * this function; otherwise [DesignedExperiment.regressionResults] will have no data.
+ *
+ * @param de                  the [DesignedExperiment] whose results supply the regression data
+ * @param responseName        the name of the response to fit; must appear in [de.responseNames]
+ * @param linearModel         the model specification (factors, interaction terms, intercept flag)
+ * @param confidenceLevel     confidence level for coefficient intervals; defaults to 0.95
+ * @param coded               `true` (default) = coded (−1/+1) scale; `false` = original scale
+ * @param showDiagnosticPlots `true` (default) = include residual diagnostic plots; `false` =
+ *                            summary and coefficients only (useful for large documents)
+ * @param caption             optional section title; defaults to
+ *                            `"Regression Analysis — <responseName>"`
+ */
+fun ReportBuilder.designedExperimentRegression(
+    de: DesignedExperiment,
+    responseName: String,
+    linearModel: LinearModel,
+    confidenceLevel: Double = 0.95,
+    coded: Boolean = true,
+    showDiagnosticPlots: Boolean = true,
+    caption: String? = null
+) {
+    section(caption ?: "Regression Analysis \u2014 $responseName") {
+        // ── 1. Identification table ────────────────────────────────────────────
+        dataTable(
+            headers = listOf("Property", "Value"),
+            rows    = listOf(
+                listOf("Response",   responseName),
+                listOf("Factors",    linearModel.mainEffects.size.toString()),
+                listOf("Terms",      linearModel.termsAsMap.size.toString()),
+                listOf("Intercept",  linearModel.intercept.toString()),
+                listOf("Scale",      if (coded) "Coded (\u22121/+1)" else "Original")
+            ),
+            caption = "Regression Setup"
+        )
+
+        // ── 2–4. Fit, coefficients, diagnostics ───────────────────────────────
+        val myResults = de.regressionResults(responseName, linearModel, coded)
+        regressionSummary(myResults,    confidenceLevel = confidenceLevel)
+        regressionParameters(myResults, confidenceLevel = confidenceLevel)
+        if (showDiagnosticPlots) {
+            regressionDiagnostics(myResults)
         }
     }
 }

@@ -26,7 +26,11 @@ import ksl.examples.book.chapter7.RQInventorySystem
 import ksl.simulation.Model
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.designedExperiment
+import ksl.utilities.io.report.extensions.designedExperimentRegression
 import ksl.utilities.io.report.extensions.linearModel
+import ksl.utilities.io.report.extensions.regressionDiagnostics
+import ksl.utilities.io.report.extensions.regressionParameters
+import ksl.utilities.io.report.extensions.regressionSummary
 import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.showInBrowser
 import ksl.utilities.random.rvariable.ConstantRV
@@ -57,9 +61,10 @@ import ksl.utilities.random.rvariable.ExponentialRV
  *                                  illustrates the composability pattern for RSM studies
  */
 fun main() {
-    demoDesignPreRun()
+//    demoDesignPreRun()
 //    demoDesignPostRun()
 //    demoDesignCustomBlock()
+    demoDesignRegression()
 }
 
 // ── Shared model and design factory ──────────────────────────────────────────
@@ -201,6 +206,112 @@ fun demoDesignPostRun() {
         coded       = true,
         showDetails = true
     ).showInBrowser()
+}
+
+// ── Demo 4: Regression Analysis ──────────────────────────────────────────────
+
+/**
+ * Demonstrates [designedExperimentRegression] as a bridge to the OLS regression
+ * framework for a completed 2² factorial experiment on the (r, Q) inventory system.
+ *
+ * Three reports are produced:
+ * 1. **Zero-code** — [designedExperimentRegression] called directly on the experiment,
+ *    showing the first-order (main-effects-only) regression for total cost as a
+ *    standalone section inside a `report {}` block
+ * 2. **Granular assembly** — [regressionSummary] and [regressionParameters] called
+ *    individually (no diagnostic plots); illustrates mixing the granular functions
+ * 3. **Full composed document** — [designedExperiment] followed by two calls to
+ *    [designedExperimentRegression] with different model specifications
+ *    (`FirstOrder` vs `AllTerms`), comparing main-effects-only against the model
+ *    that includes the r×Q interaction term
+ *
+ * Response: `"RQInventory:Item:TotalCost"` (total cost per month).
+ * Reps: 20 per design point. Scale: coded (−1/+1) throughout.
+ *
+ * **Illustrates:**
+ * - [designedExperimentRegression] zero-code bridge function
+ * - Granular [regressionSummary] + [regressionParameters] assembly
+ * - Side-by-side model comparison (`FirstOrder` vs `AllTerms`) in one document
+ * - `showDiagnosticPlots = true` including residual plots
+ */
+fun demoDesignRegression() {
+    println("\n=== Demo 4: Regression Analysis ===")
+
+    val myDE = buildDesignedExperiment("RQ_Regression_Demo")
+    val myResponse = "RQInventory:Item:TotalCost"
+
+    println("Running all ${myDE.design.designPoints().size} design points (20 reps each)...")
+    myDE.simulateAll(numRepsPerDesignPoint = 20)
+    println("Simulation complete. Runs executed: ${myDE.numSimulationRuns}")
+    println("Response names: ${myDE.responseNames}")
+
+    val myLMFirst   = myDE.design.linearModel(LinearModel.Type.FirstOrder)
+    val myLMAll     = myDE.design.linearModel(LinearModel.Type.AllTerms)
+
+    // ── Report 1: zero-code (first-order model, coded scale, full diagnostics) ─
+    report("(r,Q) Inventory \u2014 First-Order Regression") {
+        designedExperimentRegression(
+            de                  = myDE,
+            responseName        = myResponse,
+            linearModel         = myLMFirst,
+            confidenceLevel     = 0.95,
+            coded               = true,
+            showDiagnosticPlots = true,
+            caption             = "Main-Effects Model: TotalCost ~ r + Q"
+        )
+    }.showInBrowser()
+
+    // ── Report 2: granular assembly (all-terms model, no diagnostic plots) ─────
+    report("(r,Q) Inventory \u2014 Full Model (Granular)") {
+        section("All-Terms Model: TotalCost ~ r + Q + r\u00d7Q") {
+            val myResults = myDE.regressionResults(myResponse, myLMAll, coded = true)
+            regressionSummary(myResults,    confidenceLevel = 0.95,
+                caption = "ANOVA and Fit \u2014 All Terms")
+            regressionParameters(myResults, confidenceLevel = 0.95,
+                caption = "Coefficient Estimates \u2014 All Terms")
+            paragraph(
+                "The full 2\u00b2 model includes the r\u00d7Q interaction term. " +
+                "Compare R\u00b2 and the interaction coefficient p-value against the " +
+                "first-order model to assess whether the interaction is practically significant."
+            )
+        }
+    }.showInBrowser()
+
+    // ── Report 3: composite — experiment structure + model comparison ──────────
+    report("(r,Q) Inventory \u2014 Design and Regression Study") {
+        designedExperiment(
+            de              = myDE,
+            confidenceLevel = 0.95,
+            coded           = true,
+            showDetails     = false,
+            caption         = "2\u00b2 Factorial Experiment Results"
+        )
+        designedExperimentRegression(
+            de                  = myDE,
+            responseName        = myResponse,
+            linearModel         = myLMFirst,
+            confidenceLevel     = 0.95,
+            coded               = true,
+            showDiagnosticPlots = true,
+            caption             = "Model 1: Main Effects Only (r + Q)"
+        )
+        designedExperimentRegression(
+            de                  = myDE,
+            responseName        = myResponse,
+            linearModel         = myLMAll,
+            confidenceLevel     = 0.95,
+            coded               = true,
+            showDiagnosticPlots = true,
+            caption             = "Model 2: Main Effects + Interaction (r + Q + r\u00d7Q)"
+        )
+        paragraph(
+            "Model 1 fits main effects only; Model 2 adds the r\u00d7Q interaction. " +
+            "With only 4 design points in a saturated 2\u00b2 design, Model 2 is fully " +
+            "saturated (zero residual degrees of freedom) and yields a perfect fit " +
+            "(R\u00b2 = 1.0). Model 1 uses the interaction as an error estimate. " +
+            "The diagnostic plots in each model section support residual adequacy assessment."
+        )
+    }.showInBrowser()
 }
 
 // ── Demo 3: Custom Block (Design + Linear Model) ──────────────────────────────
