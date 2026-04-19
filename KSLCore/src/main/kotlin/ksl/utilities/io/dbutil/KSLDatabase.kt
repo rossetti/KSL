@@ -571,11 +571,12 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
      *  and the replication id (number) for the value.
      */
     fun withinRepViewStatistics(responseName: String): AnyFrame {
-        val stat_name by column<String>()
-        var dm = withinRepViewStatistics.filter { stat_name.name() == responseName }
         val rep_value by column<Double>()
         val exp_name by column<String>()
         val rep_id by column<Int>()
+        var dm = withinRepViewData()
+            .filter { it.stat_name == responseName }
+            .toDataFrame()
         dm = dm.select(exp_name.name(), rep_id.name(), rep_value.name())
         dm = dm.rename { rep_value }.into { responseName }
         return dm
