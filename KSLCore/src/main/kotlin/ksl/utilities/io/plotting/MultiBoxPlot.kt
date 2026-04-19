@@ -78,7 +78,7 @@ class MultiBoxPlot(boxPlotMap: Map<String, BoxPlotSummary>) : BasePlot() {
            so that extreme outliers do not compress the boxes visually; points outside
            the window are simply not drawn.
          */
-        val p = ggplot(data) +
+        var p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity) {
                     x      = "distribution"
                     lower  = "firstQuartile"
@@ -87,13 +87,16 @@ class MultiBoxPlot(boxPlotMap: Map<String, BoxPlotSummary>) : BasePlot() {
                     ymin   = "lowerWhisker"
                     ymax   = "upperWhisker"
                 } +
-                geomPoint(outlierData, shape = 1) {
-                    x = "distribution"
-                    y = "value"
-                } +
                 coordCartesian(ylim = Pair(globalYLow, globalYHigh)) +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
+
+        if (outlierData["value"]!!.isNotEmpty()) {
+            p = p + geomPoint(outlierData, shape = 1) {
+                x = "distribution"
+                y = "value"
+            }
+        }
         return p
     }
 

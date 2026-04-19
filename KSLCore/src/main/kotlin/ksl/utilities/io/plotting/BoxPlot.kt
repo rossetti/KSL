@@ -64,7 +64,7 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
         val myYLow  = boxPlotSummary.lowerWhisker - myPad
         val myYHigh = boxPlotSummary.upperWhisker + myPad
 
-        val p = ggplot(data) +
+        var p = ggplot(data) +
                 geomBoxplot(stat = Stat.identity, whiskerWidth = 0.05) {
                     x      = "name"
                     lower  = "firstQuartile"
@@ -73,13 +73,16 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
                     ymin   = "lowerWhisker"
                     ymax   = "upperWhisker"
                 } +
-                geomPoint(outliers, shape = 1) {
-                    x = "name"
-                    y = "outliers"
-                } +
                 coordCartesian(ylim = Pair(myYLow, myYHigh)) +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
+
+        if ((outliers["outliers"] as List<*>).isNotEmpty()) {
+            p = p + geomPoint(outliers, shape = 1) {
+                x = "name"
+                y = "outliers"
+            }
+        }
         return p
     }
 
