@@ -32,8 +32,10 @@ import ksl.utilities.io.report.showInBrowser
 /**
  * Demonstrates use of the simulation-run reporting framework extensions.
  *
- * Model: M/M/c queue ([GIGcQueue]) — an M/M/1 system with exponential inter-arrival
- * and service times — with responses: NumBusy, Num in System, System Time, Num Served.
+ * Model: M/M/c queue ([GIGcQueue]) with default parameters — exponential inter-arrival
+ * times (mean = 1.0, stream 1) and exponential service times (mean = 0.5, stream 2),
+ * giving arrival rate λ = 1.0 and service rate μ = 2.0.
+ * Responses: NumBusy, Num in System, System Time, Num Served.
  * The control `"MM1Q.numServers"` adjusts the server count between scenarios.
  *
  * Four demos:
@@ -60,8 +62,9 @@ fun main() {
  * Builds a fresh M/M/1 model with [GIGcQueue] named `"MM1Q"`.
  *
  * Default settings: 30 replications, run length = 1 000 time units,
- * warm-up = 100 time units.  Inter-arrival rate = 1.0 (stream 1),
- * service rate = 1.25 (stream 2) giving ρ ≈ 0.80.
+ * warm-up = 100 time units.  Uses [GIGcQueue] defaults: mean inter-arrival
+ * time = 1.0 (λ = 1.0, stream 1), mean service time = 0.5 (μ = 2.0, stream 2),
+ * giving single-server traffic intensity ρ = λ / μ = 0.50.
  */
 private fun buildModel(name: String = "MM1_Model"): Model {
     val myModel = Model(name, autoCSVReports = false)
@@ -106,8 +109,8 @@ fun demoRunParametersOnly() {
     val myDoc = report("M/M/1 Queue — Planned Experiment") {
         experimentRunParameters(myParams, caption = "Planned Run Configuration")
         paragraph(
-            "Planned study: M/M/1 queue with arrival rate \u03bb = 1.0, " +
-            "service rate \u03bc = 1.25, giving utilisation \u03c1 \u2248 0.80. " +
+            "Planned study: M/M/1 queue with mean inter-arrival time 1.0 (\u03bb = 1.0), " +
+            "mean service time 0.5 (\u03bc = 2.0), giving traffic intensity \u03c1 = 0.50. " +
             "${myParams.numberOfReplications} replications of length " +
             "${myParams.lengthOfReplication.toInt()} with warm-up " +
             "${myParams.lengthOfReplicationWarmUp.toInt()}."
@@ -122,10 +125,10 @@ fun demoRunParametersOnly() {
  * Demonstrates [SimulationRun.toReport] as a zero-code entry point after a
  * completed simulation run with default inputs.
  *
- * The model runs with 1 server at ρ ≈ 0.80. The report shows all seven sections:
- * run identity (with real execution timestamps and duration), run parameters,
- * empty inputs notice, replication timing summary, and across-replication
- * response statistics for NumBusy, Num in System, System Time, and Num Served.
+ * The model runs with 1 server at ρ = λ / μ = 1.0 / 2.0 = 0.50. The report shows
+ * all seven sections: run identity (with real execution timestamps and duration),
+ * run parameters, empty inputs notice, and across-replication response statistics
+ * for NumBusy, Num in System, System Time, and Num Served.
  *
  * **Illustrates:**
  * - [SimulationRun.toReport] zero-code path
@@ -140,7 +143,7 @@ fun demoSimulationRunBasic() {
     val myModel  = buildModel("MM1_Basic")
     val myRunner = SimulationRunner(myModel)
 
-    println("Running simulation (1 server, \u03c1 \u2248 0.80)...")
+    println("Running simulation (1 server, \u03c1 = 0.50)...")
     val myRun = myRunner.simulate()
     println(myRun)
 
@@ -159,8 +162,8 @@ fun demoSimulationRunBasic() {
  * are supplied to the runner.
  *
  * Two runs are executed and compared:
- * - **Baseline** — 1 server (`"MM1Q.numServers" = 1.0`)
- * - **2-Server** — 2 servers (`"MM1Q.numServers" = 2.0`)
+ * - **Baseline** — 1 server (`"MM1Q.numServers" = 1.0`); ρ = λ / (1 · μ) = 0.50
+ * - **2-Server** — 2 servers (`"MM1Q.numServers" = 2.0`); ρ = λ / (2 · μ) = 0.25
  *
  * Both runs use the same model and runner instance. Each run is reported individually
  * and then both are composed into a single comparison document.
@@ -201,12 +204,12 @@ fun demoSimulationRunWithInputs() {
 
     // Comparison document
     val myDoc = report("M/M/1 Queue — Server Count Comparison") {
-        simulationRun(myRun1, caption = "Scenario: 1 Server (\u03c1 \u2248 0.80)")
-        simulationRun(myRun2, caption = "Scenario: 2 Servers (\u03c1 \u2248 0.40)")
+        simulationRun(myRun1, caption = "Scenario: 1 Server (\u03c1 = 0.50)")
+        simulationRun(myRun2, caption = "Scenario: 2 Servers (\u03c1 = 0.25)")
         paragraph(
-            "Adding a second server reduces mean system time and queue length " +
-            "substantially. See the Response Statistics sections above for confidence " +
-            "interval comparisons."
+            "Adding a second server halves the traffic intensity from \u03c1 = 0.50 to " +
+            "\u03c1 = 0.25, substantially reducing mean system time and queue length. " +
+            "See the Response Statistics sections above for confidence interval comparisons."
         )
     }
     myDoc.showInBrowser()
@@ -249,8 +252,8 @@ fun demoSimulationRunGranularBlock() {
         }
         simulationRun(myRun, confidenceLevel = 0.99, showTimings = true, caption = "Execution Results")
         paragraph(
-            "All 95% confidence intervals are contained within \u00b10.05 of the " +
-            "point estimates, indicating sufficient replication count. " +
+            "All 99% confidence intervals are shown above. The M/M/1 queue with " +
+            "\u03bb = 1.0, \u03bc = 2.0 (\u03c1 = 0.50) is well within its stable region. " +
             "Estimated server utilisation: see NumBusy in the Response Statistics section."
         )
     }
