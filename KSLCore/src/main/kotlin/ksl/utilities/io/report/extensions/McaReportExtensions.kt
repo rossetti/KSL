@@ -91,10 +91,16 @@ enum class MCBDirection { MAX, MIN, BOTH }
  *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
  * @param probCorrectSelection probability of correct selection for screening; defaults to
  *                            [mca.defaultLevel][MultipleComparisonAnalyzer.defaultLevel]
+ * @param showAltCIPlot       `true` inserts an **"Alternative Confidence Intervals"**
+ *                            sub-section immediately after the Alternative Statistics table;
+ *                            the section contains a [ConfidenceIntervalsPlot] showing the
+ *                            across-replication CI for each alternative's mean at
+ *                            [altConfidenceLevel]; defaults to `false`
  * @param showBoxPlot         `true` inserts a **"Response Distributions"** sub-section
- *                            immediately after the Alternative Statistics table; the section
- *                            contains a [ksl.utilities.io.plotting.MultiBoxPlot] with one box
- *                            per alternative sourced from
+ *                            after the CI plot sub-section (or directly after the statistics
+ *                            table when [showAltCIPlot] is `false`); the section contains a
+ *                            [ksl.utilities.io.plotting.MultiBoxPlot] with one box per
+ *                            alternative sourced from
  *                            [MultipleComparisonAnalyzer.observationsAsMap]; defaults to `false`
  */
 fun ReportBuilder.multipleComparison(
@@ -104,6 +110,7 @@ fun ReportBuilder.multipleComparison(
     altConfidenceLevel: Double = mca.defaultLevel,
     diffConfidenceLevel: Double = mca.defaultLevel,
     probCorrectSelection: Double = mca.defaultLevel,
+    showAltCIPlot: Boolean = false,
     showBoxPlot: Boolean = false
 ) {
     val myTitle = mca.name.ifBlank { "Multiple Comparison Analysis" }
@@ -116,7 +123,14 @@ fun ReportBuilder.multipleComparison(
             confidenceLevel = altConfidenceLevel
         )
 
-        // ── 1a. Optional response distributions box plot ──────────────────────
+        // ── 1a. Optional alternative CI plot ──────────────────────────────────
+        if (showAltCIPlot) {
+            section("Alternative Confidence Intervals") {
+                multipleComparisonCIPlot(mca, confidenceLevel = altConfidenceLevel)
+            }
+        }
+
+        // ── 1b. Optional response distributions box plot ──────────────────────
         if (showBoxPlot) {
             section("Response Distributions") {
                 multipleComparisonBoxPlot(mca)
@@ -226,6 +240,46 @@ fun ReportBuilder.multipleComparison(
     }
 }
 
+// ── Standalone CI plot wrapper ────────────────────────────────────────────────
+
+/**
+ * Appends a [ConfidenceIntervalsPlot] showing the across-replication confidence
+ * interval for each alternative's mean.
+ *
+ * Each alternative is represented by a point (its sample mean) and an error bar
+ * spanning its CI at [confidenceLevel]. The intervals are computed from
+ * [MultipleComparisonAnalyzer.statistics] via
+ * [ksl.utilities.io.StatisticReporter.confidenceIntervals].
+ *
+ * An optional vertical [referencePoint] line can mark a target value or known
+ * standard; defaults to `null` (no reference line) because there is no universal
+ * reference for absolute alternative means.
+ *
+ * Independently callable in any composite document:
+ * ```kotlin
+ * report("Throughput Study") {
+ *     multipleComparisonCIPlot(mca, confidenceLevel = 0.95)
+ * }
+ * ```
+ *
+ * @param mca             the analyzer whose per-alternative statistics supply the intervals
+ * @param confidenceLevel confidence level for the intervals; defaults to [mca.defaultLevel]
+ * @param referencePoint  optional x-intercept for a reference line; `null` suppresses it
+ * @param caption         optional plot caption; defaults to
+ *                        `"Alternative Confidence Intervals — <mca.name>"`
+ */
+fun ReportBuilder.multipleComparisonCIPlot(
+    mca: MultipleComparisonAnalyzer,
+    confidenceLevel: Double = mca.defaultLevel,
+    referencePoint: Double? = null,
+    caption: String? = null
+) {
+    plot(
+        ConfidenceIntervalsPlot(mca.statistics, level = confidenceLevel, referencePoint = referencePoint),
+        caption ?: "Alternative Confidence Intervals \u2014 ${mca.name}"
+    )
+}
+
 // ── toReport() ───────────────────────────────────────────────────────────────
 
 /**
@@ -259,19 +313,22 @@ fun ReportBuilder.multipleComparison(
  * }
  * ```
  *
- * @param title  document title; defaults to [MultipleComparisonAnalyzer.name] or
- *               `"Multiple Comparison Analysis"` when the name is blank
- * @param block  optional DSL block; replaces the default when provided
+ * @param title           document title; defaults to [MultipleComparisonAnalyzer.name] or
+ *                        `"Multiple Comparison Analysis"` when the name is blank
+ * @param showAltCIPlot   `true` includes an **"Alternative Confidence Intervals"** CI-plot
+ *                        sub-section in the default content; defaults to `false`
+ * @param showBoxPlot     `true` includes a **"Response Distributions"** box-plot sub-section
+ *                        in the default content; defaults to `false`
+ * @param block           optional DSL block; replaces the default when provided
  * @return the assembled [ReportNode.Document]
- */
-/**
- * @param showBoxPlot `true` includes a **"Response Distributions"** box-plot sub-section
- *                    in the default content; defaults to `false`
  */
 fun MultipleComparisonAnalyzer.toReport(
     title: String = name.ifBlank { "Multiple Comparison Analysis" },
+    showAltCIPlot: Boolean = false,
     showBoxPlot: Boolean = false,
-    block: ReportBuilder.() -> Unit = { multipleComparison(this@toReport, showBoxPlot = showBoxPlot) }
+    block: ReportBuilder.() -> Unit = {
+        multipleComparison(this@toReport, showAltCIPlot = showAltCIPlot, showBoxPlot = showBoxPlot)
+    }
 ): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────

@@ -169,8 +169,23 @@ fun demoWeightedStatisticReport() {
 // ── Demo 7: Multiple comparison analysis ─────────────────────────────────────
 
 /**
- * Builds an MCA report for four simulated system alternatives and opens it
- * in a browser.
+ * Builds three MCA reports for four simulated system alternatives to demonstrate
+ * the [multipleComparison], [multipleComparisonCIPlot], and [multipleComparisonBoxPlot]
+ * DSL functions.
+ *
+ * **Report 1 — zero-code entry point with all visuals enabled:**
+ * Uses [MultipleComparisonAnalyzer.toReport] with `showAltCIPlot = true` and
+ * `showBoxPlot = true`. Demonstrates the one-liner path.
+ *
+ * **Report 2 — granular composite with CI plot only:**
+ * Uses the standalone [multipleComparisonCIPlot] wrapper with a custom reference
+ * point (the grand mean across all alternatives) to show how the CI plot can be
+ * placed independently in any document.
+ *
+ * **Report 3 — all visuals via `multipleComparison()` parameters:**
+ * Passes `showAltCIPlot = true` and `showBoxPlot = true` to [multipleComparison]
+ * inside a hand-crafted report block, demonstrating both optional sections together
+ * with a narrative paragraph.
  *
  * Data taken from the existing DemoMCB example (throughput observations
  * across 10 replications for four system configurations).
@@ -183,16 +198,63 @@ fun demoMcaReport() {
     myData["Config 4"] = doubleArrayOf(62.63, 31.56, 39.87, 37.35, 36.65, 57.15, 33.30, 62.21, 47.46, 79.60)
     val myMca = MultipleComparisonAnalyzer(myData, "System Throughput")
 
-    val myDoc = report("Multiple Comparison Analysis — System Throughput") {
+    // ── Report 1: zero-code entry point with CI plot and box plot ─────────────
+    val myDoc1 = myMca.toReport(
+        title         = "MCA Report 1 — Zero-Code with All Visuals",
+        showAltCIPlot = true,
+        showBoxPlot   = true
+    )
+    myDoc1.showInBrowser()
+    myDoc1.writeMarkdown()
+
+    // ── Report 2: standalone CI plot with a custom reference point ────────────
+    // Compute grand mean across all alternatives to use as the reference line.
+    val myGrandMean = myMca.statistics.map { it.average }.average()
+    val myDoc2 = report("MCA Report 2 — Standalone CI Plot") {
         paragraph(
-            "Throughput (customers/hour) for 4 system configurations " +
-            "across 10 replications. Goal: identify the configuration " +
-            "with highest throughput."
+            "Throughput (customers/hour) for 4 system configurations across " +
+            "10 replications. The dashed reference line marks the grand mean " +
+            "(${"%,.2f".format(myGrandMean)} customers/hour) across all alternatives."
         )
-        multipleComparison(myMca, altConfidenceLevel = 0.95)
+        // Statistics table for context
+        statTable(
+            stats           = myMca.statistics,
+            caption         = "Alternative Statistics",
+            confidenceLevel = 0.95
+        )
+        // Standalone CI plot with the grand mean as a reference line
+        multipleComparisonCIPlot(
+            mca            = myMca,
+            confidenceLevel = 0.95,
+            referencePoint  = myGrandMean,
+            caption         = "95% CIs for Alternative Means (reference = grand mean)"
+        )
     }
-    myDoc.showInBrowser()
-    myDoc.writeMarkdown()
+    myDoc2.showInBrowser()
+    myDoc2.writeMarkdown()
+
+    // ── Report 3: full multipleComparison() with both visual options enabled ──
+    val myDoc3 = report("MCA Report 3 — Full Analysis with CI Plot and Box Plot") {
+        paragraph(
+            "Throughput (customers/hour) for 4 system configurations across " +
+            "10 replications. Goal: identify the configuration with highest " +
+            "throughput. This report includes per-alternative confidence " +
+            "intervals on the means (showAltCIPlot) and per-alternative " +
+            "replication-distribution box plots (showBoxPlot)."
+        )
+        multipleComparison(
+            mca               = myMca,
+            altConfidenceLevel = 0.95,
+            showAltCIPlot      = true,
+            showBoxPlot        = true
+        )
+        paragraph(
+            "Recommendation: Config 1 has the highest mean throughput and " +
+            "survives MCB screening for the maximum."
+        )
+    }
+    myDoc3.showInBrowser()
+    myDoc3.writeMarkdown()
 }
 
 // ── Demo 8: Composite report ──────────────────────────────────────────────────
@@ -264,6 +326,6 @@ fun main() {
 //    demoFrequencyReport()
 //   demoBatchStatisticReport()
 //    demoWeightedStatisticReport()
-//    demoMcaReport()
-    demoCompositeReport()
+    demoMcaReport()
+//    demoCompositeReport()
 }
