@@ -148,8 +148,8 @@ fun ReportBuilder.simulationRun(
 ) {
     section(caption ?: "Simulation Run") {
 
-        val myHasRun  = run.beginExecutionTime != Instant.DISTANT_PAST
-        val myHasErr  = run.runErrorMsg.isNotEmpty()
+        val myHasRun  = run.hasBeenExecuted
+        val myHasErr  = run.hasError
 
         // ── 1. Run identity ───────────────────────────────────────────────────
         section("Run Identity") {
@@ -220,7 +220,7 @@ fun ReportBuilder.simulationRun(
 
         // ── 6. Replication timing ─────────────────────────────────────────────
         if (showTimings && myHasRun && !myHasErr) {
-            val myTimings = run.results["repTimings"]
+            val myTimings = run.replicationTimings
             if (myTimings != null && myTimings.isNotEmpty()) {
                 section("Replication Timing") {
                     val myTimingStat = Statistic("Replication Wall-Clock Time (ms)", myTimings)
@@ -250,15 +250,15 @@ fun ReportBuilder.simulationRun(
 
         // ── 7. Response statistics ────────────────────────────────────────────
         if (!myHasErr) {
-            val myReporter = run.statisticalReporter()
-            if (myReporter.statistics.isEmpty()) {
+            val myStats = run.acrossReplicationStatistics(confidenceLevel).values.toList()
+            if (myStats.isEmpty()) {
                 paragraph("No response statistics were recorded. The run may not have been executed.")
             } else {
                 section("Response Statistics") {
                     statTable(
-                        stats             = myReporter.statistics,
-                        caption           = "Across-Replication Statistics (${myReporter.statistics.size} responses)",
-                        confidenceLevel   = confidenceLevel
+                        stats           = myStats,
+                        caption         = "Across-Replication Statistics (${run.responseCount} responses)",
+                        confidenceLevel = confidenceLevel
                     )
                 }
             }

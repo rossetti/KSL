@@ -157,7 +157,7 @@ fun ReportBuilder.designedExperiment(
                     for (ctrl in myCtrlNames) {
                         add(myRun.inputs[ctrl]?.let { "%.6g".format(it) } ?: "\u2014")
                     }
-                    add(if (myRun.runErrorMsg.isEmpty()) "OK" else "Error \u26a0")
+                    add(if (!myRun.hasError) "OK" else "Error \u26a0")
                 }
             }
             dataTable(
@@ -177,7 +177,7 @@ fun ReportBuilder.designedExperiment(
             for (myResponseName in de.responseNames) {
                 // Build a Statistic per design point using replication observations
                 val myStats = de.simulationRuns.mapIndexed { idx, myRun ->
-                    val myObs = myRun.results[myResponseName]
+                    val myObs = myRun.replicationObservations(myResponseName)
                     if (myObs != null && myObs.isNotEmpty()) {
                         Statistic("Point ${idx + 1}", myObs)
                     } else null

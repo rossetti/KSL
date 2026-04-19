@@ -94,6 +94,42 @@ class SimulationRun private constructor(
         get() = results.isNotEmpty()
 
     /**
+     * The number of model responses recorded in [results], excluding the internal
+     * bookkeeping keys `"repNumbers"` and `"repTimings"`.
+     * Equivalent to `responseNames.size`.
+     */
+    val responseCount: Int
+        get() = responseNames.size
+
+    /**
+     * `true` if the run has been executed (i.e. [beginExecutionTime] has been set
+     * from its initial sentinel value of [Instant.DISTANT_PAST]).
+     */
+    val hasBeenExecuted: Boolean
+        get() = beginExecutionTime != Instant.DISTANT_PAST
+
+    /**
+     * Returns the per-replication wall-clock execution times in milliseconds as recorded
+     * by [ksl.observers.SimulationTimer], or `null` if the run has not been executed.
+     *
+     * @return a [DoubleArray] with one timing value per replication, or `null`
+     */
+    val replicationTimings: DoubleArray?
+        get() = results["repTimings"]
+
+    /**
+     * Returns the replication identifiers used during execution, or `null` if the run
+     * has not been executed.
+     *
+     * The internal store holds replication numbers as doubles (produced by
+     * [ksl.utilities.KSLArrays.toDoubles]); this property converts them to [IntArray].
+     *
+     * @return an [IntArray] of replication numbers in execution order, or `null`
+     */
+    val replicationNumbers: IntArray?
+        get() = results["repNumbers"]?.let { arr -> IntArray(arr.size) { arr[it].toInt() } }
+
+    /**
      * Returns the per-replication observations for [responseName], or `null` if the
      * name is absent from [results] or is one of the internal bookkeeping keys
      * (`"repNumbers"`, `"repTimings"`).
@@ -152,11 +188,13 @@ class SimulationRun private constructor(
      * Delegates to [acrossReplicationStatistics] so that the internal bookkeeping
      * keys `"repNumbers"` and `"repTimings"` are automatically excluded.
      *
+     * @param confidenceLevel the confidence level applied to each [Statistic];
+     *                        defaults to 0.95
      * @return a [StatisticReporter] with the summary statistics of the run
      */
-    fun statisticalReporter(): StatisticReporter {
+    fun statisticalReporter(confidenceLevel: Double = 0.95): StatisticReporter {
         val r = StatisticReporter()
-        for ((_, stat) in acrossReplicationStatistics()) {
+        for ((_, stat) in acrossReplicationStatistics(confidenceLevel)) {
             r.addStatistic(stat)
         }
         return r

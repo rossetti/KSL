@@ -159,9 +159,9 @@ fun ReportBuilder.scenarioRunner(
                     fmtSCR(s.lengthOfReplicationWarmUp),
                     if (myRun != null) "Executed" else "Not Executed",
                     when {
-                        myRun == null                          -> "\u2014"
-                        myRun.runErrorMsg.isNotEmpty()         -> "Yes \u26a0"
-                        else                                   -> "No"
+                        myRun == null    -> "\u2014"
+                        myRun.hasError   -> "Yes \u26a0"
+                        else             -> "No"
                     }
                 )
             }
