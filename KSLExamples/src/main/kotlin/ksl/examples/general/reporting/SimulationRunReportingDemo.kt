@@ -130,8 +130,9 @@ fun demoRunParametersOnly() {
  * **Illustrates:**
  * - [SimulationRun.toReport] zero-code path
  * - Run identity section with real `beginExecutionTime`/`endExecutionTime`
- * - Replication timing section derived from `repTimings`
  * - Response statistics `StatTable` for all model responses
+ * - Replication timing section (opt-in via `showTimings = true`):
+ *   wall-clock times in **milliseconds**, JVM warm-up annotation
  */
 fun demoSimulationRunBasic() {
     println("\n=== Demo 2: Basic Simulation Run ===")
@@ -143,7 +144,12 @@ fun demoSimulationRunBasic() {
     val myRun = myRunner.simulate()
     println(myRun)
 
+    // Default report: no timing section
     myRun.toReport("M/M/1 Queue — Baseline Run").showInBrowser()
+
+    // With timing section (diagnostic): note millisecond units and first-rep anomaly
+    myRun.toReport("M/M/1 Queue — Baseline Run (with Timings)", showTimings = true)
+        .showInBrowser()
 }
 
 // ── Demo 3: Simulation Run With Inputs ────────────────────────────────────────
@@ -241,7 +247,7 @@ fun demoSimulationRunGranularBlock() {
                 "with a ${myParams.lengthOfReplicationWarmUp.toInt()}-unit warm-up period."
             )
         }
-        simulationRun(myRun, confidenceLevel = 0.99, caption = "Execution Results")
+        simulationRun(myRun, confidenceLevel = 0.99, showTimings = true, caption = "Execution Results")
         paragraph(
             "All 95% confidence intervals are contained within \u00b10.05 of the " +
             "point estimates, indicating sufficient replication count. " +

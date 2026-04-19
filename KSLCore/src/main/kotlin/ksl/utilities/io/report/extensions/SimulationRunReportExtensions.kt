@@ -123,20 +123,27 @@ fun ReportBuilder.experimentRunParameters(
  * 5. **Model Configuration** sub-section — `DataTable` (Key | Value) of model
  *    configuration entries; omitted when [SimulationRun.modelConfiguration] is null
  *    or empty
- * 6. **Replication Timing** sub-section — min, mean, max replication wall-clock time
- *    in seconds, derived from the `repTimings` entry in [SimulationRun.results];
- *    omitted when the run has not been executed
+ * 6. **Replication Timing** sub-section — min, mean, max, and total replication
+ *    wall-clock time in **milliseconds** (as recorded by [ksl.observers.SimulationTimer]),
+ *    plus an annotation noting that the first replication typically measures higher
+ *    than subsequent ones due to JVM JIT compilation warm-up and one-time model
+ *    initialization overhead; present only when [showTimings] is `true` and the run
+ *    has been executed
  * 7. **Response Statistics** sub-section — `StatTable` for all responses collected
  *    via [SimulationRun.statisticalReporter]; omitted when the run has not been executed
  *
  * @param run             the [SimulationRun] to report
  * @param confidenceLevel confidence level for the response statistics half-width and CI;
  *                        defaults to 0.95
+ * @param showTimings     `true` includes the Replication Timing sub-section;
+ *                        defaults to `false` because timing data is diagnostic rather
+ *                        than part of the primary experimental output
  * @param caption         optional section title; defaults to `"Simulation Run"`
  */
 fun ReportBuilder.simulationRun(
     run: SimulationRun,
     confidenceLevel: Double = 0.95,
+    showTimings: Boolean = false,
     caption: String? = null
 ) {
     section(caption ?: "Simulation Run") {
@@ -212,21 +219,30 @@ fun ReportBuilder.simulationRun(
         }
 
         // ── 6. Replication timing ─────────────────────────────────────────────
-        if (myHasRun && !myHasErr) {
+        if (showTimings && myHasRun && !myHasErr) {
             val myTimings = run.results["repTimings"]
             if (myTimings != null && myTimings.isNotEmpty()) {
                 section("Replication Timing") {
-                    val myTimingStat = Statistic("Replication Wall-Clock Time (s)", myTimings)
+                    val myTimingStat = Statistic("Replication Wall-Clock Time (ms)", myTimings)
                     dataTable(
                         headers = listOf("Measure", "Value"),
                         rows    = listOf(
-                            listOf("Replications",            myTimingStat.count.toLong().toString()),
-                            listOf("Min Time (s)",            fmtSR(myTimingStat.min)),
-                            listOf("Mean Time (s)",           fmtSR(myTimingStat.average)),
-                            listOf("Max Time (s)",            fmtSR(myTimingStat.max)),
-                            listOf("Total Wall-Clock (s)",    fmtSR(myTimings.sum()))
+                            listOf("Replications",              myTimingStat.count.toLong().toString()),
+                            listOf("Min Time (ms)",             fmtSR(myTimingStat.min)),
+                            listOf("Mean Time (ms)",            fmtSR(myTimingStat.average)),
+                            listOf("Max Time (ms)",             fmtSR(myTimingStat.max)),
+                            listOf("Total Wall-Clock (ms)",     fmtSR(myTimings.sum()))
                         ),
-                        caption = "Per-Replication Execution Times"
+                        caption = "Per-Replication Execution Times (milliseconds)"
+                    )
+                    paragraph(
+                        "Note: The first replication typically records a higher wall-clock time " +
+                        "than subsequent replications. This reflects one-time model initialization " +
+                        "overhead and JVM JIT compilation warm-up: the first replication executes " +
+                        "interpreted bytecode before the JIT compiler has had the opportunity to " +
+                        "optimise hot paths. Subsequent replications benefit from compiled native " +
+                        "code and skip one-time setup work. The min/mean/max values above include " +
+                        "the first replication."
                     )
                 }
             }
@@ -291,13 +307,17 @@ fun ExperimentRunParameters.toReport(
  *
  * @param title           document title; defaults to the run name
  * @param confidenceLevel confidence level for response statistics; defaults to 0.95
+ * @param showTimings     `true` includes the Replication Timing sub-section;
+ *                        defaults to `false` because timing data is diagnostic rather
+ *                        than part of the primary experimental output
  * @param block           optional DSL block; replaces the default when provided
  * @return the assembled [ReportNode.Document]
  */
 fun SimulationRun.toReport(
     title: String = "Simulation Run \u2014 $name",
     confidenceLevel: Double = 0.95,
-    block: ReportBuilder.() -> Unit = { simulationRun(this@toReport, confidenceLevel) }
+    showTimings: Boolean = false,
+    block: ReportBuilder.() -> Unit = { simulationRun(this@toReport, confidenceLevel, showTimings) }
 ): ReportNode.Document = report(title, block)
 
 // ── Private formatting helper ─────────────────────────────────────────────────
