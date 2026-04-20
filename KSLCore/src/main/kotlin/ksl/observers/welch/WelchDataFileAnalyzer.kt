@@ -702,7 +702,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             val m = data.size
             for (d in 0..<m - 5) {
                 stat.reset()
-                for (j in d..<m - 1) {
+                for (j in d..<m) {
                     stat.collect(data[j])
                 }
                 val v = stat.variance
