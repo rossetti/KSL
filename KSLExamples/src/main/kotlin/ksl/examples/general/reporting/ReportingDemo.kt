@@ -18,6 +18,7 @@
 package ksl.examples.general.reporting
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
+import ksl.observers.ResponseTrace
 import ksl.simulation.Model
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.*
@@ -315,6 +316,130 @@ fun demoCompositeReport() {
     println("Composite report written to kslOutput/")
 }
 
+// ── Demo 9: ResponseTrace — TWResponse (state variable) ──────────────────────
+
+/**
+ * Demonstrates [stateVariableTrace] for a time-weighted response
+ * ([ksl.modeling.variable.TWResponse]) using a [ResponseTrace] on `numInSystem`.
+ *
+ * **Report A — zero-code path:**
+ * [ResponseTrace.toReport] with all defaults: only the first recorded
+ * replication, full time range.  Demonstrates the minimal one-liner.
+ *
+ * **Report B — multiple replications:**
+ * Replications 1, 2, and 3 shown in full, demonstrating that each replication
+ * appears as its own section with its own step-function plot and time-weighted
+ * statistics table.
+ *
+ * **Report C — single replication with a warm-up window:**
+ * Replication 1 shown from t = 20 onward, excluding the initial transient.
+ * Demonstrates how [startTime] removes warm-up data from both the plot and
+ * the time-weighted statistics.
+ */
+fun demoStateVariableTraceReport() {
+    val myModel = Model("Drive-Through Pharmacy - TWResponse Trace")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication = 200.0
+    val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
+    val myTrace = ResponseTrace(myDtp.numInSystem)
+    myModel.simulate()
+
+    // Report A: zero-code — first replication, full time range
+    val myDocA = myTrace.toReport()
+    myDocA.showInBrowser()
+    myDocA.writeMarkdown()
+
+    // Report B: replications 1, 2, and 3, full time range
+    val myDocB = myTrace.toReport(
+        title   = "${myTrace.name} - Replications 1 to 3",
+        repNums = listOf(1, 2, 3)
+    )
+    myDocB.showInBrowser()
+
+    // Report C: replication 1, post warm-up (t >= 20)
+    val myDocC = myTrace.toReport(
+        title     = "${myTrace.name} - Rep 1 Post Warm-Up",
+        repNums   = listOf(1),
+        startTime = 20.0
+    )
+    myDocC.showInBrowser()
+}
+
+// ── Demo 10: ResponseTrace — Response (observations) ─────────────────────────
+
+/**
+ * Demonstrates [observationTrace] for an observation-based response
+ * ([ksl.modeling.variable.Response]) using a [ResponseTrace] on `systemTime`.
+ *
+ * **Report A — zero-code path:**
+ * [ResponseTrace.toReport] with all defaults: only the first recorded
+ * replication, full time range.
+ *
+ * **Report B — two replications, post warm-up:**
+ * Replications 2 and 4 shown with `startTime = 20.0`, excluding observations
+ * recorded before simulation time 20.  Each replication section shows a scatter
+ * plot (time on x, system time on y) and a descriptive statistics table
+ * containing count, average, min, and max only.  Half-width, confidence
+ * interval, and standard deviation are excluded because within-replication
+ * observations are autocorrelated and those quantities would be misleading.
+ */
+fun demoObservationTraceReport() {
+    val myModel = Model("Drive-Through Pharmacy - Response Trace")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 200.0
+    val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
+    val myTrace = ResponseTrace(myDtp.systemTime)
+    myModel.simulate()
+
+    // Report A: zero-code — first replication, full time range
+    val myDocA = myTrace.toReport()
+    myDocA.showInBrowser()
+    myDocA.writeMarkdown()
+
+    // Report B: replications 2 and 4, post warm-up (t >= 20)
+    val myDocB = myTrace.toReport(
+        title     = "${myTrace.name} - Reps 2 and 4, Post Warm-Up",
+        repNums   = listOf(2, 4),
+        startTime = 20.0
+    )
+    myDocB.showInBrowser()
+}
+
+// ── Demo 11: Composite ResponseTrace report ───────────────────────────────────
+
+/**
+ * Demonstrates building a single composite [ksl.utilities.io.report.ast.ReportNode.Document]
+ * that includes both a TWResponse trace and an observation-based trace using the
+ * [responseTrace] auto-dispatch function.
+ *
+ * Both traces are attached before the simulation runs and reported together
+ * inside a single `report {}` block.  [responseTrace] selects [stateVariableTrace]
+ * or [observationTrace] automatically based on [ResponseTrace.isTimeWeighted].
+ * Replications 1 and 2 are shown with a warm-up window of t >= 20 for both traces.
+ */
+fun demoCompositeTraceReport() {
+    val myModel = Model("Drive-Through Pharmacy - Composite Trace")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 200.0
+    val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    val myTWTrace = ResponseTrace(myDtp.numInSystem)   // TWResponse
+    val myRVTrace = ResponseTrace(myDtp.systemTime)    // Response
+    myModel.simulate()
+
+    val myDoc = report("Drive-Through Pharmacy - Trace Analysis") {
+        paragraph(
+            "Traces for two responses across replications 1 and 2, " +
+            "with observations before t = 20 excluded as warm-up. " +
+            "numInSystem is time-weighted (step-function plot); " +
+            "systemTime is observation-based (scatter plot)."
+        )
+        responseTrace(myTWTrace, repNums = listOf(1, 2), startTime = 20.0)
+        responseTrace(myRVTrace, repNums = listOf(1, 2), startTime = 20.0)
+    }
+    myDoc.showInBrowser()
+    myDoc.writeMarkdown()
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fun main() {
@@ -324,8 +449,11 @@ fun main() {
 //    demoStatisticReport()
 //    demoHistogramReport()
 //    demoFrequencyReport()
-//   demoBatchStatisticReport()
+//    demoBatchStatisticReport()
 //    demoWeightedStatisticReport()
-    demoMcaReport()
+//    demoMcaReport()
 //    demoCompositeReport()
+//    demoStateVariableTraceReport()
+//    demoObservationTraceReport()
+    demoCompositeTraceReport()
 }
