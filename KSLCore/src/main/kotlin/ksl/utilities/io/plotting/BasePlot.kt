@@ -66,7 +66,9 @@ abstract class BasePlot() : PlotIfc {
         val fileName = if (title.isEmpty()) {
             "tempPlotFile_"
         } else {
-            title.replace(" ", "_") + "_"
+            // Strip characters that are unsafe in a file-URI path (e.g. em-dash, colons)
+            // so that Desktop.browse(file.toURI()) does not crash on macOS.
+            title.replace(" ", "_").replace(Regex("[^A-Za-z0-9_\\-]"), "_") + "_"
         }
         return KSLFileUtil.openInBrowser(fileName, html, defaultPlotDir)
     }

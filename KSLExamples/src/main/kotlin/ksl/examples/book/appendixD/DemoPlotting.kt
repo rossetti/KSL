@@ -72,8 +72,8 @@ import ksl.utilities.statistic.Statistic
  *  - WelchPlot
  */
 fun main() {
-    demoResponseTraceNewAPI()
-    demoMultiSeriesStateVariablePlot()
+//    demoResponseTraceNewAPI()
+//    demoMultiSeriesStateVariablePlot()
     demoMultiSeriesScatterPlot()
 //    demoScatterPlot()
 //    demoMultiBoxPlot()
@@ -228,6 +228,7 @@ fun demoMultiSeriesStateVariablePlot() {
     // Plot A: all replications, full time range (convenience constructor defaults)
     val myPlot1 = MultiSeriesStateVariablePlot(myTrace)
     myPlot1.title = "Number in System — All 5 Replications"
+    println("Plot A: all replications, full time range (convenience constructor defaults) before show in browser")
     myPlot1.showInBrowser()
     myPlot1.saveToFile("MultiSeriesStateVariablePlot_AllReps")
 
