@@ -129,16 +129,17 @@ fun demoStringControls() {
     println("After setting MIDNIGHT BLUE: ${colour?.value}")
 
     // Bulk-set via map — invalid entry is skipped, valid entries are applied
+    // Uses Van_0 (untouched above); Van_1 and Van_2 were used in the individual tests.
     println("\n=== Bulk setStringControlsFromMap ===")
     val updates = mapOf(
-        "Van_3.fuelType" to "DIESEL",   // valid
-        "Van_3.colour"   to "RED",      // valid (unconstrained)
+        "Van_0.fuelType" to "DIESEL",   // valid
+        "Van_0.colour"   to "RED",      // valid (unconstrained)
         "Van_1.fuelType" to "JET_FUEL", // invalid — skipped with warning
     )
     val applied = controls.setStringControlsFromMap(updates)
     println("Applied $applied of ${updates.size} updates")
-    println("Van_3.fuelType = ${controls.stringControl("Van_3.fuelType")?.value}")
-    println("Van_3.colour   = ${controls.stringControl("Van_3.colour")?.value}")
+    println("Van_0.fuelType = ${controls.stringControl("Van_0.fuelType")?.value}")
+    println("Van_0.colour   = ${controls.stringControl("Van_0.colour")?.value}")
     println("Van_1.fuelType = ${controls.stringControl("Van_1.fuelType")?.value} (unchanged)")
 }
 
