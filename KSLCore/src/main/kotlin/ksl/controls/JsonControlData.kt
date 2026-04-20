@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
  * @param jsonValue     current value of the control serialized as a JSON string
  * @param typeHint      human-readable description of the expected Kotlin type,
  *                      e.g. `"List<Double>"` or `"Map<String, Int>"`;
- *                      provided by [KSLJsonControl.expectedTypeHint] or inferred
+ *                      provided by `KSLJsonControl.expectedTypeHint` or inferred
  *                      from the property's [kotlin.reflect.KType] at extraction time
  * @param elementName   name of the model element that owns this control
  * @param elementId     identifier of the model element
