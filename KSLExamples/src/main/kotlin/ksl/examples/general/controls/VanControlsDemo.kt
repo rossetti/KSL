@@ -1,4 +1,4 @@
-package ksl.examples.controls
+package ksl.examples.general.controls
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
