@@ -285,7 +285,7 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
     fun writeCSVWelchData(out: PrintWriter, numObs: Long = minNumObservationsInReplications) {
         require(numObs > 0) { "The number of observations must be > 0" }
         val n = Math.min(numObs, minNumObservationsInReplications)
-        val nReps = numberOfReplications()
+        val nReps = numberOfReplications
         // make the header
         val joiner = StringJoiner(", ")
         for (i in 1..nReps) {
@@ -538,13 +538,52 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
     }
 
     /**
-     * The number of replications
-     *
-     * @return The number of replications
+     * The number of replications in the Welch data file.
      */
-    fun numberOfReplications(): Int {
-        return myObsCounts.size
+    val numberOfReplications: Int
+        get() = myObsCounts.size
+
+    /**
+     * Returns a list of per-replication summary records, one entry per
+     * replication in the order the replications were collected.
+     */
+    fun replicationSummaries(): List<ReplicationSummary> {
+        return (1..numberOfReplications).map { j ->
+            ReplicationSummary(
+                replicationNumber      = j,
+                observationCount       = myObsCounts[j - 1],
+                avgTimePerObservation  = myTimePerObs[j - 1],
+                replicationAverage     = myRepAvgs[j - 1]
+            )
+        }
     }
+
+    /**
+     * The MSER-recommended deletion observation index converted to an
+     * approximate simulation time.  Computed as
+     * [recommendDeletionPoint] × [averageTimePerObservation].
+     *
+     * The value is computed lazily and cached; the first access reads
+     * the full Welch-averages array from the `.wdf` file.
+     */
+    val recommendedDeletionTime: Double by lazy {
+        recommendDeletionPoint() * averageTimePerObservation
+    }
+
+    /**
+     * Per-replication summary record returned by [replicationSummaries].
+     *
+     * @param replicationNumber     1-based replication index
+     * @param observationCount      number of observations collected in this replication
+     * @param avgTimePerObservation average time between consecutive observations
+     * @param replicationAverage    within-replication mean of all collected observations
+     */
+    data class ReplicationSummary(
+        val replicationNumber: Int,
+        val observationCount: Long,
+        val avgTimePerObservation: Double,
+        val replicationAverage: Double
+    )
 
     /**
      * Returns the ith observation in the jth replication
@@ -702,12 +741,12 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
             val m = data.size
             for (d in 0..<m - 5) {
                 stat.reset()
-                for (j in d..<m) {
+                for (j in d..<m) {          
                     stat.collect(data[j])
                 }
-                val v = stat.variance
-                val denom = (m - d) * (m - d).toDouble()
-                val mser = v * (m - d - 1.0) / denom
+                val v = stat.variance       // unbiased S²(d) over m-d elements
+                val nd = (m - d).toDouble() // reserved sequence count
+                val mser = v * (nd - 1.0) / (nd * nd)   // S²(d)×(n-d-1)/(n-d)²
                 mserData.add(mser)
             }
             return mserData

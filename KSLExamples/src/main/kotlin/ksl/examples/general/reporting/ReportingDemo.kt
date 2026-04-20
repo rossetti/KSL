@@ -19,6 +19,7 @@ package ksl.examples.general.reporting
 
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.observers.ResponseTrace
+import ksl.observers.welch.WelchFileObserver
 import ksl.simulation.Model
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.*
@@ -26,6 +27,7 @@ import ksl.utilities.io.report.showInBrowser
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
+import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.statistic.BatchStatistic
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.IntegerFrequency
@@ -440,6 +442,154 @@ fun demoCompositeTraceReport() {
     myDoc.writeMarkdown()
 }
 
+// ── Demo 12: Welch warm-up analysis — zero-code path ─────────────────────────
+
+/**
+ * Demonstrates the one-liner [WelchFileObserver.toReport] path for Welch warm-up
+ * analysis on two responses simultaneously.
+ *
+ * **Report A — system time (observation-based):**
+ * [WelchFileObserver.toReport] with all defaults: MSER-recommended deletion point,
+ * partial sums plot included, no batch-means section.  Shows the minimal zero-code
+ * entry point.
+ *
+ * **Report B — number in system (time-weighted):**
+ * Same zero-code path for the TWResponse observer.  Because `batchSize = 10.0`
+ * the discretisation interval appears in the metadata paragraph.
+ *
+ * Both observers are attached before [Model.simulate] and their `.wdf` / `.json`
+ * data files are written during the run.  [WelchFileObserver.toReport] calls
+ * [WelchFileObserver.createWelchDataFileAnalyzer] internally so no explicit
+ * analyzer creation is needed.
+ */
+fun demoWelchReport() {
+    val myModel = Model("Drive-Through Pharmacy - Welch Analysis")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 50000.0
+    val myDtp = DriveThroughPharmacyWithQ(myModel, 1)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95, 2)
+    // Attach observers before simulate()
+    val myRvWelch = WelchFileObserver(myDtp.systemTime,    1.0)   // tally, batch=1
+    val myTwWelch = WelchFileObserver(myDtp.numInSystem,  10.0)   // TW, delta-t=10
+
+    myModel.simulate()
+
+    // Report A: system time — zero-code, all defaults (MSER deletion, partial sums)
+    val myDocA = myRvWelch.toReport()
+    myDocA.showInBrowser()
+    myDocA.writeMarkdown()
+
+    // Report B: number in system — zero-code, all defaults
+    val myDocB = myTwWelch.toReport()
+    myDocB.showInBrowser()
+}
+
+// ── Demo 13: Welch analysis with batch means ──────────────────────────────────
+
+/**
+ * Demonstrates [WelchFileObserver.toReport] with `includeBatchMeans = true`,
+ * which appends a batch-means analysis section using Welch averages from the
+ * MSER deletion point onward.
+ *
+ * The batch-means section calls [batchStatistic] on the post-deletion averages,
+ * showing batch configuration and the resulting half-width statistics on batch
+ * means — providing a point estimate with an appropriate confidence interval
+ * that accounts for serial correlation.
+ */
+fun demoWelchReportWithBatchMeans() {
+    val myModel = Model("Drive-Through Pharmacy - Welch + Batch Means")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 50000.0
+    val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    val myWelch  = WelchFileObserver(myDtp.systemTime, 1.0)
+
+    myModel.simulate()
+
+    val myDoc = myWelch.toReport(
+        title             = "${myWelch.responseName} — Warm-Up with Batch Means",
+        includeBatchMeans = true
+    )
+    myDoc.showInBrowser()
+    myDoc.writeMarkdown()
+}
+
+// ── Demo 14: Welch analysis with user-supplied deletion point ─────────────────
+
+/**
+ * Demonstrates overriding the MSER recommendation with an explicit [deletionPoint].
+ *
+ * The analyst may wish to use the visual inspection of the [WelchPlot] to choose
+ * a deletion point rather than relying on MSER.  Passing `deletionPoint = 500`
+ * instructs [welchAnalysis] to skip observations 0–499 for the batch-means
+ * analysis and replaces the table caption with
+ * *"User-Supplied Deletion Point"*.
+ */
+fun demoWelchReportUserDeletionPoint() {
+    val myModel = Model("Drive-Through Pharmacy - User Deletion Point")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 50000.0
+    val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.9,2)
+    val myWelch = WelchFileObserver(myDtp.systemTime, 1.0)
+
+    myModel.simulate()
+
+    val myDoc = myWelch.toReport(
+        title             = "${myWelch.responseName} — User Deletion Point 500",
+        deletionPoint     = 500,
+        includeBatchMeans = true
+    )
+    myDoc.showInBrowser()
+}
+
+// ── Demo 15: Composite Welch report (DSL block) ───────────────────────────────
+
+/**
+ * Demonstrates building a composite warm-up analysis document with two Welch
+ * analyses side-by-side inside a single [report] block.
+ *
+ * Both analyses use the default MSER deletion point.  The [welchAnalysis] DSL
+ * function appends each analysis as a named section, so the document table of
+ * contents provides quick navigation between the two responses.
+ *
+ * `includePartialSums = true` and `includeBatchMeans = true` are set on both
+ * so the reader can compare the partial-sums plot and batch-means estimates for
+ * the two responses in a single document.
+ */
+fun demoCompositeWelchReport() {
+    val myModel = Model("Drive-Through Pharmacy - Composite Welch")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 50000.0
+    val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    val myRvWelch = WelchFileObserver(myDtp.systemTime,   1.0)
+    val myTwWelch = WelchFileObserver(myDtp.numInSystem, 10.0)
+
+    myModel.simulate()
+
+    val myDoc = report("Drive-Through Pharmacy — Warm-Up Analysis") {
+        paragraph(
+            "Welch warm-up analysis for two responses: system time (tally) " +
+            "and number in system (time-weighted, δt = 10). " +
+            "Each section shows the Welch plot, partial sums plot, MSER " +
+            "deletion-point recommendation, and a batch-means analysis on " +
+            "the post-deletion Welch averages."
+        )
+        welchAnalysis(
+            observer           = myRvWelch,
+            includePartialSums = true,
+            includeBatchMeans  = true
+        )
+        welchAnalysis(
+            observer           = myTwWelch,
+            includePartialSums = true,
+            includeBatchMeans  = true
+        )
+    }
+    myDoc.showInBrowser()
+    myDoc.writeMarkdown()
+    println("Composite Welch report written to kslOutput/")
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fun main() {
@@ -455,5 +605,9 @@ fun main() {
 //    demoCompositeReport()
 //    demoStateVariableTraceReport()
 //    demoObservationTraceReport()
-    demoCompositeTraceReport()
+//    demoCompositeTraceReport()
+    demoWelchReport()
+//    demoWelchReportWithBatchMeans()
+//    demoWelchReportUserDeletionPoint()
+//    demoCompositeWelchReport()
 }

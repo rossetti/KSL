@@ -905,7 +905,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
 
         /**
          * Uses the batch means array from the BatchStatistic to compute the
-         * positive bias test statistic
+         * negative bias test statistic
          *
          * @param bm the BatchStatistic
          * @return the computed test statistic
