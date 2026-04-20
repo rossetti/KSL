@@ -951,7 +951,7 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          *          or negativeBiasTestStatistic)
          * @return the upper-tail p-value, or Double.NaN if f is NaN
          */
-        fun biasTestPValue(f: Double): Double {
+        fun welchBiasTestPValue(f: Double): Double {
             if (f.isNaN()) return Double.NaN
             val dist = FDistribution(3.0, 3.0)
             return 1.0 - dist.cumulativeProbability(f)
