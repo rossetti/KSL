@@ -15,7 +15,7 @@ import ksl.simulation.ModelElement
  * Each annotated property becomes a controllable parameter that can be read and
  * written through [ksl.controls.Controls] without touching the class directly.
  */
-class Van(parent: ModelElement) : ModelElement(parent) {
+class Van(parent: ModelElement, name:String) : ModelElement(parent, name) {
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
@@ -63,7 +63,7 @@ class Van(parent: ModelElement) : ModelElement(parent) {
  */
 fun demoNumericControls() {
     val model = Model("Van Model — Numeric")
-    repeat(5) { Van(model) }
+    repeat(5) { Van(model, "Van_$it") }
     val controls = model.controls()
 
     println("=== Numeric controls (${controls.size}) ===")
@@ -99,7 +99,7 @@ fun demoNumericControls() {
  */
 fun demoStringControls() {
     val model = Model("Van Model — String")
-    repeat(3) { Van(model) }
+    repeat(3) { Van(model, "Van_$it") }
     val controls = model.controls()
 
     println("=== String controls (${controls.stringControlSize}) ===")
