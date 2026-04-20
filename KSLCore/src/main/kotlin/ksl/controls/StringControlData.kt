@@ -3,7 +3,7 @@ package ksl.controls
 import kotlinx.serialization.Serializable
 
 /**
- * A data-transfer object carrying the state of a single [StringControlIfc].
+ * A data-transfer object carrying the state of a single `StringControlIfc`.
  *
  * Parallel to [ControlData] for numeric controls, but holds a [String] value
  * and an optional constraint list instead of a numeric range.
