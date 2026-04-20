@@ -1,16 +1,19 @@
 package ksl.examples.general.controls
 
 import ksl.controls.ControlType
+import ksl.controls.ControlUpdateException
 import ksl.controls.KSLControl
+import ksl.controls.KSLStringControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 
 /**
- * A simple model element with numeric and boolean controls used to demonstrate
- * the `@KSLControl` annotation and the [ksl.controls.Controls] extraction API.
+ * A simple model element with numeric, boolean, and string controls used to
+ * demonstrate the `@KSLControl` and `@KSLStringControl` annotations together
+ * with the [ksl.controls.Controls] extraction API.
  *
  * Each annotated property becomes a controllable parameter that can be read and
- * written via [ksl.controls.Controls] without touching the class directly.
+ * written through [ksl.controls.Controls] without touching the class directly.
  */
 class Van(parent: ModelElement) : ModelElement(parent) {
 
@@ -35,9 +38,18 @@ class Van(parent: ModelElement) : ModelElement(parent) {
 
     @set:KSLControl(controlType = ControlType.BOOLEAN)
     var isStickShift: Boolean = true
+
+    @set:KSLStringControl(
+        allowedValues = ["GASOLINE", "DIESEL", "ELECTRIC", "HYBRID"],
+        comment       = "Fuel type for the van"
+    )
+    var fuelType: String = "GASOLINE"
+
+    @set:KSLStringControl(comment = "Exterior paint colour (unconstrained)")
+    var colour: String = "WHITE"
 }
 
-// ── Demo: numeric and boolean KSLControl extraction ──────────────────────────
+// ── Demo 1: numeric and boolean KSLControl extraction ────────────────────────
 
 /**
  * Demonstrates extraction and mutation of numeric and boolean controls.
@@ -50,33 +62,88 @@ class Van(parent: ModelElement) : ModelElement(parent) {
  * - Printing the full control map as a JSON string.
  */
 fun demoNumericControls() {
-    val model = Model("Van Model")
-
-    val numVans = 5
-    repeat(numVans) { Van(model) }
-
+    val model = Model("Van Model — Numeric")
+    repeat(5) { Van(model) }
     val controls = model.controls()
 
-    println("=== Extracted controls (${controls.size}) ===")
+    println("=== Numeric controls (${controls.size}) ===")
     println(controls.controlDataAsString())
 
-    // Read and write a numeric control — value 100 is clamped to upperBound 18
-    val seatsControl = controls.control("Van_1.numSeats")
-    println("Before: $seatsControl")
-    seatsControl?.value = 100.0
-    println("After setting 100 (clamped to upper bound 18): $seatsControl")
+    // Value 100 is clamped to the declared upperBound of 18
+    val seats = controls.control("Van_1.numSeats")
+    println("Before: $seats")
+    seats?.value = 100.0
+    println("After setting 100 (clamped to 18): $seats")
 
-    // Toggle a boolean control via the 1.0/0.0 convention
-    val shiftControl = controls.control("Van_2.isStickShift")
-    println("\nBefore: $shiftControl")
-    shiftControl?.value = 0.0
-    println("After setting 0.0 (false): $shiftControl")
+    // Boolean via 1.0 / 0.0 convention
+    val shift = controls.control("Van_2.isStickShift")
+    println("\nBefore: $shift")
+    shift?.value = 0.0
+    println("After setting 0.0 (false): $shift")
 
-    // Print the full flat map as JSON
-    println("\n=== Controls map (JSON) ===")
+    println("\n=== Numeric controls map (JSON) ===")
     println(controls.controlsMapAsJsonString())
+}
+
+// ── Demo 2: string KSLStringControl extraction ────────────────────────────────
+
+/**
+ * Demonstrates extraction and mutation of string controls.
+ *
+ * Shows:
+ * - Reading initial values and allowed-values constraints.
+ * - Setting a valid value.
+ * - Attempting an invalid value and catching [ControlUpdateException].
+ * - Setting an unconstrained string control freely.
+ * - Bulk-setting string controls via `setStringControlsFromMap`.
+ */
+fun demoStringControls() {
+    val model = Model("Van Model — String")
+    repeat(3) { Van(model) }
+    val controls = model.controls()
+
+    println("=== String controls (${controls.stringControlSize}) ===")
+    println(controls.stringControlDataAsString())
+
+    // Valid assignment within allowedValues
+    val fuel = controls.stringControl("Van_1.fuelType")
+    println("Initial fuelType: ${fuel?.value}")
+    fuel?.value = "ELECTRIC"
+    println("After setting ELECTRIC: ${fuel?.value}")
+
+    // Invalid assignment — caught and reported
+    println("\nAttempting to set fuelType to HYDROGEN (not in allowedValues):")
+    try {
+        fuel?.value = "HYDROGEN"
+    } catch (e: ControlUpdateException) {
+        println("  Caught ControlUpdateException: ${e.message}")
+        println("  Control key: ${e.controlKey}")
+        println("  Attempted value: ${e.attemptedValue}")
+    }
+    println("fuelType after failed set (unchanged): ${fuel?.value}")
+
+    // Unconstrained string control accepts any value
+    val colour = controls.stringControl("Van_2.colour")
+    println("\nInitial colour: ${colour?.value}")
+    colour?.value = "MIDNIGHT BLUE"
+    println("After setting MIDNIGHT BLUE: ${colour?.value}")
+
+    // Bulk-set via map — invalid entry is skipped, valid entries are applied
+    println("\n=== Bulk setStringControlsFromMap ===")
+    val updates = mapOf(
+        "Van_3.fuelType" to "DIESEL",   // valid
+        "Van_3.colour"   to "RED",      // valid (unconstrained)
+        "Van_1.fuelType" to "JET_FUEL", // invalid — skipped with warning
+    )
+    val applied = controls.setStringControlsFromMap(updates)
+    println("Applied $applied of ${updates.size} updates")
+    println("Van_3.fuelType = ${controls.stringControl("Van_3.fuelType")?.value}")
+    println("Van_3.colour   = ${controls.stringControl("Van_3.colour")?.value}")
+    println("Van_1.fuelType = ${controls.stringControl("Van_1.fuelType")?.value} (unchanged)")
 }
 
 fun main() {
     demoNumericControls()
+    println("\n" + "=".repeat(60) + "\n")
+    demoStringControls()
 }

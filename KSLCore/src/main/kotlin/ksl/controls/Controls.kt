@@ -30,342 +30,351 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 
 /**
- *  This class holds the controls associated with an instance of a model.
- *  The controls can be accessed via their key names.  The following functions
- *  are useful when accessing controls.
+ * Holds all controls associated with a model instance, across three parallel
+ * families:
  *
- *  - controlKeys() returns the names of the controls
- *  - hasControl(name:String) checks if name is a control
- *  - asList() the controls as a list
- *  - asListByType(controlType: ControlType) a filtered list of controls by control type
- *  - control(controlKey: String) returns the named control or null
- *  - controlTypes() the set of control types used by the model
- *  - asMap() - all the controls as a map, with the pairs (control name, value)
- *  - setControlsFromMap(controlMap: Map<String, Double>) perhaps the most useful of the
- *    functions. Sets the controls by name to the supplied value for each control.
- *  - setControlsFromJSON(json: String) assumes that the JSON represents a control map and
- *    sets the controls as specified.
- *  - controlsMapAsJsonString() a JSON string representation of a control map
- *  - controlData() a list holding instances of ControlData of all the controls for data transfer purposes
- *  - controlDataAsString() a string representation of the control data
+ * - **Numeric controls** — properties annotated with [KSLControl]; values are
+ *   `Double` and respect declared lower/upper bounds.
+ * - **String controls** — properties annotated with [KSLStringControl]; values
+ *   are `String`, optionally constrained to a declared set of allowed values.
  *
+ * Controls are extracted in a single element-graph walk performed during
+ * `init`, which runs when the caller first calls `model.controls()`.  This
+ * guarantees all model elements are fully constructed before any `initialValue`
+ * is captured.
+ *
+ * Commonly used functions:
+ *
+ * Numeric:
+ * - `controlKeys()` — names of the numeric controls
+ * - `control(key)` — returns the named [ControlIfc] or null
+ * - `asMap()` — flat `Map<String, Double>` of all numeric controls
+ * - `setControlsFromMap(map)` — bulk-set numeric controls from a flat map
+ * - `controlData()` — list of [ControlData] DTOs for data transfer
+ *
+ * String:
+ * - `stringControlKeys()` — names of the string controls
+ * - `stringControl(key)` — returns the named [StringControlIfc] or null
+ * - `stringControlsAsMap()` — flat `Map<String, String>` of all string controls
+ * - `setStringControlsFromMap(map)` — bulk-set string controls; invalid values
+ *   are logged and skipped rather than aborting the entire update
+ * - `stringControlData()` — list of [StringControlData] DTOs for data transfer
  */
 class Controls(aModel: Model) {
 
-    /**
-     *  The key is Control.keyName
-     */
     private val myControls = mutableMapOf<String, ControlIfc>()
+    private val myStringControls = mutableMapOf<String, StringControlIfc>()
 
-    private val model = aModel
+    private val myModel = aModel
 
+    /** Number of numeric/boolean controls extracted from the model. */
     val size: Int
         get() = myControls.size
 
+    /** Number of string controls extracted from the model. */
+    val stringControlSize: Int
+        get() = myStringControls.size
+
     init {
-        extractControls(model)
+        extractControls(myModel)
     }
 
-    /**
-     * Extracts all controls from every model element of the model
-     * that has a control annotation.
-     *
-     * @param model the model for extraction
-     */
+    // ── Extraction ────────────────────────────────────────────────────────────
+
     private fun extractControls(model: Model) {
-        val elements = model.getModelElements()
-        for (me in elements) {
+        for (me in model.getModelElements()) {
             extractControls(me)
         }
     }
 
-    /**
-     * extract Controls for a modelElement
-     *
-     * @param modelElement the model element to extract from
-     */
     private fun extractControls(modelElement: ModelElement) {
         val cls: KClass<out ModelElement> = modelElement::class
         val properties: Collection<KProperty1<out ModelElement, *>> = cls.memberProperties
         logger.trace { "Extracting controls for model element: ${modelElement.name}" }
         for (property in properties) {
             logger.trace { "Reviewing member property: ${property.name}" }
-            if (modelElement::class == Response::class) {
-                // this is tested because Response inherits from Variable and Variable has an annotated property
-                // initialValue. The annotation is inherited and I can't find a way to stop the annotation inheritance.
-                // The initialValue property makes no sense for Response to be controlled.
-                // Another possible fix is to not have Response inherit from Variable, but this will
-                // cause intricate refactoring because TWResponse inherits from Response and TWResponse
-                // needs an initialValue property. Thus, I'm handling this edge case during annotation processing.
-                if (property.name == "initialValue") {
-                    logger.trace { "Skipping inherited property: ${property.name} for model element: ${modelElement.name}" }
-                    continue
-                }
+
+            // Guard: Response inherits an @KSLControl on initialValue from Variable,
+            // but initialValue has no meaningful control semantics for Response.
+            if (modelElement::class == Response::class && property.name == "initialValue") {
+                logger.trace { "Skipping inherited initialValue for Response: ${modelElement.name}" }
+                continue
             }
-            if (property is KMutableProperty<*>) {
-                logger.trace { "Member property, ${property.name}, is mutable property" }
-                if (hasControlAnnotation(property.setter)) {
-                    logger.trace { "Member property, ${property.name}, setter has control annotations" }
-                    val kslControl: KSLControl = controlAnnotation(property.setter)!!
-                    logger.trace { "Extracted annotation: $kslControl" }
-                    // check if property type is consistent with annotation type
+
+            if (property !is KMutableProperty<*>) {
+                logger.trace { "Member property ${property.name} is not mutable — skipping" }
+                continue
+            }
+
+            when {
+                hasControlAnnotation(property.setter) -> {
+                    val annotation = controlAnnotation(property.setter)!!
                     if (ControlType.validType(property.returnType)) {
-                        logger.trace { "Setter has valid type: ${property.returnType}" }
-                        if (kslControl.include) {
-                            logger.trace { "Controls will include annotated setter: ${property.setter.name}" }
-                            val control = Control(modelElement, property, kslControl)
-                            store(control)
-                            logger.trace { "Control ${control.keyName} for property ${property.name} was extracted and added to controls" }
+                        if (annotation.include) {
+                            val control = Control(modelElement, property, annotation)
+                            myControls[control.keyName] = control
+                            logger.trace { "Numeric control ${control.keyName} extracted" }
                         } else {
-                            logger.trace { "Control ${kslControl.name} from property ${property.setter.name} was excluded during extraction." }
+                            logger.trace { "Numeric control on ${property.name} excluded (include=false)" }
                         }
                     } else {
-                        logger.trace { "The property return type, ${property.returnType.classifier.toString()} is not valid for ${kslControl.controlType}" }
+                        logger.trace { "Property ${property.name} has @KSLControl but type ${property.returnType.classifier} is not a valid ControlType" }
                     }
-                } else {
-                    logger.trace { "Member property, ${property.name}, has no control annotations" }
                 }
-            } else {
-                logger.trace { "Member property, ${property.name}, reported as not a mutable property" }
+
+                hasStringControlAnnotation(property.setter) -> {
+                    val annotation = stringControlAnnotation(property.setter)!!
+                    if (property.returnType.classifier == String::class) {
+                        if (annotation.include) {
+                            val control = StringControl(modelElement, property, annotation)
+                            myStringControls[control.keyName] = control
+                            logger.trace { "String control ${control.keyName} extracted" }
+                        } else {
+                            logger.trace { "String control on ${property.name} excluded (include=false)" }
+                        }
+                    } else {
+                        logger.trace { "Property ${property.name} has @KSLStringControl but type ${property.returnType.classifier} is not String — skipping" }
+                    }
+                }
+
+                else -> {
+                    logger.trace { "Member property ${property.name} has no recognised control annotation" }
+                }
             }
         }
     }
 
-    /**
-     * Store a new control
-     *
-     * @param control the control to add
-     */
-    private fun store(control: ControlIfc) {
-        val kn = control.keyName
-        myControls[kn] = control
-    }
+    // ── Numeric control accessors ─────────────────────────────────────────────
+
+    /** Returns the set of numeric control key names. */
+    fun controlKeys(): Set<String> = myControls.keys
 
     /**
-     * @return the control keys as an unmodifiable set of strings
+     * Returns `true` if a numeric control with [name] exists.
      */
-    fun controlKeys(): Set<String> {
-        return myControls.keys
-    }
+    fun hasControl(name: String): Boolean = myControls.containsKey(name)
 
     /**
-     *
-     * @param name the control name to check
-     * @return true if the named control is in the controls
+     * Returns the numeric control for [controlKey], or `null` if not found.
      */
-    fun hasControl(name: String): Boolean {
-        return myControls.containsKey(name)
-    }
+    fun control(controlKey: String): ControlIfc? = myControls[controlKey]
+
+    /** Returns all numeric controls as a list. */
+    fun asList(): List<ControlIfc> = myControls.values.toList()
 
     /**
-     *
-     * @return a list of the controls
+     * Returns all numeric controls of the given [controlType].
      */
-    fun asList(): List<ControlIfc> {
-        val list = mutableListOf<ControlIfc>()
-        for ((_, control) in myControls) {
-            list.add(control)
-        }
-        return list
-    }
+    fun asListByType(controlType: ControlType): List<ControlIfc> =
+        myControls.values.filter { it.type == controlType }
 
     /**
-     * The type should be associated with a valid control type.
-     *
-     * @param controlType the type of control wanted
-     * @return a list of the controls associated with the supplied type, may be empty
+     * Returns a map from model element name to the list of numeric controls
+     * belonging to that element.
      */
-    fun asListByType(controlType: ControlType): List<ControlIfc> {
-        val list = mutableListOf<ControlIfc>()
-        for ((_, control) in myControls) {
-            if (control.type == controlType) {
-                list.add(control)
-            }
-        }
-        return list
-    }
-
-    /**
-     *  Returns a map containing the model element name having controls along
-     *  with a list of those controls for the model element. The model element
-     *  name is the key to the returned map. The values are a list of the controls
-     *  associated with the model element.
-     */
-    fun controlsByModelElement(): Map<String, List<ControlIfc>>{
+    fun controlsByModelElement(): Map<String, List<ControlIfc>> {
         val map = mutableMapOf<String, MutableList<ControlIfc>>()
-        for ((_, control) in myControls) {
-            if (!map.containsKey(control.elementName)){
-                map[control.elementName] = mutableListOf<ControlIfc>()
-            }
-            map[control.elementName]!!.add(control)
+        for (control in myControls.values) {
+            map.getOrPut(control.elementName) { mutableListOf() }.add(control)
         }
         return map
     }
 
     /**
-     *  Returns a map containing the type of model element having controls along
-     *  with a list of those controls for that type of model element. The type of the model element
-     *  is the key to the returned map. The values are a list of the controls
-     *  associated with the type of model element. Recall that the element type
-     *  is the simple class name associated with the model element. For example ResourceWithQ
+     * Returns a map from model element type (simple class name) to the list of
+     * numeric controls belonging to elements of that type.
      */
-    fun controlsByElementType(): Map<String, List<ControlIfc>>{
+    fun controlsByElementType(): Map<String, List<ControlIfc>> {
         val map = mutableMapOf<String, MutableList<ControlIfc>>()
-        for ((_, control) in myControls) {
-            if (!map.containsKey(control.elementType)){
-                map[control.elementType] = mutableListOf<ControlIfc>()
-            }
-            map[control.elementType]!!.add(control)
+        for (control in myControls.values) {
+            map.getOrPut(control.elementType) { mutableListOf() }.add(control)
         }
         return map
     }
 
-    /**
-     * Gets a control of the supplied key name or null
-     *
-     * @param controlKey the key for the control must not be null
-     */
-    fun control(controlKey: String): ControlIfc? {
-        return myControls[controlKey]
-    }
+    /** Returns the set of [ControlType] values present in the extracted controls. */
+    fun controlTypes(): Set<ControlType> = myControls.values.map { it.type }.toSet()
 
-    /**
-     * @return the set of possible control types held
-     */
-    fun controlTypes(): Set<ControlType> {
-        val set = mutableSetOf<ControlType>()
-        for ((_, control) in myControls) {
-            set.add(control.type)
-        }
-        return set
-    }
-
-    /**
-     *  Basic printing of the controls as (name, value) pairs
-     */
-    fun printControls(){
-        for ((_, control) in myControls) {
+    /** Prints all numeric controls as `keyName = value` pairs. */
+    fun printControls() {
+        for (control in myControls.values) {
             println("${control.keyName}  = ${control.value}")
         }
     }
 
     /**
-     * Generate a "flat" map (String, Double) for communication
-     * outside this class. The key is the control key, and the
-     * number is the last double value assigned to the control.
-     * Any controls that cannot be translated to Double are ignored.
-     *
-     * @return the map
+     * Returns a flat `Map<String, Double>` of all numeric controls.
+     * The key is [ControlIfc.keyName] and the value is the current control value.
      */
     fun asMap(): Map<String, Double> {
-        val map: MutableMap<String, Double> = LinkedHashMap()
-        for ((key, c) in myControls) {
-            map[key] = c.value
+        val map = LinkedHashMap<String, Double>()
+        for ((key, control) in myControls) {
+            map[key] = control.value
         }
         return map
     }
 
     /**
-     * Sets all the contained control values using the supplied flat map
+     * Sets numeric controls from a flat map of key → value pairs.
+     * Keys not found in the extracted controls are logged as warnings and skipped.
      *
-     * @param controlMap a flat map of control keys and values must not be null
-     * @return the number of control (key, value) pairs that were successfully set
+     * @return the number of controls successfully set
      */
     fun setControlsFromMap(controlMap: Map<String, Double>): Int {
-        var j = 0
-        for ((k, v) in controlMap.entries) {
-            if (myControls.containsKey(k)) {
-                val c = myControls[k]
-                c!!.value = v
-                j++
+        var count = 0
+        for ((k, v) in controlMap) {
+            val control = myControls[k]
+            if (control != null) {
+                control.value = v
+                count++
             } else {
-                logger.warn { "The key $k was not found when trying to set control values for supplied flat map" }
+                logger.warn { "Key '$k' not found when setting numeric controls from map" }
             }
         }
-        return j
+        return count
     }
 
     /**
+     * Sets numeric controls from a JSON string representing a `Map<String, Double>`.
      *
-     * @param json a valid json string representing a Map of (key, value) pairs
-     * that contains the control keys and double values for the controls
-     * @return the number of control (key, value) pairs that were successfully set
+     * @return the number of controls successfully set
      */
-    fun setControlsFromJson(json: String): Int {
-        return setControlsFromMap(KSLMaps.stringDoubleMapFromJson(json))
-    }
+    fun setControlsFromJson(json: String): Int =
+        setControlsFromMap(KSLMaps.stringDoubleMapFromJson(json))
+
+    /** Returns a JSON string representation of the flat numeric controls map. */
+    fun controlsMapAsJsonString(): String = asMap().toJson()
 
     /**
-     *  A JSON representation of the map of pairs (keyName, value) for the
-     *  controls
-     */
-    fun controlsMapAsJsonString(): String {
-        return asMap().toJson()
-    }
-
-    /**
-     * Return a List of ControlData providing
-     * additional detail on Controls (but without giving
-     * direct access to the control)
-     *
-     * @return an ArrayList of ControlData
+     * Returns a list of [ControlData] DTOs for all numeric controls.
      */
     fun controlData(): List<ControlData> {
         val list = ArrayList<ControlData>()
-        for ((_, control) in myControls) {
+        for (control in myControls.values) {
             with(control) {
-                val cd = ControlData(
-                    type,
-                    value,
-                    keyName,
-                    lowerBound,
-                    upperBound,
-                    elementName,
-                    elementId,
-                    elementType,
-                    propertyName,
-                    comment,
-                    modelName
-                )
-                list.add(cd)
+                list.add(ControlData(type, value, keyName, lowerBound, upperBound,
+                    elementName, elementId, elementType, propertyName, comment, modelName))
             }
         }
         return list
     }
 
-    /**
-     * @return the array list of controlRecords() as a string
-     */
+    /** Returns the numeric control data as a formatted string. */
     fun controlDataAsString(): String {
-        val str = StringBuilder()
+        val sb = StringBuilder()
         val list = controlData()
-        if (list.isEmpty()) str.append("{empty}")
-        for (cdr in list) {
-            str.appendLine(cdr)
-        }
-        return str.toString()
+        if (list.isEmpty()) sb.append("{empty}")
+        for (cd in list) sb.appendLine(cd)
+        return sb.toString()
     }
 
-    override fun toString(): String {
-        return controlDataAsString()
+    // ── String control accessors ──────────────────────────────────────────────
+
+    /** Returns the set of string control key names. */
+    fun stringControlKeys(): Set<String> = myStringControls.keys
+
+    /**
+     * Returns `true` if a string control with [name] exists.
+     */
+    fun hasStringControl(name: String): Boolean = myStringControls.containsKey(name)
+
+    /**
+     * Returns the string control for [key], or `null` if not found.
+     */
+    fun stringControl(key: String): StringControlIfc? = myStringControls[key]
+
+    /** Returns all string controls as a list. */
+    fun stringControlsAsList(): List<StringControlIfc> = myStringControls.values.toList()
+
+    /**
+     * Returns a flat `Map<String, String>` of all string controls.
+     * The key is [StringControlIfc.keyName] and the value is the current control value.
+     */
+    fun stringControlsAsMap(): Map<String, String> {
+        val map = LinkedHashMap<String, String>()
+        for ((key, control) in myStringControls) {
+            map[key] = control.value
+        }
+        return map
     }
+
+    /**
+     * Sets string controls from a flat map of key → value pairs.
+     *
+     * Invalid values (rejected by [StringControlIfc.isAllowed]) are caught
+     * per entry, logged as warnings, and skipped — the remaining valid entries
+     * continue to be applied.
+     *
+     * @return the number of controls successfully set
+     */
+    fun setStringControlsFromMap(map: Map<String, String>): Int {
+        var count = 0
+        for ((k, v) in map) {
+            val control = myStringControls[k]
+            if (control == null) {
+                logger.warn { "Key '$k' not found when setting string controls from map" }
+                continue
+            }
+            try {
+                control.value = v
+                count++
+            } catch (e: ControlUpdateException) {
+                logger.warn { "String control '$k' rejected value '$v': ${e.message}" }
+            }
+        }
+        return count
+    }
+
+    /**
+     * Returns a list of [StringControlData] DTOs for all string controls.
+     */
+    fun stringControlData(): List<StringControlData> {
+        val list = ArrayList<StringControlData>()
+        for (control in myStringControls.values) {
+            with(control) {
+                list.add(StringControlData(keyName, value, allowedValues,
+                    elementName, elementId, elementType, propertyName, comment, modelName))
+            }
+        }
+        return list
+    }
+
+    /** Returns the string control data as a formatted string. */
+    fun stringControlDataAsString(): String {
+        val sb = StringBuilder()
+        val list = stringControlData()
+        if (list.isEmpty()) sb.append("{empty}")
+        for (sd in list) sb.appendLine(sd)
+        return sb.toString()
+    }
+
+    // ── toString ──────────────────────────────────────────────────────────────
+
+    override fun toString(): String = buildString {
+        append(controlDataAsString())
+        append(stringControlDataAsString())
+    }
+
+    // ── Companion ─────────────────────────────────────────────────────────────
 
     companion object {
-        /**
-         * A global logger for logging of model elements
-         */
         @JvmStatic
         val logger = KotlinLogging.logger {}
 
         @JvmStatic
-        fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? {
-            return setter.annotations.filterIsInstance<KSLControl>().firstOrNull()
-        }
+        fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? =
+            setter.annotations.filterIsInstance<KSLControl>().firstOrNull()
 
         @JvmStatic
-        fun <T> hasControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean {
-            return setter.annotations.filterIsInstance<KSLControl>().isNotEmpty()
-        }
+        fun <T> hasControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean =
+            setter.annotations.filterIsInstance<KSLControl>().isNotEmpty()
 
+        @JvmStatic
+        fun <T> stringControlAnnotation(setter: KMutableProperty.Setter<T>): KSLStringControl? =
+            setter.annotations.filterIsInstance<KSLStringControl>().firstOrNull()
+
+        @JvmStatic
+        fun <T> hasStringControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean =
+            setter.annotations.filterIsInstance<KSLStringControl>().isNotEmpty()
     }
 }
