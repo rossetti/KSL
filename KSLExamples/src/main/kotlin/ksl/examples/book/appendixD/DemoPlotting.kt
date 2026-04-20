@@ -58,7 +58,7 @@ import ksl.utilities.statistic.Statistic
  *  - HistogramPlot
  *  - IntegerFrequencyPlot
  *  - MultiBoxPlot
- *  - MultiSeriesObservationsPlot
+ *  - MultiSeriesScatterPlot
  *  - MultiSeriesStateVariablePlot
  *  - ObservationsPlot
  *  - PartialSumsPlot
@@ -74,7 +74,7 @@ import ksl.utilities.statistic.Statistic
 fun main() {
     demoResponseTraceNewAPI()
     demoMultiSeriesStateVariablePlot()
-    demoMultiSeriesObservationsPlot()
+    demoMultiSeriesScatterPlot()
 //    demoScatterPlot()
 //    demoMultiBoxPlot()
 //    demoConfidenceIntervalPlots()
@@ -244,10 +244,13 @@ fun demoMultiSeriesStateVariablePlot() {
 }
 
 /**
- * Demonstrates [MultiSeriesObservationsPlot] for an observation-based response
+ * Demonstrates [MultiSeriesScatterPlot] for an observation-based response
  * ([ksl.modeling.variable.Response]) using a [ResponseTrace] on `systemTime`.
  *
- * **Plot A — all replications, full range:**
+ * Simulation time is shown on the x-axis so the temporal distribution of
+ * observations is visible and the warm-up period can be seen directly.
+ *
+ * **Plot A — all replications, full time range:**
  * Uses the [ResponseTrace] convenience constructor with default parameters so
  * that all five recorded replications are shown on one plot.
  *
@@ -257,27 +260,27 @@ fun demoMultiSeriesStateVariablePlot() {
  * the time-window feature for observation-based responses: filtering out the
  * initial transient (warm-up) period.
  */
-fun demoMultiSeriesObservationsPlot() {
-    val myModel = Model("Drive Through Pharmacy — Multi Observations")
+fun demoMultiSeriesScatterPlot() {
+    val myModel = Model("Drive Through Pharmacy — Multi Scatter")
     val myDtp = DriveThroughPharmacyWithQ(myModel, 1)
     myModel.numberOfReplications = 5
     myModel.lengthOfReplication = 200.0
     val myTrace = ResponseTrace(myDtp.systemTime)
     myModel.simulate()
 
-    // Plot A: all replications, full range (convenience constructor defaults)
-    val myPlot1 = MultiSeriesObservationsPlot(myTrace)
+    // Plot A: all replications, full time range (convenience constructor defaults)
+    val myPlot1 = MultiSeriesScatterPlot(myTrace)
     myPlot1.title = "System Time \u2014 All 5 Replications"
     myPlot1.showInBrowser()
-    myPlot1.saveToFile("MultiSeriesObservationsPlot_AllReps")
+    myPlot1.saveToFile("MultiSeriesScatterPlot_AllReps")
 
     // Plot B: two replications, post warm-up (startTime = 20.0)
-    val myPlot2 = MultiSeriesObservationsPlot(
+    val myPlot2 = MultiSeriesScatterPlot(
         responseTrace = myTrace,
         repNums       = listOf(2, 4),
         startTime     = 20.0
     )
     myPlot2.title = "System Time \u2014 Reps 2 & 4, post warm-up (t \u2265 20)"
     myPlot2.showInBrowser()
-    myPlot2.saveToFile("MultiSeriesObservationsPlot_PostWarmup")
+    myPlot2.saveToFile("MultiSeriesScatterPlot_PostWarmup")
 }
