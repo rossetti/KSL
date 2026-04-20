@@ -255,3 +255,6 @@ KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 
 # Claude Code worktrees and project data
 .claude/
+
+# Claude Code instructions — local-only, not tracked in version control
+CLAUDE.md
