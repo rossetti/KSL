@@ -701,6 +701,9 @@ class WelchDataFileAnalyzer(bean: WelchFileMetaDataBean) : ObservableIfc<WelchDa
         const val NUMBYTES : Int = 8
         const val MIN_BATCH_SIZE : Int = 10
 
+        /** Recommended batch size for the Schruben initialization bias test. */
+        const val BIAS_TEST_BATCH_SIZE: Int = 5
+
         /**
          *
          * @param pathToWelchFileMetaDataBeanJson must not be null, must be JSON, must represent WelchFileMetaDataBean

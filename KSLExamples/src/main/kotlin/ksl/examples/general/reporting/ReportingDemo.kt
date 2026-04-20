@@ -484,34 +484,73 @@ fun demoWelchReport() {
     myDocB.showInBrowser()
 }
 
-// ── Demo 13: Welch analysis with batch means ──────────────────────────────────
+// ── Demo 13: Welch analysis with bias test and batch means ───────────────────
 
 /**
- * Demonstrates [WelchFileObserver.toReport] with `includeBatchMeans = true`,
- * which appends a batch-means analysis section using Welch averages from the
- * MSER deletion point onward.
+ * Demonstrates [WelchFileObserver.toReport] with both `includeBiasTest = true`
+ * and `includeBatchMeans = true`.
  *
- * The batch-means section calls [batchStatistic] on the post-deletion averages,
- * showing batch configuration and the resulting half-width statistics on batch
- * means — providing a point estimate with an appropriate confidence interval
- * that accounts for serial correlation.
+ * **Initialization bias test (Section 6):**
+ * Applies the Schruben initialization bias test to Welch averages from the
+ * MSER deletion point onward, batched with batch size 5
+ * ([WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE]).  Both the positive-bias and
+ * negative-bias F statistics and their upper-tail p-values (F(3,3) distribution)
+ * are reported, together with a plain-language decision at α = 0.05.
+ *
+ * **Batch-means analysis (Section 7):**
+ * A separate [batchStatistic] call on the same post-deletion Welch averages
+ * batched with the default batch size ([WelchDataFileAnalyzer.MIN_BATCH_SIZE] = 10)
+ * provides a point estimate with a valid confidence interval that accounts for
+ * serial correlation.
+ *
+ * The two sections use independent [BatchStatistic] instances with different
+ * batch sizes (5 vs 10); they serve different analytical purposes and must not
+ * share a `BatchStatistic`.
  */
-fun demoWelchReportWithBatchMeans() {
-    val myModel = Model("Drive-Through Pharmacy - Welch + Batch Means")
+fun demoWelchReportWithBiasTestAndBatchMeans() {
+    val myModel = Model("Drive-Through Pharmacy - Welch Bias Test + Batch Means")
     myModel.numberOfReplications = 5
     myModel.lengthOfReplication  = 50000.0
-    val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
     myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95, 2)
-    val myWelch  = WelchFileObserver(myDtp.systemTime, 1.0)
+    val myWelch = WelchFileObserver(myDtp.systemTime, 1.0)
 
     myModel.simulate()
 
     val myDoc = myWelch.toReport(
-        title             = "${myWelch.responseName} — Warm-Up with Batch Means",
+        title             = "${myWelch.responseName} — Bias Test and Batch Means",
+        includeBiasTest   = true,
         includeBatchMeans = true
     )
     myDoc.showInBrowser()
     myDoc.writeMarkdown()
+}
+
+// ── Demo 13b: Welch bias test without batch means ─────────────────────────────
+
+/**
+ * Demonstrates `includeBiasTest = true` **without** `includeBatchMeans`, showing
+ * that the two optional sections are fully independent.
+ *
+ * Use this pattern when the goal is purely to validate whether the MSER deletion
+ * point is adequate for removing the initial transient, without producing a
+ * final steady-state estimate via batch means.
+ */
+fun demoWelchBiasTestOnly() {
+    val myModel = Model("Drive-Through Pharmacy - Bias Test Only")
+    myModel.numberOfReplications = 5
+    myModel.lengthOfReplication  = 50000.0
+    val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95, 2)
+    val myWelch = WelchFileObserver(myDtp.systemTime, 1.0)
+
+    myModel.simulate()
+
+    val myDoc = myWelch.toReport(
+        title           = "${myWelch.responseName} — Initialization Bias Test",
+        includeBiasTest = true
+    )
+    myDoc.showInBrowser()
 }
 
 // ── Demo 14: Welch analysis with user-supplied deletion point ─────────────────
@@ -553,9 +592,10 @@ fun demoWelchReportUserDeletionPoint() {
  * function appends each analysis as a named section, so the document table of
  * contents provides quick navigation between the two responses.
  *
- * `includePartialSums = true` and `includeBatchMeans = true` are set on both
- * so the reader can compare the partial-sums plot and batch-means estimates for
- * the two responses in a single document.
+ * `includePartialSums = true`, `includeBiasTest = true`, and
+ * `includeBatchMeans = true` are set on both so the reader can compare the
+ * partial-sums plot, bias test results, and batch-means estimates for the two
+ * responses in a single document.
  */
 fun demoCompositeWelchReport() {
     val myModel = Model("Drive-Through Pharmacy - Composite Welch")
@@ -573,17 +613,19 @@ fun demoCompositeWelchReport() {
             "Welch warm-up analysis for two responses: system time (tally) " +
             "and number in system (time-weighted, δt = 10). " +
             "Each section shows the Welch plot, partial sums plot, MSER " +
-            "deletion-point recommendation, and a batch-means analysis on " +
-            "the post-deletion Welch averages."
+            "deletion-point recommendation, Schruben initialization bias test, " +
+            "and a batch-means analysis on the post-deletion Welch averages."
         )
         welchAnalysis(
             observer           = myRvWelch,
             includePartialSums = true,
+            includeBiasTest    = true,
             includeBatchMeans  = true
         )
         welchAnalysis(
             observer           = myTwWelch,
             includePartialSums = true,
+            includeBiasTest    = true,
             includeBatchMeans  = true
         )
     }
@@ -608,8 +650,9 @@ fun main() {
 //    demoStateVariableTraceReport()
 //    demoObservationTraceReport()
 //    demoCompositeTraceReport()
-    demoWelchReport()
-    demoWelchReportWithBatchMeans()
-    demoWelchReportUserDeletionPoint()
-    demoCompositeWelchReport()
+//    demoWelchReport()
+//    demoWelchReportWithBiasTestAndBatchMeans()
+    demoWelchBiasTestOnly()
+//    demoWelchReportUserDeletionPoint()
+//    demoCompositeWelchReport()
 }

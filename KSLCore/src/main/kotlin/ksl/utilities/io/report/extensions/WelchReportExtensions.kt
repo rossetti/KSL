@@ -25,6 +25,7 @@ import ksl.utilities.io.plotting.WelchPlot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
 import ksl.utilities.io.report.dsl.report
+import ksl.utilities.statistic.Statistic
 
 /**
  * DSL extension functions on [ReportBuilder] for warm-up analysis using the
@@ -46,10 +47,11 @@ import ksl.utilities.io.report.dsl.report
  * 3. A [WelchPlot] showing the Welch average and cumulative average.
  * 4. A [PartialSumsPlot] (when [includePartialSums] is `true`).
  * 5. An MSER deletion-point recommendation table.
- * 6. A batch-means analysis section (when [includeBatchMeans] is `true`).
+ * 6. A Schruben initialization bias test section (when [includeBiasTest] is `true`).
+ * 7. A batch-means analysis section (when [includeBatchMeans] is `true`).
  *
- * The [deletionPoint] parameter controls where the batch-means analysis
- * starts:
+ * The [deletionPoint] parameter controls where the post-deletion analyses
+ * (bias test and batch means) start:
  * - `-1` (default) — use [WelchDataFileAnalyzer.recommendDeletionPoint]
  *   automatically (MSER rule)
  * - any non-negative integer — use that observation index directly,
@@ -62,11 +64,14 @@ import ksl.utilities.io.report.dsl.report
  * myObserver.toReport().showInBrowser()
  * ```
  *
- * Custom report with both plots and batch means:
+ * Custom report with all optional sections:
  * ```kotlin
  * val myDoc = report("Warm-Up Analysis") {
  *     paragraph("Drive-through pharmacy — system time.")
- *     welchAnalysis(myObserver, includePartialSums = true, includeBatchMeans = true)
+ *     welchAnalysis(myObserver,
+ *         includePartialSums = true,
+ *         includeBiasTest    = true,
+ *         includeBatchMeans  = true)
  * }
  * myDoc.showInBrowser()
  * myDoc.writeMarkdown()
@@ -93,6 +98,10 @@ private fun fmtD(value: Double): String = when {
  * @param includePartialSums `true` (default) includes a [PartialSumsPlot]
  * @param includeBatchMeans  `true` appends a batch-means analysis section
  *                           using the welch averages after the deletion point
+ * @param includeBiasTest    `true` appends a Schruben initialization bias test
+ *                           section between the MSER table and the batch-means
+ *                           section; the test is applied to Welch averages
+ *                           batched with [WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE]
  * @param deletionPoint      observation index to use as the start of the
  *                           post-deletion analysis; `-1` (default) means use
  *                           the MSER-recommended deletion point automatically
@@ -100,13 +109,15 @@ private fun fmtD(value: Double): String = when {
 fun ReportBuilder.welchAnalysis(
     observer: WelchFileObserver,
     includePartialSums: Boolean = true,
-    includeBatchMeans: Boolean = false,
-    deletionPoint: Int = -1
+    includeBatchMeans:  Boolean = false,
+    includeBiasTest:    Boolean = false,
+    deletionPoint:      Int     = -1
 ) {
     welchAnalysis(
-        analyzer         = observer.createWelchDataFileAnalyzer(),
+        analyzer           = observer.createWelchDataFileAnalyzer(),
         includePartialSums = includePartialSums,
         includeBatchMeans  = includeBatchMeans,
+        includeBiasTest    = includeBiasTest,
         deletionPoint      = deletionPoint
     )
 }
@@ -119,16 +130,20 @@ fun ReportBuilder.welchAnalysis(
  * @param analyzer           the analyzer to report from
  * @param includePartialSums `true` (default) includes a [PartialSumsPlot]
  * @param includeBatchMeans  `true` appends a batch-means analysis section
+ * @param includeBiasTest    `true` appends a Schruben initialization bias test
+ *                           section; the test is applied to Welch averages
+ *                           batched with [WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE]
  * @param deletionPoint      observation index for post-deletion analysis;
  *                           `-1` means use the MSER recommendation
  */
 fun ReportBuilder.welchAnalysis(
     analyzer: WelchDataFileAnalyzer,
     includePartialSums: Boolean = true,
-    includeBatchMeans: Boolean = false,
-    deletionPoint: Int = -1
+    includeBatchMeans:  Boolean = false,
+    includeBiasTest:    Boolean = false,
+    deletionPoint:      Int     = -1
 ) {
-    val myEffectiveDeletionPt = if (deletionPoint < 0) {
+    val myEffectiveDeletionPt   = if (deletionPoint < 0) {
         analyzer.recommendDeletionPoint()
     } else {
         deletionPoint
@@ -182,7 +197,61 @@ fun ReportBuilder.welchAnalysis(
                       else "User-Supplied Deletion Point"
         )
 
-        // ── 6. Batch-means analysis (optional) ────────────────────────────
+        // ── 6. Initialization bias test (optional) ────────────────────────
+        if (includeBiasTest) {
+            section("Initialization Bias Test") {
+                val myBiasBS     = analyzer.batchWelchAverages(
+                    myEffectiveDeletionPt,
+                    WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE
+                )
+                val myBatchMeans = myBiasBS.batchMeans
+
+                val myFPos = Statistic.positiveBiasTestStatistic(myBatchMeans)
+                val myFNeg = Statistic.negativeBiasTestStatistic(myBatchMeans)
+                val myPPos = Statistic.welchBiasTestPValue(myFPos)
+                val myPNeg = Statistic.welchBiasTestPValue(myFNeg)
+
+                val myRejPos   = !myPPos.isNaN() && myPPos < 0.05
+                val myRejNeg   = !myPNeg.isNaN() && myPNeg < 0.05
+                val myDecision = when {
+                    myFPos.isNaN() || myFNeg.isNaN() ->
+                        "Insufficient batch means for test (\u2265 4 required)"
+                    myRejPos && myRejNeg ->
+                        "Both positive and negative bias detected"
+                    myRejPos ->
+                        "Positive initialization bias detected"
+                    myRejNeg ->
+                        "Negative initialization bias detected"
+                    else ->
+                        "No initialization bias detected at \u03B1 = 0.05"
+                }
+
+                paragraph(
+                    "The Schruben initialization bias test is applied to Welch averages " +
+                    "from observation ${myEffectiveDeletionPt + 1} onward, batched with " +
+                    "batch size ${WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE}. " +
+                    "H\u2080: no initialization bias. " +
+                    "Reject H\u2080 when p-value < 0.05 " +
+                    "(F distribution with 3 and 3 degrees of freedom)."
+                )
+
+                dataTable(
+                    headers = listOf("Property", "Value"),
+                    rows    = listOf(
+                        listOf("Batch size for test",        WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE.toString()),
+                        listOf("Number of batch means",      myBiasBS.numBatches.toString()),
+                        listOf("Positive bias F statistic",  fmtD(myFPos)),
+                        listOf("Positive bias p-value",      fmtD(myPPos)),
+                        listOf("Negative bias F statistic",  fmtD(myFNeg)),
+                        listOf("Negative bias p-value",      fmtD(myPNeg)),
+                        listOf("Decision (\u03B1 = 0.05)",   myDecision)
+                    ),
+                    caption = "Schruben Initialization Bias Test"
+                )
+            }
+        }
+
+        // ── 7. Batch-means analysis (optional) ────────────────────────────
         if (includeBatchMeans) {
             section("Batch-Means Analysis (post-deletion)") {
                 paragraph(
@@ -210,33 +279,40 @@ fun ReportBuilder.welchAnalysis(
  * ```kotlin
  * myObserver.toReport().showInBrowser()
  * myObserver.toReport(includeBatchMeans = true).writeMarkdown()
+ * myObserver.toReport(includeBiasTest = true, includeBatchMeans = true).showInBrowser()
  * ```
  *
  * Custom block:
  * ```kotlin
  * myObserver.toReport("Queue Warm-Up Study") {
  *     paragraph("System time for 5 replications.")
- *     welchAnalysis(myObserver, includePartialSums = true, includeBatchMeans = true)
+ *     welchAnalysis(myObserver,
+ *         includePartialSums = true,
+ *         includeBiasTest    = true,
+ *         includeBatchMeans  = true)
  * }
  * ```
  *
  * @param title              document title; defaults to [WelchFileObserver.responseName]
  * @param includePartialSums `true` (default) includes a [PartialSumsPlot]
  * @param includeBatchMeans  `true` appends a batch-means analysis section
+ * @param includeBiasTest    `true` appends a Schruben initialization bias test section
  * @param deletionPoint      observation index for post-deletion analysis;
  *                           `-1` means use the MSER recommendation
  * @param block              optional DSL block; replaces the default content when provided
  */
 fun WelchFileObserver.toReport(
-    title: String = responseName,
+    title:              String  = responseName,
     includePartialSums: Boolean = true,
-    includeBatchMeans: Boolean = false,
-    deletionPoint: Int = -1,
+    includeBatchMeans:  Boolean = false,
+    includeBiasTest:    Boolean = false,
+    deletionPoint:      Int     = -1,
     block: ReportBuilder.() -> Unit = {
         welchAnalysis(
             observer           = this@toReport,
             includePartialSums = includePartialSums,
             includeBatchMeans  = includeBatchMeans,
+            includeBiasTest    = includeBiasTest,
             deletionPoint      = deletionPoint
         )
     }
