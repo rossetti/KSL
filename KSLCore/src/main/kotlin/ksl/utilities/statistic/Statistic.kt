@@ -22,6 +22,7 @@ import ksl.utilities.*
 import ksl.utilities.distributions.*
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.math.KSLMath
+import org.hipparchus.distribution.continuous.FDistribution
 import org.hipparchus.stat.correlation.Covariance
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -877,30 +878,23 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          */
         @JvmStatic
         fun positiveBiasTestStatistic(data: DoubleArray): Double {
-            //find min and max of partial sum series!
             val n = data.size / 2
             val x1 = data.copyOfRange(0, n)
-            val x2 = data.copyOfRange(n + 1, 2 * n)
+            val x2 = data.copyOfRange(n, 2 * n)       // FIX: was n+1
             val s = Statistic()
-            s.collect(x1)
-            val a1: Double = s.average
+            s.collect(x1); val a1 = s.average
             s.reset()
-            s.collect(x2)
-            val a2: Double = s.average
+            s.collect(x2); val a2 = s.average
             val ps1 = partialSums(a1, x1)
             val ps2 = partialSums(a2, x2)
-            val mi1: Int = KSLArrays.indexOfMax(ps1)
-            val max1: Double = KSLArrays.max(ps1)
-            val mi2: Int = KSLArrays.indexOfMax(ps2)
-            val max2: Double = KSLArrays.max(ps2)
-            val num = mi2 * (n - mi2) * max1 * max1
-            val denom = mi1 * (n - mi1) * max2 * max2
-            if (max2 == 0.0) {
-                return Double.NaN
-            }
-            return if (denom == 0.0) {
-                Double.NaN
-            } else num / denom
+            val mi1 = KSLArrays.indexOfMin(ps1)        // FIX: was indexOfMax
+            val min1 = KSLArrays.min(ps1)              // FIX: was max
+            val mi2 = KSLArrays.indexOfMin(ps2)        // FIX: was indexOfMax
+            val min2 = KSLArrays.min(ps2)              // FIX: was max
+            if (min2 == 0.0) return Double.NaN
+            val num = mi2 * (n - mi2) * min1 * min1
+            val denom = mi1 * (n - mi1) * min2 * min2
+            return if (denom == 0.0) Double.NaN else num / denom
         }
 
         /**
@@ -927,30 +921,40 @@ class Statistic @JvmOverloads constructor(name: String? = "Statistic_${++StatCou
          */
         @JvmStatic
         fun negativeBiasTestStatistic(data: DoubleArray): Double {
-            //find min and max of partial sum series!
             val n = data.size / 2
             val x1 = data.copyOfRange(0, n)
-            val x2 = data.copyOfRange(n + 1, 2 * n)
+            val x2 = data.copyOfRange(n, 2 * n)       // FIX: was n+1
             val s = Statistic()
-            s.collect(x1)
-            val a1: Double = s.average
+            s.collect(x1); val a1 = s.average
             s.reset()
-            s.collect(x2)
-            val a2: Double = s.average
+            s.collect(x2); val a2 = s.average
             val ps1 = partialSums(a1, x1)
             val ps2 = partialSums(a2, x2)
-            val mi1: Int = KSLArrays.indexOfMin(ps1)
-            val min1: Double = KSLArrays.min(ps1)
-            val mi2: Int = KSLArrays.indexOfMin(ps2)
-            val min2: Double = KSLArrays.min(ps2)
-            val num = mi2 * (n - mi2) * min1 * min1
-            val denom = mi1 * (n - mi1) * min2 * min2
-            if (min2 == 0.0) {
-                return Double.NaN
-            }
-            return if (denom == 0.0) {
-                Double.NaN
-            } else num / denom
+            val mi1 = KSLArrays.indexOfMax(ps1)        // FIX: was indexOfMin
+            val max1 = KSLArrays.max(ps1)              // FIX: was min
+            val mi2 = KSLArrays.indexOfMax(ps2)        // FIX: was indexOfMin
+            val max2 = KSLArrays.max(ps2)              // FIX: was min
+            if (max2 == 0.0) return Double.NaN
+            val num = mi2 * (n - mi2) * max1 * max1
+            val denom = mi1 * (n - mi1) * max2 * max2
+            return if (denom == 0.0) Double.NaN else num / denom
+        }
+
+        /**
+         * Returns the p-value for the Schruben initialization bias test.
+         * The test statistic [f] is compared against an F(3,3) distribution.
+         * The null hypothesis is no initialization bias (positive or negative,
+         * depending on which test statistic was computed).
+         * Reject H0 if the returned p-value < significance level (e.g. 0.05).
+         *
+         * @param f the computed bias test statistic (from positiveBiasTestStatistic
+         *          or negativeBiasTestStatistic)
+         * @return the upper-tail p-value, or Double.NaN if f is NaN
+         */
+        fun biasTestPValue(f: Double): Double {
+            if (f.isNaN()) return Double.NaN
+            val dist = FDistribution(3.0, 3.0)
+            return 1.0 - dist.cumulativeProbability(f)
         }
 
         /**

@@ -501,6 +501,7 @@ fun demoWelchReportWithBatchMeans() {
     myModel.numberOfReplications = 5
     myModel.lengthOfReplication  = 50000.0
     val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95, 2)
     val myWelch  = WelchFileObserver(myDtp.systemTime, 1.0)
 
     myModel.simulate()
@@ -529,7 +530,7 @@ fun demoWelchReportUserDeletionPoint() {
     myModel.numberOfReplications = 5
     myModel.lengthOfReplication  = 50000.0
     val myDtp   = DriveThroughPharmacyWithQ(myModel, 1)
-    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.9,2)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95,2)
     val myWelch = WelchFileObserver(myDtp.systemTime, 1.0)
 
     myModel.simulate()
@@ -561,6 +562,7 @@ fun demoCompositeWelchReport() {
     myModel.numberOfReplications = 5
     myModel.lengthOfReplication  = 50000.0
     val myDtp    = DriveThroughPharmacyWithQ(myModel, 1)
+    myDtp.serviceRV.initialRandomSource = ExponentialRV(0.95, 2)
     val myRvWelch = WelchFileObserver(myDtp.systemTime,   1.0)
     val myTwWelch = WelchFileObserver(myDtp.numInSystem, 10.0)
 
@@ -607,7 +609,7 @@ fun main() {
 //    demoObservationTraceReport()
 //    demoCompositeTraceReport()
     demoWelchReport()
-//    demoWelchReportWithBatchMeans()
-//    demoWelchReportUserDeletionPoint()
-//    demoCompositeWelchReport()
+    demoWelchReportWithBatchMeans()
+    demoWelchReportUserDeletionPoint()
+    demoCompositeWelchReport()
 }
