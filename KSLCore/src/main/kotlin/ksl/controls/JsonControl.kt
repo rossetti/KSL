@@ -28,8 +28,12 @@ internal class JsonControl(
     override var value: String
         get() = json.encodeToString(mySerializer, myProperty.getter.call(myModelElement))
         set(v) {
-            val decoded = try {
-                json.decodeFromString(mySerializer, v)
+            try {
+                val decoded = json.decodeFromString(mySerializer, v)
+                myProperty.setter.call(myModelElement, decoded)
+                Controls.logger.trace { "JsonControl: $keyName was assigned value = $v" }
+            } catch (e: ControlUpdateException) {
+                throw e
             } catch (e: SerializationException) {
                 throw ControlUpdateException(
                     message        = "JSON deserialization failed for control '$keyName': ${e.message}",
@@ -37,9 +41,14 @@ internal class JsonControl(
                     attemptedValue = v,
                     cause          = e,
                 )
+            } catch (e: Exception) {
+                throw ControlUpdateException(
+                    message        = "Property setter rejected deserialized value for control '$keyName': ${e.message}",
+                    controlKey     = keyName,
+                    attemptedValue = v,
+                    cause          = e,
+                )
             }
-            myProperty.setter.call(myModelElement, decoded)
-            Controls.logger.trace { "JsonControl: $keyName was assigned value = $v" }
         }
 
     override val keyName: String
