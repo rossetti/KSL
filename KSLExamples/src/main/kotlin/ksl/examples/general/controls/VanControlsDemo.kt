@@ -1,12 +1,21 @@
 package ksl.examples.general.controls
 
+import ksl.controls.ControlData
 import ksl.controls.ControlType
 import ksl.controls.ControlUpdateException
+import ksl.controls.Controls
 import ksl.controls.KSLControl
 import ksl.controls.KSLJsonControl
 import ksl.controls.KSLStringControl
+import ksl.controls.ModelControlsExport
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.controlsReport
+import ksl.utilities.io.report.extensions.numericControlsTable
+import ksl.utilities.io.report.extensions.stringControlsTable
+import ksl.utilities.io.report.extensions.toReport
+import ksl.utilities.io.report.showInBrowser
 
 /**
  * A simple model element with numeric, boolean, and string controls used to
@@ -286,6 +295,71 @@ fun demoExportImport() {
     println("Success count : ${phantomResult.successCount}")
 }
 
+// ── Demo 5: controls reporting ────────────────────────────────────────────────
+
+/**
+ * Demonstrates [ksl.utilities.io.report.extensions.ControlsReportExtensions]
+ * using the Van and Truck model elements.
+ *
+ * Shows:
+ * - Zero-code flat family report via `Controls.toReport()`.
+ * - Element-grouped report via `groupByElement = true`.
+ * - Offline snapshot report via `ModelControlsExport.toReport()`.
+ * - Embedding controls tables inside a larger custom report using the
+ *   granular DSL methods.
+ */
+fun demoControlsReport() {
+    val model = Model("Van-Truck Model — Report Demo")
+    repeat(2) { Van(model, "Van_$it") }
+    repeat(2) { Truck(model, "Truck_$it") }
+    val controls = model.controls()
+
+    // ── 1. Zero-code flat family report ──────────────────────────────────────
+    controls.toReport().showInBrowser()
+
+    // ── 2. Element-grouped view ───────────────────────────────────────────────
+    controls.toReport(
+        title          = "Van-Truck Model — Controls by Element",
+        groupByElement = true,
+    ).showInBrowser()
+
+    // ── 3. Offline snapshot report (from ModelControlsExport) ─────────────────
+    val snapshot: ModelControlsExport = controls.exportAll()
+    snapshot.toReport(
+        title          = "Saved Snapshot — Controls",
+        groupByElement = false,
+    ).showInBrowser()
+
+    // ── 4. Granular DSL: embed controls tables inside a larger report ──────────
+    val export = controls.exportAll()
+    report("Van-Truck Model — Combined Report") {
+        section("Simulation Context") {
+            paragraph(
+                "This report covers a mixed Van-Truck model with " +
+                "${export.totalControls} controllable parameters."
+            )
+        }
+        section("Numeric and String Controls") {
+            numericControlsTable(export.numericControls, caption = "Numeric Parameters")
+            stringControlsTable(
+                export.stringControls,
+                caption              = "String Parameters",
+                includeAllowedValues = true,
+            )
+        }
+        section("JSON Controls") {
+            controlsReport(
+                export         = export.copy(
+                    numericControls = emptyList(),
+                    stringControls  = emptyList(),
+                ),
+                groupByElement = true,
+                includeComment = true,
+            )
+        }
+    }.showInBrowser()
+}
+
 fun main() {
     demoNumericControls()
     println("\n" + "=".repeat(60) + "\n")
@@ -294,4 +368,6 @@ fun main() {
     demoJsonControls()
     println("\n" + "=".repeat(60) + "\n")
     demoExportImport()
+    println("\n" + "=".repeat(60) + "\n")
+    demoControlsReport()
 }
