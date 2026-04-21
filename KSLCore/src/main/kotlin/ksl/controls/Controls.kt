@@ -19,6 +19,7 @@
 package ksl.controls
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.serialization.json.Json
 import ksl.modeling.variable.Response
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -70,6 +71,12 @@ import kotlin.reflect.full.memberProperties
  * - `setJsonControlsFromMap(map)` — bulk-set JSON controls; invalid JSON is
  *   logged and skipped rather than aborting the entire update
  * - `jsonControlData()` — list of [JsonControlData] DTOs for data transfer
+ *
+ * Batch export / import (all families):
+ * - `exportAll()` — produces a [ModelControlsExport] snapshot of every control
+ * - `exportAllAsJson()` — pretty-printed JSON string of the full snapshot
+ * - `importAll(export)` — applies a [ModelControlsExport]; returns [ControlImportResult]
+ * - `importAllFromJson(json)` — deserializes then delegates to `importAll`
  */
 class Controls(aModel: Model) {
 
@@ -123,58 +130,59 @@ class Controls(aModel: Model) {
             }
 
             when {
-                hasControlAnnotation(property.setter) -> {
-                    val annotation = controlAnnotation(property.setter)!!
-                    if (ControlType.validType(property.returnType)) {
-                        if (annotation.include) {
-                            val control = Control(modelElement, property, annotation)
-                            myControls[control.keyName] = control
-                            logger.trace { "Numeric control ${control.keyName} extracted" }
-                        } else {
-                            logger.trace { "Numeric control on ${property.name} excluded (include=false)" }
-                        }
-                    } else {
-                        logger.trace { "Property ${property.name} has @KSLControl but type ${property.returnType.classifier} is not a valid ControlType" }
-                    }
-                }
+                hasControlAnnotation(property.setter)       -> extractNumericControl(modelElement, property)
+                hasStringControlAnnotation(property.setter) -> extractStringControl(modelElement, property)
+                hasJsonControlAnnotation(property.setter)   -> extractJsonControl(modelElement, property)
+                else -> logger.trace { "Member property ${property.name} has no recognised control annotation" }
+            }
+        }
+    }
 
-                hasStringControlAnnotation(property.setter) -> {
-                    val annotation = stringControlAnnotation(property.setter)!!
-                    if (property.returnType.classifier == String::class) {
-                        if (annotation.include) {
-                            val control = StringControl(modelElement, property, annotation)
-                            myStringControls[control.keyName] = control
-                            logger.trace { "String control ${control.keyName} extracted" }
-                        } else {
-                            logger.trace { "String control on ${property.name} excluded (include=false)" }
-                        }
-                    } else {
-                        logger.trace { "Property ${property.name} has @KSLStringControl but type ${property.returnType.classifier} is not String — skipping" }
-                    }
-                }
+    private fun extractNumericControl(modelElement: ModelElement, property: KMutableProperty<*>) {
+        val annotation = controlAnnotation(property.setter)!!
+        if (ControlType.validType(property.returnType)) {
+            if (annotation.include) {
+                val control = Control(modelElement, property, annotation)
+                myControls[control.keyName] = control
+                logger.trace { "Numeric control ${control.keyName} extracted" }
+            } else {
+                logger.trace { "Numeric control on ${property.name} excluded (include=false)" }
+            }
+        } else {
+            logger.trace { "Property ${property.name} has @KSLControl but type ${property.returnType.classifier} is not a valid ControlType" }
+        }
+    }
 
-                hasJsonControlAnnotation(property.setter) -> {
-                    val annotation = jsonControlAnnotation(property.setter)!!
-                    if (annotation.include) {
-                        try {
-                            val control = JsonControl(modelElement, property, annotation)
-                            myJsonControls[control.keyName] = control
-                            logger.trace { "JSON control ${control.keyName} extracted" }
-                        } catch (e: Exception) {
-                            logger.warn {
-                                "Property ${property.name} on ${modelElement.name} has @KSLJsonControl " +
-                                "but type ${property.returnType} is not serializable — skipping: ${e.message}"
-                            }
-                        }
-                    } else {
-                        logger.trace { "JSON control on ${property.name} excluded (include=false)" }
-                    }
-                }
+    private fun extractStringControl(modelElement: ModelElement, property: KMutableProperty<*>) {
+        val annotation = stringControlAnnotation(property.setter)!!
+        if (property.returnType.classifier == String::class) {
+            if (annotation.include) {
+                val control = StringControl(modelElement, property, annotation)
+                myStringControls[control.keyName] = control
+                logger.trace { "String control ${control.keyName} extracted" }
+            } else {
+                logger.trace { "String control on ${property.name} excluded (include=false)" }
+            }
+        } else {
+            logger.trace { "Property ${property.name} has @KSLStringControl but type ${property.returnType.classifier} is not String — skipping" }
+        }
+    }
 
-                else -> {
-                    logger.trace { "Member property ${property.name} has no recognised control annotation" }
+    private fun extractJsonControl(modelElement: ModelElement, property: KMutableProperty<*>) {
+        val annotation = jsonControlAnnotation(property.setter)!!
+        if (annotation.include) {
+            try {
+                val control = JsonControl(modelElement, property, annotation)
+                myJsonControls[control.keyName] = control
+                logger.trace { "JSON control ${control.keyName} extracted" }
+            } catch (e: Exception) {
+                logger.warn {
+                    "Property ${property.name} on ${modelElement.name} has @KSLJsonControl " +
+                    "but type ${property.returnType} is not serializable — skipping: ${e.message}"
                 }
             }
+        } else {
+            logger.trace { "JSON control on ${property.name} excluded (include=false)" }
         }
     }
 
@@ -462,6 +470,110 @@ class Controls(aModel: Model) {
         return sb.toString()
     }
 
+    // ── Export / import ───────────────────────────────────────────────────────
+
+    /**
+     * Produces a [ModelControlsExport] snapshot of every control in this model.
+     *
+     * The snapshot captures current values at call time.  It can be serialized
+     * to JSON via [exportAllAsJson] and later restored with [importAll] or
+     * [importAllFromJson].
+     */
+    fun exportAll(): ModelControlsExport = ModelControlsExport(
+        modelName       = myModel.name,
+        numericControls = controlData(),
+        stringControls  = stringControlData(),
+        jsonControls    = jsonControlData(),
+    )
+
+    /**
+     * Serializes [exportAll] to a pretty-printed JSON string.
+     *
+     * The result can be written to a file, stored in a database, or passed
+     * directly to [importAllFromJson].
+     */
+    fun exportAllAsJson(): String = exportJson.encodeToString(ModelControlsExport.serializer(), exportAll())
+
+    /**
+     * Applies [export] to this model's controls, updating each control whose
+     * key is found in the respective map.
+     *
+     * Processing order: numeric → string → JSON.  Within each family every
+     * entry is attempted independently:
+     * - A key present in [export] but absent from this model is added to
+     *   [ControlImportResult.missingKeys] and logged at WARN.
+     * - A string or JSON value rejected by validation is caught, added to
+     *   [ControlImportResult.failures], and logged at WARN.
+     * - Numeric values are clamped to declared bounds by the setter and never
+     *   produce a validation failure.
+     *
+     * @return a [ControlImportResult] summarising successes, validation failures,
+     *         and missing keys across all three families
+     */
+    fun importAll(export: ModelControlsExport): ControlImportResult {
+        var successCount = 0
+        val failures     = mutableListOf<ControlUpdateException>()
+        val missingKeys  = mutableListOf<String>()
+
+        for (cd in export.numericControls) {
+            val control = myControls[cd.keyName]
+            if (control == null) {
+                logger.warn { "importAll: numeric key '${cd.keyName}' not found in model '${myModel.name}'" }
+                missingKeys.add(cd.keyName)
+            } else {
+                control.value = cd.value
+                successCount++
+            }
+        }
+
+        for (sd in export.stringControls) {
+            val control = myStringControls[sd.keyName]
+            if (control == null) {
+                logger.warn { "importAll: string key '${sd.keyName}' not found in model '${myModel.name}'" }
+                missingKeys.add(sd.keyName)
+            } else {
+                try {
+                    control.value = sd.value
+                    successCount++
+                } catch (e: ControlUpdateException) {
+                    logger.warn { "importAll: string control '${sd.keyName}' rejected value '${sd.value}': ${e.message}" }
+                    failures.add(e)
+                }
+            }
+        }
+
+        for (jd in export.jsonControls) {
+            val control = myJsonControls[jd.keyName]
+            if (control == null) {
+                logger.warn { "importAll: JSON key '${jd.keyName}' not found in model '${myModel.name}'" }
+                missingKeys.add(jd.keyName)
+            } else {
+                try {
+                    control.value = jd.jsonValue
+                    successCount++
+                } catch (e: ControlUpdateException) {
+                    logger.warn { "importAll: JSON control '${jd.keyName}' rejected value '${jd.jsonValue}': ${e.message}" }
+                    failures.add(e)
+                }
+            }
+        }
+
+        return ControlImportResult(successCount, failures, missingKeys)
+    }
+
+    /**
+     * Deserializes [json] into a [ModelControlsExport] and delegates to [importAll].
+     *
+     * If [json] is structurally invalid (wrong schema) a `SerializationException`
+     * propagates uncaught — this is a programming error at the call site, not a
+     * per-control validation failure.
+     *
+     * @return a [ControlImportResult] summarising successes, validation failures,
+     *         and missing keys across all three families
+     */
+    fun importAllFromJson(json: String): ControlImportResult =
+        importAll(exportJson.decodeFromString(ModelControlsExport.serializer(), json))
+
     // ── toString ──────────────────────────────────────────────────────────────
 
     override fun toString(): String = buildString {
@@ -475,6 +587,10 @@ class Controls(aModel: Model) {
     companion object {
         @JvmStatic
         val logger = KotlinLogging.logger {}
+
+        /** Pretty-printed [Json] instance used for [exportAllAsJson] and [importAllFromJson]. */
+        @JvmStatic
+        val exportJson = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
         @JvmStatic
         fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? =

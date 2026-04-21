@@ -216,10 +216,82 @@ fun demoJsonControls() {
     println("Truck_0.axleWeights           = ${controls.jsonControl("Truck_0.axleWeights")?.value} (unchanged)")
 }
 
+// ── Demo 4: batch export / import across all three families ───────────────────
+
+/**
+ * Demonstrates [ksl.controls.Controls.exportAll] and [ksl.controls.Controls.importAll].
+ *
+ * Shows:
+ * - Exporting a full snapshot immediately after model construction.
+ * - Mutating controls across all three families.
+ * - Restoring the original state via [ksl.controls.Controls.importAllFromJson].
+ * - Inspecting [ksl.controls.ControlImportResult] for success count, validation
+ *   failures, and missing keys.
+ */
+fun demoExportImport() {
+    val model = Model("Mixed Model — Export/Import")
+    repeat(2) { Van(model, "Van_$it") }
+    repeat(2) { Truck(model, "Truck_$it") }
+    val controls = model.controls()
+
+    // ── Snapshot before any mutations ────────────────────────────────────────
+    val snapshot = controls.exportAllAsJson()
+    println("=== Exported snapshot (${controls.size} numeric, " +
+            "${controls.stringControlSize} string, " +
+            "${controls.jsonControlSize} JSON) ===")
+    println(snapshot)
+
+    // ── Mutate one control from each family ───────────────────────────────────
+    controls.control("Van_0.price")?.value = 99999.0
+    controls.stringControl("Van_0.fuelType")?.value = "DIESEL"
+    controls.jsonControl("Truck_0.axleWeights")?.value = "[1.0, 2.0]"
+
+    println("=== After mutations ===")
+    println("Van_0.price        = ${controls.control("Van_0.price")?.value}")
+    println("Van_0.fuelType     = ${controls.stringControl("Van_0.fuelType")?.value}")
+    println("Truck_0.axleWeights = ${controls.jsonControl("Truck_0.axleWeights")?.value}")
+
+    // ── Restore from snapshot ─────────────────────────────────────────────────
+    val result = controls.importAllFromJson(snapshot)
+    println("\n=== After importAllFromJson ===")
+    println("Van_0.price        = ${controls.control("Van_0.price")?.value}  (restored)")
+    println("Van_0.fuelType     = ${controls.stringControl("Van_0.fuelType")?.value}  (restored)")
+    println("Truck_0.axleWeights = ${controls.jsonControl("Truck_0.axleWeights")?.value}  (restored)")
+
+    println("\n=== ControlImportResult ===")
+    println("Success count : ${result.successCount}")
+    println("Failures      : ${result.failureCount}")
+    println("Missing keys  : ${result.missingKeyCount}")
+
+    // ── Demonstrate missingKeys: import a snapshot with a phantom key ──────────
+    println("\n=== Import with a phantom key (demonstrates missingKeys) ===")
+    val phantom = controls.exportAll().copy(
+        numericControls = controls.exportAll().numericControls +
+            ksl.controls.ControlData(
+                controlType  = ksl.controls.ControlType.DOUBLE,
+                value        = 0.0,
+                keyName      = "Phantom_99.nonExistent",
+                lowerBound   = Double.NEGATIVE_INFINITY,
+                upperBound   = Double.POSITIVE_INFINITY,
+                elementName  = "Phantom_99",
+                elementId    = -1,
+                elementType  = "Phantom",
+                propertyName = "nonExistent",
+                comment      = "",
+                modelName    = model.name,
+            )
+    )
+    val phantomResult = controls.importAll(phantom)
+    println("Missing keys  : ${phantomResult.missingKeys}")
+    println("Success count : ${phantomResult.successCount}")
+}
+
 fun main() {
     demoNumericControls()
     println("\n" + "=".repeat(60) + "\n")
     demoStringControls()
     println("\n" + "=".repeat(60) + "\n")
     demoJsonControls()
+    println("\n" + "=".repeat(60) + "\n")
+    demoExportImport()
 }

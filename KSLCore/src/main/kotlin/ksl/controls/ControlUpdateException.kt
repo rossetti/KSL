@@ -31,25 +31,38 @@ class ControlUpdateException(
 ) : RuntimeException(message, cause)
 
 /**
- * Summary result returned by the batch-import function in [Controls].
+ * Summary result returned by [Controls.importAll] and [Controls.importAllFromJson].
  *
- * The import continues past individual [ControlUpdateException]s, accumulating
- * them here.  The caller can inspect [failures] for per-control diagnostics and
- * use [hasFailures] as a quick guard before iterating.
+ * The import continues past individual errors, accumulating them here.
+ * [failures] holds one [ControlUpdateException] per control whose value was
+ * rejected (string `allowedValues` violation or JSON deserialization failure).
+ * [missingKeys] holds the key name of every control present in the export
+ * snapshot but absent from the live model — these are logged at WARN level and
+ * left unchanged.
  *
- * @param successCount number of controls that were updated without error
- * @param failures     list of exceptions, one per failed control, in the order
- *                     they were encountered; empty when all updates succeeded
+ * @param successCount number of controls successfully updated across all families
+ * @param failures     validation exceptions in encounter order; empty on clean import
+ * @param missingKeys  keys present in the export but not found in this model;
+ *                     empty when every exported key resolved to a live control
  */
 data class ControlImportResult(
     val successCount: Int,
-    val failures: List<ControlUpdateException>,
+    val failures:     List<ControlUpdateException>,
+    val missingKeys:  List<String> = emptyList(),
 ) {
-    /** Number of controls that could not be updated. */
+    /** Number of controls that could not be updated due to validation errors. */
     val failureCount: Int
         get() = failures.size
 
-    /** `true` if at least one control update failed. */
+    /** `true` if at least one control update failed validation. */
     val hasFailures: Boolean
         get() = failures.isNotEmpty()
+
+    /** Number of export keys that had no matching control in this model. */
+    val missingKeyCount: Int
+        get() = missingKeys.size
+
+    /** `true` if at least one exported key was not found in this model. */
+    val hasMissingKeys: Boolean
+        get() = missingKeys.isNotEmpty()
 }
