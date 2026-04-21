@@ -588,9 +588,18 @@ class Controls(aModel: Model) {
         @JvmStatic
         val logger = KotlinLogging.logger {}
 
-        /** Pretty-printed [Json] instance used for [exportAllAsJson] and [importAllFromJson]. */
+        /**
+         * Pretty-printed [Json] instance used for [exportAllAsJson] and [importAllFromJson].
+         * [kotlinx.serialization.json.JsonBuilder.allowSpecialFloatingPointValues] is enabled
+         * because [ControlData.lowerBound] and [ControlData.upperBound] default to
+         * [Double.NEGATIVE_INFINITY] / [Double.POSITIVE_INFINITY] when no bounds are declared.
+         */
         @JvmStatic
-        val exportJson = Json { prettyPrint = true; ignoreUnknownKeys = true }
+        val exportJson = Json {
+            prettyPrint                    = true
+            ignoreUnknownKeys              = true
+            allowSpecialFloatingPointValues = true
+        }
 
         @JvmStatic
         fun <T> controlAnnotation(setter: KMutableProperty.Setter<T>): KSLControl? =
