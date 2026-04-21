@@ -3,6 +3,7 @@ package ksl.examples.general.controls
 import ksl.controls.ControlType
 import ksl.controls.ControlUpdateException
 import ksl.controls.KSLControl
+import ksl.controls.KSLJsonControl
 import ksl.controls.KSLStringControl
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -143,8 +144,82 @@ fun demoStringControls() {
     println("Van_1.fuelType = ${controls.stringControl("Van_1.fuelType")?.value} (unchanged)")
 }
 
+// ── Demo 3: JSON KSLJsonControl extraction ────────────────────────────────────
+
+/**
+ * A model element with JSON-valued controls used to demonstrate the
+ * `@KSLJsonControl` annotation together with the [ksl.controls.Controls]
+ * extraction API.
+ *
+ * Both properties are serializable by `kotlinx.serialization` without any
+ * additional annotations — `List<Double>` and `Map<String, Double>` are
+ * handled natively.
+ */
+class Truck(parent: ModelElement, name: String) : ModelElement(parent, name) {
+
+    @set:KSLJsonControl(comment = "Gross weight per axle in kg")
+    var axleWeights: List<Double> = listOf(4500.0, 6000.0, 6000.0)
+
+    @set:KSLJsonControl(comment = "Named cargo compartment capacities in cubic metres")
+    var compartmentCapacities: Map<String, Double> =
+        mapOf("front" to 12.5, "rear" to 18.0)
+}
+
+/**
+ * Demonstrates extraction and mutation of JSON controls.
+ *
+ * Shows:
+ * - Reading initial JSON values and type hints.
+ * - Setting a valid JSON value.
+ * - Attempting invalid JSON and catching [ControlUpdateException].
+ * - Bulk-setting JSON controls via `setJsonControlsFromMap`.
+ */
+fun demoJsonControls() {
+    val model = Model("Truck Model — JSON")
+    repeat(3) { Truck(model, "Truck_$it") }
+    val controls = model.controls()
+
+    println("=== JSON controls (${controls.jsonControlSize}) ===")
+    println(controls.jsonControlDataAsString())
+
+    // Read initial JSON value and type hint
+    val axles = controls.jsonControl("Truck_0.axleWeights")
+    println("Type hint : ${axles?.typeHint}")
+    println("Initial   : ${axles?.initialJsonValue}")
+    println("Current   : ${axles?.value}")
+
+    // Valid assignment — replace axle weights with a four-axle configuration
+    axles?.value = "[5000.0, 7000.0, 7000.0, 7000.0]"
+    println("After update: ${axles?.value}")
+
+    // Invalid assignment — malformed JSON caught and reported
+    println("\nAttempting to set axleWeights to invalid JSON:")
+    try {
+        axles?.value = "[not, valid, json]"
+    } catch (e: ControlUpdateException) {
+        println("  Caught ControlUpdateException: ${e.message}")
+        println("  Control key: ${e.controlKey}")
+    }
+    println("axleWeights after failed set (unchanged): ${axles?.value}")
+
+    // Bulk-set via map — one valid, one with wrong element type (Double list vs String list)
+    println("\n=== Bulk setJsonControlsFromMap ===")
+    val updates = mapOf(
+        "Truck_1.axleWeights"           to "[3000.0, 5500.0]",              // valid
+        "Truck_2.compartmentCapacities" to """{"fwd":10.0,"mid":15.0,"aft":20.0}""", // valid
+        "Truck_0.axleWeights"           to """{"bad":"structure"}""",        // wrong type — skipped
+    )
+    val applied = controls.setJsonControlsFromMap(updates)
+    println("Applied $applied of ${updates.size} updates")
+    println("Truck_1.axleWeights           = ${controls.jsonControl("Truck_1.axleWeights")?.value}")
+    println("Truck_2.compartmentCapacities = ${controls.jsonControl("Truck_2.compartmentCapacities")?.value}")
+    println("Truck_0.axleWeights           = ${controls.jsonControl("Truck_0.axleWeights")?.value} (unchanged)")
+}
+
 fun main() {
     demoNumericControls()
     println("\n" + "=".repeat(60) + "\n")
     demoStringControls()
+    println("\n" + "=".repeat(60) + "\n")
+    demoJsonControls()
 }

@@ -37,10 +37,13 @@ import kotlin.reflect.full.memberProperties
  *   `Double` and respect declared lower/upper bounds.
  * - **String controls** — properties annotated with [KSLStringControl]; values
  *   are `String`, optionally constrained to a declared set of allowed values.
+ * - **JSON controls** — properties annotated with [KSLJsonControl]; values are
+ *   any `kotlinx.serialization`-compatible Kotlin type transported as JSON
+ *   strings (e.g. `List<Double>`, `Map<String, Int>`, `@Serializable` classes).
  *
  * Controls are extracted in a single element-graph walk performed during
  * `init`, which runs when the caller first calls `model.controls()`.  This
- * guarantees all model elements are fully constructed before any `initialValue`
+ * guarantees all model elements are fully constructed before any initial value
  * is captured.
  *
  * Commonly used functions:
@@ -59,11 +62,20 @@ import kotlin.reflect.full.memberProperties
  * - `setStringControlsFromMap(map)` — bulk-set string controls; invalid values
  *   are logged and skipped rather than aborting the entire update
  * - `stringControlData()` — list of [StringControlData] DTOs for data transfer
+ *
+ * JSON:
+ * - `jsonControlKeys()` — names of the JSON controls
+ * - `jsonControl(key)` — returns the named [JsonControlIfc] or null
+ * - `jsonControlsAsMap()` — flat `Map<String, String>` of all JSON controls (values are JSON strings)
+ * - `setJsonControlsFromMap(map)` — bulk-set JSON controls; invalid JSON is
+ *   logged and skipped rather than aborting the entire update
+ * - `jsonControlData()` — list of [JsonControlData] DTOs for data transfer
  */
 class Controls(aModel: Model) {
 
     private val myControls = mutableMapOf<String, ControlIfc>()
     private val myStringControls = mutableMapOf<String, StringControlIfc>()
+    private val myJsonControls = mutableMapOf<String, JsonControlIfc>()
 
     private val myModel = aModel
 
@@ -74,6 +86,10 @@ class Controls(aModel: Model) {
     /** Number of string controls extracted from the model. */
     val stringControlSize: Int
         get() = myStringControls.size
+
+    /** Number of JSON controls extracted from the model. */
+    val jsonControlSize: Int
+        get() = myJsonControls.size
 
     init {
         extractControls(myModel)
@@ -134,6 +150,24 @@ class Controls(aModel: Model) {
                         }
                     } else {
                         logger.trace { "Property ${property.name} has @KSLStringControl but type ${property.returnType.classifier} is not String — skipping" }
+                    }
+                }
+
+                hasJsonControlAnnotation(property.setter) -> {
+                    val annotation = jsonControlAnnotation(property.setter)!!
+                    if (annotation.include) {
+                        try {
+                            val control = JsonControl(modelElement, property, annotation)
+                            myJsonControls[control.keyName] = control
+                            logger.trace { "JSON control ${control.keyName} extracted" }
+                        } catch (e: Exception) {
+                            logger.warn {
+                                "Property ${property.name} on ${modelElement.name} has @KSLJsonControl " +
+                                "but type ${property.returnType} is not serializable — skipping: ${e.message}"
+                            }
+                        }
+                    } else {
+                        logger.trace { "JSON control on ${property.name} excluded (include=false)" }
                     }
                 }
 
@@ -348,11 +382,92 @@ class Controls(aModel: Model) {
         return sb.toString()
     }
 
+    // ── JSON control accessors ────────────────────────────────────────────────
+
+    /** Returns the set of JSON control key names. */
+    fun jsonControlKeys(): Set<String> = myJsonControls.keys
+
+    /**
+     * Returns `true` if a JSON control with [name] exists.
+     */
+    fun hasJsonControl(name: String): Boolean = myJsonControls.containsKey(name)
+
+    /**
+     * Returns the JSON control for [key], or `null` if not found.
+     */
+    fun jsonControl(key: String): JsonControlIfc? = myJsonControls[key]
+
+    /** Returns all JSON controls as a list. */
+    fun jsonControlsAsList(): List<JsonControlIfc> = myJsonControls.values.toList()
+
+    /**
+     * Returns a flat `Map<String, String>` of all JSON controls.
+     * The key is [JsonControlIfc.keyName] and the value is the current JSON string.
+     */
+    fun jsonControlsAsMap(): Map<String, String> {
+        val map = LinkedHashMap<String, String>()
+        for ((key, control) in myJsonControls) {
+            map[key] = control.value
+        }
+        return map
+    }
+
+    /**
+     * Sets JSON controls from a flat map of key → JSON-string pairs.
+     *
+     * Invalid JSON (rejected by [JsonControlIfc.value] setter) is caught
+     * per entry, logged as a warning, and skipped — the remaining valid
+     * entries continue to be applied.
+     *
+     * @return the number of controls successfully set
+     */
+    fun setJsonControlsFromMap(map: Map<String, String>): Int {
+        var count = 0
+        for ((k, v) in map) {
+            val control = myJsonControls[k]
+            if (control == null) {
+                logger.warn { "Key '$k' not found when setting JSON controls from map" }
+                continue
+            }
+            try {
+                control.value = v
+                count++
+            } catch (e: ControlUpdateException) {
+                logger.warn { "JSON control '$k' rejected value '$v': ${e.message}" }
+            }
+        }
+        return count
+    }
+
+    /**
+     * Returns a list of [JsonControlData] DTOs for all JSON controls.
+     */
+    fun jsonControlData(): List<JsonControlData> {
+        val list = ArrayList<JsonControlData>()
+        for (control in myJsonControls.values) {
+            with(control) {
+                list.add(JsonControlData(keyName, value, typeHint,
+                    elementName, elementId, elementType, propertyName, comment, modelName))
+            }
+        }
+        return list
+    }
+
+    /** Returns the JSON control data as a formatted string. */
+    fun jsonControlDataAsString(): String {
+        val sb = StringBuilder()
+        val list = jsonControlData()
+        if (list.isEmpty()) sb.append("{empty}")
+        for (jd in list) sb.appendLine(jd)
+        return sb.toString()
+    }
+
     // ── toString ──────────────────────────────────────────────────────────────
 
     override fun toString(): String = buildString {
         append(controlDataAsString())
         append(stringControlDataAsString())
+        append(jsonControlDataAsString())
     }
 
     // ── Companion ─────────────────────────────────────────────────────────────
@@ -376,5 +491,13 @@ class Controls(aModel: Model) {
         @JvmStatic
         fun <T> hasStringControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean =
             setter.annotations.filterIsInstance<KSLStringControl>().isNotEmpty()
+
+        @JvmStatic
+        fun <T> jsonControlAnnotation(setter: KMutableProperty.Setter<T>): KSLJsonControl? =
+            setter.annotations.filterIsInstance<KSLJsonControl>().firstOrNull()
+
+        @JvmStatic
+        fun <T> hasJsonControlAnnotation(setter: KMutableProperty.Setter<T>): Boolean =
+            setter.annotations.filterIsInstance<KSLJsonControl>().isNotEmpty()
     }
 }
