@@ -64,7 +64,7 @@ data class FrequencyRecord(
     var cumProportion: Double = 0.0
 ) : DbTableData("tblFrequency", listOf("id","value"))
 
-interface IntegerFrequencyIfc {
+interface IntegerFrequencyIfc : IntegerFrequencyPlotDataIfc {
 
     /**
      *  The lower limit that defines values that will not be observed, but
@@ -88,36 +88,6 @@ interface IntegerFrequencyIfc {
      *
      */
     val overFlowCount: Int
-
-    /**
-     * Returns an array of size numberOfCells containing
-     * the observed values increasing by value. The 0th element
-     * of the array contains the smallest value observed, 1st element
-     * the next bigger value, etc.
-     *
-     * @return the array of values observed or an empty array
-     */
-    val values: IntArray
-
-    /**
-     * Returns an array of size numberOfCells containing
-     * the frequencies for each value observed. The 0th element
-     * is the frequency for the value stored at element 0 of the
-     * array returned by the values property
-     *
-     * @return the array of frequencies observed or an empty array
-     */
-    val frequencies: IntArray
-
-    /**
-     * Returns an array of size numberOfCells containing
-     * the proportion by value. The 0th element
-     * is the proportion for the value stored at element 0 of the
-     * array returned by the values property, etc.
-     *
-     * @return the array of proportions observed or an empty array
-     */
-    val proportions: DoubleArray
 
     /**
      * Returns Map holding the values and frequencies as arrays with

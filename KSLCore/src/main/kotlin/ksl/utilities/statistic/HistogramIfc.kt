@@ -31,7 +31,7 @@ import ksl.utilities.random.rvariable.KSLRandom
 import ksl.utilities.random.rvariable.PWCEmpiricalRV
 import ksl.utilities.toDoubles
 
-interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisticIfc,
+interface HistogramIfc : HistogramPlotDataIfc, CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisticIfc,
     Comparable<AbstractStatistic> {
     /**
      * @param x the observation to bin
@@ -109,9 +109,9 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     /**
      * @return the bin counts as an array
      */
-    val binCounts: DoubleArray
+    override val binCounts: DoubleArray
 
-    val binFractions: DoubleArray
+    override val binFractions: DoubleArray
         get() {
             val m = DoubleArray(bins.size)
             val n = count
@@ -136,7 +136,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     /**
      * @return the lower limit of each bin as an array
      */
-    val lowerLimits: DoubleArray
+    override val lowerLimits: DoubleArray
         get() {
             val m = DoubleArray(bins.size)
             for ((index, bin) in bins.withIndex()) {
@@ -148,7 +148,7 @@ interface HistogramIfc : CollectorIfc, IdentityIfc, StatisticIfc, GetCSVStatisti
     /**
      * @return the upper limit of each bin as an array
      */
-    val upperLimits: DoubleArray
+    override val upperLimits: DoubleArray
         get() {
             val m = DoubleArray(bins.size)
             for ((index, bin) in bins.withIndex()) {

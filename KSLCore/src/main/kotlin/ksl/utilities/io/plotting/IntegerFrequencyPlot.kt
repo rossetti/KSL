@@ -1,6 +1,7 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.statistic.IntegerFrequency
+import ksl.utilities.statistic.IntegerFrequencyPlotDataIfc
 import org.jetbrains.letsPlot.Stat
 import org.jetbrains.letsPlot.asDiscrete
 import org.jetbrains.letsPlot.geom.geomBar
@@ -10,7 +11,7 @@ import org.jetbrains.letsPlot.intern.Plot
 import org.jetbrains.letsPlot.label.labs
 
 class IntegerFrequencyPlot @JvmOverloads constructor(
-    private val frequency: IntegerFrequency,
+    private val frequency: IntegerFrequencyPlotDataIfc,
     proportions: Boolean = false
 ) : BasePlot() {
 
