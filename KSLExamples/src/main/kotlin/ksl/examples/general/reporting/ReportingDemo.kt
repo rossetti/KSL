@@ -640,7 +640,7 @@ fun main() {
     // Run each demo in sequence. Each opens a browser tab and writes files
     // to kslOutput/. Comment out any demos you don't want to run.
 //    demoSimulationReport()
-//    demoStatisticReport()
+    demoStatisticReport()
 //    demoHistogramReport()
 //    demoFrequencyReport()
 //    demoBatchStatisticReport()
@@ -652,7 +652,7 @@ fun main() {
 //    demoCompositeTraceReport()
 //    demoWelchReport()
 //    demoWelchReportWithBiasTestAndBatchMeans()
-    demoWelchBiasTestOnly()
+//    demoWelchBiasTestOnly()
 //    demoWelchReportUserDeletionPoint()
 //    demoCompositeWelchReport()
 }
