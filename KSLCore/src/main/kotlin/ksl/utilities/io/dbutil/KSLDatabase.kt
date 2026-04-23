@@ -660,6 +660,48 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             return df
         }
 
+    /**
+     *  Returns all histogram bin records associated with the named experiment, or an empty
+     *  list if the experiment is not found or has no histogram data.
+     *
+     *  The join is: experiment → simulation_run (via [SimulationRunTableData.exp_id_fk]) →
+     *  histogram (via [HistogramTableData.sim_run_id_fk]).
+     *
+     *  @param expName the experiment name whose histogram data is requested
+     *  @return the matching [HistogramTableData] records; empty if none exist
+     */
+    fun histogramDataFor(expName: String): List<HistogramTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        val runIds = db.selectTableDataIntoDbData(::SimulationRunTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+            .map { it.run_id }
+            .toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::HistogramTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
+     *  Returns all frequency cell records associated with the named experiment, or an empty
+     *  list if the experiment is not found or has no frequency data.
+     *
+     *  The join is: experiment → simulation_run (via [SimulationRunTableData.exp_id_fk]) →
+     *  frequency (via [FrequencyTableData.sim_run_id_fk]).
+     *
+     *  @param expName the experiment name whose frequency data is requested
+     *  @return the matching [FrequencyTableData] records; empty if none exist
+     */
+    fun frequencyDataFor(expName: String): List<FrequencyTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        val runIds = db.selectTableDataIntoDbData(::SimulationRunTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+            .map { it.run_id }
+            .toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::FrequencyTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
         if (experimentRecord == null) {
