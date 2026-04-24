@@ -26,6 +26,7 @@ import ksl.utilities.io.tabularfiles.TabularInputFile
 import ksl.utilities.io.tabularfiles.TabularOutputFile
 import ksl.utilities.statistic.Histogram
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StringFrequency
 
 /**
  * DSL extension functions on [ReportBuilder] for rendering [TabularFile],
@@ -210,10 +211,11 @@ fun ReportBuilder.tabularInputFileSummary(
  * [ReportNode.PlotNode]. [Histogram.create] is called with the raw `DoubleArray`
  * (NaN values retained) so that `numberMissing` is populated correctly.
  *
- * **For each text column** a sub-section is produced containing:
- * 1. A [ReportNode.Paragraph] stating count, distinct value count, and missing count.
- * 2. A [ReportNode.DataTable] ("Value Frequencies") — columns: Value | Count | %,
- *    sorted descending by count.
+ * **For each text column** the existing [stringFrequency] DSL extension is called, which
+ * produces an overview paragraph, a frequency [ReportNode.DataTable] with columns
+ * String | Count | Cum Count | % | Cum %, and optionally a [ReportNode.PlotNode] bar chart.
+ * Null values in the file are mapped to `"(missing)"` so they appear as a tabulated
+ * category rather than being silently dropped.
  *
  * At most [maxRows] rows are read from the file per column. Pass `0` to read all rows.
  *
@@ -257,38 +259,14 @@ fun ReportBuilder.tabularInputFileColumns(
             )
         }
 
-        // ── Text columns ──────────────────────────────────────────────────────
+        // ── Text columns — delegate entirely to stringFrequency() DSL ──────────
         for (myName in file.textColumnNames) {
-            val myValues   = file.fetchTextColumn(myName, maxRows, removeMissing = false)
-            val myDistinct = myValues.filterNotNull().toSet().size
-            val myMissing  = myValues.count { it == null }
-            val myTotal    = myValues.size
-
-            section(myName) {
-                paragraph(
-                    "Count: $myTotal  |  " +
-                    "Distinct: $myDistinct  |  " +
-                    "Missing: $myMissing"
-                )
-
-                val myFreqRows = myValues
-                    .groupBy { it ?: "(null)" }
-                    .entries
-                    .sortedByDescending { it.value.size }
-                    .map { (value, cells) ->
-                        listOf(
-                            value,
-                            cells.size.toString(),
-                            formatPct(cells.size.toDouble() / myTotal.toDouble())
-                        )
-                    }
-
-                dataTable(
-                    headers = listOf("Value", "Count", "%"),
-                    rows    = myFreqRows,
-                    caption = "Value Frequencies"
-                )
-            }
+            val myValues = file.fetchTextColumn(myName, maxRows, removeMissing = false)
+            val myFreq   = StringFrequency(
+                data = myValues.map { it ?: "(missing)" },
+                name = myName
+            )
+            stringFrequency(freq = myFreq, caption = myName, showPlot = showPlots)
         }
     }
 }
@@ -439,23 +417,6 @@ private fun TabularInputFile.rowsLabel(maxRows: Int): String =
         "all $totalNumberRows rows"
     else
         "first $maxRows of $totalNumberRows rows"
-
-/**
- * Formats a bin limit for display.
- *
- * - [Double.NEGATIVE_INFINITY] and `-`[Double.MAX_VALUE] render as `"−∞"`
- * - [Double.POSITIVE_INFINITY] and [Double.MAX_VALUE] render as `"+∞"`
- * - [Double.isNaN] renders as `"—"`
- * - All other values use four significant figures (`%.4g`), which adapts to
- *   the magnitude of the limit without producing large fixed-decimal strings.
- */
-@Suppress("unused")
-private fun formatLimit(value: Double): String = when {
-    value == Double.NEGATIVE_INFINITY || value == -Double.MAX_VALUE -> "−∞"
-    value == Double.POSITIVE_INFINITY || value == Double.MAX_VALUE  -> "+∞"
-    value.isNaN() -> "—"
-    else -> "%.4g".format(value)
-}
 
 /**
  * Formats a proportion (value in [0, 1]) as a percentage string with two decimal
