@@ -33,7 +33,7 @@ import ksl.utilities.statistic.StringFrequency
  * [TabularInputFile], and [TabularOutputFile] instances.
  *
  * These extensions produce reports that are structurally consistent with
- * [HistogramReportExtensions] and [StatisticReportExtensions]: extensions on
+ * `HistogramReportExtensions` and `StatisticReportExtensions`: extensions on
  * [ReportBuilder] for composable content, then zero-code `toReport()` entry
  * points on the file types themselves.
  *
