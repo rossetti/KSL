@@ -72,6 +72,24 @@ data class ModelDescriptor(
     val controlData: List<ControlData>
         get() = controls.numericControls
 
+    /**
+     * Regroups the flat [rvParameterData] DTOs into the nested map form that
+     * [ksl.utilities.random.rvariable.parameters.RVParameterSetter.changeParameters] expects.
+     *
+     * The outer map is keyed by [RVParameterData.rvName]; the inner map is keyed by
+     * [RVParameterData.paramName] with the corresponding [RVParameterData.paramValue].
+     *
+     * Any consumer that needs to pass RV parameter changes to an
+     * [ksl.utilities.random.rvariable.parameters.RVParameterSetter] can use this
+     * property directly instead of re-implementing the grouping.
+     */
+    val rvParameterMap: Map<String, Map<String, Double>>
+        get() = rvParameterData
+            .groupBy { it.rvName }
+            .mapValues { (_, params) ->
+                params.associate { it.paramName to it.paramValue }
+            }
+
     override fun toJson(): String {
         val format = Json {
             prettyPrint = true

@@ -226,17 +226,42 @@ open class Experiment @JvmOverloads constructor(
     override var garbageCollectAfterReplicationFlag: Boolean = false
 
     /**
-     * Holds values for each controllable parameter of the simulation
+     * Holds values for each numeric controllable parameter of the simulation
      * model.
      */
     override var experimentalControls: Map<String, Double> = mapOf()
 
     /**
-     *
-     * @return true if a control map has been supplied
+     * @return true if a numeric control map has been supplied
      */
     override fun hasExperimentalControls(): Boolean {
         return experimentalControls.isNotEmpty()
+    }
+
+    /**
+     * Holds string control overrides staged for deferred application at the
+     * start of each experiment.
+     */
+    override var experimentalStringControls: Map<String, String> = mapOf()
+
+    /**
+     * @return true if a string control override map has been supplied
+     */
+    override fun hasExperimentalStringControls(): Boolean {
+        return experimentalStringControls.isNotEmpty()
+    }
+
+    /**
+     * Holds JSON control overrides staged for deferred application at the
+     * start of each experiment.
+     */
+    override var experimentalJsonControls: Map<String, String> = mapOf()
+
+    /**
+     * @return true if a JSON control override map has been supplied
+     */
+    override fun hasExperimentalJsonControls(): Boolean {
+        return experimentalJsonControls.isNotEmpty()
     }
 
     /**

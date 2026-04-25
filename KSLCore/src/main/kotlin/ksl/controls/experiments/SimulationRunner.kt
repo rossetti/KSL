@@ -94,9 +94,11 @@ class SimulationRunner(
     fun simulate(
         modelIdentifier: String = model.simulationName,
         inputs: Map<String, Double> = mapOf(),
+        stringInputs: Map<String, String> = mapOf(),
+        jsonInputs: Map<String, String> = mapOf(),
         experimentRunParameters: ExperimentRunParameters = model.extractRunParameters()
     ): SimulationRun {
-        val simulationRun = SimulationRun(modelIdentifier, experimentRunParameters, inputs)
+        val simulationRun = SimulationRun(modelIdentifier, experimentRunParameters, inputs, stringInputs, jsonInputs)
         simulate(simulationRun)
         return simulationRun
     }
@@ -140,12 +142,17 @@ class SimulationRunner(
 
     /**
      *  Sets up the simulation based on the inputs and experimental run parameters.
+     *  Numeric inputs and RV parameters are staged via the deferred slots on the
+     *  model ([ksl.simulation.Model.experimentalControls] and [ksl.simulation.Model.rvParameterSetter])
+     *  and applied by [ksl.simulation.Model.setUpExperiment] at the start of each experiment.
+     *  String and JSON inputs are likewise staged via [ksl.simulation.Model.experimentalStringControls]
+     *  and [ksl.simulation.Model.experimentalJsonControls] and applied by the same mechanism.
      */
     private fun setupSimulation(simulationRun: SimulationRun) {
         Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
         // apply the run parameters to the model
         model.changeRunParameters(simulationRun.experimentRunParameters)
-        // apply the inputs to the model
+        // stage numeric controls and RV parameters (deferred — applied in setUpExperiment())
         if (simulationRun.inputs.isNotEmpty()) {
             // need to apply them to the model, could be controls and random variable parameters
             // get the controls to build what will need to be changed
@@ -167,17 +174,27 @@ class SimulationRunner(
                 }
             }
             if (controlsMap.isNotEmpty()) {
-                // controls were found, tell the model to use controls when it is simulated
+                // stage numeric controls — applied in setUpExperiment() via controls().setControlsFromMap()
                 model.experimentalControls = controlsMap
-                Model.logger.info { "SimulationRunner: ${controlsMap.size} controls out of ${controls.size} were applied." }
+                Model.logger.info { "SimulationRunner: ${controlsMap.size} numeric controls out of ${controls.size} staged for experiment setup." }
             }
             if (rvParamMap.isNotEmpty()) {
                 // convert to the form used by RVParameterSetter
                 val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
-                // tell the model to use the supplied parameter values
+                // stage RV parameter changes — applied in setUpExperiment() via rvParameterSetter.applyParameterChanges()
                 model.rvParameterSetter.changeParameters(unflattenMap)
-                Model.logger.info { "SimulationRunner: ${rvParamMap.size} parameters out of ${rvParameters.size} were applied." }
+                Model.logger.info { "SimulationRunner: ${rvParamMap.size} RV parameters out of ${rvParameters.size} staged for experiment setup." }
             }
+        }
+        // stage string controls (deferred — applied in setUpExperiment())
+        if (simulationRun.stringInputs.isNotEmpty()) {
+            model.experimentalStringControls = simulationRun.stringInputs
+            Model.logger.info { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
+        }
+        // stage JSON controls (deferred — applied in setUpExperiment())
+        if (simulationRun.jsonInputs.isNotEmpty()) {
+            model.experimentalJsonControls = simulationRun.jsonInputs
+            Model.logger.info { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
         }
     }
 

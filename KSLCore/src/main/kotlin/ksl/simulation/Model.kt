@@ -1112,7 +1112,19 @@ class Model @JvmOverloads constructor(
             val cMap: Map<String, Double> = experimentalControls
             // extract controls and apply them
             val k: Int = controls().setControlsFromMap(cMap)
-            logger.info { "$k out of ${cMap.size} controls were applied to Model $name to setup the experiment." }
+            logger.info { "$k out of ${cMap.size} numeric controls were applied to Model $name to setup the experiment." }
+        }
+
+        if (hasExperimentalStringControls()) {
+            val sMap: Map<String, String> = experimentalStringControls
+            val k: Int = controls().setStringControlsFromMap(sMap)
+            logger.info { "$k out of ${sMap.size} string controls were applied to Model $name to setup the experiment." }
+        }
+
+        if (hasExperimentalJsonControls()) {
+            val jMap: Map<String, String> = experimentalJsonControls
+            val k: Int = controls().setJsonControlsFromMap(jMap)
+            logger.info { "$k out of ${jMap.size} JSON controls were applied to Model $name to setup the experiment." }
         }
 
         // if the user has asked for the parameters, then they may have changed
@@ -1341,10 +1353,26 @@ class Model @JvmOverloads constructor(
             myExperiment.experimentalControls = value
         }
 
+    override var experimentalStringControls: Map<String, String>
+        get() = myExperiment.experimentalStringControls
+        set(value) {
+            myExperiment.experimentalStringControls = value
+        }
+
+    override var experimentalJsonControls: Map<String, String>
+        get() = myExperiment.experimentalJsonControls
+        set(value) {
+            myExperiment.experimentalJsonControls = value
+        }
+
     override val currentReplicationNumber : Int
         get() = myExperiment.currentReplicationNumber
 
     override fun hasExperimentalControls() : Boolean = myExperiment.hasExperimentalControls()
+
+    override fun hasExperimentalStringControls(): Boolean = myExperiment.hasExperimentalStringControls()
+
+    override fun hasExperimentalJsonControls(): Boolean = myExperiment.hasExperimentalJsonControls()
 
     override fun hasMoreReplications() : Boolean = myExperiment.hasMoreReplications()
 

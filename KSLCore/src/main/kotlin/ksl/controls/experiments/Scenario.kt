@@ -38,7 +38,13 @@ import ksl.utilities.Identity
  *  @param model The model to be simulated
  *  @param name The name of the scenario. It should be unique within the context of a
  *  set of scenario being executed by a ScenarioRunner.
- *  @param inputs The map of inputs (based on control names) to apply to the model.
+ *  @param inputs The map of numeric inputs (control names → Double values) to apply to the model.
+ *  @param stringInputs The map of string control overrides (control key → String value) to apply
+ *  to the model.  Applied via the deferred [ksl.simulation.Model.experimentalStringControls] slot
+ *  at the start of each experiment.  Keys not matching any string control are logged and ignored.
+ *  @param jsonInputs The map of JSON control overrides (control key → JSON String value) to apply
+ *  to the model.  Applied via the deferred [ksl.simulation.Model.experimentalJsonControls] slot
+ *  at the start of each experiment.  Keys not matching any JSON control are logged and ignored.
  *  @param numberReplications the number of replications for the scenario. By default,
  *  this is the current setting of the model.
  *  @param lengthOfReplication the length of each replication for the scenario. By default,
@@ -50,6 +56,8 @@ class Scenario @JvmOverloads constructor(
     val model: Model,
     name: String,
     inputs: Map<String, Double> = emptyMap(),
+    stringInputs: Map<String, String> = emptyMap(),
+    jsonInputs: Map<String, String> = emptyMap(),
     numberReplications: Int = model.numberOfReplications,
     lengthOfReplication: Double = model.lengthOfReplication,
     lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
@@ -57,14 +65,16 @@ class Scenario @JvmOverloads constructor(
 ) : Identity(name), ExperimentIfc by model {
 
     /**
-     *  Uses the supplied model creation function to creat the model. The specification
+     *  Uses the supplied model creation function to create the model. The specification
      *  of model run parameters relies on the created model to correctly specify its
-     *  running parameter.
+     *  running parameters.
      *
-     *  @param modelCreator a function that will create the model (supply and instance of the model)
+     *  @param modelCreator a function that will create the model (supply an instance of the model)
      *  @param name The name of the scenario. It should be unique within the context of a
-     *  set of scenario being executed by a ScenarioRunner.
-     *  @param inputs The map of inputs (based on control names) to apply to the model.
+     *  set of scenarios being executed by a ScenarioRunner.
+     *  @param inputs The map of numeric inputs (based on control names) to apply to the model.
+     *  @param stringInputs The map of string control overrides to apply to the model.
+     *  @param jsonInputs The map of JSON control overrides to apply to the model.
      */
     @Suppress("unused")
     @JvmOverloads
@@ -72,10 +82,14 @@ class Scenario @JvmOverloads constructor(
         modelCreator: () -> Model,
         name: String,
         inputs: Map<String, Double> = emptyMap(),
-    ): this(modelCreator(), name, inputs)
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
+    ): this(modelCreator(), name, inputs, stringInputs, jsonInputs)
 
     private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
+    private val myStringInputs = mutableMapOf<String, String>()
+    private val myJsonInputs = mutableMapOf<String, String>()
     private var myModelConfiguration: MutableMap<String, String>? = null
 
     /**
@@ -97,6 +111,10 @@ class Scenario @JvmOverloads constructor(
                 myInputs[n] = v
             }
         }
+        // String and JSON inputs are not validated upfront; unknown keys are logged and
+        // skipped by Controls.setStringControlsFromMap() / setJsonControlsFromMap().
+        myStringInputs.putAll(stringInputs)
+        myJsonInputs.putAll(jsonInputs)
         if (modelConfiguration != null && modelConfiguration.isNotEmpty()){
             myModelConfiguration = mutableMapOf()
             for((k, v) in modelConfiguration) {
@@ -131,6 +149,8 @@ class Scenario @JvmOverloads constructor(
         simulationRun = simulationRunner.simulate(
             modelIdentifier = model.simulationName,
             inputs = myInputs,
+            stringInputs = myStringInputs,
+            jsonInputs = myJsonInputs,
             experimentRunParameters = model.extractRunParameters()) //TODO need to check on this
         // put the name back to its original value
         model.experimentName = experimentName

@@ -96,11 +96,14 @@ class ScenarioRunner @JvmOverloads constructor(
         model: Model,
         name: String,
         inputs: Map<String, Double>,
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     ): Scenario {
-        val s = Scenario(model, name, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
+        val s = Scenario(model, name, inputs, stringInputs, jsonInputs,
+            numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
         addScenario(s)
         return s
     }

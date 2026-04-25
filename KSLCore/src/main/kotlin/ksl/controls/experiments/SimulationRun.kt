@@ -49,6 +49,8 @@ class SimulationRun private constructor(
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
+    var stringInputs: Map<String, String> = mapOf(),
+    var jsonInputs: Map<String, String> = mapOf(),
     var modelConfiguration: Map<String, String>? = null,
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
@@ -58,6 +60,8 @@ class SimulationRun private constructor(
         modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
+        stringInputs: Map<String, String> = mapOf(),
+        jsonInputs: Map<String, String> = mapOf(),
         runId: String? = null,
         runName: String? = null,
         modelConfiguration: Map<String, String>? = null
@@ -67,6 +71,8 @@ class SimulationRun private constructor(
         name = runName ?: (experimentRunParameters.experimentName),
         experimentRunParameters = experimentRunParameters,
         inputs = inputs,
+        stringInputs = stringInputs,
+        jsonInputs = jsonInputs,
         modelConfiguration = modelConfiguration
     )
 
@@ -214,6 +220,24 @@ class SimulationRun private constructor(
             sb.appendLine("\t {empty}")
         } else {
             for((key, value) in inputs){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        sb.appendLine("String Inputs:")
+        if (stringInputs.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in stringInputs){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        sb.appendLine("JSON Inputs:")
+        if (jsonInputs.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in jsonInputs){
                 sb.appendLine("key = $key")
                 sb.appendLine("value = $value")
             }
