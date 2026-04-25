@@ -316,22 +316,25 @@ class Model @JvmOverloads constructor(
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
-     *  Constructs a data class that describes the model.
+     *  Constructs a data class that describes the model's current configuration.
+     *
+     *  The returned [ModelDescriptor] captures all three control families (numeric, string,
+     *  and JSON) via [ksl.controls.Controls.exportAll], along with run parameters,
+     *  random variable parameter data, and response names.
+     *
      *  @return the model descriptor at the time of the call
      */
     fun modelDescriptor(): ModelDescriptor {
         return ModelDescriptor(
-            modelIdentifier = this.modelIdentifier,
-            modelName = this.name,
-            description = this.description,
-            responseNames = this.responseNames.toSet(),
-            inputNames = this.inputKeys().toSet(),
-            outputDirectory = outputDirectory.outDir.toString(),
+            modelIdentifier         = this.modelIdentifier,
+            modelName               = this.name,
+            description             = this.description,
+            responseNames           = this.responseNames.toSet(),
             experimentRunParameters = this.extractRunParameters(),
-            controlData = this.controls().controlData(),
-            rvParameterData = this.rvParameterSetter.rvParametersData,
-            configuration = this.configuration,
-            baseTimeUnit = this.baseTimeUnit
+            controls                = this.controls().exportAll(),
+            rvParameterData         = this.rvParameterSetter.rvParametersData,
+            configuration           = this.configuration,
+            baseTimeUnit            = this.baseTimeUnit
         )
     }
 
