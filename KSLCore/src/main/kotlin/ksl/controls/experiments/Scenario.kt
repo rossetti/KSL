@@ -147,7 +147,7 @@ class Scenario @JvmOverloads constructor(
         }
         setup?.setup(model) //TODO need to delete?
         simulationRun = simulationRunner.simulate(
-            modelIdentifier = model.simulationName,
+            modelIdentifier = model.modelIdentifier,
             inputs = myInputs,
             stringInputs = myStringInputs,
             jsonInputs = myJsonInputs,

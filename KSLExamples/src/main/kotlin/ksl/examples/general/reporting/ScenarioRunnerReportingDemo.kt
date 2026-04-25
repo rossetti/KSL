@@ -47,8 +47,8 @@ import ksl.utilities.io.report.showInBrowser
  *                              paragraph with [scenarioRunner]; illustrates composability
  */
 fun main() {
-    demoSingleScenario()
-//    demoScenarioRunner()
+//    demoSingleScenario()
+    demoScenarioRunner()
 //    demoScenarioCustomBlock()
 }
 

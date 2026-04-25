@@ -92,7 +92,7 @@ class SimulationRunner(
      */
     @JvmOverloads
     fun simulate(
-        modelIdentifier: String = model.simulationName,
+        modelIdentifier: String = model.modelIdentifier,
         inputs: Map<String, Double> = mapOf(),
         stringInputs: Map<String, String> = mapOf(),
         jsonInputs: Map<String, String> = mapOf(),

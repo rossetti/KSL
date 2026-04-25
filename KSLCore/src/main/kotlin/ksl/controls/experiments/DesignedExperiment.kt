@@ -497,7 +497,7 @@ class DesignedExperiment @JvmOverloads constructor(
         // use SimulationRunner to run the simulation
         Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
         val sr = mySimulationRunner.simulate(
-            modelIdentifier = model.simulationName,
+            modelIdentifier = model.modelIdentifier,
             inputs = inputs,
             experimentRunParameters = model.extractRunParameters()
         )
