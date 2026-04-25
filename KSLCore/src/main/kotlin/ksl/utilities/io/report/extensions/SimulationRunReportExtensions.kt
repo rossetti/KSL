@@ -86,8 +86,8 @@ fun ReportBuilder.experimentRunParameters(
         listOf("Run Name (Chunk Label)",               params.runName),
         listOf("Starting Replication ID",              params.startingRepId.toString()),
         listOf("Number of Chunks",                     params.numChunks.toString()),
-        listOf("Length of Replication",                fmtSR(params.lengthOfReplication)),
-        listOf("Length of Replication Warm-Up",        fmtSR(params.lengthOfReplicationWarmUp)),
+        listOf("Length of Replication",                fmtDouble(params.lengthOfReplication)),
+        listOf("Length of Replication Warm-Up",        fmtDouble(params.lengthOfReplicationWarmUp)),
         listOf("Max Execution Time per Replication",   params.maximumAllowedExecutionTimePerReplication.toString()),
         listOf("Replication Initialization Option",    params.replicationInitializationOption.toString()),
         listOf("Reset Start Stream Option",            params.resetStartStreamOption.toString()),
@@ -228,10 +228,10 @@ fun ReportBuilder.simulationRun(
                         headers = listOf("Measure", "Value"),
                         rows    = listOf(
                             listOf("Replications",              myTimingStat.count.toLong().toString()),
-                            listOf("Min Time (ms)",             fmtSR(myTimingStat.min)),
-                            listOf("Mean Time (ms)",            fmtSR(myTimingStat.average)),
-                            listOf("Max Time (ms)",             fmtSR(myTimingStat.max)),
-                            listOf("Total Wall-Clock (ms)",     fmtSR(myTimings.sum()))
+                            listOf("Min Time (ms)",             fmtDouble(myTimingStat.min)),
+                            listOf("Mean Time (ms)",            fmtDouble(myTimingStat.average)),
+                            listOf("Max Time (ms)",             fmtDouble(myTimingStat.max)),
+                            listOf("Total Wall-Clock (ms)",     fmtDouble(myTimings.sum()))
                         ),
                         caption = "Per-Replication Execution Times (milliseconds)"
                     )
@@ -320,10 +320,3 @@ fun SimulationRun.toReport(
     block: ReportBuilder.() -> Unit = { simulationRun(this@toReport, confidenceLevel, showTimings) }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtSR(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}

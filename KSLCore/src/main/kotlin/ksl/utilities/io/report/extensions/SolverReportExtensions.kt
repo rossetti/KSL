@@ -187,7 +187,7 @@ private fun ReportBuilder.solutionTables(sol: Solution) {
     dataTable(
         headers = listOf("Variable", "Value"),
         rows = sol.inputMap.entries.map { (name, value) ->
-            listOf(name, fmtD(value))
+            listOf(name, fmtDouble(value))
         },
         caption = "Decision Variables"
     )
@@ -202,9 +202,9 @@ private fun ReportBuilder.solutionTables(sol: Solution) {
             listOf(
                 myObj.name,
                 myObj.count.toInt().toString(),
-                fmtD(myObj.average),
-                fmtD(myObj.standardDeviation),
-                fmtD(myObjHw)
+                fmtDouble(myObj.average),
+                fmtDouble(myObj.standardDeviation),
+                fmtDouble(myObjHw)
             )
         ),
         caption = "Objective Function"
@@ -219,17 +219,12 @@ private fun ReportBuilder.solutionTables(sol: Solution) {
             listOf(
                 re.name,
                 re.count.toInt().toString(),
-                fmtD(re.average),
-                fmtD(re.standardDeviation),
-                fmtD(myHw)
+                fmtDouble(re.average),
+                fmtDouble(re.standardDeviation),
+                fmtDouble(myHw)
             )
         }
         dataTable(myHeaders, myRows, caption = "Response Estimates")
     }
 }
 
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}

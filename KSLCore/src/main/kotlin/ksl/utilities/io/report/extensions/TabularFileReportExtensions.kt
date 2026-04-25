@@ -418,11 +418,3 @@ private fun TabularInputFile.rowsLabel(maxRows: Int): String =
     else
         "first $maxRows of $totalNumberRows rows"
 
-/**
- * Formats a proportion (value in [0, 1]) as a percentage string with two decimal
- * places, e.g. `"12.34%"`. Returns `"—"` for NaN or infinite values.
- */
-private fun formatPct(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.2f%%".format(value * 100.0)
-}

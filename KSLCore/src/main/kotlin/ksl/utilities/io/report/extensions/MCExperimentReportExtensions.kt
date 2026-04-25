@@ -95,7 +95,7 @@ fun ReportBuilder.mcExperimentConfig(
         listOf("Initial Sample Size",       exp.initialSampleSize.toString()),
         listOf("Max Sample Size",           exp.maxSampleSize.toString()),
         listOf("Micro Reps per Macro",      exp.microRepSampleSize.toString()),
-        listOf("Desired HW Error Bound",    fmtD(exp.desiredHWErrorBound)),
+        listOf("Desired HW Error Bound",    fmtDouble(exp.desiredHWErrorBound)),
         listOf("Confidence Level",          exp.confidenceLevel.toString()),
         listOf("Reset Stream Option",       exp.resetStreamOption.toString()),
         listOf("Save Convergence History",  exp.saveConvergenceHistory.toString())
@@ -150,9 +150,9 @@ fun ReportBuilder.mcExperimentDiagnostics(
                 headers = listOf("Diagnostic", "Value"),
                 rows    = listOf(
                     listOf("Convergence Met",              myConverged.toString()),
-                    listOf("Desired HW Bound",             fmtD(exp.desiredHWErrorBound)),
-                    listOf("Achieved Half-Width",          fmtD(myHw)),
-                    listOf("Error Gap (HW \u2212 Bound)",  fmtD(myGap)),
+                    listOf("Desired HW Bound",             fmtDouble(exp.desiredHWErrorBound)),
+                    listOf("Achieved Half-Width",          fmtDouble(myHw)),
+                    listOf("Error Gap (HW \u2212 Bound)",  fmtDouble(myGap)),
                     listOf("Estimated Sample Size Needed", if (myEstN.isNaN()) "\u2014" else myEstN.toLong().toString()),
                     listOf("Macro Replications Run",       myStats.count.toLong().toString()),
                     listOf("Micro Reps per Macro",         exp.microRepSampleSize.toString()),
@@ -367,10 +367,3 @@ fun MCMultiVariateIntegration.toReport(
     block: ReportBuilder.() -> Unit = { mcMultiVariateIntegration(this@toReport) }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}

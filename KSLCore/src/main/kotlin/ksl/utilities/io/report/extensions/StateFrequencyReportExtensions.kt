@@ -109,8 +109,8 @@ fun ReportBuilder.stateFrequency(
                 state.label ?: state.name,
                 cnt.toString(),
                 cumCnt.toString(),
-                formatPct(prop),
-                formatPct(cumProp)
+                fmtPct(prop),
+                fmtPct(cumProp)
             )
         }
         dataTable(myFreqHeaders, myFreqRows, caption = "State Frequency Table")
@@ -141,7 +141,7 @@ fun ReportBuilder.stateFrequency(
             val myTxPropHeaders = listOf("From \\ To") + myStateNames
             val myTxProps = freq.transitionProportions
             val myTxPropRows = freq.states.mapIndexed { i, state ->
-                listOf(state.label ?: state.name) + myTxProps[i].map { formatPct(it) }
+                listOf(state.label ?: state.name) + myTxProps[i].map { fmtPct(it) }
             }
             dataTable(myTxPropHeaders, myTxPropRows, caption = "Transition Proportion Matrix")
         }
@@ -207,13 +207,3 @@ fun StateFrequency.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/**
- * Formats a proportion (value in [0, 1]) as a percentage string with two decimal
- * places, e.g. `"12.34%"`. Returns `"—"` for NaN or infinite values.
- */
-private fun formatPct(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.2f%%".format(value * 100.0)
-}

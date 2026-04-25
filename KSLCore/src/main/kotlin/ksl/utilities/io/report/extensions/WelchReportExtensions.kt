@@ -78,14 +78,6 @@ import ksl.utilities.statistic.Statistic
  * ```
  */
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}
-
 // ── welchAnalysis(WelchFileObserver) ─────────────────────────────────────────
 
 /**
@@ -160,7 +152,7 @@ fun ReportBuilder.welchAnalysis(
             "Batch size: ${myBean.batchSize}  |  " +
             "Replications: ${analyzer.numberOfReplications}  |  " +
             "Min observations: ${analyzer.minNumObservationsInReplications}  |  " +
-            "Avg time per obs: ${fmtD(analyzer.averageTimePerObservation)}"
+            "Avg time per obs: ${fmtDouble(analyzer.averageTimePerObservation)}"
         )
 
         // ── 2. Per-replication summary table ──────────────────────────────
@@ -171,8 +163,8 @@ fun ReportBuilder.welchAnalysis(
                 listOf(
                     s.replicationNumber.toString(),
                     s.observationCount.toString(),
-                    fmtD(s.avgTimePerObservation),
-                    fmtD(s.replicationAverage)
+                    fmtDouble(s.avgTimePerObservation),
+                    fmtDouble(s.replicationAverage)
                 )
             },
             caption = "Per-Replication Summary"
@@ -191,7 +183,7 @@ fun ReportBuilder.welchAnalysis(
             headers = listOf("Property", "Value"),
             rows    = listOf(
                 listOf("Recommended Deletion Observation", myEffectiveDeletionPt.toString()),
-                listOf("Recommended Deletion Time (approx.)",  fmtD(myEffectiveDeletionTime))
+                listOf("Recommended Deletion Time (approx.)",  fmtDouble(myEffectiveDeletionTime))
             ),
             caption = if (deletionPoint < 0) "MSER Deletion-Point Recommendation"
                       else "User-Supplied Deletion Point"
@@ -240,10 +232,10 @@ fun ReportBuilder.welchAnalysis(
                     rows    = listOf(
                         listOf("Batch size for test",        WelchDataFileAnalyzer.BIAS_TEST_BATCH_SIZE.toString()),
                         listOf("Number of batch means",      myBiasBS.numBatches.toString()),
-                        listOf("Positive bias F statistic",  fmtD(myFPos)),
-                        listOf("Positive bias p-value",      fmtD(myPPos)),
-                        listOf("Negative bias F statistic",  fmtD(myFNeg)),
-                        listOf("Negative bias p-value",      fmtD(myPNeg)),
+                        listOf("Positive bias F statistic",  fmtDouble(myFPos)),
+                        listOf("Positive bias p-value",      fmtDouble(myPPos)),
+                        listOf("Negative bias F statistic",  fmtDouble(myFNeg)),
+                        listOf("Negative bias p-value",      fmtDouble(myPNeg)),
                         listOf("Decision (\u03B1 = 0.05)",   myDecision)
                     ),
                     caption = "Schruben Initialization Bias Test"

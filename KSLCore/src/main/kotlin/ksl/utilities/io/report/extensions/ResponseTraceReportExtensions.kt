@@ -62,14 +62,6 @@ import ksl.utilities.statistic.Statistic
  * ```
  */
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}
-
 // ── stateVariableTrace ────────────────────────────────────────────────────────
 
 /**
@@ -111,12 +103,12 @@ fun ReportBuilder.stateVariableTrace(
                     headers = listOf("Property", "Value"),
                     rows    = listOf(
                         listOf("Count",             myTWS.count.toInt().toString()),
-                        listOf("Time-Weighted Avg", fmtD(myTWS.weightedAverage)),
-                        listOf("Min",               fmtD(myTWS.min)),
-                        listOf("Max",               fmtD(myTWS.max)),
-                        listOf("Sum of Weights",    fmtD(myTWS.sumOfWeights)),
-                        listOf("Weighted Sum",      fmtD(myTWS.weightedSum)),
-                        listOf("Unweighted Sum",    fmtD(myTWS.unWeightedSum)),
+                        listOf("Time-Weighted Avg", fmtDouble(myTWS.weightedAverage)),
+                        listOf("Min",               fmtDouble(myTWS.min)),
+                        listOf("Max",               fmtDouble(myTWS.max)),
+                        listOf("Sum of Weights",    fmtDouble(myTWS.sumOfWeights)),
+                        listOf("Weighted Sum",      fmtDouble(myTWS.weightedSum)),
+                        listOf("Unweighted Sum",    fmtDouble(myTWS.unWeightedSum)),
                         listOf("Missing",           myTWS.numberMissing.toInt().toString())
                     ),
                     caption = "Time-Weighted Statistics"
@@ -173,9 +165,9 @@ fun ReportBuilder.observationTrace(
                         headers = listOf("Property", "Value"),
                         rows    = listOf(
                             listOf("Count",   myStat.count.toInt().toString()),
-                            listOf("Average", fmtD(myStat.average)),
-                            listOf("Min",     fmtD(myStat.min)),
-                            listOf("Max",     fmtD(myStat.max))
+                            listOf("Average", fmtDouble(myStat.average)),
+                            listOf("Min",     fmtDouble(myStat.min)),
+                            listOf("Max",     fmtDouble(myStat.max))
                         ),
                         caption = "Descriptive Statistics"
                     )

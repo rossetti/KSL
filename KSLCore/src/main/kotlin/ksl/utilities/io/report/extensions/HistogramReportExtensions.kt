@@ -75,8 +75,8 @@ fun ReportBuilder.histogram(
     val myTitle = caption ?: h.name
     section(myTitle) {
         // ── Overview paragraph ────────────────────────────────────────────────
-        val myLower = formatLimit(h.firstBinLowerLimit)
-        val myUpper = formatLimit(h.lastBinUpperLimit)
+        val myLower = fmtLimit(h.firstBinLowerLimit)
+        val myUpper = fmtLimit(h.lastBinUpperLimit)
         paragraph(
             "Bins: ${h.numberBins}  |  " +
             "Range: [$myLower, $myUpper]  |  " +
@@ -93,12 +93,12 @@ fun ReportBuilder.histogram(
             listOf(
                 b.binNum.toString(),
                 b.binLabel,
-                formatLimit(b.binLowerLimit),
-                formatLimit(b.binUpperLimit),
+                fmtLimit(b.binLowerLimit),
+                fmtLimit(b.binUpperLimit),
                 b.binCount.toInt().toString(),
                 b.cumCount.toInt().toString(),
-                formatPct(b.proportion),
-                formatPct(b.cumProportion)
+                fmtPct(b.proportion),
+                fmtPct(b.cumProportion)
             )
         }
         dataTable(myHeaders, myRows, caption = "Bin Frequencies")
@@ -166,32 +166,6 @@ fun HistogramIfc.toReport(
     block: ReportBuilder.() -> Unit = { histogram(this@toReport, confidenceLevel = confidenceLevel) }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helpers ────────────────────────────────────────────────
-
-/**
- * Formats a bin limit as a string.
- *
- * - [Double.NEGATIVE_INFINITY] and `-`[Double.MAX_VALUE] render as `"−∞"`
- * - [Double.POSITIVE_INFINITY] and [Double.MAX_VALUE] render as `"+∞"`
- * - [Double.isNaN] renders as `"—"`
- * - All other values use four significant figures (`%.4g`), which adapts to
- *   the magnitude of the limit without producing enormous fixed-decimal strings.
- */
-private fun formatLimit(value: Double): String = when {
-    value == Double.NEGATIVE_INFINITY || value == -Double.MAX_VALUE -> "−∞"
-    value == Double.POSITIVE_INFINITY || value == Double.MAX_VALUE  -> "+∞"
-    value.isNaN() -> "—"
-    else -> "%.4g".format(value)
-}
-
-/**
- * Formats a proportion (value in [0, 1]) as a percentage string with two decimal
- * places, e.g. `"12.34%"`. Returns `"—"` for NaN or infinite values.
- */
-private fun formatPct(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.2f%%".format(value * 100.0)
-}
 
 /**
  * Overload of [histogram] that accepts a [HistogramIfc] reference.
@@ -218,8 +192,8 @@ fun ReportBuilder.histogram(
 ) {
     val myTitle = caption ?: h.name
     section(myTitle) {
-        val myLower = formatLimit(h.firstBinLowerLimit)
-        val myUpper = formatLimit(h.lastBinUpperLimit)
+        val myLower = fmtLimit(h.firstBinLowerLimit)
+        val myUpper = fmtLimit(h.lastBinUpperLimit)
         paragraph(
             "Bins: ${h.numberBins}  |  " +
             "Range: [$myLower, $myUpper]  |  " +
@@ -234,12 +208,12 @@ fun ReportBuilder.histogram(
             listOf(
                 b.binNum.toString(),
                 b.binLabel,
-                formatLimit(b.binLowerLimit),
-                formatLimit(b.binUpperLimit),
+                fmtLimit(b.binLowerLimit),
+                fmtLimit(b.binUpperLimit),
                 b.binCount.toInt().toString(),
                 b.cumCount.toInt().toString(),
-                formatPct(b.proportion),
-                formatPct(b.cumProportion)
+                fmtPct(b.proportion),
+                fmtPct(b.cumProportion)
             )
         }
         dataTable(myHeaders, myRows, caption = "Bin Frequencies")

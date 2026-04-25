@@ -88,9 +88,9 @@ fun ReportBuilder.moda(
                 listOf(
                     md.metricName,
                     md.direction,
-                    fmtD(md.weight),
-                    fmtD(md.domainLowerLimit),
-                    fmtD(md.domainUpperLimit),
+                    fmtDouble(md.weight),
+                    fmtDouble(md.domainLowerLimit),
+                    fmtDouble(md.domainUpperLimit),
                     md.unitsOfMeasure ?: "—",
                     md.description ?: "—"
                 )
@@ -108,7 +108,7 @@ fun ReportBuilder.moda(
             val myScoreHeaders = listOf("Alternative") + myMetricNames
             val myScoreRows = myAlts.mapIndexed { idx, alt ->
                 listOf(alt) + myMetrics.map { m ->
-                    fmtD(myScoresByMetric[m]?.getOrNull(idx) ?: Double.NaN)
+                    fmtDouble(myScoresByMetric[m]?.getOrNull(idx) ?: Double.NaN)
                 }
             }
             dataTable(myScoreHeaders, myScoreRows,
@@ -119,8 +119,8 @@ fun ReportBuilder.moda(
             val myValueRows = model.sortedMultiObjectiveValuesByAlternative().map { (alt, overallValue) ->
                 val idx = myAlts.indexOf(alt)
                 listOf(alt) +
-                myMetrics.map { m -> fmtD(myValuesByMetric[m]?.getOrNull(idx) ?: Double.NaN) } +
-                listOf(fmtD(overallValue))
+                myMetrics.map { m -> fmtDouble(myValuesByMetric[m]?.getOrNull(idx) ?: Double.NaN) } +
+                listOf(fmtDouble(overallValue))
             }
             dataTable(myValueHeaders, myValueRows,
                 caption = "Transformed Values (0–1) and Overall Weighted Value (sorted by overall value)")
@@ -145,7 +145,7 @@ fun ReportBuilder.moda(
                 } +
                 listOf(
                     (myFirstRankCounts[alt] ?: 0).toString(),
-                    fmtD(avgRank)
+                    fmtDouble(avgRank)
                 )
             }
             dataTable(myRankHeaders, myRankRows, caption = "Alternative Rankings (sorted by average rank)")
@@ -216,7 +216,7 @@ fun ReportBuilder.modaAnalysis(
             val myHeaders   = listOf("Alternative") + myResponses
             val myRows      = myAlts.map { alt ->
                 val myAltPerf = myPerfMap[alt] ?: emptyMap()
-                listOf(alt) + myResponses.map { r -> fmtD(myAltPerf[r] ?: Double.NaN) }
+                listOf(alt) + myResponses.map { r -> fmtDouble(myAltPerf[r] ?: Double.NaN) }
             }
             dataTable(myHeaders, myRows,
                 caption = "Average Performance by Alternative and Response")
@@ -361,10 +361,3 @@ fun MODAAnalyzer.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}

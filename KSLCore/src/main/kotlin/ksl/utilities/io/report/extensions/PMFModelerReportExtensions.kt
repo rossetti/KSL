@@ -83,10 +83,10 @@ fun ReportBuilder.discreteDataSummary(
         val myStat = modeler.statistics
         paragraph(
             "n = ${myStat.count.toInt()}  |  " +
-            "Mean = ${fmtD(myStat.average)}  |  " +
-            "Variance = ${fmtD(myStat.variance)}  |  " +
-            "Min = ${fmtD(myStat.min)}  |  " +
-            "Max = ${fmtD(myStat.max)}  |  " +
+            "Mean = ${fmtDouble(myStat.average)}  |  " +
+            "Variance = ${fmtDouble(myStat.variance)}  |  " +
+            "Min = ${fmtDouble(myStat.min)}  |  " +
+            "Max = ${fmtDouble(myStat.max)}  |  " +
             "Zeros = ${modeler.hasZeroes}  |  " +
             "Negatives = ${modeler.hasNegatives}"
         )
@@ -118,13 +118,13 @@ fun ReportBuilder.discreteDataSummary(
             val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
 
             val myDispRows = listOf(
-                listOf("Index of Dispersion (Var / Mean)",   fmtD(myIod),      myInterp),
-                listOf("Poisson Variance Test Statistic (T)", fmtD(myPvt),     "DOF = $myDofLabel"),
-                listOf("p-value (upper \u2014 overdispersion)",  fmtD(myUpperP),
+                listOf("Index of Dispersion (Var / Mean)",   fmtDouble(myIod),      myInterp),
+                listOf("Poisson Variance Test Statistic (T)", fmtDouble(myPvt),     "DOF = $myDofLabel"),
+                listOf("p-value (upper \u2014 overdispersion)",  fmtDouble(myUpperP),
                     "P(\u03c7\u00b2($myDofLabel) \u2265 T)"),
-                listOf("p-value (lower \u2014 underdispersion)", fmtD(myLowerP),
+                listOf("p-value (lower \u2014 underdispersion)", fmtDouble(myLowerP),
                     "P(\u03c7\u00b2($myDofLabel) \u2264 T)"),
-                listOf("p-value (two-sided)",                fmtD(myTwoSidedP), "2\u00b7min(upper, lower)")
+                listOf("p-value (two-sided)",                fmtDouble(myTwoSidedP), "2\u00b7min(upper, lower)")
             )
             dataTable(
                 listOf("Property", "Value", "Note"), myDispRows,
@@ -240,7 +240,7 @@ fun ReportBuilder.discreteGoodnessOfFit(
             "Estimated Parameters: ${gof.numEstimatedParameters}  |  " +
             "Intervals: ${gof.histogram.numberBins}  |  " +
             "DOF: ${gof.chiSquaredTestDOF}  |  " +
-            "IoD: ${fmtD(myIod)} ($myIodInterp)"
+            "IoD: ${fmtDouble(myIod)} ($myIodInterp)"
         )
 
         // ── Chi-squared bin table ─────────────────────────────────────────────
@@ -249,9 +249,9 @@ fun ReportBuilder.discreteGoodnessOfFit(
             val myExpected = gof.expectedCounts[i]
             listOf(
                 bin.binLabel,
-                fmtD(gof.binProbabilities[i]),
+                fmtDouble(gof.binProbabilities[i]),
                 bin.count.toInt().toString(),
-                fmtD(myExpected),
+                fmtDouble(myExpected),
                 if (myExpected <= 4.99999) "Expected < 5" else ""
             )
         }
@@ -260,15 +260,15 @@ fun ReportBuilder.discreteGoodnessOfFit(
         // ── Goodness of fit test summary ──────────────────────────────────────
         val myAlpha      = 1.0 - confidenceLevel
         val myConclusion = if (gof.chiSquaredPValue >= myAlpha)
-            "p-value ${fmtD(gof.chiSquaredPValue)} \u2265 \u03b1 ${fmtD(myAlpha)}: Do not reject"
+            "p-value ${fmtDouble(gof.chiSquaredPValue)} \u2265 \u03b1 ${fmtDouble(myAlpha)}: Do not reject"
         else
-            "p-value ${fmtD(gof.chiSquaredPValue)} < \u03b1 ${fmtD(myAlpha)}: Reject"
+            "p-value ${fmtDouble(gof.chiSquaredPValue)} < \u03b1 ${fmtDouble(myAlpha)}: Reject"
         val myTestRows = listOf(
             listOf("Estimated Parameters",  gof.numEstimatedParameters.toString()),
             listOf("Number of Intervals",   gof.histogram.numberBins.toString()),
             listOf("Degrees of Freedom",    gof.chiSquaredTestDOF.toString()),
-            listOf("Chi-Squared Statistic", fmtD(gof.chiSquaredTestStatistic)),
-            listOf("p-value",               fmtD(gof.chiSquaredPValue)),
+            listOf("Chi-Squared Statistic", fmtDouble(gof.chiSquaredTestStatistic)),
+            listOf("p-value",               fmtDouble(gof.chiSquaredPValue)),
             listOf("Conclusion",            myConclusion)
         )
         dataTable(listOf("Property", "Value"), myTestRows,
@@ -281,13 +281,13 @@ fun ReportBuilder.discreteGoodnessOfFit(
             val (myUpperP, myLowerP, myTwoSidedP) = poissonDispersionPValues(myPvt, myN)
             val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
             val myDispRows = listOf(
-                listOf("Index of Dispersion (Var / Mean)",    fmtD(myIod),      myIodInterp),
-                listOf("Poisson Variance Test Statistic (T)", fmtD(myPvt),      "DOF = $myDofLabel"),
-                listOf("p-value (upper \u2014 overdispersion)",  fmtD(myUpperP),
+                listOf("Index of Dispersion (Var / Mean)",    fmtDouble(myIod),      myIodInterp),
+                listOf("Poisson Variance Test Statistic (T)", fmtDouble(myPvt),      "DOF = $myDofLabel"),
+                listOf("p-value (upper \u2014 overdispersion)",  fmtDouble(myUpperP),
                     "P(\u03c7\u00b2($myDofLabel) \u2265 T)"),
-                listOf("p-value (lower \u2014 underdispersion)", fmtD(myLowerP),
+                listOf("p-value (lower \u2014 underdispersion)", fmtDouble(myLowerP),
                     "P(\u03c7\u00b2($myDofLabel) \u2264 T)"),
-                listOf("p-value (two-sided)",                fmtD(myTwoSidedP),  "2\u00b7min(upper, lower)")
+                listOf("p-value (two-sided)",                fmtDouble(myTwoSidedP),  "2\u00b7min(upper, lower)")
             )
             dataTable(
                 listOf("Metric", "Value", "Note"), myDispRows,
@@ -398,14 +398,6 @@ fun DiscretePMFGoodnessOfFit.toReport(
         discreteGoodnessOfFit(this@toReport, modeler, confidenceLevel = confidenceLevel)
     }
 ): ReportNode.Document = report(title, block)
-
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}
 
 /**
  * Computes upper-tail, lower-tail, and two-sided p-values for the Poisson variance

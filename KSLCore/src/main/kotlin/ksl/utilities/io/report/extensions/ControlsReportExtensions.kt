@@ -78,27 +78,6 @@ import ksl.utilities.io.report.dsl.report
  * ```
  */
 
-// ── Private formatting helpers ────────────────────────────────────────────────
-
-/** Formats a finite [Double] to 4 decimal places; returns `"—"` for NaN or infinite. */
-private fun fmtNum(v: Double): String = when {
-    v.isNaN() || v.isInfinite() -> "\u2014"
-    else -> "%.4f".format(v)
-}
-
-/**
- * Formats a bound [Double]:
- * - [Double.NEGATIVE_INFINITY] → `"−∞"`
- * - [Double.POSITIVE_INFINITY] → `"+∞"`
- * - NaN → `"—"`
- * - finite → 4 decimal places
- */
-private fun fmtBound(v: Double): String = when {
-    v == Double.NEGATIVE_INFINITY -> "\u2212\u221E"
-    v == Double.POSITIVE_INFINITY -> "+\u221E"
-    v.isNaN()                     -> "\u2014"
-    else                          -> "%.4f".format(v)
-}
 
 /**
  * Truncates [v] to [maxWidth] characters and appends `"…"` if truncated;
@@ -150,7 +129,7 @@ fun ReportBuilder.numericControlsTable(
         buildList {
             add(cd.keyName)
             add(cd.controlType.name)
-            add(fmtNum(cd.value))
+            add(fmtDouble(cd.value))
             add(fmtBound(cd.lowerBound))
             add(fmtBound(cd.upperBound))
             if (includeComment) add(cd.comment)

@@ -89,10 +89,10 @@ fun ReportBuilder.dataStatisticalSummary(
         val myStat = modeler.statistics
         paragraph(
             "n = ${myStat.count.toInt()}  |  " +
-            "Mean = ${fmtD(myStat.average)}  |  " +
-            "Std Dev = ${fmtD(myStat.standardDeviation)}  |  " +
-            "Min = ${fmtD(myStat.min)}  |  " +
-            "Max = ${fmtD(myStat.max)}  |  " +
+            "Mean = ${fmtDouble(myStat.average)}  |  " +
+            "Std Dev = ${fmtDouble(myStat.standardDeviation)}  |  " +
+            "Min = ${fmtDouble(myStat.min)}  |  " +
+            "Max = ${fmtDouble(myStat.max)}  |  " +
             "Zeros = ${modeler.hasZeroes}  |  " +
             "Negatives = ${modeler.hasNegatives}"
         )
@@ -107,7 +107,7 @@ fun ReportBuilder.dataStatisticalSummary(
         // ── Box plot summary ──────────────────────────────────────────────────
         section("Box Plot Summary") {
             val myBp     = BoxPlotSummary(modeler.originalData)
-            val myBpRows = myBp.asMap().map { (k, v) -> listOf(k, fmtD(v)) }
+            val myBpRows = myBp.asMap().map { (k, v) -> listOf(k, fmtDouble(v)) }
             dataTable(
                 listOf("Property", "Value"), myBpRows,
                 caption = "Five-Number Summary and Fences"
@@ -124,31 +124,31 @@ fun ReportBuilder.dataStatisticalSummary(
             val mySummaryRows = listOf(
                 listOf(
                     "Extremely Low",
-                    "x \u2264 ${fmtD(myBp.lowerOuterFence)}",
+                    "x \u2264 ${fmtDouble(myBp.lowerOuterFence)}",
                     myExtLow.size.toString(),
-                    if (myExtLow.isEmpty()) "\u2014" else fmtD(myExtLow.first()),
-                    if (myExtLow.isEmpty()) "\u2014" else fmtD(myExtLow.last())
+                    if (myExtLow.isEmpty()) "\u2014" else fmtDouble(myExtLow.first()),
+                    if (myExtLow.isEmpty()) "\u2014" else fmtDouble(myExtLow.last())
                 ),
                 listOf(
                     "Mildly Low",
-                    "${fmtD(myBp.lowerOuterFence)} \u2264 x \u2264 ${fmtD(myBp.lowerInnerFence)}",
+                    "${fmtDouble(myBp.lowerOuterFence)} \u2264 x \u2264 ${fmtDouble(myBp.lowerInnerFence)}",
                     myMildLow.size.toString(),
-                    if (myMildLow.isEmpty()) "\u2014" else fmtD(myMildLow.first()),
-                    if (myMildLow.isEmpty()) "\u2014" else fmtD(myMildLow.last())
+                    if (myMildLow.isEmpty()) "\u2014" else fmtDouble(myMildLow.first()),
+                    if (myMildLow.isEmpty()) "\u2014" else fmtDouble(myMildLow.last())
                 ),
                 listOf(
                     "Mildly High",
-                    "${fmtD(myBp.upperInnerFence)} \u2264 x \u2264 ${fmtD(myBp.upperOuterFence)}",
+                    "${fmtDouble(myBp.upperInnerFence)} \u2264 x \u2264 ${fmtDouble(myBp.upperOuterFence)}",
                     myMildHigh.size.toString(),
-                    if (myMildHigh.isEmpty()) "\u2014" else fmtD(myMildHigh.first()),
-                    if (myMildHigh.isEmpty()) "\u2014" else fmtD(myMildHigh.last())
+                    if (myMildHigh.isEmpty()) "\u2014" else fmtDouble(myMildHigh.first()),
+                    if (myMildHigh.isEmpty()) "\u2014" else fmtDouble(myMildHigh.last())
                 ),
                 listOf(
                     "Extremely High",
-                    "x \u2265 ${fmtD(myBp.upperOuterFence)}",
+                    "x \u2265 ${fmtDouble(myBp.upperOuterFence)}",
                     myExtHigh.size.toString(),
-                    if (myExtHigh.isEmpty()) "\u2014" else fmtD(myExtHigh.first()),
-                    if (myExtHigh.isEmpty()) "\u2014" else fmtD(myExtHigh.last())
+                    if (myExtHigh.isEmpty()) "\u2014" else fmtDouble(myExtHigh.first()),
+                    if (myExtHigh.isEmpty()) "\u2014" else fmtDouble(myExtHigh.last())
                 )
             )
             dataTable(mySummaryHeaders, mySummaryRows, caption = "Outlier Summary")
@@ -165,7 +165,7 @@ fun ReportBuilder.dataStatisticalSummary(
                     if (myPoints.isNotEmpty()) {
                         dataTable(
                             headers = listOf("Value"),
-                            rows    = myPoints.map { listOf(fmtD(it)) },
+                            rows    = myPoints.map { listOf(fmtDouble(it)) },
                             caption = "$myLabel Values (${myPoints.size})"
                         )
                     }
@@ -182,12 +182,12 @@ fun ReportBuilder.dataStatisticalSummary(
             val myShift = modeler.leftShift
             val myMinCI = PDFModeler.confidenceIntervalForMinimum(modeler.originalData)
             val myRows = listOf(
-                listOf("Estimated Left Shift",      fmtD(myShift)),
+                listOf("Estimated Left Shift",      fmtDouble(myShift)),
                 listOf("Has Zeros",                 modeler.hasZeroes.toString()),
                 listOf("Has Negatives",             modeler.hasNegatives.toString()),
-                listOf("Zero Tolerance",            fmtD(modeler.defaultZeroTolerance)),
-                listOf("CI for Minimum — Lower",    fmtD(myMinCI.lowerLimit)),
-                listOf("CI for Minimum — Upper",    fmtD(myMinCI.upperLimit))
+                listOf("Zero Tolerance",            fmtDouble(modeler.defaultZeroTolerance)),
+                listOf("CI for Minimum — Lower",    fmtDouble(myMinCI.lowerLimit)),
+                listOf("CI for Minimum — Upper",    fmtDouble(myMinCI.upperLimit))
             )
             dataTable(listOf("Property", "Value"), myRows,
                 caption = "Left-Shift Estimation (95 % Bootstrap CI for Minimum)")
@@ -279,8 +279,8 @@ fun ReportBuilder.goodnessOfFit(
             "Distribution: ${result.name}  |  " +
             "RV Type: ${result.rvType}  |  " +
             "Parameters: ${result.numberOfParameters}  |  " +
-            "MODA Value: ${fmtD(result.weightedValue)}  |  " +
-            "Avg Rank: ${fmtD(result.averageRanking)}"
+            "MODA Value: ${fmtDouble(result.weightedValue)}  |  " +
+            "Avg Rank: ${fmtDouble(result.averageRanking)}"
         )
 
         // ── Bootstrap parameter estimates ─────────────────────────────────────
@@ -298,19 +298,19 @@ fun ReportBuilder.goodnessOfFit(
                     val myRows = listOf(
                         listOf("Parameter",              myBse.name),
                         listOf("Original Sample Size",   myBse.originalDataSampleSize.toString()),
-                        listOf("Original Estimate",      fmtD(myBse.originalDataEstimate)),
-                        listOf("Bootstrap Average",      fmtD(myBse.acrossBootstrapAverage)),
-                        listOf("Bias Estimate",          fmtD(myBse.bootstrapBiasEstimate)),
-                        listOf("Bootstrap MSE Estimate", fmtD(myBse.bootstrapMSEEstimate)),
-                        listOf("Std. Error Estimate",    fmtD(myBse.bootstrapStdErrEstimate)),
+                        listOf("Original Estimate",      fmtDouble(myBse.originalDataEstimate)),
+                        listOf("Bootstrap Average",      fmtDouble(myBse.acrossBootstrapAverage)),
+                        listOf("Bias Estimate",          fmtDouble(myBse.bootstrapBiasEstimate)),
+                        listOf("Bootstrap MSE Estimate", fmtDouble(myBse.bootstrapMSEEstimate)),
+                        listOf("Std. Error Estimate",    fmtDouble(myBse.bootstrapStdErrEstimate)),
                         listOf("Num Bootstraps",         myBse.numberOfBootstraps.toString()),
-                        listOf("CI Level",               fmtD(confidenceLevel)),
-                        listOf("Normal CI Lower",        fmtD(myNormCI.lowerLimit)),
-                        listOf("Normal CI Upper",        fmtD(myNormCI.upperLimit)),
-                        listOf("Basic CI Lower",         fmtD(myBasicCI.lowerLimit)),
-                        listOf("Basic CI Upper",         fmtD(myBasicCI.upperLimit)),
-                        listOf("Percentile CI Lower",    fmtD(myPctCI.lowerLimit)),
-                        listOf("Percentile CI Upper",    fmtD(myPctCI.upperLimit))
+                        listOf("CI Level",               fmtDouble(confidenceLevel)),
+                        listOf("Normal CI Lower",        fmtDouble(myNormCI.lowerLimit)),
+                        listOf("Normal CI Upper",        fmtDouble(myNormCI.upperLimit)),
+                        listOf("Basic CI Lower",         fmtDouble(myBasicCI.lowerLimit)),
+                        listOf("Basic CI Upper",         fmtDouble(myBasicCI.upperLimit)),
+                        listOf("Percentile CI Lower",    fmtDouble(myPctCI.lowerLimit)),
+                        listOf("Percentile CI Upper",    fmtDouble(myPctCI.upperLimit))
                     )
                     val myCaption = myBse.label ?: myBse.name
                     dataTable(listOf("Property", "Value"), myRows, caption = myCaption)
@@ -351,9 +351,9 @@ fun ReportBuilder.goodnessOfFit(
                 val myExpected = myGof.expectedCounts[i]
                 listOf(
                     bin.binLabel,
-                    fmtD(myGof.binProbabilities[i]),
+                    fmtDouble(myGof.binProbabilities[i]),
                     bin.count.toInt().toString(),
-                    fmtD(myExpected),
+                    fmtDouble(myExpected),
                     if (myExpected <= 4.99999) "Expected < 5" else ""
                 )
             }
@@ -363,17 +363,17 @@ fun ReportBuilder.goodnessOfFit(
             val myTestHeaders = listOf("Test", "Statistic", "p-value")
             val myTestRows = listOf(
                 listOf("Chi-Squared (DOF = ${myGof.chiSquaredTestDOF})",
-                    fmtD(myGof.chiSquaredTestStatistic),
-                    fmtD(myGof.chiSquaredPValue)),
+                    fmtDouble(myGof.chiSquaredTestStatistic),
+                    fmtDouble(myGof.chiSquaredPValue)),
                 listOf("Kolmogorov-Smirnov",
-                    fmtD(myGof.ksStatistic),
-                    fmtD(myGof.ksPValue)),
+                    fmtDouble(myGof.ksStatistic),
+                    fmtDouble(myGof.ksPValue)),
                 listOf("Anderson-Darling",
-                    fmtD(myGof.andersonDarlingStatistic),
-                    fmtD(myGof.andersonDarlingPValue)),
+                    fmtDouble(myGof.andersonDarlingStatistic),
+                    fmtDouble(myGof.andersonDarlingPValue)),
                 listOf("Cramér-von Mises",
-                    fmtD(myGof.cramerVonMisesStatistic),
-                    fmtD(myGof.cramerVonMisesPValue))
+                    fmtDouble(myGof.cramerVonMisesStatistic),
+                    fmtDouble(myGof.cramerVonMisesPValue))
             )
             dataTable(myTestHeaders, myTestRows,
                 caption = "Goodness of Fit Test Statistics")
@@ -510,10 +510,4 @@ fun PDFModelingResults.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
 
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}

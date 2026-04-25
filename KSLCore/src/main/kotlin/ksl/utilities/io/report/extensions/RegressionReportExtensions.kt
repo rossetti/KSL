@@ -95,23 +95,23 @@ fun ReportBuilder.regressionSummary(
             val myAnovaRows = listOf(
                 listOf(
                     "Regression",
-                    fmtD(rr.regressionSumOfSquares),
+                    fmtDouble(rr.regressionSumOfSquares),
                     rr.regressionDoF.toInt().toString(),
-                    fmtD(rr.meanSquaredOfRegression),
-                    fmtD(rr.fStatistic),
-                    fmtD(rr.fPValue)
+                    fmtDouble(rr.meanSquaredOfRegression),
+                    fmtDouble(rr.fStatistic),
+                    fmtDouble(rr.fPValue)
                 ),
                 listOf(
                     "Error",
-                    fmtD(rr.residualSumOfSquares),
+                    fmtDouble(rr.residualSumOfSquares),
                     rr.errorDoF.toInt().toString(),
-                    fmtD(rr.meanSquaredError),
+                    fmtDouble(rr.meanSquaredError),
                     "\u2014",
                     "\u2014"
                 ),
                 listOf(
                     "Total",
-                    fmtD(rr.totalSumOfSquares),
+                    fmtDouble(rr.totalSumOfSquares),
                     rr.totalDoF.toInt().toString(),
                     "\u2014",
                     "\u2014",
@@ -124,12 +124,12 @@ fun ReportBuilder.regressionSummary(
         // ── Model fit measures ────────────────────────────────────────────────
         section("Model Fit") {
             val myFitRows = listOf(
-                listOf("R\u00b2 (Coefficient of Determination)", fmtD(rr.rSquared)),
-                listOf("Adjusted R\u00b2", fmtD(rr.adjustedRSquared)),
-                listOf("\u03c3\u0302 (Regression Standard Error)", fmtD(rr.regressionStandardError)),
-                listOf("MSE (Mean Squared Error)", fmtD(rr.meanSquaredError)),
-                listOf("F-statistic", fmtD(rr.fStatistic)),
-                listOf("p-value (F-test)", fmtD(rr.fPValue))
+                listOf("R\u00b2 (Coefficient of Determination)", fmtDouble(rr.rSquared)),
+                listOf("Adjusted R\u00b2", fmtDouble(rr.adjustedRSquared)),
+                listOf("\u03c3\u0302 (Regression Standard Error)", fmtDouble(rr.regressionStandardError)),
+                listOf("MSE (Mean Squared Error)", fmtDouble(rr.meanSquaredError)),
+                listOf("F-statistic", fmtDouble(rr.fStatistic)),
+                listOf("p-value (F-test)", fmtDouble(rr.fPValue))
             )
             dataTable(listOf("Measure", "Value"), myFitRows, caption = "Model Fit Measures")
         }
@@ -174,12 +174,12 @@ fun ReportBuilder.regressionParameters(
         val myParamRows = myParams.indices.map { i ->
             listOf(
                 myNames[i],
-                fmtD(myParams[i]),
-                fmtD(mySE[i]),
-                fmtD(myT[i]),
-                fmtD(myP[i]),
-                fmtD(myCIs[i].lowerLimit),
-                fmtD(myCIs[i].upperLimit),
+                fmtDouble(myParams[i]),
+                fmtDouble(mySE[i]),
+                fmtDouble(myT[i]),
+                fmtDouble(myP[i]),
+                fmtDouble(myCIs[i].lowerLimit),
+                fmtDouble(myCIs[i].upperLimit),
                 sigCode(myP[i])
             )
         }
@@ -203,11 +203,11 @@ fun ReportBuilder.regressionParameters(
         if (mySigNames.isEmpty()) {
             paragraph(
                 "No predictors are statistically significant at " +
-                "\u03b1 = ${fmtD(myAlpha)} (${myPct}% confidence level)."
+                "\u03b1 = ${fmtDouble(myAlpha)} (${myPct}% confidence level)."
             )
         } else {
             paragraph(
-                "Predictors significant at \u03b1 = ${fmtD(myAlpha)}: " +
+                "Predictors significant at \u03b1 = ${fmtDouble(myAlpha)}: " +
                 "${mySigNames.joinToString(", ")}."
             )
         }
@@ -257,17 +257,17 @@ fun ReportBuilder.regressionDiagnostics(
         val mySummaryRows = listOf(
             listOf("Observations (n)",                                myN.toString()),
             listOf("Parameters (p)",                                  myP.toString()),
-            listOf("Min Residual",                                    fmtD(myResidStat.min)),
-            listOf("Max Residual",                                    fmtD(myResidStat.max)),
-            listOf("Mean Residual",                                   fmtD(myResidStat.average)),
-            listOf("Std Dev Residual",                                fmtD(myResidStat.standardDeviation)),
-            listOf("\u03c3\u0302 (Regression SE)",                    fmtD(rr.regressionStandardError)),
-            listOf("Mean Leverage (h\u0304\u1d62\u1d62)",             fmtD(myH.average())),
-            listOf("Max Leverage",                                    fmtD(myH.maxOrNull() ?: Double.NaN)),
-            listOf("High-Leverage Points (h\u1d62\u1d62 > ${fmtD(myLevThreshold)})",
+            listOf("Min Residual",                                    fmtDouble(myResidStat.min)),
+            listOf("Max Residual",                                    fmtDouble(myResidStat.max)),
+            listOf("Mean Residual",                                   fmtDouble(myResidStat.average)),
+            listOf("Std Dev Residual",                                fmtDouble(myResidStat.standardDeviation)),
+            listOf("\u03c3\u0302 (Regression SE)",                    fmtDouble(rr.regressionStandardError)),
+            listOf("Mean Leverage (h\u0304\u1d62\u1d62)",             fmtDouble(myH.average())),
+            listOf("Max Leverage",                                    fmtDouble(myH.maxOrNull() ?: Double.NaN)),
+            listOf("High-Leverage Points (h\u1d62\u1d62 > ${fmtDouble(myLevThreshold)})",
                                                                       myHighLev.toString()),
-            listOf("Max Cook\u2019s Distance",                        fmtD(myCD.maxOrNull() ?: Double.NaN)),
-            listOf("Influential Points (Cook\u2019s D > ${fmtD(myCDThreshold)})",
+            listOf("Max Cook\u2019s Distance",                        fmtDouble(myCD.maxOrNull() ?: Double.NaN)),
+            listOf("Influential Points (Cook\u2019s D > ${fmtDouble(myCDThreshold)})",
                                                                       myHighCD.toString())
         )
         dataTable(
@@ -277,8 +277,8 @@ fun ReportBuilder.regressionDiagnostics(
         )
 
         paragraph(
-            "High-leverage threshold: h\u1d62\u1d62 > 2p/n = ${fmtD(myLevThreshold)}. " +
-            "Influential-point threshold: Cook\u2019s D > 4/n = ${fmtD(myCDThreshold)}. " +
+            "High-leverage threshold: h\u1d62\u1d62 > 2p/n = ${fmtDouble(myLevThreshold)}. " +
+            "Influential-point threshold: Cook\u2019s D > 4/n = ${fmtDouble(myCDThreshold)}. " +
             "Observations exceeding these thresholds warrant individual inspection."
         )
 
@@ -346,12 +346,6 @@ fun RegressionResultsIfc.toReport(
 ): ReportNode.Document = report(title, block)
 
 // ── Private helpers ───────────────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}
 
 /**
  * Returns the R-style significance code for [pValue].

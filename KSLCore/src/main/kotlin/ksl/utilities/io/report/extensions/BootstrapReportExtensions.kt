@@ -105,11 +105,11 @@ fun ReportBuilder.bootstrapEstimate(
 
         // ── Bootstrap statistics ──────────────────────────────────────────────
         val myStatRows = listOf(
-            listOf("Original Estimate (\u03b8)",        fmtD(be.originalDataEstimate)),
-            listOf("Bootstrap Mean (E[\u03b8*])",       fmtD(be.acrossBootstrapAverage)),
-            listOf("Bias Estimate (E[\u03b8*] \u2212 \u03b8)", fmtD(be.bootstrapBiasEstimate)),
-            listOf("Std Error Estimate",                fmtD(be.bootstrapStdErrEstimate)),
-            listOf("MSE Estimate",                      fmtD(be.bootstrapMSEEstimate))
+            listOf("Original Estimate (\u03b8)",        fmtDouble(be.originalDataEstimate)),
+            listOf("Bootstrap Mean (E[\u03b8*])",       fmtDouble(be.acrossBootstrapAverage)),
+            listOf("Bias Estimate (E[\u03b8*] \u2212 \u03b8)", fmtDouble(be.bootstrapBiasEstimate)),
+            listOf("Std Error Estimate",                fmtDouble(be.bootstrapStdErrEstimate)),
+            listOf("MSE Estimate",                      fmtDouble(be.bootstrapMSEEstimate))
         )
         dataTable(listOf("Statistic", "Value"), myStatRows,
             caption = "Bootstrap Statistics")
@@ -121,9 +121,9 @@ fun ReportBuilder.bootstrapEstimate(
         val myPctCI = be.percentileBootstrapCI(confidenceLevel)
 
         val myCIRows = mutableListOf(
-            listOf("Std Normal (not recommended)", fmtD(mySN.lowerLimit),    fmtD(mySN.upperLimit)),
-            listOf("Basic (Centered Percentile)",  fmtD(myBasic.lowerLimit), fmtD(myBasic.upperLimit)),
-            listOf("Percentile",                   fmtD(myPctCI.lowerLimit), fmtD(myPctCI.upperLimit))
+            listOf("Std Normal (not recommended)", fmtDouble(mySN.lowerLimit),    fmtDouble(mySN.upperLimit)),
+            listOf("Basic (Centered Percentile)",  fmtDouble(myBasic.lowerLimit), fmtDouble(myBasic.upperLimit)),
+            listOf("Percentile",                   fmtDouble(myPctCI.lowerLimit), fmtDouble(myPctCI.upperLimit))
         )
 
         // BCa and bootstrap-t are only on Bootstrap
@@ -131,10 +131,10 @@ fun ReportBuilder.bootstrapEstimate(
             val myBCa  = be.bcaBootstrapCI(confidenceLevel)
             val myBtCI = be.bootstrapTCI(confidenceLevel)
             myCIRows += listOf("BCa (Bias-Corrected & Accelerated)",
-                fmtD(myBCa.lowerLimit), fmtD(myBCa.upperLimit))
+                fmtDouble(myBCa.lowerLimit), fmtDouble(myBCa.upperLimit))
             if (myBtCI.lowerLimit.isFinite() && myBtCI.upperLimit.isFinite()) {
                 myCIRows += listOf("Bootstrap-t (Percentile-t)",
-                    fmtD(myBtCI.lowerLimit), fmtD(myBtCI.upperLimit))
+                    fmtDouble(myBtCI.lowerLimit), fmtDouble(myBtCI.upperLimit))
             }
         }
 
@@ -234,17 +234,17 @@ fun ReportBuilder.bootstrapEstimates(
                 be.name,
                 be.originalDataSampleSize.toString(),
                 be.numberOfBootstraps.toString(),
-                fmtD(be.originalDataEstimate),
-                fmtD(be.acrossBootstrapAverage),
-                fmtD(be.bootstrapBiasEstimate),
-                fmtD(be.bootstrapStdErrEstimate),
-                fmtD(myPctCI.lowerLimit),   fmtD(myPctCI.upperLimit),
-                fmtD(myBasicCI.lowerLimit), fmtD(myBasicCI.upperLimit)
+                fmtDouble(be.originalDataEstimate),
+                fmtDouble(be.acrossBootstrapAverage),
+                fmtDouble(be.bootstrapBiasEstimate),
+                fmtDouble(be.bootstrapStdErrEstimate),
+                fmtDouble(myPctCI.lowerLimit),   fmtDouble(myPctCI.upperLimit),
+                fmtDouble(myBasicCI.lowerLimit), fmtDouble(myBasicCI.upperLimit)
             )
             if (myHasBca) {
                 val (myBcaLow, myBcaHigh) = if (be is Bootstrap) {
                     val myBca = be.bcaBootstrapCI(confidenceLevel)
-                    Pair(fmtD(myBca.lowerLimit), fmtD(myBca.upperLimit))
+                    Pair(fmtDouble(myBca.lowerLimit), fmtDouble(myBca.upperLimit))
                 } else {
                     Pair("\u2014", "\u2014")
                 }
@@ -517,10 +517,3 @@ fun MultiBootstrap.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}

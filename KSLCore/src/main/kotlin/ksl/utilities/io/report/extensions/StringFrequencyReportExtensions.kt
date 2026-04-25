@@ -85,8 +85,8 @@ fun ReportBuilder.stringFrequency(
                 f.string,
                 f.count.toInt().toString(),
                 f.cum_count.toInt().toString(),
-                formatPct(f.proportion),
-                formatPct(f.cum_proportion)
+                fmtPct(f.proportion),
+                fmtPct(f.cum_proportion)
             )
         }
         dataTable(myHeaders, myRows, caption = "Frequency Table")
@@ -133,13 +133,3 @@ fun StringFrequency.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/**
- * Formats a proportion (value in [0, 1]) as a percentage string with two decimal
- * places, e.g. `"12.34%"`. Returns `"—"` for NaN or infinite values.
- */
-private fun formatPct(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.2f%%".format(value * 100.0)
-}

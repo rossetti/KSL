@@ -84,8 +84,8 @@ fun ReportBuilder.scenario(
                 listOf("Scenario Name",   scenario.name),
                 listOf("Model Name",      scenario.model.name),
                 listOf("Replications",    scenario.numberOfReplications.toString()),
-                listOf("Run Length",      fmtSCR(scenario.lengthOfReplication)),
-                listOf("Warm-Up",         fmtSCR(scenario.lengthOfReplicationWarmUp)),
+                listOf("Run Length",      fmtDouble(scenario.lengthOfReplication)),
+                listOf("Warm-Up",         fmtDouble(scenario.lengthOfReplicationWarmUp)),
                 listOf("Status",          if (myHasRun) "Executed" else "Not Executed")
             ),
             caption = "Scenario Overview"
@@ -162,8 +162,8 @@ fun ReportBuilder.scenarioRunner(
                     s.name,
                     s.model.name,
                     s.numberOfReplications.toString(),
-                    fmtSCR(s.lengthOfReplication),
-                    fmtSCR(s.lengthOfReplicationWarmUp),
+                    fmtDouble(s.lengthOfReplication),
+                    fmtDouble(s.lengthOfReplicationWarmUp),
                     if (myRun != null) "Executed" else "Not Executed",
                     when {
                         myRun == null    -> "\u2014"
@@ -262,10 +262,3 @@ fun ScenarioRunner.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtSCR(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}

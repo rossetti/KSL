@@ -74,13 +74,13 @@ import ksl.utilities.io.report.dsl.report
 fun ReportBuilder.factor(factor: Factor, caption: String? = null) {
     val myRows = listOf(
         listOf("Name",             factor.name),
-        listOf("Levels",           factor.levels.joinToString(", ") { fmtED(it) }),
+        listOf("Levels",           factor.levels.joinToString(", ") { fmtDouble(it) }),
         listOf("Number of Levels", factor.levels.size.toString()),
-        listOf("Low",              fmtED(factor.levels.first())),
-        listOf("High",             fmtED(factor.levels.last())),
-        listOf("Mid Point",        fmtED(factor.midPoint)),
-        listOf("Half Range",       fmtED(factor.halfRange)),
-        listOf("Coded Levels",     factor.codedLevels.joinToString(", ") { fmtED(it) })
+        listOf("Low",              fmtDouble(factor.levels.first())),
+        listOf("High",             fmtDouble(factor.levels.last())),
+        listOf("Mid Point",        fmtDouble(factor.midPoint)),
+        listOf("Half Range",       fmtDouble(factor.halfRange)),
+        listOf("Coded Levels",     factor.codedLevels.joinToString(", ") { fmtDouble(it) })
     )
     section(caption ?: factor.name) {
         dataTable(
@@ -140,7 +140,7 @@ fun ReportBuilder.experimentalDesign(
                     listOf("Factorial Replications", design.numFactorialReps.toString()),
                     listOf("Axial Replications",     design.numAxialReps.toString()),
                     listOf("Center Replications",    design.numCenterReps.toString()),
-                    listOf("Axial Spacing (\u03b1)", fmtED(design.axialSpacing)),
+                    listOf("Axial Spacing (\u03b1)", fmtDouble(design.axialSpacing)),
                     listOf("Factorial Points",       design.numFactorialPoints.toString()),
                     listOf("Axial Points (2k)",      design.numAxialPoints.toString())
                 )
@@ -161,11 +161,11 @@ fun ReportBuilder.experimentalDesign(
                 listOf(
                     f.name,
                     f.levels.size.toString(),
-                    fmtED(f.levels.first()),
-                    fmtED(f.levels.last()),
-                    fmtED(f.midPoint),
-                    fmtED(f.halfRange),
-                    f.codedLevels.joinToString(", ") { fmtED(it) }
+                    fmtDouble(f.levels.first()),
+                    fmtDouble(f.levels.last()),
+                    fmtDouble(f.midPoint),
+                    fmtDouble(f.halfRange),
+                    f.codedLevels.joinToString(", ") { fmtDouble(it) }
                 )
             }
             dataTable(
@@ -201,7 +201,7 @@ fun ReportBuilder.experimentalDesign(
                             }
                         )
                     }
-                    addAll(myValues.map { fmtED(it) })
+                    addAll(myValues.map { fmtDouble(it) })
                 }
             }
             dataTable(
@@ -324,12 +324,6 @@ fun LinearModel.toReport(
 ): ReportNode.Document = report(title, block)
 
 // ── Private helpers ───────────────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtED(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "\u2014"
-    else -> "%.4f".format(value)
-}
 
 /**
  * Returns a human-readable order label for a model term described by [components].

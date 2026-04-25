@@ -150,11 +150,11 @@ fun ReportBuilder.multipleComparison(
                     listOf(
                         stat.name,
                         stat.count.toInt().toString(),
-                        fmtD(stat.average),
-                        fmtD(stat.standardDeviation),
-                        fmtD(myHw),
-                        fmtD(stat.average - myHw),
-                        fmtD(stat.average + myHw)
+                        fmtDouble(stat.average),
+                        fmtDouble(stat.standardDeviation),
+                        fmtDouble(myHw),
+                        fmtDouble(stat.average - myHw),
+                        fmtDouble(stat.average + myHw)
                     )
                 }
                 dataTable(myHeaders, myRows, caption = "Pairwise Difference Statistics (CL = $diffConfidenceLevel)")
@@ -175,8 +175,8 @@ fun ReportBuilder.multipleComparison(
                 val myRows = myMaxMap.entries.map { (name, iv) ->
                     listOf(
                         name,
-                        fmtD(iv.lowerLimit),
-                        fmtD(iv.upperLimit),
+                        fmtDouble(iv.lowerLimit),
+                        fmtDouble(iv.upperLimit),
                         (iv.upperLimit != 0.0).toString()
                     )
                 }
@@ -200,8 +200,8 @@ fun ReportBuilder.multipleComparison(
                 val myRows = myMinMap.entries.map { (name, iv) ->
                     listOf(
                         name,
-                        fmtD(iv.lowerLimit),
-                        fmtD(iv.upperLimit),
+                        fmtDouble(iv.lowerLimit),
+                        fmtDouble(iv.upperLimit),
                         (iv.lowerLimit != 0.0).toString()
                     )
                 }
@@ -331,10 +331,3 @@ fun MultipleComparisonAnalyzer.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-// ── Private formatting helper ─────────────────────────────────────────────────
-
-/** Formats a [Double] to 4 decimal places; returns `"—"` for NaN or infinite values. */
-private fun fmtD(value: Double): String = when {
-    value.isNaN() || value.isInfinite() -> "—"
-    else -> "%.4f".format(value)
-}
