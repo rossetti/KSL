@@ -85,6 +85,7 @@ class Scenario @JvmOverloads constructor(
      *  @param lengthOfReplicationWarmUp  Warm-up length for this scenario.
      *  @param modelConfiguration         Optional model configuration map.
      */
+    @JvmOverloads
     constructor(
         model: Model,
         name: String,
