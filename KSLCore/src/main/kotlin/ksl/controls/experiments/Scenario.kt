@@ -90,7 +90,7 @@ class Scenario @JvmOverloads constructor(
         model: Model,
         name: String,
         inputs: Map<String, Double> = emptyMap(),
-        numberReplications: Int = model.numberOfReplications,
+        numberReplications: Int,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
         modelConfiguration: Map<String, String>? = null
