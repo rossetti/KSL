@@ -24,6 +24,7 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.StatisticReporter
 import ksl.utilities.io.ToJSONIfc
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import kotlin.String
 import kotlin.collections.Map
 
@@ -48,6 +49,8 @@ class SimulationRun private constructor(
     var beginExecutionTime: Instant = Instant.DISTANT_PAST,
     var endExecutionTime: Instant = Instant.DISTANT_FUTURE,
     var inputs: Map<String, Double> = mapOf(),
+    var stringInputs: Map<String, String> = mapOf(),
+    var jsonInputs: Map<String, String> = mapOf(),
     var modelConfiguration: Map<String, String>? = null,
     var results: Map<String, DoubleArray> = mapOf()
 ) : ToJSONIfc {
@@ -57,6 +60,8 @@ class SimulationRun private constructor(
         modelIdentifier: String,
         experimentRunParameters: ExperimentRunParameters,
         inputs: Map<String, Double> = mapOf(),
+        stringInputs: Map<String, String> = mapOf(),
+        jsonInputs: Map<String, String> = mapOf(),
         runId: String? = null,
         runName: String? = null,
         modelConfiguration: Map<String, String>? = null
@@ -66,23 +71,137 @@ class SimulationRun private constructor(
         name = runName ?: (experimentRunParameters.experimentName),
         experimentRunParameters = experimentRunParameters,
         inputs = inputs,
+        stringInputs = stringInputs,
+        jsonInputs = jsonInputs,
         modelConfiguration = modelConfiguration
     )
 
     val numberOfReplications: Int
         get() = experimentRunParameters.numberOfReplications
 
-    /** Use primarily for printing out run results
-     *
-     * @return a StatisticReporter with the summary statistics of the run
+    /**
+     * The names of the model responses recorded in [results], excluding the internal
+     * bookkeeping keys `"repNumbers"` and `"repTimings"`.
      */
-    fun statisticalReporter(): StatisticReporter {
+    val responseNames: List<String>
+        get() = results.keys.filter { it != "repNumbers" && it != "repTimings" }
+
+    /**
+     * `true` if an error occurred during execution (i.e. [runErrorMsg] is non-empty).
+     */
+    val hasError: Boolean
+        get() = runErrorMsg.isNotEmpty()
+
+    /**
+     * `true` if the run produced results (i.e. [results] is non-empty).
+     * Will be `false` after a fatal run error.
+     */
+    val hasResults: Boolean
+        get() = results.isNotEmpty()
+
+    /**
+     * The number of model responses recorded in [results], excluding the internal
+     * bookkeeping keys `"repNumbers"` and `"repTimings"`.
+     * Equivalent to `responseNames.size`.
+     */
+    val responseCount: Int
+        get() = responseNames.size
+
+    /**
+     * `true` if the run has been executed (i.e. [beginExecutionTime] has been set
+     * from its initial sentinel value of [Instant.DISTANT_PAST]).
+     */
+    val hasBeenExecuted: Boolean
+        get() = beginExecutionTime != Instant.DISTANT_PAST
+
+    /**
+     * Returns the per-replication wall-clock execution times in milliseconds as recorded
+     * by [ksl.observers.SimulationTimer], or `null` if the run has not been executed.
+     *
+     * @return a [DoubleArray] with one timing value per replication, or `null`
+     */
+    val replicationTimings: DoubleArray?
+        get() = results["repTimings"]
+
+    /**
+     * Returns the replication identifiers used during execution, or `null` if the run
+     * has not been executed.
+     *
+     * The internal store holds replication numbers as doubles (produced by
+     * [ksl.utilities.KSLArrays.toDoubles]); this property converts them to [IntArray].
+     *
+     * @return an [IntArray] of replication numbers in execution order, or `null`
+     */
+    val replicationNumbers: IntArray?
+        get() = results["repNumbers"]?.let { arr -> IntArray(arr.size) { arr[it].toInt() } }
+
+    /**
+     * Returns the per-replication observations for [responseName], or `null` if the
+     * name is absent from [results] or is one of the internal bookkeeping keys
+     * (`"repNumbers"`, `"repTimings"`).
+     *
+     * @param responseName the response name to look up
+     * @return a [DoubleArray] with one element per replication, or `null`
+     */
+    fun replicationObservations(responseName: String): DoubleArray? {
+        if (responseName == "repNumbers" || responseName == "repTimings") return null
+        return results[responseName]
+    }
+
+    /**
+     * Returns a map from each response name to its across-replication [StatisticIfc],
+     * computed from the per-replication observations in [results].
+     *
+     * The internal bookkeeping keys `"repNumbers"` and `"repTimings"` are excluded.
+     * Insertion order matches [results].
+     *
+     * @param confidenceLevel the confidence level applied to each [Statistic];
+     *                        defaults to 0.95
+     * @return a [LinkedHashMap] of response name → [StatisticIfc]
+     */
+    fun acrossReplicationStatistics(confidenceLevel: Double = 0.95): Map<String, StatisticIfc> {
+        val map = linkedMapOf<String, StatisticIfc>()
+        for (name in responseNames) {
+            val obs = results[name] ?: continue
+            val s = Statistic(name, obs)
+            s.confidenceLevel = confidenceLevel
+            map[name] = s
+        }
+        return map
+    }
+
+    /**
+     * Returns the across-replication [StatisticIfc] for a single [responseName],
+     * or `null` when [responseName] is absent or is an internal bookkeeping key.
+     *
+     * @param responseName    the response to look up
+     * @param confidenceLevel the confidence level for the returned [Statistic];
+     *                        defaults to 0.95
+     * @return a [Statistic] built from all replication observations, or `null`
+     */
+    fun acrossReplicationStatistic(
+        responseName: String,
+        confidenceLevel: Double = 0.95
+    ): StatisticIfc? {
+        val obs = replicationObservations(responseName) ?: return null
+        return Statistic(responseName, obs).also { it.confidenceLevel = confidenceLevel }
+    }
+
+    /**
+     * Returns a [StatisticReporter] containing the across-replication summary
+     * statistics for every response in this run.
+     *
+     * Delegates to [acrossReplicationStatistics] so that the internal bookkeeping
+     * keys `"repNumbers"` and `"repTimings"` are automatically excluded.
+     *
+     * @param confidenceLevel the confidence level applied to each [Statistic];
+     *                        defaults to 0.95
+     * @return a [StatisticReporter] with the summary statistics of the run
+     */
+    fun statisticalReporter(confidenceLevel: Double = 0.95): StatisticReporter {
         val r = StatisticReporter()
-        for ((key, value) in results.entries) {
-            if ((key == "repNumbers") || (key == "repTimings")){
-                continue
-            }
-            r.addStatistic(Statistic(key, value))
+        for ((_, stat) in acrossReplicationStatistics(confidenceLevel)) {
+            r.addStatistic(stat)
         }
         return r
     }
@@ -101,6 +220,24 @@ class SimulationRun private constructor(
             sb.appendLine("\t {empty}")
         } else {
             for((key, value) in inputs){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        sb.appendLine("String Inputs:")
+        if (stringInputs.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in stringInputs){
+                sb.appendLine("key = $key")
+                sb.appendLine("value = $value")
+            }
+        }
+        sb.appendLine("JSON Inputs:")
+        if (jsonInputs.isEmpty()){
+            sb.appendLine("\t {empty}")
+        } else {
+            for((key, value) in jsonInputs){
                 sb.appendLine("key = $key")
                 sb.appendLine("value = $value")
             }

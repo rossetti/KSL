@@ -2,8 +2,8 @@ package ksl.utilities.io.plotting
 
 import ksl.utilities.statistic.BoxPlotSummary
 import org.jetbrains.letsPlot.Stat
+import org.jetbrains.letsPlot.coord.coordCartesian
 import org.jetbrains.letsPlot.geom.geomBoxplot
-import org.jetbrains.letsPlot.geom.geomJitter
 import org.jetbrains.letsPlot.geom.geomPoint
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
@@ -14,27 +14,30 @@ import java.nio.file.Path
 class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
 
     private val data: Map<String, Any>
-    private val outliers: Map<String, List<Double>>
+    private val outliers: Map<String, List<Any>>
 
     init {
         // looks like data must be in lists and column names
         // are used to the mapping to plot aesthetics
         data = mapOf(
-            "name" to List(1) { boxPlotSummary.name },
-            "lowerWhisker" to List(1) { maxOf(boxPlotSummary.lowerWhisker, boxPlotSummary.min) },
+            "name"          to List(1) { boxPlotSummary.name },
+            "lowerWhisker"  to List(1) { maxOf(boxPlotSummary.lowerWhisker, boxPlotSummary.min) },
             "firstQuartile" to List(1) { boxPlotSummary.firstQuartile },
-            "median" to List(1) { boxPlotSummary.median },
+            "median"        to List(1) { boxPlotSummary.median },
             "thirdQuartile" to List(1) { boxPlotSummary.thirdQuartile },
-            "upperWhisker" to List(1) { minOf(boxPlotSummary.upperWhisker, boxPlotSummary.max) },
-            "yMin" to List(1){boxPlotSummary.min},
-            "yMax" to List(1){boxPlotSummary.max}
+            "upperWhisker"  to List(1) { minOf(boxPlotSummary.upperWhisker, boxPlotSummary.max) },
+            "yMin"          to List(1) { boxPlotSummary.min },
+            "yMax"          to List(1) { boxPlotSummary.max }
         )
-        val list = boxPlotSummary.lowerOuterPoints().asList().toMutableList()
-        list.addAll(boxPlotSummary.pointsBtwLowerInnerAndOuterFences().asList())
-        list.addAll(boxPlotSummary.pointsBtwUpperInnerAndOuterFences().asList())
-        list.addAll(boxPlotSummary.upperOuterPoints().asList())
+        // Collect all four outlier categories into a single list, each paired with the
+        // box's x-position name so geomPoint can place the dots over the correct box.
+        val myValues = boxPlotSummary.lowerOuterPoints().asList().toMutableList()
+        myValues.addAll(boxPlotSummary.pointsBtwLowerInnerAndOuterFences().asList())
+        myValues.addAll(boxPlotSummary.pointsBtwUpperInnerAndOuterFences().asList())
+        myValues.addAll(boxPlotSummary.upperOuterPoints().asList())
         outliers = mapOf(
-            "outliers" to list
+            "name"     to List(myValues.size) { boxPlotSummary.name },
+            "outliers" to myValues
         )
     }
 
@@ -49,23 +52,37 @@ class BoxPlot(private val boxPlotSummary: BoxPlotSummary) : BasePlot() {
            from data to the aesthetics of the boxplot. Note that the string
            referencing the data is assigned to the aesthetic mapping so that
            the geomBoxplot() function can extract the required values.  Somehow
-           the data map is then part of the generated html
+           the data map is then part of the generated html.
+
+           Outlier points are rendered as open circles (shape = 1) via a separate
+           geomPoint layer.  coordCartesian clips the y-axis to a window centred on
+           the whisker range (padded by half the IQR) so that extreme outliers do not
+           compress the box into a sliver.  Points outside the window are simply not
+           drawn; they remain documented in the report's Outlier Summary table.
          */
-//        val dm = mapOf<String, List<Double>>("data" to boxPlotSummary.data)
-        //TODO show outlier points on the plot: Issue -> large outliers make weird scaling of boxes
-//        val p = ggplot(dm){y = "data"} + geomBoxplot () +
-                val p = ggplot(data) +
-                        geomBoxplot(stat = Stat.identity, whiskerWidth = 0.05) {
-                            x = "name"
-                            lower = "firstQuartile"
-                            middle = "median"
-                            upper = "thirdQuartile"
-                            ymin = "lowerWhisker"
-                            ymax = "upperWhisker"
-                        } +
-//                geomPoint(outliers){ y = "outliers"} +
+        val myPad   = 0.5 * boxPlotSummary.interQuartileRange
+        val myYLow  = boxPlotSummary.lowerWhisker - myPad
+        val myYHigh = boxPlotSummary.upperWhisker + myPad
+
+        var p = ggplot(data) +
+                geomBoxplot(stat = Stat.identity, whiskerWidth = 0.05) {
+                    x      = "name"
+                    lower  = "firstQuartile"
+                    middle = "median"
+                    upper  = "thirdQuartile"
+                    ymin   = "lowerWhisker"
+                    ymax   = "upperWhisker"
+                } +
+                coordCartesian(ylim = Pair(myYLow, myYHigh)) +
                 labs(title = title, x = xLabel, y = yLabel) +
                 ggsize(width, height)
+
+        if ((outliers["outliers"] as List<*>).isNotEmpty()) {
+            p = p + geomPoint(outliers, shape = 1) {
+                x = "name"
+                y = "outliers"
+            }
+        }
         return p
     }
 

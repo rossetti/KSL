@@ -71,24 +71,26 @@ class ScenarioRunner @JvmOverloads constructor(
         return myDbObserversByName[name]
     }
 
-    /** Sets the number replications for each scenario to a common
-     *  number of replications.
-     *  @param numReps the number of replications for each scenario. Must be
-     *  greater than or equal to 1.
+    /**
+     *  Sets a common number of replications for every scenario managed by this runner.
+     *  Updates [Scenario.scenarioRunParameters] directly so that the model is not mutated
+     *  and scenarios that share a model remain independent.
+     *
+     *  @param numReps the number of replications; ignored for individual scenarios if < 1.
      */
     fun numReplicationsPerScenario(numReps: Int) {
-        // require(numReps >=1){"The number of replications for each scenario should be >= 1"}
+        require(numReps >= 1) { "The number of replications for each scenario must be >= 1" }
         for (scenario in myScenarios) {
-            if (numReps >= 1) {
-                scenario.numberOfReplications = numReps
-            }
+            scenario.scenarioRunParameters.numberOfReplications = numReps
         }
     }
 
     /**
-     *  Adds a scenario to the possible scenarios to simulate.
-     *  The name of the scenario (based on the model's experiment) must be
-     *  unique within the context of the list of scenarios to run.
+     *  Creates a [Scenario] from the three most common run-parameter scalars and adds it to
+     *  this runner.  All other run parameters are captured from the model's current state.
+     *  String and JSON control overrides may be supplied via [stringInputs] and [jsonInputs].
+     *
+     *  The scenario name must be unique within this runner.
      */
     @JvmOverloads
     @Suppress("unused")
@@ -96,11 +98,40 @@ class ScenarioRunner @JvmOverloads constructor(
         model: Model,
         name: String,
         inputs: Map<String, Double>,
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
         numberReplications: Int = model.numberOfReplications,
         lengthOfReplication: Double = model.lengthOfReplication,
         lengthOfReplicationWarmUp: Double = model.lengthOfReplicationWarmUp,
     ): Scenario {
-        val s = Scenario(model, name, inputs, numberReplications, lengthOfReplication, lengthOfReplicationWarmUp)
+        val runParams = model.extractRunParameters().copy(
+            numberOfReplications = numberReplications,
+            lengthOfReplication = lengthOfReplication,
+            lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        )
+        val s = Scenario(model, name, inputs, stringInputs, jsonInputs, runParams)
+        addScenario(s)
+        return s
+    }
+
+    /**
+     *  Creates a [Scenario] from a full [ExperimentRunParameters] snapshot and adds it to
+     *  this runner.  Use this overload when you need to configure run parameters beyond the
+     *  three scalar values (e.g. antithetic option, stream-reset behaviour, stream advances).
+     *
+     *  The scenario name must be unique within this runner.
+     */
+    @Suppress("unused")
+    @JvmOverloads
+    fun addScenario(
+        model: Model,
+        name: String,
+        inputs: Map<String, Double>,
+        runParameters: ExperimentRunParameters,
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
+    ): Scenario {
+        val s = Scenario(model, name, inputs, stringInputs, jsonInputs, runParameters)
         addScenario(s)
         return s
     }
@@ -178,6 +209,31 @@ class ScenarioRunner @JvmOverloads constructor(
             out.println(r)
             out.println()
         }
+    }
+
+    /**
+     * Returns a map of scenario name → per-replication observations for
+     * [responseName] across all executed scenarios.
+     *
+     * Keys are [Scenario.name] for each scenario whose [SimulationRun] has
+     * non-empty observations for [responseName]. Scenarios not yet executed
+     * or that produced no observations for the response are silently omitted.
+     * Returns an empty map when no scenarios have been executed.
+     *
+     * Suitable as the direct input to [ksl.utilities.statistic.Statistic.boxPlotSummaries]
+     * for constructing a [ksl.utilities.io.plotting.MultiBoxPlot].
+     *
+     * @param responseName the response to extract
+     */
+    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+        val myResult = linkedMapOf<String, DoubleArray>()
+        for (myScenario in scenarioList) {
+            val myObs = myScenario.simulationRun?.replicationObservations(responseName)
+            if (myObs != null && myObs.isNotEmpty()) {
+                myResult[myScenario.name] = myObs
+            }
+        }
+        return myResult
     }
 
 }

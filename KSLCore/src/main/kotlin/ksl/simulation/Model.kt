@@ -316,22 +316,25 @@ class Model @JvmOverloads constructor(
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
-     *  Constructs a data class that describes the model.
+     *  Constructs a data class that describes the model's current configuration.
+     *
+     *  The returned [ModelDescriptor] captures all three control families (numeric, string,
+     *  and JSON) via [ksl.controls.Controls.exportAll], along with run parameters,
+     *  random variable parameter data, and response names.
+     *
      *  @return the model descriptor at the time of the call
      */
     fun modelDescriptor(): ModelDescriptor {
         return ModelDescriptor(
-            modelIdentifier = this.modelIdentifier,
-            modelName = this.name,
-            description = this.description,
-            responseNames = this.responseNames.toSet(),
-            inputNames = this.inputKeys().toSet(),
-            outputDirectory = outputDirectory.outDir.toString(),
+            modelIdentifier         = this.modelIdentifier,
+            modelName               = this.name,
+            description             = this.description,
+            responseNames           = this.responseNames.toSet(),
             experimentRunParameters = this.extractRunParameters(),
-            controlData = this.controls().controlData(),
-            rvParameterData = this.rvParameterSetter.rvParametersData,
-            configuration = this.configuration,
-            baseTimeUnit = this.baseTimeUnit
+            controls                = this.controls().exportAll(),
+            rvParameterData         = this.rvParameterSetter.rvParametersData,
+            configuration           = this.configuration,
+            baseTimeUnit            = this.baseTimeUnit
         )
     }
 
@@ -1109,7 +1112,19 @@ class Model @JvmOverloads constructor(
             val cMap: Map<String, Double> = experimentalControls
             // extract controls and apply them
             val k: Int = controls().setControlsFromMap(cMap)
-            logger.info { "$k out of ${cMap.size} controls were applied to Model $name to setup the experiment." }
+            logger.info { "$k out of ${cMap.size} numeric controls were applied to Model $name to setup the experiment." }
+        }
+
+        if (hasExperimentalStringControls()) {
+            val sMap: Map<String, String> = experimentalStringControls
+            val k: Int = controls().setStringControlsFromMap(sMap)
+            logger.info { "$k out of ${sMap.size} string controls were applied to Model $name to setup the experiment." }
+        }
+
+        if (hasExperimentalJsonControls()) {
+            val jMap: Map<String, String> = experimentalJsonControls
+            val k: Int = controls().setJsonControlsFromMap(jMap)
+            logger.info { "$k out of ${jMap.size} JSON controls were applied to Model $name to setup the experiment." }
         }
 
         // if the user has asked for the parameters, then they may have changed
@@ -1338,10 +1353,26 @@ class Model @JvmOverloads constructor(
             myExperiment.experimentalControls = value
         }
 
+    override var experimentalStringControls: Map<String, String>
+        get() = myExperiment.experimentalStringControls
+        set(value) {
+            myExperiment.experimentalStringControls = value
+        }
+
+    override var experimentalJsonControls: Map<String, String>
+        get() = myExperiment.experimentalJsonControls
+        set(value) {
+            myExperiment.experimentalJsonControls = value
+        }
+
     override val currentReplicationNumber : Int
         get() = myExperiment.currentReplicationNumber
 
     override fun hasExperimentalControls() : Boolean = myExperiment.hasExperimentalControls()
+
+    override fun hasExperimentalStringControls(): Boolean = myExperiment.hasExperimentalStringControls()
+
+    override fun hasExperimentalJsonControls(): Boolean = myExperiment.hasExperimentalJsonControls()
 
     override fun hasMoreReplications() : Boolean = myExperiment.hasMoreReplications()
 
@@ -1550,6 +1581,7 @@ class Model @JvmOverloads constructor(
                     continue
                 } else {
                     // not a control and not a parameter
+                    //println("***** Bad key: $key")
                     logger.trace { "The input key '$key' was not a valid control or rv parameter" }
                     return false
                 }

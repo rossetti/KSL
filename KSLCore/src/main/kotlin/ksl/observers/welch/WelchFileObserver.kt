@@ -35,6 +35,12 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
     private val myWelchDataFileCollector: WelchDataFileCollector
 
     /**
+     * The name of the response variable being observed.
+     * Matches the name used in the underlying [WelchDataFileAnalyzer].
+     */
+    val responseName: String = responseVariable.name.replace(':', '_')
+
+    /**
      * @param responseVariable the response to be observed
      * @param batchSize the batch size for batching or discretizing the data
      *
@@ -49,9 +55,8 @@ class WelchFileObserver(responseVariable: Response, batchSize: Double) : ModelEl
             StatisticType.TALLY
         }
         val outDir: Path = responseVariable.model.outputDirectory.outDir
-        val fn = responseVariable.name.replace(':', '_')
-        val subDir: Path = outDir.resolve(fn + "_Welch")
-        myWelchDataFileCollector = WelchDataFileCollector(subDir, statType, fn, batchSize)
+        val subDir: Path = outDir.resolve(responseName + "_Welch")
+        myWelchDataFileCollector = WelchDataFileCollector(subDir, statType, responseName, batchSize)
         responseVariable.attachModelElementObserver(this)
     }
 

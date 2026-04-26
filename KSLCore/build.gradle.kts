@@ -37,10 +37,9 @@ repositories {
 
 dependencies {
 
-    // https://mvnrepository.com/artifact/io.github.microutils/kotlin-logging-jvm
-    api("io.github.oshai:kotlin-logging-jvm:7.0.7")
 
-    api("org.slf4j:slf4j-api:2.0.17")
+    api("io.github.oshai:kotlin-logging-jvm:7.0.7")  //TODO consider making implementation
+    api("org.slf4j:slf4j-api:2.0.17")  //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation("ch.qos.logback:logback-classic:1.5.32")
@@ -48,41 +47,28 @@ dependencies {
     implementation("ch.qos.logback:logback-core:1.5.32")
 
     // this is needed because POI uses log4j internally and SXSSFWorkbook() causes a logging that isn't captured
-// https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-to-slf4j
-//    implementation("org.apache.logging.log4j:log4j-to-slf4j:2.23.1")
     implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.0")
 
-    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") // 0.7.0 has code breaking changes
+    api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1") //TODO fix later, 0.7.0 has code breaking changes
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-//    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.9.0")
 
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-jvm
-    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3")
+    api("org.jetbrains.lets-plot:lets-plot-kotlin-jvm:4.9.3") //TODO consider making implementation
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-batik
     implementation("org.jetbrains.lets-plot:lets-plot-batik:4.5.2")
-    // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-kotlin-kernel
-//    implementation("org.jetbrains.lets-plot:lets-plot-kotlin-kernel:4.7.3")
-
-// https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-common
-//    implementation("org.jetbrains.lets-plot:lets-plot-common:4.0.0")
-
     // https://mvnrepository.com/artifact/org.jetbrains.lets-plot/lets-plot-image-export
-    api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1")
+    api("org.jetbrains.lets-plot:lets-plot-image-export:4.5.1") //TODO consider making implementation
 
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/dataframe-core
-//    api("org.jetbrains.kotlinx:dataframe-core:0.15.0")
-    api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")
+    api("org.jetbrains.kotlinx:dataframe:1.0.0-Beta2")//TODO update when version 1.0 stabilizes
 
-//    implementation("org.junit.jupiter:junit-jupiter:5.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.2.0")
 
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-core
     api("org.hipparchus:hipparchus-core:4.0.1")
 // https://mvnrepository.com/artifact/org.hipparchus/hipparchus-stat
     api("org.hipparchus:hipparchus-stat:4.0.1")
-
-//    implementation("com.google.guava:guava:33.4.8-jre")
 
     // https://db.apache.org/derby/releases
     implementation("org.apache.derby:derby:10.17.1.0")
@@ -98,20 +84,14 @@ dependencies {
     implementation("org.duckdb:duckdb_jdbc:1.3.1.0")
     implementation("com.zaxxer:HikariCP:6.3.0")
 
-    // https://mvnrepository.com/artifact/org.dhatim/fastexcel-reader
-//    implementation("org.dhatim:fastexcel-reader:0.14.0")
-    // https://mvnrepository.com/artifact/org.dhatim/fastexcel
-//    implementation("org.dhatim:fastexcel:0.14.0")
-
     // https://mvnrepository.com/artifact/org.apache.poi/poi
-    api("org.apache.poi:poi:5.5.1")
+    implementation("org.apache.poi:poi:5.5.1")
     // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     // required POI to update their dependencies to remove the vulnerability
 
-//    implementation(kotlin("stdlib-jdk8"))
-// https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-test
-//    api("org.jetbrains.kotlin:kotlin-test:1.9.24")
+    // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
+    implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
 
 }
 
@@ -123,7 +103,8 @@ tasks.jar {
 
 kotlin {
     jvmToolchain(21)
- //   explicitApiWarning()
+    //TODO revisit
+//    explicitApiWarning()
 }
 
 mavenPublishing {
@@ -160,8 +141,6 @@ mavenPublishing {
         }
     }
 }
-
-// build.gradle.kts
 
 dokka {
 

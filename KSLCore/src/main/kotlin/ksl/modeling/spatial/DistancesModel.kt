@@ -31,6 +31,26 @@ import ksl.utilities.collections.MutableBiMap
 import ksl.utilities.collections.MutableTable
 import ksl.utilities.io.JsonSettingsIfc
 
+/**
+ * A directed distance between two named locations.
+ *
+ * Each instance represents a one-way connection: the travel distance from
+ * [fromLoc] to [toLoc].  A symmetric route requires two entries (one in each
+ * direction), or use [DistancesModel.addDistance] with `symmetric = true`.
+ *
+ * [distance] must be non-negative; the `init` block enforces this with
+ * `require`.  Because all three properties are `var`, individual fields may be
+ * updated in place before a [DistancesData] list is applied to a
+ * [DistancesModel].
+ *
+ * The class is annotated `@Serializable` so that `List<DistanceData>`
+ * (aliased as [DistancesData]) round-trips through JSON without extra
+ * configuration.
+ *
+ * @param fromLoc  name of the origin location
+ * @param toLoc    name of the destination location
+ * @param distance non-negative travel distance from [fromLoc] to [toLoc]
+ */
 @Serializable
 data class DistanceData(
     var fromLoc: String,
@@ -157,7 +177,83 @@ interface DistancesCIfc : JsonSettingsIfc<DistancesData> {
     }
 }
 
-class DistancesModel() : SpatialModel(), DistancesCIfc {
+/**
+ * A [SpatialModel] that stores pairwise travel distances between named
+ * locations in a directed sparse table.
+ *
+ * Distances are directed: adding a distance from A to B does not automatically
+ * create one from B to A.  Use `symmetric = true` on [addDistance] to insert
+ * both directions in one call.
+ *
+ * ## Adding locations and distances
+ *
+ * Locations can be created explicitly with the inner [Location] class and then
+ * connected, or created implicitly by passing string names to the string-based
+ * [addDistance] overload:
+ *
+ * ```kotlin
+ * val dm = DistancesModel()
+ * val enter    = dm.Location("Enter")
+ * val station1 = dm.Location("Station1")
+ * dm.addDistance(enter, station1, 60.0, symmetric = true)
+ * ```
+ *
+ * A square distance matrix can be loaded in one call via [addDistances]; each
+ * location is named `Loc_k` where `k` is its row/column index.
+ *
+ * ## Bulk configuration via DistancesData
+ *
+ * The [distancesData] property accepts a `List<DistanceData>` (aliased as
+ * [DistancesData]).  Setting it clears the existing table and reloads from the
+ * supplied list.  The getter returns a snapshot of the current table.
+ *
+ * JSON round-trip methods are available directly:
+ * - [settingsToJson] — serializes the current distance table to a pretty-printed
+ *   JSON string
+ * - [configureFromJson] — parses a JSON string and applies it via [distancesData]
+ *
+ * ## Integration with the KSL controls framework
+ *
+ * `DistancesModel` does not extend [ksl.simulation.ModelElement], so its
+ * properties are not visited by the [ksl.controls.Controls] extraction walk.
+ * The recommended pattern is to expose thin delegate properties on the owning
+ * `ModelElement` subclass and annotate them for control extraction:
+ *
+ * ```kotlin
+ * class MyModel(parent: ModelElement, name: String) : ModelElement(parent, name) {
+ *
+ *     private val dm = DistancesModel()
+ *
+ *     // Exposes the full distance table as a JSON control.
+ *     // The setter performs a complete clear-and-reload of the table.
+ *     @set:KSLJsonControl(comment = "Pairwise distances between locations")
+ *     var distancesData: List<DistanceData>
+ *         get() = dm.distancesData
+ *         set(value) { dm.distancesData = value }
+ *
+ *     // Exposes the same-location default as a numeric control.
+ *     @set:KSLControl(
+ *         controlType = ControlType.DOUBLE,
+ *         lowerBound  = 0.0,
+ *         comment     = "Distance used when origin and destination are the same location"
+ *     )
+ *     var defaultSameLocationDistance: Double
+ *         get() = dm.defaultSameLocationDistance
+ *         set(value) { dm.defaultSameLocationDistance = value }
+ * }
+ * ```
+ *
+ * The delegate getter is called at extraction time to capture the initial JSON
+ * snapshot; the delegate setter delegates to [distancesData], which performs
+ * the full clear-and-reload.  No changes to `DistancesModel` are required.
+ *
+ * ## Same-location distances
+ *
+ * When the distance from a location to itself is queried and no explicit entry
+ * was added for that pair, [defaultSameLocationDistance] is returned.  The
+ * default value is 0.0.
+ */
+class DistancesModel: SpatialModel(), DistancesCIfc {
 
     /**
      * The default distance from a location to itself must be greater than or equal to 0.0

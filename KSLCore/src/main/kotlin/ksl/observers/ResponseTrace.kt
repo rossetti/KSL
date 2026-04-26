@@ -2,6 +2,7 @@ package ksl.observers
 
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.TWResponse
 import ksl.simulation.ModelElement
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.tabularfiles.DataType
@@ -127,10 +128,56 @@ class ResponseTrace @JvmOverloads constructor(
         tf.flushRows()
     }
 
+    /**
+     * `true` when the traced response is a [TWResponse] (time-weighted,
+     * step-function semantics); `false` for observation-based [Response] variables.
+     *
+     * Reporting extensions use this to auto-select between a state-variable
+     * sample-path plot and an observations plot.
+     */
+    val isTimeWeighted: Boolean
+        get() = variable is TWResponse
+
+    /**
+     * Returns the distinct replication numbers present in the trace, in
+     * ascending order.  Replications that were not recorded (e.g. because
+     * [maxNumReplications] was reached) are not included.
+     */
+    val replicationNumbers: List<Int>
+        get() = selectRepNums()
+
+    private fun createSelectRepNumsSQL(): String {
+        return "select distinct repNum from ${tf.dataTableName} order by repNum"
+    }
+
+    private fun selectRepNums(): List<Int> {
+        val sql = createSelectRepNumsSQL()
+        val rs = tf.myDb.fetchCachedRowSet(sql)
+        val myRepNums = mutableListOf<Int>()
+        if (rs != null) {
+            val myRc = rs.toCollection("repNum")
+            for (item in myRc) {
+                if (item is Double) {
+                    myRepNums.add(item.toInt())
+                }
+            }
+            rs.close()
+        }
+        return myRepNums
+    }
+
     private fun createSelectTimeValueSQL(repNum: Double, time: Double): String {
         require(repNum > 0.0) {"The replication number must be > 0"}
         require(time >= 0.0) {"The time must be >= 0.0"}
         return "select time, value from ${tf.dataTableName} where repNum = $repNum and time <= $time"
+    }
+
+    private fun createSelectTimeValueSQL(repNum: Int, startTime: Double, endTime: Double): String {
+        require(repNum > 0)           { "The replication number must be > 0" }
+        require(startTime >= 0.0)     { "The start time must be >= 0.0" }
+        require(endTime >= startTime) { "The end time must be >= startTime" }
+        return "select time, value from ${tf.dataTableName} " +
+               "where repNum = $repNum and time >= $startTime and time <= $endTime"
     }
 
     /**
@@ -142,6 +189,56 @@ class ResponseTrace @JvmOverloads constructor(
      */
     fun traceDataMap(repNum: Double, time: Double = Double.MAX_VALUE) : Map<String, DoubleArray>{
         return selectTimeAndValue(repNum, time)
+    }
+
+    /**
+     * Returns a map containing the times and values for replication [repNum]
+     * within the time window [[startTime], [endTime]].
+     *
+     * The default window covers the entire replication.  Setting [startTime]
+     * to the model warm-up length excludes transient data from the plot or
+     * analysis.
+     *
+     * Element `"times"`  holds the simulation times at which the variable changed.
+     * Element `"values"` holds the corresponding values.
+     *
+     * @param repNum    replication number; must be > 0
+     * @param startTime lower bound of the time window (inclusive); defaults to 0.0
+     * @param endTime   upper bound of the time window (inclusive); defaults to [Double.MAX_VALUE]
+     */
+    fun traceDataMap(
+        repNum: Int,
+        startTime: Double = 0.0,
+        endTime: Double = Double.MAX_VALUE
+    ): Map<String, DoubleArray> {
+        return selectTimeAndValue(repNum, startTime, endTime)
+    }
+
+    /**
+     * Returns a map of replication number → trace data map for each replication
+     * in [repNums] over the time window [[startTime], [endTime]].
+     *
+     * Each replication is retrieved independently; replications absent from
+     * the trace produce empty inner maps.  The returned map preserves the
+     * order of [repNums].
+     *
+     * The default for [repNums] is [replicationNumbers] (all recorded replications).
+     * For large traces, pass an explicit subset to limit how much data is loaded.
+     *
+     * @param repNums   replication numbers to retrieve; defaults to all in the trace
+     * @param startTime lower bound of the time window; defaults to 0.0
+     * @param endTime   upper bound of the time window; defaults to [Double.MAX_VALUE]
+     */
+    fun traceDataMaps(
+        repNums: List<Int> = replicationNumbers,
+        startTime: Double = 0.0,
+        endTime: Double = Double.MAX_VALUE
+    ): Map<Int, Map<String, DoubleArray>> {
+        val myResult = linkedMapOf<Int, Map<String, DoubleArray>>()
+        for (myRepNum in repNums) {
+            myResult[myRepNum] = traceDataMap(myRepNum, startTime, endTime)
+        }
+        return myResult
     }
 
     private fun selectTimeAndValue(repNum: Double, time: Double): Map<String, DoubleArray> {
@@ -168,6 +265,24 @@ class ResponseTrace @JvmOverloads constructor(
             rs.close()
         }
         return dataMap
+    }
+
+    private fun selectTimeAndValue(repNum: Int, startTime: Double, endTime: Double): Map<String, DoubleArray> {
+        val sql = createSelectTimeValueSQL(repNum, startTime, endTime)
+        val rs = tf.myDb.fetchCachedRowSet(sql)
+        val myDataMap = mutableMapOf<String, DoubleArray>()
+        if (rs != null) {
+            val myVc = rs.toCollection("value")
+            val myTc = rs.toCollection("time")
+            val myValues = mutableListOf<Double>()
+            for (item in myVc) { if (item is Double) myValues.add(item) }
+            val myTimes = mutableListOf<Double>()
+            for (item in myTc) { if (item is Double) myTimes.add(item) }
+            myDataMap["times"]  = myTimes.toDoubleArray()
+            myDataMap["values"] = myValues.toDoubleArray()
+            rs.close()
+        }
+        return myDataMap
     }
 
     fun asDataFrame() : AnyFrame {

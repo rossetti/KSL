@@ -184,16 +184,42 @@ interface ExperimentIfc : ExperimentRunParametersIfc {
     val currentReplicationNumber: Int
 
     /**
-     * Holds values for each controllable parameter of the simulation
-     * model.
+     * Holds values for each numeric controllable parameter of the simulation
+     * model. Applied during [ksl.simulation.Model.setUpExperiment] via
+     * `controls().setControlsFromMap()`.
      */
     var experimentalControls: Map<String, Double>
 
     /**
-     *
-     * @return true if a control map has been supplied
+     * @return true if a numeric control map has been supplied
      */
     fun hasExperimentalControls(): Boolean
+
+    /**
+     * Holds string control overrides for the simulation model, staged for
+     * deferred application at the start of each experiment.  Applied during
+     * [ksl.simulation.Model.setUpExperiment] via `controls().setStringControlsFromMap()`.
+     * An empty map means no string controls are overridden.
+     */
+    var experimentalStringControls: Map<String, String>
+
+    /**
+     * @return true if a string control override map has been supplied
+     */
+    fun hasExperimentalStringControls(): Boolean
+
+    /**
+     * Holds JSON control overrides for the simulation model, staged for
+     * deferred application at the start of each experiment.  Applied during
+     * [ksl.simulation.Model.setUpExperiment] via `controls().setJsonControlsFromMap()`.
+     * An empty map means no JSON controls are overridden.
+     */
+    var experimentalJsonControls: Map<String, String>
+
+    /**
+     * @return true if a JSON control override map has been supplied
+     */
+    fun hasExperimentalJsonControls(): Boolean
 
     /**
      * Checks if the current number of replications that have been executed is

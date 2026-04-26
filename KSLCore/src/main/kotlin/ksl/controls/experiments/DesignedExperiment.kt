@@ -238,19 +238,60 @@ class DesignedExperiment @JvmOverloads constructor(
     }
 
     /**
-     *  Returns a data frame that has columns (exp_name, rep_id, [responseName]) where
-     *  the values in the [responseName] column have the value of the response for the named experiments
-     *  and the replication id (number) for the value.
+     *  Returns a data frame that has columns (point, exp_name, rep_id, [responseName])
+     *  where each row represents one replication at one design point, and the
+     *  [responseName] column holds the per-replication observed value.
+     *
+     *  The data is assembled directly from [mySimulationRuns] without any database
+     *  access.  If [responseName] is not present in the results of any executed run,
+     *  or if no runs have been executed, [DataFrame.empty] is returned.
+     *
+     *  Missing observations (index out of range for a run's results array) are
+     *  represented as [Double.NaN].
      */
     fun responseAsDataFrame(responseName: String): AnyFrame {
-        val dpi = replicatedDesignPointInfo()
-        val df = kslDb.withinRepViewStatistics(responseName)
-        if (dpi.rowsCount() != df.rowsCount()) {
-            return DataFrame.empty()
+        if (mySimulationRuns.isEmpty()) return DataFrame.empty()
+        data class ResponseRow(
+            val point: Int,
+            val exp_name: String,
+            val rep_id: Int,
+            val value: Double
+        )
+        val myRows = mutableListOf<ResponseRow>()
+        for ((dp, sr) in mySimulationRuns) {
+            val myObs = sr.results[responseName] ?: continue
+            val myExpName = sr.experimentRunParameters.experimentName
+            for (r in 1..dp.numReplications) {
+                myRows.add(ResponseRow(dp.number, myExpName, r, myObs.getOrElse(r - 1) { Double.NaN }))
+            }
         }
-        val exp_name by column<String>()
-        val rep_id by column<Int>()
-        return dpi.join(df, type = JoinType.Inner) { exp_name and rep_id }
+        if (myRows.isEmpty()) return DataFrame.empty()
+        return myRows.toDataFrame().rename("value").into(responseName)
+    }
+
+    /**
+     * Returns a map of design-point label → per-replication observations for
+     * [responseName] across all executed design points.
+     *
+     * Keys are `"Point 1"`, `"Point 2"`, … in execution order, matching the
+     * indices of [simulationRuns]. Design points for which [responseName] is
+     * absent or produced no observations are silently omitted.
+     * Returns an empty map when [simulationRuns] is empty.
+     *
+     * Suitable as the direct input to [ksl.utilities.statistic.Statistic.boxPlotSummaries]
+     * for constructing a [ksl.utilities.io.plotting.MultiBoxPlot].
+     *
+     * @param responseName the response to extract; should appear in [responseNames]
+     */
+    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+        val myResult = linkedMapOf<String, DoubleArray>()
+        simulationRuns.forEachIndexed { idx, myRun ->
+            val myObs = myRun.replicationObservations(responseName)
+            if (myObs != null && myObs.isNotEmpty()) {
+                myResult["Point ${idx + 1}"] = myObs
+            }
+        }
+        return myResult
     }
 
     /**
@@ -456,7 +497,7 @@ class DesignedExperiment @JvmOverloads constructor(
         // use SimulationRunner to run the simulation
         Model.logger.info { "DesignedExperiment: Running design point $designPoint for experiment: ${model.experimentName} " }
         val sr = mySimulationRunner.simulate(
-            modelIdentifier = model.simulationName,
+            modelIdentifier = model.modelIdentifier,
             inputs = inputs,
             experimentRunParameters = model.extractRunParameters()
         )

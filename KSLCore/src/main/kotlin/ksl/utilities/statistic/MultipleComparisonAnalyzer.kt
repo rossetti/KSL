@@ -211,6 +211,20 @@ class MultipleComparisonAnalyzer(
         get() = myDataMap.keys.toMutableList()
 
     /**
+     * Returns a shallow copy of the internal data map: alternative name →
+     * per-replication observations.
+     *
+     * The arrays are the same defensive copies stored internally (written
+     * once via [assignData]). The returned [Map] is a new instance whose
+     * iteration order matches [dataNames].
+     *
+     * Suitable as the direct input to [ksl.utilities.statistic.Statistic.boxPlotSummaries]
+     * for constructing a [ksl.utilities.io.plotting.MultiBoxPlot].
+     */
+    val observationsAsMap: Map<String, DoubleArray>
+        get() = myDataMap.toMap()
+
+    /**
      * The number of data sets stored in the analyzer. There is a data set
      * stored for each name.
      *

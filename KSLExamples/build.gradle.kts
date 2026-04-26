@@ -16,38 +16,21 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-// An example gradle build file for a project that depends on the JSL
-
 plugins {
-    `java-library`
     kotlin("jvm") version "2.2.0"
 }
+
 group = "io.github.rossetti"
 version = "1.0-SNAPSHOT"
 
 repositories {
-
     mavenCentral()
 }
 
 dependencies {
     implementation(project(":KSLCore"))
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 kotlin {
     jvmToolchain(21)
-}
-
-// this is supposed to exclude the logback.xml resource file from the generated jar
-// this is good because user can then provide their own logging specification
-// TODO need reference to why this is good
-tasks.jar {
-    exclude("logback.xml")
 }

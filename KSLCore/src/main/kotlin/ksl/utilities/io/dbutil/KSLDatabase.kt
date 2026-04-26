@@ -44,7 +44,8 @@ import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.sql.Timestamp
 
-class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataOption: Boolean = false) : DatabaseIOIfc by db {
+class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataOption: Boolean = false) :
+    DatabaseIOIfc by db {
 
     /** This constructs a SQLite database on disk and configures it to hold KSL simulation data.
      * The database will be empty.
@@ -165,7 +166,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     fun clearSimulationData(model: Model) {
         val expName = model.experimentName
         // find the record and delete it. This should cascade all related records
-       // deleteExperimentWithName(expName)
+        // deleteExperimentWithName(expName)
         deleteExperimentWithNameCascading(expName)
     }
 
@@ -571,13 +572,11 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
      *  and the replication id (number) for the value.
      */
     fun withinRepViewStatistics(responseName: String): AnyFrame {
-        val stat_name by column<String>()
-        var dm = withinRepViewStatistics.filter { stat_name.name() == responseName }
-        val rep_value by column<Double>()
-        val exp_name by column<String>()
-        val rep_id by column<Int>()
-        dm = dm.select(exp_name.name(), rep_id.name(), rep_value.name())
-        dm = dm.rename { rep_value }.into { responseName }
+        var dm = withinRepViewData()
+            .filter { it.stat_name == responseName }
+            .toDataFrame()
+        dm = dm.select("exp_name", "rep_id", "rep_value")
+        dm = dm.rename("rep_value").into { responseName }
         return dm
     }
 
@@ -660,6 +659,48 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
             df = df.remove("numColumns", "schemaName", "tableName")
             return df
         }
+
+    /**
+     *  Returns all histogram bin records associated with the named experiment, or an empty
+     *  list if the experiment is not found or has no histogram data.
+     *
+     *  The join is: experiment → simulation_run (via [SimulationRunTableData.exp_id_fk]) →
+     *  histogram (via [HistogramTableData.sim_run_id_fk]).
+     *
+     *  @param expName the experiment name whose histogram data is requested
+     *  @return the matching [HistogramTableData] records; empty if none exist
+     */
+    fun histogramDataFor(expName: String): List<HistogramTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        val runIds = db.selectTableDataIntoDbData(::SimulationRunTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+            .map { it.run_id }
+            .toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::HistogramTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
+     *  Returns all frequency cell records associated with the named experiment, or an empty
+     *  list if the experiment is not found or has no frequency data.
+     *
+     *  The join is: experiment → simulation_run (via [SimulationRunTableData.exp_id_fk]) →
+     *  frequency (via [FrequencyTableData.sim_run_id_fk]).
+     *
+     *  @param expName the experiment name whose frequency data is requested
+     *  @return the matching [FrequencyTableData] records; empty if none exist
+     */
+    fun frequencyDataFor(expName: String): List<FrequencyTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        val runIds = db.selectTableDataIntoDbData(::SimulationRunTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+            .map { it.run_id }
+            .toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::FrequencyTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
 
     internal fun beforeExperiment(model: Model) {
         val experimentRecord = fetchExperimentData(model.experimentName)
@@ -795,11 +836,11 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         insertTimeSeriesResponses(model.timeSeriesResponses)
     }
 
-    private fun insertTimeSeriesResponses(responses: List<TimeSeriesResponseCIfc>){
+    private fun insertTimeSeriesResponses(responses: List<TimeSeriesResponseCIfc>) {
         val list = mutableListOf<TimeSeriesResponseTableData>()
-        for(response in responses){
+        for (response in responses) {
             val tsDataList = response.allTimeSeriesPeriodDataAsList()
-            for(tsData in tsDataList){
+            for (tsData in tsDataList) {
                 val record = createTimeSeriesResponseTableRecord(tsData, currentSimRun!!.run_id)
                 list.add(record)
             }
@@ -1044,7 +1085,11 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         return r
     }
 
-    private fun createWithinRepCounterRecord(repId: Int, counter: CounterCIfc, simId: Int): WithinRepCounterStatTableData {
+    private fun createWithinRepCounterRecord(
+        repId: Int,
+        counter: CounterCIfc,
+        simId: Int
+    ): WithinRepCounterStatTableData {
         val r = WithinRepCounterStatTableData()
         r.element_id_fk = counter.id
         r.sim_run_id_fk = simId
@@ -1115,7 +1160,12 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         return r
     }
 
-    private fun createBatchStatRecord(repId: Int, response: ResponseCIfc, simId: Int, s: BatchStatisticIfc): BatchStatTableData {
+    private fun createBatchStatRecord(
+        repId: Int,
+        response: ResponseCIfc,
+        simId: Int,
+        s: BatchStatisticIfc
+    ): BatchStatTableData {
         val r = BatchStatTableData()
         r.element_id_fk = response.id
         r.sim_run_id_fk = simId
@@ -1263,7 +1313,7 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         db.insertAllDbDataIntoTable(list, "batch_stat")
     }
 
-    private fun insertTimeWeightedBatchStatistics(repId:Int, twMap: Map<TWResponseCIfc, BatchStatisticIfc>) {
+    private fun insertTimeWeightedBatchStatistics(repId: Int, twMap: Map<TWResponseCIfc, BatchStatisticIfc>) {
         val list = mutableListOf<BatchStatTableData>()
         for (entry in twMap.entries.iterator()) {
             val tw = entry.key

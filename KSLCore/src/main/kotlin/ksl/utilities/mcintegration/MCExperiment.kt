@@ -18,6 +18,7 @@
 
 package ksl.utilities.mcintegration
 
+import ksl.utilities.DoubleArraySaver
 import ksl.utilities.distributions.Normal
 import ksl.utilities.statistic.Statistic
 import java.lang.StringBuilder
@@ -108,6 +109,49 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
             field = value
         }
 
+    // ── Optional convergence history ──────────────────────────────────────────
+
+    private var myHWHistory: DoubleArraySaver? = null
+
+    /**
+     * When set to `true`, the half-width of [macroReplicationStatistics] is recorded
+     * after every macro replication so that convergence behaviour can be inspected or
+     * plotted after the simulation completes.  Setting to `false` discards any
+     * previously accumulated history and releases the internal saver.
+     *
+     * Defaults to `false` to avoid the memory overhead in routine use.
+     */
+    var saveConvergenceHistory: Boolean = false
+        set(value) {
+            field = value
+            myHWHistory = if (value) DoubleArraySaver() else null
+        }
+
+    /**
+     * Returns a copy of the half-width values recorded after each macro replication,
+     * in the order they were collected, or `null` when [saveConvergenceHistory] is
+     * `false` or no macro replications have been executed yet.
+     */
+    val convergenceHistory: DoubleArray?
+        get() = myHWHistory?.savedData()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Called after every `macroReplicationStatistics.collect(result)` across all
+     * execution paths ([runSimulation], [runInitialSample], [runMacroReplications]).
+     *
+     * The default implementation records the current half-width to the convergence
+     * history saver when [saveConvergenceHistory] is `true` and at least two
+     * observations have been collected (the minimum needed for a valid half-width).
+     *
+     * Subclasses may override this to add their own post-replication instrumentation;
+     * they should call `super.onMacroReplicationCompleted()` to preserve history recording.
+     */
+    protected open fun onMacroReplicationCompleted() {
+        if (macroReplicationStatistics.count >= 2.0) {
+            myHWHistory?.save(macroReplicationStatistics.halfWidth)
+        }
+    }
+
     override fun checkStoppingCriteria(): Boolean {
         return if (macroReplicationStatistics.count < 2.0) {
             false
@@ -146,9 +190,11 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
     fun runMacroReplications(numMacroReps: Int): Double {
         require(numMacroReps > 2) {"There must be 2 or more macro replications: supplied = $numMacroReps" }
         macroReplicationStatistics.reset()
+        myHWHistory?.clearData()
         beforeMacroReplications()
         for (i in 1..numMacroReps) {
             macroReplicationStatistics.collect(runMicroReplications())
+            onMacroReplicationCompleted()
         }
         afterMacroReplications()
         return macroReplicationStatistics.average
@@ -165,6 +211,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
         var converged = false
         for (i in 1..m) {
             macroReplicationStatistics.collect(runMicroReplications())
+            onMacroReplicationCompleted()
             if (checkStoppingCriteria()) {
                 converged = true
                 break
@@ -174,6 +221,7 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
             // ran the estimated m, but did not meet the criteria, continue running up to max
             for (i in 1..k - m) {
                 macroReplicationStatistics.collect(runMicroReplications())
+                onMacroReplicationCompleted()
                 if (checkStoppingCriteria()) {
                     break
                 }
@@ -197,8 +245,10 @@ open class MCExperiment(sampler: MCReplicationIfc? = null) : MCExperimentIfc {
 
     override fun runInitialSample(printResultsOption: Boolean): Double {
         macroReplicationStatistics.reset()
+        myHWHistory?.clearData()
         for (i in 1..initialSampleSize) {
             macroReplicationStatistics.collect(runMicroReplications())
+            onMacroReplicationCompleted()
             if (checkStoppingCriteria()) {
                 return 0.0 // met criteria, no more needed
             }

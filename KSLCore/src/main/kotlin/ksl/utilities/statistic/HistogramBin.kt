@@ -97,9 +97,17 @@ class HistogramBin(theBinNumber: Int, theLowerLimit: Double, theUpperLimit: Doub
         private set
 
     /**
-     * The label for the bin
+     * The label for the bin.
+     *
+     * Limits that are [Double.POSITIVE_INFINITY] or [Double.MAX_VALUE] are rendered as `+∞`;
+     * limits that are [Double.NEGATIVE_INFINITY] or `-`[Double.MAX_VALUE] are rendered as `-∞`.
+     * All other limits use a `%5.2f` fixed-decimal format, preserving the original column layout.
      */
-    var binLabel: String = String.format("%3d [%5.2f,%5.2f) ", theBinNumber, theLowerLimit, theUpperLimit)
+    var binLabel: String = "%3d [%s,%s) ".format(
+        theBinNumber,
+        if (theLowerLimit.isInfinite() || theLowerLimit == -Double.MAX_VALUE) "  -∞" else "%5.2f".format(theLowerLimit),
+        if (theUpperLimit.isInfinite() || theUpperLimit == Double.MAX_VALUE)  "  +∞" else "%5.2f".format(theUpperLimit)
+    )
 
     /**
      * Gets the number of the bin 1 = first bin, 2 = 2nd bin, etc

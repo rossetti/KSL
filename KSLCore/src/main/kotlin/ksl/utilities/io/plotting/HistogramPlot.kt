@@ -18,8 +18,7 @@
 package ksl.utilities.io.plotting
 
 import ksl.utilities.statistic.Histogram
-import ksl.utilities.statistic.HistogramIfc
-import org.jetbrains.letsPlot.geom.geomFunction
+import ksl.utilities.statistic.HistogramPlotDataIfc
 import org.jetbrains.letsPlot.geom.geomRect
 import org.jetbrains.letsPlot.ggplot
 import org.jetbrains.letsPlot.ggsize
@@ -29,7 +28,7 @@ import org.jetbrains.letsPlot.label.ylab
 import org.jetbrains.letsPlot.tooltips.layerTooltips
 
 class HistogramPlot @JvmOverloads constructor(
-    private val histogram: HistogramIfc,
+    private val histogram: HistogramPlotDataIfc,
     var proportions: Boolean = false
 ) : BasePlot() {
 
@@ -40,11 +39,11 @@ class HistogramPlot @JvmOverloads constructor(
     init {
         title = "Histogram Plot"
         upperLimits = histogram.upperLimits
-        if (upperLimits.last().isInfinite()) {
+        if (upperLimits.last().isInfinite() || upperLimits.last() == Double.MAX_VALUE) {
             upperLimits[upperLimits.lastIndex] = histogram.max + 1.0
         }
         lowerLimits = histogram.lowerLimits
-        if (lowerLimits.first().isInfinite()) {
+        if (lowerLimits.first().isInfinite() || lowerLimits.first() == -Double.MAX_VALUE) {
             lowerLimits[0] = histogram.min - 1
         }
         data = if (proportions) {

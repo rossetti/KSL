@@ -72,24 +72,28 @@ class GIGcQueue(
     val waitingQ: QueueCIfc<QObject>
         get() = myWaitingQ
 
-    private val myArrivalGenerator: EventGenerator = EventGenerator(this, Arrivals(), ad, ad)
-    val arrivalGenerator: EventGeneratorRVCIfc
-        get() = myArrivalGenerator
+    private var myTimeBtwArrivalRV: RandomVariable = RandomVariable(this, ad,
+        name = "${parent.name}:TBA")
+    val timeBtwArrivalRV: RandomVariableCIfc
+        get() = myTimeBtwArrivalRV
+
+    override fun initialize() {
+        schedule(this::arrivals, myTimeBtwArrivalRV)
+    }
 
     private val endServiceEvent = this::endOfService
 
-    private inner class Arrivals : GeneratorActionIfc {
-        override fun generate(generator: EventGeneratorIfc) {
-            myNS.increment() // new customer arrived
-            val arrivingCustomer = QObject()
-            myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
-            if (myNumBusy.value < numServers) { // server available
-                myNumBusy.increment() // make server busy
-                val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
-                // schedule end of service, include the customer as the event's message
-                schedule(endServiceEvent, myServiceRV, customer)
-            }
+    private fun arrivals(event: KSLEvent<Nothing>){
+        myNS.increment() // new customer arrived
+        val arrivingCustomer = QObject()
+        myWaitingQ.enqueue(arrivingCustomer) // enqueue the newly arriving customer
+        if (myNumBusy.value < numServers) { // server available
+            myNumBusy.increment() // make server busy
+            val customer: QObject? = myWaitingQ.removeNext() //remove the next customer
+            // schedule end of service, include the customer as the event's message
+            schedule(endServiceEvent, myServiceRV, customer)
         }
+        schedule(this::arrivals, myTimeBtwArrivalRV)
     }
 
     private fun endOfService(event: KSLEvent<QObject>) {

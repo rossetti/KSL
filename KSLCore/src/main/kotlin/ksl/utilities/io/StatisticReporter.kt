@@ -48,6 +48,15 @@ val D2FORMAT: DecimalFormat = DecimalFormat(".##")
 class StatisticReporter  @JvmOverloads constructor (listOfStats: MutableList<StatisticIfc> = mutableListOf()) {
 
     private val myStats: MutableList<StatisticIfc> = listOfStats
+
+    /**
+     * A read-only snapshot of the statistics currently held by this reporter.
+     * Useful for passing to the reporting framework's [ksl.utilities.io.report.extensions]
+     * extension functions without exposing the mutable internal list.
+     */
+    val statistics: List<StatisticIfc>
+        get() = myStats.toList()
+
     private val myRowFormat: StringBuilder = StringBuilder(DEFAULT_ROW_FORMAT)
     private val myHeaderFormat: StringBuilder = StringBuilder(DEFAULT_HEADER_FORMAT)
     private val myNumCols = 120

@@ -209,17 +209,6 @@ testoutput/
 
 \.idea/
 
-<<<<<<< HEAD
-KSLTesting/gradle/wrapper/
-
-KSLExtensions/gradle/wrapper/
-
-KSLCore/gradle/wrapper/
-
-KSLExampleProject/gradle/wrapper/
-
-KSLExamples/gradle/wrapper/
-=======
 KSLCore/gradle/wrapper/gradle-wrapper.jar
 
 KSLCore/gradle/wrapper/gradle-wrapper.properties
@@ -239,7 +228,6 @@ KSLTesting/gradle/wrapper/gradle-wrapper.properties
 KSLExampleProject/gradle/wrapper/gradle-wrapper.jar
 
 KSLExampleProject/gradle/wrapper/gradle-wrapper.properties
->>>>>>> develop
 
 JSLKotlin/gradle/wrapper/gradle-wrapper.jar
 JSLKotlin/gradle/wrapper/gradle-wrapper.properties
@@ -265,5 +253,8 @@ KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 *.hprof
 *.wal
 
-# Claude Code — worktrees, session data, and local project instructions
+# Claude Code worktrees and project data
 .claude/
+
+# Claude Code instructions — local-only, not tracked in version control
+CLAUDE.md
