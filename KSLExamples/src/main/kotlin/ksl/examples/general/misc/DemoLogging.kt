@@ -1,4 +1,4 @@
-package ksl.examples.general.running
+package ksl.examples.general.misc
 
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
@@ -6,12 +6,18 @@ import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.EventGeneratorIfc
 import ksl.modeling.queue.Queue
 import ksl.modeling.queue.QueueCIfc
-import ksl.modeling.variable.*
+import ksl.modeling.variable.Counter
+import ksl.modeling.variable.CounterCIfc
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.RandomVariableCIfc
+import ksl.modeling.variable.Response
+import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.TWResponse
+import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.io.KSL
-import ksl.utilities.random.RandomIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
