@@ -18,20 +18,23 @@
 
 package ksl.utilities.observers
 
+import java.util.concurrent.CopyOnWriteArrayList
+
 /**
  *  https://in-kotlin.com/design-patterns/observer/
+ *
+ *  Uses [CopyOnWriteArrayList] internally so that concurrent calls to [attach] from
+ *  multiple threads cannot lose subscriptions, and [emit] iteration is safe even if
+ *  a subscriber calls [detach] during the callback.  Subscribers are expected to
+ *  attach before simulation starts and detach after it ends; dynamic mid-run
+ *  subscription is not supported.
  */
 class Emitter<TType> {
     class Connection
 
-    // @Volatile ensures that if different threads attach/detach,
-    // the updated reference is immediately visible to the emit thread.
-    @Volatile
-    private var callbacks: Map<Connection, (TType) -> Unit> = emptyMap()
+    private val callbacks = CopyOnWriteArrayList<Pair<Connection, (TType) -> Unit>>()
 
-    //private val callbacks = mutableMapOf<Connection, (TType) -> Unit>()
-
-    var emissionsOn : Boolean = true
+    var emissionsOn: Boolean = true
 
     /**
      * Returns true if emissions are turned on AND there is at least
@@ -42,28 +45,20 @@ class Emitter<TType> {
         get() = emissionsOn && callbacks.isNotEmpty()
 
     fun emit(newValue: TType) {
-        if (!emissionsOn){
-            return
-        }
-        for(cb in callbacks) {
-            cb.value(newValue)
+        if (!emissionsOn) return
+        for (cb in callbacks) {
+            cb.second(newValue)
         }
     }
 
-    fun attach(callback: (newValue: TType) -> Unit) : Connection {
+    fun attach(callback: (newValue: TType) -> Unit): Connection {
         val connection = Connection()
-    //    callbacks[connection] = callback
-        // 3. The '+' operator creates a NEW map containing the old entries plus the new pair.
-        // We then reassign the 'callbacks' reference to this new map.
-        callbacks = callbacks + (connection to callback)
-
+        callbacks.add(connection to callback)
         return connection
     }
 
-    fun detach(connection : Connection) {
-        // 4. The '-' operator creates a NEW map excluding the given key.
-        callbacks = callbacks - connection
- //       callbacks.remove(connection)
+    fun detach(connection: Connection) {
+        callbacks.removeIf { it.first === connection }
     }
 }
 
