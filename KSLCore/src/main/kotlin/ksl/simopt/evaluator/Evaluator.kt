@@ -318,8 +318,6 @@ class Evaluator @JvmOverloads constructor(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An `Evaluator` instance configured with the specified problem definition, simulation provider,
          *         and a memory-based solution cache.
          * @throws IllegalArgumentException if the problem definition and the model are not input/response compatible,
@@ -334,10 +332,9 @@ class Evaluator @JvmOverloads constructor(
             modelConfiguration: Map<String, String>? = null,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): Evaluator {
-            val model = modelBuilder.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
+            val model = modelBuilder.build(modelConfiguration, experimentRunParameters)
             require(problemDefinition.validateProblemDefinition(model)) { "The problem definition and the model are not input/response compatible." }
             val simulationProvider = SimulationProvider(model, simulationRunCache)
             return Evaluator(problemDefinition, simulationProvider, solutionCache)

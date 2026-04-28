@@ -58,7 +58,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = FAST_MAX_ITERS,
             replicationsPerEvaluation = FAST_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         shcFast.runAllIterations()
 
@@ -67,7 +66,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = FAST_MAX_ITERS,
             replicationsPerEvaluation = FAST_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         saFast.runAllIterations()
 
@@ -76,7 +74,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = FAST_MAX_ITERS,
             replicationsPerEvaluation = FAST_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         ceFast.runAllIterations()
 
@@ -84,7 +81,6 @@ class SolverAlgorithmsTest {
             problemDefinition = pd,
             modelBuilder      = BuildLKModel,
             maxIterations     = FAST_MAX_ITERS,
-            defaultKSLDatabaseObserverOption = false
         )
         rsFast.runAllIterations()
     }
@@ -200,7 +196,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = SLOW_MAX_ITERS,
             replicationsPerEvaluation = SLOW_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         solver.runAllIterations()
         assertTrue(solver.bestSolution.isValid)
@@ -218,7 +213,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = SLOW_MAX_ITERS,
             replicationsPerEvaluation = SLOW_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         solver.runAllIterations()
         assertTrue(solver.bestSolution.isValid)
@@ -236,7 +230,6 @@ class SolverAlgorithmsTest {
             modelBuilder             = BuildLKModel,
             maxIterations            = SLOW_MAX_ITERS,
             replicationsPerEvaluation = SLOW_REPS_PER_EVAL,
-            defaultKSLDatabaseObserverOption = false
         )
         solver.runAllIterations()
         assertTrue(solver.bestSolution.isValid)
@@ -253,7 +246,6 @@ class SolverAlgorithmsTest {
             problemDefinition = pd,
             modelBuilder      = BuildLKModel,
             maxIterations     = SLOW_MAX_ITERS,
-            defaultKSLDatabaseObserverOption = false
         )
         solver.runAllIterations()
         assertTrue(solver.bestSolution.isValid)

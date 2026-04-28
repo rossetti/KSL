@@ -22,8 +22,7 @@ fun selectBuilder(modelIdentifier: String): ModelBuilderIfc {
 object BuildRQModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
-        experimentRunParameters: ExperimentRunParametersIfc?,
-        defaultKSLDatabaseObserverOption: Boolean
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val reorderQty: Int = 2
         val reorderPoint: Int = 1
@@ -35,9 +34,6 @@ object BuildRQModel : ModelBuilderIfc {
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 10000.0
         model.numberOfReplications = 40
-        if (defaultKSLDatabaseObserverOption) {
-            model.createDefaultDatabaseObserver()
-        }
         return model
     }
 }
@@ -45,8 +41,7 @@ object BuildRQModel : ModelBuilderIfc {
 object BuildLKModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
-        experimentRunParameters: ExperimentRunParametersIfc?,
-        defaultKSLDatabaseObserverOption: Boolean
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val model = Model("LKInventoryModel")
         val lkInventoryModel = LKInventoryModel(model, "Inventory")
@@ -55,9 +50,6 @@ object BuildLKModel : ModelBuilderIfc {
         model.lengthOfReplicationWarmUp = 20.0
         lkInventoryModel.orderQuantity = 1
         lkInventoryModel.reorderPoint = 2
-        if (defaultKSLDatabaseObserverOption) {
-            model.createDefaultDatabaseObserver()
-        }
         return model
     }
 }

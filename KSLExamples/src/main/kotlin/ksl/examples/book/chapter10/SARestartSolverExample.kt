@@ -15,8 +15,7 @@ fun main() {
 
 fun runSimulatedAnnealingWithRestarts(
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ) {
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
@@ -26,8 +25,7 @@ fun runSimulatedAnnealingWithRestarts(
         maxIterations = 100,
         replicationsPerEvaluation = 50,
         simulationRunCache = simulationRunCache,
-        experimentRunParameters = experimentRunParameters,
-        defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+        experimentRunParameters = experimentRunParameters
     )
     val tracker = NestedConsoleSolverStateTracker(solver, solver.restartingSolver)
     tracker.startTracking()

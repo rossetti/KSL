@@ -139,14 +139,13 @@ class JARModelBuilder(
      */
     override fun build(
         modelConfiguration: Map<String, String>?,
-        experimentRunParameters: ExperimentRunParametersIfc?,
-        defaultKSLDatabaseObserverOption: Boolean
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         require(myLoaderOpenFlag) { "The JARModelBuilder has been closed. Cannot build more models." }
         if (myBuilder == null) {
             initializeBuilder(modelBuilderClassNames.first())
         }
-        return myBuilder!!.build(modelConfiguration, experimentRunParameters, defaultKSLDatabaseObserverOption)
+        return myBuilder!!.build(modelConfiguration, experimentRunParameters)
     }
 
     override fun toString(): String {

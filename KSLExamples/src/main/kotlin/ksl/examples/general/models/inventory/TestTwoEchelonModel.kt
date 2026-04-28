@@ -7,10 +7,7 @@ import ksl.utilities.random.rvariable.RVariableIfc
 
 
 fun main() {
-   val m = BuildTwoEchelonModel.build(
-       null,
-       null,
-       defaultKSLDatabaseObserverOption = false)
+   val m = BuildTwoEchelonModel.build(null, null)
     printControlsAndResponses(m)
 //    m.simulate()
 //    m.print()

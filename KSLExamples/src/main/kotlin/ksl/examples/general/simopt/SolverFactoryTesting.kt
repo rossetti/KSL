@@ -24,7 +24,7 @@ fun main() {
 //    val solverType = SolverType.R_SPLINE_RS
 //    val solverType = SolverType.SA_RS
 //        val solverType = SolverType.SHC_RS
-    runSolver(modelIdentifier, solverType, defaultKSLDatabaseObserverOption = false)
+    runSolver(modelIdentifier, solverType)
 
 //    if (solverType == SolverType.SHC) {
 //
@@ -49,13 +49,12 @@ fun runSolver(
     modelIdentifier: String,
     solverType: SolverType,
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ) {
     val problemDefinition = makeProblemDefinition(modelIdentifier)
     val modelBuilder = selectBuilder(modelIdentifier)
     val solver = solverFactory(solverType, problemDefinition, modelBuilder,
-         simulationRunCache, experimentRunParameters, defaultKSLDatabaseObserverOption)
+         simulationRunCache, experimentRunParameters)
 //   solver.useRandomlyBestStartingPoint()
 //   solver.advanceToNextSubStream()
     solver.runAllIterations()
@@ -82,8 +81,7 @@ fun solverFactory(
     problemDefinition: ProblemDefinition,
     modelBuilder: ModelBuilderIfc,
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ): StochasticSolver {
     return when(solverType){
         SolverType.SHC -> {
@@ -94,8 +92,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.SA -> {
@@ -106,8 +103,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.CE -> {
@@ -118,8 +114,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.R_SPLINE -> {
@@ -129,8 +124,7 @@ fun solverFactory(
                 startingPoint = null,
                 maxIterations = 100,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.SHC_RS -> {
@@ -140,8 +134,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.SA_RS -> {
@@ -151,8 +144,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.CE_RS -> {
@@ -162,8 +154,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
         SolverType.R_SPLINE_RS -> {
@@ -172,8 +163,7 @@ fun solverFactory(
                 modelBuilder = modelBuilder,
                 maxIterations = 100,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
     }
