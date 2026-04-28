@@ -28,6 +28,7 @@ import ksl.modeling.spatial.Euclidean2DPlane
 import ksl.modeling.spatial.SpatialModel
 import ksl.modeling.variable.*
 import ksl.utilities.io.KSL
+import ksl.utilities.io.LogPrintWriter
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
@@ -39,6 +40,7 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvParamConCatChar
 import java.nio.file.Path
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.TimeSource
 
@@ -317,11 +319,15 @@ class Model @JvmOverloads constructor(
      * Typed emitters for the four simulation lifecycle boundaries.
      *
      * Lazily initialized — accessing this property for the first time creates the
-     * [SimulationLifeCycleEmitters] instance.  Zero overhead when unused.
-     * Attach subscribers before calling [simulate]; dynamic mid-run subscription
-     * is not supported.
+     * [SimulationLifeCycleEmitters] instance and attaches the bridge observer.
+     * Zero overhead when unused. Attach subscribers before calling [simulate];
+     * dynamic mid-run subscription is not supported.
      */
-    val lifeCycleEmitters: SimulationLifeCycleEmitters by lazy { SimulationLifeCycleEmitters() }
+    val lifeCycleEmitters: SimulationLifeCycleEmitters by lazy {
+        val emitters = SimulationLifeCycleEmitters()
+        attachModelElementObserver(SimulationLifeCycleBridge(this, emitters))
+        emitters
+    }
 
     /**
      *  Constructs a data class that describes the model's current configuration.
