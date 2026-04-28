@@ -1324,6 +1324,68 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
         db.insertAllDbDataIntoTable(list, "batch_stat")
     }
 
+    // -------------------------------------------------------------------------
+    // Internal DTO-based insert/update methods for SnapshotBatchWriter.
+    // These are thin wrappers over the underlying Database calls.  All existing
+    // private insert methods above are unchanged; sequential KSLDatabaseObserver
+    // path continues to call them exclusively.
+    // -------------------------------------------------------------------------
+
+    /** Inserts the experiment record; populates [data].exp_id with the generated key. */
+    internal fun insertExperimentRecord(data: ExperimentTableData) {
+        db.insertDbDataIntoTable(data)
+    }
+
+    /** Inserts the simulation run record; populates [data].run_id with the generated key. */
+    internal fun insertSimulationRunRecord(data: SimulationRunTableData) {
+        db.insertDbDataIntoTable(data)
+    }
+
+    /** Updates the simulation run record (end timestamp, last rep, error message). */
+    internal fun updateSimulationRunRecord(data: SimulationRunTableData) {
+        db.updateDbDataInTable(data)
+    }
+
+    internal fun insertModelElementData(data: List<ModelElementTableData>) {
+        db.insertAllDbDataIntoTable(data, "model_element")
+    }
+
+    internal fun insertControlData(data: List<ControlTableData>) {
+        db.insertAllDbDataIntoTable(data, "control")
+    }
+
+    internal fun insertRvParameterData(data: List<RvParameterTableData>) {
+        db.insertAllDbDataIntoTable(data, "rv_parameter")
+    }
+
+    internal fun insertWithinRepStatData(data: List<WithinRepStatTableData>) {
+        db.insertAllDbDataIntoTable(data, "within_rep_stat")
+    }
+
+    internal fun insertWithinRepCounterStatData(data: List<WithinRepCounterStatTableData>) {
+        db.insertAllDbDataIntoTable(data, "within_rep_counter_stat")
+    }
+
+    internal fun insertBatchStatData(data: List<BatchStatTableData>) {
+        db.insertAllDbDataIntoTable(data, "batch_stat")
+    }
+
+    internal fun insertAcrossRepStatData(data: List<AcrossRepStatTableData>) {
+        db.insertAllDbDataIntoTable(data, "across_rep_stat")
+    }
+
+    internal fun insertHistogramData(data: List<HistogramTableData>) {
+        db.insertAllDbDataIntoTable(data, "histogram")
+    }
+
+    internal fun insertFrequencyData(data: List<FrequencyTableData>) {
+        db.insertAllDbDataIntoTable(data, "frequency")
+    }
+
+    internal fun insertTimeSeriesResponseData(data: List<TimeSeriesResponseTableData>) {
+        db.insertAllDbDataIntoTable(data, "time_series_response")
+    }
+
     /**
      * Returns the observations for the named experiment and the named statistical response
      * from the within replication data. If the experiment name [expNameStr] is not found, then an empty
