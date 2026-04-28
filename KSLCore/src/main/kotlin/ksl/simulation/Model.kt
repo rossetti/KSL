@@ -319,11 +319,15 @@ class Model @JvmOverloads constructor(
      * Typed emitters for the four simulation lifecycle boundaries.
      *
      * Lazily initialized — accessing this property for the first time creates the
-     * [SimulationLifecycleEmitters] instance.  Zero overhead when unused.
-     * Attach subscribers before calling [simulate]; dynamic mid-run subscription
-     * is not supported.
+     * [SimulationLifeCycleEmitters] instance and attaches the bridge observer.
+     * Zero overhead when unused. Attach subscribers before calling [simulate];
+     * dynamic mid-run subscription is not supported.
      */
-    val lifecycleEmitters: SimulationLifecycleEmitters by lazy { SimulationLifecycleEmitters() }
+    val lifeCycleEmitters: SimulationLifeCycleEmitters by lazy {
+        val emitters = SimulationLifeCycleEmitters()
+        attachModelElementObserver(SimulationLifeCycleBridge(this, emitters))
+        emitters
+    }
 
     /**
      *  Constructs a data class that describes the model's current configuration.

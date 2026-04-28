@@ -24,11 +24,11 @@ import ksl.utilities.observers.Emitter
 /**
  * Holds one typed [Emitter] for each simulation lifecycle boundary.
  *
- * Instantiated lazily via [Model.lifecycleEmitters] so there is zero overhead
+ * Instantiated lazily via [Model.lifeCycleEmitters] so there is zero overhead
  * when no subscribers are attached.  Attach subscribers before the simulation
  * starts; dynamic mid-run subscription is not supported.
  */
-class SimulationLifecycleEmitters {
+class SimulationLifeCycleEmitters {
 
     /** Fired once before the first replication of an experiment. */
     val experimentStarted: Emitter<SimulationSnapshot.ExperimentStarted> = Emitter()
