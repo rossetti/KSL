@@ -316,6 +316,16 @@ class Model @JvmOverloads constructor(
     val simulationReporter: SimulationReporter = SimulationReporter(this)
 
     /**
+     * Typed emitters for the four simulation lifecycle boundaries.
+     *
+     * Lazily initialized — accessing this property for the first time creates the
+     * [SimulationLifecycleEmitters] instance.  Zero overhead when unused.
+     * Attach subscribers before calling [simulate]; dynamic mid-run subscription
+     * is not supported.
+     */
+    val lifecycleEmitters: SimulationLifecycleEmitters by lazy { SimulationLifecycleEmitters() }
+
+    /**
      *  Constructs a data class that describes the model's current configuration.
      *
      *  The returned [ModelDescriptor] captures all three control families (numeric, string,
