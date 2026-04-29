@@ -24,7 +24,7 @@ import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 
 /**
- *  A scenario represents the specification of a model to run with a fixed set of inputs and
+ *  A scenario is a **specification** of a model to run with a fixed set of inputs and
  *  run parameters.  Each call to [simulate] produces a new [SimulationRun].
  *
  *  In the context of running multiple scenarios it is important that scenario names are unique
@@ -34,30 +34,34 @@ import ksl.utilities.Identity
  *  ### Model construction semantics
  *
  *  [modelBuilder] is called at the start of each [simulate] invocation to produce a fresh
- *  [Model] instance.  This design enables concurrent execution of independent scenarios
- *  (see `ScenarioRunner.simulateConcurrently`) as well as the traditional sequential path:
- *  each run is isolated and leaves no shared state behind.
+ *  [Model] instance.  This design enables concurrent execution of independent scenarios via
+ *  [ConcurrentScenarioRunner]: each run is isolated and leaves no shared state behind.
  *
  *  For backward compatibility, constructors that accept a pre-built [Model] are provided.
  *  They wrap the supplied instance in a `ModelBuilderIfc` that always returns the same model,
  *  so the sequential behaviour is identical to the previous implementation.
  *
+ *  **Concurrency note:** scenarios constructed via the `model: Model` backward-compatible
+ *  constructors wrap a single shared model instance.  They are safe for sequential execution
+ *  via [ScenarioRunner] but **must not** be submitted to [ConcurrentScenarioRunner], which
+ *  requires each scenario to produce a fresh, independent [Model] on every [simulate] call.
+ *
  *  ### Run-parameter semantics
  *
- *  [scenarioRunParameters] is an owned snapshot captured at construction time.  All 15 fields of
- *  [ExperimentRunParameters] are stored.  The snapshot's experiment name is automatically set
- *  to [name].
+ *  [scenarioRunParameters] is an owned snapshot captured at construction time.  All 15 fields
+ *  of [ExperimentRunParameters] are stored.  The snapshot's experiment name is automatically
+ *  set to [name].
  *
- *  At [simulate] time the snapshot is applied to the model via
- *  [ksl.simulation.Model.changeRunParameters] inside `SimulationRunner.setupSimulation`.
+ *  At run time the snapshot is applied to the model via [Model.changeRunParameters] inside
+ *  [SimulationRunner].
  *
- *  @param modelBuilder  Factory that creates the [Model] instance for each run.
- *  @param name          The scenario name.  Must be unique within the set of scenarios
- *                       executed by a [ScenarioRunner].  Also used as the experiment name.
- *  @param inputs        Numeric control and RV-parameter overrides (`key → Double`).
- *  @param stringInputs  String control overrides (`key → String`).
- *  @param jsonInputs    JSON control overrides (`key → JSON String`).
- *  @param runParameters Full experimental run configuration for this scenario.
+ *  @param modelBuilder       Factory that creates the [Model] instance for each run.
+ *  @param name               The scenario name.  Must be unique within the set of scenarios
+ *                            executed by a runner.  Also used as the experiment name.
+ *  @param inputs             Numeric control and RV-parameter overrides (`key → Double`).
+ *  @param stringInputs       String control overrides (`key → String`).
+ *  @param jsonInputs         JSON control overrides (`key → JSON String`).
+ *  @param runParameters      Full experimental run configuration for this scenario.
  *  @param modelConfiguration Optional model configuration map forwarded to
  *                            [ModelBuilderIfc.build] before each run.
  */
@@ -76,6 +80,9 @@ class Scenario constructor(
     /**
      *  Backward-compatible constructor.  The supplied [model] is wrapped so that each
      *  [simulate] call operates on the same instance.
+     *
+     *  **Sequential use only.**  Do not submit scenarios constructed this way to
+     *  [ConcurrentScenarioRunner].
      *
      *  Input keys are validated against [model] at construction time.
      *
@@ -124,6 +131,9 @@ class Scenario constructor(
      *  Convenience constructor for the common case where only the three scalar
      *  run-parameter values need to differ from [model]'s current settings.
      *
+     *  **Sequential use only.**  Do not submit scenarios constructed this way to
+     *  [ConcurrentScenarioRunner].
+     *
      *  @param model                      The model to be simulated.
      *  @param name                       The scenario name.
      *  @param inputs                     Numeric control and RV-parameter overrides.
@@ -159,8 +169,11 @@ class Scenario constructor(
 
     /**
      *  Convenience constructor for use with a [ModelBuilderIfc].  The builder is
-     *  invoked once at construction time to extract default run parameters; the returned
-     *  model is then discarded.  The three scalar values override the defaults.
+     *  invoked once at construction time to extract default run parameters; the
+     *  returned model is then discarded.  The three scalar values override the defaults.
+     *
+     *  Scenarios constructed this way are safe for both [ScenarioRunner] and
+     *  [ConcurrentScenarioRunner].
      *
      *  @param modelBuilder               Factory that creates the model for each run.
      *  @param name                       The scenario name.
@@ -227,8 +240,36 @@ class Scenario constructor(
     val lengthOfReplicationWarmUp: Double get() = myRunParameters.lengthOfReplicationWarmUp
 
     /**
+     *  Read-only view of the numeric control and RV-parameter overrides for this scenario.
+     *  Used by runner classes that build the model and invoke [SimulationRunner] directly.
+     */
+    val inputs: Map<String, Double> get() = myInputs
+
+    /**
+     *  Read-only view of the string control overrides for this scenario.
+     *  Used by runner classes that build the model and invoke [SimulationRunner] directly.
+     */
+    val stringInputs: Map<String, String> get() = myStringInputs
+
+    /**
+     *  Read-only view of the JSON control overrides for this scenario.
+     *  Used by runner classes that build the model and invoke [SimulationRunner] directly.
+     */
+    val jsonInputs: Map<String, String> get() = myJsonInputs
+
+    /**
+     *  The model configuration map forwarded to [ModelBuilderIfc.build] at run time,
+     *  or `null` if no configuration was supplied at construction time.
+     *  Used by runner classes that build the model directly.
+     */
+    val modelConfiguration: Map<String, String>? get() = myModelConfiguration
+
+    /**
      *  The [SimulationRun] produced by the most recent call to [simulate], or `null`
      *  if [simulate] has not yet been called.
+     *
+     *  Runner classes ([ScenarioRunner], [ConcurrentScenarioRunner]) set this field
+     *  directly after executing the simulation.
      */
     var simulationRun: SimulationRun? = null
 
@@ -246,27 +287,23 @@ class Scenario constructor(
     // ── Simulation ────────────────────────────────────────────────────────────
 
     /**
-     *  Simulates the scenario and returns the resulting [SimulationRun].
+     *  Convenience method for standalone scenario execution.
      *
-     *  Execution sequence:
-     *  1. [modelBuilder] is called with [myModelConfiguration] to produce a fresh [Model].
-     *  2. The optional [configureModel] callback is invoked, allowing the caller to attach
-     *     observers, set the output directory, or perform any other pre-run setup.
-     *  3. [scenarioRunParameters] are applied to the model and the simulation runs.
-     *  4. The resulting [SimulationRun] is stored in [simulationRun] and returned.
+     *  Builds a fresh model via [modelBuilder], applies [scenarioRunParameters], runs the
+     *  simulation, stores the result in [simulationRun], and returns it.
      *
-     *  @param configureModel Optional callback invoked on the freshly-built model before
-     *                        the simulation starts.  Intended for callers such as
-     *                        [ScenarioRunner] that need to attach observers or set the
-     *                        output directory without holding a permanent reference to the model.
+     *  For DB-captured execution across multiple scenarios use [ScenarioRunner] (sequential)
+     *  or [ConcurrentScenarioRunner] (parallel).  Those runners build the model and invoke
+     *  [SimulationRunner] directly using this scenario's public properties, so they do not
+     *  call this method.
+     *
      *  @return The [SimulationRun] produced by this invocation.
      */
-    fun simulate(configureModel: ((Model) -> Unit)? = null): SimulationRun {
+    fun simulate(): SimulationRun {
         val model = modelBuilder.build(myModelConfiguration)
         if (model.modelConfigurationManager != null && myModelConfiguration != null) {
             model.configuration = myModelConfiguration!!
         }
-        configureModel?.invoke(model)
         val runner = SimulationRunner(model)
         simulationRun = runner.simulate(
             modelIdentifier = model.modelIdentifier,
@@ -282,8 +319,8 @@ class Scenario constructor(
 /**
  *  Can be used to supply logic to configure a model prior to simulating a scenario.
  *
- *  Prefer passing a lambda to [Scenario.simulate] directly over implementing this interface
- *  for new code.  Retained for backward compatibility.
+ *  Retained for backward compatibility.  New code should use [ScenarioRunner] or
+ *  [ConcurrentScenarioRunner] rather than implementing this interface.
  */
 fun interface ScenarioSetupIfc {
     fun setup(model: Model)
