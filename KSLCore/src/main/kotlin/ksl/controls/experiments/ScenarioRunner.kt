@@ -184,11 +184,24 @@ class ScenarioRunner @JvmOverloads constructor(
                 val scenario = myScenarios[scenarioIndex]
                 val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
                 val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
-                scenario.simulate { model ->
-                    model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
-                    myDbObserversByName[scenario.name] = KSLDatabaseObserver(model, kslDb)
+                // Build a fresh model (or the same wrapped model for backward-compat scenarios)
+                // and execute it directly, keeping full control of observer lifecycle.
+                val model = scenario.modelBuilder.build(scenario.modelConfiguration)
+                if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
+                    model.configuration = scenario.modelConfiguration!!
                 }
-                myDbObserversByName[scenario.name]?.stopObserving()
+                model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+                val observer = KSLDatabaseObserver(model, kslDb)
+                myDbObserversByName[scenario.name] = observer
+                val runner = SimulationRunner(model)
+                scenario.simulationRun = runner.simulate(
+                    modelIdentifier = model.modelIdentifier,
+                    inputs = scenario.inputs,
+                    stringInputs = scenario.stringInputs,
+                    jsonInputs = scenario.jsonInputs,
+                    experimentRunParameters = scenario.scenarioRunParameters
+                )
+                observer.stopObserving()
             }
         }
     }
