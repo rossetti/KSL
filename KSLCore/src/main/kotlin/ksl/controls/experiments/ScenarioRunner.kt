@@ -1,6 +1,7 @@
 package ksl.controls.experiments
 
 import ksl.simulation.Model
+import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
@@ -9,7 +10,6 @@ import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
 import java.io.PrintWriter
 import java.nio.file.Path
-import kotlin.io.path.deleteRecursively
 
 /**
  *  Facilitates the running of many scenarios in a sequence. A KSLDatabase
@@ -87,7 +87,7 @@ class ScenarioRunner @JvmOverloads constructor(
 
     /**
      *  Creates a [Scenario] from the three most common run-parameter scalars and adds it to
-     *  this runner.  All other run parameters are captured from the model's current state.
+     *  this runner.  All other run parameters are captured from [model]'s current state.
      *  String and JSON control overrides may be supplied via [stringInputs] and [jsonInputs].
      *
      *  The scenario name must be unique within this runner.
@@ -136,25 +136,32 @@ class ScenarioRunner @JvmOverloads constructor(
         return s
     }
 
-    private fun modelExists(model: Model): Boolean {
-        for(scenario in myScenarios) {
-            if (scenario.model == model) return true
-        }
-        return false
+    /**
+     *  Creates a [Scenario] from a [ModelBuilderIfc] and a full [ExperimentRunParameters]
+     *  snapshot and adds it to this runner.
+     *
+     *  The scenario name must be unique within this runner.
+     */
+    @Suppress("unused")
+    @JvmOverloads
+    fun addScenario(
+        modelBuilder: ModelBuilderIfc,
+        name: String,
+        inputs: Map<String, Double>,
+        runParameters: ExperimentRunParameters,
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
+    ): Scenario {
+        val s = Scenario(modelBuilder, name, inputs, stringInputs, jsonInputs, runParameters)
+        addScenario(s)
+        return s
     }
 
     private fun addScenario(scenario: Scenario) {
         require(!myScenariosByName.containsKey(scenario.name)) { "Scenario ${scenario.name} already exists" }
-        if (!modelExists(scenario.model)) {
-            // this is a scenario with a new model
-            // Because the default output directory for the model will not be needed, delete it.
-            // It will be given a new output directory within the scenario directory.
-            val modelCurrentDirectory = scenario.model.outputDirectory.outDir.toFile()
-            modelCurrentDirectory.deleteRecursively()
-        }
         myScenarios.add(scenario)
         myScenariosByName[scenario.name] = scenario
-     }
+    }
 
     /** Interprets the integer progression as the indices of the
      *  contained scenarios that should be simulated. If the
@@ -174,18 +181,14 @@ class ScenarioRunner @JvmOverloads constructor(
         }
         for (scenarioIndex in scenarios) {
             if (scenarioIndex in myScenarios.indices) {
-                //TODO consider clearing data only if the experiment name already exists
                 val scenario = myScenarios[scenarioIndex]
                 val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
                 val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
-                scenario.model.outputDirectory = OutputDirectory(modelDir, outFileName  = "kslOutput.txt")
-                myDbObserversByName[scenario.name] = KSLDatabaseObserver(scenario.model, kslDb)
-                scenario.simulate()
-                myDbObserversByName[scenario.name]!!.stopObserving()
-                // if the model has auto reports on, turn them off so that new reports are independently attached
-                if (scenario.model.autoCSVReports){
-                    scenario.model.turnOffCSVStatisticalReports()
+                scenario.simulate { model ->
+                    model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+                    myDbObserversByName[scenario.name] = KSLDatabaseObserver(model, kslDb)
                 }
+                myDbObserversByName[scenario.name]?.stopObserving()
             }
         }
     }

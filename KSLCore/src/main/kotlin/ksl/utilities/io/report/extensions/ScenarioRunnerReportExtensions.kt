@@ -82,7 +82,7 @@ fun ReportBuilder.scenario(
             headers = listOf("Property", "Value"),
             rows    = listOf(
                 listOf("Scenario Name",   scenario.name),
-                listOf("Model Name",      scenario.model.name),
+                listOf("Model Name",      scenario.simulationRun?.modelIdentifier ?: "(pending)"),
                 listOf("Replications",    scenario.numberOfReplications.toString()),
                 listOf("Run Length",      fmtDouble(scenario.lengthOfReplication)),
                 listOf("Warm-Up",         fmtDouble(scenario.lengthOfReplicationWarmUp)),
@@ -160,7 +160,7 @@ fun ReportBuilder.scenarioRunner(
                 val myRun = s.simulationRun
                 listOf(
                     s.name,
-                    s.model.name,
+                    s.simulationRun?.modelIdentifier ?: "(pending)",
                     s.numberOfReplications.toString(),
                     fmtDouble(s.lengthOfReplication),
                     fmtDouble(s.lengthOfReplicationWarmUp),

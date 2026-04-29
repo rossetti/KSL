@@ -18,8 +18,9 @@
 
 package ksl.controls.experiments
 
-import ksl.simulation.ExperimentIfc
+import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
+import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
 
 /**
@@ -30,52 +31,98 @@ import ksl.utilities.Identity
  *  so that each experiment can be identified within a [ksl.utilities.io.dbutil.KSLDatabase].
  *  The scenario name is used as the experiment name for the simulation run.
  *
+ *  ### Model construction semantics
+ *
+ *  [modelBuilder] is called at the start of each [simulate] invocation to produce a fresh
+ *  [Model] instance.  This design enables concurrent execution of independent scenarios
+ *  (see `ScenarioRunner.simulateConcurrently`) as well as the traditional sequential path:
+ *  each run is isolated and leaves no shared state behind.
+ *
+ *  For backward compatibility, constructors that accept a pre-built [Model] are provided.
+ *  They wrap the supplied instance in a `ModelBuilderIfc` that always returns the same model,
+ *  so the sequential behaviour is identical to the previous implementation.
+ *
  *  ### Run-parameter semantics
  *
- *  [runParameters] is captured as an owned snapshot at construction time.  All 15 fields of
- *  [ExperimentRunParameters] are stored, including those (antithetic option, stream-reset
- *  behaviour, stream advances, etc.) that older constructors did not expose individually.
- *  The snapshot's experiment name is automatically set to [name].
+ *  [scenarioRunParameters] is an owned snapshot captured at construction time.  All 15 fields of
+ *  [ExperimentRunParameters] are stored.  The snapshot's experiment name is automatically set
+ *  to [name].
  *
  *  At [simulate] time the snapshot is applied to the model via
- *  [ksl.simulation.Model.changeRunParameters], the simulation runs, and the model's previous
- *  run parameters are restored in a `finally` block.  This means:
- *  - Multiple scenarios that share the same model can be constructed and executed in any order.
- *  - An exception during simulation leaves the model in its pre-scenario state.
- *  - The model is never mutated at construction time.
+ *  [ksl.simulation.Model.changeRunParameters] inside `SimulationRunner.setupSimulation`.
  *
- *  @param model              The model to be simulated.
- *  @param name               The scenario name.  Must be unique within the set of scenarios
- *                            executed by a [ScenarioRunner].  Also used as the experiment name.
- *  @param inputs             Numeric control and RV-parameter overrides (`key → Double`).
- *  @param stringInputs       String control overrides (`key → String`), applied via the
- *                            deferred [ksl.simulation.Model.experimentalStringControls] slot.
- *                            Unknown keys are logged and silently skipped.
- *  @param jsonInputs         JSON control overrides (`key → JSON String`), applied via the
- *                            deferred [ksl.simulation.Model.experimentalJsonControls] slot.
- *                            Unknown keys are logged and silently skipped.
- *  @param runParameters      Full experimental run configuration for this scenario.  Defaults
- *                            to a snapshot of the model's current run parameters captured at
- *                            construction time.  The snapshot's experiment name is overridden
- *                            with [name] automatically.
- *  @param modelConfiguration Optional model configuration map applied before each run when
- *                            the model has a [ksl.simulation.ModelConfigurationManagerIfc].
+ *  @param modelBuilder  Factory that creates the [Model] instance for each run.
+ *  @param name          The scenario name.  Must be unique within the set of scenarios
+ *                       executed by a [ScenarioRunner].  Also used as the experiment name.
+ *  @param inputs        Numeric control and RV-parameter overrides (`key → Double`).
+ *  @param stringInputs  String control overrides (`key → String`).
+ *  @param jsonInputs    JSON control overrides (`key → JSON String`).
+ *  @param runParameters Full experimental run configuration for this scenario.
+ *  @param modelConfiguration Optional model configuration map forwarded to
+ *                            [ModelBuilderIfc.build] before each run.
  */
-class Scenario @JvmOverloads constructor(
-    val model: Model,
+class Scenario constructor(
+    val modelBuilder: ModelBuilderIfc,
     name: String,
     inputs: Map<String, Double> = emptyMap(),
     stringInputs: Map<String, String> = emptyMap(),
     jsonInputs: Map<String, String> = emptyMap(),
-    runParameters: ExperimentRunParameters = model.extractRunParameters(),
+    runParameters: ExperimentRunParameters,
     modelConfiguration: Map<String, String>? = null
-) : Identity(name), ExperimentIfc by model {
+) : Identity(name) {
+
+    // ── Backward-compatible constructor: pre-built model (full run parameters) ─
 
     /**
-     *  Convenience constructor for the common case where only the three scalar run-parameter
-     *  values need to differ from the model's current settings.  All other run parameters
-     *  are captured from the model at construction time.  String and JSON control overrides
-     *  must be supplied via the primary constructor.
+     *  Backward-compatible constructor.  The supplied [model] is wrapped so that each
+     *  [simulate] call operates on the same instance.
+     *
+     *  Input keys are validated against [model] at construction time.
+     *
+     *  @param model          The model to be simulated.
+     *  @param name           The scenario name.
+     *  @param inputs         Numeric control and RV-parameter overrides.
+     *  @param stringInputs   String control overrides.
+     *  @param jsonInputs     JSON control overrides.
+     *  @param runParameters  Full run configuration.  Defaults to a snapshot of [model]'s
+     *                        current run parameters captured at construction time.
+     *  @param modelConfiguration Optional model configuration map.
+     */
+    @JvmOverloads
+    constructor(
+        model: Model,
+        name: String,
+        inputs: Map<String, Double> = emptyMap(),
+        stringInputs: Map<String, String> = emptyMap(),
+        jsonInputs: Map<String, String> = emptyMap(),
+        runParameters: ExperimentRunParameters = model.extractRunParameters(),
+        modelConfiguration: Map<String, String>? = null
+    ) : this(
+        modelBuilder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model = model
+        },
+        name = name,
+        inputs = inputs,
+        stringInputs = stringInputs,
+        jsonInputs = jsonInputs,
+        runParameters = runParameters,
+        modelConfiguration = modelConfiguration
+    ) {
+        if (inputs.isNotEmpty()) {
+            require(model.validateInputKeys(inputs.keys)) {
+                "The inputs, ${inputs.keys.joinToString(prefix = "[", postfix = "]")} contained invalid input names"
+            }
+        }
+    }
+
+    // ── Backward-compatible convenience constructor: model + scalar run params ─
+
+    /**
+     *  Convenience constructor for the common case where only the three scalar
+     *  run-parameter values need to differ from [model]'s current settings.
      *
      *  @param model                      The model to be simulated.
      *  @param name                       The scenario name.
@@ -108,55 +155,76 @@ class Scenario @JvmOverloads constructor(
         modelConfiguration = modelConfiguration
     )
 
+    // ── ModelBuilderIfc convenience constructor: scalar run params ─────────────
+
     /**
-     *  Constructor that creates the model via [modelCreator] before delegating to the primary
-     *  constructor.  String and JSON inputs may be supplied; run parameters default to the
-     *  newly created model's current settings.
+     *  Convenience constructor for use with a [ModelBuilderIfc].  The builder is
+     *  invoked once at construction time to extract default run parameters; the returned
+     *  model is then discarded.  The three scalar values override the defaults.
      *
-     *  @param modelCreator  A function that creates and returns the [Model] instance.
-     *  @param name          The scenario name.
-     *  @param inputs        Numeric control and RV-parameter overrides.
-     *  @param stringInputs  String control overrides.
-     *  @param jsonInputs    JSON control overrides.
+     *  @param modelBuilder               Factory that creates the model for each run.
+     *  @param name                       The scenario name.
+     *  @param inputs                     Numeric control and RV-parameter overrides.
+     *  @param numberReplications         Replications for this scenario.
+     *  @param lengthOfReplication        Replication length.
+     *  @param lengthOfReplicationWarmUp  Warm-up length.
+     *  @param modelConfiguration         Optional model configuration map.
      */
-    @Suppress("unused")
     @JvmOverloads
     constructor(
-        modelCreator: () -> Model,
+        modelBuilder: ModelBuilderIfc,
         name: String,
         inputs: Map<String, Double> = emptyMap(),
-        stringInputs: Map<String, String> = emptyMap(),
-        jsonInputs: Map<String, String> = emptyMap(),
-    ) : this(modelCreator(), name, inputs, stringInputs, jsonInputs)
+        numberReplications: Int,
+        lengthOfReplication: Double,
+        lengthOfReplicationWarmUp: Double = 0.0,
+        modelConfiguration: Map<String, String>? = null
+    ) : this(
+        modelBuilder = modelBuilder,
+        name = name,
+        inputs = inputs,
+        stringInputs = emptyMap(),
+        jsonInputs = emptyMap(),
+        runParameters = modelBuilder.build(modelConfiguration).extractRunParameters().copy(
+            numberOfReplications = numberReplications,
+            lengthOfReplication = lengthOfReplication,
+            lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        ),
+        modelConfiguration = modelConfiguration
+    )
 
-    // ── private state ─────────────────────────────────────────────────────────
+    // ── Private state ─────────────────────────────────────────────────────────
 
-    private val simulationRunner = SimulationRunner(model)
     private val myInputs = mutableMapOf<String, Double>()
     private val myStringInputs = mutableMapOf<String, String>()
     private val myJsonInputs = mutableMapOf<String, String>()
 
     /**
      *  Owned snapshot of the run parameters for this scenario.
-     *  The experiment name is set to [name] so that [simulate] does not need to
-     *  manipulate [ksl.simulation.Model.experimentName] manually.
-     *  Modifying this object before [simulate] is called will affect the next run.
+     *  The experiment name is set to [name].
+     *  Modifying the mutable fields before [simulate] is called will affect the next run.
      */
     private val myRunParameters: ExperimentRunParameters = runParameters.copy(experimentName = name)
 
     private var myModelConfiguration: MutableMap<String, String>? = null
 
-    // ── public state ──────────────────────────────────────────────────────────
+    // ── Public state ──────────────────────────────────────────────────────────
 
     /**
      *  The run parameters that will be applied when this scenario is simulated.
      *  This is the scenario's owned snapshot — not the model's live state.
-     *
-     *  All 15 fields of [ExperimentRunParameters] are available.  Modifying them
-     *  before [simulate] is called will affect the next run.
      */
     val scenarioRunParameters: ExperimentRunParameters
         get() = myRunParameters
+
+    /** Number of replications configured for this scenario. */
+    val numberOfReplications: Int get() = myRunParameters.numberOfReplications
+
+    /** Replication length configured for this scenario. */
+    val lengthOfReplication: Double get() = myRunParameters.lengthOfReplication
+
+    /** Warm-up length configured for this scenario. */
+    val lengthOfReplicationWarmUp: Double get() = myRunParameters.lengthOfReplicationWarmUp
 
     /**
      *  The [SimulationRun] produced by the most recent call to [simulate], or `null`
@@ -164,74 +232,58 @@ class Scenario @JvmOverloads constructor(
      */
     var simulationRun: SimulationRun? = null
 
-    /**
-     *  Optional pre-run hook.  When set, [setup] is called on the model immediately
-     *  before [simulationRunner] executes.
-     */
-    var setup: ScenarioSetupIfc? = null  //TODO evaluate whether this is still needed
-
-    // ── init ──────────────────────────────────────────────────────────────────
+    // ── Init ──────────────────────────────────────────────────────────────────
 
     init {
-        if (inputs.isNotEmpty()) {
-            require(model.validateInputKeys(inputs.keys)) {
-                "The inputs, ${inputs.keys.joinToString(prefix = "[", postfix = "]")} contained invalid input names"
-            }
-            myInputs.putAll(inputs)
-        }
-        // String and JSON inputs are not validated upfront; unknown keys are logged and
-        // silently skipped by Controls.setStringControlsFromMap() / setJsonControlsFromMap().
+        myInputs.putAll(inputs)
         myStringInputs.putAll(stringInputs)
         myJsonInputs.putAll(jsonInputs)
         if (modelConfiguration != null && modelConfiguration.isNotEmpty()) {
             myModelConfiguration = modelConfiguration.toMutableMap()
         }
-        // The model is NOT mutated here.  Run parameters are owned by myRunParameters and
-        // applied to the model at simulate() time, then restored — so multiple scenarios
-        // that share the same model work correctly regardless of construction or run order.
     }
 
-    // ── simulation ────────────────────────────────────────────────────────────
+    // ── Simulation ────────────────────────────────────────────────────────────
 
     /**
-     *  Simulates the scenario.
+     *  Simulates the scenario and returns the resulting [SimulationRun].
      *
      *  Execution sequence:
-     *  1. The model's current run parameters are saved.
-     *  2. [scenarioRunParameters] (including the scenario name as experiment name) are applied
-     *     to the model via [SimulationRunner], which calls [ksl.simulation.Model.changeRunParameters]
-     *     inside [ksl.controls.experiments.SimulationRunner.setupSimulation].
-     *  3. The optional [setup] hook and [simulationRunner] run.
-     *  4. In a `finally` block, the model's saved run parameters and configuration are restored,
-     *     even if an exception was thrown during the simulation.
+     *  1. [modelBuilder] is called with [myModelConfiguration] to produce a fresh [Model].
+     *  2. The optional [configureModel] callback is invoked, allowing the caller to attach
+     *     observers, set the output directory, or perform any other pre-run setup.
+     *  3. [scenarioRunParameters] are applied to the model and the simulation runs.
+     *  4. The resulting [SimulationRun] is stored in [simulationRun] and returned.
      *
-     *  A new [SimulationRun] is produced and stored in [simulationRun] after each successful call.
+     *  @param configureModel Optional callback invoked on the freshly-built model before
+     *                        the simulation starts.  Intended for callers such as
+     *                        [ScenarioRunner] that need to attach observers or set the
+     *                        output directory without holding a permanent reference to the model.
+     *  @return The [SimulationRun] produced by this invocation.
      */
-    fun simulate() {
-        val savedRunParameters = model.extractRunParameters()
-        val savedConfiguration = model.configuration
-        try {
-            if (model.modelConfigurationManager != null && myModelConfiguration != null) {
-                model.configuration = myModelConfiguration!!
-            }
-            setup?.setup(model)
-            simulationRun = simulationRunner.simulate(
-                modelIdentifier = model.modelIdentifier,
-                inputs = myInputs,
-                stringInputs = myStringInputs,
-                jsonInputs = myJsonInputs,
-                experimentRunParameters = myRunParameters
-            )
-        } finally {
-            // Restore the model's state whether the run succeeded or threw.
-            model.changeRunParameters(savedRunParameters)
-            model.configuration = savedConfiguration
+    fun simulate(configureModel: ((Model) -> Unit)? = null): SimulationRun {
+        val model = modelBuilder.build(myModelConfiguration)
+        if (model.modelConfigurationManager != null && myModelConfiguration != null) {
+            model.configuration = myModelConfiguration!!
         }
+        configureModel?.invoke(model)
+        val runner = SimulationRunner(model)
+        simulationRun = runner.simulate(
+            modelIdentifier = model.modelIdentifier,
+            inputs = myInputs,
+            stringInputs = myStringInputs,
+            jsonInputs = myJsonInputs,
+            experimentRunParameters = myRunParameters
+        )
+        return simulationRun!!
     }
 }
 
 /**
  *  Can be used to supply logic to configure a model prior to simulating a scenario.
+ *
+ *  Prefer passing a lambda to [Scenario.simulate] directly over implementing this interface
+ *  for new code.  Retained for backward compatibility.
  */
 fun interface ScenarioSetupIfc {
     fun setup(model: Model)
