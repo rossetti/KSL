@@ -23,8 +23,7 @@ fun main(){
 
 fun runCESolver(
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ) {
     val problemDefinition = makeRQInventoryModelProblemDefinition()
     val modelBuilder = BuildRQModel
@@ -36,8 +35,7 @@ fun runCESolver(
         maxIterations = 100,
         replicationsPerEvaluation = 50,
         simulationRunCache = simulationRunCache,
-        experimentRunParameters = experimentRunParameters,
-        defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+        experimentRunParameters = experimentRunParameters
     )
     val tracker = ConsoleSolverStateTracker(solver)
     tracker.startTracking()
@@ -89,8 +87,7 @@ fun makeRQInventoryModelProblemDefinition(): ProblemDefinition {
 object BuildRQModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
-        experimentRunParameters: ExperimentRunParametersIfc?,
-        defaultKSLDatabaseObserverOption: Boolean
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val reorderQty: Int = 2
         val reorderPoint: Int = 1
@@ -102,9 +99,6 @@ object BuildRQModel : ModelBuilderIfc {
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 10000.0
         model.numberOfReplications = 40
-        if (defaultKSLDatabaseObserverOption) {
-            model.createDefaultDatabaseObserver()
-        }
         return model
     }
 }

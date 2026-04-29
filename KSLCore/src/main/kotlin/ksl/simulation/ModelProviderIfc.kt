@@ -28,14 +28,11 @@ interface ModelBuilderIfc {
      * The intent is that the map should be sufficient to build an appropriate `Model` instance.
      * The map is optional. The function should return a model that is usable.
      * @param experimentRunParameters the run parameters to apply to the model during the building process
-     * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-     * to the model. The default is false.
      * @return A `Model` object constructed using the provided configuration information.
      */
     fun build(
         modelConfiguration: Map<String, String>? = null,
-        experimentRunParameters: ExperimentRunParametersIfc? = null,
-        defaultKSLDatabaseObserverOption: Boolean = false
+        experimentRunParameters: ExperimentRunParametersIfc? = null
     ): Model
 
 }
@@ -71,8 +68,7 @@ interface ModelProviderIfc {
     fun provideModel(
         modelIdentifier: String,
         modelConfiguration: Map<String, String>? = null,
-        experimentRunParameters: ExperimentRunParametersIfc? = null,
-        defaultKSLDatabaseObserverOption: Boolean = false
+        experimentRunParameters: ExperimentRunParametersIfc? = null
     ): Model
 
     /**

@@ -1076,8 +1076,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return A configured instance of the `StochasticHillClimber` ready to begin optimization.
          */
         @Suppress("unused")
@@ -1091,13 +1089,11 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
             )
             val solver = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1127,8 +1123,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1143,13 +1137,11 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
             )
             val shc = StochasticHillClimber(
                 problemDefinition = problemDefinition,
@@ -1190,7 +1182,6 @@ abstract class Solver(
          * @param solutionCache A cache to store evaluated solutions and prevent redundant simulation runs.
          * @param simulationRunCache An optional cache for individual simulation replication data.
          * @param experimentRunParameters Optional parameters defining the simulation run lengths, warmups, etc.
-         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers to the evaluator.
          * @return A fully configured [SimulatedAnnealing] solver instance.
          */
         @Suppress("unused")
@@ -1207,16 +1198,14 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
             val solver = SimulatedAnnealing(
                 problemDefinition = problemDefinition,
@@ -1254,7 +1243,6 @@ abstract class Solver(
          * @param solutionCache A cache to store evaluated solutions across all restarts.
          * @param simulationRunCache An optional cache for individual simulation replication data.
          * @param experimentRunParameters Optional parameters defining the simulation run properties.
-         * @param defaultKSLDatabaseObserverOption If true, automatically attaches default database observers.
          * @return A [RandomRestartSolver] wrapping a dynamically configuring [SimulatedAnnealing] inner solver.
          */
         @Suppress("unused")
@@ -1272,8 +1260,7 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): RandomRestartSolver {
 
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1281,8 +1268,7 @@ abstract class Solver(
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
 
             val sp = startingPoint ?: problemDefinition.startingPoint().toMutableMap()
@@ -1324,8 +1310,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An instance of CrossEntropySolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1340,13 +1324,11 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1378,8 +1360,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1395,16 +1375,14 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
                 modelBuilder = modelBuilder,
                 solutionCache = solutionCache,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
             val ce = CrossEntropySolver(
                 problemDefinition = problemDefinition,
@@ -1439,8 +1417,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An instance of RSplineSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1456,13 +1432,11 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): RSplineSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,
@@ -1497,8 +1471,6 @@ abstract class Solver(
          * @param simulationRunCache Specifies if the simulation oracle will use a SimulationRunCache. The default
          * is null (no cache).
          * @param experimentRunParameters the run parameters to apply to the model during the building process
-         * @param defaultKSLDatabaseObserverOption indicates if a default KSL database should be created and attached
-         * to the model. The default is false.
          * @return An instance of RandomRestartSolver that encapsulates the optimization process and results.
          */
         @Suppress("unused")
@@ -1516,13 +1488,11 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null,
-            defaultKSLDatabaseObserverOption: Boolean = false
+            experimentRunParameters: ExperimentRunParametersIfc? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
-                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                simulationRunCache = simulationRunCache, experimentRunParameters = experimentRunParameters
             )
             val solver = RSplineSolver(
                 problemDefinition = problemDefinition,

@@ -130,13 +130,11 @@ fun setupSolver(
     modelBuilder: ModelBuilderIfc = BuildTwoEchelonModel,
     maxNumRestarts: Int = defaultMaxRestarts,
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ): StochasticSolver {
     return solverFactory(
         solverType, problemDefinition, modelBuilder,
-        maxNumRestarts, simulationRunCache, experimentRunParameters,
-        defaultKSLDatabaseObserverOption
+        maxNumRestarts, simulationRunCache, experimentRunParameters
     )
 }
 
@@ -236,8 +234,7 @@ fun constrainedTwoEchelonProblemDefinition(
 object BuildTwoEchelonModel : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
-        experimentRunParameters: ExperimentRunParametersIfc?,
-        defaultKSLDatabaseObserverOption: Boolean
+        experimentRunParameters: ExperimentRunParametersIfc?
     ): Model {
         val m = Model("TwoEchelonRQModel")
         val itemType = ItemType("ItemA")
@@ -288,9 +285,6 @@ object BuildTwoEchelonModel : ModelBuilderIfc {
         m.lengthOfReplication = 110000.0
         m.lengthOfReplicationWarmUp = 10000.0
         m.numberOfReplications = 40
-        if (defaultKSLDatabaseObserverOption) {
-            m.createDefaultDatabaseObserver()
-        }
         return m
     }
 
@@ -302,8 +296,7 @@ fun solverFactory(
     modelBuilder: ModelBuilderIfc,
     maxNumRestarts: Int = defaultMaxRestarts,
     simulationRunCache: SimulationRunCacheIfc? = null,
-    experimentRunParameters: ExperimentRunParametersIfc? = null,
-    defaultKSLDatabaseObserverOption: Boolean = false
+    experimentRunParameters: ExperimentRunParametersIfc? = null
 ): StochasticSolver {
     return when (solverType) {
         SolverType.SHC -> {
@@ -314,8 +307,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -328,8 +320,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
             solver
         }
@@ -342,8 +333,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -354,8 +344,7 @@ fun solverFactory(
                 startingPoint = null,
                 maxIterations = 100,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -367,8 +356,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -381,8 +369,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -394,8 +381,7 @@ fun solverFactory(
                 maxIterations = 100,
                 replicationsPerEvaluation = 50,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
 
@@ -406,8 +392,7 @@ fun solverFactory(
                 maxNumRestarts = maxNumRestarts,
                 maxIterations = 100,
                 simulationRunCache = simulationRunCache,
-                experimentRunParameters = experimentRunParameters,
-                defaultKSLDatabaseObserverOption = defaultKSLDatabaseObserverOption
+                experimentRunParameters = experimentRunParameters
             )
         }
     }
