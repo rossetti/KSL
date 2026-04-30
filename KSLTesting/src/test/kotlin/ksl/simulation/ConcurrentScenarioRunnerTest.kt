@@ -40,6 +40,7 @@ class ConcurrentScenarioRunnerTest {
         private const val FAST_REPS   = 5
         private const val FAST_LENGTH = 1000.0
         private const val FAST_WARMUP = 200.0
+        private const val INTENTIONAL_FAILURE_MESSAGE = "Intentional failure for Phase 4"
 
         // Streams chosen to be far from the default range used elsewhere in the test suite.
         private const val STREAM_S1_ARRIVE = 11
@@ -179,6 +180,62 @@ class ConcurrentScenarioRunnerTest {
         return runner
     }
 
+    private fun failureRunParameters(scenarioName: String) =
+        Model("FailureScenarioRunParameters", autoCSVReports = false)
+            .extractRunParameters()
+            .copy(
+                experimentName = scenarioName,
+                numberOfReplications = FAST_REPS,
+                lengthOfReplication = FAST_LENGTH,
+                lengthOfReplicationWarmUp = FAST_WARMUP
+            )
+
+    private fun buildFailingScenario(
+        scenarioName: String = "FailingScenario"
+    ): Scenario {
+        val builder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                throw RuntimeException(INTENTIONAL_FAILURE_MESSAGE)
+            }
+        }
+
+        return Scenario(
+            modelBuilder = builder,
+            name = scenarioName,
+            runParameters = failureRunParameters(scenarioName)
+        )
+    }
+
+    private fun runRunnerWithFailingScenario(
+        runnerName: String = "ConcurrentScenarioRunnerFailure_${System.nanoTime()}"
+    ): ConcurrentScenarioRunner {
+        val runner = ConcurrentScenarioRunner(
+            runnerName,
+            listOf(
+                buildQueueScenario(
+                    scenarioName = "OneServer",
+                    modelName = "CSR_Failure_1S",
+                    numServers = 1,
+                    arrivalStream = STREAM_S1_ARRIVE,
+                    serviceStream = STREAM_S1_SERVE
+                ),
+                buildFailingScenario(),
+                buildQueueScenario(
+                    scenarioName = "TwoServers",
+                    modelName = "CSR_Failure_2S",
+                    numServers = 2,
+                    arrivalStream = STREAM_S2_ARRIVE,
+                    serviceStream = STREAM_S2_SERVE
+                )
+            )
+        )
+        runBlocking { runner.simulate() }
+        return runner
+    }
+
     private fun assertAllScenariosSucceeded(runner: ConcurrentScenarioRunner) {
         val failures = runner.scenarioList.mapNotNull { scenario ->
             val run = scenario.simulationRun
@@ -313,6 +370,53 @@ class ConcurrentScenarioRunnerTest {
                 "System Time replication observations must match for scenario '$scenarioName'"
             )
         }
+    }
+
+    @Test
+    fun failingScenarioDoesNotCancelSuccessfulScenarios() {
+        val runner = runRunnerWithFailingScenario()
+
+        for (scenarioName in listOf("OneServer", "TwoServers")) {
+            val run = runner.scenarioByName(scenarioName)!!.simulationRun
+            assertNotNull(run, "Scenario '$scenarioName' must have a simulationRun")
+            assertFalse(run.hasError, "Scenario '$scenarioName' must not have a run error")
+            assertTrue(run.hasResults, "Scenario '$scenarioName' must have results")
+        }
+
+        val failedRun = runner.scenarioByName("FailingScenario")!!.simulationRun
+        assertNotNull(failedRun, "Failing scenario must have an explicit simulationRun")
+        assertTrue(failedRun.hasError, "Failing scenario must record the run error")
+        assertFalse(failedRun.hasResults, "Failing scenario must not have results")
+        assertTrue(
+            failedRun.runErrorMsg.contains(INTENTIONAL_FAILURE_MESSAGE),
+            "Failing scenario runErrorMsg must include the original exception message"
+        )
+    }
+
+    @Test
+    fun failedScenarioIsNotCommittedToDatabase() {
+        val runner = runRunnerWithFailingScenario(
+            "ConcurrentScenarioRunnerFailureDb_${System.nanoTime()}"
+        )
+
+        assertEquals(
+            setOf("OneServer", "TwoServers"),
+            runner.kslDb.experimentNames.toSet(),
+            "Only successful scenarios should be committed to the database"
+        )
+    }
+
+    @Test
+    fun observationsAsMapOmitsFailedScenario() {
+        val runner = runRunnerWithFailingScenario(
+            "ConcurrentScenarioRunnerFailureObservations_${System.nanoTime()}"
+        )
+
+        assertEquals(
+            setOf("OneServer", "TwoServers"),
+            runner.observationsAsMap("System Time").keys,
+            "observationsAsMap should include only scenarios with successful observations"
+        )
     }
 
     @RepeatedTest(5)

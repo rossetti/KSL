@@ -32,6 +32,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import java.io.PrintWriter
+import java.io.StringWriter
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
@@ -179,11 +180,23 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             .map { myScenarios[it] }
             .map { scenario ->
                 async(SimulationDispatcher.default) {
+                    var modelIdentifier: String? = null
                     try {
                         val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
                         val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
 
                         val model = scenario.modelBuilder.build(scenario.modelConfiguration)
+                        modelIdentifier = model.modelIdentifier
+                        val simulationRun = SimulationRun(
+                            modelIdentifier = model.modelIdentifier,
+                            experimentRunParameters = scenario.scenarioRunParameters,
+                            inputs = scenario.inputs,
+                            stringInputs = scenario.stringInputs,
+                            jsonInputs = scenario.jsonInputs,
+                            modelConfiguration = scenario.modelConfiguration
+                        )
+                        scenario.simulationRun = simulationRun
+
                         if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
                             model.configuration = scenario.modelConfiguration!!
                         }
@@ -196,13 +209,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                         collectorMap[scenario.name] = collector
 
                         val runner = SimulationRunner(model)
-                        scenario.simulationRun = runner.simulate(
-                            modelIdentifier = model.modelIdentifier,
-                            inputs = scenario.inputs,
-                            stringInputs = scenario.stringInputs,
-                            jsonInputs = scenario.jsonInputs,
-                            experimentRunParameters = scenario.scenarioRunParameters
-                        )
+                        runner.simulate(simulationRun)
                     } catch (e: RuntimeException) {
                         // Isolate the failing scenario: log, remove its (partial) collector
                         // so its incomplete snapshots are not committed, and allow all other
@@ -210,6 +217,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                         Model.logger.error {
                             "ConcurrentScenarioRunner: scenario '${scenario.name}' failed — ${e.message}"
                         }
+                        recordFailedSimulationRun(scenario, e, modelIdentifier)
                         collectorMap.remove(scenario.name)?.close()
                     }
                 }
@@ -228,6 +236,34 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    private fun recordFailedSimulationRun(
+        scenario: Scenario,
+        e: RuntimeException,
+        modelIdentifier: String?
+    ) {
+        val simulationRun = scenario.simulationRun ?: SimulationRun(
+            modelIdentifier = modelIdentifier ?: "model-unavailable:${scenario.name}",
+            experimentRunParameters = scenario.scenarioRunParameters,
+            inputs = scenario.inputs,
+            stringInputs = scenario.stringInputs,
+            jsonInputs = scenario.jsonInputs,
+            modelConfiguration = scenario.modelConfiguration
+        )
+
+        if (simulationRun.runErrorMsg.isEmpty()) {
+            simulationRun.runErrorMsg = stackTraceAsString(e)
+        }
+        simulationRun.results = emptyMap()
+        scenario.simulationRun = simulationRun
+    }
+
+    private fun stackTraceAsString(e: RuntimeException): String {
+        val sw = StringWriter()
+        val pw = PrintWriter(sw)
+        e.printStackTrace(pw)
+        return sw.toString()
     }
 
     /**
