@@ -5,9 +5,11 @@ import ksl.controls.experiments.Scenario
 import ksl.controls.experiments.ScenarioRunner
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.utilities.io.dbutil.AcrossRepStatTableData
+import ksl.utilities.io.dbutil.ControlTableData
 import ksl.utilities.io.dbutil.ExperimentTableData
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.ModelElementTableData
+import ksl.utilities.io.dbutil.RvParameterTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.WithinRepCounterStatTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
@@ -24,6 +26,7 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         private const val WARMUP = 200.0
 
         private val SCENARIO_NAMES = listOf("OneServer", "TwoServers", "ThreeServers")
+        private val INPUT_SCENARIO_NAMES = listOf("InputOne", "InputTwo", "InputThree")
     }
 
     private data class ParityRunners(
@@ -107,12 +110,41 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         val numMissingObs: Double?
     )
 
+    private data class InputMetadataExpectation(
+        val scenarioName: String,
+        val modelName: String,
+        val numServers: Int,
+        val arrivalMean: Double,
+        val serviceMean: Double
+    )
+
+    private data class NormalizedControl(
+        val elementName: String,
+        val keyName: String,
+        val controlValue: Double?,
+        val lowerBound: Double?,
+        val upperBound: Double?,
+        val propertyName: String,
+        val controlType: String,
+        val comment: String?
+    )
+
+    private data class NormalizedRvParameter(
+        val elementName: String,
+        val className: String,
+        val dataType: String,
+        val rvName: String,
+        val paramName: String,
+        val paramValue: Double
+    )
+
     private fun buildQueueScenario(
         scenarioName: String,
         modelName: String,
         numServers: Int,
         arrivalStream: Int,
-        serviceStream: Int
+        serviceStream: Int,
+        inputs: Map<String, Double> = emptyMap()
     ): Scenario {
         val builder = object : ModelBuilderIfc {
             override fun build(
@@ -134,6 +166,7 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         return Scenario(
             modelBuilder = builder,
             name = scenarioName,
+            inputs = inputs,
             numberReplications = REPS,
             lengthOfReplication = LENGTH,
             lengthOfReplicationWarmUp = WARMUP
@@ -158,6 +191,47 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         val concurrent = ConcurrentScenarioRunner(
             "ConcurrentDatabaseParity_${System.nanoTime()}",
             buildThreeQueueScenarios()
+        )
+        runBlocking { concurrent.simulate() }
+
+        return ParityRunners(sequential, concurrent)
+    }
+
+    private fun inputMetadataExpectations(): List<InputMetadataExpectation> {
+        return listOf(
+            InputMetadataExpectation("InputOne", "DBParityInputs_1S", 1, 1.10, 0.45),
+            InputMetadataExpectation("InputTwo", "DBParityInputs_2S", 2, 1.20, 0.50),
+            InputMetadataExpectation("InputThree", "DBParityInputs_3S", 3, 1.30, 0.55)
+        )
+    }
+
+    private fun buildInputMetadataQueueScenarios(): List<Scenario> {
+        return inputMetadataExpectations().mapIndexed { index, spec ->
+            buildQueueScenario(
+                scenarioName = spec.scenarioName,
+                modelName = spec.modelName,
+                numServers = 1,
+                arrivalStream = 51 + 2 * index,
+                serviceStream = 52 + 2 * index,
+                inputs = mapOf(
+                    "MM1Q.numServers" to spec.numServers.toDouble(),
+                    "${spec.modelName}:TBA.mean" to spec.arrivalMean,
+                    "${spec.modelName}:ServiceTime.mean" to spec.serviceMean
+                )
+            )
+        }
+    }
+
+    private fun runInputMetadataParityRunners(): ParityRunners {
+        val sequential = ScenarioRunner(
+            "SequentialInputMetadataParity_${System.nanoTime()}",
+            buildInputMetadataQueueScenarios()
+        )
+        sequential.simulate()
+
+        val concurrent = ConcurrentScenarioRunner(
+            "ConcurrentInputMetadataParity_${System.nanoTime()}",
+            buildInputMetadataQueueScenarios()
         )
         runBlocking { concurrent.simulate() }
 
@@ -210,6 +284,62 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
                 normalizedAcrossRepStats(runners.sequential.kslDb, scenarioName),
                 normalizedAcrossRepStats(runners.concurrent.kslDb, scenarioName),
                 "across_rep_stat table must match for '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun inputMetadataTablesMatchSequentialDatabaseObserver() {
+        val runners = runInputMetadataParityRunners()
+
+        assertEquals(
+            INPUT_SCENARIO_NAMES.toSet(),
+            runners.concurrent.kslDb.experimentNames.toSet(),
+            "Concurrent DB must contain all input-metadata scenarios"
+        )
+
+        for (spec in inputMetadataExpectations()) {
+            val sequentialControls = normalizedControls(runners.sequential.kslDb, spec.scenarioName)
+            val concurrentControls = normalizedControls(runners.concurrent.kslDb, spec.scenarioName)
+
+            val controlValues = sequentialControls.associate { it.keyName to it.controlValue }
+            assertEquals(
+                true,
+                "MM1Q.numServers" in controlValues,
+                "Sequential control metadata must include the applied numServers control"
+            )
+            assertEquals(
+                spec.numServers.toDouble(),
+                controlValues.getValue("MM1Q.numServers") ?: Double.NaN,
+                1.0e-10,
+                "Sequential control metadata must reflect the applied numServers input"
+            )
+            assertEquals(
+                sequentialControls,
+                concurrentControls,
+                "control table must match for '${spec.scenarioName}'"
+            )
+
+            val sequentialRvParameters = normalizedRvParameters(runners.sequential.kslDb, spec.scenarioName)
+            val concurrentRvParameters = normalizedRvParameters(runners.concurrent.kslDb, spec.scenarioName)
+
+            val rvParameterValues = sequentialRvParameters.associate { (it.rvName to it.paramName) to it.paramValue }
+            assertEquals(
+                spec.arrivalMean,
+                rvParameterValues.getValue("${spec.modelName}:TBA" to "mean"),
+                1.0e-10,
+                "Sequential RV parameter metadata must reflect the applied arrival mean input"
+            )
+            assertEquals(
+                spec.serviceMean,
+                rvParameterValues.getValue("${spec.modelName}:ServiceTime" to "mean"),
+                1.0e-10,
+                "Sequential RV parameter metadata must reflect the applied service mean input"
+            )
+            assertEquals(
+                sequentialRvParameters,
+                concurrentRvParameters,
+                "rv_parameter table must match for '${spec.scenarioName}'"
             )
         }
     }
@@ -270,6 +400,26 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         return db.acrossRepStatDataFor(scenarioName)
             .map { it.normalized(elementNames) }
             .sortedWith(compareBy({ it.statName }, { it.elementName }))
+    }
+
+    private fun normalizedControls(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedControl> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.controlDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.keyName }, { it.elementName }, { it.propertyName }))
+    }
+
+    private fun normalizedRvParameters(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedRvParameter> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.rvParameterDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.rvName }, { it.paramName }, { it.elementName }))
     }
 
     private fun elementNamesById(
@@ -360,5 +510,29 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         lag1Corr = lag1_corr,
         vonNeumannLag1Stat = von_neumann_lag1_stat,
         numMissingObs = num_missing_obs
+    )
+
+    private fun ControlTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedControl(
+        elementName = elementNames.getValue(element_id_fk),
+        keyName = key_name,
+        controlValue = control_value,
+        lowerBound = lower_bound,
+        upperBound = upper_bound,
+        propertyName = property_name,
+        controlType = control_type,
+        comment = comment
+    )
+
+    private fun RvParameterTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedRvParameter(
+        elementName = elementNames.getValue(element_id_fk),
+        className = class_name,
+        dataType = data_type,
+        rvName = rv_name,
+        paramName = param_name,
+        paramValue = param_value
     )
 }
