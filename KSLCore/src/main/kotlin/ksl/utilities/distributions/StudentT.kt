@@ -166,10 +166,6 @@ class StudentT(degreesOfFreedom: Double = 1.0, name: String? = null) : Distribut
     }
 
     companion object {
-        /** A default instance for easily computing Student-T values
-         *
-         */
-        val defaultT: StudentT = StudentT()
 
         /** A convenience method that uses defaultT to
          * return the value of the CDF at the supplied x
@@ -181,8 +177,7 @@ class StudentT(degreesOfFreedom: Double = 1.0, name: String? = null) : Distribut
          * @return the CDF value
          */
         fun cdf(dof: Double, x: Double): Double {
-            defaultT.degreesOfFreedom = dof
-            return defaultT.cdf(x)
+            return StudentT(dof).cdf(x)
         }
 
         /** A convenience method that uses defaultT to
@@ -195,8 +190,7 @@ class StudentT(degreesOfFreedom: Double = 1.0, name: String? = null) : Distribut
          * @return the inverse
          */
         fun invCDF(dof: Double, p: Double): Double {
-            defaultT.degreesOfFreedom = dof
-            return defaultT.invCDF(p)
+            return StudentT(dof).invCDF(p)
         }
     }
 }
