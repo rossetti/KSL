@@ -203,6 +203,36 @@ class ConcurrentScenarioRunnerTest {
     // ── Tier 1: Smoke ─────────────────────────────────────────────────────────
 
     @Test
+    fun concurrentRunnerCompletesAllScenariosAndCommitsAllExperiments() {
+        val runner = runThreeScenarioRunner("ConcurrentScenarioRunnerHappyPath_${System.nanoTime()}")
+
+        assertEquals(3, runner.scenarioList.size, "runner must contain three scenarios")
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        val observations = runner.observationsAsMap("System Time")
+        val expectedNames = runner.scenarioList.map { it.name }.toSet()
+
+        assertEquals(
+            expectedNames,
+            observations.keys,
+            "observationsAsMap must return System Time data for every scenario"
+        )
+
+        for ((name, obs) in observations) {
+            assertEquals(
+                FAST_REPS,
+                obs.size,
+                "Scenario '$name' must have $FAST_REPS System Time observations"
+            )
+            assertTrue(
+                obs.all { it.isFinite() && it > 0.0 },
+                "Scenario '$name' System Time observations must all be finite and positive"
+            )
+        }
+    }
+
+    @Test
     fun runnerHasThreeScenarios() {
         assertEquals(3, runner.scenarioList.size)
     }
