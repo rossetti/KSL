@@ -37,6 +37,38 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.createCoroutineUnintercepted
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
+internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
+    EXTERNAL,
+    REQUEST_Q_RESOURCE_RELEASE,
+    REQUEST_Q_RESOURCE_POOL_RELEASE,
+    REQUEST_Q_CAPACITY_INCREASE,
+    REQUEST_MOVED_TO_RESOURCE,
+    REQUEST_MOVED_TO_RESOURCE_POOL,
+    REQUEST_MOVED_TO_MOVABLE_POOL,
+    HOLD_QUEUE,
+    SIGNAL,
+    BATCH_QUEUE,
+    BLOCKING_QUEUE_RECEIVER,
+    BLOCKING_QUEUE_SENDER,
+    INTERRUPT_DELAY(mayResumeDelay = true),
+    INTERRUPT_DELAY_WITH_PROCESS(mayResumeDelay = true),
+    BLOCK_UNTIL_PROCESS_COMPLETED,
+    WAIT_FOR_CALLED_PROCESS,
+    SUSPENSION_OBJECT,
+    BLOCKAGE_END,
+    UNKNOWN_INTERNAL
+}
+
+private data class ResumeIntent(
+    val source: ResumeSource,
+    val detail: String?,
+    val scheduledAtTime: Double,
+    val scheduledSuspendType: SuspendType,
+    val scheduledSuspendName: String?,
+    val scheduledDelayEventId: Long?,
+    val scheduledDelayEventTime: Double?
+)
+
 /**
  * A process model facilitates the modeling of entities experiencing processes via the
  * process view of simulation. A ProcessModel has inner classes (Entity, EntityGenerator, etc.)
@@ -595,6 +627,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
             val entity = this@Entity
             abstract val resource: ResourceIfc
+
+            internal var resumePending: Boolean = false
+                private set
+            internal var resumePendingSource: ResumeSource? = null
+                private set
+            internal var resumePendingDetail: String? = null
+                private set
+
+            internal fun markResumePending(source: ResumeSource, detail: String?) {
+                require(!resumePending) {
+                    "r = ${model.currentReplicationNumber} : $time > Duplicate resume scheduled for request_id = $id, " +
+                            "entity_id = ${entity.id}, resource = ${resource.name}, amount = $amountRequested, " +
+                            "previousSource = $resumePendingSource, previousDetail = $resumePendingDetail, " +
+                            "newSource = $source, newDetail = $detail"
+                }
+                resumePending = true
+                resumePendingSource = source
+                resumePendingDetail = detail
+            }
+
+            internal fun clearResumePending() {
+                resumePending = false
+                resumePendingSource = null
+                resumePendingDetail = null
+            }
         }
 
         inner class ResourceRequest internal constructor (
@@ -779,10 +836,33 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = RESUME_PRIORITY) {
+            scheduleResumeProcess(
+                timeUntilResumption = timeUntilResumption,
+                priority = priority,
+                source = ResumeSource.EXTERNAL,
+                detail = "Entity.resumeProcess()"
+            )
+        }
+
+        internal fun scheduleResumeProcess(
+            timeUntilResumption: Double = 0.0,
+            priority: Int = RESUME_PRIORITY,
+            source: ResumeSource = ResumeSource.UNKNOWN_INTERNAL,
+            detail: String? = null
+        ) {
             // entity must be in a process and suspended
             if (myCurrentProcess != null) {
-                val event = myResumeAction.schedule(timeUntilResumption, priority = priority)
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > SCHEDULED : event_id = ${event.id} : resumeProcess(): entity_id = $id: scheduled resume action for time ${time + timeUntilResumption}, time to resumption: $timeUntilResumption " }
+                val intent = ResumeIntent(
+                    source = source,
+                    detail = detail,
+                    scheduledAtTime = time,
+                    scheduledSuspendType = currentSuspendType,
+                    scheduledSuspendName = currentSuspendName,
+                    scheduledDelayEventId = myDelayEvent?.id,
+                    scheduledDelayEventTime = myDelayEvent?.time
+                )
+                val event = myResumeAction.schedule(timeUntilResumption, message = intent, priority = priority)
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > SCHEDULED : event_id = ${event.id} : resumeProcess(): entity_id = $id: scheduled resume action for time ${time + timeUntilResumption}, time to resumption: $timeUntilResumption : intent = $intent" }
             }
         }
 
@@ -834,11 +914,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
         }
 
-        private inner class ResumeAction : EventAction<Nothing>() {
-            override fun action(event: KSLEvent<Nothing>) {
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume()" }
+        private inner class ResumeAction : EventAction<ResumeIntent>() {
+            override fun action(event: KSLEvent<ResumeIntent>) {
+                val intent = event.message
+                if (currentSuspendType == SuspendType.DELAY && intent?.source?.mayResumeDelay != true) {
+                    val message = "r = ${model.currentReplicationNumber} : $time > ResumeAction event_id = ${event.id} " +
+                            "from source = ${intent?.source} attempted to resume a DELAY for entity_id = $id. " +
+                            "intent = $intent : currentSuspendName = $currentSuspendName : " +
+                            "delayEventId = ${myDelayEvent?.id}, delayEventTime = ${myDelayEvent?.time}, " +
+                            "delayEventIsScheduled = ${myDelayEvent?.isScheduled}, delayEventCancel = ${myDelayEvent?.cancel}"
+                    logger.error { message }
+                    throw IllegalStateException(message)
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume() : intent = $intent" }
                 immediateResume()
-                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = $id : ResumeAction : after immediateResume()" }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = $id : ResumeAction : after immediateResume() : intent = $intent" }
             }
         }
 
@@ -1020,7 +1110,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (resource.canAllocate(request.amountRequested)) {
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
-                    request.entity.resumeProcess(0.0, resumePriority)
+                    val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
+                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
+                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
                 }
             }
         }
@@ -1070,7 +1162,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (pool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
-                    request.entity.resumeProcess(0.0, resumePriority)
+                    val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
+                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
+                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
                 }
             }
         }
@@ -1120,7 +1214,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (pool.canAllocate(resourceSelectionRule)) {
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
-                    request.entity.resumeProcess(0.0, resumePriority)
+                    val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
+                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
+                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
                 }
             }
         }
@@ -2093,7 +2189,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
-                    allocation.myQueue.processWaitingRequestsForResource(allocation.myResource, releasePriority)
+                    allocation.myQueue.processWaitingRequestsForResource(
+                        allocation.myResource,
+                        releasePriority,
+                        ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
+                        "released_by_entity_id=${entity.id}, allocation_id=${allocation.id}"
+                    )
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : RELEASE: entity_id = ${entity.id} : allocation_id = ${allocation.id}" }
 
@@ -2130,7 +2231,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // get the queue from the allocation being released
                 pooledAllocation.queue.processWaitingRequestsForResource(
                     pooledAllocation.resourcePool,
-                    releasePriority
+                    releasePriority,
+                    ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE,
+                    "released_by_entity_id=${entity.id}, pooled_allocation_id=${pooledAllocation.id}"
                 )
             }
 
@@ -2154,7 +2257,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // the process is experiencing the named delay
                 delayEvent.cancel = true
                 delay(interruptTime, interruptPriority)
-                process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
+                process.entity.scheduleResumeProcess(
+                    postInterruptDelayTime,
+                    delayEvent.priority,
+                    ResumeSource.INTERRUPT_DELAY,
+                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}"
+                )
             }
 
             override suspend fun interruptDelayAndRestart(
@@ -2198,7 +2306,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // the process is experiencing the named delay
                 delayEvent.cancel = true
                 waitFor(interruptingProcess, priority = interruptPriority)
-                process.entity.resumeProcess(postInterruptDelayTime, delayEvent.priority)
+                process.entity.scheduleResumeProcess(
+                    postInterruptDelayTime,
+                    delayEvent.priority,
+                    ResumeSource.INTERRUPT_DELAY_WITH_PROCESS,
+                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}, interrupting_process=${interruptingProcess.name}"
+                )
             }
 
             override suspend fun interruptDelayWithProcessAndRestart(
@@ -2428,7 +2541,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // all processes that this process was blocked for have completed
                         // this process can resume
                         if (isSuspended && entity.isBlockedUntilCompletion) {
-                            entity.resumeProcess(priority = resumptionPriority)
+                            entity.scheduleResumeProcess(
+                                priority = resumptionPriority,
+                                source = ResumeSource.BLOCK_UNTIL_PROCESS_COMPLETED,
+                                detail = "completed_process=${completedProcess.name}"
+                            )
                         }
                     }
                 }
@@ -2455,7 +2572,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         // if it was not suspended then it may have been terminated
                         if (callingProcess!!.isSuspended) {
                             // schedules calling process to resume at the current time
-                            callingProcess!!.entity.resumeProcess()
+                            callingProcess!!.entity.scheduleResumeProcess(
+                                source = ResumeSource.WAIT_FOR_CALLED_PROCESS,
+                                detail = "completed_process=${this@ProcessCoroutine.name}"
+                            )
                         }
                         // called process is completed. it no longer can have calling process
                         callingProcess = null
@@ -2748,7 +2868,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal fun resume(priority: Int = RESUME_PRIORITY) {
                 require(!isResumed) { "The suspension with label $label and type $type associated with entity ${myEntity.name} has already been resumed." }
                 require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
-                suspendedEntity?.resumeProcess(priority = priority)
+                suspendedEntity?.scheduleResumeProcess(
+                    priority = priority,
+                    source = ResumeSource.SUSPENSION_OBJECT,
+                    detail = "suspension_id=$id, label=$label, type=$type"
+                )
                 isResumed = true
                 suspendedEntity = null
             }
@@ -2835,7 +2959,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isActive = false
                 myBlockingProcess = null
                 for (blockedEntity in myBlockedEntities) {
-                    blockedEntity.resumeProcess(priority = priority)
+                    blockedEntity.scheduleResumeProcess(
+                        priority = priority,
+                        source = ResumeSource.BLOCKAGE_END,
+                        detail = "blockage=$name, blocking_entity_id=${myEntity.id}"
+                    )
                     //the entities are responsible for removing themselves using the removeBlockedEntity() function after resuming
                 }
                 // remove the blockage from the entity's management list

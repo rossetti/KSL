@@ -444,7 +444,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             val request = myRequestQ[0]
             if (request.canBeFilled){
                 val entity = request.receiver
-                entity.resumeProcess(0.0, requestQResumptionPriority)
+                entity.scheduleResumeProcess(
+                    0.0,
+                    requestQResumptionPriority,
+                    ResumeSource.BLOCKING_QUEUE_RECEIVER,
+                    "blocking_queue=$name, request_id=${request.id}"
+                )
             }
             return
         }
@@ -461,7 +466,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         if (request != null) {
             if (request.canBeFilled) {
                 val entity = request.receiver
-                entity.resumeProcess(0.0, requestQResumptionPriority)
+                entity.scheduleResumeProcess(
+                    0.0,
+                    requestQResumptionPriority,
+                    ResumeSource.BLOCKING_QUEUE_RECEIVER,
+                    "blocking_queue=$name, request_id=${request.id}"
+                )
             }
         }
     }
@@ -572,7 +582,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             // select an entity waiting to send elements into the channel
             val entity = senderSelector.selectEntity(mySenderQ)
             // if there is an entity selected, tell it to resume
-            entity?.resumeProcess(0.0, senderQResumptionPriority)
+            entity?.scheduleResumeProcess(
+                0.0,
+                senderQResumptionPriority,
+                ResumeSource.BLOCKING_QUEUE_SENDER,
+                "blocking_queue=$name"
+            )
         }
     }
 }

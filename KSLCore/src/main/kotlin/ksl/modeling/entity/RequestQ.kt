@@ -68,6 +68,21 @@ class RequestQ @JvmOverloads constructor(
      */
     var requestSelectionRule: RequestSelectionRuleIfc? = null
 
+    override fun remove(qObj: ProcessModel.Entity.Request, waitStats: Boolean): Boolean {
+        val removed = super.remove(qObj, waitStats)
+        if (removed) {
+            qObj.clearResumePending()
+        }
+        return removed
+    }
+
+    override fun clear() {
+        for (request in immutableList) {
+            request.clearResumePending()
+        }
+        super.clear()
+    }
+
     /**
      *  Returns the number of requests targeting the supplied resource
      *  that are waiting in the queue.
@@ -257,7 +272,12 @@ class RequestQ @JvmOverloads constructor(
      *  @param resumePriority the priority to resume the requests
      *  @return the total amount to be allocated from the resource because of the processing.
      */
-    internal fun processWaitingRequestsForResource(resource: ResourceIfc, resumePriority: Int): Int {
+    internal fun processWaitingRequestsForResource(
+        resource: ResourceIfc,
+        resumePriority: Int,
+        resumeSource: ResumeSource,
+        resumeDetail: String? = null
+    ): Int {
         if (resource.numAvailableUnits <= 0) {
             return 0
         }
@@ -273,7 +293,10 @@ class RequestQ @JvmOverloads constructor(
         // ensure that res
         while (itr.hasNext() && sum <= resource.numAvailableUnits) {
             val request = itr.next()
-            request.entity.resumeProcess(0.0, resumePriority)
+            val detail = "queue=$name, resource=${resource.name}, request_id=${request.id}, " +
+                    "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
+            request.markResumePending(resumeSource, detail)
+            request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, detail)
             sum = sum + request.amountRequested
         }
         return sum

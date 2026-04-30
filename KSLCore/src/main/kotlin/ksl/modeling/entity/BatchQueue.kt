@@ -132,7 +132,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>> @JvmOverloads constructor(
         waitStats: Boolean = true
     ) {
         remove(entity, waitStats)
-        entity.resumeProcess(0.0, resumePriority)
+        entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.BATCH_QUEUE, "queue=$name")
     }
 
     /** Removes the entity from the queue and tells it to resume its process immediately,

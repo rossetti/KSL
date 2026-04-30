@@ -93,7 +93,7 @@ class Signal @JvmOverloads constructor(
             return
         }
        // require(holdQueue.contains(entity)) { "The entity (${entity.name}) being signaled is not in the holdQueue : ${holdQueue.name}" }
-        entity.resumeProcess(0.0, resumePriority)
+        entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.SIGNAL, "signal=$name")
     }
 
     /**
