@@ -7,6 +7,8 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.test.assertFalse
@@ -230,6 +232,37 @@ class ConcurrentScenarioRunnerTest {
                 "Scenario '$name' System Time observations must all be finite and positive"
             )
         }
+    }
+
+    @RepeatedTest(5)
+    fun concurrentRunnerIsStableAcrossRepeatedRuns() {
+        val runner = runThreeScenarioRunner("ConcurrentScenarioRunnerStress_${System.nanoTime()}")
+
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        val observations = runner.observationsAsMap("System Time")
+        assertEquals(
+            runner.scenarioList.map { it.name }.toSet(),
+            observations.keys,
+            "System Time observations must be present for every scenario"
+        )
+    }
+
+    @Tag("slow")
+    @RepeatedTest(50)
+    fun concurrentRunnerIsStableAcrossManyRepeatedRuns() {
+        val runner = runThreeScenarioRunner("ConcurrentScenarioRunnerSlowStress_${System.nanoTime()}")
+
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        val observations = runner.observationsAsMap("System Time")
+        assertEquals(
+            runner.scenarioList.map { it.name }.toSet(),
+            observations.keys,
+            "System Time observations must be present for every scenario"
+        )
     }
 
     @Test
