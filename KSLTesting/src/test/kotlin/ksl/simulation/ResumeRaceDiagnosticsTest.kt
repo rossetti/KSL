@@ -4,58 +4,37 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ
 import ksl.modeling.variable.Counter
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import kotlin.test.assertFailsWith
 
 class ResumeRaceDiagnosticsTest {
 
     @Test
-    fun duplicateSameRequestResumeIsDiagnosed() {
+    fun duplicateSameRequestResumeIsPrevented() {
         val model = Model("DuplicateRequestResumeProbeModel")
-        DuplicateRequestResumeProbe(model)
+        val probe = DuplicateRequestResumeProbe(model)
 
         model.numberOfReplications = 1
         model.lengthOfReplication = 10.0
 
-        val failure = assertFailsWith<IllegalArgumentException> {
+        assertDoesNotThrow {
             model.simulate()
         }
-
-        assertTrue(
-            failure.message?.contains("Duplicate resume scheduled") == true,
-            "Expected duplicate request resume diagnostic, got: ${failure.message}"
-        )
-        assertTrue(
-            failure.message?.contains("REQUEST_Q_RESOURCE_RELEASE") == true,
-            "Expected release-source diagnostic, got: ${failure.message}"
-        )
+        assertEquals(2, probe.completedCount)
     }
 
     @Test
-    fun varyingAmountResourceRequestsDiagnoseDuplicateResume() {
+    fun varyingAmountResourceRequestsDoNotDuplicateResume() {
         val model = Model("VaryingAmountDuplicateResumeProbeModel")
-        VaryingAmountDuplicateResumeProbe(model)
+        val probe = VaryingAmountDuplicateResumeProbe(model)
 
         model.numberOfReplications = 1
         model.lengthOfReplication = 10.0
 
-        val failure = assertFailsWith<IllegalArgumentException> {
+        assertDoesNotThrow {
             model.simulate()
         }
-
-        assertTrue(
-            failure.message?.contains("Duplicate resume scheduled") == true,
-            "Expected duplicate request resume diagnostic, got: ${failure.message}"
-        )
-        assertTrue(
-            failure.message?.contains("resource = OvenSpace") == true,
-            "Expected oven-space duplicate request resume diagnostic, got: ${failure.message}"
-        )
-        assertTrue(
-            failure.message?.contains("amount = 175") == true,
-            "Expected duplicate resume for the 175-unit request, got: ${failure.message}"
-        )
+        assertEquals(2, probe.completedCount)
     }
 
     @Test
@@ -85,25 +64,16 @@ class ResumeRaceDiagnosticsTest {
     }
 
     @Test
-    fun pizzaStyleConstrainedPrepStressDiagnosesDuplicateRequestResume() {
+    fun pizzaStyleConstrainedPrepStressDoesNotDuplicateRequestResume() {
         val model = Model("ConstrainedPrepStressProbeModel")
         OvenStyleStressProbe(model, jobsPerBurst = 30, bursts = 20, prepCapacity = 8)
 
         model.numberOfReplications = 25
         model.lengthOfReplication = 250.0
 
-        val failure = assertFailsWith<IllegalArgumentException> {
+        assertDoesNotThrow {
             model.simulate()
         }
-
-        assertTrue(
-            failure.message?.contains("Duplicate resume scheduled") == true,
-            "Expected duplicate request resume diagnostic, got: ${failure.message}"
-        )
-        assertTrue(
-            failure.message?.contains("resource = PrepWorker") == true,
-            "Expected prep-worker duplicate request resume diagnostic, got: ${failure.message}"
-        )
     }
 
     private class DuplicateRequestResumeProbe(
@@ -111,6 +81,8 @@ class ResumeRaceDiagnosticsTest {
     ) : ProcessModel(parent, "DuplicateRequestResumeProbe") {
 
         private val sharedResource = ResourceWithQ(this, "SharedResource", capacity = 2)
+        var completedCount = 0
+            private set
 
         private inner class Holder : Entity() {
             val process = process("Holder") {
@@ -123,6 +95,7 @@ class ResumeRaceDiagnosticsTest {
                 release(second)
 
                 delay(1.0)
+                completedCount++
             }
         }
 
@@ -131,11 +104,13 @@ class ResumeRaceDiagnosticsTest {
                 val allocation = seize(sharedResource)
                 delay(0.25)
                 release(allocation)
+                completedCount++
             }
         }
 
         override fun initialize() {
             super.initialize()
+            completedCount = 0
             activate(Holder().process)
             activate(WaitingJob().process)
         }
@@ -146,6 +121,8 @@ class ResumeRaceDiagnosticsTest {
     ) : ProcessModel(parent, "VaryingAmountDuplicateResumeProbe") {
 
         private val ovenSpace = ResourceWithQ(this, "OvenSpace", capacity = 500)
+        var completedCount = 0
+            private set
 
         private inner class Holder : Entity() {
             val process = process("Holder") {
@@ -158,6 +135,7 @@ class ResumeRaceDiagnosticsTest {
                 release(second)
 
                 delay(1.0)
+                completedCount++
             }
         }
 
@@ -166,11 +144,13 @@ class ResumeRaceDiagnosticsTest {
                 val oven = seize(ovenSpace, 175)
                 delay(0.25)
                 release(oven)
+                completedCount++
             }
         }
 
         override fun initialize() {
             super.initialize()
+            completedCount = 0
             activate(Holder().process)
             activate(WaitingPizza().process)
         }

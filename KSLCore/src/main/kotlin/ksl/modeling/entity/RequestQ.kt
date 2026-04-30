@@ -169,14 +169,23 @@ class RequestQ @JvmOverloads constructor(
     /**
      *  Returns a list of requests waiting for the specified resource that have requested
      *  a number of units of the resource that is less than or equal to the number of units
-     *  available.  Thus, any request in the returned list could be satisfied at the current time.
+     *  available after accounting for requests that have already been selected for resumption.
+     *  Thus, any request in the returned list could be satisfied at the current time.
      *
      *  @param resource the resource to check
      *  @return the list with the items ordered by the queue discipline. If no items are
      *  selected, then the returned list will be empty.
      */
     fun filterRequestsByResource(resource: ResourceIfc): List<ProcessModel.Entity.Request> {
-        return filteredOrderedList { it.resource == resource && it.amountRequested <= resource.numAvailableUnits }
+        val amountAvailable = effectiveAvailableFor(resource)
+        if (amountAvailable <= 0) {
+            return emptyList()
+        }
+        return filteredOrderedList {
+            it.resource == resource &&
+                !it.resumePending &&
+                it.amountRequested <= amountAvailable
+        }
     }
 
     /**
@@ -196,7 +205,8 @@ class RequestQ @JvmOverloads constructor(
      *  selected, then the returned list will be empty.
      */
     fun selectRequestsByResource(resource: ResourceIfc): List<ProcessModel.Entity.Request> {
-        if (isEmpty) {
+        val amountAvailable = effectiveAvailableFor(resource)
+        if (amountAvailable <= 0) {
             return emptyList()
         }
         val filtered = filterRequestsByResource(resource)
@@ -207,24 +217,12 @@ class RequestQ @JvmOverloads constructor(
         if (filtered.isEmpty() || filtered.size == 1) {
             return filtered
         }
-        // 2 or more could be satisfied
-        val list = mutableListOf<ProcessModel.Entity.Request>()
         // process the filtered requests in order until all the available units that can be
         // provided are used. This may cause skipping over of waiting requests.
         // For example, suppose there are is only 1 unit left to allocate and the current
         // request needs 2 units. The search will skip the current request and check the remaining
         // requests until it finds a request that can be fully filled or none are found.
-        var amountAvailable = resource.numAvailableUnits
-        for (request in filtered) {
-            if (request.amountRequested <= amountAvailable) {
-                list.add(request)
-                amountAvailable = amountAvailable - request.amountRequested
-                if (amountAvailable == 0){
-                    break
-                }
-            }
-        }
-        return list
+        return selectWithinAvailable(filtered, amountAvailable)
     }
 
     /**
@@ -235,26 +233,43 @@ class RequestQ @JvmOverloads constructor(
      *   @return the selected request or null
      */
     fun nextRequestForResource(resource: ResourceIfc): ProcessModel.Entity.Request? {
-        if (isEmpty) {
-            return null
-        }
-        // no need to select if there is only one waiting
-        if (size == 1) {
-            if (this[0].resource != resource) {
-                return null
-            }
-            return if (resource.numAvailableUnits >= this[0].amountRequested) {
-                this[0]
-            } else {
-                null
+        return filterRequestsByResource(resource).firstOrNull()
+    }
+
+    private fun pendingResumeAmountFor(resource: ResourceIfc): Int {
+        var sum = 0
+        for (request in myList) {
+            if (request.resource == resource && request.resumePending) {
+                sum += request.amountRequested
             }
         }
-        val filtered = filterRequestsByResource(resource)
-        return if (filtered.isEmpty()) {
-            null
-        } else {
-            filtered.first()
+        return sum
+    }
+
+    private fun effectiveAvailableFor(resource: ResourceIfc): Int {
+        return resource.numAvailableUnits - pendingResumeAmountFor(resource)
+    }
+
+    private fun selectWithinAvailable(
+        candidates: Iterable<ProcessModel.Entity.Request>,
+        amountAvailable: Int
+    ): List<ProcessModel.Entity.Request> {
+        if (amountAvailable <= 0) {
+            return emptyList()
         }
+        val list = mutableListOf<ProcessModel.Entity.Request>()
+        var remaining = amountAvailable
+        for (request in candidates) {
+            if (request.resumePending) continue
+            if (request.amountRequested <= remaining) {
+                list.add(request)
+                remaining -= request.amountRequested
+                if (remaining == 0) {
+                    break
+                }
+            }
+        }
+        return list
     }
 
     /**
@@ -278,21 +293,21 @@ class RequestQ @JvmOverloads constructor(
         resumeSource: ResumeSource,
         resumeDetail: String? = null
     ): Int {
-        if (resource.numAvailableUnits <= 0) {
+        val amountAvailable = effectiveAvailableFor(resource)
+        if (amountAvailable <= 0) {
             return 0
         }
-        val selected = requestSelectionRule?.selectRequests(resource, this)
-            ?: selectRequestsByResource(resource)
+        val candidates = requestSelectionRule?.selectRequests(resource, this)
+            ?.filter { it.resource == resource }
+            ?: filterRequestsByResource(resource)
+        val selected = selectWithinAvailable(candidates, amountAvailable)
         if (selected.isEmpty()){
             return 0
         }
         //TODO need to evaluate effect of capacity change on this
         // check numAvailableUnits calculation for pools and under capacity change conditions
         var sum = 0
-        val itr = selected.iterator()
-        // ensure that res
-        while (itr.hasNext() && sum <= resource.numAvailableUnits) {
-            val request = itr.next()
+        for (request in selected) {
             val detail = "queue=$name, resource=${resource.name}, request_id=${request.id}, " +
                     "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
             request.markResumePending(resumeSource, detail)
