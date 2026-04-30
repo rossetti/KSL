@@ -24,9 +24,9 @@ import kotlin.test.assertTrue
  *
  * Three M/M/c scenarios (c = 1, 2, 3) are executed concurrently.  Each scenario uses a
  * dedicated [ModelBuilderIfc] that constructs a completely fresh [Model] on every build()
- * call.  To guarantee independent random streams under concurrent execution, each builder
- * uses a distinct pair of stream numbers (11/12, 13/14, 15/16), avoiding the shared-stream
- * race that would occur if multiple concurrent models requested the same stream number.
+ * call.  The primary scenarios use distinct stream numbers to keep their queueing behavior
+ * visibly different.  The CRN-focused tests below intentionally reuse the same stream numbers
+ * across fresh models to verify that each model's internal stream provider isolates stream state.
  *
  * Verification tiers:
  *  - **Smoke** — structural checks (scenario count, simulationRun presence, no errors)
@@ -51,6 +51,9 @@ class ConcurrentScenarioRunnerTest {
         private const val STREAM_S2_SERVE  = 14
         private const val STREAM_S3_ARRIVE = 15
         private const val STREAM_S3_SERVE  = 16
+
+        private const val CRN_ARRIVE_STREAM = 31
+        private const val CRN_SERVICE_STREAM = 32
     }
 
     // ── Shared state ──────────────────────────────────────────────────────────
@@ -177,6 +180,51 @@ class ConcurrentScenarioRunnerTest {
                 lengthOfReplication = lengthOfReplication,
                 lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
             )
+        )
+        runner.simulate()
+        return runner
+    }
+
+    private fun buildCommonRandomNumberQueueScenarios(
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): List<Scenario> {
+        return listOf(
+            "CRN_A" to "CSR_CRN_A",
+            "CRN_B" to "CSR_CRN_B",
+            "CRN_C" to "CSR_CRN_C"
+        ).map { (scenarioName, modelName) ->
+            buildQueueScenario(
+                scenarioName = scenarioName,
+                modelName = modelName,
+                numServers = 1,
+                arrivalStream = CRN_ARRIVE_STREAM,
+                serviceStream = CRN_SERVICE_STREAM,
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            )
+        }
+    }
+
+    private fun runCommonRandomNumberConcurrentRunner(
+        runnerName: String = "ConcurrentScenarioRunnerCRN_${System.nanoTime()}"
+    ): ConcurrentScenarioRunner {
+        val runner = ConcurrentScenarioRunner(
+            runnerName,
+            buildCommonRandomNumberQueueScenarios()
+        )
+        runBlocking { runner.simulate() }
+        return runner
+    }
+
+    private fun runCommonRandomNumberSequentialRunner(
+        runnerName: String = "SequentialScenarioRunnerCRN_${System.nanoTime()}"
+    ): ScenarioRunner {
+        val runner = ScenarioRunner(
+            runnerName,
+            buildCommonRandomNumberQueueScenarios()
         )
         runner.simulate()
         return runner
@@ -441,6 +489,67 @@ class ConcurrentScenarioRunnerTest {
                 concurrentObs!!,
                 1.0e-10,
                 "System Time replication observations must match for scenario '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun concurrentIdenticalScenariosCanUseCommonRandomNumberStreams() {
+        val runner = runCommonRandomNumberConcurrentRunner()
+
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        val observations = runner.observationsAsMap("System Time")
+        val scenarioNames = setOf("CRN_A", "CRN_B", "CRN_C")
+
+        assertEquals(
+            scenarioNames,
+            observations.keys,
+            "All CRN scenarios must produce System Time observations"
+        )
+
+        val baseline = observations.getValue("CRN_A")
+
+        for (scenarioName in listOf("CRN_B", "CRN_C")) {
+            assertArrayEquals(
+                baseline,
+                observations.getValue(scenarioName),
+                1.0e-10,
+                "Identical concurrent scenarios using the same stream numbers must produce identical observations"
+            )
+        }
+
+        for ((scenarioName, obs) in observations) {
+            assertArrayEquals(
+                obs,
+                dbSystemTimeObservations(runner, scenarioName),
+                1.0e-10,
+                "DB System Time rows must preserve CRN observations for '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun concurrentCommonRandomNumberResultsMatchSequentialExecution() {
+        val sequentialRunner = runCommonRandomNumberSequentialRunner()
+        val concurrentRunner = runCommonRandomNumberConcurrentRunner()
+
+        assertAllScenariosSucceeded(concurrentRunner)
+        assertDbExperimentNamesMatchScenarios(concurrentRunner)
+
+        for (scenarioName in listOf("CRN_A", "CRN_B", "CRN_C")) {
+            val sequentialRun = sequentialRunner.scenarioByName(scenarioName)!!.simulationRun
+            assertNotNull(sequentialRun, "Sequential scenario '$scenarioName' must have a simulationRun")
+
+            val concurrentRun = concurrentRunner.scenarioByName(scenarioName)!!.simulationRun
+            assertNotNull(concurrentRun, "Concurrent scenario '$scenarioName' must have a simulationRun")
+
+            assertArrayEquals(
+                sequentialRun!!.replicationObservations("System Time")!!,
+                concurrentRun!!.replicationObservations("System Time")!!,
+                1.0e-10,
+                "Common-random-number observations must match sequential execution for '$scenarioName'"
             )
         }
     }
