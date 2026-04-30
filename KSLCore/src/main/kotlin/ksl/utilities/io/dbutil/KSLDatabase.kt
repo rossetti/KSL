@@ -147,6 +147,77 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     }
 
     /**
+     *  Retrieves the simulation-run records associated with the named experiment.
+     *  Returns an empty list if no experiment with [expName] exists.
+     */
+    fun simulationRunDataFor(expName: String): List<SimulationRunTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        return fetchSimulationRunRecords(expRecord.exp_id)
+    }
+
+    /**
+     *  Retrieves the model-element records associated with the named experiment.
+     *  Returns an empty list if no experiment with [expName] exists.
+     */
+    fun modelElementDataFor(expName: String): List<ModelElementTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        return db.selectTableDataIntoDbData(::ModelElementTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+    }
+
+    /**
+     *  Retrieves the control records associated with the named experiment.
+     *  Returns an empty list if no experiment with [expName] exists.
+     */
+    fun controlDataFor(expName: String): List<ControlTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        return db.selectTableDataIntoDbData(::ControlTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+    }
+
+    /**
+     *  Retrieves the random-variable parameter records associated with the named experiment.
+     *  Returns an empty list if no experiment with [expName] exists.
+     */
+    fun rvParameterDataFor(expName: String): List<RvParameterTableData> {
+        val expRecord = fetchExperimentData(expName) ?: return emptyList()
+        return db.selectTableDataIntoDbData(::RvParameterTableData)
+            .filter { it.exp_id_fk == expRecord.exp_id }
+    }
+
+    /**
+     *  Retrieves the within-replication response-statistic records associated with
+     *  the named experiment.
+     */
+    fun withinRepStatDataFor(expName: String): List<WithinRepStatTableData> {
+        val runIds = simulationRunDataFor(expName).map { it.run_id }.toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::WithinRepStatTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
+     *  Retrieves the within-replication counter-statistic records associated with
+     *  the named experiment.
+     */
+    fun withinRepCounterStatDataFor(expName: String): List<WithinRepCounterStatTableData> {
+        val runIds = simulationRunDataFor(expName).map { it.run_id }.toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::WithinRepCounterStatTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
+     *  Retrieves the across-replication statistic records associated with the named experiment.
+     */
+    fun acrossRepStatDataFor(expName: String): List<AcrossRepStatTableData> {
+        val runIds = simulationRunDataFor(expName).map { it.run_id }.toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::AcrossRepStatTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
      *  Checks if the supplied experiment name exists within the database.
      *  Experiment names should be unique within the database
      *  @param expName the name to check
