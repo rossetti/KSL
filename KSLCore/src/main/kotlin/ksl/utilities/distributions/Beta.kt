@@ -146,7 +146,7 @@ class Beta(
 
 
     companion object {
-        private val myContinuedFraction = IncompleteBetaFunctionFraction()
+//        private val myContinuedFraction = IncompleteBetaFunctionFraction()
 
 //        private val myInterval = Interval(0.0, 1.0)
 
@@ -224,11 +224,11 @@ class Beta(
                 return 1.0
             }
             val bt = exp(-lnbeta + a * ln(x) + b * ln(1.0 - x))
-
+            val continuedFraction = IncompleteBetaFunctionFraction()
             return if (x < (a + 1.0) / (a + b + 2.0)) {
-                bt / (myContinuedFraction.evaluateFraction(x, a, b) * a)
+                bt / (continuedFraction.evaluateFraction(x, a, b) * a)
             } else {
-                1.0 - bt / (myContinuedFraction.evaluateFraction(1.0 - x, b, a) * b)
+                1.0 - bt / (continuedFraction.evaluateFraction(1.0 - x, b, a) * b)
             }
         }
 
