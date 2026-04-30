@@ -2,9 +2,11 @@ package ksl.simulation
 
 import ksl.controls.experiments.ConcurrentScenarioRunner
 import ksl.controls.experiments.Scenario
+import ksl.controls.experiments.ScenarioRunner
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.RepeatedTest
@@ -88,13 +90,12 @@ class ConcurrentScenarioRunnerTest {
         )
     }
 
-    private fun buildThreeScenarioRunner(
-        runnerName: String = "ConcurrentScenarioRunnerTest_${System.nanoTime()}",
+    private fun buildThreeQueueScenarios(
         numberReplications: Int = FAST_REPS,
         lengthOfReplication: Double = FAST_LENGTH,
         lengthOfReplicationWarmUp: Double = FAST_WARMUP
-    ): ConcurrentScenarioRunner {
-        val scenarios = listOf(
+    ): List<Scenario> {
+        return listOf(
             buildQueueScenario(
                 scenarioName = "OneServer",
                 modelName = "CSR_1S",
@@ -126,8 +127,22 @@ class ConcurrentScenarioRunnerTest {
                 lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
             )
         )
+    }
 
-        return ConcurrentScenarioRunner(runnerName, scenarios)
+    private fun buildThreeScenarioRunner(
+        runnerName: String = "ConcurrentScenarioRunnerTest_${System.nanoTime()}",
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): ConcurrentScenarioRunner {
+        return ConcurrentScenarioRunner(
+            runnerName,
+            buildThreeQueueScenarios(
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            )
+        )
     }
 
     private fun runThreeScenarioRunner(
@@ -143,6 +158,24 @@ class ConcurrentScenarioRunnerTest {
             lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
         )
         runBlocking { runner.simulate() }
+        return runner
+    }
+
+    private fun runThreeSequentialScenarioRunner(
+        runnerName: String = "SequentialScenarioRunnerParity_${System.nanoTime()}",
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): ScenarioRunner {
+        val runner = ScenarioRunner(
+            runnerName,
+            buildThreeQueueScenarios(
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            )
+        )
+        runner.simulate()
         return runner
     }
 
@@ -230,6 +263,54 @@ class ConcurrentScenarioRunnerTest {
             assertTrue(
                 obs.all { it.isFinite() && it > 0.0 },
                 "Scenario '$name' System Time observations must all be finite and positive"
+            )
+        }
+    }
+
+    @Test
+    fun concurrentResultsMatchSequentialScenarioRunnerForSystemTime() {
+        val sequentialRunner = runThreeSequentialScenarioRunner(
+            "SequentialScenarioRunnerParity_${System.nanoTime()}"
+        )
+        val concurrentRunner = runThreeScenarioRunner(
+            "ConcurrentScenarioRunnerParity_${System.nanoTime()}"
+        )
+
+        assertAllScenariosSucceeded(concurrentRunner)
+        assertDbExperimentNamesMatchScenarios(concurrentRunner)
+
+        for (scenarioName in listOf("OneServer", "TwoServers", "ThreeServers")) {
+            val sequentialScenario = sequentialRunner.scenarioByName(scenarioName)
+            assertNotNull(sequentialScenario, "Sequential runner must contain '$scenarioName'")
+
+            val sequentialRun = sequentialScenario!!.simulationRun
+            assertNotNull(sequentialRun, "Sequential scenario '$scenarioName' must have a simulationRun")
+            assertFalse(sequentialRun!!.hasError, "Sequential scenario '$scenarioName' must not have a run error")
+            assertTrue(sequentialRun.hasResults, "Sequential scenario '$scenarioName' must have results")
+
+            val concurrentScenario = concurrentRunner.scenarioByName(scenarioName)
+            assertNotNull(concurrentScenario, "Concurrent runner must contain '$scenarioName'")
+
+            val concurrentRun = concurrentScenario!!.simulationRun
+            assertNotNull(concurrentRun, "Concurrent scenario '$scenarioName' must have a simulationRun")
+
+            assertEquals(
+                sequentialRun.responseNames.toSet(),
+                concurrentRun!!.responseNames.toSet(),
+                "Response names must match for scenario '$scenarioName'"
+            )
+
+            val sequentialObs = sequentialRun.replicationObservations("System Time")
+            assertNotNull(sequentialObs, "Sequential scenario '$scenarioName' must have System Time observations")
+
+            val concurrentObs = concurrentRun.replicationObservations("System Time")
+            assertNotNull(concurrentObs, "Concurrent scenario '$scenarioName' must have System Time observations")
+
+            assertArrayEquals(
+                sequentialObs!!,
+                concurrentObs!!,
+                1.0e-10,
+                "System Time replication observations must match for scenario '$scenarioName'"
             )
         }
     }
