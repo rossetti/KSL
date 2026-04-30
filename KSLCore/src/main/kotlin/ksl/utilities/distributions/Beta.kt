@@ -240,6 +240,8 @@ class Beta(
          * @param b alpha 2
          * @return the continued fraction
          */
+        //TODO this is not currently used, but perhaps it should be for efficiency related to
+        // the creation of local continued fraction instances
         private fun betaContinuedFraction(x: Double, a: Double, b: Double): Double {
             var em: Double
             var tem: Double
