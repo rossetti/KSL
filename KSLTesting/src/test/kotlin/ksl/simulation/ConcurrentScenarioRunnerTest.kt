@@ -1,10 +1,8 @@
 package ksl.simulation
 
 import ksl.controls.experiments.ConcurrentScenarioRunner
-import ksl.controls.experiments.ExperimentRunParameters
 import ksl.controls.experiments.Scenario
 import ksl.examples.book.appendixD.GIGcQueue
-import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -52,81 +50,154 @@ class ConcurrentScenarioRunnerTest {
 
     private lateinit var runner: ConcurrentScenarioRunner
 
+    private fun buildQueueScenario(
+        scenarioName: String,
+        modelName: String,
+        numServers: Int,
+        arrivalStream: Int,
+        serviceStream: Int,
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): Scenario {
+        val builder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                val m = Model(modelName, autoCSVReports = false)
+                GIGcQueue(
+                    m,
+                    numServers = numServers,
+                    ad = ExponentialRV(1.0, arrivalStream),
+                    sd = ExponentialRV(0.5, serviceStream),
+                    name = "MM1Q"
+                )
+                return m
+            }
+        }
+
+        return Scenario(
+            modelBuilder = builder,
+            name = scenarioName,
+            numberReplications = numberReplications,
+            lengthOfReplication = lengthOfReplication,
+            lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        )
+    }
+
+    private fun buildThreeScenarioRunner(
+        runnerName: String = "ConcurrentScenarioRunnerTest_${System.nanoTime()}",
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): ConcurrentScenarioRunner {
+        val scenarios = listOf(
+            buildQueueScenario(
+                scenarioName = "OneServer",
+                modelName = "CSR_1S",
+                numServers = 1,
+                arrivalStream = STREAM_S1_ARRIVE,
+                serviceStream = STREAM_S1_SERVE,
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            ),
+            buildQueueScenario(
+                scenarioName = "TwoServers",
+                modelName = "CSR_2S",
+                numServers = 2,
+                arrivalStream = STREAM_S2_ARRIVE,
+                serviceStream = STREAM_S2_SERVE,
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            ),
+            buildQueueScenario(
+                scenarioName = "ThreeServers",
+                modelName = "CSR_3S",
+                numServers = 3,
+                arrivalStream = STREAM_S3_ARRIVE,
+                serviceStream = STREAM_S3_SERVE,
+                numberReplications = numberReplications,
+                lengthOfReplication = lengthOfReplication,
+                lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+            )
+        )
+
+        return ConcurrentScenarioRunner(runnerName, scenarios)
+    }
+
+    private fun runThreeScenarioRunner(
+        runnerName: String = "ConcurrentScenarioRunnerTest_${System.nanoTime()}",
+        numberReplications: Int = FAST_REPS,
+        lengthOfReplication: Double = FAST_LENGTH,
+        lengthOfReplicationWarmUp: Double = FAST_WARMUP
+    ): ConcurrentScenarioRunner {
+        val runner = buildThreeScenarioRunner(
+            runnerName = runnerName,
+            numberReplications = numberReplications,
+            lengthOfReplication = lengthOfReplication,
+            lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        )
+        runBlocking { runner.simulate() }
+        return runner
+    }
+
+    private fun assertAllScenariosSucceeded(runner: ConcurrentScenarioRunner) {
+        val failures = runner.scenarioList.mapNotNull { scenario ->
+            val run = scenario.simulationRun
+            when {
+                run == null -> "${scenario.name}: simulationRun was null"
+                run.hasError -> "${scenario.name}: ${run.runErrorMsg}"
+                !run.hasResults -> "${scenario.name}: simulationRun had no results"
+                else -> null
+            }
+        }
+
+        assertTrue(
+            failures.isEmpty(),
+            "Expected all scenarios to succeed, but found:\n${failures.joinToString("\n")}"
+        )
+    }
+
+    private fun assertDbExperimentNamesMatchScenarios(runner: ConcurrentScenarioRunner) {
+        val expected = runner.scenarioList.map { it.name }.toSet()
+        val actual = runner.kslDb.experimentNames.toSet()
+
+        assertEquals(
+            expected,
+            actual,
+            "DB experiment names must match scenario names"
+        )
+    }
+
+    private fun systemTimeObservations(
+        runner: ConcurrentScenarioRunner,
+        scenarioName: String
+    ): DoubleArray {
+        val scenario = runner.scenarioByName(scenarioName)
+        assertNotNull(scenario, "Expected scenario '$scenarioName'")
+
+        val run = scenario!!.simulationRun
+        assertNotNull(run, "Scenario '$scenarioName' must have a simulationRun")
+
+        val observations = run!!.replicationObservations("System Time")
+        assertNotNull(observations, "Scenario '$scenarioName' must have System Time observations")
+
+        return observations!!
+    }
+
+    private fun systemTimeAverage(
+        runner: ConcurrentScenarioRunner,
+        scenarioName: String
+    ): Double {
+        return systemTimeObservations(runner, scenarioName).average()
+    }
+
     @BeforeAll
     fun runScenarios() {
-        // Each builder produces a fully independent Model for every build() call.
-        val builder1 = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ksl.simulation.ExperimentRunParametersIfc?
-            ): Model {
-                val m = Model("CSR_1S", autoCSVReports = false)
-                GIGcQueue(
-                    m, numServers = 1,
-                    ad = ExponentialRV(1.0, STREAM_S1_ARRIVE),
-                    sd = ExponentialRV(0.5, STREAM_S1_SERVE),
-                    name = "MM1Q"
-                )
-                return m
-            }
-        }
-
-        val builder2 = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ksl.simulation.ExperimentRunParametersIfc?
-            ): Model {
-                val m = Model("CSR_2S", autoCSVReports = false)
-                GIGcQueue(
-                    m, numServers = 2,
-                    ad = ExponentialRV(1.0, STREAM_S2_ARRIVE),
-                    sd = ExponentialRV(0.5, STREAM_S2_SERVE),
-                    name = "MM1Q"
-                )
-                return m
-            }
-        }
-
-        val builder3 = object : ModelBuilderIfc {
-            override fun build(
-                modelConfiguration: Map<String, String>?,
-                experimentRunParameters: ksl.simulation.ExperimentRunParametersIfc?
-            ): Model {
-                val m = Model("CSR_3S", autoCSVReports = false)
-                GIGcQueue(
-                    m, numServers = 3,
-                    ad = ExponentialRV(1.0, STREAM_S3_ARRIVE),
-                    sd = ExponentialRV(0.5, STREAM_S3_SERVE),
-                    name = "MM1Q"
-                )
-                return m
-            }
-        }
-
-        val s1 = Scenario(
-            modelBuilder = builder1,
-            name = "OneServer",
-            numberReplications = FAST_REPS,
-            lengthOfReplication = FAST_LENGTH,
-            lengthOfReplicationWarmUp = FAST_WARMUP
-        )
-        val s2 = Scenario(
-            modelBuilder = builder2,
-            name = "TwoServers",
-            numberReplications = FAST_REPS,
-            lengthOfReplication = FAST_LENGTH,
-            lengthOfReplicationWarmUp = FAST_WARMUP
-        )
-        val s3 = Scenario(
-            modelBuilder = builder3,
-            name = "ThreeServers",
-            numberReplications = FAST_REPS,
-            lengthOfReplication = FAST_LENGTH,
-            lengthOfReplicationWarmUp = FAST_WARMUP
-        )
-
-        runner = ConcurrentScenarioRunner("ConcurrentScenarioRunnerTest", listOf(s1, s2, s3))
-        runBlocking { runner.simulate() }
+        runner = runThreeScenarioRunner("ConcurrentScenarioRunnerTest")
     }
 
     // ── Tier 1: Smoke ─────────────────────────────────────────────────────────
