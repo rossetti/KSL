@@ -287,6 +287,77 @@ class ConcurrentScenarioRunnerTest {
         return systemTimeObservations(runner, scenarioName).average()
     }
 
+    private fun dbSystemTimeRows(
+        runner: ConcurrentScenarioRunner,
+        scenarioName: String
+    ) = runner.kslDb.withinRepViewData()
+        .filter { it.exp_name == scenarioName && it.stat_name == "System Time" }
+        .sortedBy { it.rep_id }
+
+    private fun dbSystemTimeObservations(
+        runner: ConcurrentScenarioRunner,
+        scenarioName: String
+    ): DoubleArray {
+        return dbSystemTimeRows(runner, scenarioName)
+            .map { it.rep_value ?: Double.NaN }
+            .toDoubleArray()
+    }
+
+    private fun assertDbExperimentMetadataMatchesScenario(
+        runner: ConcurrentScenarioRunner,
+        scenarioName: String
+    ) {
+        val scenario = runner.scenarioByName(scenarioName)
+        assertNotNull(scenario, "Expected scenario '$scenarioName'")
+
+        val experiment = runner.kslDb.fetchExperimentData(scenarioName)
+        assertNotNull(experiment, "DB must contain experiment metadata for '$scenarioName'")
+
+        assertEquals(scenarioName, experiment!!.exp_name)
+        assertEquals(
+            scenario!!.lengthOfReplication,
+            experiment.length_of_rep ?: Double.NaN,
+            1.0e-10,
+            "DB replication length must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.lengthOfReplicationWarmUp,
+            experiment.length_of_warm_up ?: Double.NaN,
+            1.0e-10,
+            "DB warm-up length must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.replicationInitializationOption,
+            experiment.rep_init_option,
+            "DB replication initialization option must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.resetStartStreamOption,
+            experiment.reset_start_stream_option,
+            "DB reset-start-stream option must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.advanceNextSubStreamOption,
+            experiment.adv_next_sub_stream_option,
+            "DB advance-next-substream option must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.antitheticOption,
+            experiment.antithetic_option,
+            "DB antithetic option must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning,
+            experiment.num_stream_advances,
+            "DB stream-advance count must match scenario '$scenarioName'"
+        )
+        assertEquals(
+            scenario.scenarioRunParameters.garbageCollectAfterReplicationFlag,
+            experiment.gc_after_rep_option,
+            "DB garbage-collect-after-replication option must match scenario '$scenarioName'"
+        )
+    }
+
     @BeforeAll
     fun runScenarios() {
         runner = runThreeScenarioRunner("ConcurrentScenarioRunnerTest")
@@ -535,6 +606,78 @@ class ConcurrentScenarioRunnerTest {
             assertTrue(s.name in expNames,
                 "DB must contain an experiment named '${s.name}'. Found: $expNames")
         }
+    }
+
+    @Test
+    fun dbExperimentRecordsMatchScenarioRunParameters() {
+        val runner = runThreeScenarioRunner("ConcurrentScenarioRunnerDbMetadata_${System.nanoTime()}")
+
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        for (scenarioName in listOf("OneServer", "TwoServers", "ThreeServers")) {
+            assertDbExperimentMetadataMatchesScenario(runner, scenarioName)
+        }
+    }
+
+    @Test
+    fun dbSystemTimeRowsMatchSimulationRunResults() {
+        val runner = runThreeScenarioRunner("ConcurrentScenarioRunnerDbRows_${System.nanoTime()}")
+
+        assertAllScenariosSucceeded(runner)
+        assertDbExperimentNamesMatchScenarios(runner)
+
+        for (scenarioName in listOf("OneServer", "TwoServers", "ThreeServers")) {
+            assertArrayEquals(
+                systemTimeObservations(runner, scenarioName),
+                dbSystemTimeObservations(runner, scenarioName),
+                1.0e-10,
+                "DB System Time rows must match SimulationRun observations for '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun dbWithinRepRowsExistForEverySuccessfulReplicationOnly() {
+        val runner = runRunnerWithFailingScenario(
+            "ConcurrentScenarioRunnerDbIntegrityFailure_${System.nanoTime()}"
+        )
+
+        val expectedSuccessfulNames = setOf("OneServer", "TwoServers")
+        val actualNames = runner.kslDb.withinRepViewData()
+            .filter { it.stat_name == "System Time" }
+            .map { it.exp_name }
+            .toSet()
+
+        assertEquals(
+            expectedSuccessfulNames,
+            actualNames,
+            "DB System Time rows should exist only for successful scenarios"
+        )
+
+        for (scenarioName in expectedSuccessfulNames) {
+            val rows = dbSystemTimeRows(runner, scenarioName)
+
+            assertEquals(
+                FAST_REPS,
+                rows.size,
+                "DB must contain one System Time row per replication for '$scenarioName'"
+            )
+            assertEquals(
+                (1..FAST_REPS).toList(),
+                rows.map { it.rep_id },
+                "DB replication ids must be contiguous for '$scenarioName'"
+            )
+            assertTrue(
+                rows.all { it.rep_value != null && it.rep_value!!.isFinite() && it.rep_value!! > 0.0 },
+                "DB System Time values must be finite and positive for '$scenarioName'"
+            )
+        }
+
+        assertTrue(
+            dbSystemTimeRows(runner, "FailingScenario").isEmpty(),
+            "Failed scenario must not have System Time rows in the DB"
+        )
     }
 
     @Test
