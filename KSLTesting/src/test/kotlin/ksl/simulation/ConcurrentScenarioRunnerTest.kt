@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -689,5 +691,195 @@ class ConcurrentScenarioRunnerTest {
             assertEquals(FAST_REPS, obs.size,
                 "Scenario '$name' must have $FAST_REPS observations in the map")
         }
+    }
+
+    // ── Tier 4: Runner Options and Edge Cases ────────────────────────────────
+
+    @Test
+    fun duplicateScenarioNamesAreRejected() {
+        val duplicateName = "DuplicateScenario"
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            ConcurrentScenarioRunner(
+                "ConcurrentScenarioRunnerDuplicateNames_${System.nanoTime()}",
+                listOf(
+                    buildQueueScenario(
+                        scenarioName = duplicateName,
+                        modelName = "CSR_Duplicate_1",
+                        numServers = 1,
+                        arrivalStream = STREAM_S1_ARRIVE,
+                        serviceStream = STREAM_S1_SERVE
+                    ),
+                    buildQueueScenario(
+                        scenarioName = duplicateName,
+                        modelName = "CSR_Duplicate_2",
+                        numServers = 2,
+                        arrivalStream = STREAM_S2_ARRIVE,
+                        serviceStream = STREAM_S2_SERVE
+                    )
+                )
+            )
+        }
+
+        assertTrue(
+            exception.message!!.contains(duplicateName),
+            "Duplicate-name error should mention the scenario name"
+        )
+    }
+
+    @Test
+    fun addScenarioRejectsDuplicateScenarioName() {
+        val runner = ConcurrentScenarioRunner(
+            "ConcurrentScenarioRunnerDuplicateAdd_${System.nanoTime()}",
+            listOf(
+                buildQueueScenario(
+                    scenarioName = "DuplicateAdd",
+                    modelName = "CSR_DuplicateAdd_1",
+                    numServers = 1,
+                    arrivalStream = STREAM_S1_ARRIVE,
+                    serviceStream = STREAM_S1_SERVE
+                )
+            )
+        )
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            runner.addScenario(
+                buildQueueScenario(
+                    scenarioName = "DuplicateAdd",
+                    modelName = "CSR_DuplicateAdd_2",
+                    numServers = 2,
+                    arrivalStream = STREAM_S2_ARRIVE,
+                    serviceStream = STREAM_S2_SERVE
+                )
+            )
+        }
+
+        assertTrue(
+            exception.message!!.contains("DuplicateAdd"),
+            "Duplicate-name error should mention the scenario name"
+        )
+    }
+
+    @Test
+    fun numReplicationsPerScenarioUpdatesAllScenariosBeforeSimulation() {
+        val runner = buildThreeScenarioRunner(
+            "ConcurrentScenarioRunnerNumReps_${System.nanoTime()}"
+        )
+
+        runner.numReplicationsPerScenario(3)
+        runBlocking { runner.simulate() }
+
+        assertAllScenariosSucceeded(runner)
+
+        for (scenario in runner.scenarioList) {
+            assertEquals(
+                3,
+                scenario.simulationRun!!.numberOfReplications,
+                "Scenario '${scenario.name}' must use the overridden replication count"
+            )
+            assertEquals(
+                3,
+                dbSystemTimeRows(runner, scenario.name).size,
+                "DB must contain one System Time row per overridden replication"
+            )
+        }
+    }
+
+    @Test
+    fun numReplicationsPerScenarioRejectsInvalidValues() {
+        val runner = buildThreeScenarioRunner(
+            "ConcurrentScenarioRunnerInvalidNumReps_${System.nanoTime()}"
+        )
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            runner.numReplicationsPerScenario(0)
+        }
+
+        assertTrue(
+            exception.message!!.contains(">= 1"),
+            "Invalid replication-count error should explain the lower bound"
+        )
+    }
+
+    @Test
+    fun simulateRunsOnlyValidSelectedScenarioIndices() {
+        val runner = buildThreeScenarioRunner(
+            "ConcurrentScenarioRunnerSelectedIndices_${System.nanoTime()}"
+        )
+
+        runBlocking { runner.simulate(scenarios = -1..1) }
+
+        assertNotNull(runner.scenarioByName("OneServer")!!.simulationRun)
+        assertNotNull(runner.scenarioByName("TwoServers")!!.simulationRun)
+        assertNull(
+            runner.scenarioByName("ThreeServers")!!.simulationRun,
+            "Unselected scenario must not be simulated"
+        )
+
+        assertEquals(
+            setOf("OneServer", "TwoServers"),
+            runner.kslDb.experimentNames.toSet(),
+            "DB must contain only selected valid scenario indices"
+        )
+    }
+
+    @Test
+    fun simulateWithClearAllDataFalsePreservesExistingDbRowsForNewScenario() {
+        val runner = buildThreeScenarioRunner(
+            "ConcurrentScenarioRunnerAppendDb_${System.nanoTime()}"
+        )
+
+        runBlocking { runner.simulate(scenarios = 0..0) }
+
+        assertEquals(
+            setOf("OneServer"),
+            runner.kslDb.experimentNames.toSet()
+        )
+
+        runBlocking { runner.simulate(scenarios = 1..1, clearAllData = false) }
+
+        assertEquals(
+            setOf("OneServer", "TwoServers"),
+            runner.kslDb.experimentNames.toSet(),
+            "clearAllData=false should preserve existing DB rows when names do not collide"
+        )
+    }
+
+    @Test
+    fun simulateWithDefaultClearAllDataReplacesPreviousDbRows() {
+        val runner = buildThreeScenarioRunner(
+            "ConcurrentScenarioRunnerClearDb_${System.nanoTime()}"
+        )
+
+        runBlocking { runner.simulate(scenarios = 0..0) }
+        runBlocking { runner.simulate(scenarios = 1..1) }
+
+        assertEquals(
+            setOf("TwoServers"),
+            runner.kslDb.experimentNames.toSet(),
+            "Default clearAllData=true should clear previous DB rows before committing selected results"
+        )
+        assertTrue(
+            dbSystemTimeRows(runner, "OneServer").isEmpty(),
+            "Previous DB rows for OneServer should be cleared"
+        )
+        assertEquals(
+            FAST_REPS,
+            dbSystemTimeRows(runner, "TwoServers").size,
+            "Selected scenario should have committed DB rows"
+        )
+    }
+
+    @Test
+    fun emptyRunnerSimulationCompletesWithoutResults() {
+        val runner = ConcurrentScenarioRunner(
+            "ConcurrentScenarioRunnerEmpty_${System.nanoTime()}"
+        )
+
+        runBlocking { runner.simulate() }
+
+        assertTrue(runner.scenarioList.isEmpty())
+        assertTrue(runner.kslDb.experimentNames.isEmpty())
+        assertTrue(runner.observationsAsMap("System Time").isEmpty())
     }
 }
