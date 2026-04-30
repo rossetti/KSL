@@ -218,6 +218,16 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     }
 
     /**
+     *  Retrieves the time-series response records associated with the named experiment.
+     */
+    fun timeSeriesResponseDataFor(expName: String): List<TimeSeriesResponseTableData> {
+        val runIds = simulationRunDataFor(expName).map { it.run_id }.toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::TimeSeriesResponseTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
      *  Checks if the supplied experiment name exists within the database.
      *  Experiment names should be unique within the database
      *  @param expName the name to check

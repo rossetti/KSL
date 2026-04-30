@@ -4,18 +4,25 @@ import ksl.controls.experiments.ConcurrentScenarioRunner
 import ksl.controls.experiments.Scenario
 import ksl.controls.experiments.ScenarioRunner
 import ksl.examples.book.appendixD.GIGcQueue
+import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
+import ksl.examples.book.chapter7.StemFairMixerEnhancedSched
 import ksl.utilities.io.dbutil.AcrossRepStatTableData
 import ksl.utilities.io.dbutil.ControlTableData
 import ksl.utilities.io.dbutil.ExperimentTableData
+import ksl.utilities.io.dbutil.FrequencyTableData
+import ksl.utilities.io.dbutil.HistogramTableData
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.ModelElementTableData
 import ksl.utilities.io.dbutil.RvParameterTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
+import ksl.utilities.io.dbutil.TimeSeriesResponseTableData
 import ksl.utilities.io.dbutil.WithinRepCounterStatTableData
 import ksl.utilities.io.dbutil.WithinRepStatTableData
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ConcurrentScenarioRunnerDatabaseParityTest {
@@ -24,9 +31,17 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         private const val REPS = 5
         private const val LENGTH = 1000.0
         private const val WARMUP = 200.0
+        private const val TIME_SERIES_REPS = 3
+        private const val TIME_SERIES_PERIODS = 6
+        private const val TIME_SERIES_RESPONSES = 2
+        private const val PHARMACY_REPS = 3
+        private const val PHARMACY_LENGTH = 2000.0
+        private const val PHARMACY_WARMUP = 200.0
 
         private val SCENARIO_NAMES = listOf("OneServer", "TwoServers", "ThreeServers")
         private val INPUT_SCENARIO_NAMES = listOf("InputOne", "InputTwo", "InputThree")
+        private val TIME_SERIES_SCENARIO_NAMES = listOf("StemFairA", "StemFairB")
+        private val PHARMACY_SCENARIO_NAMES = listOf("PharmacyA", "PharmacyB")
     }
 
     private data class ParityRunners(
@@ -138,6 +153,60 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         val paramValue: Double
     )
 
+    private data class TimeSeriesScenarioSpec(
+        val scenarioName: String,
+        val modelName: String,
+        val mixerName: String,
+        val warningTime: Double
+    )
+
+    private data class NormalizedTimeSeriesResponse(
+        val elementName: String,
+        val repId: Int,
+        val statName: String,
+        val period: Int,
+        val startTime: Double?,
+        val endTime: Double?,
+        val length: Double?,
+        val value: Double?
+    )
+
+    private data class PharmacyDistributionSpec(
+        val scenarioName: String,
+        val modelName: String,
+        val pharmacyName: String,
+        val numPharmacists: Int,
+        val arrivalMean: Double,
+        val serviceMean: Double,
+        val arrivalStream: Int,
+        val serviceStream: Int
+    )
+
+    private data class NormalizedHistogram(
+        val histogramElementName: String,
+        val responseElementName: String,
+        val responseName: String,
+        val binLabel: String,
+        val binNum: Int,
+        val binLowerLimit: Double?,
+        val binUpperLimit: Double?,
+        val binCount: Double?,
+        val binCumCount: Double?,
+        val binProportion: Double?,
+        val binCumProportion: Double?
+    )
+
+    private data class NormalizedFrequency(
+        val elementName: String,
+        val name: String,
+        val cellLabel: String,
+        val value: Int,
+        val count: Double?,
+        val cumCount: Double?,
+        val proportion: Double?,
+        val cumProportion: Double?
+    )
+
     private fun buildQueueScenario(
         scenarioName: String,
         modelName: String,
@@ -232,6 +301,109 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         val concurrent = ConcurrentScenarioRunner(
             "ConcurrentInputMetadataParity_${System.nanoTime()}",
             buildInputMetadataQueueScenarios()
+        )
+        runBlocking { concurrent.simulate() }
+
+        return ParityRunners(sequential, concurrent)
+    }
+
+    private fun timeSeriesScenarioSpecs(): List<TimeSeriesScenarioSpec> {
+        return listOf(
+            TimeSeriesScenarioSpec("StemFairA", "DBParityStemFair_A", "SFS_A", 30.0),
+            TimeSeriesScenarioSpec("StemFairB", "DBParityStemFair_B", "SFS_B", 45.0)
+        )
+    }
+
+    private fun buildStemFairTimeSeriesScenarios(): List<Scenario> {
+        return timeSeriesScenarioSpecs().map { spec ->
+            val builder = object : ModelBuilderIfc {
+                override fun build(
+                    modelConfiguration: Map<String, String>?,
+                    experimentRunParameters: ExperimentRunParametersIfc?
+                ): Model {
+                    val model = Model(spec.modelName, autoCSVReports = false)
+                    val mixer = StemFairMixerEnhancedSched(model, spec.mixerName)
+                    mixer.warningTime = spec.warningTime
+                    mixer.timeSeriesResponse.acrossRepStatisticsOption = true
+                    return model
+                }
+            }
+
+            Scenario(
+                modelBuilder = builder,
+                name = spec.scenarioName,
+                numberReplications = TIME_SERIES_REPS,
+                lengthOfReplication = Double.POSITIVE_INFINITY,
+                lengthOfReplicationWarmUp = 0.0
+            )
+        }
+    }
+
+    private fun runTimeSeriesParityRunners(): ParityRunners {
+        val sequential = ScenarioRunner(
+            "SequentialTimeSeriesParity_${System.nanoTime()}",
+            buildStemFairTimeSeriesScenarios()
+        )
+        sequential.simulate()
+
+        val concurrent = ConcurrentScenarioRunner(
+            "ConcurrentTimeSeriesParity_${System.nanoTime()}",
+            buildStemFairTimeSeriesScenarios()
+        )
+        runBlocking { concurrent.simulate() }
+
+        return ParityRunners(sequential, concurrent)
+    }
+
+    private fun pharmacyDistributionSpecs(): List<PharmacyDistributionSpec> {
+        return listOf(
+            PharmacyDistributionSpec("PharmacyA", "DBParityPharmacy_A", "Pharmacy_A", 1, 6.0, 3.0, 61, 62),
+            PharmacyDistributionSpec("PharmacyB", "DBParityPharmacy_B", "Pharmacy_B", 2, 5.0, 2.5, 63, 64)
+        )
+    }
+
+    private fun buildPharmacyDistributionScenarios(): List<Scenario> {
+        return pharmacyDistributionSpecs().map { spec ->
+            val builder = object : ModelBuilderIfc {
+                override fun build(
+                    modelConfiguration: Map<String, String>?,
+                    experimentRunParameters: ExperimentRunParametersIfc?
+                ): Model {
+                    val model = Model(spec.modelName, autoCSVReports = false)
+                    val pharmacy = DriveThroughPharmacyWithQ(
+                        parent = model,
+                        numServers = spec.numPharmacists,
+                        name = spec.pharmacyName
+                    )
+                    pharmacy.arrivalGenerator.setInitialEventTimeProcesses(
+                        ExponentialRV(spec.arrivalMean, spec.arrivalStream)
+                    )
+                    pharmacy.serviceRV.initialRandomSource =
+                        ExponentialRV(spec.serviceMean, spec.serviceStream)
+                    return model
+                }
+            }
+
+            Scenario(
+                modelBuilder = builder,
+                name = spec.scenarioName,
+                numberReplications = PHARMACY_REPS,
+                lengthOfReplication = PHARMACY_LENGTH,
+                lengthOfReplicationWarmUp = PHARMACY_WARMUP
+            )
+        }
+    }
+
+    private fun runPharmacyDistributionParityRunners(): ParityRunners {
+        val sequential = ScenarioRunner(
+            "SequentialDistributionParity_${System.nanoTime()}",
+            buildPharmacyDistributionScenarios()
+        )
+        sequential.simulate()
+
+        val concurrent = ConcurrentScenarioRunner(
+            "ConcurrentDistributionParity_${System.nanoTime()}",
+            buildPharmacyDistributionScenarios()
         )
         runBlocking { concurrent.simulate() }
 
@@ -344,6 +516,82 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         }
     }
 
+    @Test
+    fun timeSeriesResponseTableMatchesSequentialDatabaseObserver() {
+        val runners = runTimeSeriesParityRunners()
+
+        assertEquals(
+            TIME_SERIES_SCENARIO_NAMES.toSet(),
+            runners.concurrent.kslDb.experimentNames.toSet(),
+            "Concurrent DB must contain all time-series scenarios"
+        )
+
+        val expectedRows = TIME_SERIES_REPS * TIME_SERIES_PERIODS * TIME_SERIES_RESPONSES
+
+        for (scenarioName in TIME_SERIES_SCENARIO_NAMES) {
+            val sequentialRows = normalizedTimeSeriesResponses(runners.sequential.kslDb, scenarioName)
+            val concurrentRows = normalizedTimeSeriesResponses(runners.concurrent.kslDb, scenarioName)
+
+            assertEquals(
+                expectedRows,
+                sequentialRows.size,
+                "Expected $expectedRows time-series rows for '$scenarioName'"
+            )
+            assertEquals(
+                sequentialRows,
+                concurrentRows,
+                "time_series_response table must match for '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun histogramAndFrequencyTablesMatchSequentialDatabaseObserver() {
+        val runners = runPharmacyDistributionParityRunners()
+
+        assertEquals(
+            PHARMACY_SCENARIO_NAMES.toSet(),
+            runners.concurrent.kslDb.experimentNames.toSet(),
+            "Concurrent DB must contain all pharmacy distribution scenarios"
+        )
+
+        for (scenarioName in PHARMACY_SCENARIO_NAMES) {
+            val sequentialHistograms = normalizedHistograms(runners.sequential.kslDb, scenarioName)
+            val concurrentHistograms = normalizedHistograms(runners.concurrent.kslDb, scenarioName)
+
+            assertFalse(
+                sequentialHistograms.isEmpty(),
+                "Expected histogram rows for '$scenarioName'"
+            )
+            assertTrue(
+                sequentialHistograms.sumOf { it.binCount ?: 0.0 } > 0.0,
+                "Histogram rows for '$scenarioName' must contain observed counts"
+            )
+            assertEquals(
+                sequentialHistograms,
+                concurrentHistograms,
+                "histogram table must match for '$scenarioName'"
+            )
+
+            val sequentialFrequencies = normalizedFrequencies(runners.sequential.kslDb, scenarioName)
+            val concurrentFrequencies = normalizedFrequencies(runners.concurrent.kslDb, scenarioName)
+
+            assertFalse(
+                sequentialFrequencies.isEmpty(),
+                "Expected frequency rows for '$scenarioName'"
+            )
+            assertTrue(
+                sequentialFrequencies.sumOf { it.count ?: 0.0 } > 0.0,
+                "Frequency rows for '$scenarioName' must contain observed counts"
+            )
+            assertEquals(
+                sequentialFrequencies,
+                concurrentFrequencies,
+                "frequency table must match for '$scenarioName'"
+            )
+        }
+    }
+
     private fun normalizedExperiment(
         db: KSLDatabase,
         scenarioName: String
@@ -420,6 +668,36 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         return db.rvParameterDataFor(scenarioName)
             .map { it.normalized(elementNames) }
             .sortedWith(compareBy({ it.rvName }, { it.paramName }, { it.elementName }))
+    }
+
+    private fun normalizedTimeSeriesResponses(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedTimeSeriesResponse> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.timeSeriesResponseDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.statName }, { it.repId }, { it.period }, { it.elementName }))
+    }
+
+    private fun normalizedHistograms(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedHistogram> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.histogramDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.responseName }, { it.binNum }, { it.histogramElementName }))
+    }
+
+    private fun normalizedFrequencies(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedFrequency> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.frequencyDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.name }, { it.value }, { it.cellLabel }, { it.elementName }))
     }
 
     private fun elementNamesById(
@@ -534,5 +812,47 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         rvName = rv_name,
         paramName = param_name,
         paramValue = param_value
+    )
+
+    private fun TimeSeriesResponseTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedTimeSeriesResponse(
+        elementName = elementNames.getValue(element_id_fk),
+        repId = rep_id,
+        statName = stat_name,
+        period = period,
+        startTime = start_time,
+        endTime = end_time,
+        length = length,
+        value = value
+    )
+
+    private fun HistogramTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedHistogram(
+        histogramElementName = elementNames.getValue(element_id_fk),
+        responseElementName = elementNames.getValue(response_id_fk),
+        responseName = response_name,
+        binLabel = bin_label,
+        binNum = bin_num,
+        binLowerLimit = bin_lower_limit,
+        binUpperLimit = bin_upper_limit,
+        binCount = bin_count,
+        binCumCount = bin_cum_count,
+        binProportion = bin_proportion,
+        binCumProportion = bin_cum_proportion
+    )
+
+    private fun FrequencyTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedFrequency(
+        elementName = elementNames.getValue(element_id_fk),
+        name = name,
+        cellLabel = cell_label,
+        value = value,
+        count = count,
+        cumCount = cum_count,
+        proportion = proportion,
+        cumProportion = cum_proportion
     )
 }
