@@ -218,6 +218,16 @@ class KSLDatabase @JvmOverloads constructor(private val db: Database, clearDataO
     }
 
     /**
+     *  Retrieves the batch-statistic records associated with the named experiment.
+     */
+    fun batchStatDataFor(expName: String): List<BatchStatTableData> {
+        val runIds = simulationRunDataFor(expName).map { it.run_id }.toSet()
+        if (runIds.isEmpty()) return emptyList()
+        return db.selectTableDataIntoDbData(::BatchStatTableData)
+            .filter { it.sim_run_id_fk in runIds }
+    }
+
+    /**
      *  Retrieves the time-series response records associated with the named experiment.
      */
     fun timeSeriesResponseDataFor(expName: String): List<TimeSeriesResponseTableData> {
