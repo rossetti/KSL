@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import kotlin.math.exp
 import kotlin.test.assertTrue
 
 /**
@@ -32,6 +34,15 @@ class StatisticalBatchingElementTest {
         private const val BATCH_WARMUP = BASELINE_REPS * BASELINE_WARMUP
         private const val BATCH_INTERVAL = 10.0
 
+        private const val LONG_RUN_LENGTH = 1_000_000.0
+        private const val LONG_RUN_WARMUP = 100_000.0
+        private const val LONG_RUN_BATCH_INTERVAL = 100.0
+
+        private const val MM1_SYSTEM_TIME_THEORY = 6.0
+        private const val MM1_NUM_IN_SYSTEM_THEORY = 1.0
+        private const val MM1_UTILIZATION_THEORY = 0.5
+        private val MM1_PROB_SYSTEM_TIME_GT4_THEORY = exp(-2.0 / 3.0)
+
         private const val DTP_BATCH_SYSTEM_TIME_AVG = 5.738639506756251
         private const val DTP_BATCH_SYSTEM_TIME_VAR = 2.743602553213361
         private const val DTP_BATCH_PROB_GT4_AVG = 0.48671875000000003
@@ -45,17 +56,15 @@ class StatisticalBatchingElementTest {
 
     @BeforeAll
     fun runSimulation() {
-        model = Model("DTP-StatisticalBatching-Test")
-        model.numberOfReplications = BATCH_REPS
-        model.lengthOfReplication = BATCH_LENGTH
-        model.lengthOfReplicationWarmUp = BATCH_WARMUP
-
-        dtp = DriveThroughPharmacyWithQ(model, 1)
-        dtp.arrivalGenerator.setInitialEventTimeProcesses(ExponentialRV(6.0, 1))
-        dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
-
-        batching = model.statisticalBatching(BATCH_INTERVAL)
-        model.simulate()
+        val run = runDriveThroughBatching(
+            modelName = "DTP-StatisticalBatching-Test",
+            lengthOfReplication = BATCH_LENGTH,
+            lengthOfReplicationWarmUp = BATCH_WARMUP,
+            batchInterval = BATCH_INTERVAL
+        )
+        model = run.model
+        dtp = run.dtp
+        batching = run.batching
     }
 
     @Test
@@ -147,14 +156,104 @@ class StatisticalBatchingElementTest {
         assertGolden(DTP_BATCH_NUM_IN_SYSTEM_AVG, numInSystem.average, "DTP_BATCH_NUM_IN_SYSTEM_AVG")
     }
 
-    private fun responseBatchStatistic(name: String): BatchStatisticIfc {
-        return batching.allResponseBatchStatisticsAsMap.entries
+    @Test
+    fun driveThroughBatchStatisticsAreNearMM1Theory() {
+        assertEquals(
+            MM1_SYSTEM_TIME_THEORY,
+            responseBatchStatistic("System Time").average,
+            0.75,
+            "System Time batch estimate should be near M/M/1 E[W] = 6.0"
+        )
+        assertEquals(
+            MM1_PROB_SYSTEM_TIME_GT4_THEORY,
+            responseBatchStatistic("SysTime >= 4 minutes").average,
+            0.08,
+            "P(System Time >= 4) batch estimate should be near M/M/1 theory"
+        )
+        assertEquals(
+            MM1_UTILIZATION_THEORY,
+            timeWeightedBatchStatistic("NumBusy").average,
+            0.05,
+            "NumBusy batch estimate should be near M/M/1 utilization"
+        )
+        assertEquals(
+            MM1_NUM_IN_SYSTEM_THEORY,
+            timeWeightedBatchStatistic("Num in System").average,
+            0.20,
+            "Num in System batch estimate should be near M/M/1 E[L] = 1.0"
+        )
+    }
+
+    @Test
+    @Tag("slow")
+    fun longRunBatchStatisticsConvergeToMM1Theory() {
+        val longRun = runDriveThroughBatching(
+            modelName = "DTP-StatisticalBatching-LongRun",
+            lengthOfReplication = LONG_RUN_LENGTH,
+            lengthOfReplicationWarmUp = LONG_RUN_WARMUP,
+            batchInterval = LONG_RUN_BATCH_INTERVAL
+        )
+
+        assertEquals(
+            MM1_SYSTEM_TIME_THEORY,
+            responseBatchStatistic("System Time", longRun.batching).average,
+            0.20,
+            "Long-run System Time batch estimate should converge to M/M/1 E[W] = 6.0"
+        )
+        assertEquals(
+            MM1_PROB_SYSTEM_TIME_GT4_THEORY,
+            responseBatchStatistic("SysTime >= 4 minutes", longRun.batching).average,
+            0.025,
+            "Long-run P(System Time >= 4) batch estimate should converge to M/M/1 theory"
+        )
+        assertEquals(
+            MM1_UTILIZATION_THEORY,
+            timeWeightedBatchStatistic("NumBusy", longRun.batching).average,
+            0.02,
+            "Long-run NumBusy batch estimate should converge to M/M/1 utilization"
+        )
+        assertEquals(
+            MM1_NUM_IN_SYSTEM_THEORY,
+            timeWeightedBatchStatistic("Num in System", longRun.batching).average,
+            0.05,
+            "Long-run Num in System batch estimate should converge to M/M/1 E[L] = 1.0"
+        )
+    }
+
+    private fun runDriveThroughBatching(
+        modelName: String,
+        lengthOfReplication: Double,
+        lengthOfReplicationWarmUp: Double,
+        batchInterval: Double
+    ): BatchingRun {
+        val model = Model(modelName)
+        model.numberOfReplications = BATCH_REPS
+        model.lengthOfReplication = lengthOfReplication
+        model.lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+
+        val dtp = DriveThroughPharmacyWithQ(model, 1)
+        dtp.arrivalGenerator.setInitialEventTimeProcesses(ExponentialRV(6.0, 1))
+        dtp.serviceRV.initialRandomSource = ExponentialRV(3.0, 2)
+
+        val batching = model.statisticalBatching(batchInterval)
+        model.simulate()
+        return BatchingRun(model, dtp, batching)
+    }
+
+    private fun responseBatchStatistic(
+        name: String,
+        batchingElement: StatisticalBatchingElement = batching
+    ): BatchStatisticIfc {
+        return batchingElement.allResponseBatchStatisticsAsMap.entries
             .first { it.key.name == name }
             .value
     }
 
-    private fun timeWeightedBatchStatistic(name: String): BatchStatisticIfc {
-        return batching.allTimeWeightedBatchStatisticsAsMap.entries
+    private fun timeWeightedBatchStatistic(
+        name: String,
+        batchingElement: StatisticalBatchingElement = batching
+    ): BatchStatisticIfc {
+        return batchingElement.allTimeWeightedBatchStatisticsAsMap.entries
             .first { it.key.name == name }
             .value
     }
@@ -176,4 +275,10 @@ class StatisticalBatchingElementTest {
         }
         assertEquals(expected, actual, 0.0, "Golden regression failed for $name")
     }
+
+    private data class BatchingRun(
+        val model: Model,
+        val dtp: DriveThroughPharmacyWithQ,
+        val batching: StatisticalBatchingElement
+    )
 }

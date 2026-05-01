@@ -24,7 +24,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("slow")
+        if (project.hasProperty("includeSlow")) {
+            includeTags("slow")
+        } else {
+            excludeTags("slow")
+        }
     }
 }
 
