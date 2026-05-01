@@ -1,63 +1,31 @@
 package ksl.simopt.evaluator
 
 import ksl.simopt.cache.SolutionCacheIfc
-import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
+import ksl.utilities.statistic.Statistic
 
 /**
- * Evaluates optimization solutions by delegating to a user supplied Monte Carlo function.
+ * Evaluates optimization solutions by repeatedly sampling a user-supplied observation function.
  *
- * This class is a concrete [EvaluatorIfc] implementation for black-box stochastic functions
+ * This class is a concrete [EvaluatorIfc] implementation for stochastic black-box functions
  * that are not represented as KSL [ksl.simulation.Model] instances. The supplied
- * [MonteCarloFunctionIfc] receives one design point at a time, along with the full
- * [ModelInputs] request, and is responsible for performing the requested replications and
- * returning a [ResponseMap] of statistical summaries.
+ * [ObservationFunctionIfc] produces one observation for a design point. This evaluator owns
+ * the repeated sampling loop, statistical summarization, response-map construction, solution
+ * construction, evaluator counters, and optional solution-cache behavior.
  *
- * The evaluator handles the solver-facing responsibilities:
- *
- * * validating requests against the [problemDefinition]
- * * converting named input maps into ordered arrays
- * * converting [ResponseMap] instances into [Solution] instances
- * * maintaining evaluator counters
- * * optionally satisfying requests from a [SolutionCacheIfc]
- *
- * Common-random-number requests bypass solution-cache lookup, matching the policy in
- * [Evaluator]. Any actual random-number coordination for non-model Monte Carlo functions is
- * the responsibility of the supplied [function].
+ * The observation function receives [ModelInputs], which is the same request object produced by
+ * the solvers. It contains the model identifier, requested number of replications, named input
+ * values, and requested response names.
  *
  * @param problemDefinition the optimization problem definition associated with this evaluator
- * @param function the Monte Carlo black-box function used to produce response summaries
+ * @param observationFunction the stochastic function that produces one observation per call
  * @param cache an optional solution cache
  */
-class MonteCarloFunctionEvaluator @JvmOverloads constructor(
+class SamplingFunctionEvaluator @JvmOverloads constructor(
     val problemDefinition: ProblemDefinition,
-    private val function: MonteCarloFunctionIfc,
+    private val observationFunction: ObservationFunctionIfc,
     override val cache: SolutionCacheIfc? = null
 ) : EvaluatorIfc {
-
-    /**
-     * Creates an evaluator for a context-based Monte Carlo function.
-     *
-     * This constructor preserves the existing evaluator implementation while allowing users
-     * to implement [MonteCarloContextFunctionIfc], which avoids manual conversion between
-     * [ModelInputs], ordered input arrays, and [ResponseMap] instances.
-     *
-     * @param problemDefinition the optimization problem definition associated with this evaluator
-     * @param function the context-based Monte Carlo black-box function
-     * @param cache an optional solution cache
-     */
-    @JvmOverloads
-    constructor(
-        problemDefinition: ProblemDefinition,
-        function: MonteCarloContextFunctionIfc,
-        cache: SolutionCacheIfc? = null
-    ) : this(
-        problemDefinition = problemDefinition,
-        function = MonteCarloFunctionIfc { _, modelInputs ->
-            function.evaluate(MonteCarloEvaluationContext(problemDefinition, modelInputs))
-        },
-        cache = cache
-    )
 
     override var totalEvaluatorCalls: Int = 0
         private set
@@ -89,7 +57,7 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
         totalDesignPointsEvaluated += evaluationRequest.modelInputs.size
 
         if (evaluationRequest.crnOption || !evaluationRequest.cachingAllowed || cache == null) {
-            return evaluateViaFunction(evaluationRequest)
+            return evaluateViaSampling(evaluationRequest)
         }
 
         return cacheBasedEvaluation(evaluationRequest)
@@ -100,7 +68,7 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
 
         val cachedSolutions = cache.retrieveSolutions(evaluationRequest.modelInputs)
         if (cachedSolutions.isEmpty()) {
-            val evaluations = evaluateViaFunction(evaluationRequest)
+            val evaluations = evaluateViaSampling(evaluationRequest)
             putValidSolutionsInCache(evaluations)
             return evaluations
         }
@@ -108,7 +76,7 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
         val requestsToEvaluate = reviseRequestReplications(cachedSolutions, evaluationRequest.modelInputs)
         if (requestsToEvaluate.isNotEmpty()) {
             val revisedEvaluationRequest = evaluationRequest.instance(requestsToEvaluate)
-            val evaluatedSolutions = evaluateViaFunction(revisedEvaluationRequest)
+            val evaluatedSolutions = evaluateViaSampling(revisedEvaluationRequest)
 
             for ((request, evaluatedSolution) in evaluatedSolutions) {
                 val cachedSolution = cachedSolutions[request]
@@ -157,20 +125,52 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
         return revisedModelInputs
     }
 
-    private fun evaluateViaFunction(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
+    private fun evaluateViaSampling(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
         totalOracleReplications += evaluationRequest.modelInputs.totalReplications()
 
         val solutions = mutableMapOf<ModelInputs, Solution>()
         for (request in evaluationRequest.modelInputs) {
             solutions[request] = runCatching {
-                val x = requestToInputArray(problemDefinition, request)
-                val responseMap = function.evaluate(x, request)
-                responseMapToSolution(problemDefinition, request, responseMap, totalEvaluatorCalls)
+                evaluateRequest(request)
             }.getOrElse {
                 problemDefinition.badSolution()
             }
         }
         return solutions
+    }
+
+    private fun evaluateRequest(request: ModelInputs): Solution {
+        val responseNames = expectedResponseNames(problemDefinition, request)
+        val observationRequest = if (request.responseNames.isEmpty()) {
+            request.copy(responseNames = responseNames)
+        } else {
+            request
+        }
+        val statistics = responseNames.associateWith { Statistic(it) }
+
+        for (replication in 1..request.numReplications) {
+            val observation = observationFunction.observe(observationRequest)
+            require(observation.keys == responseNames) {
+                "Observation $replication must contain exactly the response names $responseNames, " +
+                        "but found ${observation.keys}."
+            }
+
+            for (name in responseNames) {
+                statistics.getValue(name).collect(observation.getValue(name))
+            }
+        }
+
+        val responseMap = ResponseMap.fromEstimates(
+            problemDefinition = problemDefinition,
+            estimates = statistics.values
+        )
+
+        return responseMapToSolution(
+            problemDefinition = problemDefinition,
+            request = request,
+            responseMap = responseMap,
+            evaluationNumber = totalEvaluatorCalls
+        )
     }
 
     private fun putValidSolutionsInCache(solutions: Map<out ModelInputs, Solution>) {
@@ -183,35 +183,46 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
     companion object {
 
         /**
-         * Converts a [ModelInputs] request into an array ordered according to
-         * [ProblemDefinition.inputNames].
+         * Convenience factory for stochastic problems that only have a scalar objective.
          *
-         * This is the canonical conversion used by function-based evaluators. It avoids relying
-         * on the iteration order of [ModelInputs.inputs], which may not match the problem's
-         * declared input order.
+         * Problems with response constraints need an [ObservationFunctionIfc] so the observation
+         * can report the named response values required by the problem definition.
          *
-         * @param problemDefinition the problem definition that supplies the input ordering
-         * @param request the model-input request containing named input values
-         * @return an array of input values ordered by [ProblemDefinition.inputNames]
+         * @param problemDefinition the problem definition associated with the objective observation
+         * @param objectiveObservationFunction the scalar objective observation function
+         * @param cache an optional solution cache
+         * @return a sampling function evaluator for the scalar objective
          */
         @JvmStatic
-        fun requestToInputArray(
+        @JvmOverloads
+        fun forObjective(
             problemDefinition: ProblemDefinition,
-            request: ModelInputs
-        ): DoubleArray {
-            return problemDefinition.inputNames
-                .map { name -> request.inputs[name] ?: error("Missing input '$name'.") }
-                .toDoubleArray()
+            objectiveObservationFunction: ObjectiveObservationFunctionIfc,
+            cache: SolutionCacheIfc? = null
+        ): SamplingFunctionEvaluator {
+            require(problemDefinition.responseNames.isEmpty()) {
+                "An objective-only observation function cannot satisfy response constraints."
+            }
+
+            return SamplingFunctionEvaluator(
+                problemDefinition = problemDefinition,
+                observationFunction = ObservationFunctionIfc { modelInputs ->
+                    mapOf(
+                        problemDefinition.objFnResponseName to objectiveObservationFunction.observe(modelInputs)
+                    )
+                },
+                cache = cache
+            )
         }
 
         /**
-         * Validates that an [EvaluationRequest] can be handled by a function-based evaluator.
+         * Validates that an [EvaluationRequest] can be handled by a sampling function evaluator.
          *
-         * Function evaluators require explicit values for all decision variables because there is
-         * no backing KSL model from which default input settings can be read. The request must also
-         * ask for the objective response and every response named by the problem definition. An empty
-         * response-name set is interpreted as requesting all problem responses, consistent with
-         * [ModelInputs].
+         * Sampling function evaluators require explicit values for all decision variables because
+         * there is no backing KSL model from which default input settings can be read. The request
+         * must also ask for the objective response and every response named by the problem definition.
+         * An empty response-name set is interpreted as requesting all problem responses, consistent
+         * with [ModelInputs].
          *
          * @param problemDefinition the problem definition associated with the evaluator
          * @param evaluationRequest the request to validate
@@ -241,18 +252,29 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
 
                 val requestedResponses = request.responseNames.ifEmpty { expectedResponses }
                 require(requestedResponses == expectedResponses) {
-                    "Function evaluators require the objective and all problem response names."
+                    "Sampling function evaluators require the objective and all problem response names."
                 }
             }
         }
 
         /**
+         * Returns the response names that a sampling observation must provide for [request].
+         *
+         * @param problemDefinition the problem definition associated with the evaluator
+         * @param request the model-input request
+         * @return the requested response names, or all problem response names if the request is empty
+         */
+        @JvmStatic
+        fun expectedResponseNames(
+            problemDefinition: ProblemDefinition,
+            request: ModelInputs
+        ): Set<String> {
+            return request.responseNames.ifEmpty { problemDefinition.allResponseNames.toSet() }
+        }
+
+        /**
          * Validates that a [ResponseMap] returned by a function evaluator is compatible with a
          * [ProblemDefinition].
-         *
-         * The response map must have the same model identifier as the problem definition and must
-         * contain an [EstimatedResponse] for the objective response and every response named by the
-         * problem definition.
          *
          * @param problemDefinition the problem definition associated with the evaluator
          * @param responseMap the response map to validate
@@ -272,12 +294,11 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
         }
 
         /**
-         * Converts a function-produced [ResponseMap] into a [Solution] associated with the
-         * supplied [ModelInputs] request.
+         * Converts a [ResponseMap] into a [Solution] associated with the supplied [ModelInputs] request.
          *
          * @param problemDefinition the problem definition associated with the evaluator
          * @param request the input request that produced the response map
-         * @param responseMap the objective and response estimates produced by the function
+         * @param responseMap the objective and response estimates produced by sampling
          * @param evaluationNumber the evaluator call number to record on the solution
          * @return a [Solution] suitable for consumption by solvers
          */
@@ -299,7 +320,7 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
                 .toList()
 
             return Solution(
-                inputMap = InputMap(problemDefinition, request.inputs.toMutableMap()),
+                inputMap = problemDefinition.toInputMap(request.inputs.toMutableMap()),
                 estimatedObjFnc = objective,
                 responseEstimates = responseEstimates,
                 evaluationNumber = evaluationNumber
@@ -309,10 +330,6 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
         /**
          * Merges two independent [Solution] estimates for the same request into one combined
          * solution.
-         *
-         * This is used when a cache can partially satisfy a request and the evaluator only needs
-         * to run the additional replications. The statistical summaries from the cached and newly
-         * evaluated solutions are pooled through [ResponseMap.mergeAll].
          *
          * @param problemDefinition the problem definition associated with the solutions
          * @param request the request associated with the merged solution

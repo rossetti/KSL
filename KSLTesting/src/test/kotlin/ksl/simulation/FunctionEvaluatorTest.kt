@@ -4,18 +4,15 @@ import ksl.simopt.cache.MemorySolutionCache
 import ksl.simopt.evaluator.DeterministicFunctionEvaluation
 import ksl.simopt.evaluator.DeterministicFunctionEvaluator
 import ksl.simopt.evaluator.DeterministicFunctionIfc
-import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.ModelInputs
-import ksl.simopt.evaluator.MonteCarloContextFunctionIfc
-import ksl.simopt.evaluator.MonteCarloFunctionEvaluator
-import ksl.simopt.evaluator.MonteCarloFunctionIfc
+import ksl.simopt.evaluator.ObservationFunctionIfc
 import ksl.simopt.evaluator.ObjectiveFunctionIfc
 import ksl.simopt.evaluator.ResponseMap
+import ksl.simopt.evaluator.SamplingFunctionEvaluator
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
-import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -110,18 +107,17 @@ class FunctionEvaluatorTest {
     }
 
     @Test
-    fun monteCarloEvaluatorPassesOrderedInputsAndRequestedReplications() {
+    fun samplingFunctionEvaluatorRepeatsObservationsAndSummarizesResponses() {
         val problem = objectiveOnlyProblem()
-        var observedX = doubleArrayOf()
-        var observedReplications = 0
-        val evaluator = MonteCarloFunctionEvaluator(
+        var observedInputs = emptyMap<String, Double>()
+        var observedResponseNames = emptySet<String>()
+        val observationCalls = AtomicInteger(0)
+        val evaluator = SamplingFunctionEvaluator(
             problem,
-            MonteCarloFunctionIfc { x, modelInputs ->
-                observedX = x.copyOf()
-                observedReplications = modelInputs.numReplications
-                val responseMap = problem.emptyResponseMap()
-                responseMap.add(EstimatedResponse("Cost", doubleArrayOf(1.0, 2.0, 3.0)))
-                responseMap
+            ObservationFunctionIfc { modelInputs ->
+                observedInputs = modelInputs.inputs
+                observedResponseNames = modelInputs.responseNames
+                mapOf("Cost" to observationCalls.incrementAndGet().toDouble())
             }
         )
 
@@ -136,24 +132,23 @@ class FunctionEvaluatorTest {
         )
         val solution = evaluator.evaluate(request).values.single()
 
-        assertArrayEquals(doubleArrayOf(2.0, 4.0), observedX, 0.0)
-        assertEquals(3, observedReplications)
+        assertEquals(mapOf("y" to 4.0, "x" to 2.0), observedInputs)
+        assertEquals(setOf("Cost"), observedResponseNames)
+        assertEquals(3, observationCalls.get())
         assertEquals(2.0, solution.estimatedObjFncValue, 1.0e-12)
         assertEquals(1.0, solution.variance, 1.0e-12)
         assertEquals(3.0, solution.count, 0.0)
     }
 
     @Test
-    fun contextBasedMonteCarloEvaluatorProvidesOrderedInputsAndResponseFactories() {
+    fun samplingFunctionEvaluatorObjectiveFactoryBuildsObjectiveObservations() {
         val problem = objectiveOnlyProblem()
-        var observedX = doubleArrayOf()
-        var observedReplications = 0
-        val evaluator = MonteCarloFunctionEvaluator(
+        val observationCalls = AtomicInteger(0)
+        val evaluator = SamplingFunctionEvaluator.forObjective(
             problem,
-            MonteCarloContextFunctionIfc { context ->
-                observedX = context.x.copyOf()
-                observedReplications = context.numReplications
-                context.responseMapFromObservations(doubleArrayOf(1.0, 2.0, 3.0))
+            { modelInputs ->
+                observationCalls.incrementAndGet()
+                modelInputs.inputs.getValue("x") + modelInputs.inputs.getValue("y")
             }
         )
 
@@ -168,10 +163,9 @@ class FunctionEvaluatorTest {
         )
         val solution = evaluator.evaluate(request).values.single()
 
-        assertArrayEquals(doubleArrayOf(2.0, 4.0), observedX, 0.0)
-        assertEquals(3, observedReplications)
-        assertEquals(2.0, solution.estimatedObjFncValue, 1.0e-12)
-        assertEquals(1.0, solution.variance, 1.0e-12)
+        assertEquals(3, observationCalls.get())
+        assertEquals(6.0, solution.estimatedObjFncValue, 1.0e-12)
+        assertEquals(0.0, solution.variance, 1.0e-12)
         assertEquals(3.0, solution.count, 0.0)
     }
 

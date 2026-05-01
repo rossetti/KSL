@@ -2,11 +2,10 @@ package ksl.simulation
 
 import ksl.simopt.evaluator.DeterministicFunctionEvaluator
 import ksl.simopt.evaluator.InputEquality
-import ksl.simopt.evaluator.MonteCarloContextFunctionIfc
-import ksl.simopt.evaluator.MonteCarloEvaluationContext
-import ksl.simopt.evaluator.MonteCarloFunctionEvaluator
+import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.ObjectiveFunctionIfc
-import ksl.simopt.evaluator.ResponseMap
+import ksl.simopt.evaluator.ObservationFunctionIfc
+import ksl.simopt.evaluator.SamplingFunctionEvaluator
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.SimulatedAnnealing
@@ -51,9 +50,9 @@ class FunctionEvaluatorExampleIntegrationTest {
     @Test
     fun twoVariableMonteCarloExampleRunsWithSimulatedAnnealing() {
         val problem = twoVariableMonteCarloProblem()
-        val evaluator = MonteCarloFunctionEvaluator(
+        val evaluator = SamplingFunctionEvaluator(
             problemDefinition = problem,
-            function = TestTwoVariableMonteCarloFunction()
+            observationFunction = TestTwoVariableMonteCarloObservation()
         )
 
         val solver = SimulatedAnnealing(
@@ -88,35 +87,29 @@ class FunctionEvaluatorExampleIntegrationTest {
         }
     }
 
-    private class TestTwoVariableMonteCarloFunction(
+    private class TestTwoVariableMonteCarloObservation(
         private val costNoise: NormalRV = NormalRV(mean = 0.0, variance = 1.0, streamNum = 11),
         private val serviceStream: RNStreamIfc = KSLRandom.rnStream(12)
-    ) : MonteCarloContextFunctionIfc {
+    ) : ObservationFunctionIfc {
 
-        override fun evaluate(context: MonteCarloEvaluationContext): ResponseMap {
-            val costObservations = DoubleArray(context.numReplications)
-            val serviceObservations = DoubleArray(context.numReplications)
-            val x = context.x
-            val cost = costFunction(x)
-            val serviceProbability = serviceProbability(x)
+        override fun observe(modelInputs: ModelInputs): Map<String, Double> {
+            val x = modelInputs.inputs.getValue("x")
+            val y = modelInputs.inputs.getValue("y")
+            val cost = costFunction(x, y) + costNoise.value
+            val service = KSLRandom.rBernoulli(serviceProbability(x, y), serviceStream)
 
-            for (i in costObservations.indices) {
-                costObservations[i] = cost + costNoise.value
-                serviceObservations[i] = KSLRandom.rBernoulli(serviceProbability, serviceStream)
-            }
-
-            return context.responseMapFromObservations(
-                objectiveObservations = costObservations,
-                responseObservations = mapOf("ServiceLevel" to serviceObservations)
+            return mapOf(
+                "Cost" to cost,
+                "ServiceLevel" to service
             )
         }
 
-        private fun costFunction(x: DoubleArray): Double {
-            return (x[0] - 2.0) * (x[0] - 2.0) + (x[1] - 3.0) * (x[1] - 3.0)
+        private fun costFunction(x: Double, y: Double): Double {
+            return (x - 2.0) * (x - 2.0) + (y - 3.0) * (y - 3.0)
         }
 
-        private fun serviceProbability(x: DoubleArray): Double {
-            return 1.0 / (1.0 + exp(-(-1.5 + 0.6 * x[0] + 0.4 * x[1])))
+        private fun serviceProbability(x: Double, y: Double): Double {
+            return 1.0 / (1.0 + exp(-(-1.5 + 0.6 * x + 0.4 * y)))
         }
     }
 

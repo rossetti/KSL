@@ -51,45 +51,39 @@ fun interface ObjectiveFunctionIfc {
 }
 
 /**
- * A Monte Carlo black-box evaluator that can be optimized by the simulation-optimization solvers.
+ * A stochastic observation function for use with [SamplingFunctionEvaluator].
  *
- * Implementations own their replication mechanics. The evaluator passes the requested design point
- * and the full [ModelInputs] request, including [ModelInputs.numReplications]. The implementation
- * should perform the requested replication work and return a [ResponseMap] containing statistical
- * summaries for the objective response and any response-constraint responses.
- *
- * This mirrors the existing KSL model path: `SimulationProvider` performs model replications and
- * returns summarized responses; this interface performs non-[ksl.simulation.Model] replications and
- * returns the same summarized response representation.
+ * Implementations produce one observed value for each response requested in [modelInputs].
+ * The evaluator owns the repeated sampling loop and statistical summarization.
  */
-fun interface MonteCarloFunctionIfc {
+fun interface ObservationFunctionIfc {
 
     /**
-     * Evaluates a Monte Carlo function at the supplied design point.
+     * Produces one observation of the objective response and any response-constraint responses.
      *
-     * @param x the design point ordered by the associated problem definition's input names
-     * @param modelInputs the full evaluation request for this point, including requested replications
-     * @return summarized objective and response estimates for this design point
+     * The returned map must contain exactly the response names requested by [modelInputs].
+     * Solver-created requests normally ask for the objective response name and all response
+     * names in the associated [ksl.simopt.problem.ProblemDefinition].
+     *
+     * @param modelInputs the requested design point and response names
+     * @return one observed value for each requested response
      */
-    fun evaluate(x: DoubleArray, modelInputs: ModelInputs): ResponseMap
+    fun observe(modelInputs: ModelInputs): Map<String, Double>
 }
 
 /**
- * A context-based Monte Carlo black-box evaluator that can be optimized by the
- * simulation-optimization solvers.
+ * Convenience interface for stochastic objective-only observations.
  *
- * This interface is a user-facing convenience alternative to [MonteCarloFunctionIfc].
- * Implementations receive a [MonteCarloEvaluationContext], which exposes the requested
- * design point as both named inputs and an ordered array, the requested replication
- * count, and helper methods for constructing [ResponseMap] instances.
+ * This interface is intended for problems without response constraints. Use
+ * [ObservationFunctionIfc] when the observation must also report response values.
  */
-fun interface MonteCarloContextFunctionIfc {
+fun interface ObjectiveObservationFunctionIfc {
 
     /**
-     * Evaluates a Monte Carlo function at the design point described by [context].
+     * Produces one observed objective value for the requested design point.
      *
-     * @param context the evaluation context for one design point
-     * @return summarized objective and response estimates for this design point
+     * @param modelInputs the requested design point
+     * @return one observed objective value
      */
-    fun evaluate(context: MonteCarloEvaluationContext): ResponseMap
+    fun observe(modelInputs: ModelInputs): Double
 }

@@ -59,7 +59,7 @@ class DeterministicFunctionEvaluator @JvmOverloads constructor(
     }
 
     override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
-        MonteCarloFunctionEvaluator.validateEvaluationRequest(problemDefinition, evaluationRequest)
+        validateEvaluationRequest(problemDefinition, evaluationRequest)
 
         totalEvaluatorCalls++
         totalDesignPointsEvaluated += evaluationRequest.modelInputs.size
@@ -91,7 +91,7 @@ class DeterministicFunctionEvaluator @JvmOverloads constructor(
                 cachedSolutions[request] = when {
                     !evaluatedSolution.isValid -> evaluatedSolution
                     cachedSolution == null -> evaluatedSolution
-                    else -> MonteCarloFunctionEvaluator.mergeSolutions(
+                    else -> mergeSolutions(
                         problemDefinition = problemDefinition,
                         request = request,
                         firstSolution = cachedSolution,
@@ -148,14 +148,14 @@ class DeterministicFunctionEvaluator @JvmOverloads constructor(
     }
 
     private fun evaluateRequest(request: ModelInputs): Solution {
-        val x = MonteCarloFunctionEvaluator.requestToInputArray(problemDefinition, request)
+        val x = requestToInputArray(problemDefinition, request)
         val functionEvaluation = function.evaluate(x)
         val responseMap = deterministicEvaluationToResponseMap(
             problemDefinition = problemDefinition,
             functionEvaluation = functionEvaluation,
             count = request.numReplications
         )
-        return MonteCarloFunctionEvaluator.responseMapToSolution(
+        return responseMapToSolution(
             problemDefinition = problemDefinition,
             request = request,
             responseMap = responseMap,
@@ -171,6 +171,149 @@ class DeterministicFunctionEvaluator @JvmOverloads constructor(
     }
 
     companion object {
+
+        /**
+         * Converts a [ModelInputs] request into an array ordered according to
+         * [ProblemDefinition.inputNames].
+         *
+         * @param problemDefinition the problem definition that supplies the input ordering
+         * @param request the model-input request containing named input values
+         * @return an array of input values ordered by [ProblemDefinition.inputNames]
+         */
+        @JvmStatic
+        fun requestToInputArray(
+            problemDefinition: ProblemDefinition,
+            request: ModelInputs
+        ): DoubleArray {
+            return problemDefinition.inputNames
+                .map { name -> request.inputs[name] ?: error("Missing input '$name'.") }
+                .toDoubleArray()
+        }
+
+        /**
+         * Validates that an [EvaluationRequest] can be handled by a function-based evaluator.
+         *
+         * Function evaluators require explicit values for all decision variables because there is
+         * no backing KSL model from which default input settings can be read. The request must also
+         * ask for the objective response and every response named by the problem definition. An empty
+         * response-name set is interpreted as requesting all problem responses, consistent with
+         * [ModelInputs].
+         *
+         * @param problemDefinition the problem definition associated with the evaluator
+         * @param evaluationRequest the request to validate
+         */
+        @JvmStatic
+        fun validateEvaluationRequest(
+            problemDefinition: ProblemDefinition,
+            evaluationRequest: EvaluationRequest
+        ) {
+            require(evaluationRequest.modelIdentifier == problemDefinition.modelIdentifier) {
+                "Evaluation request model identifier must match the problem definition."
+            }
+
+            val expectedInputs = problemDefinition.inputNames.toSet()
+            val expectedResponses = problemDefinition.allResponseNames.toSet()
+
+            for (request in evaluationRequest.modelInputs) {
+                require(request.modelIdentifier == problemDefinition.modelIdentifier) {
+                    "Model input identifier must match the problem definition."
+                }
+                require(request.inputs.keys == expectedInputs) {
+                    "Request inputs must exactly match the problem definition input names."
+                }
+                require(problemDefinition.isInputRangeFeasible(request.inputs)) {
+                    "Request inputs must be feasible with respect to input ranges."
+                }
+
+                val requestedResponses = request.responseNames.ifEmpty { expectedResponses }
+                require(requestedResponses == expectedResponses) {
+                    "Function evaluators require the objective and all problem response names."
+                }
+            }
+        }
+
+        /**
+         * Validates that a [ResponseMap] returned by a function evaluator is compatible with a
+         * [ProblemDefinition].
+         *
+         * @param problemDefinition the problem definition associated with the evaluator
+         * @param responseMap the response map to validate
+         */
+        @JvmStatic
+        fun validateResponseMap(
+            problemDefinition: ProblemDefinition,
+            responseMap: ResponseMap
+        ) {
+            require(responseMap.modelIdentifier == problemDefinition.modelIdentifier) {
+                "Response map model identifier must match the problem definition."
+            }
+            val expectedResponses = problemDefinition.allResponseNames.toSet()
+            require(responseMap.keys == expectedResponses) {
+                "Response map must contain exactly the objective and all problem response names."
+            }
+        }
+
+        /**
+         * Converts a function-produced [ResponseMap] into a [Solution] associated with the
+         * supplied [ModelInputs] request.
+         *
+         * @param problemDefinition the problem definition associated with the evaluator
+         * @param request the input request that produced the response map
+         * @param responseMap the objective and response estimates produced by the function
+         * @param evaluationNumber the evaluator call number to record on the solution
+         * @return a [Solution] suitable for consumption by solvers
+         */
+        @JvmStatic
+        fun responseMapToSolution(
+            problemDefinition: ProblemDefinition,
+            request: ModelInputs,
+            responseMap: ResponseMap,
+            evaluationNumber: Int
+        ): Solution {
+            validateResponseMap(problemDefinition, responseMap)
+            val objectiveName = problemDefinition.objFnResponseName
+            val objective = responseMap[objectiveName]
+                ?: error("Response map did not contain objective response '$objectiveName'.")
+
+            val responseEstimates = responseMap
+                .filterKeys { it != objectiveName }
+                .values
+                .toList()
+
+            return Solution(
+                inputMap = problemDefinition.toInputMap(request.inputs.toMutableMap()),
+                estimatedObjFnc = objective,
+                responseEstimates = responseEstimates,
+                evaluationNumber = evaluationNumber
+            )
+        }
+
+        /**
+         * Merges two independent [Solution] estimates for the same request into one combined
+         * solution.
+         *
+         * @param problemDefinition the problem definition associated with the solutions
+         * @param request the request associated with the merged solution
+         * @param firstSolution the first solution estimate
+         * @param secondSolution the second independent solution estimate
+         * @param evaluationNumber the evaluator call number to record on the merged solution
+         * @return the merged solution
+         */
+        @JvmStatic
+        fun mergeSolutions(
+            problemDefinition: ProblemDefinition,
+            request: ModelInputs,
+            firstSolution: Solution,
+            secondSolution: Solution,
+            evaluationNumber: Int
+        ): Solution {
+            require(firstSolution.inputMap == secondSolution.inputMap) {
+                "The inputs must be the same in order to merge solutions."
+            }
+            val mergedResponseMap = firstSolution.toResponseMap()
+            mergedResponseMap.mergeAll(secondSolution.toResponseMap())
+            return responseMapToSolution(problemDefinition, request, mergedResponseMap, evaluationNumber)
+        }
 
         /**
          * Creates an [EstimatedResponse] for a deterministic function value.
