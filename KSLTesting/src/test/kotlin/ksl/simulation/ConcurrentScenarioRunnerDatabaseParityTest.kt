@@ -7,6 +7,7 @@ import ksl.examples.book.appendixD.GIGcQueue
 import ksl.examples.book.chapter4.DriveThroughPharmacyWithQ
 import ksl.examples.book.chapter7.StemFairMixerEnhancedSched
 import ksl.utilities.io.dbutil.AcrossRepStatTableData
+import ksl.utilities.io.dbutil.BatchStatTableData
 import ksl.utilities.io.dbutil.ControlTableData
 import ksl.utilities.io.dbutil.ExperimentTableData
 import ksl.utilities.io.dbutil.FrequencyTableData
@@ -37,11 +38,16 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         private const val PHARMACY_REPS = 3
         private const val PHARMACY_LENGTH = 2000.0
         private const val PHARMACY_WARMUP = 200.0
+        private const val BATCHING_REPS = 1
+        private const val BATCHING_LENGTH = 10_000.0
+        private const val BATCHING_WARMUP = 2_500.0
+        private const val BATCHING_INTERVAL = 10.0
 
         private val SCENARIO_NAMES = listOf("OneServer", "TwoServers", "ThreeServers")
         private val INPUT_SCENARIO_NAMES = listOf("InputOne", "InputTwo", "InputThree")
         private val TIME_SERIES_SCENARIO_NAMES = listOf("StemFairA", "StemFairB")
         private val PHARMACY_SCENARIO_NAMES = listOf("PharmacyA", "PharmacyB")
+        private val BATCHING_SCENARIO_NAMES = listOf("BatchingPharmacyA", "BatchingPharmacyB")
     }
 
     private data class ParityRunners(
@@ -125,6 +131,37 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         val numMissingObs: Double?
     )
 
+    private data class NormalizedBatchStat(
+        val elementName: String,
+        val repId: Int,
+        val statName: String,
+        val statCount: Double?,
+        val average: Double?,
+        val stdDev: Double?,
+        val stdErr: Double?,
+        val halfWidth: Double?,
+        val confLevel: Double?,
+        val minimum: Double?,
+        val maximum: Double?,
+        val sumOfObs: Double?,
+        val devSsq: Double?,
+        val lastValue: Double?,
+        val kurtosis: Double?,
+        val skewness: Double?,
+        val lag1Cov: Double?,
+        val lag1Corr: Double?,
+        val vonNeumannLag1Stat: Double?,
+        val numMissingObs: Double?,
+        val minBatchSize: Double?,
+        val minNumBatches: Double?,
+        val maxNumBatchesMultiple: Double?,
+        val maxNumBatches: Double?,
+        val numRebatches: Double?,
+        val currentBatchSize: Double?,
+        val amountUnbatched: Double?,
+        val totalNumObs: Double?
+    )
+
     private data class InputMetadataExpectation(
         val scenarioName: String,
         val modelName: String,
@@ -172,6 +209,17 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
     )
 
     private data class PharmacyDistributionSpec(
+        val scenarioName: String,
+        val modelName: String,
+        val pharmacyName: String,
+        val numPharmacists: Int,
+        val arrivalMean: Double,
+        val serviceMean: Double,
+        val arrivalStream: Int,
+        val serviceStream: Int
+    )
+
+    private data class PharmacyBatchingSpec(
         val scenarioName: String,
         val modelName: String,
         val pharmacyName: String,
@@ -410,6 +458,62 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         return ParityRunners(sequential, concurrent)
     }
 
+    private fun pharmacyBatchingSpecs(): List<PharmacyBatchingSpec> {
+        return listOf(
+            PharmacyBatchingSpec("BatchingPharmacyA", "DBParityBatching_A", "Batching_A", 1, 6.0, 3.0, 71, 72),
+            PharmacyBatchingSpec("BatchingPharmacyB", "DBParityBatching_B", "Batching_B", 2, 5.0, 2.5, 73, 74)
+        )
+    }
+
+    private fun buildPharmacyBatchingScenarios(): List<Scenario> {
+        return pharmacyBatchingSpecs().map { spec ->
+            val builder = object : ModelBuilderIfc {
+                override fun build(
+                    modelConfiguration: Map<String, String>?,
+                    experimentRunParameters: ExperimentRunParametersIfc?
+                ): Model {
+                    val model = Model(spec.modelName, autoCSVReports = false)
+                    val pharmacy = DriveThroughPharmacyWithQ(
+                        parent = model,
+                        numServers = spec.numPharmacists,
+                        name = spec.pharmacyName
+                    )
+                    pharmacy.arrivalGenerator.setInitialEventTimeProcesses(
+                        ExponentialRV(spec.arrivalMean, spec.arrivalStream)
+                    )
+                    pharmacy.serviceRV.initialRandomSource =
+                        ExponentialRV(spec.serviceMean, spec.serviceStream)
+                    model.statisticalBatching(BATCHING_INTERVAL)
+                    return model
+                }
+            }
+
+            Scenario(
+                modelBuilder = builder,
+                name = spec.scenarioName,
+                numberReplications = BATCHING_REPS,
+                lengthOfReplication = BATCHING_LENGTH,
+                lengthOfReplicationWarmUp = BATCHING_WARMUP
+            )
+        }
+    }
+
+    private fun runPharmacyBatchingParityRunners(): ParityRunners {
+        val sequential = ScenarioRunner(
+            "SequentialBatchStatParity_${System.nanoTime()}",
+            buildPharmacyBatchingScenarios()
+        )
+        sequential.simulate()
+
+        val concurrent = ConcurrentScenarioRunner(
+            "ConcurrentBatchStatParity_${System.nanoTime()}",
+            buildPharmacyBatchingScenarios()
+        )
+        runBlocking { concurrent.simulate() }
+
+        return ParityRunners(sequential, concurrent)
+    }
+
     @Test
     fun metadataTablesMatchSequentialDatabaseObserver() {
         val runners = runParityRunners()
@@ -456,6 +560,40 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
                 normalizedAcrossRepStats(runners.sequential.kslDb, scenarioName),
                 normalizedAcrossRepStats(runners.concurrent.kslDb, scenarioName),
                 "across_rep_stat table must match for '$scenarioName'"
+            )
+        }
+    }
+
+    @Test
+    fun batchStatTableMatchesSequentialDatabaseObserver() {
+        val runners = runPharmacyBatchingParityRunners()
+
+        assertEquals(
+            BATCHING_SCENARIO_NAMES.toSet(),
+            runners.concurrent.kslDb.experimentNames.toSet(),
+            "Concurrent DB must contain all statistical-batching scenarios"
+        )
+
+        for (scenarioName in BATCHING_SCENARIO_NAMES) {
+            val sequentialRows = normalizedBatchStats(runners.sequential.kslDb, scenarioName)
+            val concurrentRows = normalizedBatchStats(runners.concurrent.kslDb, scenarioName)
+            val rowNames = sequentialRows.map { it.elementName }.toSet()
+
+            assertFalse(sequentialRows.isEmpty(), "Expected batch_stat rows for '$scenarioName'")
+            assertEquals(sequentialRows.size, concurrentRows.size, "batch_stat row count must match for '$scenarioName'")
+            assertTrue("System Time" in rowNames, "Expected System Time batch_stat row for '$scenarioName'")
+            assertTrue("SysTime >= 4 minutes" in rowNames, "Expected indicator batch_stat row for '$scenarioName'")
+            assertTrue("NumBusy" in rowNames, "Expected NumBusy batch_stat row for '$scenarioName'")
+            assertTrue("Num in System" in rowNames, "Expected Num in System batch_stat row for '$scenarioName'")
+            assertFalse("Num Served" in rowNames, "Counters should not appear in batch_stat for '$scenarioName'")
+            assertTrue(
+                sequentialRows.all { it.repId == 1 && (it.totalNumObs ?: 0.0) > 0.0 },
+                "batch_stat rows for '$scenarioName' must be associated with rep 1 and contain observations"
+            )
+            assertEquals(
+                sequentialRows,
+                concurrentRows,
+                "batch_stat table must match for '$scenarioName'"
             )
         }
     }
@@ -650,6 +788,16 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
             .sortedWith(compareBy({ it.statName }, { it.elementName }))
     }
 
+    private fun normalizedBatchStats(
+        db: KSLDatabase,
+        scenarioName: String
+    ): List<NormalizedBatchStat> {
+        val elementNames = elementNamesById(db, scenarioName)
+        return db.batchStatDataFor(scenarioName)
+            .map { it.normalized(elementNames) }
+            .sortedWith(compareBy({ it.statName }, { it.repId }, { it.elementName }))
+    }
+
     private fun normalizedControls(
         db: KSLDatabase,
         scenarioName: String
@@ -788,6 +936,39 @@ class ConcurrentScenarioRunnerDatabaseParityTest {
         lag1Corr = lag1_corr,
         vonNeumannLag1Stat = von_neumann_lag1_stat,
         numMissingObs = num_missing_obs
+    )
+
+    private fun BatchStatTableData.normalized(
+        elementNames: Map<Int, String>
+    ) = NormalizedBatchStat(
+        elementName = elementNames.getValue(element_id_fk),
+        repId = rep_id,
+        statName = stat_name,
+        statCount = stat_count,
+        average = average,
+        stdDev = std_dev,
+        stdErr = std_err,
+        halfWidth = half_width,
+        confLevel = conf_level,
+        minimum = minimum,
+        maximum = maximum,
+        sumOfObs = sum_of_obs,
+        devSsq = dev_ssq,
+        lastValue = last_value,
+        kurtosis = kurtosis,
+        skewness = skewness,
+        lag1Cov = lag1_cov,
+        lag1Corr = lag1_corr,
+        vonNeumannLag1Stat = von_neumann_lag1_stat,
+        numMissingObs = num_missing_obs,
+        minBatchSize = min_batch_size,
+        minNumBatches = min_num_batches,
+        maxNumBatchesMultiple = max_num_batches_multiple,
+        maxNumBatches = max_num_batches,
+        numRebatches = num_rebatches,
+        currentBatchSize = current_batch_size,
+        amountUnbatched = amt_unbatched,
+        totalNumObs = total_num_obs
     )
 
     private fun ControlTableData.normalized(
