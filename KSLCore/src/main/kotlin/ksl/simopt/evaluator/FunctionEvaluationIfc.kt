@@ -73,3 +73,23 @@ fun interface MonteCarloFunctionIfc {
      */
     fun evaluate(x: DoubleArray, modelInputs: ModelInputs): ResponseMap
 }
+
+/**
+ * A context-based Monte Carlo black-box evaluator that can be optimized by the
+ * simulation-optimization solvers.
+ *
+ * This interface is a user-facing convenience alternative to [MonteCarloFunctionIfc].
+ * Implementations receive a [MonteCarloEvaluationContext], which exposes the requested
+ * design point as both named inputs and an ordered array, the requested replication
+ * count, and helper methods for constructing [ResponseMap] instances.
+ */
+fun interface MonteCarloContextFunctionIfc {
+
+    /**
+     * Evaluates a Monte Carlo function at the design point described by [context].
+     *
+     * @param context the evaluation context for one design point
+     * @return summarized objective and response estimates for this design point
+     */
+    fun evaluate(context: MonteCarloEvaluationContext): ResponseMap
+}

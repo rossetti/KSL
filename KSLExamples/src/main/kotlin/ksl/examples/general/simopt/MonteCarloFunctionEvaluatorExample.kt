@@ -1,9 +1,8 @@
 package ksl.examples.general.simopt
 
-import ksl.simopt.evaluator.EstimatedResponse
-import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.MonteCarloContextFunctionIfc
+import ksl.simopt.evaluator.MonteCarloEvaluationContext
 import ksl.simopt.evaluator.MonteCarloFunctionEvaluator
-import ksl.simopt.evaluator.MonteCarloFunctionIfc
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
@@ -17,7 +16,7 @@ fun main() {
     val problem = twoVariableMonteCarloProblem()
     val evaluator = MonteCarloFunctionEvaluator(
         problemDefinition = problem,
-        function = TwoVariableMonteCarloFunction(problem)
+        function = TwoVariableMonteCarloFunction()
     )
 
     val solver = SimulatedAnnealing(
@@ -67,15 +66,15 @@ fun twoVariableMonteCarloProblem(): ProblemDefinition {
  * both decision variables, creating a simple cost/service tradeoff.
  */
 class TwoVariableMonteCarloFunction(
-    private val problemDefinition: ProblemDefinition,
     private val costNoise: NormalRV = NormalRV(mean = 0.0, variance = 1.0, streamNum = 1),
     private val serviceStream: RNStreamIfc = KSLRandom.rnStream(2)
-) : MonteCarloFunctionIfc {
+) : MonteCarloContextFunctionIfc {
 
-    override fun evaluate(x: DoubleArray, modelInputs: ModelInputs): ResponseMap {
-        val costObservations = DoubleArray(modelInputs.numReplications)
-        val serviceObservations = DoubleArray(modelInputs.numReplications)
+    override fun evaluate(context: MonteCarloEvaluationContext): ResponseMap {
+        val costObservations = DoubleArray(context.numReplications)
+        val serviceObservations = DoubleArray(context.numReplications)
 
+        val x = context.x
         val deterministicCost = costFunction(x)
 
         /*
@@ -89,13 +88,10 @@ class TwoVariableMonteCarloFunction(
             serviceObservations[i] = KSLRandom.rBernoulli(serviceProbability, serviceStream)
         }
 
-        val responseMap = ResponseMap(
-            modelIdentifier = modelInputs.modelIdentifier,
-            responseNames = modelInputs.responseNames
+        return context.responseMapFromObservations(
+            objectiveObservations = costObservations,
+            responseObservations = mapOf("ServiceLevel" to serviceObservations)
         )
-        responseMap.add(EstimatedResponse(problemDefinition.objFnResponseName, costObservations))
-        responseMap.add(EstimatedResponse("ServiceLevel", serviceObservations))
-        return responseMap
     }
 
     private fun costFunction(x: DoubleArray): Double {

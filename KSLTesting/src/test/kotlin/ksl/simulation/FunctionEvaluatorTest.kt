@@ -7,9 +7,11 @@ import ksl.simopt.evaluator.DeterministicFunctionIfc
 import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.MonteCarloContextFunctionIfc
 import ksl.simopt.evaluator.MonteCarloFunctionEvaluator
 import ksl.simopt.evaluator.MonteCarloFunctionIfc
 import ksl.simopt.evaluator.ObjectiveFunctionIfc
+import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
@@ -139,6 +141,68 @@ class FunctionEvaluatorTest {
         assertEquals(2.0, solution.estimatedObjFncValue, 1.0e-12)
         assertEquals(1.0, solution.variance, 1.0e-12)
         assertEquals(3.0, solution.count, 0.0)
+    }
+
+    @Test
+    fun contextBasedMonteCarloEvaluatorProvidesOrderedInputsAndResponseFactories() {
+        val problem = objectiveOnlyProblem()
+        var observedX = doubleArrayOf()
+        var observedReplications = 0
+        val evaluator = MonteCarloFunctionEvaluator(
+            problem,
+            MonteCarloContextFunctionIfc { context ->
+                observedX = context.x.copyOf()
+                observedReplications = context.numReplications
+                context.responseMapFromObservations(doubleArrayOf(1.0, 2.0, 3.0))
+            }
+        )
+
+        val request = EvaluationRequest(
+            problem.modelIdentifier,
+            ModelInputs(
+                modelIdentifier = problem.modelIdentifier,
+                numReplications = 3,
+                inputs = linkedMapOf("y" to 4.0, "x" to 2.0),
+                responseNames = problem.allResponseNames.toSet()
+            )
+        )
+        val solution = evaluator.evaluate(request).values.single()
+
+        assertArrayEquals(doubleArrayOf(2.0, 4.0), observedX, 0.0)
+        assertEquals(3, observedReplications)
+        assertEquals(2.0, solution.estimatedObjFncValue, 1.0e-12)
+        assertEquals(1.0, solution.variance, 1.0e-12)
+        assertEquals(3.0, solution.count, 0.0)
+    }
+
+    @Test
+    fun responseMapFactoriesBuildCompleteMapsFromObservationsAndEstimates() {
+        val problem = constrainedProblem()
+
+        val responseMap = ResponseMap.fromObservations(
+            problemDefinition = problem,
+            objectiveObservations = doubleArrayOf(1.0, 2.0, 3.0),
+            responseObservations = mapOf("FillRate" to doubleArrayOf(0.0, 1.0, 1.0))
+        )
+
+        assertTrue(responseMap.hasAllResponses())
+        assertEquals(2.0, responseMap.getValue("Cost").average, 1.0e-12)
+        assertEquals(1.0, responseMap.getValue("Cost").variance, 1.0e-12)
+        assertEquals(2.0 / 3.0, responseMap.getValue("FillRate").average, 1.0e-12)
+
+        val copiedResponseMap = ResponseMap.fromEstimates(
+            problemDefinition = problem,
+            objectiveEstimate = responseMap.getValue("Cost"),
+            responseEstimates = mapOf("FillRate" to responseMap.getValue("FillRate"))
+        )
+
+        assertTrue(copiedResponseMap.hasAllResponses())
+        assertEquals(responseMap.getValue("Cost").average, copiedResponseMap.getValue("Cost").average, 1.0e-12)
+        assertEquals(
+            responseMap.getValue("FillRate").average,
+            copiedResponseMap.getValue("FillRate").average,
+            1.0e-12
+        )
     }
 
     @Test

@@ -1,6 +1,7 @@
 package ksl.simopt.evaluator
 
 import kotlinx.serialization.Serializable
+import ksl.simopt.problem.ProblemDefinition
 
 /**
  *  A response map holds replication data from evaluations of the simulation
@@ -110,6 +111,152 @@ data class ResponseMap(
     fun mergeAll(responseMap: ResponseMap){
         for(estimate in responseMap.values){
             merge(estimate)
+        }
+    }
+
+    companion object {
+
+        /**
+         * Creates a [ResponseMap] from estimated responses.
+         *
+         * The estimates must contain exactly one estimate for every name in [responseNames].
+         *
+         * @param modelIdentifier the model or function identifier
+         * @param responseNames the complete set of required response names
+         * @param estimates the estimates to place in the response map
+         * @return a response map containing the supplied estimates
+         */
+        @JvmStatic
+        fun fromEstimates(
+            modelIdentifier: String,
+            responseNames: Set<String>,
+            estimates: Iterable<EstimatedResponseIfc>
+        ): ResponseMap {
+            val responseMap = ResponseMap(modelIdentifier, responseNames)
+            val estimateNames = mutableSetOf<String>()
+
+            for (estimate in estimates) {
+                require(estimateNames.add(estimate.name)) {
+                    "Duplicate estimate for response '${estimate.name}'."
+                }
+                responseMap.add(EstimatedResponse.fromEstimate(estimate.name, estimate))
+            }
+
+            require(estimateNames == responseNames) {
+                "The estimates must contain exactly the response names $responseNames, but found $estimateNames."
+            }
+
+            return responseMap
+        }
+
+        /**
+         * Creates a [ResponseMap] from estimated responses for a [ProblemDefinition].
+         *
+         * The estimates must contain the objective response and every response named by
+         * the problem definition.
+         *
+         * @param problemDefinition the simulation-optimization problem definition
+         * @param estimates the estimates to place in the response map
+         * @return a response map containing the supplied estimates
+         */
+        @JvmStatic
+        fun fromEstimates(
+            problemDefinition: ProblemDefinition,
+            estimates: Iterable<EstimatedResponseIfc>
+        ): ResponseMap {
+            val responseMap = problemDefinition.emptyResponseMap()
+            val estimateNames = mutableSetOf<String>()
+
+            for (estimate in estimates) {
+                require(estimateNames.add(estimate.name)) {
+                    "Duplicate estimate for response '${estimate.name}'."
+                }
+                responseMap.add(EstimatedResponse.fromEstimate(estimate.name, estimate))
+            }
+
+            val expectedNames = problemDefinition.allResponseNames.toSet()
+            require(estimateNames == expectedNames) {
+                "The estimates must contain exactly the response names $expectedNames, but found $estimateNames."
+            }
+
+            return responseMap
+        }
+
+        /**
+         * Creates a [ResponseMap] from an objective estimate and optional response estimates.
+         *
+         * This is useful when another component has already produced statistical summaries,
+         * for example an [ksl.utilities.mcintegration.MCExperiment].
+         *
+         * @param problemDefinition the simulation-optimization problem definition
+         * @param objectiveEstimate the estimate for the objective response
+         * @param responseEstimates estimates for response-constraint responses, keyed by response name
+         * @return a response map containing the objective and response estimates
+         */
+        @JvmStatic
+        fun fromEstimates(
+            problemDefinition: ProblemDefinition,
+            objectiveEstimate: EstimatedResponseIfc,
+            responseEstimates: Map<String, EstimatedResponseIfc> = emptyMap()
+        ): ResponseMap {
+            val expectedResponseNames = problemDefinition.responseNames.toSet()
+            require(responseEstimates.keys == expectedResponseNames) {
+                "The response estimates must contain exactly the response names $expectedResponseNames, " +
+                        "but found ${responseEstimates.keys}."
+            }
+
+            val estimates = mutableListOf<EstimatedResponseIfc>(
+                EstimatedResponse.fromEstimate(problemDefinition.objFnResponseName, objectiveEstimate)
+            )
+
+            for (name in problemDefinition.responseNames) {
+                estimates.add(EstimatedResponse.fromEstimate(name, responseEstimates.getValue(name)))
+            }
+
+            return fromEstimates(problemDefinition, estimates)
+        }
+
+        /**
+         * Creates a [ResponseMap] from raw observation arrays.
+         *
+         * The objective observations are named using [ProblemDefinition.objFnResponseName].
+         * The response observations must contain exactly one array for each response name
+         * in [ProblemDefinition.responseNames].
+         *
+         * @param problemDefinition the simulation-optimization problem definition
+         * @param objectiveObservations raw observations of the objective response
+         * @param responseObservations raw observations of response-constraint responses
+         * @return a response map containing estimated responses computed from the observations
+         */
+        @JvmStatic
+        fun fromObservations(
+            problemDefinition: ProblemDefinition,
+            objectiveObservations: DoubleArray,
+            responseObservations: Map<String, DoubleArray> = emptyMap()
+        ): ResponseMap {
+            val expectedResponseNames = problemDefinition.responseNames.toSet()
+            require(responseObservations.keys == expectedResponseNames) {
+                "The response observations must contain exactly the response names $expectedResponseNames, " +
+                        "but found ${responseObservations.keys}."
+            }
+
+            val estimates = mutableListOf<EstimatedResponseIfc>(
+                EstimatedResponse.fromObservations(
+                    name = problemDefinition.objFnResponseName,
+                    observations = objectiveObservations
+                )
+            )
+
+            for (name in problemDefinition.responseNames) {
+                estimates.add(
+                    EstimatedResponse.fromObservations(
+                        name = name,
+                        observations = responseObservations.getValue(name)
+                    )
+                )
+            }
+
+            return fromEstimates(problemDefinition, estimates)
         }
     }
 

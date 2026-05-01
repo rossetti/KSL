@@ -5,6 +5,7 @@ import ksl.utilities.Interval
 import ksl.utilities.distributions.StudentT
 import ksl.utilities.statistic.DEFAULT_CONFIDENCE_LEVEL
 import ksl.utilities.statistic.Statistic
+import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistics
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -403,6 +404,92 @@ data class EstimatedResponse(
 
     fun instance(): EstimatedResponse {
         return EstimatedResponse(this.name, average, variance, count)
+    }
+
+    companion object {
+
+        /**
+         * Creates an [EstimatedResponse] from raw observations.
+         *
+         * This is a named factory for the existing array constructor. It is intended
+         * to make Monte Carlo response-map construction more readable at call sites.
+         *
+         * @param name the response name
+         * @param observations the observed response values
+         * @return an estimated response based on the supplied observations
+         */
+        @JvmStatic
+        fun fromObservations(name: String, observations: DoubleArray): EstimatedResponse {
+            require(observations.isNotEmpty()) { "The observations must not be empty." }
+            return EstimatedResponse(name, observations)
+        }
+
+        /**
+         * Creates an [EstimatedResponse] from raw observations.
+         *
+         * @param name the response name
+         * @param observations the observed response values
+         * @return an estimated response based on the supplied observations
+         */
+        @JvmStatic
+        fun fromObservations(name: String, observations: Collection<Double>): EstimatedResponse {
+            require(observations.isNotEmpty()) { "The observations must not be empty." }
+            return EstimatedResponse(name, observations.toList())
+        }
+
+        /**
+         * Creates an [EstimatedResponse] from an existing statistical summary.
+         *
+         * This is useful when an experiment, such as [ksl.utilities.mcintegration.MCExperiment],
+         * has already collected the observations and exposes the average, variance, and count
+         * through a [StatisticIfc].
+         *
+         * @param name the response name to use in the simulation-optimization problem
+         * @param statistic the statistical summary of the response
+         * @return an estimated response with the supplied response name
+         */
+        @JvmStatic
+        fun fromStatistic(name: String, statistic: StatisticIfc): EstimatedResponse {
+            return fromEstimate(name, statistic)
+        }
+
+        /**
+         * Creates an [EstimatedResponse] from any object exposing estimated-response statistics.
+         *
+         * @param name the response name to use in the simulation-optimization problem
+         * @param estimate the statistical estimate to copy
+         * @return an estimated response with the supplied response name
+         */
+        @JvmStatic
+        fun fromEstimate(name: String, estimate: EstimatedResponseIfc): EstimatedResponse {
+            return EstimatedResponse(
+                name = name,
+                average = estimate.average,
+                variance = estimate.variance,
+                count = estimate.count
+            )
+        }
+
+        /**
+         * Creates an [EstimatedResponse] for a deterministic value.
+         *
+         * When [count] is one, the sample variance is undefined and represented as [Double.NaN].
+         * When [count] is greater than one, repeated deterministic observations have zero variance.
+         *
+         * @param name the response name
+         * @param value the deterministic response value
+         * @param count the number of observations to associate with the estimate
+         * @return an estimated response for the deterministic value
+         */
+        @JvmStatic
+        fun deterministic(name: String, value: Double, count: Int = 1): EstimatedResponse {
+            require(count > 0) { "The count must be greater than zero." }
+            return if (count == 1) {
+                EstimatedResponse(name, value, Double.NaN, 1.0)
+            } else {
+                EstimatedResponse(name, value, 0.0, count.toDouble())
+            }
+        }
     }
 
 }

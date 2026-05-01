@@ -1,11 +1,10 @@
 package ksl.simulation
 
 import ksl.simopt.evaluator.DeterministicFunctionEvaluator
-import ksl.simopt.evaluator.EstimatedResponse
 import ksl.simopt.evaluator.InputEquality
-import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.MonteCarloContextFunctionIfc
+import ksl.simopt.evaluator.MonteCarloEvaluationContext
 import ksl.simopt.evaluator.MonteCarloFunctionEvaluator
-import ksl.simopt.evaluator.MonteCarloFunctionIfc
 import ksl.simopt.evaluator.ObjectiveFunctionIfc
 import ksl.simopt.evaluator.ResponseMap
 import ksl.simopt.problem.InequalityType
@@ -54,7 +53,7 @@ class FunctionEvaluatorExampleIntegrationTest {
         val problem = twoVariableMonteCarloProblem()
         val evaluator = MonteCarloFunctionEvaluator(
             problemDefinition = problem,
-            function = TestTwoVariableMonteCarloFunction(problem)
+            function = TestTwoVariableMonteCarloFunction()
         )
 
         val solver = SimulatedAnnealing(
@@ -90,14 +89,14 @@ class FunctionEvaluatorExampleIntegrationTest {
     }
 
     private class TestTwoVariableMonteCarloFunction(
-        private val problemDefinition: ProblemDefinition,
         private val costNoise: NormalRV = NormalRV(mean = 0.0, variance = 1.0, streamNum = 11),
         private val serviceStream: RNStreamIfc = KSLRandom.rnStream(12)
-    ) : MonteCarloFunctionIfc {
+    ) : MonteCarloContextFunctionIfc {
 
-        override fun evaluate(x: DoubleArray, modelInputs: ModelInputs): ResponseMap {
-            val costObservations = DoubleArray(modelInputs.numReplications)
-            val serviceObservations = DoubleArray(modelInputs.numReplications)
+        override fun evaluate(context: MonteCarloEvaluationContext): ResponseMap {
+            val costObservations = DoubleArray(context.numReplications)
+            val serviceObservations = DoubleArray(context.numReplications)
+            val x = context.x
             val cost = costFunction(x)
             val serviceProbability = serviceProbability(x)
 
@@ -106,13 +105,10 @@ class FunctionEvaluatorExampleIntegrationTest {
                 serviceObservations[i] = KSLRandom.rBernoulli(serviceProbability, serviceStream)
             }
 
-            return ResponseMap(
-                modelIdentifier = modelInputs.modelIdentifier,
-                responseNames = modelInputs.responseNames
-            ).also {
-                it.add(EstimatedResponse(problemDefinition.objFnResponseName, costObservations))
-                it.add(EstimatedResponse("ServiceLevel", serviceObservations))
-            }
+            return context.responseMapFromObservations(
+                objectiveObservations = costObservations,
+                responseObservations = mapOf("ServiceLevel" to serviceObservations)
+            )
         }
 
         private fun costFunction(x: DoubleArray): Double {

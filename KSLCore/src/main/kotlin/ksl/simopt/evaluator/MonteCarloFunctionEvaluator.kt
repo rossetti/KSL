@@ -35,6 +35,30 @@ class MonteCarloFunctionEvaluator @JvmOverloads constructor(
     override val cache: SolutionCacheIfc? = null
 ) : EvaluatorIfc {
 
+    /**
+     * Creates an evaluator for a context-based Monte Carlo function.
+     *
+     * This constructor preserves the existing evaluator implementation while allowing users
+     * to implement [MonteCarloContextFunctionIfc], which avoids manual conversion between
+     * [ModelInputs], ordered input arrays, and [ResponseMap] instances.
+     *
+     * @param problemDefinition the optimization problem definition associated with this evaluator
+     * @param function the context-based Monte Carlo black-box function
+     * @param cache an optional solution cache
+     */
+    @JvmOverloads
+    constructor(
+        problemDefinition: ProblemDefinition,
+        function: MonteCarloContextFunctionIfc,
+        cache: SolutionCacheIfc? = null
+    ) : this(
+        problemDefinition = problemDefinition,
+        function = MonteCarloFunctionIfc { _, modelInputs ->
+            function.evaluate(MonteCarloEvaluationContext(problemDefinition, modelInputs))
+        },
+        cache = cache
+    )
+
     override var totalEvaluatorCalls: Int = 0
         private set
 
