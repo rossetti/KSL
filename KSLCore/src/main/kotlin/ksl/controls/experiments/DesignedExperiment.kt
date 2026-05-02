@@ -116,10 +116,11 @@ class DesignedExperiment @JvmOverloads constructor(
 
     /**
      *  A default value for the number of replications per design point.
-     *  Used only if specified greater that or equal to 1.  This
-     *  will overwrite the number of replications for every design point
-     *  if specified greater than 0. By default, it is set to -1, causing
-     *  the design points to use the specification from the design.
+     *  Used only when a simulation method does not supply a
+     *  numRepsPerDesignPoint argument and this property is greater than 0.
+     *  This will overwrite the number of replications for every design point.
+     *  By default, it is set to -1, causing the design points to use the
+     *  replication specification from the design.
      */
     var defaultNumRepsPerDesignPoint: Int = -1
 
@@ -395,9 +396,10 @@ class DesignedExperiment @JvmOverloads constructor(
      *   Causes all design points to be simulated as presented by the design's
      *   default iterator using the number of replications specified by the design points.
      *
-     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default)
-     *   then the specification of replications is obtained from the design point. If a value
-     *   greater than or equal to 1 is supplied, the value is used for every executed design point.
+     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default),
+     *   [defaultNumRepsPerDesignPoint] is used when it is greater than 0; otherwise, the replication
+     *   specification is obtained from each design point. If a value greater than 0 is supplied,
+     *   the value is used for every executed design point.
      *   @param clearRuns indicates that any previous simulation runs for the design points will be cleared
      *   prior to executing these design points. The default is true.
      *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
@@ -417,9 +419,10 @@ class DesignedExperiment @JvmOverloads constructor(
      *
      *   @param iterator an iterator that presents the design points to simulate. If the iterator
      *   is empty then a warning is printed.
-     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default)
-     *   then the specification of replications is obtained from the design point. If a value
-     *   greater than or equal to 1 is supplied, the value is used for every executed design point.
+     *   @param numRepsPerDesignPoint the number of replications per design point. If null (the default),
+     *   [defaultNumRepsPerDesignPoint] is used when it is greater than 0; otherwise, the replication
+     *   specification is obtained from each design point. If a value greater than 0 is supplied,
+     *   the value is used for every executed design point.
      *   @param clearRuns indicates that any previous simulation runs for the design points will be cleared
      *   prior to executing these design points. The default is true.
      *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
@@ -442,16 +445,21 @@ class DesignedExperiment @JvmOverloads constructor(
         if (clearRuns) {
             clearSimulationRuns()
         }
+        val effectiveNumReps = effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint)
         while (iterator.hasNext()) {
             val dp = iterator.next()
-            // set number of replications
-            if (numRepsPerDesignPoint != null) {
-                if (numRepsPerDesignPoint > 0) {
-                    dp.numReplications = numRepsPerDesignPoint
-                }
+            if (effectiveNumReps != null) {
+                dp.numReplications = effectiveNumReps
             }
             simulate(dp, addRuns = addRuns)
         }
+    }
+
+    private fun effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint: Int?): Int? {
+        if (numRepsPerDesignPoint != null) {
+            return numRepsPerDesignPoint.takeIf { it > 0 }
+        }
+        return defaultNumRepsPerDesignPoint.takeIf { it > 0 }
     }
 
     /**

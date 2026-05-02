@@ -94,6 +94,23 @@ class ExperimentalDesignTest {
         de.simulateAll(numRepsPerDesignPoint = DOE_REPS_PER_POINT)
     }
 
+    private fun buildDesignedExperimentForReplicationOverride(
+        modelName: String = "DOEReplicationOverride_${System.nanoTime()}"
+    ): DesignedExperiment {
+        val fServer = TwoLevelFactor("Server", SERVER_LOW, SERVER_HIGH)
+        val fST = TwoLevelFactor("MeanST", ST_LOW, ST_HIGH)
+        val design = TwoLevelFactorialDesign(setOf(fServer, fST))
+        val factors = mapOf(
+            fServer to "MM1Q.numServers",
+            fST to "$modelName:ServiceTime.mean"
+        )
+        val model = Model(modelName, autoCSVReports = false)
+        model.lengthOfReplication = 50.0
+        model.lengthOfReplicationWarmUp = 0.0
+        GIGcQueue(model, numServers = 1, name = "MM1Q")
+        return DesignedExperiment("${modelName}_DE", model, factors, design)
+    }
+
     // ── Group 1: Structural (no simulation) ───────────────────────────────────
 
     @Test
@@ -188,6 +205,40 @@ class ExperimentalDesignTest {
                 DOE_REPS_PER_POINT,
                 run.numberOfReplications,
                 "Run '${run.name}' must have $DOE_REPS_PER_POINT replications"
+            )
+        }
+    }
+
+    @Test
+    fun designedExperimentUsesDefaultNumRepsPerDesignPointWhenNoOverrideSupplied() {
+        val localDE = buildDesignedExperimentForReplicationOverride()
+        localDE.defaultNumRepsPerDesignPoint = 4
+
+        localDE.simulateAll()
+
+        assertEquals(4, localDE.numSimulationRuns, "2² design must produce four design-point runs")
+        for (run in localDE.simulationRuns) {
+            assertEquals(
+                4,
+                run.numberOfReplications,
+                "defaultNumRepsPerDesignPoint should apply when no method override is supplied"
+            )
+        }
+    }
+
+    @Test
+    fun designedExperimentMethodArgumentOverridesDefaultNumRepsPerDesignPoint() {
+        val localDE = buildDesignedExperimentForReplicationOverride()
+        localDE.defaultNumRepsPerDesignPoint = 2
+
+        localDE.simulateAll(numRepsPerDesignPoint = 5)
+
+        assertEquals(4, localDE.numSimulationRuns, "2² design must produce four design-point runs")
+        for (run in localDE.simulationRuns) {
+            assertEquals(
+                5,
+                run.numberOfReplications,
+                "simulateAll(numRepsPerDesignPoint) should take precedence over the class default"
             )
         }
     }
