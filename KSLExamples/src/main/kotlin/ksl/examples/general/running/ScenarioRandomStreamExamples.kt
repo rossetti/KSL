@@ -19,10 +19,17 @@ import kotlinx.coroutines.runBlocking
  * Use independent stream advances when scenarios should start from different substream
  * blocks instead. The examples below show the runner-level convenience method, the
  * public List<Scenario> helper, and the single-scenario helpers.
+ *
+ * During experiment setup, KSL applies model configuration, controls, and random-variable
+ * parameter changes first. It then resets streams if resetStartStreamOption is true,
+ * applies numberOfStreamAdvancesPriorToRunning, and finally applies the setting that
+ * controls end-of-replication substream advancement. This ordering lets reset-to-start
+ * and explicit stream advances be used together safely.
  */
 fun main() {
     defaultCommonRandomNumbers()
     runnerLevelIndependentStreams()
+    resetBeforeIndependentStreamAdvances()
     fineGrainedIndependentStreams()
     concurrentIndependentStreams()
 }
@@ -62,6 +69,33 @@ fun runnerLevelIndependentStreams() {
     runner.useIndependentRandomStreams()
 
     printStreamAdvances("Runner-level independent stream setup", scenarios)
+
+    runner.simulate()
+    runner.print()
+}
+
+/**
+ * Reset-to-start and independent stream advances can be combined.
+ *
+ * The resetStartStreamOption is useful when repeated executions should begin from
+ * a known stream state. KSL performs that reset before applying each scenario's
+ * numberOfStreamAdvancesPriorToRunning value, so the explicit stream-advance
+ * assignment is not erased by the reset.
+ *
+ * This example assigns the same independent stream advances as the previous example,
+ * but also asks each scenario to reset streams at the start of the experiment.
+ */
+fun resetBeforeIndependentStreamAdvances() {
+    val scenarios = buildServerCountScenarios()
+    val runner = ScenarioRunner("ServerCount_Reset_Independent", scenarios)
+
+    for (scenario in scenarios) {
+        scenario.scenarioRunParameters.resetStartStreamOption = true
+    }
+
+    runner.useIndependentRandomStreams()
+
+    printStreamAdvances("Reset-to-start followed by independent stream setup", scenarios)
 
     runner.simulate()
     runner.print()
@@ -174,13 +208,18 @@ private class QueueModelBuilder(
  * Prints the stream-advance assignment that will be applied when each scenario runs.
  *
  * These values are stored in ExperimentRunParameters.numberOfStreamAdvancesPriorToRunning.
- * SimulationRunner applies the value before executing the model.
+ * SimulationRunner applies resetStartStreamOption first, then this stream-advance value,
+ * before executing the first replication.
  */
 private fun printStreamAdvances(title: String, scenarios: List<Scenario>) {
     println()
     println(title)
     for (scenario in scenarios) {
-        val advances = scenario.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning
-        println("${scenario.name.padEnd(14)} stream advances before running = $advances")
+        val params = scenario.scenarioRunParameters
+        println(
+            "${scenario.name.padEnd(14)} " +
+                "reset start = ${params.resetStartStreamOption.toString().padEnd(5)} " +
+                "stream advances before running = ${params.numberOfStreamAdvancesPriorToRunning}"
+        )
     }
 }
