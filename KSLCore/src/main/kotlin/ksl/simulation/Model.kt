@@ -1107,20 +1107,6 @@ class Model @JvmOverloads constructor(
         logger.info { "The executive was initialized prior to any experiments. Current time = $time" }
         executive.terminationWarningMsgOption = false
         markPreOrderTraversalModelElementHierarchy()
-        // already should have reference to simulation
-        advanceSubStreams(numberOfStreamAdvancesPriorToRunning)
-
-        if (antitheticOption) {
-            // make sure the streams are not reset after all replications are run
-            setAllResetStartStreamOptions(false)
-            // make sure that streams are not advanced to next sub-streams after each replication.
-            // the antithetic option will control this (every other replication)
-            setAllAdvanceToNextSubStreamOptions(false)
-        } else {
-            // tell the model to use the specifications from the experiment
-            setAllResetStartStreamOptions(resetStartStreamOption)
-            setAllAdvanceToNextSubStreamOptions(advanceNextSubStreamOption)
-        }
 
         if (hasExperimentalControls()) {
             val cMap: Map<String, Double> = experimentalControls
@@ -1153,12 +1139,6 @@ class Model @JvmOverloads constructor(
             }
         }
 
-        // do all model element beforeExperiment() actions
-        if (resetStartStreamOption) {
-            logger.info { "Resetting random number streams to the beginning of their starting stream." }
-            resetStartStream()
-        }
-
         if (!isConfigured && (configuration != null)) {
             configuration?.let {
                 modelConfigurationManager?.configure(this, it)
@@ -1169,6 +1149,38 @@ class Model @JvmOverloads constructor(
             }
         }
 
+        // Apply changes that can create or replace random sources before stream positioning.
+        if (antitheticOption) {
+            // the antithetic option controls stream resets and sub-stream advances by replication pair
+            setAllResetStartStreamOptions(false)
+        } else {
+            // tell the model to use the reset specification from the experiment
+            setAllResetStartStreamOptions(resetStartStreamOption)
+        }
+
+        if (resetStartStreamOption) {
+            logger.info { "Resetting random number streams to the beginning of their starting stream." }
+            resetStartStream()
+        }
+
+        if (numberOfStreamAdvancesPriorToRunning > 0) {
+            logger.info { "Advancing random number streams $numberOfStreamAdvancesPriorToRunning sub-streams prior to running." }
+            // Explicit pre-run positioning must not depend on the experiment's
+            // end-of-replication sub-stream advance option or a prior run's option.
+            setAllAdvanceToNextSubStreamOptions(true)
+            advanceSubStreams(numberOfStreamAdvancesPriorToRunning)
+        }
+
+        if (antitheticOption) {
+            // make sure that streams are not advanced to next sub-streams after each replication.
+            // the antithetic option will control this (every other replication)
+            setAllAdvanceToNextSubStreamOptions(false)
+        } else {
+            // tell the model to use the end-of-replication advance specification from the experiment
+            setAllAdvanceToNextSubStreamOptions(advanceNextSubStreamOption)
+        }
+
+        // do all model element beforeExperiment() actions
         beforeExperimentActions()
     }
 
