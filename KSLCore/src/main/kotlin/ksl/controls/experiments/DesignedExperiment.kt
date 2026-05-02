@@ -71,10 +71,10 @@ class DesignedExperiment @JvmOverloads constructor(
     name: String,
     private val model: Model,
     private val factorSettings: Map<Factor, String>,
-    val design: ExperimentalDesignIfc,
+    override val design: ExperimentalDesignIfc,
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"),
         model.outputDirectory.dbDir)
-) : Identity(name) {
+) : Identity(name), DesignedExperimentIfc {
 
     /**
      *  @param name the name of the experiment for saving simulation results
@@ -146,7 +146,7 @@ class DesignedExperiment @JvmOverloads constructor(
     /**
      *  Returns the list of executed runs, one run for each design point simulated
      */
-    val simulationRuns: List<SimulationRun>
+    override val simulationRuns: List<SimulationRun>
         get() = mySimulationRuns.values.toList()
 
     init {
@@ -165,13 +165,13 @@ class DesignedExperiment @JvmOverloads constructor(
     /**
      *  The number of design points executed in the base design (without replications)
      */
-    val numSimulationRuns: Int
+    override val numSimulationRuns: Int
         get() = mySimulationRuns.size
 
     /**
      *  The names of the responses or counters in the model
      */
-    val responseNames: List<String>
+    override val responseNames: List<String>
         get() = model.responseNames
 
     /**
@@ -284,7 +284,7 @@ class DesignedExperiment @JvmOverloads constructor(
      *
      * @param responseName the response to extract; should appear in [responseNames]
      */
-    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+    override fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
         val myResult = linkedMapOf<String, DoubleArray>()
         simulationRuns.forEachIndexed { idx, myRun ->
             val myObs = myRun.replicationObservations(responseName)
@@ -380,13 +380,24 @@ class DesignedExperiment @JvmOverloads constructor(
      *  Perform the regression of the linear model for predicting the response.
      *  @param responseName the name of the response variable in the regression
      *  @param linearModel the linear model specification for the regression
-     *  @param coded if true perform the regression with the coded variables. The default is true.
      *  @return the regression results
      */
     fun regressionResults(
         responseName: String,
+        linearModel: LinearModel
+    ): RegressionResultsIfc = regressionResults(responseName, linearModel, coded = true)
+
+    /**
+     *  Perform the regression of the linear model for predicting the response.
+     *  @param responseName the name of the response variable in the regression
+     *  @param linearModel the linear model specification for the regression
+     *  @param coded if true perform the regression with the coded variables. The default is true.
+     *  @return the regression results
+     */
+    override fun regressionResults(
+        responseName: String,
         linearModel: LinearModel,
-        coded: Boolean = true
+        coded: Boolean
     ): RegressionResultsIfc {
         val rd = regressionData(responseName, linearModel, coded)
         return OLSRegression(rd)

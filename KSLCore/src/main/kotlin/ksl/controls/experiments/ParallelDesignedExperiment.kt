@@ -44,11 +44,11 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     name: String,
     private val modelBuilder: ModelBuilderIfc,
     private val factorSettings: Map<Factor, String>,
-    val design: ExperimentalDesignIfc,
+    override val design: ExperimentalDesignIfc,
     val modelConfiguration: Map<String, String>? = null,
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
-) : Identity(name) {
+) : Identity(name), DesignedExperimentIfc {
 
     /**
      * Convenience constructor for two-level factor setting maps.
@@ -124,19 +124,19 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     /**
      * Returns the executed runs, one run for each design point simulated.
      */
-    val simulationRuns: List<SimulationRun>
+    override val simulationRuns: List<SimulationRun>
         get() = mySimulationRuns.values.toList()
 
     /**
      * The number of design points executed in the base design.
      */
-    val numSimulationRuns: Int
+    override val numSimulationRuns: Int
         get() = mySimulationRuns.size
 
     /**
      * The names of the responses or counters in the template model.
      */
-    val responseNames: List<String>
+    override val responseNames: List<String>
         get() = templateModel.responseNames
 
     init {
@@ -259,7 +259,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     /**
      * Returns a map of design-point label to per-replication observations for [responseName].
      */
-    fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
+    override fun observationsAsMap(responseName: String): Map<String, DoubleArray> {
         val myResult = linkedMapOf<String, DoubleArray>()
         simulationRuns.forEachIndexed { idx, myRun ->
             val myObs = myRun.replicationObservations(responseName)
@@ -333,8 +333,16 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
      */
     fun regressionResults(
         responseName: String,
+        linearModel: LinearModel
+    ): RegressionResultsIfc = regressionResults(responseName, linearModel, coded = true)
+
+    /**
+     * Performs OLS regression for the supplied response and linear model.
+     */
+    override fun regressionResults(
+        responseName: String,
         linearModel: LinearModel,
-        coded: Boolean = true
+        coded: Boolean
     ): RegressionResultsIfc {
         val rd = regressionData(responseName, linearModel, coded)
         return OLSRegression(rd)

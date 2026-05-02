@@ -18,7 +18,7 @@
 
 package ksl.utilities.io.report.extensions
 
-import ksl.controls.experiments.DesignedExperiment
+import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.ScenarioRunner
 import ksl.utilities.io.plotting.MultiBoxPlot
 import ksl.utilities.io.report.dsl.ReportBuilder
@@ -41,7 +41,7 @@ import ksl.utilities.statistic.Statistic
  *
  * **Data extraction is on the domain classes** (not here):
  * - [MultipleComparisonAnalyzer.observationsAsMap] — alternative name → observations
- * - [DesignedExperiment.observationsAsMap] — `"Point N"` → observations for one response
+ * - [DesignedExperimentIfc.observationsAsMap] — `"Point N"` → observations for one response
  * - [ScenarioRunner.observationsAsMap] — scenario name → observations for one response
  *
  * **Composability example — custom document with a targeted box plot:**
@@ -84,7 +84,7 @@ import ksl.utilities.statistic.Statistic
  * is empty.
  *
  * This is the foundational building block. Use it directly when working with
- * data that does not come from [MultipleComparisonAnalyzer], [DesignedExperiment],
+ * data that does not come from [MultipleComparisonAnalyzer], [DesignedExperimentIfc],
  * or [ScenarioRunner], or when custom box labels are needed.
  *
  * @param dataMap  label → per-replication observations; must not be empty for
@@ -132,18 +132,18 @@ fun ReportBuilder.multipleComparisonBoxPlot(
  * executed design points for a single [responseName] in [de].
  *
  * Each box represents one executed design point, labelled `"Point N"` in
- * execution order, sourced from [DesignedExperiment.observationsAsMap].
+ * execution order, sourced from [DesignedExperimentIfc.observationsAsMap].
  * Design points for which [responseName] produced no observations are omitted.
  * Nothing is emitted when no design points have been executed.
  *
  * @param de           the designed experiment
  * @param responseName the response to visualise; should appear in
- *                     [DesignedExperiment.responseNames]
+ *                     [DesignedExperimentIfc.responseNames]
  * @param caption      optional plot caption; defaults to
  *                     `"Distributions by Design Point — <responseName>"`
  */
 fun ReportBuilder.designedExperimentBoxPlot(
-    de: DesignedExperiment,
+    de: DesignedExperimentIfc,
     responseName: String,
     caption: String? = null
 ) {

@@ -19,6 +19,7 @@
 package ksl.utilities.io.report.extensions
 
 import ksl.controls.experiments.DesignedExperiment
+import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.LinearModel
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
@@ -26,7 +27,7 @@ import ksl.utilities.io.report.dsl.report
 import ksl.utilities.statistic.Statistic
 
 /**
- * DSL extension functions on [ReportBuilder] for rendering [DesignedExperiment]
+ * DSL extension functions on [ReportBuilder] for rendering [DesignedExperimentIfc]
  * within the KSL reporting framework.
  *
  * **Separation of concerns — granular functions (composable building blocks):**
@@ -37,7 +38,7 @@ import ksl.utilities.statistic.Statistic
  *   and optional full per-design-point [simulationRun] detail sections
  *
  * **Zero-code entry point:**
- * - [DesignedExperiment.toReport] — full experiment document
+ * - [DesignedExperimentIfc.toReport] — full experiment document
  *
  * **Composability example — design, execution, and regression narrative:**
  * ```kotlin
@@ -48,8 +49,8 @@ import ksl.utilities.statistic.Statistic
  * ```
  *
  * **Note on factor-to-control mapping:** the mapping between each [ksl.controls.experiments.Factor]
- * and the model control or RV parameter name is stored as a private field in
- * [DesignedExperiment] and is not accessible via the public API. The execution
+ * and the model control or RV parameter name is stored privately by concrete
+ * designed-experiment implementations and is not exposed via [DesignedExperimentIfc]. The execution
  * summary table therefore shows the control/parameter names taken from each
  * [ksl.controls.experiments.SimulationRun.inputs] map rather than the factor names.
  */
@@ -80,7 +81,7 @@ import ksl.utilities.statistic.Statistic
  *    [simulationRun] section per executed design point, showing the complete run
  *    report including inputs, run parameters, and response statistics
  *
- * @param de                the [DesignedExperiment] to report
+ * @param de                the [DesignedExperimentIfc] to report
  * @param confidenceLevel   confidence level for response statistics; defaults to 0.95
  * @param coded             `false` (default) = original measurement scale for the
  *                          design point matrix; `true` = coded (−1/+1) scale
@@ -91,12 +92,12 @@ import ksl.utilities.statistic.Statistic
  *                          [ksl.utilities.io.plotting.MultiBoxPlot] (one box per design
  *                          point) is appended inside each response's sub-section of
  *                          **"Response Statistics"**; an empty list (default) suppresses
- *                          all box plots; pass [DesignedExperiment.responseNames] to
+ *                          all box plots; pass [DesignedExperimentIfc.responseNames] to
  *                          plot every response
  * @param caption           optional section title; defaults to `"Designed Experiment"`
  */
 fun ReportBuilder.designedExperiment(
-    de: DesignedExperiment,
+    de: DesignedExperimentIfc,
     confidenceLevel: Double = 0.95,
     coded: Boolean = false,
     showDetails: Boolean = false,
@@ -136,7 +137,7 @@ fun ReportBuilder.designedExperiment(
         if (!myHasRuns) {
             paragraph(
                 "No design points have been executed. Call `simulateAll()` on the " +
-                "DesignedExperiment to run all design points before generating results."
+                "designed experiment to run all design points before generating results."
             )
             return@section
         }
@@ -245,10 +246,10 @@ fun ReportBuilder.designedExperiment(
  *    residual summary, normal probability plot, residuals-vs-fitted plot, and
  *    residuals-vs-order plot
  *
- * **Prerequisite:** [de] must have been executed via `de.simulateAll()` before calling
- * this function; otherwise [DesignedExperiment.regressionResults] will have no data.
+ * **Prerequisite:** [de] must have been executed before calling this function;
+ * otherwise [DesignedExperimentIfc.regressionResults] will have no data.
  *
- * @param de                  the [DesignedExperiment] whose results supply the regression data
+ * @param de                  the [DesignedExperimentIfc] whose results supply the regression data
  * @param responseName        the name of the response to fit; must appear in [de.responseNames]
  * @param linearModel         the model specification (factors, interaction terms, intercept flag)
  * @param confidenceLevel     confidence level for coefficient intervals; defaults to 0.95
@@ -259,7 +260,7 @@ fun ReportBuilder.designedExperiment(
  *                            `"Regression Analysis — <responseName>"`
  */
 fun ReportBuilder.designedExperimentRegression(
-    de: DesignedExperiment,
+    de: DesignedExperimentIfc,
     responseName: String,
     linearModel: LinearModel,
     confidenceLevel: Double = 0.95,
@@ -290,6 +291,21 @@ fun ReportBuilder.designedExperimentRegression(
         }
     }
 }
+
+/**
+ * Builds a [ReportNode.Document] containing a full designed experiment report
+ * for any implementation of [DesignedExperimentIfc].
+ */
+fun DesignedExperimentIfc.toReport(
+    title: String = "Designed Experiment \u2014 $name",
+    confidenceLevel: Double = 0.95,
+    coded: Boolean = false,
+    showDetails: Boolean = false,
+    boxPlotResponses: List<String> = emptyList(),
+    block: ReportBuilder.() -> Unit = {
+        designedExperiment(this@toReport, confidenceLevel, coded, showDetails, boxPlotResponses)
+    }
+): ReportNode.Document = report(title, block)
 
 // ── toReport() — zero-code entry point ───────────────────────────────────────
 
