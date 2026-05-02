@@ -112,6 +112,23 @@ class DesignedExperiment @JvmOverloads constructor(
         design: TwoLevelFactorialDesign
     ) : this(name, modelCreator(), factorSettings, design)
 
+    /**
+     *
+     *  @param name the name of the experiment for saving simulation results
+     *  @param modelCreator A function designed to create the model
+     *  @param factorSettings A mapping between each factor and a string
+     *  representing the name of the control or parameter to associate with the factor.
+     *  @param design The design that will be simulated. The factors specified in the design must
+     *  be contained in the factor settings.
+     */
+    @Suppress("unused")
+    constructor(
+        name: String,
+        modelCreator: () -> Model,
+        factorSettings: Map<Factor, String>,
+        design: ExperimentalDesignIfc
+    ) : this(name, modelCreator(), factorSettings, design)
+
     private val mySimulationRunner = SimulationRunner(model)
 
     /**
@@ -416,6 +433,7 @@ class DesignedExperiment @JvmOverloads constructor(
      *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
      *   default is true.
      */
+    @JvmOverloads
     fun simulateAll(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
@@ -439,6 +457,7 @@ class DesignedExperiment @JvmOverloads constructor(
      *   @param addRuns If true the executed simulations will be added to the executed simulation runs. The
      *   default is true.
      */
+    @JvmOverloads
     fun simulate(
         iterator: Iterator<DesignPoint>,
         numRepsPerDesignPoint: Int? = null,
@@ -538,6 +557,7 @@ class DesignedExperiment @JvmOverloads constructor(
      *  and the replication id (number) for the value.
      *  @param coded indicates if the points should be coded, the default is false
      */
+    @JvmOverloads
     fun resultsToCSV(
         fileName: String = name.replace(" ", "_") + ".csv",
         directory: Path = model.outputDirectory.csvDir,
