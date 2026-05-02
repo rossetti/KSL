@@ -287,6 +287,32 @@ class Scenario constructor(
     // ── Simulation ────────────────────────────────────────────────────────────
 
     /**
+     * Sets the number of sub-stream advances applied before this scenario runs.
+     *
+     * A value of 0 preserves common-random-number behavior for fresh model
+     * instances that use the same stream numbers. A positive value shifts this
+     * scenario to a later sub-stream block. The setting is stored in
+     * [scenarioRunParameters] and will be captured in KSL database experiment
+     * metadata when database results are written.
+     *
+     * @param numberOfAdvances the number of sub-stream advances before running; must be >= 0
+     * @return this scenario for fluent configuration
+     */
+    fun useStreamAdvance(numberOfAdvances: Int): Scenario {
+        require(numberOfAdvances >= 0) { "numberOfAdvances must be >= 0" }
+        scenarioRunParameters.numberOfStreamAdvancesPriorToRunning = numberOfAdvances
+        return this
+    }
+
+    /**
+     * Restores default common-random-number behavior for this scenario by
+     * clearing any pre-run sub-stream advance.
+     *
+     * @return this scenario for fluent configuration
+     */
+    fun useCommonRandomNumbers(): Scenario = useStreamAdvance(0)
+
+    /**
      *  Convenience method for standalone scenario execution.
      *
      *  Builds a fresh model via [modelBuilder], applies [scenarioRunParameters], runs the

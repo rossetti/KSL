@@ -151,6 +151,32 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     }
 
     /**
+     *  Assigns non-overlapping pre-run sub-stream advances to selected scenarios.
+     *
+     *  Common random numbers remain the default when this method is not called.
+     *  With the default [streamAdvanceSpacing] of null, each selected scenario is
+     *  assigned the next cumulative offset based on the previous selected
+     *  scenario's number of replications. Supplying [streamAdvanceSpacing] uses a
+     *  fixed gap between scenarios.
+     *
+     *  @param scenarios indices of scenarios to assign; defaults to all scenarios
+     *  @param startingStreamAdvance first assigned advance value; must be >= 0
+     *  @param streamAdvanceSpacing fixed spacing between selected scenarios; null uses cumulative replication counts
+     */
+    @JvmOverloads
+    fun useIndependentRandomStreams(
+        scenarios: IntProgression = myScenarios.indices,
+        startingStreamAdvance: Int = 0,
+        streamAdvanceSpacing: Int? = null
+    ) {
+        myScenarios.assignIndependentStreamAdvances(
+            scenarios = scenarios,
+            startingStreamAdvance = startingStreamAdvance,
+            streamAdvanceSpacing = streamAdvanceSpacing
+        )
+    }
+
+    /**
      *  Runs the selected scenarios concurrently and writes results to [kslDb].
      *
      *  This is a `suspend` function and must be called from a coroutine scope.  For

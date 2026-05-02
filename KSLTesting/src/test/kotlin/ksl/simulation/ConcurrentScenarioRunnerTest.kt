@@ -3,11 +3,13 @@ package ksl.simulation
 import ksl.controls.experiments.ConcurrentScenarioRunner
 import ksl.controls.experiments.Scenario
 import ksl.controls.experiments.ScenarioRunner
+import ksl.controls.experiments.assignIndependentStreamAdvances
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.utilities.random.rvariable.ExponentialRV
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
@@ -551,6 +553,179 @@ class ConcurrentScenarioRunnerTest {
                 1.0e-10,
                 "Common-random-number observations must match sequential execution for '$scenarioName'"
             )
+        }
+    }
+
+    @Test
+    fun zeroStreamAdvancesIsValidAndClearsPriorNonzeroValue() {
+        val experiment = Experiment(name = "StreamAdvanceResetExperiment")
+        experiment.numberOfStreamAdvancesPriorToRunning = 7
+
+        val params = experiment.extractRunParameters()
+            .copy(numberOfStreamAdvancesPriorToRunning = 0)
+
+        experiment.changeRunParameters(params)
+
+        assertEquals(
+            0,
+            experiment.numberOfStreamAdvancesPriorToRunning,
+            "Changing run parameters with zero stream advances must clear a prior nonzero value"
+        )
+    }
+
+    @Test
+    fun negativeStreamAdvancesAreRejected() {
+        val experiment = Experiment(name = "NegativeStreamAdvanceExperiment")
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            experiment.extractRunParameters()
+                .copy(numberOfStreamAdvancesPriorToRunning = -1)
+        }
+
+        assertTrue(
+            exception.message!!.contains(">= 0"),
+            "Negative stream-advance error should explain the lower bound"
+        )
+    }
+
+    @Test
+    fun scenarioStreamAdvanceHelpersUpdateRunParameters() {
+        val scenario = buildQueueScenario(
+            scenarioName = "StreamAdvanceHelper",
+            modelName = "CSR_StreamAdvanceHelper",
+            numServers = 1,
+            arrivalStream = STREAM_S1_ARRIVE,
+            serviceStream = STREAM_S1_SERVE
+        )
+
+        assertSame(scenario, scenario.useStreamAdvance(17))
+        assertEquals(
+            17,
+            scenario.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning,
+            "useStreamAdvance must set the scenario's run parameter"
+        )
+
+        assertSame(scenario, scenario.useCommonRandomNumbers())
+        assertEquals(
+            0,
+            scenario.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning,
+            "useCommonRandomNumbers must restore the default zero advance"
+        )
+    }
+
+    @Test
+    fun scenarioStreamAdvanceHelperRejectsNegativeValue() {
+        val scenario = buildQueueScenario(
+            scenarioName = "NegativeStreamAdvanceHelper",
+            modelName = "CSR_NegativeStreamAdvanceHelper",
+            numServers = 1,
+            arrivalStream = STREAM_S1_ARRIVE,
+            serviceStream = STREAM_S1_SERVE
+        )
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            scenario.useStreamAdvance(-1)
+        }
+
+        assertTrue(
+            exception.message!!.contains(">= 0"),
+            "Negative scenario stream-advance error should explain the lower bound"
+        )
+    }
+
+    @Test
+    fun scenarioListAssignsCumulativeIndependentStreamAdvances() {
+        val scenarios = listOf(
+            buildQueueScenario("ListAdvanceA", "CSR_ListAdvanceA", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 3),
+            buildQueueScenario("ListAdvanceB", "CSR_ListAdvanceB", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 5),
+            buildQueueScenario("ListAdvanceC", "CSR_ListAdvanceC", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 2)
+        )
+
+        val returned = scenarios.assignIndependentStreamAdvances()
+
+        assertSame(scenarios, returned)
+        assertEquals(0, scenarios[0].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(3, scenarios[1].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(8, scenarios[2].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+    }
+
+    @Test
+    fun scenarioListAssignsFixedSpacingAndIgnoresInvalidIndices() {
+        val scenarios = listOf(
+            buildQueueScenario("FixedAdvanceA", "CSR_FixedAdvanceA", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM),
+            buildQueueScenario("FixedAdvanceB", "CSR_FixedAdvanceB", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM),
+            buildQueueScenario("FixedAdvanceC", "CSR_FixedAdvanceC", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM)
+        )
+
+        scenarios.assignIndependentStreamAdvances(
+            scenarios = -1..1,
+            startingStreamAdvance = 4,
+            streamAdvanceSpacing = 10
+        )
+
+        assertEquals(4, scenarios[0].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(14, scenarios[1].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(0, scenarios[2].scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+    }
+
+    @Test
+    fun concurrentRunnerAssignsIndependentStreamAdvances() {
+        val runner = ConcurrentScenarioRunner(
+            "ConcurrentScenarioRunnerIndependentAssignment_${System.nanoTime()}",
+            listOf(
+                buildQueueScenario("RunnerAdvanceA", "CSR_RunnerAdvanceA", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 3),
+                buildQueueScenario("RunnerAdvanceB", "CSR_RunnerAdvanceB", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 5),
+                buildQueueScenario("RunnerAdvanceC", "CSR_RunnerAdvanceC", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 2)
+            )
+        )
+
+        runner.useIndependentRandomStreams()
+
+        assertEquals(0, runner.scenarioByName("RunnerAdvanceA")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(3, runner.scenarioByName("RunnerAdvanceB")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(8, runner.scenarioByName("RunnerAdvanceC")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+    }
+
+    @Test
+    fun sequentialRunnerAssignsIndependentStreamAdvances() {
+        val runner = ScenarioRunner(
+            "SequentialScenarioRunnerIndependentAssignment_${System.nanoTime()}",
+            listOf(
+                buildQueueScenario("SequentialAdvanceA", "CSR_SequentialAdvanceA", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 2),
+                buildQueueScenario("SequentialAdvanceB", "CSR_SequentialAdvanceB", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 4),
+                buildQueueScenario("SequentialAdvanceC", "CSR_SequentialAdvanceC", 1, CRN_ARRIVE_STREAM, CRN_SERVICE_STREAM, numberReplications = 6)
+            )
+        )
+
+        runner.useIndependentRandomStreams(startingStreamAdvance = 1)
+
+        assertEquals(1, runner.scenarioByName("SequentialAdvanceA")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(3, runner.scenarioByName("SequentialAdvanceB")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+        assertEquals(7, runner.scenarioByName("SequentialAdvanceC")!!.scenarioRunParameters.numberOfStreamAdvancesPriorToRunning)
+    }
+
+    @Test
+    fun independentStreamAssignmentBreaksCrnEqualityForIdenticalConcurrentScenarios() {
+        val runner = ConcurrentScenarioRunner(
+            "ConcurrentScenarioRunnerIndependentExecution_${System.nanoTime()}",
+            buildCommonRandomNumberQueueScenarios()
+        )
+
+        runner.useIndependentRandomStreams()
+        runBlocking { runner.simulate() }
+
+        val observations = runner.observationsAsMap("System Time")
+        assertFalse(
+            observations.getValue("CRN_A").contentEquals(observations.getValue("CRN_B")),
+            "Independent stream advances should move CRN_B to a different sub-stream block than CRN_A"
+        )
+        assertFalse(
+            observations.getValue("CRN_A").contentEquals(observations.getValue("CRN_C")),
+            "Independent stream advances should move CRN_C to a different sub-stream block than CRN_A"
+        )
+
+        for (scenarioName in listOf("CRN_A", "CRN_B", "CRN_C")) {
+            assertDbExperimentMetadataMatchesScenario(runner, scenarioName)
         }
     }
 

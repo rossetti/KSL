@@ -57,6 +57,9 @@ data class ExperimentRunParameters(
         require(lengthOfReplication > 0.0) { "Length of replication must be > 0.0" }
         require(lengthOfReplicationWarmUp >= 0.0) { "Length of warm up period must be >= 0.0" }
         require(numberOfReplications >= 1) { "Number of replications must be >= 1" }
+        require(numberOfStreamAdvancesPriorToRunning >= 0) {
+            "Number of stream advances prior to running must be >= 0"
+        }
     }
 
     override fun toString(): String {

@@ -214,7 +214,7 @@ open class Experiment @JvmOverloads constructor(
      */
     override var numberOfStreamAdvancesPriorToRunning: Int = 0
         set(value) {
-            require(value > 0) { "The number times to advance the stream must be > 0" }
+            require(value >= 0) { "The number times to advance the stream must be >= 0" }
             field = value
         }
 
@@ -307,9 +307,7 @@ open class Experiment @JvmOverloads constructor(
         advanceNextSubStreamOption = runParameters.advanceNextSubStreamOption
         antitheticOption = runParameters.antitheticOption
         numChunks = runParameters.numChunks
-        if (runParameters.numberOfStreamAdvancesPriorToRunning > 0) {
-            numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
-        }
+        numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
         if (runParameters.maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             maximumAllowedExecutionTimePerReplication = runParameters.maximumAllowedExecutionTimePerReplication
         }
@@ -336,9 +334,7 @@ open class Experiment @JvmOverloads constructor(
         n.advanceNextSubStreamOption = advanceNextSubStreamOption
         n.antitheticOption = antitheticOption
         n.numChunks = numChunks
-        if (numberOfStreamAdvancesPriorToRunning > 0) {
-            n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
-        }
+        n.numberOfStreamAdvancesPriorToRunning = numberOfStreamAdvancesPriorToRunning
         if (maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
             n.maximumAllowedExecutionTimePerReplication = maximumAllowedExecutionTimePerReplication
         }
