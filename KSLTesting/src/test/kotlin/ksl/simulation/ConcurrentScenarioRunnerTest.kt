@@ -2,6 +2,7 @@ package ksl.simulation
 
 import ksl.controls.experiments.ConcurrentScenarioRunner
 import ksl.controls.experiments.Scenario
+import ksl.controls.experiments.ScenarioModelConstructionMode
 import ksl.controls.experiments.ScenarioRunner
 import ksl.controls.experiments.assignIndependentStreamAdvances
 import ksl.examples.book.appendixD.GIGcQueue
@@ -95,6 +96,20 @@ class ConcurrentScenarioRunnerTest {
             numberReplications = numberReplications,
             lengthOfReplication = lengthOfReplication,
             lengthOfReplicationWarmUp = lengthOfReplicationWarmUp
+        )
+    }
+
+    private fun buildLegacyQueueScenario(
+        scenarioName: String = "LegacyScenario_${System.nanoTime()}"
+    ): Scenario {
+        val model = Model("${scenarioName}_Model", autoCSVReports = false)
+        GIGcQueue(model, numServers = 1, name = "MM1Q")
+        return Scenario(
+            model = model,
+            name = scenarioName,
+            numberReplications = 1,
+            lengthOfReplication = 10.0,
+            lengthOfReplicationWarmUp = 0.0
         )
     }
 
@@ -493,6 +508,80 @@ class ConcurrentScenarioRunnerTest {
                 "System Time replication observations must match for scenario '$scenarioName'"
             )
         }
+    }
+
+    @Test
+    fun legacyModelScenarioAdvertisesReusedModelConstructionMode() {
+        val scenario = buildLegacyQueueScenario()
+
+        assertEquals(
+            ScenarioModelConstructionMode.REUSED_MODEL_INSTANCE,
+            scenario.modelConstructionMode
+        )
+        assertFalse(
+            scenario.supportsConcurrentExecution,
+            "Legacy model-backed scenarios must be marked unsafe for concurrent execution"
+        )
+    }
+
+    @Test
+    fun modelBuilderScenarioAdvertisesConcurrentCompatibleConstructionMode() {
+        val scenario = buildQueueScenario(
+            scenarioName = "BuilderScenarioMode",
+            modelName = "CSR_BuilderScenarioMode",
+            numServers = 1,
+            arrivalStream = STREAM_S1_ARRIVE,
+            serviceStream = STREAM_S1_SERVE
+        )
+
+        assertEquals(
+            ScenarioModelConstructionMode.MODEL_BUILDER,
+            scenario.modelConstructionMode
+        )
+        assertTrue(
+            scenario.supportsConcurrentExecution,
+            "ModelBuilder-backed scenarios should be eligible for ConcurrentScenarioRunner"
+        )
+    }
+
+    @Test
+    fun concurrentRunnerRejectsLegacyModelScenarioAtConstruction() {
+        val scenario = buildLegacyQueueScenario()
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            ConcurrentScenarioRunner(
+                "ConcurrentRejectLegacy_${System.nanoTime()}",
+                listOf(scenario)
+            )
+        }
+
+        assertTrue(exception.message!!.contains("pre-built Model"))
+    }
+
+    @Test
+    fun concurrentRunnerRejectsLegacyModelScenarioWhenAdded() {
+        val runner = ConcurrentScenarioRunner("ConcurrentRejectLegacyAdd_${System.nanoTime()}")
+        val scenario = buildLegacyQueueScenario()
+
+        val exception = assertFailsWith<IllegalArgumentException> {
+            runner.addScenario(scenario)
+        }
+
+        assertTrue(exception.message!!.contains("pre-built Model"))
+    }
+
+    @Test
+    fun sequentialRunnerStillAcceptsLegacyModelScenario() {
+        val scenario = buildLegacyQueueScenario()
+        val runner = ScenarioRunner(
+            "SequentialAcceptLegacy_${System.nanoTime()}",
+            listOf(scenario)
+        )
+
+        runner.simulate()
+
+        assertNotNull(scenario.simulationRun)
+        assertFalse(scenario.simulationRun!!.hasError)
     }
 
     @Test

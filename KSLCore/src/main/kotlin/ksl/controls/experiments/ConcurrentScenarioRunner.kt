@@ -112,6 +112,11 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
      *  Registers [scenario] with this runner.  The scenario name must be unique.
      */
     fun addScenario(scenario: Scenario) {
+        require(scenario.supportsConcurrentExecution) {
+            "Scenario '${scenario.name}' was constructed with a pre-built Model and reuses that instance. " +
+                "ConcurrentScenarioRunner requires scenarios constructed with a ModelBuilderIfc that returns " +
+                "a fresh Model for each run."
+        }
         require(!myScenariosByName.containsKey(scenario.name)) {
             "Scenario ${scenario.name} already exists in this runner"
         }

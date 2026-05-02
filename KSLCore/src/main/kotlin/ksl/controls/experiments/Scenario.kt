@@ -72,7 +72,8 @@ class Scenario constructor(
     stringInputs: Map<String, String> = emptyMap(),
     jsonInputs: Map<String, String> = emptyMap(),
     runParameters: ExperimentRunParameters,
-    modelConfiguration: Map<String, String>? = null
+    modelConfiguration: Map<String, String>? = null,
+    val modelConstructionMode: ScenarioModelConstructionMode = ScenarioModelConstructionMode.MODEL_BUILDER
 ) : Identity(name) {
 
     // ── Backward-compatible constructor: pre-built model (full run parameters) ─
@@ -116,7 +117,8 @@ class Scenario constructor(
         stringInputs = stringInputs,
         jsonInputs = jsonInputs,
         runParameters = runParameters,
-        modelConfiguration = modelConfiguration
+        modelConfiguration = modelConfiguration,
+        modelConstructionMode = ScenarioModelConstructionMode.REUSED_MODEL_INSTANCE
     ) {
         if (inputs.isNotEmpty()) {
             require(model.validateInputKeys(inputs.keys)) {
@@ -229,6 +231,16 @@ class Scenario constructor(
      */
     val scenarioRunParameters: ExperimentRunParameters
         get() = myRunParameters
+
+    /**
+     * True when this scenario is not known to reuse a pre-built model instance.
+     *
+     * This guards the legacy [Scenario] constructors that wrap a supplied [Model].
+     * It does not prove that an arbitrary [ModelBuilderIfc] returns a fresh model;
+     * callers supplying custom builders are still responsible for that contract.
+     */
+    val supportsConcurrentExecution: Boolean
+        get() = modelConstructionMode == ScenarioModelConstructionMode.MODEL_BUILDER
 
     /** Number of replications configured for this scenario. */
     val numberOfReplications: Int get() = myRunParameters.numberOfReplications
