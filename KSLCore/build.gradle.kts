@@ -93,6 +93,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-html-jvm
     implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:0.11.0")
 
+    // https://mvnrepository.com/artifact/net.peanuuutz.tomlkt/tomlkt
+    implementation("net.peanuuutz.tomlkt:tomlkt:0.4.0")
+
 }
 
 // this is supposed to exclude the logback.xml resource file from the generated jar
