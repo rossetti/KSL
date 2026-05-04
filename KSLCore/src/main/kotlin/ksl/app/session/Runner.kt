@@ -94,6 +94,26 @@ private val logger = KotlinLogging.logger {}
  * will complete; the loop then checks `ensureActive()` before starting the
  * next replication, finds the job cancelled, and emits [RunEvent.RunCancelled].
  *
+ * ## stopReplication() vs endSimulation()
+ *
+ * These two methods operate at different levels of the KSL execution hierarchy
+ * and must not be confused:
+ *
+ * - `ModelElement.stopReplication()` — signals the **Executive's inner event
+ *   loop** to halt the current replication.  Call this from within model code
+ *   (event handlers, process steps) when you want to end a replication early.
+ *
+ * - `Model.endSimulation()` — signals the **outer iterative-process loop** to
+ *   stop scheduling further replications.  This flag is only checked between
+ *   replications, never during one.  Calling it from inside an event handler
+ *   while the Executive is running has no effect on the current replication
+ *   and will cause an infinite-horizon model to hang indefinitely.
+ *
+ * [Runner] calls `endSimulation()` in two places where it is safe: after the
+ * normal replication loop exits (no replication is running) and in the
+ * cancellation handler (cancellation is cooperative and only fires between
+ * replications at `ensureActive()`).
+ *
  * ## Thread safety
  *
  * All simulation work runs on a single thread within [SimulationDispatcher.default].
@@ -221,9 +241,13 @@ class Runner {
                 // and stage the result despite the cancelled state.
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
-                    // Best-effort model cleanup; ignore failures — the model may
-                    // be in an inconsistent state if cancellation happened during
-                    // the first replication setup.
+                    // Cancellation is cooperative: ensureActive() only fires
+                    // between replications (before runNextReplication()), so no
+                    // replication is executing here.  endSimulation() is therefore
+                    // safe — it triggers post-experiment cleanup (endIterations →
+                    // afterExperimentActions) without interfering with a running
+                    // Executive.  Best-effort: ignore failures if the model never
+                    // reached initializeReplications().
                     runCatching { model.endSimulation(reason) }
                     val completedReps = model.currentReplicationNumber
                     mutableEvents.tryEmit(RunEvent.RunCancelled(reason))

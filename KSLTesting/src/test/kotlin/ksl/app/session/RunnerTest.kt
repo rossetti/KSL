@@ -39,6 +39,19 @@ class RunnerTest {
      * replication with an infinite (or very long) length terminates cleanly.
      * Used in the infinite-horizon warning test to avoid a hanging simulation.
      */
+    /**
+     * Stops the current replication at [stopAtTime] by calling [stopReplication].
+     *
+     * [stopReplication] signals the Executive's inner event loop to halt the
+     * current replication immediately.  It is the correct call when stopping
+     * from within model code (event handlers, process steps).
+     *
+     * Do NOT use [Model.endSimulation] here.  [endSimulation] operates at the
+     * experiment (outer) level and is only checked between replications by the
+     * iterative process loop.  When called from inside an event handler while
+     * the Executive is running, [endSimulation] has no effect on the current
+     * replication and the simulation hangs indefinitely.
+     */
     private class SimulationStopper(
         parent: ModelElement,
         private val stopAtTime: Double
@@ -47,7 +60,7 @@ class RunnerTest {
             schedule(::stop, stopAtTime)
         }
         private fun stop(e: KSLEvent<Nothing>) {
-            model.endSimulation("terminated by SimulationStopper at simTime=$stopAtTime")
+            stopReplication("terminated by SimulationStopper at simTime=$stopAtTime")
         }
     }
 
@@ -178,10 +191,12 @@ class RunnerTest {
      * no wall-clock timeout must emit [RunEvent.RunWarning] before [RunEvent.RunStarted].
      *
      * The replication is kept finite by [SimulationStopper], which schedules a
-     * call to [Model.endSimulation] at simulation time 100.  This satisfies both
-     * warning conditions (infinite length, no timeout) while still allowing the
-     * run to terminate normally.  The result is [RunResult.Completed] with
-     * [EndingStatus.MET_STOPPING_CONDITION] because the model stopped itself.
+     * call to [ModelElement.stopReplication] at simulation time 100.  This ends
+     * the replication via the Executive's inner event loop, allowing the run to
+     * terminate normally.  The result is [RunResult.Completed] with
+     * [EndingStatus.COMPLETED_ALL_STEPS]: [stopReplication] is a replication-level
+     * stop, so after that one replication finishes the experiment has completed
+     * all of its planned replications (1 of 1).
      */
     @Disabled("Requires model with internal stopping mechanism — see SimulationStopper; kept for documentation; enable manually when verifying infinite-horizon warning.")
     @Test
@@ -202,7 +217,10 @@ class RunnerTest {
         // run completed normally (model stopped itself, not cancelled)
         assertIs<RunResult.Completed>(result)
         val summary = (result as RunResult.Completed).summary
-        assertEquals(EndingStatus.MET_STOPPING_CONDITION, summary.endingStatus)
+        // stopReplication() is a replication-level stop: the experiment still
+        // ran all 1 planned replications, so the experiment-level status is
+        // COMPLETED_ALL_STEPS, not MET_STOPPING_CONDITION.
+        assertEquals(EndingStatus.COMPLETED_ALL_STEPS, summary.endingStatus)
 
         // warning is present
         val warnings = events.filterIsInstance<RunEvent.RunWarning>()
