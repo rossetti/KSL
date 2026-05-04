@@ -51,10 +51,9 @@ interface RunHandle {
     /**
      * Hot [SharedFlow] of lifecycle events emitted during the run.
      *
-     * `replay = 1` — a subscriber that attaches shortly after [Runner.submit]
-     * returns will immediately receive the most recent event (typically
-     * [RunEvent.RunStarted] or the latest [RunEvent.ReplicationEnded]) so it
-     * can initialise a progress indicator without missing the run start.
+     * The underlying flow replays a bounded recent history, so a subscriber
+     * that attaches shortly after [Runner.submit] returns can initialise a
+     * progress indicator without missing the run start on very fast models.
      *
      * The flow is never closed; it simply stops emitting after the terminal
      * event ([RunEvent.RunCompleted], [RunEvent.RunCancelled], or

@@ -18,6 +18,8 @@
 
 package ksl.app.session
 
+import ksl.app.validation.ValidationResult
+
 /**
  * Typed representation of errors that can occur during a simulation run.
  *
@@ -39,6 +41,24 @@ sealed class KSLRuntimeError {
     ) : KSLRuntimeError()
 
     /**
+     * Failure while loading or building a model from an external JAR.
+     *
+     * Phase 3 distinguishes this from other model-build failures so a GUI can
+     * point users at the JAR path / builder-class fields directly.
+     *
+     * @param jarPath the JAR path that failed
+     * @param builderClassName optional builder class requested by the config
+     * @param message human-readable description of the failure
+     * @param cause underlying exception, when available
+     */
+    data class JarLoadError(
+        val jarPath: String,
+        val builderClassName: String?,
+        val message: String,
+        val cause: Throwable? = null
+    ) : KSLRuntimeError()
+
+    /**
      * An unexpected exception was thrown during replication execution.
      *
      * @param simTime the simulation clock value at the time of failure
@@ -54,8 +74,16 @@ sealed class KSLRuntimeError {
 
     /**
      * The run could not proceed due to an invalid or inconsistent configuration.
-     * Used by Phase 3 pre-flight validation; defined here so the error hierarchy
-     * is complete from Phase 1 onward.
+     * Used by Phase 3 pre-flight validation and future RunConfiguration-backed
+     * runner entry points.
+     *
+     * @param message human-readable summary
+     * @param validationResult optional field-level validation result
+     * @param cause underlying exception, when available
      */
-    data class ConfigurationError(val message: String) : KSLRuntimeError()
+    data class ConfigurationError(
+        val message: String,
+        val validationResult: ValidationResult? = null,
+        val cause: Throwable? = null
+    ) : KSLRuntimeError()
 }

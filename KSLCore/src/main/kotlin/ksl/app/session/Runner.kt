@@ -31,6 +31,15 @@ import kotlin.time.Duration
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Bounded recent-history replay for [RunHandle.events].
+ *
+ * This is intentionally small, but larger than one event so an immediate
+ * subscriber that starts just after a very fast run begins can still observe
+ * the Phase 1 acceptance sequence for a modest replication count.
+ */
+private const val RUN_EVENT_REPLAY = 128
+
+/**
  * Entry point for asynchronous simulation execution.
  *
  * [Runner] wraps [ksl.simulation.Model.simulate]'s synchronous replication
@@ -142,7 +151,7 @@ class Runner {
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
     ): RunHandle {
         val runId = KSL.randomUUIDString()
-        val mutableEvents = MutableSharedFlow<RunEvent>(replay = 1, extraBufferCapacity = 64)
+        val mutableEvents = MutableSharedFlow<RunEvent>(replay = RUN_EVENT_REPLAY, extraBufferCapacity = 64)
         val result = CompletableDeferred<RunResult>()
 
         val job = scope.launch(SimulationDispatcher.default) {
