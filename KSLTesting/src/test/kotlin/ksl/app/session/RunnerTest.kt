@@ -198,7 +198,7 @@ class RunnerTest {
      * stop, so after that one replication finishes the experiment has completed
      * all of its planned replications (1 of 1).
      */
-    @Disabled("Requires model with internal stopping mechanism — see SimulationStopper; kept for documentation; enable manually when verifying infinite-horizon warning.")
+//    @Disabled("Requires model with internal stopping mechanism — see SimulationStopper; kept for documentation; enable manually when verifying infinite-horizon warning.")
     @Test
     fun `infinite-horizon model with no timeout emits RunWarning before RunStarted`() = runBlocking {
         val model = Model("InfiniteHorizonTest", autoCSVReports = false)
