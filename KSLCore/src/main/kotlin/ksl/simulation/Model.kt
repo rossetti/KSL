@@ -1487,12 +1487,33 @@ class Model @JvmOverloads constructor(
     }
 
     /**
-     * Causes the simulation to end after the current replication is completed
+     * Signals the iterative-process loop to stop **after the current replication
+     * has finished**.
      *
-     * @param msg A message to indicate why the simulation was stopped
+     * This method operates at the *experiment* level: it sets a flag that the
+     * outer replication loop checks between replications.  The Executive's inner
+     * event loop never inspects this flag while it is dispatching events.
+     *
+     * **Do not call from within a model event handler, process step, or any
+     * [ModelElement] lifecycle override while a replication is executing.**
+     * On an infinite-horizon model the call will be silently ignored and the
+     * replication will hang indefinitely.
+     *
+     * To end the *current replication early* from within model code use
+     * [ModelElement.stopReplication] instead.
+     *
+     * @param msg optional message recorded as the reason for stopping
+     * @throws IllegalStateException if the Executive is currently dispatching
+     *   events, i.e. if called from within model code during a replication
      */
     @JvmOverloads
     fun endSimulation(msg: String? = null) {
+        check(!myExecutive.isRunning) {
+            "endSimulation() called while the Executive is running " +
+            "(simTime=${myExecutive.currentTime}). " +
+            "This has no effect on the current replication. " +
+            "Use ModelElement.stopReplication() to end a replication from within model code."
+        }
         myReplicationProcess.end(msg)
     }
 
