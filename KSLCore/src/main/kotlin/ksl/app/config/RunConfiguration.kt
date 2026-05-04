@@ -108,7 +108,7 @@ data class RunConfiguration(
      * 4. Apply [rvOverrides] via [RVParameterSetter.changeParameters] — skipped when
      *    [rvOverrides] is empty.
      *
-     * Phase 3 will add structured pre-flight validation ([ksl.app.validation.ValidationResult])
+     * Phase 3 will add structured pre-flight validation (`ksl.app.validation.ValidationResult`)
      * before this method is called.  Until then, unresolvable references or unrecognised
      * control/RV keys throw [IllegalArgumentException] from the underlying KSL APIs.
      *
