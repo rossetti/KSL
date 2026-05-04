@@ -135,6 +135,12 @@ class Runner {
                 att.onAttach(model, this)
             }
 
+            // Holds the terminal result until after onDetach() has run for every
+            // attachment.  Completing the Deferred here (rather than inside the
+            // catch blocks) guarantees that handle.result.await() never returns
+            // before cleanup has finished.
+            var pendingResult: RunResult? = null
+
             try {
                 // Detect the infinite-horizon / no-timeout condition before the
                 // experiment starts and surface it as a warning event so a GUI
@@ -207,31 +213,22 @@ class Runner {
                     endTime = model.endExecutionTime
                 )
                 mutableEvents.tryEmit(RunEvent.RunCompleted(summary))
-                result.complete(RunResult.Completed(summary))
+                pendingResult = RunResult.Completed(summary)
 
             } catch (e: CancellationException) {
                 // The coroutine Job was cancelled via handle.cancel().
                 // Use NonCancellable so we can safely emit the terminal event
-                // and complete the Deferred despite the cancelled state.
+                // and stage the result despite the cancelled state.
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
                     // Best-effort model cleanup; ignore failures — the model may
                     // be in an inconsistent state if cancellation happened during
                     // the first replication setup.
                     runCatching { model.endSimulation(reason) }
-                    val summary = RunSummary(
-                        runId = runId,
-                        modelIdentifier = model.modelIdentifier,
-                        experimentName = model.experimentName,
-                        requestedReplications = model.numberOfReplications,
-                        completedReplications = model.currentReplicationNumber,
-                        endingStatus = UNFINISHED,
-                        beginTime = model.beginExecutionTime,
-                        endTime = Clock.System.now()
-                    )
+                    val completedReps = model.currentReplicationNumber
                     mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
-                    result.complete(RunResult.Cancelled(reason))
-                    logger.info { "Run '$runId' cancelled: $reason (completed ${summary.completedReplications} of ${summary.requestedReplications} reps)" }
+                    pendingResult = RunResult.Cancelled(reason)
+                    logger.info { "Run '$runId' cancelled: $reason (completed $completedReps of ${model.numberOfReplications} reps)" }
                 }
             } catch (e: Exception) {
                 withContext(NonCancellable) {
@@ -241,15 +238,21 @@ class Runner {
                         cause = e
                     )
                     mutableEvents.tryEmit(RunEvent.RunFailed(error))
-                    result.complete(RunResult.Failed(error))
+                    pendingResult = RunResult.Failed(error)
                     logger.error(e) { "Run '$runId' failed at simTime=${error.simTime}, rep=${error.replicationNumber}" }
                 }
             } finally {
-                // onDetach() is guaranteed on RunCompleted, RunFailed, and RunCancelled.
+                // onDetach() runs before the Deferred is resolved so that
+                // handle.result.await() never returns before cleanup is complete.
                 for (att in request.attachments) {
                     runCatching { att.onDetach() }
                         .onFailure { logger.warn(it) { "RunAttachmentIfc.onDetach() threw for attachment $att" } }
                 }
+                result.complete(
+                    pendingResult ?: RunResult.Failed(
+                        KSLRuntimeError.ExecutiveError(0.0, 0, IllegalStateException("Run ended without a result"))
+                    )
+                )
             }
         }
 
