@@ -350,27 +350,37 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
 
     /**
      * Simulates all design points concurrently.
+     *
+     * @param onScenarioComplete optional callback invoked after each design point
+     *   completes (in sequential commit order). Receives the scenario name and the
+     *   [ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted] snapshot,
+     *   or `null` if the design point failed with a [RuntimeException].
      */
-    @JvmOverloads
     fun simulateAll(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
-        clearAllData: Boolean = true
+        clearAllData: Boolean = true,
+        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
-        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData)
+        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData, onScenarioComplete)
     }
 
     /**
      * Simulates the design points presented by [iterator] concurrently.
+     *
+     * @param onScenarioComplete optional callback invoked after each design point
+     *   completes (in sequential commit order). Receives the scenario name and the
+     *   [ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted] snapshot,
+     *   or `null` if the design point failed with a [RuntimeException].
      */
-    @JvmOverloads
     fun simulate(
         iterator: Iterator<DesignPoint>,
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
-        clearAllData: Boolean = true
+        clearAllData: Boolean = true,
+        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
         if (clearRuns) {
             clearSimulationRuns()
@@ -400,7 +410,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         applyStreamPolicy(scenarios)
 
         val runner = ConcurrentScenarioRunner(name, scenarios, pathToOutputDirectory, kslDb)
-        runBlocking { runner.simulate(clearAllData = clearAllData) }
+        runBlocking { runner.simulate(clearAllData = clearAllData, onScenarioComplete = onScenarioComplete) }
 
         if (addRuns) {
             for ((index, designPoint) in designPoints.withIndex()) {

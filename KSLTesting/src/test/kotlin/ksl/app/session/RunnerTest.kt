@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 
@@ -272,5 +273,56 @@ class RunnerTest {
 
         assertEquals(1, attachCount, "onAttach must be called exactly once")
         assertEquals(1, detachCount, "onDetach must be called exactly once even on cancel")
+    }
+
+    // ── Test 5: snapshot in RunResult.Completed ───────────────────────────────
+
+    /**
+     * A completed run must carry a non-empty [RunResult.Completed.snapshot] with
+     * across-replication statistics.  The snapshot is produced by
+     * [ksl.simulation.InMemorySnapshotCollector] attached inside [Runner].
+     */
+    @Test
+    fun `completed result carries non-empty experiment snapshot`() = runBlocking {
+        val reps = 5
+        val model = mm1Model("SnapshotTest", reps, repLength = 200.0)
+
+        val runner = Runner()
+        val handle = runner.submit(RunRequest.SingleRun(model), scope = this)
+        val result = handle.result.await()
+
+        assertIs<RunResult.Completed>(result)
+        val snapshot = (result as RunResult.Completed).snapshot
+        assertTrue(
+            snapshot.acrossRepStats.isNotEmpty(),
+            "Expected non-empty across-rep stats in snapshot after a ${reps}-rep MM1 run"
+        )
+    }
+
+    // ── Test 6: ReplicationDataAttachment ────────────────────────────────────
+
+    /**
+     * [ReplicationDataAttachment] must provide per-replication arrays whose length
+     * equals the number of replications requested.
+     */
+    @Test
+    fun `ReplicationDataAttachment provides per-replication arrays of correct length`() = runBlocking {
+        val reps = 5
+        val model = mm1Model("RepDataTest", reps, repLength = 200.0)
+        val attachment = ReplicationDataAttachment()
+
+        val runner = Runner()
+        val handle = runner.submit(
+            RunRequest.SingleRun(model, attachments = listOf(attachment)),
+            scope = this
+        )
+        handle.result.await()
+
+        val data = attachment.replicationData
+        assertTrue(data.isNotEmpty(), "Expected non-empty replication data map from MM1")
+        data.values.forEach { arr ->
+            assertEquals(reps, arr.size,
+                "Expected each replication data array to have length $reps")
+        }
     }
 }

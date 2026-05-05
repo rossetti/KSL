@@ -23,9 +23,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
+import ksl.simulation.InMemorySnapshotCollector
 import ksl.simulation.IterativeProcessIfc.EndingStatus.*
 import ksl.simulation.SimulationDispatcher
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.SimulationRunTableData
+import ksl.utilities.io.dbutil.SimulationSnapshot
 import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -164,6 +167,11 @@ class Runner {
                 att.onAttach(model, this)
             }
 
+            // Attach snapshot collector before the experiment starts so
+            // SimulationLifeCycleBridge fires ExperimentCompleted into it.
+            // Closed in finally to detach from emitters on every exit path.
+            val mySnapshotCollector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+
             // Holds the terminal result until after onDetach() has run for every
             // attachment.  Completing the Deferred here (rather than inside the
             // catch blocks) guarantees that handle.result.await() never returns
@@ -229,7 +237,21 @@ class Runner {
 
                 // endSimulation() triggers endIterations() → afterExperimentActions()
                 // on all model elements, and sets model.endExecutionTime.
+                // SimulationLifeCycleBridge.afterExperiment() fires here, depositing
+                // ExperimentCompleted into mySnapshotCollector.
                 model.endSimulation()
+
+                val snapshots = mySnapshotCollector.drain()
+                val expCompleted = snapshots
+                    .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
+                    .firstOrNull()
+                    ?: SimulationSnapshot.ExperimentCompleted(
+                        simulationRun = SimulationRunTableData(),
+                        acrossRepStats = emptyList(),
+                        histograms = emptyList(),
+                        frequencies = emptyList(),
+                        timeSeries = emptyList()
+                    )
 
                 val summary = RunSummary(
                     runId = runId,
@@ -242,7 +264,7 @@ class Runner {
                     endTime = model.endExecutionTime
                 )
                 mutableEvents.tryEmit(RunEvent.RunCompleted(summary))
-                pendingResult = RunResult.Completed(summary)
+                pendingResult = RunResult.Completed(summary, expCompleted)
 
             } catch (e: CancellationException) {
                 // The coroutine Job was cancelled via handle.cancel().
@@ -275,6 +297,9 @@ class Runner {
                     logger.error(e) { "Run '$runId' failed at simTime=${error.simTime}, rep=${error.replicationNumber}" }
                 }
             } finally {
+                // Detach the snapshot collector from all lifecycle emitters.
+                // Safe to call regardless of which exit path was taken.
+                runCatching { mySnapshotCollector.close() }
                 // onDetach() runs before the Deferred is resolved so that
                 // handle.result.await() never returns before cleanup is complete.
                 for (att in request.attachments) {

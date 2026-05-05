@@ -19,6 +19,7 @@
 package ksl.app.session
 
 import kotlinx.datetime.Instant
+import ksl.utilities.io.dbutil.SimulationSnapshot
 
 /**
  * Sealed lifecycle event hierarchy emitted on [RunHandle.events] during a
@@ -140,4 +141,56 @@ sealed class RunEvent {
      * @property summary lightweight post-run summary; see [RunSummary]
      */
     data class RunCompleted(val summary: RunSummary) : RunEvent()
+
+    // ── Orchestrator events (Phase 5) ─────────────────────────────────────────
+
+    /**
+     * Emitted by `ScenarioOrchestrator` after each scenario completes (or fails).
+     *
+     * Events are emitted in scenario-index order during the sequential commit phase
+     * of `ConcurrentScenarioRunner`, after all scenarios have finished executing.
+     *
+     * @property scenarioName the scenario name as specified in `ScenarioSpec.name`
+     * @property index        1-based position of this scenario among all scenarios
+     * @property totalScenarios total number of scenarios in the run
+     * @property snapshot     experiment-completed snapshot; `null` if the scenario
+     *                        failed with a [RuntimeException]
+     */
+    data class ScenarioCompleted(
+        val scenarioName: String,
+        val index: Int,
+        val totalScenarios: Int,
+        val snapshot: SimulationSnapshot.ExperimentCompleted?
+    ) : RunEvent()
+
+    /**
+     * Emitted by `ExperimentOrchestrator` after each design point completes.
+     *
+     * @property pointId      1-based design-point identifier within the experiment
+     * @property index        1-based position of this design point in the run order
+     * @property totalDesignPoints total number of design points in the experiment
+     * @property snapshot     experiment-completed snapshot; `null` if the design
+     *                        point failed with a [RuntimeException]
+     */
+    data class DesignPointCompleted(
+        val pointId: Int,
+        val index: Int,
+        val totalDesignPoints: Int,
+        val snapshot: SimulationSnapshot.ExperimentCompleted?
+    ) : RunEvent()
+
+    /**
+     * Emitted by `OptimizationOrchestrator` after each solver iteration completes.
+     *
+     * @property iteration              1-based iteration counter
+     * @property bestInputs             best input values found so far (variable name → value)
+     * @property estimatedObjectiveValue estimated objective function value for [bestInputs]
+     * @property solverSpecificState    optional solver-specific key-value state for diagnostics
+     */
+    data class IterationCompleted(
+        val iteration: Int,
+        val bestInputs: Map<String, Double>,
+        val estimatedObjectiveValue: Double,
+        val solverSpecificState: Map<String, Double>? = null
+    ) : RunEvent()
 }

@@ -197,7 +197,8 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
      */
     suspend fun simulate(
         scenarios: IntProgression = myScenarios.indices,
-        clearAllData: Boolean = true
+        clearAllData: Boolean = true,
+        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
 
@@ -260,11 +261,21 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         for (idx in scenarios) {
             if (idx !in myScenarios.indices) continue
             val scenario = myScenarios[idx]
-            collectorMap[scenario.name]?.use { collector ->
-                val snapshots = collector.drain()
-                if (snapshots.isNotEmpty()) {
-                    writer.write(snapshots)
+            val collector = collectorMap[scenario.name]
+            if (collector != null) {
+                collector.use { c ->
+                    val snapshots = c.drain()
+                    val expCompleted = snapshots
+                        .filterIsInstance<ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted>()
+                        .firstOrNull()
+                    onScenarioComplete?.invoke(scenario.name, expCompleted)
+                    if (snapshots.isNotEmpty()) {
+                        writer.write(snapshots)
+                    }
                 }
+            } else {
+                // collector was removed in the error handler — scenario failed
+                onScenarioComplete?.invoke(scenario.name, null)
             }
         }
     }
