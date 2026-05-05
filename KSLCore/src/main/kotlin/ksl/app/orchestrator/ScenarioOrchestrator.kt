@@ -131,6 +131,13 @@ class ScenarioOrchestrator {
                 )
                 pendingResult = RunResult.BatchCompleted(orchestratorSummary, successSnapshots)
 
+            } catch (e: CancellationException) {
+                withContext(NonCancellable) {
+                    val reason = e.message ?: "Cancelled by user"
+                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
+                    pendingResult = RunResult.Cancelled(reason)
+                }
+                throw e
             } catch (e: Exception) {
                 withContext(NonCancellable) {
                     val error = KSLRuntimeError.ExecutiveError(0.0, 0, e)

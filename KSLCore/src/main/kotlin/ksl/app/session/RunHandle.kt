@@ -92,16 +92,23 @@ interface RunHandle {
 }
 
 /**
- * Package-private implementation returned by [Runner].
+ * Package-private implementation returned by [Runner] and the orchestrators.
+ *
+ * [onCancelHook] is invoked synchronously **before** the coroutine Job is cancelled.
+ * Orchestrators use this to signal domain-level stop mechanisms — for example,
+ * [OptimizationOrchestrator] passes `solver::stopIterations` so the solver's iteration
+ * loop exits at the next boundary rather than waiting for the blocking call to complete.
  */
 internal class RunHandleImpl(
     override val runId: String,
     override val events: SharedFlow<RunEvent>,
     override val result: Deferred<RunResult>,
-    private val job: Job
+    private val job: Job,
+    private val onCancelHook: ((String) -> Unit)? = null
 ) : RunHandle {
 
     override fun cancel(reason: String) {
+        runCatching { onCancelHook?.invoke(reason) }
         job.cancel(kotlinx.coroutines.CancellationException(reason))
     }
 }

@@ -88,6 +88,11 @@ class OptimizationOrchestrator {
 
                 solver.runAllIterations()
 
+                // Detect cancellation that arrived while the blocking solver call
+                // was running (stopIterations() signals the solver to exit cleanly,
+                // but the Job is still marked cancelled until we check here).
+                ensureActive()
+
                 val endTime = Clock.System.now()
                 val completedIterations = solver.iterationCounter
                 val summary = OrchestratorSummary(
@@ -117,6 +122,13 @@ class OptimizationOrchestrator {
                     ?: error("Solver completed but emitted no iteration snapshots")
                 pendingResult = RunResult.OptimizationCompleted(summary, bestSnapshot, iterationHistory)
 
+            } catch (e: CancellationException) {
+                withContext(NonCancellable) {
+                    val reason = e.message ?: "Cancelled by user"
+                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
+                    pendingResult = RunResult.Cancelled(reason)
+                }
+                throw e
             } catch (e: Exception) {
                 withContext(NonCancellable) {
                     val error = KSLRuntimeError.ExecutiveError(0.0, 0, e)
@@ -136,6 +148,9 @@ class OptimizationOrchestrator {
             }
         }
 
-        return RunHandleImpl(runId, mutableEvents.asSharedFlow(), result, job)
+        return RunHandleImpl(
+            runId, mutableEvents.asSharedFlow(), result, job,
+            onCancelHook = { reason -> runCatching { solver.stopIterations(reason) } }
+        )
     }
 }
