@@ -48,16 +48,25 @@ class OptimizationOrchestratorTest {
     }
 
     @Test
-    fun `optimization resolves as OrchestratorCompleted with empty snapshots`() = runBlocking {
+    fun `optimization resolves as OptimizationCompleted with iteration history`() = runBlocking {
         val solver = buildSolver()
         val handle = OptimizationOrchestrator().submit(solver, scope = this)
         val result = handle.result.await()
 
-        assertIs<RunResult.OrchestratorCompleted>(result)
-        val orchResult = result as RunResult.OrchestratorCompleted
-        assertTrue(orchResult.snapshots.isEmpty(), "OptimizationOrchestrator surfaces no per-run snapshots")
+        assertIs<RunResult.OptimizationCompleted>(result)
+        val orchResult = result as RunResult.OptimizationCompleted
         assertEquals(0, orchResult.summary.failedItems)
         assertEquals(solver.iterationCounter, orchResult.summary.completedItems)
+        assertEquals(solver.iterationCounter, orchResult.summary.totalItems,
+            "totalItems should reflect actual iterations, not the planned maximum")
+        assertTrue(orchResult.iterationHistory.isNotEmpty(),
+            "Iteration history must be non-empty after a successful run")
+        // The solver emits an initial snapshot before the iteration loop, so history
+        // has iterationCounter + 1 entries (initial + one per completed iteration).
+        assertTrue(orchResult.iterationHistory.size >= solver.iterationCounter,
+            "History must have at least one entry per completed iteration")
+        assertTrue(orchResult.bestSolution.bestSolutionSoFar.inputMap.isNotEmpty(),
+            "Best solution must carry non-empty inputs")
     }
 
     @Test

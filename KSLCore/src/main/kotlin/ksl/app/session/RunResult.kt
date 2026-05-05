@@ -18,6 +18,7 @@
 
 package ksl.app.session
 
+import ksl.simopt.solvers.SolverStateSnapshot
 import ksl.utilities.io.dbutil.SimulationSnapshot
 
 /**
@@ -29,10 +30,11 @@ import ksl.utilities.io.dbutil.SimulationSnapshot
  *
  * ```kotlin
  * when (val r = handle.result.await()) {
- *     is RunResult.Completed           -> showResults(r.snapshot)
- *     is RunResult.OrchestratorCompleted -> showOrchestratorResults(r.snapshots)
- *     is RunResult.Cancelled           -> showCancelled(r.reason)
- *     is RunResult.Failed              -> showError(r.error)
+ *     is RunResult.Completed            -> showResults(r.snapshot)
+ *     is RunResult.BatchCompleted       -> showBatchResults(r.snapshots)
+ *     is RunResult.OptimizationCompleted -> showOptResults(r.bestSolution, r.iterationHistory)
+ *     is RunResult.Cancelled            -> showCancelled(r.reason)
+ *     is RunResult.Failed               -> showError(r.error)
  * }
  * ```
  *
@@ -42,8 +44,8 @@ import ksl.utilities.io.dbutil.SimulationSnapshot
 sealed class RunResult {
 
     /**
-     * The run finished normally (all requested replications ran, or the model
-     * ended itself via `endSimulation()`).
+     * A single-model run finished normally (all requested replications ran, or
+     * the model ended itself via `endSimulation()`).
      *
      * @property summary lightweight post-run metadata
      * @property snapshot comprehensive across-replication statistics captured by
@@ -58,16 +60,38 @@ sealed class RunResult {
     ) : RunResult()
 
     /**
-     * An orchestrator run (scenario sweep, designed experiment, or optimization)
-     * finished. Carries the aggregate summary and per-item snapshots.
+     * A scenario sweep or designed experiment finished. Every successfully completed
+     * scenario or design point contributes one [SimulationSnapshot.ExperimentCompleted]
+     * to [snapshots]; the list is non-empty on a clean run.
      *
      * @property summary orchestrator-level metadata (total items, completed, failed)
-     * @property snapshots one [SimulationSnapshot.ExperimentCompleted] per successfully
-     *           completed scenario or design point; empty for optimization runs
+     * @property snapshots one snapshot per successfully completed scenario or design point,
+     *           in commit order. Non-empty when [OrchestratorSummary.failedItems] is zero.
      */
-    data class OrchestratorCompleted(
+    data class BatchCompleted(
         val summary: OrchestratorSummary,
         val snapshots: List<SimulationSnapshot.ExperimentCompleted>
+    ) : RunResult()
+
+    /**
+     * A simulation-optimization run finished. Carries the solver's best solution and
+     * the full per-iteration history for convergence analysis.
+     *
+     * [iterationHistory] has one entry per solver iteration (in execution order).
+     * [bestSolution] is the last snapshot, which carries the globally best solution
+     * found across all iterations via [SolverStateSnapshot.bestSolutionSoFar].
+     *
+     * @property summary orchestrator-level metadata (total and completed iterations,
+     *           always `failedItems == 0` on a clean run)
+     * @property bestSolution the [SolverStateSnapshot] from the final iteration,
+     *           whose [SolverStateSnapshot.bestSolutionSoFar] is the optimal solution found
+     * @property iterationHistory all [SolverStateSnapshot]s in execution order; use for
+     *           convergence plots and iteration-by-iteration inspection
+     */
+    data class OptimizationCompleted(
+        val summary: OrchestratorSummary,
+        val bestSolution: SolverStateSnapshot,
+        val iterationHistory: List<SolverStateSnapshot>
     ) : RunResult()
 
     /**

@@ -35,13 +35,16 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  *
  * Hooks [Solver.iterationEmitter] to emit one [RunEvent.IterationCompleted] per
  * solver iteration, carrying the best inputs and estimated objective value found so far.
+ * The full per-iteration [SolverStateSnapshot] history is collected and returned in
+ * [RunResult.OptimizationCompleted.iterationHistory] for convergence analysis.
  *
  * The returned [RunHandle] emits:
  * - one [RunEvent.IterationCompleted] after each solver iteration
  * - a terminal [RunEvent.RunCompleted] (or [RunEvent.RunFailed])
  *
- * The resolved [RunResult] is [RunResult.OrchestratorCompleted] with an empty `snapshots`
- * list — individual simulation snapshots per oracle evaluation are not surfaced in Phase 5
+ * The resolved [RunResult] is [RunResult.OptimizationCompleted] carrying the
+ * [OrchestratorSummary], the best [SolverStateSnapshot], and the full
+ * iteration history. Per-oracle-call simulation snapshots are not surfaced
  * (the evaluator abstraction makes them non-trivial to intercept).
  *
  * **Thread note:** [Solver.runAllIterations] is synchronous and runs on the coroutine's thread.
@@ -70,8 +73,10 @@ class OptimizationOrchestrator {
             val beginTime = Clock.System.now()
             var pendingResult: RunResult? = null
             var iterConnection: Emitter.Connection? = null
+            val iterationHistory = mutableListOf<SolverStateSnapshot>()
             try {
                 iterConnection = solver.iterationEmitter.attach { snapshot: SolverStateSnapshot ->
+                    iterationHistory.add(snapshot)
                     mutableEvents.tryEmit(
                         RunEvent.IterationCompleted(
                             iteration = snapshot.iterationNumber,
@@ -84,11 +89,12 @@ class OptimizationOrchestrator {
                 solver.runAllIterations()
 
                 val endTime = Clock.System.now()
+                val completedIterations = solver.iterationCounter
                 val summary = OrchestratorSummary(
                     runId = runId,
                     orchestratorName = solver.name,
-                    totalItems = solver.maximumNumberIterations,
-                    completedItems = solver.iterationCounter,
+                    totalItems = completedIterations,
+                    completedItems = completedIterations,
                     failedItems = 0,
                     beginTime = beginTime,
                     endTime = endTime
@@ -99,15 +105,17 @@ class OptimizationOrchestrator {
                             runId = runId,
                             modelIdentifier = solver.name,
                             experimentName = solver.name,
-                            requestedReplications = solver.maximumNumberIterations,
-                            completedReplications = solver.iterationCounter,
+                            requestedReplications = completedIterations,
+                            completedReplications = completedIterations,
                             endingStatus = EndingStatus.COMPLETED_ALL_STEPS,
                             beginTime = beginTime,
                             endTime = endTime
                         )
                     )
                 )
-                pendingResult = RunResult.OrchestratorCompleted(summary, emptyList())
+                val bestSnapshot = iterationHistory.lastOrNull()
+                    ?: error("Solver completed but emitted no iteration snapshots")
+                pendingResult = RunResult.OptimizationCompleted(summary, bestSnapshot, iterationHistory)
 
             } catch (e: Exception) {
                 withContext(NonCancellable) {

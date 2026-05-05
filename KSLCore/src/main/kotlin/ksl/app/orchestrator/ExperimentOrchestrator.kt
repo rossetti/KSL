@@ -40,7 +40,7 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  * - one [RunEvent.DesignPointCompleted] per design point (in commit order)
  * - a terminal [RunEvent.RunCompleted] (or [RunEvent.RunFailed])
  *
- * The resolved [RunResult] is [RunResult.OrchestratorCompleted] carrying one snapshot
+ * The resolved [RunResult] is [RunResult.BatchCompleted] carrying one snapshot
  * per successfully completed design point.
  *
  * **Thread note:** [ParallelDesignedExperiment.simulateAll] calls `runBlocking` internally.
@@ -120,7 +120,7 @@ class ExperimentOrchestrator {
                         )
                     )
                 )
-                pendingResult = RunResult.OrchestratorCompleted(summary, successSnapshots)
+                pendingResult = RunResult.BatchCompleted(summary, successSnapshots)
 
             } catch (e: Exception) {
                 withContext(NonCancellable) {

@@ -212,6 +212,7 @@ private fun runForSnapshot(
         is RunResult.Completed -> myResult.snapshot
         is RunResult.Cancelled -> error("Snapshot demo run was cancelled: ${myResult.reason}")
         is RunResult.Failed -> error("Snapshot demo run failed: ${myResult.error}")
-        is RunResult.OrchestratorCompleted -> error("Snapshot demo expected a single-run result.")
+        is RunResult.BatchCompleted        -> error("Snapshot demo expected a single-run result.")
+        is RunResult.OptimizationCompleted -> error("Snapshot demo expected a single-run result.")
     }
 }

@@ -50,15 +50,15 @@ class ExperimentOrchestratorTest {
     }
 
     @Test
-    fun `experiment resolves as OrchestratorCompleted with correct snapshot count`() = runBlocking {
+    fun `experiment resolves as BatchCompleted with correct snapshot count`() = runBlocking {
         val experiment = buildExperiment()
         val totalDesignPoints = experiment.design.designPoints().size // should be 4
 
         val handle = ExperimentOrchestrator().submit(experiment, numRepsPerDesignPoint = 5, scope = this)
         val result = handle.result.await()
 
-        assertIs<RunResult.OrchestratorCompleted>(result)
-        val orchResult = result as RunResult.OrchestratorCompleted
+        assertIs<RunResult.BatchCompleted>(result)
+        val orchResult = result as RunResult.BatchCompleted
         assertEquals(totalDesignPoints, orchResult.snapshots.size,
             "Expected one snapshot per design point")
         assertEquals(0, orchResult.summary.failedItems)

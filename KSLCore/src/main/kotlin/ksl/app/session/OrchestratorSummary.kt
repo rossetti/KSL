@@ -25,7 +25,7 @@ import kotlin.time.Duration
  * Lightweight aggregate summary for an orchestrated multi-run execution
  * (scenario sweep, designed experiment, or simulation-optimization).
  *
- * Carried by [RunResult.OrchestratorCompleted].
+ * Carried by [RunResult.BatchCompleted] and [RunResult.OptimizationCompleted].
  *
  * @property runId            unique identifier for this orchestrator run
  * @property orchestratorName human-readable name (e.g. `"ScenarioOrchestrator"`)

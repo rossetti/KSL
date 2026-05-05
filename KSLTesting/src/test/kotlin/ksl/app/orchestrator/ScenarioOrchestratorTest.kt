@@ -58,14 +58,14 @@ class ScenarioOrchestratorTest {
     }
 
     @Test
-    fun `two scenarios resolve as OrchestratorCompleted with two snapshots`() = runBlocking {
+    fun `two scenarios resolve as BatchCompleted with two snapshots`() = runBlocking {
         val config = twoScenarioConfig()
         val orchestrator = ScenarioOrchestrator()
         val handle = orchestrator.submit(config, mm1Provider, scope = this)
         val result = handle.result.await()
 
-        assertIs<RunResult.OrchestratorCompleted>(result)
-        val orchestratorResult = result as RunResult.OrchestratorCompleted
+        assertIs<RunResult.BatchCompleted>(result)
+        val orchestratorResult = result as RunResult.BatchCompleted
         assertEquals(2, orchestratorResult.snapshots.size,
             "Expected one snapshot per scenario")
         assertEquals(0, orchestratorResult.summary.failedItems,

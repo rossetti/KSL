@@ -50,7 +50,7 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  *   scenarios have finished executing)
  * - a terminal [RunEvent.RunCompleted] (or [RunEvent.RunFailed])
  *
- * The resolved [RunResult] is [RunResult.OrchestratorCompleted] carrying the
+ * The resolved [RunResult] is [RunResult.BatchCompleted] carrying the
  * [OrchestratorSummary] and one [SimulationSnapshot.ExperimentCompleted] per
  * successfully completed scenario.
  */
@@ -129,7 +129,7 @@ class ScenarioOrchestrator {
                         )
                     )
                 )
-                pendingResult = RunResult.OrchestratorCompleted(orchestratorSummary, successSnapshots)
+                pendingResult = RunResult.BatchCompleted(orchestratorSummary, successSnapshots)
 
             } catch (e: Exception) {
                 withContext(NonCancellable) {
