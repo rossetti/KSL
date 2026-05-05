@@ -19,6 +19,7 @@
 package ksl.utilities.io.report.dsl
 
 import ksl.utilities.io.report.ast.ReportNode
+import java.nio.file.Path
 
 /**
  * Top-level DSL entry point for the KSL reporting framework.
@@ -49,6 +50,27 @@ import ksl.utilities.io.report.ast.ReportNode
  * @return the assembled [ReportNode.Document]
  */
 fun report(title: String, block: ReportBuilder.() -> Unit): ReportNode.Document {
+    return report(title = title, outputDir = null, plotDir = null, block = block)
+}
+
+/**
+ * Top-level DSL entry point with optional default output directories.
+ *
+ * [outputDir] and [plotDir] are stored on the returned [ReportNode.Document] and
+ * used by the convenience render functions when the caller does not supply an
+ * explicit path or [ksl.utilities.io.report.renderer.RenderContext].
+ */
+fun report(
+    title: String,
+    outputDir: Path? = null,
+    plotDir: Path? = null,
+    block: ReportBuilder.() -> Unit
+): ReportNode.Document {
     val myBuilder = ReportBuilder(title).apply(block)
-    return ReportNode.Document(title, myBuilder.buildChildren())
+    return ReportNode.Document(
+        title = title,
+        children = myBuilder.buildChildren(),
+        defaultOutputDir = outputDir,
+        defaultPlotDir = plotDir
+    )
 }

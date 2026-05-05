@@ -19,6 +19,7 @@
 package ksl.utilities.io.report
 
 import ksl.utilities.io.KSL
+import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.renderer.HtmlReportRenderer
 import ksl.utilities.io.report.renderer.LaTeXReportRenderer
@@ -35,8 +36,9 @@ import java.nio.file.Path
  *
  * Each function creates the appropriate renderer, traverses the AST via
  * [ReportNode.Document.accept], and writes the result to a file.  File paths
- * default to [KSL.outDir] using the document title sanitised for use as a
- * filename; callers may supply any [Path] instead.
+ * default to the document's default output directory when one was supplied,
+ * otherwise [KSL.outDir], using the document title sanitised for use as a
+ * filename. Callers may supply any [Path] instead.
  *
  * Usage:
  * ```kotlin
@@ -57,7 +59,7 @@ import java.nio.file.Path
  * 2. [css] non-null → the supplied string is inlined in a `<style>` block
  * 3. Both null (default) → the built-in KSL stylesheet is inlined
  *
- * @param path    output file path; defaults to `KSL.outDir/<sanitised-title>.html`
+ * @param path    output file path; defaults to `ctx.outputDir/<sanitised-title>.html`
  * @param ctx     shared render configuration (output directory, plot directory,
  *                confidence level, numeric precision, max plots per section)
  * @param cssPath path to an external CSS file; when non-null a `<link>` tag is emitted
@@ -66,59 +68,63 @@ import java.nio.file.Path
  *                [cssPath] is `null`; when both are `null` the built-in stylesheet is used
  */
 fun ReportNode.Document.writeHtml(
-    path: Path = KSL.outDir.resolve("${title.toSafeFileName()}.html"),
-    ctx: RenderContext = RenderContext(),
+    path: Path? = null,
+    ctx: RenderContext? = null,
     cssPath: Path? = null,
     css: String? = null
 ): File {
-    val myRenderer = HtmlReportRenderer(ctx, cssPath, css)
+    val myCtx = ctx ?: defaultRenderContext()
+    val myRenderer = HtmlReportRenderer(myCtx, cssPath, css)
     accept(myRenderer)
-    return myRenderer.writeToFile(path)
+    return myRenderer.writeToFile(path ?: defaultPath(myCtx, "html"))
 }
 
 /**
  * Renders this document to a Markdown file and returns the written [File].
  *
- * @param path output file path; defaults to `KSL.outDir/<sanitised-title>.md`
+ * @param path output file path; defaults to `ctx.outputDir/<sanitised-title>.md`
  * @param ctx  shared render configuration
  */
 fun ReportNode.Document.writeMarkdown(
-    path: Path = KSL.outDir.resolve("${title.toSafeFileName()}.md"),
-    ctx: RenderContext = RenderContext()
+    path: Path? = null,
+    ctx: RenderContext? = null
 ): File {
-    val myRenderer = MarkdownReportRenderer(ctx)
+    val myCtx = ctx ?: defaultRenderContext()
+    val myRenderer = MarkdownReportRenderer(myCtx)
     accept(myRenderer)
-    return myRenderer.writeTo(path)
+    return myRenderer.writeTo(path ?: defaultPath(myCtx, "md"))
 }
 
 /**
  * Renders this document to a plain-text file and returns the written [File].
  *
- * @param path output file path; defaults to `KSL.outDir/<sanitised-title>.txt`
+ * @param path output file path; defaults to `ctx.outputDir/<sanitised-title>.txt`
  * @param ctx  shared render configuration
  */
 fun ReportNode.Document.writeText(
-    path: Path = KSL.outDir.resolve("${title.toSafeFileName()}.txt"),
-    ctx: RenderContext = RenderContext()
+    path: Path? = null,
+    ctx: RenderContext? = null
 ): File {
-    val myRenderer = TextReportRenderer(ctx)
+    val myCtx = ctx ?: defaultRenderContext()
+    val myRenderer = TextReportRenderer(myCtx)
     accept(myRenderer)
-    return myRenderer.writeTo(path)
+    return myRenderer.writeTo(path ?: defaultPath(myCtx, "txt"))
 }
 
 /**
  * Renders this document to a LaTeX source file and returns the written [File].
  *
- * @param path output file path; defaults to `KSL.outDir/<sanitised-title>.tex`
+ * @param path output file path; defaults to `ctx.outputDir/<sanitised-title>.tex`
  * @param ctx  shared render configuration
  */
 fun ReportNode.Document.writeLaTeX(
-    path: Path = KSL.outDir.resolve("${title.toSafeFileName()}.tex"),
-    ctx: RenderContext = RenderContext()
+    path: Path? = null,
+    ctx: RenderContext? = null
 ): File {
-    val myRenderer = LaTeXReportRenderer(ctx)
+    val myCtx = ctx ?: defaultRenderContext()
+    val myRenderer = LaTeXReportRenderer(myCtx)
     accept(myRenderer)
-    return myRenderer.writeTo(path)
+    return myRenderer.writeTo(path ?: defaultPath(myCtx, "tex"))
 }
 
 /**
@@ -139,11 +145,12 @@ fun ReportNode.Document.writeLaTeX(
  *                [cssPath] is `null`; when both are `null` the built-in stylesheet is used
  */
 fun ReportNode.Document.showInBrowser(
-    ctx: RenderContext = RenderContext(),
+    ctx: RenderContext? = null,
     cssPath: Path? = null,
     css: String? = null
 ): File {
-    val myRenderer = HtmlReportRenderer(ctx, cssPath, css)
+    val myCtx = ctx ?: defaultRenderContext()
+    val myRenderer = HtmlReportRenderer(myCtx, cssPath, css)
     accept(myRenderer)
     return myRenderer.showInBrowser()
 }
@@ -163,8 +170,8 @@ fun ReportNode.Document.showInBrowser(
  * @param ctx shared render configuration
  * @return the complete plain-text representation of this document
  */
-fun ReportNode.Document.toText(ctx: RenderContext = RenderContext()): String {
-    val myRenderer = TextReportRenderer(ctx)
+fun ReportNode.Document.toText(ctx: RenderContext? = null): String {
+    val myRenderer = TextReportRenderer(ctx ?: defaultRenderContext())
     accept(myRenderer)
     return myRenderer.output()
 }
@@ -182,8 +189,8 @@ fun ReportNode.Document.toText(ctx: RenderContext = RenderContext()): String {
  * @param ctx shared render configuration
  * @return the complete Markdown representation of this document
  */
-fun ReportNode.Document.toMarkdown(ctx: RenderContext = RenderContext()): String {
-    val myRenderer = MarkdownReportRenderer(ctx)
+fun ReportNode.Document.toMarkdown(ctx: RenderContext? = null): String {
+    val myRenderer = MarkdownReportRenderer(ctx ?: defaultRenderContext())
     accept(myRenderer)
     return myRenderer.output()
 }
@@ -203,9 +210,9 @@ fun ReportNode.Document.toMarkdown(ctx: RenderContext = RenderContext()): String
  */
 fun ReportNode.Document.printText(
     out: PrintWriter = PrintWriter(System.out, true),
-    ctx: RenderContext = RenderContext()
+    ctx: RenderContext? = null
 ) {
-    val myRenderer = TextReportRenderer(ctx)
+    val myRenderer = TextReportRenderer(ctx ?: defaultRenderContext())
     accept(myRenderer)
     myRenderer.writeTo(out)
 }
@@ -224,14 +231,43 @@ fun ReportNode.Document.printText(
  */
 fun ReportNode.Document.printMarkdown(
     out: PrintWriter = PrintWriter(System.out, true),
-    ctx: RenderContext = RenderContext()
+    ctx: RenderContext? = null
 ) {
-    val myRenderer = MarkdownReportRenderer(ctx)
+    val myRenderer = MarkdownReportRenderer(ctx ?: defaultRenderContext())
     accept(myRenderer)
     myRenderer.writeTo(out)
 }
 
+/**
+ * Creates a [RenderContext] whose output and plot directories are rooted in this
+ * [OutputDirectory].
+ */
+fun OutputDirectory.toRenderContext(
+    confidenceLevel: Double = 0.95,
+    numericPrecision: Int = 4,
+    maxPlotsPerSection: Int = 20
+): RenderContext {
+    return RenderContext(
+        outputDir = outDir,
+        plotDir = plotDir,
+        confidenceLevel = confidenceLevel,
+        numericPrecision = numericPrecision,
+        maxPlotsPerSection = maxPlotsPerSection
+    )
+}
+
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+private fun ReportNode.Document.defaultRenderContext(): RenderContext {
+    return RenderContext(
+        outputDir = defaultOutputDir ?: KSL.outDir,
+        plotDir = defaultPlotDir ?: defaultOutputDir?.resolve("plotDir") ?: KSL.plotDir
+    )
+}
+
+private fun ReportNode.Document.defaultPath(ctx: RenderContext, extension: String): Path {
+    return ctx.outputDir.resolve("${title.toSafeFileName()}.$extension")
+}
 
 /**
  * Converts a document title to a safe filename fragment by replacing runs of

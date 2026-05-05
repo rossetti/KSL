@@ -248,7 +248,11 @@ fun SimulationReporter.toReport(
 fun Model.buildReport(
     title: String = simulationName,
     block: ReportBuilder.() -> Unit = {}
-): ReportNode.Document = report(title) {
+): ReportNode.Document = report(
+    title = title,
+    outputDir = outputDirectory.outDir,
+    plotDir = outputDirectory.plotDir
+) {
     simulationResults(simulationReporter, this@buildReport)
     block()
 }
@@ -288,4 +292,9 @@ fun Model.toReport(
     block: ReportBuilder.() -> Unit = {
         simulationResults(simulationReporter, this@toReport, confidenceLevel)
     }
-): ReportNode.Document = report(title, block)
+): ReportNode.Document = report(
+    title = title,
+    outputDir = outputDirectory.outDir,
+    plotDir = outputDirectory.plotDir,
+    block = block
+)

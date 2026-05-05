@@ -22,6 +22,7 @@ import ksl.utilities.io.plotting.PlotIfc
 import ksl.utilities.io.report.visitor.ReportVisitor
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.statistic.WeightedStatistic
+import java.nio.file.Path
 
 /**
  * A sealed hierarchy of format-agnostic AST nodes representing report content.
@@ -56,12 +57,16 @@ sealed class ReportNode {
     /**
      * The root node of a report document.
      *
-     * @param title the document title, used as the top-level heading
-     * @param children ordered list of child nodes
+     * @param title            the document title, used as the top-level heading
+     * @param children         ordered list of child nodes
+     * @param defaultOutputDir optional default directory for rendered report files
+     * @param defaultPlotDir   optional default directory for plot files emitted while rendering
      */
     data class Document(
         val title: String,
-        val children: List<ReportNode>
+        val children: List<ReportNode>,
+        val defaultOutputDir: Path? = null,
+        val defaultPlotDir: Path? = null
     ) : ReportNode() {
         override fun accept(visitor: ReportVisitor) {
             visitor.enterDocument(this)
