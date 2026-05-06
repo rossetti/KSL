@@ -35,7 +35,7 @@ import kotlin.test.assertIs
  * waiting for the orchestrator job itself — only for handle.result.await().
  * withTimeout(30_000) guards against genuine infinite hangs.
  */
-@Disabled
+//@Disabled
 class OrchestratorCancelTest {
 
     private companion object {
