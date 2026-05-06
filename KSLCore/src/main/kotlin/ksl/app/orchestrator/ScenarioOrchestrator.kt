@@ -66,7 +66,8 @@ class ScenarioOrchestrator {
     fun submit(
         config: RunConfiguration,
         provider: ModelProviderIfc? = null,
-        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
+        preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
         require(config.scenarios.isNotEmpty()) {
             "RunConfiguration must contain at least one ScenarioSpec"
@@ -81,6 +82,10 @@ class ScenarioOrchestrator {
             val beginTime = Clock.System.now()
             try {
                 ensureActive()
+
+                for (warning in preRunWarnings) {
+                    lifecycle.emitProgress(RunEvent.RunWarning(warning))
+                }
 
                 val scenarios = buildScenarios(config, provider)
                 val totalScenarios = scenarios.size

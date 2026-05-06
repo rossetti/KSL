@@ -56,7 +56,8 @@ class ExperimentOrchestrator {
     fun submit(
         experiment: ParallelDesignedExperiment,
         numRepsPerDesignPoint: Int? = null,
-        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
+        preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
         val runId = KSL.randomUUIDString()
         val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
@@ -67,6 +68,10 @@ class ExperimentOrchestrator {
             val beginTime = Clock.System.now()
             try {
                 ensureActive()
+
+                for (warning in preRunWarnings) {
+                    lifecycle.emitProgress(RunEvent.RunWarning(warning))
+                }
 
                 val totalPoints = experiment.design.designPoints().size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()

@@ -22,6 +22,7 @@ import ksl.app.config.RunConfiguration
 import ksl.app.session.RunAttachmentIfc
 import ksl.app.session.RunHandle
 import ksl.app.session.RunRequest
+import ksl.app.session.RunWarningType
 import ksl.app.session.Runner
 import ksl.simulation.ModelProviderIfc
 import ksl.simulation.SimulationDispatcher
@@ -66,15 +67,17 @@ object SingleRunOrchestrator {
      * @param attachments optional [RunAttachmentIfc] instances wired into the run
      *                    (e.g. [ksl.app.session.ReplicationDataAttachment])
      * @param scope       coroutine scope that owns the simulation coroutine
+     * @param preRunWarnings validation warnings emitted before run lifecycle events
      * @return a [RunHandle] for observing progress and obtaining the result
      */
     fun submit(
         config: RunConfiguration,
         provider: ModelProviderIfc? = null,
         attachments: List<RunAttachmentIfc> = emptyList(),
-        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
+        preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
         val model = config.buildModel(provider)
-        return Runner().submit(RunRequest.SingleRun(model, attachments), scope)
+        return Runner().submit(RunRequest.SingleRun(model, attachments), scope, preRunWarnings)
     }
 }

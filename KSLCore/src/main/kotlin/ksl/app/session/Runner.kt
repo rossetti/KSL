@@ -149,7 +149,8 @@ class Runner {
      */
     fun submit(
         request: RunRequest.SingleRun,
-        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
+        preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
         val runId = KSL.randomUUIDString()
         val lifecycle = RunLifecycle(runId, replay = RUN_EVENT_REPLAY, extraBufferCapacity = 64)
@@ -163,6 +164,10 @@ class Runner {
 
             try {
                 ensureActive()
+
+                for (warning in preRunWarnings) {
+                    lifecycle.emitProgress(RunEvent.RunWarning(warning))
+                }
 
                 // Give each attachment access to the model and this coroutine's
                 // scope so it can register observers and acquire resources before

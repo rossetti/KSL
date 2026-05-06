@@ -18,6 +18,8 @@
 
 package ksl.app.session
 
+import ksl.app.validation.FieldError
+
 /**
  * Typed warning conditions that [Runner] can detect before or during a run.
  *
@@ -40,4 +42,15 @@ sealed class RunWarningType {
      *        affected model, for display in error messages
      */
     data class InfiniteHorizonNoTimeout(val modelIdentifier: String) : RunWarningType()
+
+    /**
+     * Non-blocking validation issues found before the run was submitted.
+     *
+     * These warnings are emitted through the same lifecycle stream as runtime
+     * warnings so a UI can display them without running a separate validation
+     * protocol before submission.
+     *
+     * @param warnings field-addressable validation warnings
+     */
+    data class ConfigurationWarnings(val warnings: List<FieldError>) : RunWarningType()
 }

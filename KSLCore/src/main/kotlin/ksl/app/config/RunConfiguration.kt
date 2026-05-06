@@ -77,10 +77,12 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *                                   an empty export (the default) leaves model defaults unchanged
  * @property rvOverrides             RV parameter overrides applied after controls;
  *                                   an empty list (the default) leaves model defaults unchanged
- * @property scenarios               serialisable scenario specs for Phase 5 sweep runs;
- *                                   empty for single-run configurations
- * @property simoptProblemId         optional problem id for Phase 5 optimisation runs;
- *                                   `null` for all other use cases
+ * @property scenarios               serialisable scenario specs consumed by
+ *                                   `ksl.app.RunSpec.Scenarios`; ignored by
+ *                                   `ksl.app.RunSpec.Single`
+ * @property simoptProblemId         optional problem id metadata for optimisation
+ *                                   configs consumed by `ksl.app.RunSpec.Optimization`;
+ *                                   it is not used for automatic routing
  * @property tracingConfig           animation trace capture settings; defaults to disabled
  *                                   (`animationTraceFile = null`)
  */

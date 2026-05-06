@@ -61,7 +61,8 @@ class OptimizationOrchestrator {
      */
     fun submit(
         solver: Solver,
-        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
+        preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
         val runId = KSL.randomUUIDString()
         val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
@@ -74,6 +75,10 @@ class OptimizationOrchestrator {
             val iterationHistory = mutableListOf<SolverStateSnapshot>()
             try {
                 ensureActive()
+
+                for (warning in preRunWarnings) {
+                    lifecycle.emitProgress(RunEvent.RunWarning(warning))
+                }
 
                 iterConnection = solver.iterationEmitter.attach { snapshot: SolverStateSnapshot ->
                     iterationHistory.add(snapshot)
