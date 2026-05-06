@@ -18,6 +18,7 @@
 
 package ksl.app.orchestrator
 
+import ksl.app.KSLAppSession
 import ksl.app.session.*
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverStateSnapshot
@@ -30,6 +31,11 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
 
 /**
  * Orchestrates a simulation-optimization run driven by a pre-configured [Solver].
+ *
+ * Low-level API note: application and UI code should prefer [KSLAppSession],
+ * which owns scope lifecycle, validation, warning emission, and dispatch across
+ * all supported run modes. This orchestrator remains public so lower-level
+ * tests and advanced integrations can exercise optimization execution directly.
  *
  * Hooks [Solver.iterationEmitter] to emit one [RunEvent.IterationCompleted] per
  * solver iteration, carrying the best inputs and estimated objective value found so far.

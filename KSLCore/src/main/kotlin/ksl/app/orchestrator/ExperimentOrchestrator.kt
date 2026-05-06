@@ -18,6 +18,7 @@
 
 package ksl.app.orchestrator
 
+import ksl.app.KSLAppSession
 import ksl.app.session.*
 import ksl.controls.experiments.DesignPoint
 import ksl.controls.experiments.ParallelDesignedExperiment
@@ -30,6 +31,12 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
 
 /**
  * Orchestrates a designed-experiment run from a pre-built [ParallelDesignedExperiment].
+ *
+ * Low-level API note: application and UI code should prefer [KSLAppSession],
+ * which owns scope lifecycle, validation, warning emission, and dispatch across
+ * all supported run modes. This orchestrator remains public so lower-level
+ * tests and advanced integrations can exercise designed-experiment execution
+ * directly.
  *
  * Calls [ParallelDesignedExperiment.simulateAll] with an optional [numRepsPerDesignPoint]
  * override, capturing one [SimulationSnapshot.ExperimentCompleted] per design point via the

@@ -18,6 +18,7 @@
 
 package ksl.app.orchestrator
 
+import ksl.app.KSLAppSession
 import ksl.app.config.RunConfiguration
 import ksl.app.session.RunAttachmentIfc
 import ksl.app.session.RunHandle
@@ -31,6 +32,11 @@ import kotlinx.coroutines.SupervisorJob
 
 /**
  * Thin facade over [Runner] for the single-model GUI use case.
+ *
+ * Low-level API note: application and UI code should prefer [KSLAppSession],
+ * which owns scope lifecycle, validation, warning emission, and dispatch across
+ * all supported run modes. This orchestrator remains public so lower-level
+ * tests and advanced integrations can exercise the single-run path directly.
  *
  * Accepts a [RunConfiguration], builds the model via [RunConfiguration.buildModel],
  * and delegates to [Runner.submit].  Returns the [RunHandle] directly so the caller

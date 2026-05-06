@@ -18,6 +18,7 @@
 
 package ksl.app.orchestrator
 
+import ksl.app.KSLAppSession
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -37,6 +38,11 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
 /**
  * Orchestrates a scenario-sweep run from a [RunConfiguration] whose
  * [RunConfiguration.scenarios] list is non-empty.
+ *
+ * Low-level API note: application and UI code should prefer [KSLAppSession],
+ * which owns scope lifecycle, validation, warning emission, and dispatch across
+ * all supported run modes. This orchestrator remains public so lower-level
+ * tests and advanced integrations can exercise scenario execution directly.
  *
  * Each [ksl.app.config.ScenarioSpec] is translated into a [Scenario] with a
  * [ModelBuilderIfc] that builds a fresh model for each scenario and applies
