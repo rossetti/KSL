@@ -12,6 +12,10 @@ import ksl.simulation.ModelElement
 import ksl.simulation.SimulationDispatcher
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -314,13 +318,33 @@ class RunnerTest {
     fun `attachment onAttach and onDetach called exactly once on cancellation`() = runBlocking {
         val model = mm1Model("AttachmentTest", reps = 10, repLength = 200.0)
 
-        var attachCount = 0
-        var detachCount = 0
+        val attachCount = AtomicInteger(0)
+        val detachCount = AtomicInteger(0)
         val detached = CompletableDeferred<Unit>()
+        val firstReplicationBlocked = CompletableDeferred<Unit>()
+        val releaseSimulationThread = CountDownLatch(1)
+        val blockOnce = AtomicBoolean(true)
         val attachment = object : RunAttachmentIfc {
-            override fun onAttach(model: Model, scope: CoroutineScope) { attachCount++ }
+            private var detachReplicationCallback: (() -> Unit)? = null
+
+            override fun onAttach(model: Model, scope: CoroutineScope) {
+                attachCount.incrementAndGet()
+                val connection = model.lifeCycleEmitters.replicationCompleted.attach {
+                    if (blockOnce.getAndSet(false)) {
+                        firstReplicationBlocked.complete(Unit)
+                        check(releaseSimulationThread.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                            "Timed out waiting for test to release blocked simulation thread"
+                        }
+                    }
+                }
+                detachReplicationCallback = {
+                    model.lifeCycleEmitters.replicationCompleted.detach(connection)
+                }
+            }
+
             override fun onDetach() {
-                detachCount++
+                detachReplicationCallback?.invoke()
+                detachCount.incrementAndGet()
                 detached.complete(Unit)
             }
         }
@@ -331,18 +355,24 @@ class RunnerTest {
             scope = this
         )
 
-        // Cancel after the first replication completes
-        launch {
-            handle.events.filterIsInstance<RunEvent.ReplicationEnded>().first()
+        try {
+            // Pause the simulation thread inside the first after-replication
+            // lifecycle callback. This removes the old race where a fast model
+            // could finish all replications before the test coroutine observed
+            // ReplicationEnded and called cancel().
+            withTimeout(TIMEOUT_MS) { firstReplicationBlocked.await() }
             handle.cancel("attachment lifecycle test")
+            releaseSimulationThread.countDown()
+
+            val result = withTimeout(TIMEOUT_MS) { handle.result.await() }
+            assertIs<RunResult.Cancelled>(result)
+            withTimeout(TIMEOUT_MS) { detached.await() }
+
+            assertEquals(1, attachCount.get(), "onAttach must be called exactly once")
+            assertEquals(1, detachCount.get(), "onDetach must be called exactly once even on cancel")
+        } finally {
+            releaseSimulationThread.countDown()
         }
-
-        val result = handle.result.await()
-        assertIs<RunResult.Cancelled>(result)
-        withTimeout(TIMEOUT_MS) { detached.await() }
-
-        assertEquals(1, attachCount, "onAttach must be called exactly once")
-        assertEquals(1, detachCount, "onDetach must be called exactly once even on cancel")
     }
 
     // ── Test 5: snapshot in RunResult.Completed ───────────────────────────────

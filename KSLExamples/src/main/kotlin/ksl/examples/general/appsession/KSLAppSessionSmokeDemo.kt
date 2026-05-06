@@ -56,7 +56,7 @@ private val RunEvent.isTerminal: Boolean
  * as the application protocol. It does not select or import lower-level
  * orchestrators directly.
  */
-fun main() = runBlocking {
+fun main(): Unit = runBlocking {
     runKSLAppSessionSmokeDemo(::println)
 }
 
