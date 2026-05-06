@@ -25,8 +25,6 @@ import ksl.simulation.SimulationDispatcher
 import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
 import ksl.simulation.IterativeProcessIfc.EndingStatus
 
@@ -61,13 +59,15 @@ class ExperimentOrchestrator {
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
     ): RunHandle {
         val runId = KSL.randomUUIDString()
-        val mutableEvents = MutableSharedFlow<RunEvent>(replay = 128, extraBufferCapacity = 64)
-        val result = CompletableDeferred<RunResult>()
+        val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
 
         val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
+            if (!lifecycle.tryStart()) return@launch
+
             val beginTime = Clock.System.now()
-            var pendingResult: RunResult? = null
             try {
+                ensureActive()
+
                 val totalPoints = experiment.design.designPoints().size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
 
@@ -75,7 +75,7 @@ class ExperimentOrchestrator {
                     numRepsPerDesignPoint = numRepsPerDesignPoint,
                     onDesignPointComplete = { designPoint: DesignPoint, snapshot ->
                         capturedSnapshots.add(snapshot)
-                        mutableEvents.tryEmit(
+                        lifecycle.emitProgress(
                             RunEvent.DesignPointCompleted(
                                 pointId = designPoint.number,
                                 index = capturedSnapshots.size,
@@ -101,7 +101,7 @@ class ExperimentOrchestrator {
                     beginTime = beginTime,
                     endTime = endTime
                 )
-                mutableEvents.tryEmit(
+                val completedEvent =
                     RunEvent.RunCompleted(
                         RunSummary(
                             runId = runId,
@@ -114,34 +114,25 @@ class ExperimentOrchestrator {
                             endTime = endTime
                         )
                     )
+                lifecycle.complete(
+                    RunResult.BatchCompleted(summary, successSnapshots),
+                    completedEvent
                 )
-                pendingResult = RunResult.BatchCompleted(summary, successSnapshots)
 
             } catch (e: CancellationException) {
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
-                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
-                    pendingResult = RunResult.Cancelled(reason)
+                    lifecycle.completeCancelled(reason)
                 }
                 throw e
             } catch (e: Exception) {
                 withContext(NonCancellable) {
                     val error = KSLRuntimeError.ExecutiveError(0.0, 0, e)
-                    mutableEvents.tryEmit(RunEvent.RunFailed(error))
-                    pendingResult = RunResult.Failed(error)
+                    lifecycle.completeFailed(error)
                 }
-            } finally {
-                result.complete(
-                    pendingResult ?: RunResult.Failed(
-                        KSLRuntimeError.ExecutiveError(
-                            0.0, 0,
-                            IllegalStateException("ExperimentOrchestrator ended without a result")
-                        )
-                    )
-                )
             }
         }
 
-        return RunHandleImpl(runId, mutableEvents.asSharedFlow(), result, job)
+        return RunHandleImpl(lifecycle, job)
     }
 }

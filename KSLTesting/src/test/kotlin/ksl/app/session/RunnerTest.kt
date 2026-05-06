@@ -9,6 +9,7 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.simulation.SimulationDispatcher
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -23,6 +24,10 @@ import kotlin.time.Duration
  * Model: GIGcQueue M/M/1 (arrivals ExponentialRV(1.0), service ExponentialRV(0.5)).
  */
 class RunnerTest {
+
+    private companion object {
+        const val TIMEOUT_MS = 30_000L
+    }
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -129,6 +134,60 @@ class RunnerTest {
 
         // no warnings for a finite-horizon model
         assertTrue(events.filterIsInstance<RunEvent.RunWarning>().isEmpty())
+    }
+
+    // ── Test 1a: immediate cancellation ──────────────────────────────────────
+
+    /**
+     * Cancelling immediately after submit must resolve through the handle-owned
+     * lifecycle even if the worker coroutine has not yet reached its own
+     * cancellation handling path.
+     */
+    @Test
+    fun `immediate cancel resolves as Cancelled and emits one terminal event`() = runBlocking {
+        val model = mm1Model("ImmediateCancelTest", reps = 30, repLength = 50_000.0)
+        val scope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
+        try {
+            val handle = Runner().submit(RunRequest.SingleRun(model), scope = scope)
+
+            handle.cancel("immediate cancel")
+            val result = withTimeout(TIMEOUT_MS) { handle.result.await() }
+
+            assertIs<RunResult.Cancelled>(result)
+            assertEquals("immediate cancel", result.reason)
+
+            val cancelledEvents = handle.events.replayCache.filterIsInstance<RunEvent.RunCancelled>()
+            assertEquals(1, cancelledEvents.size, "Expected exactly one RunCancelled event")
+            assertEquals("immediate cancel", cancelledEvents.first().reason)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    /**
+     * If the owning scope is already cancelled before submit, the lifecycle must
+     * still resolve as cancelled and the worker must not perform setup work.
+     */
+    @Test
+    fun `submit on cancelled scope resolves Cancelled without attachment setup`() = runBlocking {
+        val model = mm1Model("PreCancelledScopeTest", reps = 5, repLength = 100.0)
+        var attachCount = 0
+        var detachCount = 0
+        val attachment = object : RunAttachmentIfc {
+            override fun onAttach(model: Model, scope: CoroutineScope) { attachCount++ }
+            override fun onDetach() { detachCount++ }
+        }
+
+        val parentJob = SupervisorJob()
+        parentJob.cancel(CancellationException("scope already cancelled"))
+        val scope = CoroutineScope(SimulationDispatcher.default + parentJob)
+
+        val handle = Runner().submit(RunRequest.SingleRun(model, attachments = listOf(attachment)), scope = scope)
+        val result = withTimeout(TIMEOUT_MS) { handle.result.await() }
+
+        assertIs<RunResult.Cancelled>(result)
+        assertEquals(0, attachCount, "onAttach must not run when the owning scope is already cancelled")
+        assertEquals(0, detachCount, "onDetach must not run if onAttach never ran")
     }
 
     // ── Test 2: mid-run cancellation ─────────────────────────────────────────
@@ -257,9 +316,13 @@ class RunnerTest {
 
         var attachCount = 0
         var detachCount = 0
+        val detached = CompletableDeferred<Unit>()
         val attachment = object : RunAttachmentIfc {
             override fun onAttach(model: Model, scope: CoroutineScope) { attachCount++ }
-            override fun onDetach() { detachCount++ }
+            override fun onDetach() {
+                detachCount++
+                detached.complete(Unit)
+            }
         }
 
         val runner = Runner()
@@ -274,7 +337,9 @@ class RunnerTest {
             handle.cancel("attachment lifecycle test")
         }
 
-        handle.result.await()
+        val result = handle.result.await()
+        assertIs<RunResult.Cancelled>(result)
+        withTimeout(TIMEOUT_MS) { detached.await() }
 
         assertEquals(1, attachCount, "onAttach must be called exactly once")
         assertEquals(1, detachCount, "onDetach must be called exactly once even on cancel")

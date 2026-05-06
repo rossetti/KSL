@@ -25,8 +25,6 @@ import ksl.simulation.SimulationDispatcher
 import ksl.utilities.io.KSL
 import ksl.utilities.observers.Emitter
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
 import ksl.simulation.IterativeProcessIfc.EndingStatus
 
@@ -66,18 +64,20 @@ class OptimizationOrchestrator {
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
     ): RunHandle {
         val runId = KSL.randomUUIDString()
-        val mutableEvents = MutableSharedFlow<RunEvent>(replay = 128, extraBufferCapacity = 64)
-        val result = CompletableDeferred<RunResult>()
+        val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
 
         val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
+            if (!lifecycle.tryStart()) return@launch
+
             val beginTime = Clock.System.now()
-            var pendingResult: RunResult? = null
             var iterConnection: Emitter.Connection? = null
             val iterationHistory = mutableListOf<SolverStateSnapshot>()
             try {
+                ensureActive()
+
                 iterConnection = solver.iterationEmitter.attach { snapshot: SolverStateSnapshot ->
                     iterationHistory.add(snapshot)
-                    mutableEvents.tryEmit(
+                    lifecycle.emitProgress(
                         RunEvent.IterationCompleted(
                             iteration = snapshot.iterationNumber,
                             bestInputs = HashMap(snapshot.bestSolutionSoFar.inputMap),
@@ -104,7 +104,7 @@ class OptimizationOrchestrator {
                     beginTime = beginTime,
                     endTime = endTime
                 )
-                mutableEvents.tryEmit(
+                val completedEvent =
                     RunEvent.RunCompleted(
                         RunSummary(
                             runId = runId,
@@ -117,39 +117,31 @@ class OptimizationOrchestrator {
                             endTime = endTime
                         )
                     )
-                )
                 val bestSnapshot = iterationHistory.lastOrNull()
                     ?: error("Solver completed but emitted no iteration snapshots")
-                pendingResult = RunResult.OptimizationCompleted(summary, bestSnapshot, iterationHistory)
+                lifecycle.complete(
+                    RunResult.OptimizationCompleted(summary, bestSnapshot, iterationHistory),
+                    completedEvent
+                )
 
             } catch (e: CancellationException) {
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
-                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
-                    pendingResult = RunResult.Cancelled(reason)
+                    lifecycle.completeCancelled(reason)
                 }
                 throw e
             } catch (e: Exception) {
                 withContext(NonCancellable) {
                     val error = KSLRuntimeError.ExecutiveError(0.0, 0, e)
-                    mutableEvents.tryEmit(RunEvent.RunFailed(error))
-                    pendingResult = RunResult.Failed(error)
+                    lifecycle.completeFailed(error)
                 }
             } finally {
                 iterConnection?.let { solver.iterationEmitter.detach(it) }
-                result.complete(
-                    pendingResult ?: RunResult.Failed(
-                        KSLRuntimeError.ExecutiveError(
-                            0.0, 0,
-                            IllegalStateException("OptimizationOrchestrator ended without a result")
-                        )
-                    )
-                )
             }
         }
 
         return RunHandleImpl(
-            runId, mutableEvents.asSharedFlow(), result, job,
+            lifecycle, job,
             onCancelHook = { reason -> runCatching { solver.stopIterations(reason) } }
         )
     }

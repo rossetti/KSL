@@ -31,8 +31,6 @@ import ksl.utilities.io.KSL
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
 import ksl.simulation.IterativeProcessIfc.EndingStatus
 
@@ -75,13 +73,15 @@ class ScenarioOrchestrator {
         }
 
         val runId = KSL.randomUUIDString()
-        val mutableEvents = MutableSharedFlow<RunEvent>(replay = 128, extraBufferCapacity = 64)
-        val result = CompletableDeferred<RunResult>()
+        val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
 
         val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
+            if (!lifecycle.tryStart()) return@launch
+
             val beginTime = Clock.System.now()
-            var pendingResult: RunResult? = null
             try {
+                ensureActive()
+
                 val scenarios = buildScenarios(config, provider)
                 val totalScenarios = scenarios.size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
@@ -95,7 +95,7 @@ class ScenarioOrchestrator {
                 runner.simulate(onScenarioComplete = { scenarioName, snapshot ->
                     completedIdx++
                     capturedSnapshots.add(snapshot)
-                    mutableEvents.tryEmit(
+                    lifecycle.emitProgress(
                         RunEvent.ScenarioCompleted(scenarioName, completedIdx, totalScenarios, snapshot)
                     )
                 })
@@ -115,7 +115,7 @@ class ScenarioOrchestrator {
                     beginTime = beginTime,
                     endTime = endTime
                 )
-                mutableEvents.tryEmit(
+                val completedEvent =
                     RunEvent.RunCompleted(
                         RunSummary(
                             runId = runId,
@@ -128,35 +128,26 @@ class ScenarioOrchestrator {
                             endTime = endTime
                         )
                     )
+                lifecycle.complete(
+                    RunResult.BatchCompleted(orchestratorSummary, successSnapshots),
+                    completedEvent
                 )
-                pendingResult = RunResult.BatchCompleted(orchestratorSummary, successSnapshots)
 
             } catch (e: CancellationException) {
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
-                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
-                    pendingResult = RunResult.Cancelled(reason)
+                    lifecycle.completeCancelled(reason)
                 }
                 throw e
             } catch (e: Exception) {
                 withContext(NonCancellable) {
                     val error = KSLRuntimeError.ExecutiveError(0.0, 0, e)
-                    mutableEvents.tryEmit(RunEvent.RunFailed(error))
-                    pendingResult = RunResult.Failed(error)
+                    lifecycle.completeFailed(error)
                 }
-            } finally {
-                result.complete(
-                    pendingResult ?: RunResult.Failed(
-                        KSLRuntimeError.ExecutiveError(
-                            0.0, 0,
-                            IllegalStateException("ScenarioOrchestrator ended without a result")
-                        )
-                    )
-                )
             }
         }
 
-        return RunHandleImpl(runId, mutableEvents.asSharedFlow(), result, job)
+        return RunHandleImpl(lifecycle, job)
     }
 
     private fun buildScenarios(

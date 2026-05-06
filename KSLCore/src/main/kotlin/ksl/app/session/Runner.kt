@@ -20,8 +20,6 @@ package ksl.app.session
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
 import ksl.simulation.InMemorySnapshotCollector
 import ksl.simulation.IterativeProcessIfc.EndingStatus.*
@@ -129,8 +127,8 @@ private const val RUN_EVENT_REPLAY = 128
  * ## Thread safety
  *
  * All simulation work runs on a single thread within [SimulationDispatcher.default].
- * [RunEvent] emissions use `tryEmit` from the same thread (never from a
- * concurrent thread), so there are no data races on the [MutableSharedFlow].
+ * [RunEvent] emissions are routed through [RunLifecycle], which owns terminal
+ * event/result completion and suppresses progress after a terminal outcome.
  */
 class Runner {
 
@@ -154,38 +152,39 @@ class Runner {
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob())
     ): RunHandle {
         val runId = KSL.randomUUIDString()
-        val mutableEvents = MutableSharedFlow<RunEvent>(replay = RUN_EVENT_REPLAY, extraBufferCapacity = 64)
-        val result = CompletableDeferred<RunResult>()
+        val lifecycle = RunLifecycle(runId, replay = RUN_EVENT_REPLAY, extraBufferCapacity = 64)
 
         val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
+            if (!lifecycle.tryStart()) return@launch
+
             val model = request.model
-
-            // Give each attachment access to the model and this coroutine's scope
-            // so it can register observers and acquire resources before the
-            // experiment begins.
-            for (att in request.attachments) {
-                att.onAttach(model, this)
-            }
-
-            // Attach snapshot collector before the experiment starts so
-            // SimulationLifeCycleBridge fires ExperimentCompleted into it.
-            // Closed in finally to detach from emitters on every exit path.
-            val mySnapshotCollector = InMemorySnapshotCollector(model.lifeCycleEmitters)
-
-            // Holds the terminal result until after onDetach() has run for every
-            // attachment.  Completing the Deferred here (rather than inside the
-            // catch blocks) guarantees that handle.result.await() never returns
-            // before cleanup has finished.
-            var pendingResult: RunResult? = null
+            val attached = mutableListOf<RunAttachmentIfc>()
+            var mySnapshotCollector: InMemorySnapshotCollector? = null
 
             try {
+                ensureActive()
+
+                // Give each attachment access to the model and this coroutine's
+                // scope so it can register observers and acquire resources before
+                // the experiment begins.
+                for (att in request.attachments) {
+                    ensureActive()
+                    attached.add(att)
+                    att.onAttach(model, this)
+                }
+
+                // Attach snapshot collector before the experiment starts so
+                // SimulationLifeCycleBridge fires ExperimentCompleted into it.
+                // Closed in finally to detach from emitters on every exit path.
+                mySnapshotCollector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+
                 // Detect the infinite-horizon / no-timeout condition before the
                 // experiment starts and surface it as a warning event so a GUI
                 // can alert the user without waiting to see if the run hangs.
                 if (model.lengthOfReplication.isInfinite() &&
                     model.maximumAllowedExecutionTimePerReplication == Duration.ZERO
                 ) {
-                    mutableEvents.tryEmit(
+                    lifecycle.emitProgress(
                         RunEvent.RunWarning(RunWarningType.InfiniteHorizonNoTimeout(model.modelIdentifier))
                     )
                     logger.warn {
@@ -205,7 +204,7 @@ class Runner {
                 // triggers BEFORE_EXPERIMENT on all attached ModelElementObservers.
                 model.initializeReplications()
 
-                mutableEvents.tryEmit(
+                lifecycle.emitProgress(
                     RunEvent.RunStarted(
                         runId = runId,
                         modelIdentifier = model.modelIdentifier,
@@ -222,13 +221,13 @@ class Runner {
                 while (model.hasNextReplication() && !model.isDone) {
                     ensureActive()   // throws CancellationException if handle.cancel() was called
                     nextRepNum++
-                    mutableEvents.tryEmit(RunEvent.ReplicationStarted(nextRepNum, model.numberOfReplications))
+                    lifecycle.emitProgress(RunEvent.ReplicationStarted(nextRepNum, model.numberOfReplications))
 
                     // Blocking call — one full replication executes here.
                     // ModelElementObserver callbacks fire synchronously during this call.
                     model.runNextReplication()
 
-                    mutableEvents.tryEmit(RunEvent.ReplicationEnded(model.currentReplicationNumber, model.numberOfReplications))
+                    lifecycle.emitProgress(RunEvent.ReplicationEnded(model.currentReplicationNumber, model.numberOfReplications))
                 }
 
                 // Capture ending status before endSimulation() so we read the
@@ -241,7 +240,7 @@ class Runner {
                 // ExperimentCompleted into mySnapshotCollector.
                 model.endSimulation()
 
-                val snapshots = mySnapshotCollector.drain()
+                val snapshots = mySnapshotCollector!!.drain()
                 val expCompleted = snapshots
                     .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
                     .firstOrNull()
@@ -263,13 +262,15 @@ class Runner {
                     beginTime = model.beginExecutionTime,
                     endTime = model.endExecutionTime
                 )
-                mutableEvents.tryEmit(RunEvent.RunCompleted(summary))
-                pendingResult = RunResult.Completed(summary, expCompleted)
+                lifecycle.complete(
+                    RunResult.Completed(summary, expCompleted),
+                    RunEvent.RunCompleted(summary)
+                )
 
             } catch (e: CancellationException) {
                 // The coroutine Job was cancelled via handle.cancel().
                 // Use NonCancellable so we can safely emit the terminal event
-                // and stage the result despite the cancelled state.
+                // and complete the result despite the cancelled state.
                 withContext(NonCancellable) {
                     val reason = e.message ?: "Cancelled by user"
                     // Cancellation is cooperative: ensureActive() only fires
@@ -281,8 +282,7 @@ class Runner {
                     // reached initializeReplications().
                     runCatching { model.endSimulation(reason) }
                     val completedReps = model.currentReplicationNumber
-                    mutableEvents.tryEmit(RunEvent.RunCancelled(reason))
-                    pendingResult = RunResult.Cancelled(reason)
+                    lifecycle.completeCancelled(reason)
                     logger.info { "Run '$runId' cancelled: $reason (completed $completedReps of ${model.numberOfReplications} reps)" }
                 }
             } catch (e: Exception) {
@@ -292,29 +292,21 @@ class Runner {
                         replicationNumber = model.currentReplicationNumber,
                         cause = e
                     )
-                    mutableEvents.tryEmit(RunEvent.RunFailed(error))
-                    pendingResult = RunResult.Failed(error)
+                    lifecycle.completeFailed(error)
                     logger.error(e) { "Run '$runId' failed at simTime=${error.simTime}, rep=${error.replicationNumber}" }
                 }
             } finally {
                 // Detach the snapshot collector from all lifecycle emitters.
                 // Safe to call regardless of which exit path was taken.
-                runCatching { mySnapshotCollector.close() }
-                // onDetach() runs before the Deferred is resolved so that
-                // handle.result.await() never returns before cleanup is complete.
-                for (att in request.attachments) {
+                runCatching { mySnapshotCollector?.close() }
+                for (att in attached) {
                     runCatching { att.onDetach() }
                         .onFailure { logger.warn(it) { "RunAttachmentIfc.onDetach() threw for attachment $att" } }
                 }
-                result.complete(
-                    pendingResult ?: RunResult.Failed(
-                        KSLRuntimeError.ExecutiveError(0.0, 0, IllegalStateException("Run ended without a result"))
-                    )
-                )
             }
         }
 
-        return RunHandleImpl(runId, mutableEvents.asSharedFlow(), result, job)
+        return RunHandleImpl(lifecycle, job)
     }
 
     /**

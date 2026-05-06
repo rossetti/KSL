@@ -31,10 +31,11 @@ import ksl.simulation.Model
  *    model at this point and should register any `ModelElementObserver`
  *    instances and acquire resources (open files, channels, etc.) it needs.
  *
- * 2. [onDetach] is called in a `finally` block, **guaranteed to execute
- *    regardless of whether the run completed normally, was cancelled, or
- *    threw an exception**.  Implementations should release all resources
- *    and detach any observers registered in [onAttach].
+ * 2. If [onAttach] is called, [onDetach] is called in a `finally` block,
+ *    **guaranteed to execute regardless of whether the run completed normally,
+ *    was cancelled, or threw an exception**.  Implementations should release
+ *    all resources and detach any observers registered in [onAttach].  A run
+ *    cancelled before worker setup begins may skip both methods.
  *
  * ## Why this is needed
  *
@@ -96,12 +97,14 @@ interface RunAttachmentIfc {
     fun onAttach(model: Model, scope: CoroutineScope)
 
     /**
-     * Called once after the run ends, regardless of how it ended.
+     * Called once after the worker run ends, provided [onAttach] was called.
      *
      * Release all resources acquired in [onAttach] here: close files, detach
      * model element observers, drain channels, etc.  Exceptions thrown from
      * this method are swallowed by [Runner] and logged; they do not affect the
-     * terminal [RunResult].
+     * terminal [RunResult].  [RunHandle.result] may resolve before cleanup
+     * finishes, so attachments that need an explicit cleanup barrier should
+     * expose their own completion signal.
      */
     fun onDetach()
 }

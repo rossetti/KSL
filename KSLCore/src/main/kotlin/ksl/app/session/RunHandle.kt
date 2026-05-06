@@ -76,11 +76,11 @@ interface RunHandle {
     /**
      * Requests cooperative cancellation of the run.
      *
-     * Cancellation is cooperative and takes effect **between replications**:
-     * the replication currently executing will complete, and then the run
-     * loop will stop before starting the next one.  [RunEvent.RunCancelled]
-     * is guaranteed to be emitted and [result] will resolve as
-     * [RunResult.Cancelled].
+     * The public lifecycle is cancelled immediately: [RunEvent.RunCancelled]
+     * is emitted and [result] resolves as [RunResult.Cancelled] as soon as this
+     * handle wins the terminal lifecycle state.  The worker coroutine is then
+     * cancelled cooperatively; if a replication is already executing, it may
+     * finish before worker cleanup observes the cancellation.
      *
      * Calling [cancel] more than once, or after the run has already ended,
      * is safe and has no effect.
@@ -94,21 +94,36 @@ interface RunHandle {
 /**
  * Package-private implementation returned by [Runner] and the orchestrators.
  *
- * [onCancelHook] is invoked synchronously **before** the coroutine Job is cancelled.
- * Orchestrators use this to signal domain-level stop mechanisms — for example,
- * [OptimizationOrchestrator] passes `solver::stopIterations` so the solver's iteration
- * loop exits at the next boundary rather than waiting for the blocking call to complete.
+ * [onCancelHook] is invoked synchronously after this handle claims the terminal
+ * cancellation state and before the coroutine Job is cancelled.  Orchestrators
+ * use this to signal domain-level stop mechanisms — for example,
+ * [OptimizationOrchestrator] passes `solver::stopIterations` so the solver's
+ * iteration loop exits at the next boundary rather than waiting for the blocking
+ * call to complete.
  */
 internal class RunHandleImpl(
-    override val runId: String,
-    override val events: SharedFlow<RunEvent>,
-    override val result: Deferred<RunResult>,
+    private val lifecycle: RunLifecycle,
     private val job: Job,
     private val onCancelHook: ((String) -> Unit)? = null
 ) : RunHandle {
 
+    init {
+        lifecycle.attachJobFallback(job)
+    }
+
+    override val runId: String
+        get() = lifecycle.runId
+
+    override val events: SharedFlow<RunEvent>
+        get() = lifecycle.events
+
+    override val result: Deferred<RunResult>
+        get() = lifecycle.result
+
     override fun cancel(reason: String) {
-        runCatching { onCancelHook?.invoke(reason) }
-        job.cancel(kotlinx.coroutines.CancellationException(reason))
+        if (lifecycle.completeCancelled(reason)) {
+            runCatching { onCancelHook?.invoke(reason) }
+            job.cancel(kotlinx.coroutines.CancellationException(reason))
+        }
     }
 }
