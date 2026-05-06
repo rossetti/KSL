@@ -19,6 +19,7 @@
 package ksl.app.orchestrator
 
 import ksl.app.session.*
+import ksl.controls.experiments.DesignPoint
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.simulation.SimulationDispatcher
 import ksl.utilities.io.KSL
@@ -34,7 +35,7 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  *
  * Calls [ParallelDesignedExperiment.simulateAll] with an optional [numRepsPerDesignPoint]
  * override, capturing one [SimulationSnapshot.ExperimentCompleted] per design point via the
- * additive `onScenarioComplete` callback.
+ * [onDesignPointComplete] callback.
  *
  * The returned [RunHandle] emits:
  * - one [RunEvent.DesignPointCompleted] per design point (in commit order)
@@ -42,10 +43,6 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  *
  * The resolved [RunResult] is [RunResult.BatchCompleted] carrying one snapshot
  * per successfully completed design point.
- *
- * **Thread note:** [ParallelDesignedExperiment.simulateAll] calls `runBlocking` internally.
- * This is called from a coroutine on [SimulationDispatcher.default] (an IO-backed dispatcher),
- * so blocking one thread is acceptable.
  */
 class ExperimentOrchestrator {
 
@@ -73,17 +70,15 @@ class ExperimentOrchestrator {
             try {
                 val totalPoints = experiment.design.designPoints().size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
-                var completedIdx = 0
 
                 experiment.simulateAll(
                     numRepsPerDesignPoint = numRepsPerDesignPoint,
-                    onScenarioComplete = { _, snapshot ->
-                        completedIdx++
+                    onDesignPointComplete = { designPoint: DesignPoint, snapshot ->
                         capturedSnapshots.add(snapshot)
                         mutableEvents.tryEmit(
                             RunEvent.DesignPointCompleted(
-                                pointId = completedIdx,
-                                index = completedIdx,
+                                pointId = designPoint.number,
+                                index = capturedSnapshots.size,
                                 totalDesignPoints = totalPoints,
                                 snapshot = snapshot
                             )

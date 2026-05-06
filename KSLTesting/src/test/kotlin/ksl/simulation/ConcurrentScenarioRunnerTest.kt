@@ -7,11 +7,13 @@ import ksl.controls.experiments.ScenarioRunner
 import ksl.controls.experiments.assignIndependentStreamAdvances
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.utilities.random.rvariable.ExponentialRV
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -36,6 +38,7 @@ import kotlin.test.assertTrue
  *  - **Analytical** — c=3 avg system time < c=2 < c=1 (M/M/c ordering property)
  *  - **DB** — [ConcurrentScenarioRunner.kslDb] has one experiment per scenario
  */
+//@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConcurrentScenarioRunnerTest {
 
@@ -266,6 +269,25 @@ class ConcurrentScenarioRunnerTest {
                 experimentRunParameters: ExperimentRunParametersIfc?
             ): Model {
                 throw RuntimeException(INTENTIONAL_FAILURE_MESSAGE)
+            }
+        }
+
+        return Scenario(
+            modelBuilder = builder,
+            name = scenarioName,
+            runParameters = failureRunParameters(scenarioName)
+        )
+    }
+
+    private fun buildCancellingScenario(
+        scenarioName: String = "CancellingScenario"
+    ): Scenario {
+        val builder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                throw CancellationException("intentional concurrent scenario cancellation")
             }
         }
 
@@ -836,6 +858,23 @@ class ConcurrentScenarioRunnerTest {
         assertTrue(
             failedRun.runErrorMsg.contains(INTENTIONAL_FAILURE_MESSAGE),
             "Failing scenario runErrorMsg must include the original exception message"
+        )
+    }
+
+    @Test
+    fun cancellationIsPropagatedInsteadOfRecordedAsScenarioFailure() {
+        val runner = ConcurrentScenarioRunner(
+            "ConcurrentScenarioRunnerCancellation_${System.nanoTime()}",
+            listOf(buildCancellingScenario())
+        )
+
+        assertFailsWith<CancellationException> {
+            runBlocking { runner.simulate() }
+        }
+
+        assertNull(
+            runner.scenarioByName("CancellingScenario")!!.simulationRun,
+            "Coroutine cancellation should not be converted into a failed scenario run"
         )
     }
 

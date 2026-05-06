@@ -108,13 +108,14 @@ class SimulationRunner(
      * associated with the simulation run [simulationRun]
      */
     fun simulate(simulationRun: SimulationRun) {
-        require(model.modelIdentifier == simulationRun.modelIdentifier) { "The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run." }
+        var timer: SimulationTimer? = null
+        var rdc: ReplicationDataCollector? = null
         try {
             // set simulation run parameters, number of advances, experimental controls, and random variables
-            setupSimulation(simulationRun)
+            setupSimulation(model, simulationRun)
             // attach observers
-            val timer = SimulationTimer(model)
-            val rdc = ReplicationDataCollector(model, true)
+            timer = SimulationTimer(model)
+            rdc = ReplicationDataCollector(model, true)
             Model.logger.info { "SimulationRunner: Running simulation: ${model.simulationName} " }
             model.simulate()
             Model.logger.info { "SimulationRunner: Simulation ${model.simulationName} ended, capturing results." }
@@ -122,95 +123,16 @@ class SimulationRunner(
             rdc.stopObserving()
             timer.stopObserving()
             //capture results
-            val repNums: DoubleArray = KSLArrays.toDoubles(model.repIdRange.toList().toPrimitives())
-            val results = mutableMapOf<String, DoubleArray>()
-            results["repNumbers"] = repNums
-            results["repTimings"] = timer.replicationTimes()
-            val rdcData = rdc.allReplicationDataAsMap
-            results.putAll(rdcData)
-//            if (simulationRun.inputs.isEmpty()) {
-//                //fill them with the defaults for the model that ran
-//                simulationRun.inputs = model.inputSettings()
-//            }
-            simulationRun.results = results
-            simulationRun.beginExecutionTime = timer.experimentStartTime
-            simulationRun.endExecutionTime = timer.experimentEndTime
+            captureResults(model, simulationRun, timer, rdc)
+            rdc = null
+            timer = null
         } catch (e: RuntimeException) {
-            catchSimulationRunError(simulationRun, e)
+            recordSimulationRunError(model, simulationRun, e, sourceName = "SimulationRunner")
+            throw e
+        } finally {
+            rdc?.stopObserving()
+            timer?.stopObserving()
         }
-    }
-
-    /**
-     *  Sets up the simulation based on the inputs and experimental run parameters.
-     *  Numeric inputs and RV parameters are staged via the deferred slots on the
-     *  model ([ksl.simulation.Model.experimentalControls] and [ksl.simulation.Model.rvParameterSetter])
-     *  and applied by [ksl.simulation.Model.setUpExperiment] at the start of each experiment.
-     *  String and JSON inputs are likewise staged via [ksl.simulation.Model.experimentalStringControls]
-     *  and [ksl.simulation.Model.experimentalJsonControls] and applied by the same mechanism.
-     */
-    private fun setupSimulation(simulationRun: SimulationRun) {
-        Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
-        // apply the run parameters to the model
-        model.changeRunParameters(simulationRun.experimentRunParameters)
-        // stage numeric controls and RV parameters (deferred — applied in setUpExperiment())
-        if (simulationRun.inputs.isNotEmpty()) {
-            // need to apply them to the model, could be controls and random variable parameters
-            // get the controls to build what will need to be changed
-            val controls: Controls = model.controls()
-            // get the random variable parameters
-            val tmpSetter = RVParameterSetter(model)
-            val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
-            // now check if the supplied input key is a control or a rv parameter
-            // and save them for application to the model
-            val controlsMap = mutableMapOf<String, Double>()
-            val rvParamMap = mutableMapOf<String, Double>()
-            for ((keyName, value) in simulationRun.inputs) {
-                if (controls.hasControl(keyName)) {
-                    controlsMap[keyName] = value
-                } else if (rvParameters.containsKey(keyName)) {
-                    rvParamMap[keyName] = value
-                } else {
-                    Model.logger.info { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
-                }
-            }
-            if (controlsMap.isNotEmpty()) {
-                // stage numeric controls — applied in setUpExperiment() via controls().setControlsFromMap()
-                model.experimentalControls = controlsMap
-                Model.logger.info { "SimulationRunner: ${controlsMap.size} numeric controls out of ${controls.size} staged for experiment setup." }
-            }
-            if (rvParamMap.isNotEmpty()) {
-                // convert to the form used by RVParameterSetter
-                val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
-                // stage RV parameter changes — applied in setUpExperiment() via rvParameterSetter.applyParameterChanges()
-                model.rvParameterSetter.changeParameters(unflattenMap)
-                Model.logger.info { "SimulationRunner: ${rvParamMap.size} RV parameters out of ${rvParameters.size} staged for experiment setup." }
-            }
-        }
-        // stage string controls (deferred — applied in setUpExperiment())
-        if (simulationRun.stringInputs.isNotEmpty()) {
-            model.experimentalStringControls = simulationRun.stringInputs
-            Model.logger.info { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
-        }
-        // stage JSON controls (deferred — applied in setUpExperiment())
-        if (simulationRun.jsonInputs.isNotEmpty()) {
-            model.experimentalJsonControls = simulationRun.jsonInputs
-            Model.logger.info { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
-        }
-    }
-
-    private fun catchSimulationRunError(simulationRun: SimulationRun, e: RuntimeException) {
-        // capture the full stack trace
-        // per https://www.baeldung.com/java-stacktrace-to-string
-        val sw = StringWriter()
-        val pw = PrintWriter(sw)
-        e.printStackTrace(pw)
-        simulationRun.runErrorMsg = sw.toString()
-        // return an empty HashMap of results
-        simulationRun.results = mutableMapOf()
-        Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within SimulationRunner." }
-        Model.logger.error { "No responses were recorded." }
-        Model.logger.error { sw.toString() }
-        throw e
     }
 
     companion object {
@@ -220,6 +142,116 @@ class SimulationRunner(
          */
         @JvmStatic
         var rvParamConCatChar = RVParameterSetter.rvParamConCatChar
+
+        /**
+         * Sets up [model] from [simulationRun] using the same deferred-input semantics
+         * as the original [SimulationRunner] implementation.  This is intentionally
+         * shared by the synchronous runner and the coroutine-aware
+         * [ConcurrentSimulationRunner] so controls, random-variable parameters,
+         * string controls, and JSON controls cannot drift between execution paths.
+         */
+        internal fun setupSimulation(model: Model, simulationRun: SimulationRun) {
+            require(model.modelIdentifier == simulationRun.modelIdentifier) {
+                "The model identifier ${model.modelIdentifier} does not match the identifier ${simulationRun.modelIdentifier} for the simulation run."
+            }
+            Model.logger.info { "SimulationRunner: Setting up simulation: ${model.simulationName} " }
+            // apply the run parameters to the model
+            model.changeRunParameters(simulationRun.experimentRunParameters)
+            // stage numeric controls and RV parameters (deferred — applied in setUpExperiment())
+            if (simulationRun.inputs.isNotEmpty()) {
+                // need to apply them to the model, could be controls and random variable parameters
+                // get the controls to build what will need to be changed
+                val controls: Controls = model.controls()
+                // get the random variable parameters
+                val tmpSetter = RVParameterSetter(model)
+                val rvParameters = tmpSetter.flatParametersAsDoubles(rvParamConCatChar)
+                // now check if the supplied input key is a control or a rv parameter
+                // and save them for application to the model
+                val controlsMap = mutableMapOf<String, Double>()
+                val rvParamMap = mutableMapOf<String, Double>()
+                for ((keyName, value) in simulationRun.inputs) {
+                    if (controls.hasControl(keyName)) {
+                        controlsMap[keyName] = value
+                    } else if (rvParameters.containsKey(keyName)) {
+                        rvParamMap[keyName] = value
+                    } else {
+                        Model.logger.info { "SimulationRunner: input $keyName was not a control or a random variable parameter" }
+                    }
+                }
+                if (controlsMap.isNotEmpty()) {
+                    // stage numeric controls — applied in setUpExperiment() via controls().setControlsFromMap()
+                    model.experimentalControls = controlsMap
+                    Model.logger.info { "SimulationRunner: ${controlsMap.size} numeric controls out of ${controls.size} staged for experiment setup." }
+                }
+                if (rvParamMap.isNotEmpty()) {
+                    // convert to the form used by RVParameterSetter
+                    val unflattenMap = KSLMaps.unflattenMap(rvParamMap, rvParamConCatChar)
+                    // stage RV parameter changes — applied in setUpExperiment() via rvParameterSetter.applyParameterChanges()
+                    model.rvParameterSetter.changeParameters(unflattenMap)
+                    Model.logger.info { "SimulationRunner: ${rvParamMap.size} RV parameters out of ${rvParameters.size} staged for experiment setup." }
+                }
+            }
+            // stage string controls (deferred — applied in setUpExperiment())
+            if (simulationRun.stringInputs.isNotEmpty()) {
+                model.experimentalStringControls = simulationRun.stringInputs
+                Model.logger.info { "SimulationRunner: ${simulationRun.stringInputs.size} string controls staged for experiment setup." }
+            }
+            // stage JSON controls (deferred — applied in setUpExperiment())
+            if (simulationRun.jsonInputs.isNotEmpty()) {
+                model.experimentalJsonControls = simulationRun.jsonInputs
+                Model.logger.info { "SimulationRunner: ${simulationRun.jsonInputs.size} JSON controls staged for experiment setup." }
+            }
+        }
+
+        /**
+         * Populates [simulationRun] after a successful execution.  The caller is
+         * responsible for stopping observers before invoking this method, matching
+         * the historical [SimulationRunner] ordering.
+         */
+        internal fun captureResults(
+            model: Model,
+            simulationRun: SimulationRun,
+            timer: SimulationTimer,
+            rdc: ReplicationDataCollector
+        ) {
+            val repNums: DoubleArray = KSLArrays.toDoubles(model.repIdRange.toList().toPrimitives())
+            val results = mutableMapOf<String, DoubleArray>()
+            results["repNumbers"] = repNums
+            results["repTimings"] = timer.replicationTimes()
+            results.putAll(rdc.allReplicationDataAsMap)
+//            if (simulationRun.inputs.isEmpty()) {
+//                //fill them with the defaults for the model that ran
+//                simulationRun.inputs = model.inputSettings()
+//            }
+            simulationRun.results = results
+            simulationRun.beginExecutionTime = timer.experimentStartTime
+            simulationRun.endExecutionTime = timer.experimentEndTime
+        }
+
+        /**
+         * Records a non-cancellation runtime failure into [simulationRun].  The
+         * exception is not swallowed; callers rethrow it after recording.
+         */
+        internal fun recordSimulationRunError(
+            model: Model,
+            simulationRun: SimulationRun,
+            e: RuntimeException,
+            sourceName: String
+        ) {
+            val stackTrace = stackTraceAsString(e)
+            simulationRun.runErrorMsg = stackTrace
+            simulationRun.results = emptyMap()
+            Model.logger.error { "There was a fatal exception during the running of simulation ${model.simulationName} within $sourceName." }
+            Model.logger.error { "No responses were recorded." }
+            Model.logger.error { stackTrace }
+        }
+
+        internal fun stackTraceAsString(e: RuntimeException): String {
+            val sw = StringWriter()
+            val pw = PrintWriter(sw)
+            e.printStackTrace(pw)
+            return sw.toString()
+        }
 
         /**
          *  Splits the number of replications into a list of experiments

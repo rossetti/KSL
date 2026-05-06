@@ -1,14 +1,41 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksl.controls.experiments
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
+import ksl.simulation.InMemorySnapshotCollector
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import ksl.simulation.SimulationDispatcher
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
 import ksl.utilities.io.KSL
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.addColumnsFor
 import ksl.utilities.io.dbutil.KSLDatabase
+import ksl.utilities.io.dbutil.SimulationSnapshot
+import ksl.utilities.io.dbutil.SnapshotBatchWriter
 import ksl.utilities.statistic.OLSRegression
 import ksl.utilities.statistic.RegressionData
 import ksl.utilities.statistic.RegressionResultsIfc
@@ -22,15 +49,16 @@ import java.nio.file.Path
 /**
  * Facilitates concurrent simulation of all design points in an experimental design.
  *
- * Unlike [DesignedExperiment], this class requires a [ModelBuilderIfc] or model-creator
- * function so that each design point can run on a fresh [Model] instance. Execution is
- * delegated to [ConcurrentScenarioRunner], preserving isolated model state, in-memory
- * snapshot collection, and sequential database commit behavior.
+ * Unlike [DesignedExperiment], this class requires a [ModelBuilderIfc] so that each
+ * design point runs on a fresh [Model] instance.  Execution uses structured concurrency:
+ * design points are launched concurrently as coroutines on [SimulationDispatcher.default],
+ * and results are committed to [kslDb] sequentially after all simulations complete.
+ *
+ * [simulateAll] and [simulate] are `suspend` functions and must be called from a coroutine
+ * scope.  For command-line or test use, wrap with `runBlocking { experiment.simulateAll() }`.
  *
  * By default, design points use [DesignPointRandomStreamPolicy.INDEPENDENT_RANDOM_STREAMS].
- * This matches legacy [DesignedExperiment] behavior, where one reused model naturally
- * advances to the next stream block as design points are simulated sequentially. Call
- * [useCommonRandomNumbers] to make fresh model instances start from the same stream block.
+ * Call [useCommonRandomNumbers] to make fresh model instances start from the same stream block.
  *
  * @param name the name of the parallel designed experiment
  * @param modelBuilder factory that returns a fresh model for each design-point run
@@ -49,6 +77,21 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
 ) : Identity(name), DesignedExperimentIfc {
+
+    private data class DesignPointRunPlan(
+        val designPoint: DesignPoint,
+        val experimentName: String,
+        val inputs: Map<String, Double>,
+        val runParameters: ExperimentRunParameters,
+        val modelConfiguration: Map<String, String>?,
+        val outputDirectoryName: String
+    )
+
+    private data class DesignPointRunOutcome(
+        val plan: DesignPointRunPlan,
+        val simulationRun: SimulationRun,
+        val collector: InMemorySnapshotCollector?
+    )
 
     /**
      * Convenience constructor for two-level factor setting maps.
@@ -128,7 +171,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         get() = mySimulationRuns.values.toList()
 
     /**
-     * The number of design points executed in the base design.
+     * The number of design points that have been executed.
      */
     override val numSimulationRuns: Int
         get() = mySimulationRuns.size
@@ -351,40 +394,51 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     /**
      * Simulates all design points concurrently.
      *
-     * @param onScenarioComplete optional callback invoked after each design point
-     *   completes (in sequential commit order). Receives the scenario name and the
-     *   [ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted] snapshot,
-     *   or `null` if the design point failed with a [RuntimeException].
+     * This is a `suspend` function and must be called from a coroutine scope.
+     * For command-line or test use, wrap with `runBlocking { experiment.simulateAll() }`.
+     *
+     * @param onDesignPointComplete optional callback invoked after each design point's
+     *   results are committed to [kslDb] (in design-point order). Receives the [DesignPoint]
+     *   and its [SimulationSnapshot.ExperimentCompleted], or `null` if the design point
+     *   failed with a [RuntimeException].
      */
-    fun simulateAll(
+    suspend fun simulateAll(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
         clearAllData: Boolean = true,
-        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
-        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData, onScenarioComplete)
+        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData, onDesignPointComplete)
     }
 
     /**
      * Simulates the design points presented by [iterator] concurrently.
      *
-     * @param onScenarioComplete optional callback invoked after each design point
-     *   completes (in sequential commit order). Receives the scenario name and the
-     *   [ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted] snapshot,
-     *   or `null` if the design point failed with a [RuntimeException].
+     * Design points are launched in parallel on [SimulationDispatcher.default].
+     * After all simulations complete, results are committed to [kslDb] sequentially
+     * in iterator order and [onDesignPointComplete] is fired for each point.
+     * Cancellation is checked between each design-point commit, so cooperative
+     * cancellation takes effect at design-point boundaries during the commit phase.
+     *
+     * This is a `suspend` function and must be called from a coroutine scope.
+     * For command-line or test use, wrap with `runBlocking { experiment.simulate(iterator) }`.
+     *
+     * @param onDesignPointComplete optional callback invoked after each design point's
+     *   results are committed to [kslDb]. Receives the [DesignPoint] and its
+     *   [SimulationSnapshot.ExperimentCompleted], or `null` if the design point
+     *   failed with a [RuntimeException].
      */
-    fun simulate(
+    suspend fun simulate(
         iterator: Iterator<DesignPoint>,
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
         clearAllData: Boolean = true,
-        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
-        if (clearRuns) {
-            clearSimulationRuns()
-        }
+        if (clearRuns) clearSimulationRuns()
+
         val designPoints = iterator.asSequence().toList()
         if (designPoints.isEmpty()) {
             val wm = "WARNING: The supplied iterator for parallel designed experiment, $name, had no design points."
@@ -396,25 +450,43 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             return
         }
 
-        val effectiveNumReps = effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint)
-        val scenarios = designPoints.map { designPoint ->
-            require(designPoint.design == design) {
-                "The design point was not associated with this experiment."
-            }
+        coroutineScope {
+            if (clearAllData) kslDb.clearAllData()
+
+            val effectiveNumReps = effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint)
             if (effectiveNumReps != null) {
-                designPoint.numReplications = effectiveNumReps
+                designPoints.forEach { it.numReplications = effectiveNumReps }
             }
-            scenarioFor(designPoint)
-        }
 
-        applyStreamPolicy(scenarios)
+            // Build native design-point plans.  A design point is not a
+            // Scenario, even though both eventually execute one model/run pair.
+            val plans = applyStreamPolicy(designPoints.map { planFor(it) })
 
-        val runner = ConcurrentScenarioRunner(name, scenarios, pathToOutputDirectory, kslDb)
-        runBlocking { runner.simulate(clearAllData = clearAllData, onScenarioComplete = onScenarioComplete) }
+            // Phase 1: launch all design points concurrently on the simulation dispatcher
+            val jobs = plans.map { plan -> async(SimulationDispatcher.default) { runDesignPoint(plan) } }
+            val outcomes = jobs.awaitAll()
 
-        if (addRuns) {
-            for ((index, designPoint) in designPoints.withIndex()) {
-                scenarios[index].simulationRun?.let { mySimulationRuns[designPoint] = it }
+            // Phase 2: sequential DB commit + callback, cancellation checked between points
+            val writer = SnapshotBatchWriter(kslDb)
+            for (outcome in outcomes) {
+                ensureActive()
+                val designPoint = outcome.plan.designPoint
+                val simulationRun = outcome.simulationRun
+                val collector = outcome.collector
+                var snapshot: SimulationSnapshot.ExperimentCompleted? = null
+                if (collector != null) {
+                    collector.use { c ->
+                        val snapshots = c.drain()
+                        snapshot = snapshots
+                            .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
+                            .firstOrNull()
+                        if (snapshots.isNotEmpty()) writer.write(snapshots)
+                    }
+                }
+                onDesignPointComplete?.invoke(designPoint, snapshot)
+                if (addRuns) {
+                    mySimulationRuns[designPoint] = simulationRun
+                }
             }
         }
     }
@@ -426,36 +498,113 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         return defaultNumRepsPerDesignPoint.takeIf { it > 0 }
     }
 
-    private fun scenarioFor(designPoint: DesignPoint): Scenario {
-        val expName = "${baseRunParameters.experimentName}_DP_${designPoint.number}"
+    /**
+     * Creates the execution plan for one design point.
+     *
+     * This mirrors [DesignedExperiment]'s direct design-point semantics: factor
+     * settings become numeric inputs, the experiment name is derived from the
+     * design-point number, and replication count comes from the design point.
+     */
+    private fun planFor(designPoint: DesignPoint): DesignPointRunPlan {
+        require(designPoint.design == design) {
+            "The design point was not associated with this experiment."
+        }
+
+        val experimentName = "${baseRunParameters.experimentName}_DP_${designPoint.number}"
         val inputs = mutableMapOf<String, Double>()
         for ((factor, value) in designPoint.settings) {
             inputs[factorSettings[factor]!!] = value
         }
 
-        return Scenario(
-            modelBuilder = modelBuilder,
-            name = expName,
+        return DesignPointRunPlan(
+            designPoint = designPoint,
+            experimentName = experimentName,
             inputs = inputs,
             runParameters = baseRunParameters.copy(
-                experimentName = expName,
+                experimentName = experimentName,
                 numberOfReplications = designPoint.numReplications
             ),
-            modelConfiguration = modelConfiguration
+            modelConfiguration = modelConfiguration,
+            outputDirectoryName = experimentName.replace(" ", "_") + "_OutputDir"
         )
     }
 
-    private fun applyStreamPolicy(scenarios: List<Scenario>) {
-        when (streamPolicy) {
-            DesignPointRandomStreamPolicy.INDEPENDENT_RANDOM_STREAMS -> {
-                scenarios.assignIndependentStreamAdvances(
-                    startingStreamAdvance = myStartingStreamAdvance,
-                    streamAdvanceSpacing = myStreamAdvanceSpacing
+    /**
+     * Runs one native design-point plan and returns its in-memory snapshot
+     * collector for the ordered commit phase.
+     */
+    private suspend fun runDesignPoint(plan: DesignPointRunPlan): DesignPointRunOutcome {
+        val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, plan.outputDirectoryName)
+        var collector: InMemorySnapshotCollector? = null
+        var simulationRun: SimulationRun? = null
+        try {
+            val model = modelBuilder.build(plan.modelConfiguration)
+            if (model.modelConfigurationManager != null && plan.modelConfiguration != null) {
+                model.configuration = plan.modelConfiguration
+            }
+            model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+            simulationRun = SimulationRun(
+                modelIdentifier = model.modelIdentifier,
+                experimentRunParameters = plan.runParameters,
+                inputs = plan.inputs,
+                modelConfiguration = plan.modelConfiguration
+            )
+
+            collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+            ConcurrentSimulationRunner(model).simulate(simulationRun)
+            return DesignPointRunOutcome(plan, simulationRun, collector)
+
+        } catch (e: CancellationException) {
+            collector?.close()
+            throw e
+        } catch (e: RuntimeException) {
+            collector?.close()
+            Model.logger.error {
+                "ParallelDesignedExperiment: design point '${plan.experimentName}' failed — ${e.message}"
+            }
+            val failedRun = simulationRun ?: failedDesignPointRun(plan, e)
+            if (failedRun.runErrorMsg.isEmpty()) {
+                failedRun.runErrorMsg = SimulationRunner.stackTraceAsString(e)
+                failedRun.results = emptyMap()
+            }
+            return DesignPointRunOutcome(plan, failedRun, null)
+        }
+    }
+
+    private fun failedDesignPointRun(
+        plan: DesignPointRunPlan,
+        error: RuntimeException
+    ): SimulationRun {
+        return SimulationRun(
+            modelIdentifier = "unavailable:${plan.experimentName}",
+            experimentRunParameters = plan.runParameters,
+            inputs = plan.inputs,
+            modelConfiguration = plan.modelConfiguration
+        ).also {
+            it.runErrorMsg = SimulationRunner.stackTraceAsString(error)
+            it.results = emptyMap()
+        }
+    }
+
+    private fun applyStreamPolicy(plans: List<DesignPointRunPlan>): List<DesignPointRunPlan> {
+        return when (streamPolicy) {
+            DesignPointRandomStreamPolicy.INDEPENDENT_RANDOM_STREAMS -> applyIndependentStreamPolicy(plans)
+            DesignPointRandomStreamPolicy.COMMON_RANDOM_NUMBERS -> plans.map { plan ->
+                plan.copy(
+                    runParameters = plan.runParameters.copy(numberOfStreamAdvancesPriorToRunning = 0)
                 )
             }
-            DesignPointRandomStreamPolicy.COMMON_RANDOM_NUMBERS -> {
-                scenarios.forEach { it.useCommonRandomNumbers() }
-            }
+        }
+    }
+
+    private fun applyIndependentStreamPolicy(plans: List<DesignPointRunPlan>): List<DesignPointRunPlan> {
+        var nextAdvance = myStartingStreamAdvance
+        return plans.map { plan ->
+            val runParameters = plan.runParameters.copy(
+                numberOfStreamAdvancesPriorToRunning = nextAdvance
+            )
+            nextAdvance += myStreamAdvanceSpacing ?: runParameters.numberOfReplications
+            plan.copy(runParameters = runParameters)
         }
     }
 

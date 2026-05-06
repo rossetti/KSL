@@ -1,5 +1,6 @@
 package ksl.simulation
 
+import kotlinx.coroutines.runBlocking
 import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.Factor
 import ksl.controls.experiments.ParallelDesignedExperiment
@@ -34,7 +35,7 @@ class ParallelDesignedExperimentReportingTest {
     private lateinit var pde: ParallelDesignedExperiment
 
     @BeforeAll
-    fun setup() {
+    fun setup() = runBlocking {
         pde = buildParallelDesignedExperiment()
         pde.simulateAll(numRepsPerDesignPoint = REPS_PER_POINT)
     }

@@ -1,8 +1,11 @@
 package ksl.simulation
 
+import kotlinx.coroutines.runBlocking
+import ksl.controls.experiments.ConcurrentSimulationRunner
 import ksl.controls.experiments.SimulationRun
 import ksl.controls.experiments.SimulationRunner
 import ksl.examples.book.appendixD.GIGcQueue
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -49,11 +52,7 @@ class SimulationRunnerTest {
 
     @BeforeAll
     fun setup() {
-        model = Model("SimRunTest", autoCSVReports = false)
-        model.numberOfReplications      = FAST_REPS
-        model.lengthOfReplication       = FAST_LENGTH
-        model.lengthOfReplicationWarmUp = FAST_WARMUP
-        GIGcQueue(model, numServers = 1, name = "MM1Q")
+        model = buildFastModel("SimRunTest")
         val runner = SimulationRunner(model)
         defaultRun = runner.simulate()
     }
@@ -139,7 +138,45 @@ class SimulationRunnerTest {
         assertGolden(DEFAULT_SYS_TIME_AVG, avg, "DEFAULT_SYS_TIME_AVG")
     }
 
+    @Test
+    fun synchronousRunnerStillMatchesFreshModelRunAfterSupportRefactor() {
+        val modelName = "SimRunSupportParity"
+        val firstRun = SimulationRunner(buildFastModel(modelName)).simulate()
+        val secondRun = SimulationRunner(buildFastModel(modelName)).simulate()
+
+        assertArrayEquals(
+            firstRun.replicationObservations("System Time")!!,
+            secondRun.replicationObservations("System Time")!!,
+            0.0,
+            "SimulationRunner should remain deterministic across fresh equivalent models"
+        )
+    }
+
+    @Test
+    fun concurrentSimulationRunnerMatchesSynchronousRunnerForEquivalentModel() = runBlocking {
+        val modelName = "ConcurrentSimRunParity"
+        val synchronous = SimulationRunner(buildFastModel(modelName)).simulate()
+        val concurrent = ConcurrentSimulationRunner(buildFastModel(modelName)).simulate()
+
+        assertEquals(synchronous.numberOfReplications, concurrent.numberOfReplications)
+        assertArrayEquals(
+            synchronous.replicationObservations("System Time")!!,
+            concurrent.replicationObservations("System Time")!!,
+            0.0,
+            "ConcurrentSimulationRunner should preserve SimulationRunner setup and result semantics"
+        )
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
+
+    private fun buildFastModel(modelName: String): Model {
+        return Model(modelName, autoCSVReports = false).also { model ->
+            model.numberOfReplications      = FAST_REPS
+            model.lengthOfReplication       = FAST_LENGTH
+            model.lengthOfReplicationWarmUp = FAST_WARMUP
+            GIGcQueue(model, numServers = 1, name = "MM1Q")
+        }
+    }
 
     private fun assertGolden(expected: Double, actual: Double, name: String) {
         if (expected.isNaN()) {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Disabled
 import kotlin.test.assertTrue
 
 /**
@@ -29,6 +30,7 @@ import kotlin.test.assertTrue
  *    Each test runs its own solver for 50 iterations with 20 reps/eval and
  *    verifies the best solution is within bounds and has a positive finite cost.
  */
+//@Disabled
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SolverAlgorithmsTest {
 

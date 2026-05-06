@@ -1,5 +1,7 @@
 package ksl.simulation
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import ksl.controls.experiments.DesignPointRandomStreamPolicy
 import ksl.controls.experiments.DesignedExperiment
 import ksl.controls.experiments.ExperimentalDesignIfc
@@ -12,10 +14,12 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import org.jetbrains.kotlinx.dataframe.api.*
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+//@Disabled
 class ParallelDesignedExperimentTest {
 
     companion object {
@@ -90,7 +94,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentMatchesDesignedExperimentWithDefaultIndependentStreams() {
+    fun parallelDesignedExperimentMatchesDesignedExperimentWithDefaultIndependentStreams() = runBlocking {
         val setup = buildDoeSetup("PDE_Parity_${System.nanoTime()}")
         val sequentialModel = buildModel(setup.modelName)
         val sequential = DesignedExperiment(
@@ -119,7 +123,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentUsesDefaultNumRepsPerDesignPointWhenNoOverrideSupplied() {
+    fun parallelDesignedExperimentUsesDefaultNumRepsPerDesignPointWhenNoOverrideSupplied() = runBlocking {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
         parallel.defaultNumRepsPerDesignPoint = 4
 
@@ -136,7 +140,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentMethodArgumentOverridesDefaultNumRepsPerDesignPoint() {
+    fun parallelDesignedExperimentMethodArgumentOverridesDefaultNumRepsPerDesignPoint() = runBlocking {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
         parallel.defaultNumRepsPerDesignPoint = 2
 
@@ -153,7 +157,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentUsesCumulativeIndependentStreamAdvancesByDefault() {
+    fun parallelDesignedExperimentUsesCumulativeIndependentStreamAdvancesByDefault() = runBlocking {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
 
         parallel.simulateAll(numRepsPerDesignPoint = 3)
@@ -168,7 +172,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentCanUseCommonRandomNumbers() {
+    fun parallelDesignedExperimentCanUseCommonRandomNumbers() = runBlocking {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
         parallel.useCommonRandomNumbers()
 
@@ -184,7 +188,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentAppliesCustomIndependentStreamSpacing() {
+    fun parallelDesignedExperimentAppliesCustomIndependentStreamSpacing() = runBlocking {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
         parallel.useIndependentRandomStreams(startingStreamAdvance = 2, streamAdvanceSpacing = 10)
 
@@ -218,7 +222,7 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
-    fun parallelDesignedExperimentProducesDesignedExperimentStyleDataFrames() {
+    fun parallelDesignedExperimentProducesDesignedExperimentStyleDataFrames() = runBlocking {
         val parallel = buildParallelDesignedExperiment()
 
         parallel.simulateAll(numRepsPerDesignPoint = REPS_PER_POINT)
@@ -227,5 +231,55 @@ class ParallelDesignedExperimentTest {
         assertEquals(12, parallel.responseAsDataFrame("System Time").rowsCount())
         assertEquals(12, parallel.replicatedDesignPointsWithResponse("System Time").rowsCount())
         assertEquals(4, parallel.observationsAsMap("System Time").size)
+    }
+
+    @Test
+    fun parallelDesignedExperimentCallbackUsesDesignPointOrder() = runBlocking {
+        val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
+        val callbackPoints = mutableListOf<Int>()
+
+        parallel.simulateAll(numRepsPerDesignPoint = 1) { designPoint, snapshot ->
+            callbackPoints.add(designPoint.number)
+            assertTrue(snapshot != null, "Successful design point should provide a snapshot")
+        }
+
+        assertEquals(
+            parallel.design.designPoints().map { it.number },
+            callbackPoints,
+            "Callbacks should be emitted in design-point commit order"
+        )
+    }
+
+    @Test
+    fun parallelDesignedExperimentPropagatesCancellationInsteadOfRecordingDesignPointFailure() {
+        val setup = buildDoeSetup("PDE_Cancel_${System.nanoTime()}")
+        var buildCount = 0
+        val cancellingBuilder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model {
+                buildCount++
+                if (buildCount == 1) {
+                    return buildModel(setup.modelName, length = 50.0, warmUp = 0.0)
+                }
+                throw CancellationException("intentional parallel design cancellation")
+            }
+        }
+        val parallel = ParallelDesignedExperiment(
+            name = "ParallelDesignedExperimentCancel_${System.nanoTime()}",
+            modelBuilder = cancellingBuilder,
+            factorSettings = setup.factorSettings,
+            design = setup.design
+        )
+
+        assertFailsWith<CancellationException> {
+            runBlocking { parallel.simulateAll(numRepsPerDesignPoint = 1) }
+        }
+
+        assertTrue(
+            parallel.simulationRuns.isEmpty(),
+            "Coroutine cancellation should not be converted into failed design-point runs"
+        )
     }
 }

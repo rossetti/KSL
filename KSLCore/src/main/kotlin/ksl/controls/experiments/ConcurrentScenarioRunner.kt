@@ -28,13 +28,13 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SnapshotBatchWriter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  *  Executes a list of [Scenario] instances concurrently and writes all results to a shared
@@ -84,6 +84,12 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
 ) : Identity(name) {
+
+    private data class ScenarioRunOutcome(
+        val scenario: Scenario,
+        val simulationRun: SimulationRun,
+        val collector: InMemorySnapshotCollector?
+    )
 
     private val myScenarios = mutableListOf<Scenario>()
 
@@ -202,66 +208,22 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
 
-        // Thread-safe map: written from async coroutines, read on the calling coroutine
-        // after awaitAll() establishes a happens-before edge.
-        val collectorMap = ConcurrentHashMap<String, InMemorySnapshotCollector>()
-
         // ── Phase 1: concurrent simulation ────────────────────────────────────
-        scenarios
+        val outcomes = scenarios
             .filter { it in myScenarios.indices }
             .map { myScenarios[it] }
             .map { scenario ->
                 async(SimulationDispatcher.default) {
-                    var modelIdentifier: String? = null
-                    try {
-                        val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
-                        val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
-
-                        val model = scenario.modelBuilder.build(scenario.modelConfiguration)
-                        modelIdentifier = model.modelIdentifier
-                        val simulationRun = SimulationRun(
-                            modelIdentifier = model.modelIdentifier,
-                            experimentRunParameters = scenario.scenarioRunParameters,
-                            inputs = scenario.inputs,
-                            stringInputs = scenario.stringInputs,
-                            jsonInputs = scenario.jsonInputs,
-                            modelConfiguration = scenario.modelConfiguration
-                        )
-                        scenario.simulationRun = simulationRun
-
-                        if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
-                            model.configuration = scenario.modelConfiguration!!
-                        }
-                        model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
-
-                        // Attach collector BEFORE the simulation lifecycle starts.
-                        // Accessing lifecycleEmitters lazily initialises SimulationLifeCycleBridge
-                        // and attaches it to the model as an observer.
-                        val collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
-                        collectorMap[scenario.name] = collector
-
-                        val runner = SimulationRunner(model)
-                        runner.simulate(simulationRun)
-                    } catch (e: RuntimeException) {
-                        // Isolate the failing scenario: log, remove its (partial) collector
-                        // so its incomplete snapshots are not committed, and allow all other
-                        // scenarios to complete normally.
-                        Model.logger.error {
-                            "ConcurrentScenarioRunner: scenario '${scenario.name}' failed — ${e.message}"
-                        }
-                        recordFailedSimulationRun(scenario, e, modelIdentifier)
-                        collectorMap.remove(scenario.name)?.close()
-                    }
+                    runScenario(scenario)
                 }
             }.awaitAll()
 
         // ── Phase 2: sequential DB commit ─────────────────────────────────────
-        // All concurrent writes to collectorMap are visible here (awaitAll happens-before).
+        // All simulation data is held in memory until this ordered commit phase.
         val writer = SnapshotBatchWriter(kslDb)
-        for (idx in scenarios) {
-            if (idx !in myScenarios.indices) continue
-            val scenario = myScenarios[idx]
-            val collector = collectorMap[scenario.name]
+        for (outcome in outcomes) {
+            val scenario = outcome.scenario
+            val collector = outcome.collector
             if (collector != null) {
                 collector.use { c ->
                     val snapshots = c.drain()
@@ -274,9 +236,54 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                     }
                 }
             } else {
-                // collector was removed in the error handler — scenario failed
+                // collector is null when the scenario failed with a non-cancellation exception
                 onScenarioComplete?.invoke(scenario.name, null)
             }
+        }
+    }
+
+    private suspend fun runScenario(scenario: Scenario): ScenarioRunOutcome {
+        var modelIdentifier: String? = null
+        var collector: InMemorySnapshotCollector? = null
+        try {
+            val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
+            val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
+
+            val model = scenario.modelBuilder.build(scenario.modelConfiguration)
+            modelIdentifier = model.modelIdentifier
+            val simulationRun = SimulationRun(
+                modelIdentifier = model.modelIdentifier,
+                experimentRunParameters = scenario.scenarioRunParameters,
+                inputs = scenario.inputs,
+                stringInputs = scenario.stringInputs,
+                jsonInputs = scenario.jsonInputs,
+                modelConfiguration = scenario.modelConfiguration
+            )
+            scenario.simulationRun = simulationRun
+
+            if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
+                model.configuration = scenario.modelConfiguration!!
+            }
+            model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+
+            // Attach collector before the simulation lifecycle starts so the
+            // completed-experiment snapshot is available for the ordered DB commit.
+            collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
+            ConcurrentSimulationRunner(model).simulate(simulationRun)
+            return ScenarioRunOutcome(scenario, simulationRun, collector)
+
+        } catch (e: CancellationException) {
+            collector?.close()
+            throw e
+        } catch (e: RuntimeException) {
+            // Isolate ordinary scenario failures, but do not treat coroutine
+            // cancellation as a failed scenario.
+            collector?.close()
+            Model.logger.error {
+                "ConcurrentScenarioRunner: scenario '${scenario.name}' failed — ${e.message}"
+            }
+            recordFailedSimulationRun(scenario, e, modelIdentifier)
+            return ScenarioRunOutcome(scenario, scenario.simulationRun!!, null)
         }
     }
 
