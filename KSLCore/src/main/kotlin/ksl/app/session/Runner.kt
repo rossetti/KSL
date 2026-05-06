@@ -157,7 +157,7 @@ class Runner {
         val mutableEvents = MutableSharedFlow<RunEvent>(replay = RUN_EVENT_REPLAY, extraBufferCapacity = 64)
         val result = CompletableDeferred<RunResult>()
 
-        val job = scope.launch(SimulationDispatcher.default) {
+        val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
             val model = request.model
 
             // Give each attachment access to the model and this coroutine's scope

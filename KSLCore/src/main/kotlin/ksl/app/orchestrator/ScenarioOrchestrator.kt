@@ -78,7 +78,7 @@ class ScenarioOrchestrator {
         val mutableEvents = MutableSharedFlow<RunEvent>(replay = 128, extraBufferCapacity = 64)
         val result = CompletableDeferred<RunResult>()
 
-        val job = scope.launch(SimulationDispatcher.default) {
+        val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
             val beginTime = Clock.System.now()
             var pendingResult: RunResult? = null
             try {

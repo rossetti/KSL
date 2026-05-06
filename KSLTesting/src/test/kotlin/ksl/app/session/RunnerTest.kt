@@ -149,7 +149,12 @@ class RunnerTest {
     fun `cancel after 5th replication emits RunCancelled and result is Cancelled`() = runBlocking {
         val totalReps = 30
         val cancelAfterRep = 5
-        val model = mm1Model("CancelTest", reps = totalReps, repLength = 500.0)
+        // repLength must be large enough that the simulation thread cannot finish
+        // all 30 reps before the test-thread cancel watcher fires.  500.0 was too
+        // small (~500 events/rep → entire run completes in < 1 ms on the IO thread).
+        // 50_000.0 gives ~50 K events/rep; the first 5 reps finish quickly but the
+        // remaining 25 are still in-flight when the cancel arrives.
+        val model = mm1Model("CancelTest", reps = totalReps, repLength = 50_000.0)
 
         val runner = Runner()
         val handle = runner.submit(RunRequest.SingleRun(model), scope = this)
