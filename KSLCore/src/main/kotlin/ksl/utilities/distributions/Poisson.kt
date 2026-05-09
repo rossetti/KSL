@@ -109,6 +109,20 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         }
     }
 
+    /**
+     * Second-order loss function in the **second factorial moment** form,
+     * as in Zipkin, *Foundations of Inventory Management* (2000):
+     *
+     *   G2(x) = (1/2) * E[max(X - x, 0) * max(X - x - 1, 0)]
+     *
+     * At x = 0 this evaluates to 0.5 * mu^2 (because for Poisson
+     * E[X(X-1)] = mu^2), NOT 0.5 * (mu^2 + mu).
+     *
+     * Note: some references (notably parts of the operations-research and
+     * VBA/Python inventory literature) define second-order loss as
+     * 0.5 * E[max(X - x, 0)^2] instead. The two conventions differ by
+     * mu/2 at x = 0. KSL uses the factorial-moment form throughout.
+     */
     override fun secondOrderLossFunction(x: Double): Double {
         val mu = this@Poisson.mean
         val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
@@ -294,7 +308,10 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
                     sum + exp(lnp)
                 }
             }
-            return sum
+            // Clamp: the iterative sum of exp(lnp) terms can drift slightly
+            // above 1.0 due to floating-point roundoff. Guarantee the result
+            // is a valid probability.
+            return min(1.0, sum)
         }
 
         /**
@@ -350,7 +367,7 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
             }
             val eps = KSLMath.defaultNumericalPrecision
             val ccdf = Gamma.incompleteGammaFunction(mean, (j + 1).toDouble(), DEFAULT_MAX_ITERATIONS, eps)
-            return 1.0 - ccdf
+            return (1.0 - ccdf).coerceIn(0.0, 1.0)
         }
 
         /**
@@ -394,13 +411,23 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         }
 
         /**
-         * Computes the 2nd order loss function for the
-         * distribution function for given value of x, G2(x) = (1/2)E[max(X-x,0)*max(X-x-1,0)]
+         * Computes the second-order loss function in the **second factorial
+         * moment** form, as in Zipkin, *Foundations of Inventory Management*
+         * (2000):
+         *
+         *   G2(x) = (1/2) * E[max(X - x, 0) * max(X - x - 1, 0)]
+         *
+         * At x = 0 this evaluates to 0.5 * mean^2 (because for Poisson
+         * E[X(X-1)] = mean^2), NOT 0.5 * (mean^2 + mean).
+         *
+         * Note: some references define second-order loss as
+         * 0.5 * E[max(X - x, 0)^2] instead. The two conventions differ by
+         * mean/2 at x = 0. KSL uses the factorial-moment form throughout.
          *
          * @param x         The value to be evaluated
          * @param mean      of the distribution
          * @param recursive true indicates that the recursive logarithmic algorithm should be used
-         * @return The loss function value, (1/2)E[max(X-x,0)*max(X-x-1,0)]
+         * @return The loss function value, (1/2) E[max(X-x,0) * max(X-x-1,0)]
          */
         fun poissonLF2(x: Double, mean: Double, recursive: Boolean = true): Double {
             require(mean > 0.0) { "Mean must be > 0)" }
