@@ -168,14 +168,54 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
         // ...compute the gamma(alpha, beta) inverse.
         //    ...compute the chi-square inverse with 2*alpha degrees of
         //      freedom, which is equivalent to gamma(alpha, 2).
-        val v = 2.0 * shape
-//        val g = myLNGammaOfShape
-//        val chi2 = invChiSquareDistribution(p, v, g, myMaxIterations, myNumericalPrecision)
-        val chi2 = invChiSquareDistribution(p, v, maxIncGammaIterations = maxNumIterations, EPS = numericalPrecision)
+        val tol = max(1e-12, 1e-8 * max(p, 1.0 - p))
 
-        // ...transfer chi-square to gamma.
-        x = scale * chi2 / 2.0
+        // For very small p the lower-tail asymptotic CDF(x) ~ (x/scale)^shape / (shape * Gamma(shape))
+        // gives a near-exact seed. AS 91's iterative refinement is unreliable that
+        // far into the tail, so use the asymptotic directly and polish via bisection.
+        if (p < SMALL_P_ASYMPTOTIC_THRESHOLD) {
+            val seed = scale * exp((ln(p) + ln(shape) + logGammaFunction(shape)) / shape)
+            return if (seed.isNaN() || seed <= 0.0 || abs(cdf(seed) - p) > tol) {
+                bisectInvCdf(p, tol)
+            } else {
+                seed
+            }
+        }
+
+        val v = 2.0 * shape
+        // Fix 3: AS 91 can diverge into negative chi-square or otherwise miss the
+        // root for extreme p; validate via CDF round-trip and fall back to bisection.
+        x = try {
+            val chi2 = invChiSquareDistribution(
+                p, v, maxIncGammaIterations = maxNumIterations, EPS = numericalPrecision
+            )
+            val candidate = scale * chi2 / 2.0
+            if (candidate < 0.0 || abs(cdf(candidate) - p) > tol) bisectInvCdf(p, tol) else candidate
+        } catch (_: IllegalArgumentException) {
+            bisectInvCdf(p, tol)
+        } catch (_: ksl.utilities.exceptions.KSLTooManyIterationsException) {
+            bisectInvCdf(p, tol)
+        }
         return x
+    }
+
+    private fun bisectInvCdf(p: Double, tol: Double): Double {
+        var lo = 0.0
+        var hi = max(mean(), 1.0)
+        var hiCdf = cdf(hi)
+        var grow = 0
+        while (hiCdf < p && grow < 200) {
+            hi *= 2.0
+            hiCdf = cdf(hi)
+            grow++
+        }
+        repeat(200) {
+            val mid = 0.5 * (lo + hi)
+            val pm = cdf(mid)
+            if (abs(pm - p) <= tol || (hi - lo) <= tol * max(1.0, mid)) return mid
+            if (pm < p) lo = mid else hi = mid
+        }
+        return 0.5 * (lo + hi)
     }
 
     override fun pdf(x: Double): Double {
@@ -281,6 +321,15 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
 
     companion object {
         const val DEFAULT_MAX_ITERATIONS : Int = 5000
+
+        /**
+         * Below this probability, [invCDF] uses the closed-form lower-tail
+         * asymptotic seed instead of AS 91. The asymptotic
+         * x ~ scale * (p * shape * Gamma(shape))^(1/shape) has leading-order
+         * error O(p^(1/shape)), which is below 1e-3 once p drops below ~1e-12
+         * for typical shape values.
+         */
+        const val SMALL_P_ASYMPTOTIC_THRESHOLD: Double = 1e-12
 
         /**
          * The maximum number of iterations permitted for the incomplete gamma function
@@ -406,7 +455,11 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
 
             // ...starting approximation for small chi-squared
 
-            if (dof >= -c5 * ln(p)) {
+            // Fix 2a: also use the small-chi-squared lower-tail seed when p is
+            // deep in the lower tail relative to the mode (ln(p) < -dof/2),
+            // since the Wilson-Hilferty Gaussian seed is inaccurate there.
+            val useWilsonHilferty = dof >= -c5 * ln(p) && ln(p) >= -0.5 * dof
+            if (useWilsonHilferty) {
                 //....starting approximation for v less than or equal to 0.32
                 if (dof > c3) {
                     // call to algorithm AS 111 - note that p has been tested above.
@@ -458,11 +511,21 @@ class Gamma(shape: Double = 1.0, scale: Double = 1.0, name: String? = null) :
                         + c36 * a))) / c38
                 s5 = (c13 + c21 * a + c * (c18 + c26 * a)) / c37
                 s6 = (c15 + c * (c23 + c16 * c)) / c38
-                ch = ch + t * (one + half * t * s1 - b * c * (s1 - b
+                val newCh = ch + t * (one + half * t * s1 - b * c * (s1 - b
                         * (s2 - b * (s3 - b * (s4 - b * (s5 - b * s6))))))
-                if (abs(q / ch - one) > e) {
-                    ppch = ch
-                    return ppch
+                // Fix 2b: damp the step so a poor Wilson-Hilferty seed cannot
+                // drive ch to a non-positive value or overshoot by orders of
+                // magnitude. The clamp is inactive near the root (t -> 0), so
+                // quadratic convergence is preserved.
+                ch = when {
+                    newCh.isNaN() || newCh <= 0.0 -> half * ch
+                    newCh > two * ch -> two * ch
+                    newCh < half * ch -> half * ch
+                    else -> newCh
+                }
+                // Fix 1: AS 91 exits when |q/ch - 1| < e (converged).
+                if (abs(q / ch - one) < e) {
+                    return ch
                 }
             }
             ppch = ch
