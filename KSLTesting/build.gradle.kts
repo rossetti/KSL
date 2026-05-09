@@ -1,6 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-// An example gradle build file for a project that depends on the JSL
+// Build file for KSLTesting: integration test suite for KSLCore.
 
 plugins {
     `java-library`
@@ -27,8 +25,6 @@ dependencies {
     implementation("org.junit.jupiter:junit-jupiter:5.9.0")
 
     testImplementation(kotlin("test"))
-    testImplementation(group = "io.github.rossetti", name = "JSLCore", version = "R1.0.12")
-    testImplementation(group = "io.github.rossetti", name = "JSLExtensions", version = "R1.0.12")
     implementation(kotlin("stdlib-jdk8"))
 }
 
