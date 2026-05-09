@@ -18,30 +18,35 @@
 
 package ksl.utilities.random
 
-import jsl.utilities.random.rvariable.JSLRandom
-import ksl.utilities.random.rvariable.BetaRV
 import ksl.utilities.random.rvariable.KSLRandom
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 class BetaTest {
 
-    var bKSL: BetaRV? = null
-    var bJSL: jsl.utilities.random.rvariable.BetaRV? = null
-    @BeforeEach
-    fun setUp() {
-//        bJSL = jsl.utilities.random.rvariable.BetaRV(2.4, 5.5, 1)
-//        bKSL = BetaRV(2.4, 5.5, 1)
-    }
+    /**
+     * First 10 values of JSLRandom.rBeta(2.4, 5.5, 1) captured from
+     * JSLCore R1.0.12. Locks the bit-exact stream KSLRandom.rBeta produces
+     * against the legacy parity reference.
+     */
+    private val expected = doubleArrayOf(
+        0.12896713131367227,
+        0.21334391742665174,
+        0.2095659411164776,
+        0.45417894707475426,
+        0.17311771767489864,
+        0.30057404483526967,
+        0.27864877828207596,
+        0.2282225939131053,
+        0.13354477127910927,
+        0.4087271078813605,
+    )
 
     @Test
-    fun test1() {
-        for (i in 1..10){
+    fun rBetaMatchesFrozenStream() {
+        for (i in expected.indices) {
             val a = KSLRandom.rBeta(2.4, 5.5, 1)
-            val b = JSLRandom.rBeta(2.4, 5.5, 1)
-            println("KSL a = $a  JSL b = $b")
-            Assertions.assertTrue(a == b)
+            assertEquals(expected[i], a, "iteration ${i + 1}")
         }
     }
 }

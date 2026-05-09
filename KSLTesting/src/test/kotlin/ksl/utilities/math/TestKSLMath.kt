@@ -18,10 +18,10 @@
 
 package ksl.utilities.math
 
-import jsl.utilities.math.JSLMath
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 
 internal class TestKSLMath {
 
@@ -34,16 +34,15 @@ internal class TestKSLMath {
     fun tearDown() {
     }
 
+    /**
+     * Reference values captured from JSLCore R1.0.12 (the parity test
+     * this method replaced). Pure deterministic functions, so the values
+     * are stable forever.
+     */
     @Test
-    fun testAgainstJSL(){
-        println(KSLMath)
-        println()
-        JSLMath.printParameters(System.out)
-        println()
-        assert(JSLMath.binomialCoefficient(10,3) == KSLMath.binomialCoefficient(10, 3))
-        println()
-        assert(JSLMath.logFactorial(100) == KSLMath.logFactorial(100))
-        println()
-        assert(JSLMath.factorial(100) == KSLMath.factorial(100))
+    fun matchesFrozenReferenceValues() {
+        assertEquals(120.0, KSLMath.binomialCoefficient(10, 3))
+        assertEquals(363.73937555566835, KSLMath.logFactorial(100))
+        assertEquals(9.332621545372994E157, KSLMath.factorial(100))
     }
 }

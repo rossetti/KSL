@@ -40,46 +40,39 @@ internal class RNStreamProviderTest {
     fun tearDown() {
     }
 
-    @Test
-    fun testAgainstJSL(){
-        val jsl = buildJSLRNGString()
-        val ksl = buildKSLRNGString()
-        println("-----------------------------------------------------")
-        println("The test program should print:")
-        println(jsl)
-        assertEquals(jsl, ksl)
-        println()
-    }
+    /**
+     * Output captured from jsl.utilities.random.rng.RNStreamProvider at
+     * JSLCore R1.0.12. Locks KSL's RNStreamProvider against the legacy
+     * parity reference.
+     */
+    private val expectedJslOutput = """
+        Default stream is stream 1
+        Generate 3 random numbers
+        u = 0.12701112204657714
+        u = 0.3185275653967945
+        u = 0.3091860155832701
+        Advance to next sub-stream and get some more random numbers
+        u = 0.07939898979733463
+        u = 0.4803395047575741
+        u = 0.8583222470551328
+        Notice that they are different from the first 3.
+        Reset the stream to the beginning of its sequence
+        u = 0.12701112204657714
+        u = 0.3185275653967945
+        u = 0.3091860155832701
+        Notice that they are the same as the first 3.
+        Get another random number stream
+        2nd stream
+        u = 0.7285097861965271
+        u = 0.9655872822837334
+        u = 0.9961841304801171
+        Notice that they are different from the first 3.
 
-    private fun buildJSLRNGString(): String {
-        val s = StringBuilder()
-        val provider = jsl.utilities.random.rng.RNStreamProvider()
-        val s1 = provider.defaultRNStream()
-        s.appendLine("Default stream is stream 1")
-        s.appendLine("Generate 3 random numbers")
-        for (i in 1..3) {
-            s.appendLine("u = " + s1.randU01())
-        }
-        s1.advanceToNextSubstream()
-        s.appendLine("Advance to next sub-stream and get some more random numbers")
-        for (i in 1..3) {
-            s.appendLine("u = " + s1.randU01())
-        }
-        s.appendLine("Notice that they are different from the first 3.")
-        s1.resetStartStream()
-        s.appendLine("Reset the stream to the beginning of its sequence")
-        for (i in 1..3) {
-            s.appendLine("u = " + s1.randU01())
-        }
-        s.appendLine("Notice that they are the same as the first 3.")
-        s.appendLine("Get another random number stream")
-        val s2 = provider.nextRNStream()
-        s.appendLine("2nd stream")
-        for (i in 1..3) {
-            s.appendLine("u = " + s2.randU01())
-        }
-        s.appendLine("Notice that they are different from the first 3.")
-        return s.toString()
+    """.trimIndent()
+
+    @Test
+    fun ksl_and_jsl_streamProviders_produceSameOutput() {
+        assertEquals(expectedJslOutput, buildKSLRNGString())
     }
 
     private fun buildKSLRNGString(): String {
