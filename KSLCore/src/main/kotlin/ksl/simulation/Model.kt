@@ -1677,17 +1677,17 @@ class Model @JvmOverloads constructor(
 
     /**
      * Validates the provided set of response names are associated with the model's responses
-     * (Response, TWResponse or Counter).
+     * ([ksl.modeling.variable.Response], [ksl.modeling.variable.TWResponse], or
+     * [ksl.modeling.variable.Counter]).
      *
      * @param responseNames the set of response names to be validated
-     * @return true if all names in the set are valid, false otherwise
+     * @return true if every name in [responseNames] is a response on this model;
+     *         false if any name does not resolve. An empty input set returns true
+     *         (vacuously satisfied).
      */
     fun validateResponseNames(responseNames: Set<String>): Boolean {
-        val names = responseNames
-        for(rsn in responseNames){
-            if (rsn !in names) return false
-        }
-        return true
+        val modelResponses = this.responseNames.toSet()
+        return modelResponses.containsAll(responseNames)
     }
 
     /**

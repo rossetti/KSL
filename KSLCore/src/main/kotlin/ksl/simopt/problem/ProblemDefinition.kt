@@ -1229,14 +1229,22 @@ class ProblemDefinition @JvmOverloads constructor(
     }
 
     /**
-     * Validates whether the provided model has the input and response names required by the problem.
+     * Validates whether the provided model has the input names, objective
+     * function response name, and any additional response names required by
+     * the problem.
+     *
+     * Both [objFnResponseName] and [responseNames] (the response-constraint
+     * names) are checked against the model; the objective response is
+     * included via [allResponseNames] so a problem whose objective name does
+     * not resolve on the model is correctly reported as invalid.
      *
      * @param model the model against which the problem definition will be validated
-     * @return true if the input names and response names in the problem definition are valid for the model; false otherwise
+     * @return true if the input names, objective response name, and response-constraint
+     *         names in the problem definition all resolve on the model; false otherwise
      */
     fun validateProblemDefinition(model: Model): Boolean {
         val inputs = inputNames.toSet()
-        val responses = responseNames.toSet()
+        val responses = allResponseNames.toSet()
         if (!model.validateInputKeys(inputs)) return false
         if (!model.validateResponseNames(responses)) return false
         return true

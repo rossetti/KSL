@@ -1,10 +1,13 @@
 package ksl.simulation
 
+import ksl.modeling.variable.RandomVariable
+import ksl.modeling.variable.Response
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputDefinition
 import ksl.simopt.problem.OptimizationType
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
+import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -314,5 +317,65 @@ class ProblemDefinitionTest {
         assertEquals(1, pd.inputSize)
         assertNotNull(pd.inputDefinitions["q"])
         assertTrue(pd.isIntegerOrdered)
+    }
+
+    // ── Group: validateProblemDefinition vs. a probe model ────────────────────
+
+    /**
+     * Builds a minimal probe model whose inputs and responses can be matched
+     * by hand.  The single RV `x` produces input key `"x.mean"`; responses
+     * "TotalCost" and "FillRate" are added or omitted via the flags so each
+     * test case can isolate the validation gap it cares about.
+     */
+    private fun probeModel(
+        includeTotalCost: Boolean,
+        includeFillRate: Boolean
+    ): Model {
+        val model = Model("ValidateProblemTestModel", autoCSVReports = false)
+        RandomVariable(model, ExponentialRV(1.0), name = "x")
+        if (includeTotalCost) Response(model, "TotalCost")
+        if (includeFillRate) Response(model, "FillRate")
+        return model
+    }
+
+    private fun probeProblem(
+        objFnResponseName: String = "TotalCost",
+        responseNames: List<String> = listOf("FillRate")
+    ): ProblemDefinition {
+        val pd = ProblemDefinition(
+            problemName       = "ValidateProblemTest",
+            modelIdentifier   = "ValidateProblemTestModel",
+            objFnResponseName = objFnResponseName,
+            inputNames        = listOf("x.mean"),
+            responseNames     = responseNames
+        )
+        pd.inputVariable("x.mean", 0.1, 10.0)
+        return pd
+    }
+
+    @Test
+    fun validateProblemDefinitionReturnsTrueWhenAllNamesResolve() {
+        val pd = probeProblem()
+        val model = probeModel(includeTotalCost = true, includeFillRate = true)
+        assertTrue(pd.validateProblemDefinition(model))
+    }
+
+    @Test
+    fun validateProblemDefinitionReturnsFalseWhenObjectiveResponseNotOnModel() {
+        // Regression test for the gap closed in Phase 5.85 Step 5: prior to
+        // the fix, validateProblemDefinition did not include objFnResponseName
+        // in the response-name set passed to model.validateResponseNames, so a
+        // problem whose objective response was missing on the model would
+        // pass validation.
+        val pd = probeProblem(objFnResponseName = "TotalCost")
+        val model = probeModel(includeTotalCost = false, includeFillRate = true)
+        assertFalse(pd.validateProblemDefinition(model))
+    }
+
+    @Test
+    fun validateProblemDefinitionReturnsFalseWhenResponseConstraintNameNotOnModel() {
+        val pd = probeProblem(responseNames = listOf("FillRate"))
+        val model = probeModel(includeTotalCost = true, includeFillRate = false)
+        assertFalse(pd.validateProblemDefinition(model))
     }
 }
