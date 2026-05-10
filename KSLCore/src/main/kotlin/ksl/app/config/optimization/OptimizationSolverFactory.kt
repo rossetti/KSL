@@ -138,23 +138,6 @@ class OptimizationSolverFactory(
         return pd
     }
 
-    // ── Cache wiring ────────────────────────────────────────────────────────
-
-    private fun makeSolutionCache(eval: EvaluationSpec): SolutionCacheIfc {
-        // The engine factories don't accept a null SolutionCacheIfc; a disabled
-        // cache is implemented by toggling allowCacheLookups / allowCachePuts
-        // off on a MemorySolutionCache.
-        val cache = MemorySolutionCache()
-        if (!eval.useSolutionCache) {
-            cache.allowCacheLookups = false
-            cache.allowCachePuts = false
-        }
-        return cache
-    }
-
-    private fun makeSimulationRunCache(eval: EvaluationSpec): SimulationRunCacheIfc? =
-        if (eval.useSimulationRunCache) MemorySimulationRunCache() else null
-
     // ── Solver dispatch ──────────────────────────────────────────────────────
 
     private fun dispatch(
@@ -357,5 +340,42 @@ class OptimizationSolverFactory(
             PenaltyFunctionWithMemory(basePenalty, iterationExponent, violationExponent)
         is PenaltyFunctionSpec.DynamicPolynomial ->
             DynamicPolynomialPenalty(basePenalty, iterationExponent, violationExponent)
+    }
+
+    companion object {
+
+        /**
+         * Builds the [SolutionCacheIfc] for an evaluator from [eval].
+         *
+         * The engine factories don't accept a null [SolutionCacheIfc], so a
+         * "disabled" solution cache is implemented by toggling
+         * `allowCacheLookups` and `allowCachePuts` to `false` on a
+         * [MemorySolutionCache].
+         *
+         * Exposed (rather than kept private) so module-external tests can
+         * verify the spec → engine cache mapping without needing a public
+         * accessor on `Evaluator`.
+         */
+        fun makeSolutionCache(eval: EvaluationSpec): SolutionCacheIfc {
+            val cache = MemorySolutionCache()
+            if (!eval.useSolutionCache) {
+                cache.allowCacheLookups = false
+                cache.allowCachePuts = false
+            }
+            return cache
+        }
+
+        /**
+         * Builds the optional [SimulationRunCacheIfc] for an evaluator from
+         * [eval].  Returns `null` when [EvaluationSpec.useSimulationRunCache]
+         * is `false`, mirroring the engine's "no cache" convention.
+         *
+         * Exposed (rather than kept private) so module-external tests can
+         * verify the spec → engine cache mapping; `Evaluator` does not
+         * publicly expose its simulation-run cache, so this is the only
+         * direct point of inspection.
+         */
+        fun makeSimulationRunCache(eval: EvaluationSpec): SimulationRunCacheIfc? =
+            if (eval.useSimulationRunCache) MemorySimulationRunCache() else null
     }
 }

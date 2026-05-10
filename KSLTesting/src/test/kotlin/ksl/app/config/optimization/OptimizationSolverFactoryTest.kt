@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -253,13 +254,50 @@ class OptimizationSolverFactoryTest {
         assertEquals(false, cache.allowCachePuts)
     }
 
-    // ── 9. ByProviderId without a provider throws ───────────────────────────
+    // ── 9. Cache-builder helpers (spec → engine mapping) ────────────────────
     //
-    // The simulation-run cache is held by `Evaluator`'s private `simulator`
-    // field (a `SimulationOracleIfc`); the engine does not currently expose
-    // it, so we cannot verify `useSimulationRunCache` plumbing from a unit
-    // test without changing engine visibility.  Trust the wiring on the
-    // path through `Evaluator.createProblemEvaluator(simulationRunCache=...)`.
+    // These tests target the public companion helpers
+    // [OptimizationSolverFactory.makeSolutionCache] and
+    // [OptimizationSolverFactory.makeSimulationRunCache] directly rather than
+    // observing the constructed Evaluator.  Evaluator does not expose its
+    // simulation-run cache publicly, and we deliberately do not modify the
+    // engine API just to enable observation here.
+
+    @Test
+    fun `makeSimulationRunCache returns non-null when useSimulationRunCache is true`() {
+        val cache = OptimizationSolverFactory.makeSimulationRunCache(
+            EvaluationSpec(useSimulationRunCache = true)
+        )
+        assertNotNull(cache, "Expected non-null cache when useSimulationRunCache=true")
+    }
+
+    @Test
+    fun `makeSimulationRunCache returns null when useSimulationRunCache is false`() {
+        val cache = OptimizationSolverFactory.makeSimulationRunCache(
+            EvaluationSpec(useSimulationRunCache = false)
+        )
+        assertNull(cache, "Expected null cache when useSimulationRunCache=false")
+    }
+
+    @Test
+    fun `makeSolutionCache returns a usable cache when useSolutionCache is true`() {
+        val cache = OptimizationSolverFactory.makeSolutionCache(
+            EvaluationSpec(useSolutionCache = true)
+        )
+        assertEquals(true, cache.allowCacheLookups)
+        assertEquals(true, cache.allowCachePuts)
+    }
+
+    @Test
+    fun `makeSolutionCache returns a disabled cache when useSolutionCache is false`() {
+        val cache = OptimizationSolverFactory.makeSolutionCache(
+            EvaluationSpec(useSolutionCache = false)
+        )
+        assertEquals(false, cache.allowCacheLookups)
+        assertEquals(false, cache.allowCachePuts)
+    }
+
+    // ── 10. ByProviderId without a provider throws ──────────────────────────
 
     @Test
     fun `ByProviderId reference without a provider throws IllegalArgumentException`() {
