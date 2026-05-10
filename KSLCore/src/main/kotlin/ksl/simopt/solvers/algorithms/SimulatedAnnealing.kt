@@ -52,7 +52,8 @@ class SimulatedAnnealing @JvmOverloads constructor(
 ) : StochasticSolver(problemDefinition, evaluator, maxIterations, replicationsPerEvaluation, streamNum, streamProvider, name) {
 
     init {
-        require(stoppingTemperature > 0.0) { "The final temperature must be positive" }
+        require(stoppingTemperature.isFinite()) {"The stopping temperature must be finite."}
+        require(stoppingTemperature > 0.0) { "The stopping temperature must be positive" }
     }
 
     /**
@@ -328,7 +329,8 @@ class SimulatedAnnealing @JvmOverloads constructor(
         @JvmStatic
         var defaultInitialTemperature = 1000.0
             set(value) {
-                require(value > 0.0) { "The initial temperature must be positive" }
+                require(value.isFinite()) {"The default initial temperature must be finite."}
+                require(value > 0.0) { "The default initial temperature must be positive" }
                 field = value
             }
 
@@ -349,6 +351,7 @@ class SimulatedAnnealing @JvmOverloads constructor(
         @JvmStatic
         var defaultStoppingTemperature = 0.001
             set(value) {
+                require(value.isFinite()) {"The default stopping temperature must be finite."}
                 require(value > 0.0) { "The default stopping temperature must be positive" }
                 field = value
             }
