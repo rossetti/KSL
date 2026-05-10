@@ -18,6 +18,7 @@ data class LinearConstraint(
 ) : ConstraintIfc {
 
     init {
+        require(equation.isNotEmpty()) { "The equation must have elements." }
         for ((name, _) in equation) {
             require(name.isNotBlank()) { "An element name within the linear equation cannot be blank" }
         }
