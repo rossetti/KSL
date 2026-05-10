@@ -10,6 +10,7 @@ sealed class TemperatureConfiguration {
      */
     data class Fixed(val temperature: Double) : TemperatureConfiguration() {
         init {
+            require(temperature.isFinite()) {"The temperature must be finite"}
             require(temperature > 0.0) { "Temperature must be positive" }
         }
     }
