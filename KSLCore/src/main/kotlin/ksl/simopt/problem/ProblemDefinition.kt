@@ -164,7 +164,10 @@ class ProblemDefinition @JvmOverloads constructor(
     val responseNames: List<String>
 
     init {
+        require(indifferenceZoneParameter.isFinite()) {"The indifference zone parameter must be finite."}
         require(indifferenceZoneParameter >= 0.0) { "The indifference zone parameter must be >= 0.0" }
+        require(objFnGranularity.isFinite()) {"The objective function granularity must be finite."}
+        require(objFnGranularity >= 0.0) { "The objective function granularity must be >=  0.0" }
         require(objFnResponseName.isNotBlank()) { "The objective function response name cannot be blank" }
         require(inputNames.isNotEmpty()) { "The set of input names cannot be empty" }
         for (name: String in inputNames) {
