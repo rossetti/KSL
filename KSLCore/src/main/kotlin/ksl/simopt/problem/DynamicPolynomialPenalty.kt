@@ -19,6 +19,9 @@ class DynamicPolynomialPenalty(
 ) : PenaltyFunctionIfc {
 
     init {
+        require(basePenalty.isFinite()) {"The base penalty must be finite."}
+        require(iterationExponent.isFinite()) {"The iteration exponent must be finite."}
+        require(violationExponent.isFinite()) {"The violation exponent must be finite"}
         require(basePenalty > 0.0) { "basePenalty must be positive, was $basePenalty" }
         require(violationExponent > 0.0) { "violationExponent must be positive, was $violationExponent" }
         require(iterationExponent >= 0.0) { "iterationExponent must be non-negative, was $iterationExponent" }
