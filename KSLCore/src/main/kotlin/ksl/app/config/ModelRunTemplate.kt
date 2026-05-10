@@ -66,4 +66,10 @@ data class ModelRunTemplate(
     val runParameters: ExperimentRunParameters,
     val controls: ModelControlsExport = ModelControlsExport(modelName = ""),
     val rvOverrides: List<RVParameterOverride> = emptyList()
-)
+) {
+    init {
+        require(modelConfiguration == null || modelConfiguration.keys.all { it.isNotBlank() }) {
+            "every key in modelConfiguration must be non-blank when modelConfiguration is non-null"
+        }
+    }
+}

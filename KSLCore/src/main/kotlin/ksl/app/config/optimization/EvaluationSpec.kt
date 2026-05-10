@@ -33,10 +33,7 @@ import kotlinx.serialization.Serializable
  *   [maxFeasibleSamplingIterations], and [solutionPrecision] are set
  *   directly on the [ksl.simopt.solvers.Solver] base class.
  *
- * Validation of these values (positivity of `snapshotFrequency`, etc.) is
- * performed in Step 4 by `OptimizationConfigurationValidator`; this type
- * does not validate in `init` so malformed documents can be decoded and
- * reported.
+ * Domain invariants are enforced in `init`.
  *
  * Nullable fields use `null` to mean "leave the solver default in place"
  * so persisted documents do not bake in the current default values.
@@ -63,4 +60,16 @@ data class EvaluationSpec(
     val ensureProblemFeasibleRequests: Boolean = false,
     val maxFeasibleSamplingIterations: Int? = null,
     val solutionPrecision: Double? = null
-)
+) {
+    init {
+        require(snapshotFrequency > 0) {
+            "snapshotFrequency must be > 0; was $snapshotFrequency"
+        }
+        require(maxFeasibleSamplingIterations == null || maxFeasibleSamplingIterations > 0) {
+            "maxFeasibleSamplingIterations must be > 0 when non-null; was $maxFeasibleSamplingIterations"
+        }
+        require(solutionPrecision == null || (solutionPrecision > 0.0 && solutionPrecision.isFinite())) {
+            "solutionPrecision must be > 0 and finite when non-null; was $solutionPrecision"
+        }
+    }
+}

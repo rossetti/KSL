@@ -51,4 +51,10 @@ data class RVParameterOverride(
     val rvName: String,
     val paramName: String,
     val value: Double
-)
+) {
+    init {
+        require(rvName.isNotBlank()) { "rvName must be non-blank" }
+        require(paramName.isNotBlank()) { "paramName must be non-blank" }
+        require(value.isFinite()) { "value must be finite; was $value" }
+    }
+}

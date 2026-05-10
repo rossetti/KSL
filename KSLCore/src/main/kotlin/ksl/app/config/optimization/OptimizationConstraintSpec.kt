@@ -41,19 +41,38 @@ enum class InequalityType { LESS_THAN, GREATER_THAN }
  * problem; missing input names are treated as having coefficient 0
  * (matching engine semantics).
  *
- * Validation (input-name resolution, finite coefficients, finite RHS) is the
- * responsibility of `OptimizationConfigurationValidator` in Step 4.
+ * Domain invariants are enforced in `init` so that malformed constraints
+ * cannot be constructed.  Cross-reference checks (coefficient keys must
+ * match declared decision-variable names) require the enclosing problem
+ * and remain the responsibility of `OptimizationConfigurationValidator`.
  *
- * @property coefficients linear coefficients keyed by decision-variable name
- * @property rhsValue right-hand-side value; defaults to 0.0
+ * @property coefficients linear coefficients keyed by decision-variable
+ *           name; must be non-empty, every key non-blank, every value
+ *           finite
+ * @property rhsValue right-hand-side value; must be finite; defaults to 0.0
  * @property inequalityType direction of the inequality
+ * @property penaltyFunction optional per-constraint penalty function
+ *           overriding the problem-level default; `null` (the default)
+ *           inherits [OptimizationProblemSpec.defaultLinearPenalty]
  */
 @Serializable
 data class LinearConstraintSpec(
     val coefficients: Map<String, Double>,
     val rhsValue: Double = 0.0,
-    val inequalityType: InequalityType = InequalityType.LESS_THAN
-)
+    val inequalityType: InequalityType = InequalityType.LESS_THAN,
+    val penaltyFunction: PenaltyFunctionSpec? = null
+) {
+    init {
+        require(coefficients.isNotEmpty()) { "coefficients must not be empty" }
+        require(coefficients.keys.all { it.isNotBlank() }) {
+            "every key in coefficients must be non-blank"
+        }
+        require(coefficients.values.all { it.isFinite() }) {
+            "every value in coefficients must be finite"
+        }
+        require(rhsValue.isFinite()) { "rhsValue must be finite; was $rhsValue" }
+    }
+}
 
 /**
  * Serializable counterpart to
@@ -63,18 +82,23 @@ data class LinearConstraintSpec(
  * compared, via [inequalityType], to [rhsValue], augmented with optional
  * [target] and [tolerance] parameters used by some solvers as soft cut-offs.
  *
- * Validation (response-name resolution against the built model, finite RHS,
- * `tolerance >= 0`) is the responsibility of
- * `OptimizationConfigurationValidator` in Step 4.
+ * Domain invariants are enforced in `init`.  Cross-reference checks
+ * (response-name resolution against the built model) remain the
+ * responsibility of `OptimizationConfigurationValidator`.
  *
- * @property name name of the response being constrained; must appear in
- *           [OptimizationProblemSpec.responseNames] and on the built model
- * @property rhsValue right-hand-side value
+ * @property name name of the response being constrained; must be non-blank
+ *           and must appear in [OptimizationProblemSpec.responseNames] and
+ *           on the built model
+ * @property rhsValue right-hand-side value; must be finite
  * @property inequalityType direction of the inequality; defaults to
  *           [InequalityType.LESS_THAN]
- * @property target solver-specific cut-off parameter; defaults to 0.0
- * @property tolerance solver-specific tolerance around [target]; defaults to
- *           0.0; must be non-negative when validated
+ * @property target solver-specific cut-off parameter; must be finite;
+ *           defaults to 0.0
+ * @property tolerance solver-specific tolerance around [target]; must be
+ *           `>= 0` and finite; defaults to 0.0
+ * @property penaltyFunction optional per-constraint penalty function
+ *           overriding the problem-level default; `null` (the default)
+ *           inherits [OptimizationProblemSpec.defaultResponsePenalty]
  */
 @Serializable
 data class ResponseConstraintSpec(
@@ -82,5 +106,15 @@ data class ResponseConstraintSpec(
     val rhsValue: Double,
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
     val target: Double = 0.0,
-    val tolerance: Double = 0.0
-)
+    val tolerance: Double = 0.0,
+    val penaltyFunction: PenaltyFunctionSpec? = null
+) {
+    init {
+        require(name.isNotBlank()) { "name must be non-blank" }
+        require(rhsValue.isFinite()) { "rhsValue must be finite; was $rhsValue" }
+        require(target.isFinite()) { "target must be finite; was $target" }
+        require(tolerance >= 0.0 && tolerance.isFinite()) {
+            "tolerance must be >= 0 and finite; was $tolerance"
+        }
+    }
+}

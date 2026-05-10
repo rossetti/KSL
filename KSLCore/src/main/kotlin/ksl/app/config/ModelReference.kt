@@ -62,7 +62,11 @@ sealed class ModelReference {
      */
     @Serializable
     @SerialName("byProviderId")
-    data class ByProviderId(val providerId: String) : ModelReference()
+    data class ByProviderId(val providerId: String) : ModelReference() {
+        init {
+            require(providerId.isNotBlank()) { "providerId must be non-blank" }
+        }
+    }
 
     /**
      * References a model whose [ksl.simulation.ModelBuilderIfc] is loaded from a JAR file
@@ -78,5 +82,12 @@ sealed class ModelReference {
     data class ByJar(
         val jarPath: String,
         val builderClassName: String? = null
-    ) : ModelReference()
+    ) : ModelReference() {
+        init {
+            require(jarPath.isNotBlank()) { "jarPath must be non-blank" }
+            require(builderClassName == null || builderClassName.isNotBlank()) {
+                "builderClassName must be non-blank when non-null"
+            }
+        }
+    }
 }

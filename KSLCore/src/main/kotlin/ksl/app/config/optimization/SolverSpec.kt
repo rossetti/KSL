@@ -38,7 +38,13 @@ import kotlinx.serialization.Serializable
  *           validated
  */
 @Serializable
-data class RandomRestartSpec(val maxNumRestarts: Int)
+data class RandomRestartSpec(val maxNumRestarts: Int) {
+    init {
+        require(maxNumRestarts > 0) {
+            "maxNumRestarts must be > 0; was $maxNumRestarts"
+        }
+    }
+}
 
 /**
  * Strategy for choosing the initial temperature of a simulated-annealing
@@ -60,7 +66,13 @@ sealed class TemperatureSpec {
      */
     @Serializable
     @SerialName("fixed")
-    data class Fixed(val temperature: Double) : TemperatureSpec()
+    data class Fixed(val temperature: Double) : TemperatureSpec() {
+        init {
+            require(temperature > 0.0 && temperature.isFinite()) {
+                "temperature must be > 0 and finite; was $temperature"
+            }
+        }
+    }
 
     /**
      * Estimate the initial temperature by random-walk calibration.
@@ -76,7 +88,16 @@ sealed class TemperatureSpec {
     data class AutoCalibrate(
         val targetProbability: Double = 0.8,
         val sampleSize: Int = 100
-    ) : TemperatureSpec()
+    ) : TemperatureSpec() {
+        init {
+            require(targetProbability > 0.0 && targetProbability < 1.0) {
+                "targetProbability must be strictly in (0, 1); was $targetProbability"
+            }
+            require(sampleSize > 0) {
+                "sampleSize must be > 0; was $sampleSize"
+            }
+        }
+    }
 }
 
 /**
@@ -100,7 +121,22 @@ sealed class CoolingScheduleSpec {
         val initialTemperature: Double,
         val stoppingTemperature: Double,
         val maxIterations: Int
-    ) : CoolingScheduleSpec()
+    ) : CoolingScheduleSpec() {
+        init {
+            require(initialTemperature > 0.0 && initialTemperature.isFinite()) {
+                "initialTemperature must be > 0 and finite; was $initialTemperature"
+            }
+            require(stoppingTemperature > 0.0 && stoppingTemperature.isFinite()) {
+                "stoppingTemperature must be > 0 and finite; was $stoppingTemperature"
+            }
+            require(stoppingTemperature < initialTemperature) {
+                "stoppingTemperature ($stoppingTemperature) must be strictly less than initialTemperature ($initialTemperature)"
+            }
+            require(maxIterations > 0) {
+                "maxIterations must be > 0; was $maxIterations"
+            }
+        }
+    }
 
     /** Geometric cooling: temperature at iteration `i` is
      *  `initialTemperature * coolingRate^i`. */
@@ -109,13 +145,28 @@ sealed class CoolingScheduleSpec {
     data class Exponential(
         val initialTemperature: Double,
         val coolingRate: Double = 0.95
-    ) : CoolingScheduleSpec()
+    ) : CoolingScheduleSpec() {
+        init {
+            require(initialTemperature > 0.0 && initialTemperature.isFinite()) {
+                "initialTemperature must be > 0 and finite; was $initialTemperature"
+            }
+            require(coolingRate > 0.0 && coolingRate < 1.0) {
+                "coolingRate must be strictly in (0, 1); was $coolingRate"
+            }
+        }
+    }
 
     /** Logarithmic cooling; very slow but with theoretical convergence
      *  guarantees. */
     @Serializable
     @SerialName("logarithmic")
-    data class Logarithmic(val initialTemperature: Double) : CoolingScheduleSpec()
+    data class Logarithmic(val initialTemperature: Double) : CoolingScheduleSpec() {
+        init {
+            require(initialTemperature > 0.0 && initialTemperature.isFinite()) {
+                "initialTemperature must be > 0 and finite; was $initialTemperature"
+            }
+        }
+    }
 }
 
 /**
@@ -150,7 +201,22 @@ sealed class CESamplerSpec {
         val sdSmoother: Double = 0.85,
         val coefficientOfVariationThreshold: Double = 0.03,
         val streamNum: Int = 0
-    ) : CESamplerSpec()
+    ) : CESamplerSpec() {
+        init {
+            require(meanSmoother > 0.0 && meanSmoother <= 1.0) {
+                "meanSmoother must be in (0, 1]; was $meanSmoother"
+            }
+            require(sdSmoother > 0.0 && sdSmoother <= 1.0) {
+                "sdSmoother must be in (0, 1]; was $sdSmoother"
+            }
+            require(coefficientOfVariationThreshold > 0.0 && coefficientOfVariationThreshold.isFinite()) {
+                "coefficientOfVariationThreshold must be > 0 and finite; was $coefficientOfVariationThreshold"
+            }
+            require(streamNum >= 0) {
+                "streamNum must be >= 0; was $streamNum"
+            }
+        }
+    }
 }
 
 /**
@@ -206,7 +272,15 @@ sealed class SolverSpec {
         override val streamNum: Int = 0,
         override val name: String? = null,
         val replicationsPerEvaluation: Int
-    ) : SolverSpec()
+    ) : SolverSpec() {
+        init {
+            require(maxIterations > 0) { "maxIterations must be > 0; was $maxIterations" }
+            require(streamNum >= 0) { "streamNum must be >= 0; was $streamNum" }
+            require(replicationsPerEvaluation > 0) {
+                "replicationsPerEvaluation must be > 0; was $replicationsPerEvaluation"
+            }
+        }
+    }
 
     /** Simulated Annealing.  Mirrors
      *  [ksl.simopt.solvers.algorithms.SimulatedAnnealing]. */
@@ -222,7 +296,18 @@ sealed class SolverSpec {
         val temperature: TemperatureSpec = TemperatureSpec.AutoCalibrate(),
         val coolingSchedule: CoolingScheduleSpec,
         val stoppingTemperature: Double
-    ) : SolverSpec()
+    ) : SolverSpec() {
+        init {
+            require(maxIterations > 0) { "maxIterations must be > 0; was $maxIterations" }
+            require(streamNum >= 0) { "streamNum must be >= 0; was $streamNum" }
+            require(replicationsPerEvaluation > 0) {
+                "replicationsPerEvaluation must be > 0; was $replicationsPerEvaluation"
+            }
+            require(stoppingTemperature > 0.0 && stoppingTemperature.isFinite()) {
+                "stoppingTemperature must be > 0 and finite; was $stoppingTemperature"
+            }
+        }
+    }
 
     /** Cross-Entropy.  Mirrors
      *  [ksl.simopt.solvers.algorithms.CrossEntropySolver].
@@ -243,7 +328,21 @@ sealed class SolverSpec {
         val sampler: CESamplerSpec = CESamplerSpec.Normal(),
         val elitePct: Double? = null,
         val ceSampleSize: Int? = null
-    ) : SolverSpec()
+    ) : SolverSpec() {
+        init {
+            require(maxIterations > 0) { "maxIterations must be > 0; was $maxIterations" }
+            require(streamNum >= 0) { "streamNum must be >= 0; was $streamNum" }
+            require(replicationsPerEvaluation > 0) {
+                "replicationsPerEvaluation must be > 0; was $replicationsPerEvaluation"
+            }
+            require(elitePct == null || (elitePct > 0.0 && elitePct < 1.0)) {
+                "elitePct must be strictly in (0, 1) when non-null; was $elitePct"
+            }
+            require(ceSampleSize == null || ceSampleSize >= 1) {
+                "ceSampleSize must be >= 1 when non-null; was $ceSampleSize"
+            }
+        }
+    }
 
     /** R-SPLINE.  Mirrors
      *  [ksl.simopt.solvers.algorithms.RSplineSolver].
@@ -264,5 +363,19 @@ sealed class SolverSpec {
         val initialNumReps: Int,
         val sampleSizeGrowthRate: Double,
         val maxNumReplications: Int
-    ) : SolverSpec()
+    ) : SolverSpec() {
+        init {
+            require(maxIterations > 0) { "maxIterations must be > 0; was $maxIterations" }
+            require(streamNum >= 0) { "streamNum must be >= 0; was $streamNum" }
+            require(initialNumReps > 0) {
+                "initialNumReps must be > 0; was $initialNumReps"
+            }
+            require(sampleSizeGrowthRate > 0.0 && sampleSizeGrowthRate.isFinite()) {
+                "sampleSizeGrowthRate must be > 0 and finite; was $sampleSizeGrowthRate"
+            }
+            require(maxNumReplications >= initialNumReps) {
+                "maxNumReplications ($maxNumReplications) must be >= initialNumReps ($initialNumReps)"
+            }
+        }
+    }
 }

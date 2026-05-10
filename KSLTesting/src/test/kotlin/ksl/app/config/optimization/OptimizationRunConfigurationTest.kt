@@ -326,6 +326,112 @@ class OptimizationRunConfigurationTest {
         assertNull(decoded.solver.randomRestart)
     }
 
+    // ── 11. Per-constraint penalty function round-trips ──────────────────────
+
+    @Test
+    fun `per-constraint penaltyFunction round-trips through JSON and TOML`() {
+        val config = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 2),
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = "TotalCost",
+                inputs = listOf(
+                    OptimizationInputSpec("x1", lowerBound = 0.0, upperBound = 10.0, granularity = 1.0)
+                ),
+                responseNames = listOf("ServiceLevel"),
+                linearConstraints = listOf(
+                    LinearConstraintSpec(
+                        coefficients = mapOf("x1" to 1.0),
+                        rhsValue = 5.0,
+                        penaltyFunction = PenaltyFunctionSpec.DynamicPolynomial(
+                            basePenalty = 250.0, iterationExponent = 1.5, violationExponent = 3.0
+                        )
+                    )
+                ),
+                responseConstraints = listOf(
+                    ResponseConstraintSpec(
+                        name = "ServiceLevel",
+                        rhsValue = 0.95,
+                        inequalityType = InequalityType.GREATER_THAN,
+                        penaltyFunction = PenaltyFunctionSpec.WithMemory(
+                            basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0
+                        )
+                    )
+                )
+            )
+        )
+
+        val jsonDecoded = OptimizationRunConfigurationJson.decode(
+            OptimizationRunConfigurationJson.encode(config)
+        )
+        val tomlDecoded = OptimizationRunConfigurationToml.decode(
+            OptimizationRunConfigurationToml.encode(config)
+        )
+
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+        assertTrue(jsonDecoded.problem.linearConstraints.first().penaltyFunction
+            is PenaltyFunctionSpec.DynamicPolynomial)
+        assertTrue(jsonDecoded.problem.responseConstraints.first().penaltyFunction
+            is PenaltyFunctionSpec.WithMemory)
+    }
+
+    // ── 12. Problem-level default penalty functions round-trip ───────────────
+
+    @Test
+    fun `non-default problem-level penalty defaults round-trip through JSON and TOML`() {
+        val config = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 2),
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = "TotalCost",
+                inputs = listOf(
+                    OptimizationInputSpec("x1", lowerBound = 0.0, upperBound = 10.0)
+                ),
+                defaultLinearPenalty = PenaltyFunctionSpec.WithMemory(basePenalty = 200.0),
+                defaultResponsePenalty = PenaltyFunctionSpec.DynamicPolynomial(basePenalty = 75.0)
+            )
+        )
+
+        val jsonDecoded = OptimizationRunConfigurationJson.decode(
+            OptimizationRunConfigurationJson.encode(config)
+        )
+        val tomlDecoded = OptimizationRunConfigurationToml.decode(
+            OptimizationRunConfigurationToml.encode(config)
+        )
+
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+    }
+
+    // ── 13. PenaltyFunctionSpec sealed-class discriminator coverage ──────────
+
+    @Test
+    fun `PenaltyFunctionSpec sealed class uses the documented type discriminators`() {
+        val configWithDynamic = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1),
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = "Cost",
+                inputs = listOf(OptimizationInputSpec("x", 0.0, 1.0)),
+                defaultLinearPenalty = PenaltyFunctionSpec.DynamicPolynomial()
+            )
+        )
+        val configWithMemory = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1),
+            problem = OptimizationProblemSpec(
+                objectiveResponseName = "Cost",
+                inputs = listOf(OptimizationInputSpec("x", 0.0, 1.0)),
+                defaultLinearPenalty = PenaltyFunctionSpec.WithMemory()
+            )
+        )
+
+        val dynJson = OptimizationRunConfigurationJson.encode(configWithDynamic)
+        val memJson = OptimizationRunConfigurationJson.encode(configWithMemory)
+
+        assertTrue(dynJson.contains(""""type": "dynamicPolynomial""""),
+            "DynamicPolynomial JSON should carry type=dynamicPolynomial")
+        assertTrue(memJson.contains(""""type": "withMemory""""),
+            "WithMemory JSON should carry type=withMemory")
+    }
+
     // ── shared fixture builders ──────────────────────────────────────────────
 
     private fun config(

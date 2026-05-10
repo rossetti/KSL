@@ -48,4 +48,16 @@ data class OptimizationInputSpec(
     val lowerBound: Double,
     val upperBound: Double,
     val granularity: Double = 0.0
-)
+) {
+    init {
+        require(name.isNotBlank()) { "name must be non-blank" }
+        require(lowerBound.isFinite()) { "lowerBound must be finite; was $lowerBound" }
+        require(upperBound.isFinite()) { "upperBound must be finite; was $upperBound" }
+        require(lowerBound < upperBound) {
+            "lowerBound ($lowerBound) must be strictly less than upperBound ($upperBound)"
+        }
+        require(granularity >= 0.0 && granularity.isFinite()) {
+            "granularity must be >= 0 and finite; was $granularity"
+        }
+    }
+}

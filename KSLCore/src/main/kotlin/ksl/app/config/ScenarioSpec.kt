@@ -55,4 +55,11 @@ data class ScenarioSpec(
     val controls: ModelControlsExport = ModelControlsExport(modelName = ""),
     val rvOverrides: List<RVParameterOverride> = emptyList(),
     val modelConfiguration: Map<String, String>? = null
-)
+) {
+    init {
+        require(name.isNotBlank()) { "name must be non-blank" }
+        require(modelConfiguration == null || modelConfiguration.keys.all { it.isNotBlank() }) {
+            "every key in modelConfiguration must be non-blank when modelConfiguration is non-null"
+        }
+    }
+}

@@ -96,6 +96,15 @@ data class RunConfiguration(
     val simoptProblemId: String? = null,
     val tracingConfig: TracingConfig = TracingConfig()
 ) {
+    init {
+        require(simoptProblemId == null || simoptProblemId.isNotBlank()) {
+            "simoptProblemId must be non-blank when non-null"
+        }
+        require(scenarios.map { it.name }.toSet().size == scenarios.size) {
+            "scenarios must have unique names"
+        }
+    }
+
     /**
      * Constructs a fully configured [Model] from this [RunConfiguration].
      *

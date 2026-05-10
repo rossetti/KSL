@@ -38,4 +38,13 @@ data class TracingConfig(
     val animationTraceFile: String? = null,
     val captureLevel: CaptureLevel = CaptureLevel.MINIMAL,
     val flushEveryNEvents: Int = 1000
-)
+) {
+    init {
+        require(animationTraceFile == null || animationTraceFile.isNotBlank()) {
+            "animationTraceFile must be non-blank when non-null"
+        }
+        require(flushEveryNEvents > 0) {
+            "flushEveryNEvents must be > 0; was $flushEveryNEvents"
+        }
+    }
+}
