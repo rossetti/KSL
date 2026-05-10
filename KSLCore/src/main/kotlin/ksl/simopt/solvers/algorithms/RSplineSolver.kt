@@ -155,6 +155,7 @@ class RSplineSolver @JvmOverloads constructor(
      */
     var lineSearchStepSizeMultiplier: Double = 2.0
         set(value) {
+            require(value.isFinite()) {"The step multiplier must be finite"}
             require(value >= 1.0) { "The step multiplier must be >= 1.0" }
             field = value
         }
@@ -171,6 +172,7 @@ class RSplineSolver @JvmOverloads constructor(
      */
     var splineCallGrowthRate: Double = defaultSplineCallGrowthRate
         set(value) {
+            require(value.isFinite()) {"The spline call growth rate must be finite"}
             require(value > 0) { "The spline growth rate must be > 0" }
             field = value
         }
