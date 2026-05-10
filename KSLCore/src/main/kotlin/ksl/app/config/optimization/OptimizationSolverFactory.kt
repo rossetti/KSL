@@ -103,7 +103,7 @@ class OptimizationSolverFactory(
         val pd = ProblemDefinition(
             problemName       = spec.problemName,
             // engine modelIdentifier is non-null String; spec value is optional —
-            // null spec values fall back to "" per the Step 6 plan
+            // null spec values fall back to ""
             modelIdentifier   = spec.modelIdentifier ?: "",
             objFnResponseName = spec.objectiveResponseName,
             inputNames        = spec.inputs.map { it.name },

@@ -39,20 +39,34 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *   the overrides that differ from the model's compiled defaults, and it drives
  *   [buildModel] rather than being produced by a model.
  *
+ * ## Not for optimization runs
+ *
+ * `RunConfiguration` describes single-model, scenario-sweep, and designed-experiment
+ * runs.  Simulation-optimization runs use a separate top-level type,
+ * [ksl.app.config.optimization.OptimizationRunConfiguration], which composes a
+ * [ksl.app.config.ModelRunTemplate] for the model side with the optimization
+ * problem and solver specs.  Submit either through `KSLAppSession`; the session
+ * dispatches by [ksl.app.RunSpec] variant to the right validator and execution
+ * path.
+ *
  * ## Typical workflow
  *
  * ```kotlin
  * // Load from TOML file:
  * val config  = RunConfigurationToml.decode(File("mm1.toml").readText())
  *
- * // Build and configure the model:
+ * // Submit through the application-facing session:
  * val provider: ModelProviderIfc = MapModelProvider("MM1", Mm1Builder)
- * val model   = config.buildModel(provider)
- *
- * // Submit to the Phase 1 run driver:
- * val handle  = Runner().submit(RunRequest.SingleRun(model))
- * val result  = handle.result.await()
+ * val session  = KSLAppSession(provider)
+ * val handle   = session.submit(RunSpec.Single(config))
+ * val result   = handle.result.await()
  * ```
+ *
+ * The session validates the configuration via
+ * [ksl.app.validation.RunConfigurationValidator], builds the model with
+ * [buildModel], and dispatches to the appropriate orchestrator.  Programmatic
+ * users who already hold a built [Model] can bypass the session entirely and
+ * call the lower-level `Runner` or orchestrator APIs directly.
  *
  * ## Codecs
  *
@@ -67,8 +81,7 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  * a reference model via `model.extractRunParameters()`, the captured `experimentId`
  * belongs to that reference model instance.  [buildModel] applies it unchanged to the
  * newly built model via `changeRunParameters()`, which is harmless but means the built
- * model will carry the reference model's id.  Phase 3 validation may warn on this if
- * id uniqueness becomes a concern.
+ * model will carry the reference model's id.
  *
  * @property modelReference          identifies the model source; see [ModelReference]
  * @property experimentRunParameters run parameters for the experiment (replications,
@@ -112,9 +125,11 @@ data class RunConfiguration(
      * 4. Apply [rvOverrides] via [RVParameterSetter.changeParameters] — skipped when
      *    [rvOverrides] is empty.
      *
-     * Phase 3 will add structured pre-flight validation (`ksl.app.validation.ValidationResult`)
-     * before this method is called.  Until then, unresolvable references or unrecognised
-     * control/RV keys throw [IllegalArgumentException] from the underlying KSL APIs.
+     * Pre-flight validation is provided by
+     * [ksl.app.validation.RunConfigurationValidator]; `KSLAppSession` runs it
+     * automatically on `submit`.  When this method is called outside the session
+     * path, unresolvable references or unrecognised control/RV keys throw
+     * [IllegalArgumentException] from the underlying KSL APIs.
      *
      * @param provider required when [modelReference] is [ModelReference.ByProviderId];
      *                 unused (and may be `null`) for [ModelReference.ByJar]

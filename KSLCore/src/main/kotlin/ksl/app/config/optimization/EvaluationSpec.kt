@@ -24,8 +24,8 @@ import kotlinx.serialization.Serializable
  * Cross-cutting evaluator/solver settings that are not specific to one
  * algorithm.
  *
- * The optimization solver factory (Step 6) applies these values after
- * solver construction:
+ * `OptimizationSolverFactory` applies these values after solver
+ * construction:
  *
  * - cache settings ([useSolutionCache], [useSimulationRunCache]) are wired
  *   into the evaluator;

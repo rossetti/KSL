@@ -24,10 +24,10 @@ import kotlinx.serialization.Serializable
 /**
  * Optional random-restart wrapper for any [SolverSpec] variant.
  *
- * When non-null on a [SolverSpec], the optimization solver factory (Step 6)
- * will wrap the chosen algorithm in a
- * [ksl.simopt.solvers.algorithms.RandomRestartSolver] performing at most
- * [maxNumRestarts] restarts from randomly drawn starting points.
+ * When non-null on a [SolverSpec], `OptimizationSolverFactory` wraps the
+ * chosen algorithm in a [ksl.simopt.solvers.algorithms.RandomRestartSolver]
+ * performing at most [maxNumRestarts] restarts from randomly drawn starting
+ * points.
  *
  * Modeling restart as data on the base sealed class (rather than as
  * additional `RandomRestartX` sealed variants) keeps the sealed hierarchy
@@ -175,7 +175,7 @@ sealed class CoolingScheduleSpec {
  * The CE algorithm parameterizes a sampling distribution and updates it
  * each iteration based on the elite sample.  This sealed type lets future
  * sampler implementations be added without breaking existing
- * [SolverSpec.CrossEntropy] documents.  In Step 3 only the multivariate
+ * [SolverSpec.CrossEntropy] documents.  Currently only the multivariate
  * normal sampler is exposed.
  */
 @Serializable
@@ -226,17 +226,18 @@ sealed class CESamplerSpec {
  * Each sealed variant captures the constructor parameters that are plain
  * data; non-serializable arguments to the live solver constructors
  * (evaluator, stream provider, problem definition, equality checkers,
- * functional sampler/elite-size hooks) are supplied by the optimization
- * solver factory in Step 6 and are not part of the persisted document.
+ * functional sampler/elite-size hooks) are supplied by
+ * `OptimizationSolverFactory` and are not part of the persisted document.
  *
  * Sealed-class polymorphic serialization is used: the JSON/TOML output
  * carries a `"type"` discriminator with values `"stochasticHillClimbing"`,
  * `"simulatedAnnealing"`, `"crossEntropy"`, or `"rSpline"`.
  *
- * Per the Step 3 design note "option (a)", random-restart is **not** a
- * separate sealed variant.  Any algorithm can be wrapped by setting
- * [randomRestart] on its variant; setting it to `null` (the default)
- * disables the wrapper.
+ * Random-restart is **not** a separate sealed variant.  Any algorithm can
+ * be wrapped by setting [randomRestart] on its variant; setting it to
+ * `null` (the default) disables the wrapper.  This keeps the sealed
+ * hierarchy focused on algorithm choice and lets every algorithm be
+ * wrapped uniformly.
  */
 @Serializable
 sealed class SolverSpec {

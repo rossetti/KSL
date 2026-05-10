@@ -28,12 +28,32 @@ import ksl.app.config.ModelRunTemplate
  * [ksl.app.config.RunConfiguration].  It deliberately uses [ModelRunTemplate]
  * for the model-construction portion so that fixed/baseline model controls and
  * RV overrides are kept separate from the optimizer-controlled decision
- * variables declared in `problem`.
+ * variables declared in [problem].
  *
  * This document is the JSON/TOML round-trip target for app/UI workflows.  It
  * carries no live `Solver` or `ProblemDefinition` objects — those are built
- * later by an `OptimizationSolverFactory` (Step 6).  This step (Phase 5.85
- * Step 3) provides the persistable shape only.
+ * by `OptimizationSolverFactory` from the spec when the run is submitted.
+ *
+ * ## Typical workflow
+ *
+ * ```kotlin
+ * // Load from TOML file:
+ * val config  = OptimizationRunConfigurationToml.decode(File("opt.toml").readText())
+ *
+ * // Submit through the application-facing session:
+ * val provider: ModelProviderIfc = MapModelProvider("Inventory", InventoryBuilder)
+ * val session  = KSLAppSession(provider)
+ * val handle   = session.submit(RunSpec.Optimization(config))
+ * val result   = handle.result.await()
+ * ```
+ *
+ * The session validates the configuration via
+ * [ksl.app.validation.OptimizationConfigurationValidator], builds a
+ * [ksl.simopt.solvers.Solver] via `OptimizationSolverFactory`, and dispatches
+ * to [ksl.app.orchestrator.OptimizationOrchestrator].  Programmatic users who
+ * already hold a built solver can call
+ * `OptimizationOrchestrator().submit(solver, …)` directly and bypass the
+ * session entirely.
  *
  * @property model baseline model-construction template
  * @property problem optimization problem (objective, decision variables,

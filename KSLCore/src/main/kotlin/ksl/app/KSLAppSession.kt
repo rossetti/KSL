@@ -47,6 +47,31 @@ import java.util.concurrent.CopyOnWriteArrayList
  * UI code should hold one session for the application lifetime, submit [RunSpec]
  * instances through [submit], observe the returned [RunHandle], and call [close]
  * during application shutdown.
+ *
+ * ## Dispatch
+ *
+ * [submit] selects validator and execution path by [RunSpec] variant:
+ *
+ * - [RunSpec.Single] / [RunSpec.Scenarios] / [RunSpec.Experiment] →
+ *   validated by [RunConfigurationValidator] and executed through
+ *   [SingleRunOrchestrator], [ScenarioOrchestrator], or
+ *   [ExperimentOrchestrator] respectively.
+ * - [RunSpec.Optimization] → validated by
+ *   [OptimizationConfigurationValidator]; on success a [Solver] is built by
+ *   [OptimizationSolverFactory] from the spec's
+ *   [ksl.app.config.optimization.OptimizationRunConfiguration] and handed to
+ *   [OptimizationOrchestrator].  Programmatic users who already hold a
+ *   built solver can call `OptimizationOrchestrator().submit(solver, …)`
+ *   directly and bypass the session.
+ *
+ * Validation errors return an immediately-failed [RunHandle] rather than
+ * throwing, so the same event/result protocol covers all outcomes.
+ *
+ * ## Lifecycle
+ *
+ * Every handle returned from [submit] is retained on the session so that
+ * [close] can cancel any in-flight runs and release the owned coroutine
+ * scope.  `close()` is idempotent.
  */
 class KSLAppSession(
     val provider: ModelProviderIfc? = null,
@@ -64,10 +89,16 @@ class KSLAppSession(
     /**
      * Submit a run for asynchronous execution.
      *
-     * Validation runs before dispatch by default. Validation errors and
-     * unsupported session-level combinations return an already-failed handle
-     * rather than throwing, so UI code can handle all outcomes through the
-     * same event/result protocol.
+     * Validation runs before dispatch by default — [RunConfigurationValidator]
+     * for non-optimization specs, [OptimizationConfigurationValidator] for
+     * [RunSpec.Optimization].  Validation errors and unsupported session-level
+     * combinations return an already-failed handle rather than throwing, so UI
+     * code can handle all outcomes through the same event/result protocol.
+     *
+     * For [RunSpec.Optimization], a [Solver] is built from
+     * [ksl.app.config.optimization.OptimizationRunConfiguration] via
+     * [OptimizationSolverFactory] and then submitted to
+     * [OptimizationOrchestrator].
      *
      * Attachments are currently supported only for [RunSpec.Single]. Non-empty
      * attachments on other specs fail immediately with a configuration error.

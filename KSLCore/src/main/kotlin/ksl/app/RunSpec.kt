@@ -29,6 +29,10 @@ import ksl.controls.experiments.ParallelDesignedExperiment
  * execution mode: [RunConfiguration] for single-model, scenario, and
  * designed-experiment runs; [OptimizationRunConfiguration] for
  * simulation-optimization runs.
+ *
+ * `KSLAppSession.submit` dispatches by spec variant to the matching
+ * validator and execution path (see [KSLAppSession] for the routing
+ * details).
  */
 sealed class RunSpec {
 

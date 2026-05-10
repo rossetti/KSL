@@ -34,9 +34,9 @@ import ksl.simulation.ModelProviderIfc
  *
  * Companion to [RunConfigurationValidator].  Where the type system already
  * enforces single-field and same-class invariants in the spec data classes
- * (Phase 5.85 Step 3.5), this validator focuses exclusively on
- * **cross-reference and model-dependent** checks that the type system
- * cannot express:
+ * (via `init` blocks on the `@Serializable` types), this validator focuses
+ * exclusively on **cross-reference and model-dependent** checks that the
+ * type system cannot express:
  *
  * - decision-variable references in starting points and constraints,
  * - response-name references in response constraints,
@@ -57,8 +57,8 @@ import ksl.simulation.ModelProviderIfc
  * [ksl.simopt.problem.ProblemDefinition.validateProblemDefinition].  Its
  * own checks cover the same ground (objective response, decision-variable
  * names, response-constraint names) without depending on engine internals;
- * the eventual `OptimizationSolverFactory` (Phase 5.85 Step 6) will invoke
- * the engine validator at solver-build time.
+ * `OptimizationSolverFactory` invokes the engine validator at
+ * solver-build time.
  */
 object OptimizationConfigurationValidator {
 

@@ -29,9 +29,10 @@ import kotlinx.serialization.Serializable
  * [upperBound], respecting [granularity] (a granularity of 1.0 implies an
  * integer-ordered input).
  *
- * Validation (bound finiteness, lower &lt; upper, granularity &gt;= 0, name
- * resolution against the model) is performed in Step 4 by
- * `OptimizationConfigurationValidator`.
+ * Bound finiteness, `lowerBound < upperBound`, and `granularity >= 0` are
+ * enforced in `init` on construction.  Name resolution against the built
+ * model is performed by
+ * [ksl.app.validation.OptimizationConfigurationValidator].
  *
  * @property name decision-variable name; must match a model input key
  * @property lowerBound lower bound (inclusive); must be finite and strictly

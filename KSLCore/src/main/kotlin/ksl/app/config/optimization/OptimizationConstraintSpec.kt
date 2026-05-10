@@ -24,8 +24,8 @@ import kotlinx.serialization.Serializable
  * App-layer mirror of [ksl.simopt.problem.InequalityType].
  *
  * Mirrored (rather than reused) so this configuration package is independent
- * of `ksl.simopt.problem`.  The optimization solver factory (Step 6) will
- * translate between this enum and the engine enum.
+ * of `ksl.simopt.problem`.  `OptimizationSolverFactory` translates between
+ * this enum and the engine enum at solver-build time.
  */
 @Serializable
 enum class InequalityType { LESS_THAN, GREATER_THAN }

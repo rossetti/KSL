@@ -24,9 +24,8 @@ import kotlinx.serialization.Serializable
  * App-layer mirror of [ksl.simopt.problem.OptimizationType].
  *
  * Mirrored (rather than reused) so that this configuration package is
- * independent of `ksl.simopt.problem` and so that Step 3 can remain purely
- * additive in `ksl.app.config.optimization`.  The optimization solver factory
- * (Step 6) will translate between this enum and the engine enum.
+ * independent of `ksl.simopt.problem`.  `OptimizationSolverFactory`
+ * translates between this enum and the engine enum at solver-build time.
  */
 @Serializable
 enum class OptimizationType { MINIMIZE, MAXIMIZE }
@@ -40,7 +39,7 @@ enum class OptimizationType { MINIMIZE, MAXIMIZE }
  * (e.g. response-constraint names must resolve against the built model;
  * decision-variable names must not collide with fixed baseline controls)
  * require additional context and remain the responsibility of
- * `OptimizationConfigurationValidator` in Step 4.
+ * [ksl.app.validation.OptimizationConfigurationValidator].
  *
  * @property problemName optional human-readable name; non-blank when non-null
  * @property modelIdentifier optional model identifier; non-blank when non-null
