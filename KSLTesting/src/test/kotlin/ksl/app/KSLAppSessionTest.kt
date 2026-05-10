@@ -2,7 +2,9 @@ package ksl.app
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -385,6 +387,49 @@ class KSLAppSessionTest {
                 "ATTACHMENTS_UNSUPPORTED_FOR_RUN_SPEC",
                 error.validationResult?.errors?.single()?.code
             )
+        }
+    }
+
+    // ── Synchronous-convenience helpers (Phase 5.85 follow-up) ────────────────
+
+    @Test
+    fun `submitAndAwaitBlocking returns the same Completed result as the suspending path`() {
+        // Deliberately a non-suspend test method (no runBlocking { }) — exercises
+        // the public path a `fun main()` user would take.
+        KSLAppSession(mm1Provider).use { session ->
+            val result = session.submitAndAwaitBlocking(RunSpec.Single(mm1Config()))
+
+            assertIs<RunResult.Completed>(result)
+            assertTrue(result.snapshot.acrossRepStats.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun `submitAndAwaitBlocking surfaces ConfigurationError for invalid configs without throwing`() {
+        KSLAppSession(mm1Provider).use { session ->
+            val invalidConfig = mm1Config().let { c ->
+                c.copy(
+                    experimentRunParameters = c.experimentRunParameters.copy(
+                        lengthOfReplication = 10.0,
+                        lengthOfReplicationWarmUp = 10.0
+                    )
+                )
+            }
+            val result = session.submitAndAwaitBlocking(RunSpec.Single(invalidConfig))
+
+            assertIs<RunResult.Failed>(result)
+            assertIs<KSLRuntimeError.ConfigurationError>(result.error)
+        }
+    }
+
+    @Test
+    fun `RunHandle awaitResultBlocking returns the same result as result_await`() = runBlocking {
+        // submit() itself is non-suspend; await the result via the new blocking
+        // helper from a separate thread to confirm no thread-affinity assumption.
+        KSLAppSession(mm1Provider, this).use { session ->
+            val handle = session.submit(RunSpec.Single(mm1Config()))
+            val result = withContext(Dispatchers.IO) { handle.awaitResultBlocking() }
+            assertIs<RunResult.Completed>(result)
         }
     }
 }

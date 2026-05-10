@@ -21,6 +21,7 @@ package ksl.app.session
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.runBlocking
 
 /**
  * Live reference to a simulation run submitted via [Runner.submit].
@@ -89,6 +90,31 @@ interface RunHandle {
      *        and [RunResult.Cancelled]; defaults to `"Cancelled by user"`
      */
     fun cancel(reason: String = "Cancelled by user")
+
+    /**
+     * Synchronously waits for [result] and returns it.
+     *
+     * Bridges the [Deferred]-based [result] back into a non-coroutine caller
+     * via `runBlocking`.  Use this from a non-suspend `main()` function or
+     * any other synchronous entry point where introducing `suspend`/
+     * `runBlocking` would be unwelcome boilerplate.
+     *
+     * Coroutine-aware callers should prefer `result.await()` directly so
+     * they can compose the wait with their own coroutine context.
+     *
+     * **Caution — `runBlocking` deadlock hazard.**  Do not call this from
+     * inside a coroutine running on the same dispatcher the simulation
+     * uses (typically [ksl.simulation.SimulationDispatcher.default]).  The
+     * calling thread blocks waiting for work that may need that thread,
+     * which can deadlock.  Likewise, do not call from a UI thread (Swing
+     * EDT, JavaFX FX thread); doing so freezes the UI for the duration
+     * of the run.  In both cases, observe [result] asynchronously
+     * instead — `result.await()` from a coroutine, or
+     * `events.collect { … }` for a UI-friendly progress stream.
+     *
+     * @return the same [RunResult] that [result] would resolve to
+     */
+    fun awaitResultBlocking(): RunResult = runBlocking { result.await() }
 }
 
 /**

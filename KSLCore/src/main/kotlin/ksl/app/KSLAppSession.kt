@@ -30,6 +30,7 @@ import ksl.app.orchestrator.SingleRunOrchestrator
 import ksl.app.session.KSLRuntimeError
 import ksl.app.session.RunAttachmentIfc
 import ksl.app.session.RunHandle
+import ksl.app.session.RunResult
 import ksl.app.session.RunWarningType
 import ksl.app.session.failedRunHandle
 import ksl.app.validation.FieldError
@@ -47,6 +48,24 @@ import java.util.concurrent.CopyOnWriteArrayList
  * UI code should hold one session for the application lifetime, submit [RunSpec]
  * instances through [submit], observe the returned [RunHandle], and call [close]
  * during application shutdown.
+ *
+ * ## Quick start (synchronous)
+ *
+ * Callers that just want to "run a configuration and read the result" — typical
+ * test code or a non-coroutine `fun main()` — can use [submitAndAwaitBlocking]
+ * to skip coroutines entirely:
+ *
+ * ```kotlin
+ * fun main() {
+ *     val session = KSLAppSession(provider)
+ *     val result  = session.submitAndAwaitBlocking(RunSpec.Single(myConfig))
+ *     println(result)
+ * }
+ * ```
+ *
+ * The asynchronous [submit] / [RunHandle] path remains the right choice for
+ * GUIs and any caller that wants to observe lifecycle events; see
+ * [submitAndAwaitBlocking] for the full set of caveats.
  *
  * ## Dispatch
  *
@@ -192,6 +211,40 @@ class KSLAppSession(
         handles.add(handle)
         return handle
     }
+
+    /**
+     * Submits [spec] and synchronously waits for the run to terminate,
+     * returning its [RunResult].  Convenience shorthand for
+     * `submit(spec, attachments, validate).awaitResultBlocking()`.
+     *
+     * Intended for non-suspend callers — typical `fun main()` usage and
+     * test code that just wants a result without composing with a
+     * coroutine context.  Coroutine-aware callers should use [submit]
+     * directly so they can observe events and await the result without
+     * blocking a thread.
+     *
+     * Lifecycle events are not exposed by this method.  Pre-run validation
+     * **warnings**, in particular, are emitted only on
+     * [RunHandle.events] and will not be visible if the events flow is
+     * not collected.  Validation **errors** still surface through
+     * [RunResult.Failed] (carrying [KSLRuntimeError.ConfigurationError]
+     * with the underlying [ValidationResult]); callers that need to see
+     * warnings as well should switch to [submit] and collect from the
+     * returned handle's [RunHandle.events].
+     *
+     * The same parameter set as [submit]: see that method for the
+     * attachment and validation contracts.
+     *
+     * **Caution — `runBlocking` deadlock hazard.**  Do not call from
+     * inside a coroutine running on the same dispatcher the session
+     * uses, or from a UI thread.  See
+     * [RunHandle.awaitResultBlocking] for details.
+     */
+    fun submitAndAwaitBlocking(
+        spec: RunSpec,
+        attachments: List<RunAttachmentIfc> = emptyList(),
+        validate: Boolean = true
+    ): RunResult = submit(spec, attachments, validate).awaitResultBlocking()
 
     /**
      * Cancels every run submitted through this session and cancels the owned
