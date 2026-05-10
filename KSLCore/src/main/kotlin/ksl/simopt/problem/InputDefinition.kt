@@ -33,7 +33,10 @@ class InputDefinition @JvmOverloads constructor(
 ) {
     init {
         require(name.isNotBlank()) { "name cannot be blank" }
-        require(lowerBound < upperBound) { "lower bound must be less than upper bound" }
+        require(lowerBound.isFinite()) {"The lower bound must be finite."}
+        require(upperBound.isFinite()) {"The upper bound must be finite."}
+        require(lowerBound < upperBound) { "The lower bound must be less than upper bound" }
+        require(granularity.isFinite()) {"The granularity must be finite."}
         require(granularity >= 0.0) { "granularity must be >=  0.0" }
     }
 
