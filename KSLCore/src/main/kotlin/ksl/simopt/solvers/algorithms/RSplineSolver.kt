@@ -144,7 +144,8 @@ class RSplineSolver @JvmOverloads constructor(
      */
     var initialLineSearchStepSize: Double = 2.0
         set(value) {
-            require(value > 1.0) { "The initial step size must be > 1.0" }
+            require(value.isFinite()) {"The initial line search step size must be finite"}
+            require(value > 1.0) { "The initial line step size must be > 1.0" }
             field = value
         }
 

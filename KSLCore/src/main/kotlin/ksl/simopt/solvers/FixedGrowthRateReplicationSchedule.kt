@@ -19,6 +19,7 @@ class FixedGrowthRateReplicationSchedule(
 ) : ReplicationPerEvaluationIfc {
     init {
         require(initialNumReps > 0) { "The initial number of replication for each evaluation must be > 0" }
+        require(growthRate.isFinite()){"The replication growth rate must be finite."}
         require(growthRate > 0) { "The replication growth rate must be > 0" }
         require(maxNumReplications > 0) { "The maximum number of replication for each evaluation must be > 0" }
     }
@@ -31,6 +32,7 @@ class FixedGrowthRateReplicationSchedule(
 
     var growthRate: Double = growthRate
         set(value) {
+            require(value.isFinite()){"The replication growth rate must be finite."}
             require(value > 0) { "The replication growth rate must be > 0" }
             field = value
         }
@@ -80,6 +82,7 @@ class FixedGrowthRateReplicationSchedule(
          */
         var defaultReplicationGrowthRate: Double = 0.1
             set(value) {
+                require(value.isFinite()){"The replication growth rate must be finite."}
                 require(value > 0) { "The replication growth rate must be > 0" }
                 field = value
             }
