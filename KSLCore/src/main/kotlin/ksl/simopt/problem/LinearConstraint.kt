@@ -19,6 +19,8 @@ data class LinearConstraint(
 
     init {
         require(equation.isNotEmpty()) { "The equation must have elements." }
+        require(!rhsValue.isNaN()) {"The right-hand side value cannot be NaN"}
+        require(rhsValue.isFinite()) {"The right-hand side value must be finite."}
         for ((name, _) in equation) {
             require(name.isNotBlank()) { "An element name within the linear equation cannot be blank" }
         }
