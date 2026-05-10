@@ -149,6 +149,8 @@ class ExponentialCoolingSchedule(
             stoppingTemperature: Double = defaultStoppingTemperature,
             maxIterations: Int = defaultMaxNumberIterations
         ): Double {
+            require(initialTemperature.isFinite()) { "Initial temperature must be finite" }
+            require(stoppingTemperature.isFinite()) { "Stopping temperature must be finite" }
             require(initialTemperature > 0.0) { "Initial temperature must be positive" }
             require(stoppingTemperature > 0.0) { "Stopping temperature must be positive" }
             require(maxIterations > 0) { "Max iterations must be strictly positive" }
