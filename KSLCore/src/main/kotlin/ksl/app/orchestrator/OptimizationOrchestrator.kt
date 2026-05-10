@@ -86,6 +86,15 @@ class OptimizationOrchestrator {
                     lifecycle.emitProgress(RunEvent.RunWarning(warning))
                 }
 
+                lifecycle.emitProgress(
+                    RunEvent.OptimizationRunStarted(
+                        runId = runId,
+                        modelIdentifier = solver.problemDefinition.modelIdentifier,
+                        maxIterations = solver.maximumNumberIterations,
+                        startTime = beginTime
+                    )
+                )
+
                 iterConnection = solver.iterationEmitter.attach { snapshot: SolverStateSnapshot ->
                     iterationHistory.add(snapshot)
                     lifecycle.emitProgress(

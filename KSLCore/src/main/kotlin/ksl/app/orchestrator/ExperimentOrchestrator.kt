@@ -83,6 +83,15 @@ class ExperimentOrchestrator {
                 val totalPoints = experiment.design.designPoints().size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
 
+                lifecycle.emitProgress(
+                    RunEvent.ExperimentRunStarted(
+                        runId = runId,
+                        modelIdentifier = experiment.name,
+                        totalDesignPoints = totalPoints,
+                        startTime = beginTime
+                    )
+                )
+
                 experiment.simulateAll(
                     numRepsPerDesignPoint = numRepsPerDesignPoint,
                     onDesignPointComplete = { designPoint: DesignPoint, snapshot ->

@@ -119,8 +119,8 @@ class RunnerTest {
         assertEquals(EndingStatus.COMPLETED_ALL_STEPS, summary.endingStatus)
         assertTrue(summary.wallClockDuration > Duration.ZERO)
 
-        // exactly one RunStarted with correct total
-        val runStartedEvents = events.filterIsInstance<RunEvent.RunStarted>()
+        // exactly one ReplicationRunStarted with correct total
+        val runStartedEvents = events.filterIsInstance<RunEvent.ReplicationRunStarted>()
         assertEquals(1, runStartedEvents.size)
         assertEquals(reps, runStartedEvents.first().totalReplications)
 
@@ -257,7 +257,7 @@ class RunnerTest {
 
     /**
      * A model with [Model.lengthOfReplication] == [Double.POSITIVE_INFINITY] and
-     * no wall-clock timeout must emit [RunEvent.RunWarning] before [RunEvent.RunStarted].
+     * no wall-clock timeout must emit [RunEvent.RunWarning] before [RunEvent.ReplicationRunStarted].
      *
      * The replication is kept finite by [SimulationStopper], which schedules a
      * call to [ModelElement.stopReplication] at simulation time 100.  This ends
@@ -269,7 +269,7 @@ class RunnerTest {
      */
 //    @Disabled("Requires model with internal stopping mechanism — see SimulationStopper; kept for documentation; enable manually when verifying infinite-horizon warning.")
     @Test
-    fun `infinite-horizon model with no timeout emits RunWarning before RunStarted`() = runBlocking {
+    fun `infinite-horizon model with no timeout emits RunWarning before ReplicationRunStarted`() = runBlocking {
         val model = Model("InfiniteHorizonTest", autoCSVReports = false)
         model.numberOfReplications = 1
         model.lengthOfReplication = Double.POSITIVE_INFINITY
@@ -299,12 +299,12 @@ class RunnerTest {
         assertIs<RunWarningType.InfiniteHorizonNoTimeout>(warningType)
         assertEquals(model.modelIdentifier, warningType.modelIdentifier)
 
-        // warning appears before RunStarted
+        // warning appears before ReplicationRunStarted
         val warningIdx = events.indexOfFirst { it is RunEvent.RunWarning }
-        val startedIdx = events.indexOfFirst { it is RunEvent.RunStarted }
+        val startedIdx = events.indexOfFirst { it is RunEvent.ReplicationRunStarted }
         assertTrue(warningIdx >= 0 && startedIdx >= 0)
         assertTrue(warningIdx < startedIdx,
-            "RunWarning (index $warningIdx) must precede RunStarted (index $startedIdx)")
+            "RunWarning (index $warningIdx) must precede ReplicationRunStarted (index $startedIdx)")
     }
 
     // ── Test 4: RunAttachmentIfc lifecycle guarantee ──────────────────────────

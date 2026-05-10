@@ -189,7 +189,7 @@ private suspend fun observeCancelledRun(
         handle.events.collect { event ->
             events += event
             renderer.render(event)
-            if (event is RunEvent.RunStarted) {
+            if (event is RunEvent.Started) {
                 started.complete(Unit)
             }
             if (event.isTerminal) {
@@ -293,8 +293,14 @@ private class ConsoleRunRenderer(
     fun render(event: RunEvent) {
         when (event) {
             is RunEvent.RunWarning -> renderWarning(event.warning)
-            is RunEvent.RunStarted ->
+            is RunEvent.ReplicationRunStarted ->
                 writeLine("Started ${event.modelIdentifier}: ${event.totalReplications} reps")
+            is RunEvent.ScenarioRunStarted ->
+                writeLine("Started ${event.modelIdentifier}: ${event.totalScenarios} scenarios")
+            is RunEvent.ExperimentRunStarted ->
+                writeLine("Started ${event.modelIdentifier}: ${event.totalDesignPoints} design points")
+            is RunEvent.OptimizationRunStarted ->
+                writeLine("Started ${event.modelIdentifier}: max ${event.maxIterations} iterations")
             is RunEvent.ReplicationEnded ->
                 writeLine("Replication ${event.repNumber}/${event.totalReplications} complete")
             is RunEvent.ScenarioCompleted ->

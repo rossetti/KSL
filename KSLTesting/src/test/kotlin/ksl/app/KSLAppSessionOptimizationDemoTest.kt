@@ -27,13 +27,15 @@ class KSLAppSessionOptimizationDemoTest {
         assertTrue(result.iterationHistory.isNotEmpty())
         assertEquals(0, result.summary.failedItems)
 
-        // OptimizationOrchestrator's lifecycle is iteration-based: it does not
-        // emit RunStarted/ReplicationEnded (those belong to per-replication
-        // orchestrators).  The demo therefore observes IterationCompleted
-        // followed by the terminal RunCompleted.
+        // OptimizationOrchestrator emits its own OptimizationRunStarted variant
+        // (a RunEvent.Started subtype) before iteration begins, then one
+        // IterationCompleted per solver iteration, then the terminal RunCompleted.
         val events = report.optimizationRun.events
-        assertTrue(events.any { it is RunEvent.IterationCompleted },
-            "expected at least one IterationCompleted event")
+        val startedIdx = events.indexOfFirst { it is RunEvent.OptimizationRunStarted }
+        val firstIterIdx = events.indexOfFirst { it is RunEvent.IterationCompleted }
+        assertTrue(startedIdx >= 0, "expected OptimizationRunStarted event")
+        assertTrue(firstIterIdx > startedIdx,
+            "OptimizationRunStarted must precede the first IterationCompleted")
         assertTrue(events.any { it is RunEvent.RunCompleted },
             "expected RunCompleted terminal event")
     }

@@ -98,6 +98,19 @@ class ScenarioOrchestrator {
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
                 var completedIdx = 0
 
+                val modelIdentifier: String = when (val ref = config.modelReference) {
+                    is ModelReference.ByProviderId -> ref.providerId
+                    is ModelReference.ByJar -> ref.builderClassName ?: ref.jarPath
+                }
+                lifecycle.emitProgress(
+                    RunEvent.ScenarioRunStarted(
+                        runId = runId,
+                        modelIdentifier = modelIdentifier,
+                        totalScenarios = totalScenarios,
+                        startTime = beginTime
+                    )
+                )
+
                 val outputDir = KSL.createSubDirectory("scenario_run_$runId")
                 val runner = ConcurrentScenarioRunner(
                     "ScenarioOrchestrator_$runId", scenarios, outputDir

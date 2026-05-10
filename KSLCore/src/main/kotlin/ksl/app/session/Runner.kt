@@ -210,7 +210,7 @@ class Runner {
                 model.initializeReplications()
 
                 lifecycle.emitProgress(
-                    RunEvent.RunStarted(
+                    RunEvent.ReplicationRunStarted(
                         runId = runId,
                         modelIdentifier = model.modelIdentifier,
                         totalReplications = model.numberOfReplications,

@@ -19,7 +19,7 @@ class KSLAppSessionSmokeDemoTest {
         val report = runKSLAppSessionSmokeDemo { }
 
         assertIs<RunResult.Completed>(report.successfulSingleRun.result)
-        assertTrue(report.successfulSingleRun.events.any { it is RunEvent.RunStarted })
+        assertTrue(report.successfulSingleRun.events.any { it is RunEvent.ReplicationRunStarted })
         assertTrue(report.successfulSingleRun.events.any { it is RunEvent.ReplicationEnded })
         assertTrue(report.successfulSingleRun.events.any { it is RunEvent.RunCompleted })
 
@@ -29,7 +29,7 @@ class KSLAppSessionSmokeDemoTest {
                 it.warning is RunWarningType.ConfigurationWarnings
         }
         val startedIndex = report.warningSingleRun.events.indexOfFirst {
-            it is RunEvent.RunStarted
+            it is RunEvent.Started
         }
         assertTrue(warningIndex >= 0)
         assertTrue(startedIndex >= 0)
@@ -48,6 +48,16 @@ class KSLAppSessionSmokeDemoTest {
         assertEquals(2, scenarioResult.snapshots.size)
         assertEquals(0, scenarioResult.summary.failedItems)
         assertTrue(report.scenarioRun.events.any { it is RunEvent.ScenarioCompleted })
+        // The scenario sweep emits ScenarioRunStarted before ScenarioCompleted.
+        val scenarioStartedIdx = report.scenarioRun.events.indexOfFirst {
+            it is RunEvent.ScenarioRunStarted
+        }
+        val firstScenarioCompletedIdx = report.scenarioRun.events.indexOfFirst {
+            it is RunEvent.ScenarioCompleted
+        }
+        assertTrue(scenarioStartedIdx >= 0, "Expected ScenarioRunStarted event")
+        assertTrue(scenarioStartedIdx < firstScenarioCompletedIdx,
+            "ScenarioRunStarted must precede the first ScenarioCompleted")
     }
 
     @Test

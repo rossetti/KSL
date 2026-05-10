@@ -185,8 +185,8 @@ private class ConsoleOptimizationRenderer(
     fun render(event: RunEvent) {
         when (event) {
             is RunEvent.RunWarning -> renderWarning(event.warning)
-            is RunEvent.RunStarted ->
-                writeLine("Started ${event.modelIdentifier}: ${event.totalReplications} reps per evaluation")
+            is RunEvent.OptimizationRunStarted ->
+                writeLine("Started ${event.modelIdentifier}: max ${event.maxIterations} iterations")
             is RunEvent.IterationCompleted -> {
                 val inputsStr = event.bestInputs.entries
                     .joinToString(", ") { (k, v) -> "$k=$v" }
@@ -202,6 +202,9 @@ private class ConsoleOptimizationRenderer(
             is RunEvent.RunCancelled ->
                 writeLine("Run cancelled: ${event.reason}")
             // Other event types are not central to the optimization narrative
+            is RunEvent.ReplicationRunStarted,
+            is RunEvent.ScenarioRunStarted,
+            is RunEvent.ExperimentRunStarted,
             is RunEvent.ReplicationStarted,
             is RunEvent.ReplicationEnded,
             is RunEvent.SimTimeAdvanced,

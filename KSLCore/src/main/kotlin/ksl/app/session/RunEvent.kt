@@ -23,24 +23,37 @@ import ksl.utilities.io.dbutil.SimulationSnapshot
 
 /**
  * Sealed lifecycle event hierarchy emitted on [RunHandle.events] during a
- * simulation run managed by [Runner].
+ * simulation run.
  *
  * ## Event sequence guarantees
  *
- * For every call to [Runner.submit] exactly one *terminal* event will be emitted
- * as the final event on the flow: [RunCompleted], [RunCancelled], or [RunFailed].
+ * For every submitted run exactly one *terminal* event is emitted as the
+ * final event on the flow: [RunCompleted], [RunCancelled], or [RunFailed].
  * No further events are emitted after a terminal event.
  *
- * A typical successful run produces:
+ * Each execution path emits its own concrete "started" variant — see
+ * [Started] — followed by orchestrator-specific progress events:
+ *
+ * - per-replication runs (`Runner` / `SingleRunOrchestrator`) emit
+ *   [ReplicationRunStarted] then [ReplicationStarted] / [ReplicationEnded]
+ *   pairs;
+ * - scenario sweeps (`ScenarioOrchestrator`) emit [ScenarioRunStarted]
+ *   then one [ScenarioCompleted] per scenario;
+ * - designed experiments (`ExperimentOrchestrator`) emit
+ *   [ExperimentRunStarted] then one [DesignPointCompleted] per point;
+ * - simulation optimization (`OptimizationOrchestrator`) emits
+ *   [OptimizationRunStarted] then one [IterationCompleted] per iteration.
+ *
+ * A typical successful per-replication run produces:
  * ```
- * RunStarted
- * [RunWarning]?           (zero or more, emitted before the experiment begins)
+ * [RunWarning]?                  (zero or more, emitted before the run starts)
+ * ReplicationRunStarted
  * ReplicationStarted(1)
  * ReplicationEnded(1)
  * ReplicationStarted(2)
  * ReplicationEnded(2)
  * ...
- * RunCompleted(summary)   ← terminal
+ * RunCompleted(summary)          ← terminal
  * ```
  *
  * ## What these events do NOT carry
@@ -53,27 +66,104 @@ import ksl.utilities.io.dbutil.SimulationSnapshot
 sealed class RunEvent {
 
     /**
-     * Emitted once, immediately after [Runner] calls `model.initializeReplications()`.
+     * Sealed parent of every "the run has started" event.
+     *
+     * Concrete variants — [ReplicationRunStarted], [ScenarioRunStarted],
+     * [ExperimentRunStarted], [OptimizationRunStarted] — carry a count
+     * field appropriate to their execution mode, but all share
+     * [runId], [modelIdentifier], and [startTime].  GUIs that only need
+     * a uniform "the run is now running" signal can match
+     * `is RunEvent.Started` without distinguishing the variant.
+     *
+     * @property runId the unique run identifier assigned at submission time
+     * @property modelIdentifier the model identifier at submission time
+     * @property startTime wall-clock instant the run began executing
+     */
+    sealed class Started : RunEvent() {
+        abstract val runId: String
+        abstract val modelIdentifier: String
+        abstract val startTime: Instant
+    }
+
+    /**
+     * Emitted once by [Runner] immediately after
+     * `model.initializeReplications()` on the per-replication execution
+     * path used by `SingleRunOrchestrator`.
      *
      * @property runId the unique run identifier assigned by [Runner]
      * @property modelIdentifier `model.modelIdentifier` at submission time
      * @property totalReplications `model.numberOfReplications` at submission time
      * @property startTime wall-clock instant the experiment was initialized
      */
-    data class RunStarted(
-        val runId: String,
-        val modelIdentifier: String,
+    data class ReplicationRunStarted(
+        override val runId: String,
+        override val modelIdentifier: String,
         val totalReplications: Int,
-        val startTime: Instant
-    ) : RunEvent()
+        override val startTime: Instant
+    ) : Started()
 
     /**
-     * Emitted when [Runner] detects a potentially problematic configuration
-     * **before** the experiment begins.  Does not prevent the run from
-     * proceeding; the receiving GUI or test driver should surface it to the user.
+     * Emitted once by `ScenarioOrchestrator` immediately before the scenario
+     * sweep begins, after any pre-run warnings.
+     *
+     * @property runId the unique run identifier assigned by the orchestrator
+     * @property modelIdentifier the run's model identifier
+     * @property totalScenarios total number of scenarios in the run; matches
+     *           the [ScenarioCompleted.totalScenarios] field on subsequent
+     *           per-scenario events
+     * @property startTime wall-clock instant the orchestrator began the sweep
+     */
+    data class ScenarioRunStarted(
+        override val runId: String,
+        override val modelIdentifier: String,
+        val totalScenarios: Int,
+        override val startTime: Instant
+    ) : Started()
+
+    /**
+     * Emitted once by `ExperimentOrchestrator` immediately before the
+     * designed experiment begins, after any pre-run warnings.
+     *
+     * @property runId the unique run identifier assigned by the orchestrator
+     * @property modelIdentifier the run's model identifier
+     * @property totalDesignPoints total number of design points; matches
+     *           [DesignPointCompleted.totalDesignPoints] on subsequent events
+     * @property startTime wall-clock instant the orchestrator began the experiment
+     */
+    data class ExperimentRunStarted(
+        override val runId: String,
+        override val modelIdentifier: String,
+        val totalDesignPoints: Int,
+        override val startTime: Instant
+    ) : Started()
+
+    /**
+     * Emitted once by `OptimizationOrchestrator` immediately before
+     * solver iteration begins, after any pre-run warnings.
+     *
+     * @property runId the unique run identifier assigned by the orchestrator
+     * @property modelIdentifier the run's model identifier (typically
+     *           `solver.problemDefinition.modelIdentifier`)
+     * @property maxIterations the solver's `maximumNumberIterations` cap; an
+     *           upper bound, not a guaranteed total — solvers may stop early
+     *           on convergence
+     * @property startTime wall-clock instant the orchestrator began
+     *           solver iteration
+     */
+    data class OptimizationRunStarted(
+        override val runId: String,
+        override val modelIdentifier: String,
+        val maxIterations: Int,
+        override val startTime: Instant
+    ) : Started()
+
+    /**
+     * Emitted when a potentially problematic configuration is detected
+     * **before** the run starts.  Does not prevent the run from proceeding;
+     * the receiving GUI or test driver should surface it to the user.
      *
      * Multiple warnings may be emitted for a single run.  All [RunWarning]
-     * events are emitted before [RunStarted].
+     * events are emitted before the run's [Started] variant.
      */
     data class RunWarning(val warning: RunWarningType) : RunEvent()
 

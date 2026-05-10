@@ -308,7 +308,7 @@ class KSLAppSessionTest {
     }
 
     @Test
-    fun `validation warnings are emitted before RunStarted`() = runBlocking {
+    fun `validation warnings are emitted before the Started event`() = runBlocking {
         KSLAppSession(mm1Provider, this).use { session ->
             val warningConfig = mm1Config().let { config ->
                 config.copy(
@@ -327,11 +327,13 @@ class KSLAppSessionTest {
                 it is RunEvent.RunWarning &&
                     it.warning is RunWarningType.ConfigurationWarnings
             }
-            val startedIndex = events.indexOfFirst { it is RunEvent.RunStarted }
+            // Match the sealed Started parent so this test expresses the universal
+            // rule (warnings precede whichever Started variant the orchestrator emits).
+            val startedIndex = events.indexOfFirst { it is RunEvent.Started }
 
             assertTrue(warningIndex >= 0, "Expected configuration warning event")
-            assertTrue(startedIndex >= 0, "Expected RunStarted event")
-            assertTrue(warningIndex < startedIndex, "Configuration warnings must precede RunStarted")
+            assertTrue(startedIndex >= 0, "Expected a RunEvent.Started event")
+            assertTrue(warningIndex < startedIndex, "Configuration warnings must precede Started")
         }
     }
 
