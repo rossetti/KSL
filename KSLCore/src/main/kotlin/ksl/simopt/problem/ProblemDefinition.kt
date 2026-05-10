@@ -440,12 +440,15 @@ class ProblemDefinition @JvmOverloads constructor(
      *  constraint
      *  @param rhsValue the right-hand side of the constraint
      *  @param inequalityType the inequality type (less_than or greater_than)
+     *  @param penaltyFunction optional per-constraint penalty function. When `null` (the default),
+     *  the constraint inherits [defaultLinearPenalty].
      */
     @Suppress("unused")
     fun linearConstraint(
         equation: Map<String, Double>,
         rhsValue: Double = 0.0,
-        inequalityType: InequalityType = InequalityType.LESS_THAN
+        inequalityType: InequalityType = InequalityType.LESS_THAN,
+        penaltyFunction: PenaltyFunctionIfc? = null
     ): LinearConstraint {
         for ((name, _) in equation) {
             require(name in inputNames) { "The name $name does not exist in the named inputs" }
@@ -454,7 +457,7 @@ class ProblemDefinition @JvmOverloads constructor(
         for (name: String in inputNames) {
             eqMap[name] = equation[name] ?: 0.0
         }
-        val ic = LinearConstraint(eqMap, rhsValue, inequalityType)
+        val ic = LinearConstraint(eqMap, rhsValue, inequalityType, penaltyFunction)
         myLinearConstraints.add(ic)
         return ic
     }
@@ -469,6 +472,8 @@ class ProblemDefinition @JvmOverloads constructor(
      *  as a cut-off point between desirable and unacceptable systems
      *  @param tolerance the constraint's tolerance. A parameter often used by solver methods that
      *  specifies how much we are willing to be off from the target. Similar to an indifference parameter.
+     *  @param penaltyFunction optional per-constraint penalty function. When `null` (the default),
+     *  the constraint inherits [defaultResponsePenalty].
      *  @return the constructed response constraint
      */
     @Suppress("unused")
@@ -477,10 +482,11 @@ class ProblemDefinition @JvmOverloads constructor(
         rhsValue: Double,
         inequalityType: InequalityType = InequalityType.LESS_THAN,
         target: Double = 0.0,
-        tolerance: Double = 0.0
+        tolerance: Double = 0.0,
+        penaltyFunction: PenaltyFunctionIfc? = null
     ): ResponseConstraint {
         require(name in responseNames) { "The name $name does not exist in the response names" }
-        val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance)
+        val rc = ResponseConstraint(name, rhsValue, inequalityType, target, tolerance, penaltyFunction)
         myResponseConstraints.add(rc)
         return rc
     }

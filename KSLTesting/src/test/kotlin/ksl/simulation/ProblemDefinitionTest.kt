@@ -2,12 +2,15 @@ package ksl.simulation
 
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
+import ksl.simopt.problem.DynamicPolynomialPenalty
 import ksl.simopt.problem.InequalityType
 import ksl.simopt.problem.InputDefinition
 import ksl.simopt.problem.OptimizationType
+import ksl.simopt.problem.PenaltyFunctionWithMemory
 import ksl.simopt.problem.ProblemDefinition
 import ksl.utilities.Interval
 import ksl.utilities.random.rvariable.ExponentialRV
+import kotlin.test.assertSame
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -377,5 +380,49 @@ class ProblemDefinitionTest {
         val pd = probeProblem(responseNames = listOf("FillRate"))
         val model = probeModel(includeTotalCost = true, includeFillRate = false)
         assertFalse(pd.validateProblemDefinition(model))
+    }
+
+    // ── Group: per-constraint penalty function attaches to constraint ─────────
+
+    @Test
+    fun linearConstraintAttachesPerConstraintPenaltyFunction() {
+        val pd = ProblemDefinition(
+            problemName       = "PenaltyAttachTest",
+            modelIdentifier   = "PenaltyAttachTestModel",
+            objFnResponseName = "Cost",
+            inputNames        = listOf("x", "y"),
+            responseNames     = emptyList()
+        )
+        pd.inputVariable("x", 0.0, 10.0)
+        pd.inputVariable("y", 0.0, 10.0)
+        val penalty = DynamicPolynomialPenalty(basePenalty = 250.0, iterationExponent = 1.5, violationExponent = 3.0)
+        val constraint = pd.linearConstraint(
+            equation        = mapOf("x" to 1.0, "y" to 2.0),
+            rhsValue        = 5.0,
+            penaltyFunction = penalty
+        )
+        assertSame(penalty, constraint.penaltyFunction)
+        assertSame(penalty, pd.linearConstraints.first().penaltyFunction)
+    }
+
+    @Test
+    fun responseConstraintAttachesPerConstraintPenaltyFunction() {
+        val pd = ProblemDefinition(
+            problemName       = "PenaltyAttachTest",
+            modelIdentifier   = "PenaltyAttachTestModel",
+            objFnResponseName = "Cost",
+            inputNames        = listOf("x"),
+            responseNames     = listOf("FillRate")
+        )
+        pd.inputVariable("x", 0.0, 10.0)
+        val penalty = PenaltyFunctionWithMemory(basePenalty = 50.0, iterationExponent = 0.5, violationExponent = 2.0)
+        val constraint = pd.responseConstraint(
+            name            = "FillRate",
+            rhsValue        = 0.95,
+            inequalityType  = InequalityType.GREATER_THAN,
+            penaltyFunction = penalty
+        )
+        assertSame(penalty, constraint.penaltyFunction)
+        assertSame(penalty, pd.responseConstraints.first().penaltyFunction)
     }
 }

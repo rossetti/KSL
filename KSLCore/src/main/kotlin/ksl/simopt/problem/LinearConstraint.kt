@@ -10,11 +10,15 @@ import ksl.utilities.multiplyConstant
  *  not be blank.
  *  @param rhsValue the right-hand side value of the constraint. The default is 0.0.
  *  @param inequalityType the type of inequality, less-than or greater-than. The default is InequalityType.LESS_THAN
+ *  @param penaltyFunction optional per-constraint penalty function overriding the problem-level
+ *  default for linear constraints. When `null` (the default), the constraint inherits
+ *  [ksl.simopt.problem.ProblemDefinition.defaultLinearPenalty].
  */
 data class LinearConstraint(
     val equation: Map<String, Double>,
     override var rhsValue: Double = 0.0,
-    override val inequalityType: InequalityType = InequalityType.LESS_THAN
+    override val inequalityType: InequalityType = InequalityType.LESS_THAN,
+    override val penaltyFunction: PenaltyFunctionIfc? = null
 ) : ConstraintIfc {
 
     init {
