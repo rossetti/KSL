@@ -14,8 +14,8 @@ import kotlin.math.pow
  */
 class DynamicPolynomialPenalty(
     val basePenalty: Double = 100.0,
+    val iterationExponent: Double = 1.0,
     val violationExponent: Double = 2.0,
-    val iterationExponent: Double = 1.0
 ) : PenaltyFunctionIfc {
 
     init {

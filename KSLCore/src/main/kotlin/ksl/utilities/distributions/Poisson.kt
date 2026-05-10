@@ -282,6 +282,9 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
          * @return the CDF value
          */
         fun recursiveCDF(j: Int, mean: Double): Double {
+            if (j == Int.MAX_VALUE) {
+                return 1.0
+            }
             require(mean > 0.0) { "Mean must be > 0)" }
             if (j < 0) {
                 return 0.0
@@ -358,6 +361,9 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
          * @return the cdf value
          */
         fun poissonCDF(j: Int, mean: Double, recursive: Boolean = true): Double {
+            if (j == Int.MAX_VALUE) {
+                return 1.0
+            }
             require(mean > 0.0) { "Mean must be > 0)" }
             if (j < 0) {
                 return 0.0

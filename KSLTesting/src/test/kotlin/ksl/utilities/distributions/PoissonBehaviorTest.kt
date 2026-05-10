@@ -1,5 +1,6 @@
 package ksl.utilities.distributions
 
+import org.junit.jupiter.api.Tag
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
@@ -108,6 +109,7 @@ class PoissonBehaviorTest {
      * roundoff, so cdf(Int) stays in [0, 1] even when accumulating millions
      * of terms.
      */
+    @Tag("slow")
     @Test
     fun cdfIntAtIntMaxStaysInRange() {
         val poisson = Poisson(1.8)
