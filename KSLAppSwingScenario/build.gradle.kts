@@ -12,8 +12,9 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
-    // KSLExamples is used by BundledModels.kt to wire in GIGcQueue and
-    // LKInventoryModel — these are reference models, not engine internals.
+    // KSLExamples hosts BundledModelProviders (GIGcQueue + LKInventoryModel
+    // wired into a single ModelProviderIfc) — these are reference models,
+    // not engine internals.
     implementation(project(":KSLExamples"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")

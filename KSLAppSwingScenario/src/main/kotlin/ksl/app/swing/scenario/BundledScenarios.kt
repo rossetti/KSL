@@ -1,5 +1,6 @@
 package ksl.app.swing.scenario
 
+import ksl.examples.general.appsupport.BundledModelProviders
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.ScenarioSpec
 
@@ -24,13 +25,13 @@ import ksl.app.config.ScenarioSpec
 internal object BundledScenarios {
 
     fun forModel(modelId: String): List<ScenarioSpec> = when (modelId) {
-        BundledModels.MM1_ID -> mm1Scenarios()
-        BundledModels.LK_INVENTORY_ID -> lkScenarios()
+        BundledModelProviders.MM1_ID -> mm1Scenarios()
+        BundledModelProviders.LK_INVENTORY_ID -> lkScenarios()
         else -> emptyList()
     }
 
     private fun mm1Scenarios(): List<ScenarioSpec> {
-        val baseParams = BundledModels.provider.provideModel(BundledModels.MM1_ID)
+        val baseParams = BundledModelProviders.provider.provideModel(BundledModelProviders.MM1_ID)
             .extractRunParameters()
         return listOf(
             ScenarioSpec(
@@ -58,7 +59,7 @@ internal object BundledScenarios {
     }
 
     private fun lkScenarios(): List<ScenarioSpec> {
-        val baseParams = BundledModels.provider.provideModel(BundledModels.LK_INVENTORY_ID)
+        val baseParams = BundledModelProviders.provider.provideModel(BundledModelProviders.LK_INVENTORY_ID)
             .extractRunParameters()
         return listOf(
             ScenarioSpec(

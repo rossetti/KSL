@@ -1,5 +1,6 @@
 package ksl.app.swing.scenario
 
+import ksl.examples.general.appsupport.BundledModelProviders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,8 +29,8 @@ import ksl.simulation.ModelProviderIfc
  * sequence emitted by `ScenarioOrchestrator`.
  */
 internal class ScenarioAppViewModel(
-    initialModelId: String = BundledModels.MM1_ID,
-    private val provider: ModelProviderIfc = BundledModels.provider,
+    initialModelId: String = BundledModelProviders.MM1_ID,
+    private val provider: ModelProviderIfc = BundledModelProviders.provider,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
@@ -51,7 +52,7 @@ internal class ScenarioAppViewModel(
      *  model's bundled sweep.  Has no effect while a run is in flight. */
     fun selectModel(modelId: String) {
         if (myUiState.value is UiState.Running) return
-        require(modelId in BundledModels.availableModelIds) {
+        require(modelId in BundledModelProviders.availableModelIds) {
             "Unknown bundled model id: $modelId"
         }
         selectedModelId = modelId

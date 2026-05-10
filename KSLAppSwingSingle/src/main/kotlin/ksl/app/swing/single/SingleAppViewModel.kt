@@ -1,5 +1,6 @@
 package ksl.app.swing.single
 
+import ksl.examples.general.appsupport.BundledModelProviders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,8 +35,8 @@ import ksl.simulation.ModelProviderIfc
  * (e.g. headless tests) may inject their own scope.
  */
 internal class SingleAppViewModel(
-    initialModelId: String = BundledModels.MM1_ID,
-    private val provider: ModelProviderIfc = BundledModels.provider,
+    initialModelId: String = BundledModelProviders.MM1_ID,
+    private val provider: ModelProviderIfc = BundledModelProviders.provider,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
@@ -58,7 +59,7 @@ internal class SingleAppViewModel(
      *  the selected model's defaults.  Has no effect while a run is in flight. */
     fun selectModel(modelId: String) {
         if (myUiState.value is UiState.Running) return
-        require(modelId in BundledModels.availableModelIds) {
+        require(modelId in BundledModelProviders.availableModelIds) {
             "Unknown bundled model id: $modelId"
         }
         selectedModelId = modelId

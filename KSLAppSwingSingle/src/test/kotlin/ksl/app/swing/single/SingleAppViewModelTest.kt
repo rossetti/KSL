@@ -1,5 +1,6 @@
 package ksl.app.swing.single
 
+import ksl.examples.general.appsupport.BundledModelProviders
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class SingleAppViewModelTest {
         val scope = headlessScope()
         SingleAppViewModel(scope = scope).use { vm ->
             assertIs<UiState.Idle>(vm.uiState.value)
-            assertEquals(BundledModels.MM1_ID, vm.selectedModelId)
+            assertEquals(BundledModelProviders.MM1_ID, vm.selectedModelId)
         }
         scope.cancel()
     }
@@ -132,8 +133,8 @@ class SingleAppViewModelTest {
         val scope = headlessScope()
         SingleAppViewModel(scope = scope).use { vm ->
             val mm1Reps = vm.runParameters.numberOfReplications
-            vm.selectModel(BundledModels.LK_INVENTORY_ID)
-            assertEquals(BundledModels.LK_INVENTORY_ID, vm.selectedModelId)
+            vm.selectModel(BundledModelProviders.LK_INVENTORY_ID)
+            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
             // The LK model's default replication count differs from MM1's, so
             // selecting a different model must have replaced the parameters.
             val lkReps = vm.runParameters.numberOfReplications

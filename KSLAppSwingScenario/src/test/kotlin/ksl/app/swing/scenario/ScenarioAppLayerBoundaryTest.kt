@@ -9,8 +9,9 @@ import kotlin.test.assertTrue
  * only through the public app surface; in particular, they must not
  * import `ksl.app.orchestrator.*`.
  *
- * `BundledModels.kt` is exempt because it is model-wiring code (the kind
- * of thing a real user of the app-session API also writes), not GUI code.
+ * Model-wiring code (`BundledModelProviders`) lives in
+ * `ksl.examples.general.appsupport` in `KSLExamples`, so no module-local
+ * exclusion is needed.
  */
 class ScenarioAppLayerBoundaryTest {
 
@@ -35,15 +36,10 @@ class ScenarioAppLayerBoundaryTest {
         if (!moduleSrc.isDirectory) return emptyList()
         return moduleSrc.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
-            .filter { it.name !in EXCLUDED_FROM_BOUNDARY_CHECK }
             .toList()
     }
 
     private companion object {
-        val EXCLUDED_FROM_BOUNDARY_CHECK = setOf(
-            "BundledModels.kt"  // model-wiring; uses ksl.simulation + ksl.examples
-        )
-
         val FORBIDDEN_IMPORT_REGEX =
             Regex("""^import\s+ksl\.app\.orchestrator\..*$""", RegexOption.MULTILINE)
     }
