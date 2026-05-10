@@ -368,7 +368,7 @@ object RunConfigurationValidator {
         }
     }
 
-    private fun resolveProbeModel(
+    internal fun resolveProbeModel(
         reference: ModelReference,
         provider: ModelProviderIfc?,
         path: String,
@@ -450,7 +450,7 @@ object RunConfigurationValidator {
         }
     }
 
-    private fun validateControlsAgainstModel(
+    internal fun validateControlsAgainstModel(
         controls: ModelControlsExport,
         path: String,
         model: Model,
@@ -468,7 +468,7 @@ object RunConfigurationValidator {
         adaptControlImportResult(controls, path, importResult, builder)
     }
 
-    private fun validateRvOverridesAgainstModel(
+    internal fun validateRvOverridesAgainstModel(
         overrides: List<RVParameterOverride>,
         path: String,
         model: Model,
@@ -549,7 +549,7 @@ object RunConfigurationValidator {
 
     private data class IndexedKey(val index: Int, val key: String)
 
-    private class ValidationResultBuilder(
+    internal class ValidationResultBuilder(
         initialResult: ValidationResult = ValidationResult()
     ) {
         private val myErrors = initialResult.errors.toMutableList()
