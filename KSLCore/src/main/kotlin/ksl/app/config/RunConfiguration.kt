@@ -80,9 +80,6 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  * @property scenarios               serialisable scenario specs consumed by
  *                                   `ksl.app.RunSpec.Scenarios`; ignored by
  *                                   `ksl.app.RunSpec.Single`
- * @property simoptProblemId         optional problem id metadata for optimisation
- *                                   configs consumed by `ksl.app.RunSpec.Optimization`;
- *                                   it is not used for automatic routing
  * @property tracingConfig           animation trace capture settings; defaults to disabled
  *                                   (`animationTraceFile = null`)
  */
@@ -93,13 +90,9 @@ data class RunConfiguration(
     val controls: ModelControlsExport = ModelControlsExport(modelName = ""),
     val rvOverrides: List<RVParameterOverride> = emptyList(),
     val scenarios: List<ScenarioSpec> = emptyList(),
-    val simoptProblemId: String? = null,
     val tracingConfig: TracingConfig = TracingConfig()
 ) {
     init {
-        require(simoptProblemId == null || simoptProblemId.isNotBlank()) {
-            "simoptProblemId must be non-blank when non-null"
-        }
         require(scenarios.map { it.name }.toSet().size == scenarios.size) {
             "scenarios must have unique names"
         }

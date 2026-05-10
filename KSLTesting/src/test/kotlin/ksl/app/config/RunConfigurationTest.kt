@@ -66,8 +66,7 @@ class RunConfigurationTest {
     /**
      * A [RunConfiguration] must survive JSON encode → decode with value equality.
      * Covers all default-valued optional fields (controls, rvOverrides, scenarios,
-     * simoptProblemId, tracingConfig) because [RunConfigurationJson] sets
-     * `encodeDefaults = true`.
+     * tracingConfig) because [RunConfigurationJson] sets `encodeDefaults = true`.
      */
     @Test
     fun `RunConfiguration round-trips through JSON`() {

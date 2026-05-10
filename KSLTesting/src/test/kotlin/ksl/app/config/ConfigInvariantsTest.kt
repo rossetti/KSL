@@ -107,15 +107,6 @@ class ConfigInvariantsTest {
 
     // ── RunConfiguration ─────────────────────────────────────────────────────
 
-    @Test fun `RunConfiguration rejects blank simoptProblemId when non-null`() {
-        assertThrows<IllegalArgumentException> {
-            RunConfiguration(
-                modelReference = ModelReference.ByProviderId("MM1"),
-                experimentRunParameters = runParameters(),
-                simoptProblemId = ""
-            )
-        }
-    }
     @Test fun `RunConfiguration rejects duplicate scenario names`() {
         assertThrows<IllegalArgumentException> {
             RunConfiguration(

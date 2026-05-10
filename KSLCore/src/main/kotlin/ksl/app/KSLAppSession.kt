@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import ksl.app.config.RunConfiguration
+import ksl.app.config.optimization.OptimizationSolverFactory
 import ksl.app.orchestrator.ExperimentOrchestrator
 import ksl.app.orchestrator.OptimizationOrchestrator
 import ksl.app.orchestrator.ScenarioOrchestrator
@@ -32,6 +33,7 @@ import ksl.app.session.RunHandle
 import ksl.app.session.RunWarningType
 import ksl.app.session.failedRunHandle
 import ksl.app.validation.FieldError
+import ksl.app.validation.OptimizationConfigurationValidator
 import ksl.app.validation.RunConfigurationValidator
 import ksl.app.validation.ValidationResult
 import ksl.app.validation.ValidationSeverity
@@ -91,10 +93,13 @@ class KSLAppSession(
             return failedConfigurationHandle("Unsupported attachments for run spec.", error)
         }
 
-        val validationResult = if (validate) {
-            RunConfigurationValidator.validateForRun(validationConfig(spec), provider)
-        } else {
+        val validationResult: ValidationResult = if (!validate) {
             ValidationResult()
+        } else when (spec) {
+            is RunSpec.Single, is RunSpec.Scenarios, is RunSpec.Experiment ->
+                RunConfigurationValidator.validateForRun(runConfigurationOf(spec), provider)
+            is RunSpec.Optimization ->
+                OptimizationConfigurationValidator.validateForRun(spec.config, provider)
         }
         if (!validationResult.isValid) {
             return failedRunHandle(
@@ -134,11 +139,14 @@ class KSLAppSession(
                     preRunWarnings = preRunWarnings
                 )
 
-                is RunSpec.Optimization -> OptimizationOrchestrator().submit(
-                    solver = spec.solver,
-                    scope = scope,
-                    preRunWarnings = preRunWarnings
-                )
+                is RunSpec.Optimization -> {
+                    val solver = OptimizationSolverFactory(provider).build(spec.config)
+                    OptimizationOrchestrator().submit(
+                        solver = solver,
+                        scope = scope,
+                        preRunWarnings = preRunWarnings
+                    )
+                }
             }
         }.getOrElse { e ->
             failedRunHandle(
@@ -168,12 +176,22 @@ class KSLAppSession(
         }
     }
 
-    private fun validationConfig(spec: RunSpec): RunConfiguration =
+    /**
+     * Returns the [RunConfiguration] to validate for a non-optimization
+     * spec, with the spec-irrelevant slices cleared so validation focuses
+     * on what the run path actually consumes.  Throws on
+     * [RunSpec.Optimization] — that spec carries
+     * [ksl.app.config.optimization.OptimizationRunConfiguration] and is
+     * validated by [OptimizationConfigurationValidator] on a separate
+     * branch in [submit].
+     */
+    private fun runConfigurationOf(spec: RunSpec): RunConfiguration =
         when (spec) {
-            is RunSpec.Single -> spec.config.copy(scenarios = emptyList(), simoptProblemId = null)
-            is RunSpec.Scenarios -> spec.config.copy(simoptProblemId = null)
-            is RunSpec.Experiment -> spec.config.copy(scenarios = emptyList(), simoptProblemId = null)
-            is RunSpec.Optimization -> spec.config.copy(scenarios = emptyList())
+            is RunSpec.Single -> spec.config.copy(scenarios = emptyList())
+            is RunSpec.Scenarios -> spec.config
+            is RunSpec.Experiment -> spec.config.copy(scenarios = emptyList())
+            is RunSpec.Optimization ->
+                error("runConfigurationOf is not applicable to RunSpec.Optimization")
         }
 
     private fun unsupportedAttachmentsError(

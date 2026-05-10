@@ -19,20 +19,18 @@
 package ksl.app
 
 import ksl.app.config.RunConfiguration
+import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.controls.experiments.ParallelDesignedExperiment
-import ksl.simopt.solvers.Solver
 
 /**
  * Public run request shape consumed by [KSLAppSession].
  *
- * [RunConfiguration] remains the serializable description of model source,
- * run parameters, controls, random-variable overrides, and optional scenario
- * metadata.  [RunSpec] selects how that configuration should be executed.
+ * Each [RunSpec] variant carries the configuration shape natural to its
+ * execution mode: [RunConfiguration] for single-model, scenario, and
+ * designed-experiment runs; [OptimizationRunConfiguration] for
+ * simulation-optimization runs.
  */
 sealed class RunSpec {
-
-    /** Baseline configuration document for this run. */
-    abstract val config: RunConfiguration
 
     /**
      * Run one configured model.
@@ -41,14 +39,14 @@ sealed class RunSpec {
      * only for this spec.
      */
     data class Single(
-        override val config: RunConfiguration
+        val config: RunConfiguration
     ) : RunSpec()
 
     /**
      * Run the scenario sweep encoded in [RunConfiguration.scenarios].
      */
     data class Scenarios(
-        override val config: RunConfiguration
+        val config: RunConfiguration
     ) : RunSpec() {
         init {
             require(config.scenarios.isNotEmpty()) {
@@ -64,7 +62,7 @@ sealed class RunSpec {
      * [experiment] carries the non-serializable experiment structure.
      */
     data class Experiment(
-        override val config: RunConfiguration,
+        val config: RunConfiguration,
         val experiment: ParallelDesignedExperiment,
         val numRepsPerDesignPoint: Int? = null
     ) : RunSpec() {
@@ -76,13 +74,21 @@ sealed class RunSpec {
     }
 
     /**
-     * Run a programmatically constructed simulation-optimization problem.
+     * Run a simulation-optimization problem described by an
+     * [OptimizationRunConfiguration].
      *
-     * [config] is retained as the baseline validation/configuration document;
-     * [solver] carries the non-serializable optimization state.
+     * [KSLAppSession.submit] validates the configuration via
+     * [ksl.app.validation.OptimizationConfigurationValidator], builds a
+     * [ksl.simopt.solvers.Solver] via
+     * [ksl.app.config.optimization.OptimizationSolverFactory], and then
+     * delegates to the existing
+     * [ksl.app.orchestrator.OptimizationOrchestrator] for asynchronous
+     * execution.
+     *
+     * Programmatic users who already hold a built `Solver` should use the
+     * orchestrator directly: `OptimizationOrchestrator().submit(solver, ...)`.
      */
     data class Optimization(
-        override val config: RunConfiguration,
-        val solver: Solver
+        val config: OptimizationRunConfiguration
     ) : RunSpec()
 }

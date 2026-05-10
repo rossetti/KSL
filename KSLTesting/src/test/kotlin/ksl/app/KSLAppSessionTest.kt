@@ -4,9 +4,19 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import ksl.app.config.ModelReference
+import ksl.app.config.ModelRunTemplate
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.optimization.CoolingScheduleSpec
+import ksl.app.config.optimization.OptimizationInputSpec
+import ksl.app.config.optimization.OptimizationProblemSpec
+import ksl.app.config.optimization.OptimizationRunConfiguration
+import ksl.app.config.optimization.SolverSpec
+import ksl.app.config.optimization.TemperatureSpec
 import ksl.app.session.KSLRuntimeError
 import ksl.app.session.RunAttachmentIfc
 import ksl.app.session.RunEvent
@@ -17,8 +27,6 @@ import ksl.controls.experiments.TwoLevelFactor
 import ksl.controls.experiments.TwoLevelFactorialDesign
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.examples.general.models.LKInventoryModel
-import ksl.examples.general.simopt.makeLKInventoryModelProblemDefinition
-import ksl.simopt.solvers.Solver
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
@@ -112,13 +120,38 @@ class KSLAppSessionTest {
         return ParallelDesignedExperiment("SessionLKExperiment", lkBuilder, settings, design)
     }
 
-    private fun buildSolver(): Solver =
-        Solver.createStochasticHillClimbingSolver(
-            problemDefinition = makeLKInventoryModelProblemDefinition(),
-            modelBuilder = lkBuilder,
+    /**
+     * LK inventory optimization configuration mirroring the legacy
+     * `buildSolver()` helper but expressed as the post-Step-7
+     * [OptimizationRunConfiguration] shape.
+     */
+    private fun lkOptimizationConfig(
+        objectiveResponseName: String = "TotalCost",
+        solver: SolverSpec = SolverSpec.StochasticHillClimbing(
             maxIterations = 3,
             replicationsPerEvaluation = 3
         )
+    ): OptimizationRunConfiguration {
+        val model = lkProvider.provideModel(LK_ID)
+        return OptimizationRunConfiguration(
+            model = ModelRunTemplate(
+                modelReference = ModelReference.ByProviderId(LK_ID),
+                runParameters  = model.extractRunParameters()
+            ),
+            problem = OptimizationProblemSpec(
+                problemName           = "InventoryProblem",
+                modelIdentifier       = LK_ID,
+                objectiveResponseName = objectiveResponseName,
+                inputs = listOf(
+                    OptimizationInputSpec("Inventory.orderQuantity",
+                        lowerBound = 1.0, upperBound = 100.0, granularity = 1.0),
+                    OptimizationInputSpec("Inventory.reorderPoint",
+                        lowerBound = 1.0, upperBound = 100.0, granularity = 1.0)
+                )
+            ),
+            solver = solver
+        )
+    }
 
     @Test
     fun `single spec completes through session`() = runBlocking {
@@ -166,12 +199,65 @@ class KSLAppSessionTest {
     @Test
     fun `optimization spec completes through session`() = runBlocking {
         KSLAppSession(lkProvider, this).use { session ->
-            val handle = session.submit(RunSpec.Optimization(lkConfig(), buildSolver()))
+            val handle = session.submit(RunSpec.Optimization(lkOptimizationConfig()))
             val result = handle.result.await()
 
             assertIs<RunResult.OptimizationCompleted>(result)
             assertTrue(result.iterationHistory.isNotEmpty())
             assertEquals(0, result.summary.failedItems)
+        }
+    }
+
+    @Test
+    fun `optimization spec with invalid config returns ConfigurationError handle`() = runBlocking {
+        KSLAppSession(lkProvider, this).use { session ->
+            val invalid = lkOptimizationConfig(objectiveResponseName = "DoesNotExistOnModel")
+            val handle = session.submit(RunSpec.Optimization(invalid))
+            val result = handle.result.await()
+
+            assertIs<RunResult.Failed>(result)
+            val error = result.error
+            assertIs<KSLRuntimeError.ConfigurationError>(error)
+            val validationResult = error.validationResult
+            assertTrue(validationResult != null && validationResult.errors.any {
+                it.path == "problem.objectiveResponseName" && it.code == "OBJECTIVE_RESPONSE_UNKNOWN"
+            }, "Expected OBJECTIVE_RESPONSE_UNKNOWN at problem.objectiveResponseName; got $validationResult")
+        }
+    }
+
+    @Test
+    fun `optimization spec validation warnings emit as RunWarning events`() = runBlocking {
+        KSLAppSession(lkProvider, this).use { session ->
+            // Fixed initial temperature (1000.0) deliberately mismatched against the
+            // cooling-schedule's initialTemperature (500.0) to trigger
+            // SA_COOLING_INITIAL_TEMP_MISMATCH from OptimizationConfigurationValidator.
+            val saConfig = lkOptimizationConfig(
+                solver = SolverSpec.SimulatedAnnealing(
+                    maxIterations = 2,
+                    replicationsPerEvaluation = 1,
+                    temperature = TemperatureSpec.Fixed(temperature = 1000.0),
+                    coolingSchedule = CoolingScheduleSpec.Exponential(initialTemperature = 500.0),
+                    stoppingTemperature = 0.01
+                )
+            )
+            val handle = session.submit(RunSpec.Optimization(saConfig))
+
+            // Collect the first RunWarning event independently of run completion.
+            val warningSeen = CompletableDeferred<RunEvent.RunWarning>()
+            val collector = launch {
+                warningSeen.complete(handle.events.filterIsInstance<RunEvent.RunWarning>().first())
+            }
+
+            val warning = withTimeout(TIMEOUT_MS) { warningSeen.await() }
+            collector.cancel()
+
+            val warningType = warning.warning
+            assertIs<RunWarningType.ConfigurationWarnings>(warningType)
+            assertTrue(warningType.warnings.any { it.code == "SA_COOLING_INITIAL_TEMP_MISMATCH" },
+                "Expected SA_COOLING_INITIAL_TEMP_MISMATCH; got ${warningType.warnings}")
+
+            // Let the run finish so `use { … }` cleanup is clean.
+            handle.result.await()
         }
     }
 

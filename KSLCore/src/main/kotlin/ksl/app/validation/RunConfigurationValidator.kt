@@ -60,7 +60,6 @@ object RunConfigurationValidator {
         validateRvOverrides(config.rvOverrides, "rvOverrides", builder)
         validateTracingConfig(config.tracingConfig, "tracingConfig", builder)
         validateScenarioSpecs(config.scenarios, builder)
-        validateSimoptProblemId(config.simoptProblemId, builder)
         return builder.build()
     }
 
@@ -355,18 +354,6 @@ object RunConfigurationValidator {
         }
     }
 
-    private fun validateSimoptProblemId(
-        simoptProblemId: String?,
-        builder: ValidationResultBuilder
-    ) {
-        if (simoptProblemId != null && simoptProblemId.isBlank()) {
-            builder.error(
-                path = "simoptProblemId",
-                code = "SIMOPT_PROBLEM_ID_BLANK",
-                message = "Simopt problem id must be null or nonblank."
-            )
-        }
-    }
 
     internal fun resolveProbeModel(
         reference: ModelReference,
