@@ -25,6 +25,7 @@ class CENormalSampler(
         require(meanSmoother <= 1) { "Mean smoother must be less than or equal to one." }
         require(sdSmoother > 0) { "Standard deviation smoother must be greater than zero." }
         require(sdSmoother <= 1) { "Standard deviation smoother must be less than or equal to one." }
+        require(coefficientOfVariationThreshold.isFinite()) {"Coefficient of variation threshold must be finite."}
         require(coefficientOfVariationThreshold > 0) { "Coefficient of variation threshold must be greater than zero." }
     }
 
@@ -65,7 +66,8 @@ class CENormalSampler(
      */
     var cvThreshold: Double = coefficientOfVariationThreshold
         set(value) {
-            require(value > 0) { "Standard deviation threshold must be greater than zero." }
+            require(value.isFinite()) {"Coefficient of variation threshold must be finite"}
+            require(value > 0) { "Coefficient of variation threshold must be greater than zero." }
             field = value
         }
 
