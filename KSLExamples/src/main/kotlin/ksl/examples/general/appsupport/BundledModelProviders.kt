@@ -64,13 +64,25 @@ object BundledModelProviders {
     /** Display order suitable for a model-picker UI. */
     val availableModelIds: List<String> = listOf(MM1_ID, LK_INVENTORY_ID)
 
-    /** The single [ModelProviderIfc] holding all bundled model builders. */
-    val provider: ModelProviderIfc = MapModelProvider(
-        mutableMapOf(
-            MM1_ID to mm1Builder(),
-            LK_INVENTORY_ID to lkBuilder()
-        )
+    private val builders: Map<String, ModelBuilderIfc> = mapOf(
+        MM1_ID to mm1Builder(),
+        LK_INVENTORY_ID to lkBuilder()
     )
+
+    /** The single [ModelProviderIfc] holding all bundled model builders. */
+    val provider: ModelProviderIfc = MapModelProvider(builders.toMutableMap())
+
+    /**
+     * Returns the [ModelBuilderIfc] for [modelId].  Useful for callers that
+     * need to pass a builder directly (e.g. [ksl.controls.experiments.ParallelDesignedExperiment]),
+     * where the [provider] indirection would otherwise force a delegating
+     * adapter.
+     *
+     * @throws IllegalArgumentException if [modelId] is not one of
+     *         [availableModelIds]
+     */
+    fun builderFor(modelId: String): ModelBuilderIfc =
+        builders[modelId] ?: throw IllegalArgumentException("Unknown bundled model id: $modelId")
 
     private fun mm1Builder(): ModelBuilderIfc = object : ModelBuilderIfc {
         override fun build(
