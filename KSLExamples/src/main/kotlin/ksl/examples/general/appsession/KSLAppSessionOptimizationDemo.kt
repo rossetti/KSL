@@ -22,7 +22,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
@@ -66,7 +65,7 @@ private val RunEvent.isTerminal: Boolean
  * (integer-ordered) to minimize the response `TotalCost`.  A small
  * Stochastic Hill Climber is used so the demo finishes quickly.
  */
-fun main(): Unit = runBlocking {
+suspend fun main() {
     runKSLAppSessionOptimizationDemo(::println)
 }
 

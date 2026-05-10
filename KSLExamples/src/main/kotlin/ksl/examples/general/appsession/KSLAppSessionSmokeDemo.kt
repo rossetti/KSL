@@ -22,7 +22,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
@@ -56,7 +55,7 @@ private val RunEvent.isTerminal: Boolean
  * as the application protocol. It does not select or import lower-level
  * orchestrators directly.
  */
-fun main(): Unit = runBlocking {
+suspend fun main() {
     runKSLAppSessionSmokeDemo(::println)
 }
 
