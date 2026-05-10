@@ -26,6 +26,8 @@ class ResponseConstraint(
 ) {
     init {
         require(responseName.isNotBlank()) { "The response name cannot be blank" }
+        require(!rhsValue.isNaN()) {"The right-hand side value cannot be NaN"}
+        require(rhsValue.isFinite()) {"The right-hand side value must be finite."}
         require(target >= 0.0) { "The target must be >= 0.0." }
         require(tolerance >= 0.0) { "The tolerance must be >= 0.0." }
     }
