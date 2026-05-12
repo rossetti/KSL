@@ -9,8 +9,9 @@ import kotlin.test.assertTrue
  * `ksl.app.orchestrator.*` — that package is an implementation detail
  * abstracted over by `KSLAppSession`.
  *
- * Model-wiring code lives in `ksl.examples.general.appsupport`
- * (`BundledModelProviders`), so no module-local exclusion is needed.
+ * Model-wiring code (the `KSLModelBundle` implementations in
+ * `ksl.examples.general.appsupport`) lives in `KSLExamples`, so no
+ * module-local exclusion is needed.
  */
 class SimoptAppLayerBoundaryTest {
 

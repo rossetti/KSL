@@ -16,7 +16,9 @@ import ksl.app.session.KSLRuntimeError
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.examples.general.appsupport.LKInventoryBundle
 import ksl.simulation.ModelProviderIfc
 
 /**
@@ -30,8 +32,8 @@ import ksl.simulation.ModelProviderIfc
  * switch via [BundledOptimizations.forModel].
  */
 internal class SimoptAppViewModel(
-    initialModelId: String = BundledModelProviders.LK_INVENTORY_ID,
-    private val provider: ModelProviderIfc = BundledModelProviders.provider,
+    initialModelId: String = LKInventoryBundle.MODEL_ID,
+    private val provider: ModelProviderIfc = BundleModelProvider(BundleLoader.loadFromClasspath()),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
@@ -41,7 +43,7 @@ internal class SimoptAppViewModel(
         private set
 
     /** The current bundled optimization configuration.  Replaced on model switch. */
-    var optimization: OptimizationRunConfiguration = BundledOptimizations.forModel(initialModelId)
+    var optimization: OptimizationRunConfiguration = BundledOptimizations.forModel(initialModelId, provider)
         private set
 
     private val myUiState: MutableStateFlow<UiState> = MutableStateFlow(UiState.Idle)
@@ -57,7 +59,7 @@ internal class SimoptAppViewModel(
             "No bundled optimization for model id: $modelId"
         }
         selectedModelId = modelId
-        optimization = BundledOptimizations.forModel(modelId)
+        optimization = BundledOptimizations.forModel(modelId, provider)
     }
 
     /** Submits the current optimization configuration and transitions

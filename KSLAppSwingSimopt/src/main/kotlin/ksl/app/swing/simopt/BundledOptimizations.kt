@@ -6,7 +6,8 @@ import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.config.optimization.SolverSpec
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.examples.general.appsupport.LKInventoryBundle
+import ksl.simulation.ModelProviderIfc
 
 /**
  * Pre-built simulation-optimization configurations for the bundled models
@@ -24,25 +25,25 @@ import ksl.examples.general.appsupport.BundledModelProviders
  *   [1, 100] (integer granularity), solved with a small Stochastic Hill
  *   Climber so a single run completes in seconds.
  *
- * MM1 is intentionally not supported here even though
- * [BundledModelProviders] lists it: keeping the picker narrative tight
- * (one well-suited bundled problem) matches the Experiment module.
+ * MM1 is intentionally not supported here even though `MM1Bundle` ships
+ * it: keeping the picker narrative tight (one well-suited bundled
+ * problem) matches the Experiment module.
  */
 internal object BundledOptimizations {
 
     /** Models for which a bundled optimization exists.  The model picker
-     *  in this module uses this list instead of
-     *  [BundledModelProviders.availableModelIds]. */
-    val supportedModelIds: List<String> = listOf(BundledModelProviders.LK_INVENTORY_ID)
+     *  in this module uses this list rather than the full set of bundled
+     *  model identifiers exposed by the `BundleModelProvider`. */
+    val supportedModelIds: List<String> = listOf(LKInventoryBundle.MODEL_ID)
 
-    fun forModel(modelId: String): OptimizationRunConfiguration = when (modelId) {
-        BundledModelProviders.LK_INVENTORY_ID -> lkOptimization()
+    fun forModel(modelId: String, provider: ModelProviderIfc): OptimizationRunConfiguration = when (modelId) {
+        LKInventoryBundle.MODEL_ID -> lkOptimization(provider)
         else -> throw IllegalArgumentException("No bundled optimization for model id: $modelId")
     }
 
-    private fun lkOptimization(): OptimizationRunConfiguration {
-        val modelId = BundledModelProviders.LK_INVENTORY_ID
-        val baseParams = BundledModelProviders.provider.provideModel(modelId).extractRunParameters()
+    private fun lkOptimization(provider: ModelProviderIfc): OptimizationRunConfiguration {
+        val modelId = LKInventoryBundle.MODEL_ID
+        val baseParams = provider.provideModel(modelId).extractRunParameters()
         val template = ModelRunTemplate(
             modelReference = ModelReference.ByProviderId(modelId),
             runParameters = baseParams

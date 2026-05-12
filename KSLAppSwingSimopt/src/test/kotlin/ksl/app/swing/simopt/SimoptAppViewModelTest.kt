@@ -7,7 +7,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.examples.general.appsupport.LKInventoryBundle
+import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -29,7 +30,7 @@ class SimoptAppViewModelTest {
         val scope = headlessScope()
         SimoptAppViewModel(scope = scope).use { vm ->
             assertIs<UiState.Idle>(vm.uiState.value)
-            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
+            assertEquals(LKInventoryBundle.MODEL_ID, vm.selectedModelId)
             assertEquals(2, vm.optimization.problem.inputs.size)
             assertTrue(vm.optimization.solver.maxIterations > 0)
         }
@@ -69,12 +70,12 @@ class SimoptAppViewModelTest {
     fun `selectModel rejects models without a bundled optimization`() = runBlocking {
         val scope = headlessScope()
         SimoptAppViewModel(scope = scope).use { vm ->
-            // MM1 is in BundledModelProviders but has no bundled
+            // MM1 ships in MM1Bundle but has no bundled
             // optimization configuration — the picker must reject it.
             assertFailsWith<IllegalArgumentException> {
-                vm.selectModel(BundledModelProviders.MM1_ID)
+                vm.selectModel(MM1Bundle.MODEL_ID)
             }
-            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
+            assertEquals(LKInventoryBundle.MODEL_ID, vm.selectedModelId)
         }
         scope.cancel()
     }
