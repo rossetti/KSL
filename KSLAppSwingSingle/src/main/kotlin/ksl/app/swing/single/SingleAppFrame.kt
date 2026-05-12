@@ -33,6 +33,7 @@ internal class SingleAppFrame : JFrame("KSL Single-Model Run") {
     private val viewModel = SingleAppViewModel(scope = uiScope)
 
     private val modelPicker = ModelPickerPanel(
+        availableModelIds = viewModel.availableModelIds,
         initialModelId = viewModel.selectedModelId,
         onModelSelected = { modelId ->
             viewModel.selectModel(modelId)

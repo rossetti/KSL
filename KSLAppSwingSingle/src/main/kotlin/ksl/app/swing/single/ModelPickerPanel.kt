@@ -1,6 +1,5 @@
 package ksl.app.swing.single
 
-import ksl.examples.general.appsupport.BundledModelProviders
 import java.awt.FlowLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
@@ -14,16 +13,19 @@ import javax.swing.JPanel
  * — the proof of concept lets users choose between the two bundled models
  * and edit their parameters directly.
  *
+ * @param availableModelIds the model identifiers offered by the dropdown,
+ *        in display order (typically `viewModel.availableModelIds`)
  * @param initialModelId the model id to select on construction
  * @param onModelSelected fired whenever the user changes the selection
  */
 internal class ModelPickerPanel(
+    availableModelIds: List<String>,
     initialModelId: String,
     private val onModelSelected: (String) -> Unit
 ) : JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)) {
 
     private val combo: JComboBox<String> =
-        JComboBox(DefaultComboBoxModel(BundledModelProviders.availableModelIds.toTypedArray())).apply {
+        JComboBox(DefaultComboBoxModel(availableModelIds.toTypedArray())).apply {
             selectedItem = initialModelId
             addActionListener {
                 val id = selectedItem as? String ?: return@addActionListener

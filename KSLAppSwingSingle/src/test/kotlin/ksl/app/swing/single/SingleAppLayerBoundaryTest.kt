@@ -15,9 +15,9 @@ import kotlin.test.assertTrue
  * specific orchestrator would defeat the whole point of the
  * GUI-agnostic interaction layer.
  *
- * Model-wiring code (`BundledModelProviders`) was extracted to
- * `ksl.examples.general.appsupport` in `KSLExamples`, so no module-local
- * exclusion is needed any more.
+ * Model-wiring code (the `KSLModelBundle` implementations in
+ * `ksl.examples.general.appsupport`) lives in `KSLExamples`, so no
+ * module-local exclusion is needed.
  */
 class SingleAppLayerBoundaryTest {
 

@@ -1,6 +1,8 @@
 package ksl.app.swing.single
 
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.examples.general.appsupport.MM1Bundle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,12 +37,15 @@ import ksl.simulation.ModelProviderIfc
  * (e.g. headless tests) may inject their own scope.
  */
 internal class SingleAppViewModel(
-    initialModelId: String = BundledModelProviders.MM1_ID,
-    private val provider: ModelProviderIfc = BundledModelProviders.provider,
+    initialModelId: String = MM1Bundle.MODEL_ID,
+    private val provider: ModelProviderIfc = BundleModelProvider(BundleLoader.loadFromClasspath()),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
     private val session: KSLAppSession = KSLAppSession(provider, scope)
+
+    /** Identifiers of every bundled model the picker may offer. */
+    val availableModelIds: List<String> get() = provider.modelIdentifiers()
 
     /** The model identifier the user has selected from the bundled list. */
     var selectedModelId: String = initialModelId
@@ -59,7 +64,7 @@ internal class SingleAppViewModel(
      *  the selected model's defaults.  Has no effect while a run is in flight. */
     fun selectModel(modelId: String) {
         if (myUiState.value is UiState.Running) return
-        require(modelId in BundledModelProviders.availableModelIds) {
+        require(provider.isModelProvided(modelId)) {
             "Unknown bundled model id: $modelId"
         }
         selectedModelId = modelId
