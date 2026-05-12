@@ -36,10 +36,7 @@ internal fun dispatch(args: Array<String>): CommandResult {
             println("kslpkg $TOOL_VERSION")
             CommandResult.Success
         }
-        "inspect" -> {
-            System.err.println("inspect: not yet implemented (Phase 6A commit 2)")
-            CommandResult.InternalError
-        }
+        "inspect" -> InspectCommand.run(args.drop(1))
         "enrich" -> {
             System.err.println("enrich: not yet implemented (Phase 6A commit 3)")
             CommandResult.InternalError
