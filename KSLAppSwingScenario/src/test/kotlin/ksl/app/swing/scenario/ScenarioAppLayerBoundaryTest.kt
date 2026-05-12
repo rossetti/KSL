@@ -9,9 +9,9 @@ import kotlin.test.assertTrue
  * only through the public app surface; in particular, they must not
  * import `ksl.app.orchestrator.*`.
  *
- * Model-wiring code (`BundledModelProviders`) lives in
- * `ksl.examples.general.appsupport` in `KSLExamples`, so no module-local
- * exclusion is needed.
+ * Model-wiring code (the `KSLModelBundle` implementations in
+ * `ksl.examples.general.appsupport`) lives in `KSLExamples`, so no
+ * module-local exclusion is needed.
  */
 class ScenarioAppLayerBoundaryTest {
 

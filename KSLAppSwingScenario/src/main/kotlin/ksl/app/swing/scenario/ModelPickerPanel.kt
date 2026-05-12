@@ -1,6 +1,5 @@
 package ksl.app.swing.scenario
 
-import ksl.examples.general.appsupport.BundledModelProviders
 import java.awt.FlowLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
@@ -13,12 +12,13 @@ import javax.swing.JPanel
  * sweep — wired through [onModelSelected].
  */
 internal class ModelPickerPanel(
+    availableModelIds: List<String>,
     initialModelId: String,
     private val onModelSelected: (String) -> Unit
 ) : JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)) {
 
     private val combo: JComboBox<String> =
-        JComboBox(DefaultComboBoxModel(BundledModelProviders.availableModelIds.toTypedArray())).apply {
+        JComboBox(DefaultComboBoxModel(availableModelIds.toTypedArray())).apply {
             selectedItem = initialModelId
             addActionListener {
                 val id = selectedItem as? String ?: return@addActionListener

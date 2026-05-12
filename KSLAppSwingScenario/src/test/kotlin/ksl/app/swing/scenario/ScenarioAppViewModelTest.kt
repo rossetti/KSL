@@ -1,6 +1,7 @@
 package ksl.app.swing.scenario
 
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.examples.general.appsupport.LKInventoryBundle
+import ksl.examples.general.appsupport.MM1Bundle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +32,7 @@ class ScenarioAppViewModelTest {
         val scope = headlessScope()
         ScenarioAppViewModel(scope = scope).use { vm ->
             assertIs<UiState.Idle>(vm.uiState.value)
-            assertEquals(BundledModelProviders.MM1_ID, vm.selectedModelId)
+            assertEquals(MM1Bundle.MODEL_ID, vm.selectedModelId)
             assertEquals(3, vm.scenarios.size)
         }
         scope.cancel()
@@ -102,8 +103,8 @@ class ScenarioAppViewModelTest {
         val scope = headlessScope()
         ScenarioAppViewModel(scope = scope).use { vm ->
             val mm1Count = vm.scenarios.size
-            vm.selectModel(BundledModelProviders.LK_INVENTORY_ID)
-            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
+            vm.selectModel(LKInventoryBundle.MODEL_ID)
+            assertEquals(LKInventoryBundle.MODEL_ID, vm.selectedModelId)
             val lkCount = vm.scenarios.size
             assertTrue(lkCount != mm1Count || lkCount > 0,
                 "Expected scenarios list to be repopulated on model switch")

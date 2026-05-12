@@ -28,6 +28,7 @@ internal class ScenarioAppFrame : JFrame("KSL Scenario-Sweep Run") {
     private val viewModel = ScenarioAppViewModel(scope = uiScope)
 
     private val modelPicker = ModelPickerPanel(
+        availableModelIds = viewModel.availableModelIds,
         initialModelId = viewModel.selectedModelId,
         onModelSelected = { modelId ->
             viewModel.selectModel(modelId)

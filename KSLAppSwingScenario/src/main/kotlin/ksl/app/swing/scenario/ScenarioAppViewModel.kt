@@ -1,6 +1,8 @@
 package ksl.app.swing.scenario
 
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.examples.general.appsupport.MM1Bundle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,18 +31,21 @@ import ksl.simulation.ModelProviderIfc
  * sequence emitted by `ScenarioOrchestrator`.
  */
 internal class ScenarioAppViewModel(
-    initialModelId: String = BundledModelProviders.MM1_ID,
-    private val provider: ModelProviderIfc = BundledModelProviders.provider,
+    initialModelId: String = MM1Bundle.MODEL_ID,
+    private val provider: ModelProviderIfc = BundleModelProvider(BundleLoader.loadFromClasspath()),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
     private val session: KSLAppSession = KSLAppSession(provider, scope)
 
+    /** Identifiers of every bundled model the picker may offer. */
+    val availableModelIds: List<String> get() = provider.modelIdentifiers()
+
     var selectedModelId: String = initialModelId
         private set
 
     /** Read-only view of the currently selected model's bundled scenarios. */
-    var scenarios: List<ScenarioSpec> = BundledScenarios.forModel(initialModelId)
+    var scenarios: List<ScenarioSpec> = BundledScenarios.forModel(initialModelId, provider)
         private set
 
     private val myUiState: MutableStateFlow<UiState> = MutableStateFlow(UiState.Idle)
@@ -52,11 +57,11 @@ internal class ScenarioAppViewModel(
      *  model's bundled sweep.  Has no effect while a run is in flight. */
     fun selectModel(modelId: String) {
         if (myUiState.value is UiState.Running) return
-        require(modelId in BundledModelProviders.availableModelIds) {
+        require(provider.isModelProvided(modelId)) {
             "Unknown bundled model id: $modelId"
         }
         selectedModelId = modelId
-        scenarios = BundledScenarios.forModel(modelId)
+        scenarios = BundledScenarios.forModel(modelId, provider)
     }
 
     /** Submits the current scenario sweep and transitions through

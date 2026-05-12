@@ -1,8 +1,10 @@
 package ksl.app.swing.scenario
 
-import ksl.examples.general.appsupport.BundledModelProviders
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.ScenarioSpec
+import ksl.examples.general.appsupport.LKInventoryBundle
+import ksl.examples.general.appsupport.MM1Bundle
+import ksl.simulation.ModelProviderIfc
 
 /**
  * Pre-defined scenario sweeps for the bundled models.
@@ -24,15 +26,14 @@ import ksl.app.config.ScenarioSpec
  */
 internal object BundledScenarios {
 
-    fun forModel(modelId: String): List<ScenarioSpec> = when (modelId) {
-        BundledModelProviders.MM1_ID -> mm1Scenarios()
-        BundledModelProviders.LK_INVENTORY_ID -> lkScenarios()
+    fun forModel(modelId: String, provider: ModelProviderIfc): List<ScenarioSpec> = when (modelId) {
+        MM1Bundle.MODEL_ID -> mm1Scenarios(provider)
+        LKInventoryBundle.MODEL_ID -> lkScenarios(provider)
         else -> emptyList()
     }
 
-    private fun mm1Scenarios(): List<ScenarioSpec> {
-        val baseParams = BundledModelProviders.provider.provideModel(BundledModelProviders.MM1_ID)
-            .extractRunParameters()
+    private fun mm1Scenarios(provider: ModelProviderIfc): List<ScenarioSpec> {
+        val baseParams = provider.provideModel(MM1Bundle.MODEL_ID).extractRunParameters()
         return listOf(
             ScenarioSpec(
                 name = "LowLoad",
@@ -58,9 +59,8 @@ internal object BundledScenarios {
         )
     }
 
-    private fun lkScenarios(): List<ScenarioSpec> {
-        val baseParams = BundledModelProviders.provider.provideModel(BundledModelProviders.LK_INVENTORY_ID)
-            .extractRunParameters()
+    private fun lkScenarios(provider: ModelProviderIfc): List<ScenarioSpec> {
+        val baseParams = provider.provideModel(LKInventoryBundle.MODEL_ID).extractRunParameters()
         return listOf(
             ScenarioSpec(
                 name = "ShortRun",
