@@ -18,8 +18,9 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.controls.experiments.ParallelDesignedExperiment
-import ksl.examples.general.appsupport.BundledModelProviders
-import ksl.simulation.ModelProviderIfc
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.examples.general.appsupport.LKInventoryBundle
 
 /**
  * Observable state surface of the designed-experiment reference app.
@@ -32,8 +33,8 @@ import ksl.simulation.ModelProviderIfc
  * switch (since the type owns mutable state including a `KSLDatabase`).
  */
 internal class ExperimentAppViewModel(
-    initialModelId: String = BundledModelProviders.LK_INVENTORY_ID,
-    private val provider: ModelProviderIfc = BundledModelProviders.provider,
+    initialModelId: String = LKInventoryBundle.MODEL_ID,
+    private val provider: BundleModelProvider = BundleModelProvider(BundleLoader.loadFromClasspath()),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
 ) : AutoCloseable {
 
@@ -43,7 +44,7 @@ internal class ExperimentAppViewModel(
         private set
 
     /** The current bundled experiment.  Replaced on model switch. */
-    var experiment: ParallelDesignedExperiment = BundledExperiments.forModel(initialModelId)
+    var experiment: ParallelDesignedExperiment = BundledExperiments.forModel(initialModelId, provider)
         private set
 
     private val myUiState: MutableStateFlow<UiState> = MutableStateFlow(UiState.Idle)
@@ -59,7 +60,7 @@ internal class ExperimentAppViewModel(
             "No bundled experiment for model id: $modelId"
         }
         selectedModelId = modelId
-        experiment = BundledExperiments.forModel(modelId)
+        experiment = BundledExperiments.forModel(modelId, provider)
     }
 
     /** Submits the current designed experiment and transitions through

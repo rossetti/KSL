@@ -1,10 +1,11 @@
 package ksl.app.swing.experiment
 
+import ksl.app.bundle.BundleModelProvider
 import ksl.controls.experiments.Factor
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.controls.experiments.TwoLevelFactor
 import ksl.controls.experiments.TwoLevelFactorialDesign
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.examples.general.appsupport.LKInventoryBundle
 
 /**
  * Pre-built designed experiments for the bundled models supported by
@@ -31,16 +32,16 @@ import ksl.examples.general.appsupport.BundledModelProviders
 internal object BundledExperiments {
 
     /** Models for which a bundled experiment exists.  The model picker in
-     *  this module uses this list instead of
-     *  [BundledModelProviders.availableModelIds]. */
-    val supportedModelIds: List<String> = listOf(BundledModelProviders.LK_INVENTORY_ID)
+     *  this module uses this list rather than the full set of bundled
+     *  model identifiers exposed by the `BundleModelProvider`. */
+    val supportedModelIds: List<String> = listOf(LKInventoryBundle.MODEL_ID)
 
-    fun forModel(modelId: String): ParallelDesignedExperiment = when (modelId) {
-        BundledModelProviders.LK_INVENTORY_ID -> lkExperiment()
+    fun forModel(modelId: String, provider: BundleModelProvider): ParallelDesignedExperiment = when (modelId) {
+        LKInventoryBundle.MODEL_ID -> lkExperiment(provider)
         else -> throw IllegalArgumentException("No bundled experiment for model id: $modelId")
     }
 
-    private fun lkExperiment(): ParallelDesignedExperiment {
+    private fun lkExperiment(provider: BundleModelProvider): ParallelDesignedExperiment {
         val orderQty = TwoLevelFactor("OrderQuantity", low = 10.0, high = 30.0)
         val reorderPt = TwoLevelFactor("ReorderPoint", low = 10.0, high = 30.0)
         val design = TwoLevelFactorialDesign(setOf(orderQty, reorderPt))
@@ -50,7 +51,7 @@ internal object BundledExperiments {
         )
         return ParallelDesignedExperiment(
             name = "LKInventory_OrderQtyReorderPtSweep",
-            modelBuilder = BundledModelProviders.builderFor(BundledModelProviders.LK_INVENTORY_ID),
+            modelBuilder = provider.builderFor(LKInventoryBundle.MODEL_ID),
             factorSettings = settings,
             design = design
         )

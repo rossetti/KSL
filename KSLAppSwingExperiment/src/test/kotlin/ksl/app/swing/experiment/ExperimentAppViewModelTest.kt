@@ -7,7 +7,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import ksl.examples.general.appsupport.BundledModelProviders
+import ksl.examples.general.appsupport.LKInventoryBundle
+import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,7 +29,7 @@ class ExperimentAppViewModelTest {
         val scope = headlessScope()
         ExperimentAppViewModel(scope = scope).use { vm ->
             assertIs<UiState.Idle>(vm.uiState.value)
-            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
+            assertEquals(LKInventoryBundle.MODEL_ID, vm.selectedModelId)
             // LK 2-factor 2-level full factorial → 4 design points
             assertEquals(4, vm.experiment.design.designPoints().size)
         }
@@ -63,13 +64,13 @@ class ExperimentAppViewModelTest {
     fun `selectModel rejects models without a bundled experiment`() = runBlocking {
         val scope = headlessScope()
         ExperimentAppViewModel(scope = scope).use { vm ->
-            // MM1 is in BundledModelProviders but has only one @KSLControl
+            // MM1 ships in MM1Bundle but has only one @KSLControl
             // property — FactorialDesign requires ≥ 2 factors, so it has
             // no bundled experiment and the picker must reject it.
             assertFailsWith<IllegalArgumentException> {
-                vm.selectModel(BundledModelProviders.MM1_ID)
+                vm.selectModel(MM1Bundle.MODEL_ID)
             }
-            assertEquals(BundledModelProviders.LK_INVENTORY_ID, vm.selectedModelId)
+            assertEquals(LKInventoryBundle.MODEL_ID, vm.selectedModelId)
         }
         scope.cancel()
     }
