@@ -37,10 +37,7 @@ internal fun dispatch(args: Array<String>): CommandResult {
             CommandResult.Success
         }
         "inspect" -> InspectCommand.run(args.drop(1))
-        "enrich" -> {
-            System.err.println("enrich: not yet implemented (Phase 6A commit 3)")
-            CommandResult.InternalError
-        }
+        "enrich" -> EnrichCommand.run(args.drop(1))
         else -> {
             System.err.println("Unknown command: $command")
             printUsage()
