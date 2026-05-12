@@ -37,6 +37,16 @@ import ksl.simulation.ModelBuilderIfc
  */
 class MM1Bundle : KSLModelBundle {
 
+    companion object {
+        /**
+         * Stable `modelId` of the single model packaged in this bundle.
+         * Exposed as a typed reference so callers that hardcode a default
+         * picker selection or filter logic do not depend on a string
+         * literal that could drift if the model is ever renamed.
+         */
+        const val MODEL_ID: String = "MM1"
+    }
+
     override val bundleId: String = "ksl.examples.mm1"
 
     override val displayName: String = "M/M/1 Queue Example"
@@ -52,7 +62,7 @@ class MM1Bundle : KSLModelBundle {
 
     private object MM1Model : KSLBundledModel {
 
-        override val modelId: String = "MM1"
+        override val modelId: String = MODEL_ID
 
         override val displayName: String = "M/M/1 Queue"
 

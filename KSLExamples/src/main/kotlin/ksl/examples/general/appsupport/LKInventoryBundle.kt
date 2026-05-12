@@ -38,6 +38,16 @@ import ksl.simulation.ModelBuilderIfc
  */
 class LKInventoryBundle : KSLModelBundle {
 
+    companion object {
+        /**
+         * Stable `modelId` of the single model packaged in this bundle.
+         * Exposed as a typed reference so callers that hardcode a default
+         * picker selection or filter logic do not depend on a string
+         * literal that could drift if the model is ever renamed.
+         */
+        const val MODEL_ID: String = "LKInventory"
+    }
+
     override val bundleId: String = "ksl.examples.lk-inventory"
 
     override val displayName: String = "LK (s,S) Inventory Model"
@@ -53,7 +63,7 @@ class LKInventoryBundle : KSLModelBundle {
 
     private object LKInventoryBundledModel : KSLBundledModel {
 
-        override val modelId: String = "LKInventory"
+        override val modelId: String = MODEL_ID
 
         override val displayName: String = "LK (s,S) Inventory"
 
