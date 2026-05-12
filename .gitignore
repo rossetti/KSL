@@ -259,3 +259,5 @@ KSLProjectTemplate/gradle/wrapper/gradle-wrapper.properties
 # Claude Code instructions — local-only, not tracked in version control
 CLAUDE.md
 /.codex
+KSLBundleTools/gradle/wrapper/gradle-wrapper.jar
+KSLBundleTools/gradle/wrapper/gradle-wrapper.properties
