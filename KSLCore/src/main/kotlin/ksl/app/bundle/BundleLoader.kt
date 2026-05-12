@@ -21,10 +21,12 @@ private val logger = KotlinLogging.logger {}
  *                          running JVM's classpath
  *
  * Discovery uses the standard `java.util.ServiceLoader` mechanism against
- * `META-INF/services/ksl.app.bundle.KSLModelBundle`. Bundles that lack this
- * services file are not discovered by this loader; the legacy reflective
- * path provided by `JARModelBuilder` is retained separately and will be
- * wired in as a fallback in a later commit (Phase 6.5 step 3).
+ * `META-INF/services/ksl.app.bundle.KSLModelBundle`. If `loadJar` finds no
+ * services-file registration, it falls back to a reflective scan for
+ * `ksl.simulation.ModelBuilderIfc` implementations (via `LegacyJarBundle`),
+ * preserving compatibility with JARs built before the bundle SPI existed.
+ * The classpath path (`loadFromClasspath`) does not perform the reflective
+ * fallback — classpath scanning is unbounded and would be unsafe.
  *
  * `loadJar` and `loadDirectory` create a fresh `URLClassLoader` per JAR and
  * hand it to each discovered `LoadedBundle`; the bundles' `close` releases it.
@@ -55,21 +57,39 @@ object BundleLoader {
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parent)
         val sha = BundleDescriptorCache.sha256OfFile(jarPath)
         val discovered = ServiceLoader.load(KSLModelBundle::class.java, classLoader).toList()
-        if (discovered.isEmpty()) {
-            logger.info { "No KSLModelBundle providers declared in $jarPath" }
-            classLoader.close()
+
+        if (discovered.isNotEmpty()) {
+            return discovered.map { bundle ->
+                LoadedBundle(
+                    bundle = bundle,
+                    sourceJar = jarPath,
+                    classLoader = classLoader,
+                    ownedResources = classLoader,
+                    jarSha256 = sha,
+                    cache = cache
+                )
+            }
+        }
+
+        // Legacy fallback: no services-file registration. Drop the
+        // URLClassLoader and delegate to DynamicJarClassLoader-based discovery.
+        classLoader.close()
+        val legacy = LegacyJarBundle.tryCreate(jarPath, parent)
+        if (legacy == null) {
+            logger.info { "No KSLModelBundle providers (and no ModelBuilderIfc classes) in $jarPath" }
             return emptyList()
         }
-        return discovered.map { bundle ->
+        logger.info { "Loaded $jarPath via legacy reflective fallback (${legacy.models.size} model(s))" }
+        return listOf(
             LoadedBundle(
-                bundle = bundle,
+                bundle = legacy,
                 sourceJar = jarPath,
-                classLoader = classLoader,
-                ownsClassLoader = true,
+                classLoader = parent,
+                ownedResources = legacy,
                 jarSha256 = sha,
                 cache = cache
             )
-        }
+        )
     }
 
     /**
@@ -114,7 +134,7 @@ object BundleLoader {
                 bundle = bundle,
                 sourceJar = null,
                 classLoader = classLoader,
-                ownsClassLoader = false,
+                ownedResources = null,
                 jarSha256 = null,
                 cache = cache
             )
