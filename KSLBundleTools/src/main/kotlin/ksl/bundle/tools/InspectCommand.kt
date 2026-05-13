@@ -16,9 +16,8 @@ import java.util.jar.JarFile
  *
  * Prints a human-readable summary of every `KSLModelBundle` declared in a
  * JAR. Discovery is delegated to `BundleLoader.loadJar`, which uses
- * `ServiceLoader` first and falls back to the legacy reflective scan for
- * unannotated JARs. Synthetic (legacy) bundles are reported with a
- * "(legacy)" tag so the operator can tell the JAR was unannotated.
+ * `java.util.ServiceLoader` against
+ * `META-INF/services/ksl.app.bundle.KSLModelBundle`.
  *
  * A JAR with no bundles is not an error: the command prints a clear
  * "no bundles found" message and returns `Success`. This lets scripts
@@ -72,25 +71,21 @@ internal object InspectCommand {
                 out.println("JAR: $jarPath")
                 out.println("No bundles found.")
                 out.println(
-                    "  (No META-INF/services/ksl.app.bundle.KSLModelBundle entry, " +
-                            "and no ksl.simulation.ModelBuilderIfc implementations discovered.)"
+                    "  (No META-INF/services/ksl.app.bundle.KSLModelBundle entry.)"
+                )
+                out.println(
+                    "  If this JAR holds bare ksl.simulation.ModelBuilderIfc " +
+                            "implementations, load it via ksl.utilities.io.JARModelBuilder instead."
                 )
                 return CommandResult.Success
             }
 
-            val isLegacy = loaded.singleOrNull()?.bundle?.kslApiVersion == "unknown" &&
-                    loaded.single().bundle.version == "unversioned"
-            val discoveryNote = if (isLegacy) {
-                "legacy reflective fallback (no services file)"
-            } else {
-                "ServiceLoader (META-INF/services/ksl.app.bundle.KSLModelBundle)"
-            }
             out.println("JAR: $jarPath")
-            out.println("Discovery: $discoveryNote")
+            out.println("Discovery: ServiceLoader (META-INF/services/ksl.app.bundle.KSLModelBundle)")
             out.println("Bundles: ${loaded.size}")
             out.println()
             for (lb in loaded) {
-                printBundle(lb.bundle, jarPath, inJarDescriptorPaths, legacyTag = isLegacy, out = out)
+                printBundle(lb.bundle, jarPath, inJarDescriptorPaths, out = out)
             }
             return CommandResult.Success
         } finally {
@@ -120,11 +115,9 @@ internal object InspectCommand {
         bundle: KSLModelBundle,
         jarPath: Path,
         inJarDescriptorPaths: Set<String>,
-        legacyTag: Boolean,
         out: PrintStream
     ) {
-        val tag = if (legacyTag) "  (legacy)" else ""
-        out.println("Bundle: ${bundle.bundleId}$tag")
+        out.println("Bundle: ${bundle.bundleId}")
         out.println("  Display name : ${bundle.displayName}")
         out.println("  Description  : ${bundle.description}")
         out.println("  Version      : ${bundle.version}")

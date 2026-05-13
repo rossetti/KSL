@@ -52,10 +52,11 @@ internal object TestBundleBuilder {
     }
 
     /**
-     * Variant for legacy-fallback tests: emits the class files but no
-     * `META-INF/services/...` entry. The caller is responsible for picking
-     * a class that implements `ksl.simulation.ModelBuilderIfc` if they want
-     * the reflective fallback to discover anything.
+     * Variant that emits the class files but no
+     * `META-INF/services/ksl.app.bundle.KSLModelBundle` entry. Used to
+     * exercise the empty-discovery path: a JAR without a bundle
+     * registration is not a bundle and `BundleLoader.loadJar` returns
+     * an empty list.
      */
     fun buildWithoutServicesFile(dir: Path, name: String, classes: List<Class<*>>): Path {
         val target = dir.resolve("$name.jar")

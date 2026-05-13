@@ -27,9 +27,8 @@ private val logger = KotlinLogging.logger {}
  *
  * `LoadedBundle` is `AutoCloseable`. The `ownedResources` parameter is the
  * `AutoCloseable` (if any) whose lifetime this instance manages — typically
- * the `URLClassLoader` created for a JAR, or the `LegacyJarBundle` (which
- * itself owns a `DynamicJarClassLoader`) for unannotated JARs. For
- * classpath-loaded bundles `ownedResources` is `null` and `close` is a no-op.
+ * the `URLClassLoader` created for a JAR. For classpath-loaded bundles
+ * `ownedResources` is `null` and `close` is a no-op.
  *
  * When several `LoadedBundle`s come from the same `BundleLoader.loadJar` call
  * (one JAR declaring multiple bundles), they share a classloader; close them
@@ -117,9 +116,8 @@ class LoadedBundle internal constructor(
 
     /**
      * Releases the `AutoCloseable` resources this instance owns (typically a
-     * `URLClassLoader` or a `LegacyJarBundle`); a no-op when `ownedResources`
-     * is `null`. After `close`, calls to `descriptorFor` throw
-     * `IllegalStateException`.
+     * `URLClassLoader`); a no-op when `ownedResources` is `null`. After
+     * `close`, calls to `descriptorFor` throw `IllegalStateException`.
      */
     override fun close() {
         if (closed) return

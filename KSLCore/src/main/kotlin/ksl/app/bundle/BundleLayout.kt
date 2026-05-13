@@ -18,8 +18,7 @@ object BundleLayout {
 
     /**
      * The `ServiceLoader` registration file. The JAR must contain this entry
-     * for the runtime loader to discover `KSLModelBundle` implementations
-     * without resorting to the legacy reflective fallback.
+     * for the runtime loader to discover `KSLModelBundle` implementations.
      */
     const val SERVICES_FILE: String =
         "META-INF/services/ksl.app.bundle.KSLModelBundle"

@@ -27,11 +27,11 @@ import java.util.jar.Manifest
  * in-JAR descriptor entry on the first call.
  *
  * Strategy notes:
- * - Discovery is via `ServiceLoader` only. The legacy reflective fallback
- *   used by `BundleLoader.loadJar` is intentionally not consulted here:
- *   synthesizing descriptor entries for a bundle the runtime can't match
- *   back to a real `KSLBundledModel` would be misleading. Legacy JARs
- *   continue to work at runtime through lazy extraction with on-disk cache.
+ * - Discovery is via `ServiceLoader` only. A JAR without a
+ *   `META-INF/services/ksl.app.bundle.KSLModelBundle` registration is not a
+ *   bundle and is not enrichable; this command refuses such inputs rather
+ *   than synthesizing descriptors that would not correspond to any real
+ *   `KSLBundledModel` at runtime.
  * - All descriptors are extracted before any output write begins, and the
  *   input classloader is closed before the output JarFile is opened, so
  *   there is no simultaneous read/write against the same JAR file handle.
