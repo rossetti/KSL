@@ -14,7 +14,7 @@ repositories {
 dependencies {
     implementation(project(":KSLCore"))
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
