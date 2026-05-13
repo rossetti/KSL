@@ -23,8 +23,6 @@ package ksl.simulation
 
 import kotlin.time.Duration
 
-private var myCounter_: Int = 0
-
 /**
  * This class provides the information for running a simulation experiment. An
  * experiment is a specification for the number of replications, the warm-up
@@ -64,7 +62,7 @@ private var myCounter_: Int = 0
 
 open class Experiment @JvmOverloads constructor(
     startingRepId: Int = 1,
-    name: String = "Experiment_${++myCounter_}"
+    name: String? = null
 ) : ExperimentIfc {
     init {
         require(startingRepId >= 1) { "The starting replication id number must be >= 1" }
@@ -79,9 +77,23 @@ open class Experiment @JvmOverloads constructor(
         changeRunParameters(runParameters)
     }
 
-    override val experimentId: Int = ++myCounter_
+    /**
+     * JVM-unique numeric identifier assigned at construction time from the
+     * companion-object [counter]. Each `Experiment` instance consumes exactly
+     * one counter value; the counter exists to satisfy
+     * `KSL_Db.EXPERIMENT.EXP_NAME`'s `UNIQUE` constraint when callers do not
+     * supply a meaningful name (the default [experimentName] embeds this id).
+     */
+    override val experimentId: Int = ++counter
 
-    override var experimentName: String = name
+    /**
+     * The name of this experiment. If the constructor's `name` argument was
+     * `null` (the default), this is initialized to `"Experiment_<experimentId>"`
+     * so that uninitialized experiments still produce JVM-distinct names.
+     * Freely settable at runtime — orchestrators, [changeRunParameters], and
+     * direct callers may override.
+     */
+    override var experimentName: String = name ?: "Experiment_$experimentId"
 
     private var myDesiredReplications: Int = 1
 
@@ -381,6 +393,21 @@ open class Experiment @JvmOverloads constructor(
      */
     internal fun incrementCurrentReplicationNumber() {
         currentReplicationNumber = currentReplicationNumber + 1
+    }
+
+    companion object {
+        /**
+         * JVM-scoped counter that supplies unique numeric ids and default
+         * names to `Experiment` instances. Each construction increments the
+         * counter exactly once via [experimentId]'s initializer.
+         *
+         * Intentionally not thread-safe — `Experiment` instances are
+         * conventionally created on the main thread during model build, and
+         * the concurrent-construction case has not been a real problem in
+         * practice. If a future use case constructs experiments from parallel
+         * threads, this counter should be swapped for an `AtomicInteger`.
+         */
+        private var counter: Int = 0
     }
 
 }
