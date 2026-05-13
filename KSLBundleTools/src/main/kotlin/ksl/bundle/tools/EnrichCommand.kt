@@ -36,13 +36,12 @@ import java.util.jar.Manifest
  *   input classloader is closed before the output JarFile is opened, so
  *   there is no simultaneous read/write against the same JAR file handle.
  * - JAR entry timestamps are set to epoch so the layout is stable across
- *   runs. The descriptor JSON contents themselves are not byte-stable:
- *   `Model.modelDescriptor()` captures a wall-clock construction marker
- *   in the description field and an auto-incrementing experiment id, so
- *   the bytes inside `descriptor.json` differ between builds even from
- *   the same source JAR. Idempotency here is therefore a structural
- *   property of the output JAR (same entry paths, no duplicated
- *   descriptor entries), not a byte-equality property.
+ *   runs. The descriptor JSON contents themselves are also byte-stable:
+ *   `Model.modelDescriptor()` returns only model-intrinsic state, and the
+ *   runtime-identification fields (experiment name / id, run name) are not
+ *   part of the descriptor's `experimentRunDefaults` block. Two enrich
+ *   invocations against the same source JAR therefore produce
+ *   byte-identical `descriptor.json` entries inside the output.
  * - New descriptor entries are appended in sorted order by path; the
  *   copied entries preserve their input order, with two exceptions:
  *   `META-INF/MANIFEST.MF` is re-emitted from the parsed `Manifest` (the

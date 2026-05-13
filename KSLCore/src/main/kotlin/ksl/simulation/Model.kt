@@ -23,6 +23,7 @@ import kotlinx.datetime.Instant
 import ksl.calendar.CalendarIfc
 import ksl.calendar.PriorityQueueEventCalendar
 import ksl.controls.Controls
+import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.modeling.elements.RandomElementIfc
 import ksl.modeling.spatial.Euclidean2DPlane
 import ksl.modeling.spatial.SpatialModel
@@ -42,7 +43,6 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter.Companion.rvP
 import java.nio.file.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.TimeSource
 
 private var simCounter: Int = 0
 
@@ -87,10 +87,6 @@ class Model @JvmOverloads constructor(
      */
     var modelIdentifier: String = this.name
 
-    /**
-     *  A user defined string that describes the model.
-     */
-    var description: String = "The model ($modelIdentifier) was created on ${TimeSource.Monotonic.markNow()}."
     /**
      *
      * @return the defined OutputDirectory for the simulation
@@ -333,22 +329,41 @@ class Model @JvmOverloads constructor(
      *  Constructs a data class that describes the model's current configuration.
      *
      *  The returned [ModelDescriptor] captures all three control families (numeric, string,
-     *  and JSON) via [ksl.controls.Controls.exportAll], along with run parameters,
+     *  and JSON) via [ksl.controls.Controls.exportAll], along with the model's intrinsic
+     *  run-parameter defaults (via [ksl.controls.experiments.ExperimentRunDefaults]),
      *  random variable parameter data, and response names.
+     *
+     *  Runtime-identification values (`experimentName`, `experimentId`, `runName`) are
+     *  deliberately omitted from the descriptor — they identify a particular run rather
+     *  than the model itself, and including them would make the descriptor JSON vary
+     *  byte-for-byte across builds for reasons unrelated to model content.
      *
      *  @return the model descriptor at the time of the call
      */
     fun modelDescriptor(): ModelDescriptor {
+        val runDefaults = ExperimentRunDefaults(
+            numberOfReplications                      = this.numberOfReplications,
+            numChunks                                 = this.numChunks,
+            startingRepId                             = this.startingRepId,
+            lengthOfReplication                       = this.lengthOfReplication,
+            lengthOfReplicationWarmUp                 = this.lengthOfReplicationWarmUp,
+            replicationInitializationOption           = this.replicationInitializationOption,
+            maximumAllowedExecutionTimePerReplication = this.maximumAllowedExecutionTimePerReplication,
+            resetStartStreamOption                    = this.resetStartStreamOption,
+            advanceNextSubStreamOption                = this.advanceNextSubStreamOption,
+            antitheticOption                          = this.antitheticOption,
+            numberOfStreamAdvancesPriorToRunning      = this.numberOfStreamAdvancesPriorToRunning,
+            garbageCollectAfterReplicationFlag        = this.garbageCollectAfterReplicationFlag
+        )
         return ModelDescriptor(
-            modelIdentifier         = this.modelIdentifier,
-            modelName               = this.name,
-            description             = this.description,
-            responseNames           = this.responseNames.toSet(),
-            experimentRunParameters = this.extractRunParameters(),
-            controls                = this.controls().exportAll(),
-            rvParameterData         = this.rvParameterSetter.rvParametersData,
-            configuration           = this.configuration,
-            baseTimeUnit            = this.baseTimeUnit
+            modelIdentifier        = this.modelIdentifier,
+            modelName              = this.name,
+            responseNames          = this.responseNames.toSet(),
+            experimentRunDefaults  = runDefaults,
+            controls               = this.controls().exportAll(),
+            rvParameterData        = this.rvParameterSetter.rvParametersData,
+            configuration          = this.configuration,
+            baseTimeUnit           = this.baseTimeUnit
         )
     }
 

@@ -94,8 +94,15 @@ class BundleDescriptorCache(
          * Version of the cache directory schema. Bumped whenever the on-disk
          * layout (file names, meta-file shape, or `ModelDescriptor` JSON
          * structure) changes in a way that would mis-deserialize older entries.
+         *
+         * Version history:
+         *   1 — initial cache layout.
+         *   2 — `ModelDescriptor` schema change: removed `description`; replaced
+         *       `experimentRunParameters: ExperimentRunParameters` with
+         *       `experimentRunDefaults: ExperimentRunDefaults` (no runtime-
+         *       identification fields).
          */
-        const val CACHE_SCHEMA_VERSION: Int = 1
+        const val CACHE_SCHEMA_VERSION: Int = 2
 
         /** Returns the conventional cache root, `~/.ksl/bundle-cache`. */
         fun defaultCacheDir(): Path =

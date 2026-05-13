@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ksl.controls.ControlData
 import ksl.controls.ModelControlsExport
-import ksl.controls.experiments.ExperimentRunParameters
+import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.utilities.io.ToJSONIfc
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
@@ -17,33 +17,46 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *  field.  Backward-compatible access to numeric controls is provided by the computed
  *  property [controlData].
  *
- *  The `inputNames` and `outputDirectory` fields that appeared in earlier versions of this
- *  class have been removed as stored fields:
+ *  The [experimentRunDefaults] field captures only the *model-intrinsic* run-parameter
+ *  values — replication count, replication length, warm-up, stream options, etc. — and
+ *  deliberately omits the runtime-identification fields (`experimentName`,
+ *  `experimentId`, `runName`) that belong to a specific run rather than to the model.
+ *  This keeps the descriptor JSON byte-stable across enrich runs.  See
+ *  [ksl.controls.experiments.ExperimentRunDefaults] for the precise shape and its
+ *  relationship to [ksl.controls.experiments.ExperimentRunParameters].
+ *
+ *  The `description`, `inputNames`, and `outputDirectory` fields that appeared in earlier
+ *  versions of this class have been removed as stored fields:
+ *  - `description` was an auto-generated string embedding a wall-clock construction
+ *    marker and had no consumers other than its own passthrough.  Descriptive text for
+ *    a bundled model lives on the bundle SPI instead (see
+ *    `ksl.app.bundle.KSLModelBundle.description`,
+ *    `ksl.app.bundle.KSLBundledModel.description`, and the optional
+ *    `META-INF/ksl/bundle.toml` file).
  *  - [inputNames] is now a computed property derived from [controls] and [rvParameterData]
  *    (it contained no independent information).
  *  - `outputDirectory` was runtime filesystem state rather than model configuration and had
  *    no consumers that read it back from a descriptor.
  *
- *  @param modelIdentifier          user-assigned identifier for the model
- *  @param modelName                assigned name of the model (unique within the element hierarchy)
- *  @param description              user-assigned text description
- *  @param responseNames            names of all responses registered in the model
- *  @param experimentRunParameters  current run-parameter settings (replications, length, warm-up, etc.)
- *  @param controls                 snapshot of all controls extracted from the model element graph,
- *                                  spanning numeric ([ksl.controls.ControlData]),
- *                                  string ([ksl.controls.StringControlData]),
- *                                  and JSON ([ksl.controls.JsonControlData]) families
- *  @param rvParameterData          random variable parameter data extracted from the model
- *  @param configuration            optional `Map<String, String>` of model configuration settings
- *  @param baseTimeUnit             base time unit for the model
+ *  @param modelIdentifier        user-assigned identifier for the model
+ *  @param modelName              assigned name of the model (unique within the element hierarchy)
+ *  @param responseNames          names of all responses registered in the model
+ *  @param experimentRunDefaults  model-intrinsic run-parameter defaults; see
+ *                                [ksl.controls.experiments.ExperimentRunDefaults]
+ *  @param controls               snapshot of all controls extracted from the model element graph,
+ *                                spanning numeric ([ksl.controls.ControlData]),
+ *                                string ([ksl.controls.StringControlData]),
+ *                                and JSON ([ksl.controls.JsonControlData]) families
+ *  @param rvParameterData        random variable parameter data extracted from the model
+ *  @param configuration          optional `Map<String, String>` of model configuration settings
+ *  @param baseTimeUnit           base time unit for the model
  */
 @Serializable
 data class ModelDescriptor(
     val modelIdentifier: String,
     val modelName: String,
-    val description: String,
     val responseNames: Set<String>,
-    val experimentRunParameters: ExperimentRunParameters,
+    val experimentRunDefaults: ExperimentRunDefaults,
     val controls: ModelControlsExport,
     val rvParameterData: List<RVParameterData>,
     val configuration: Map<String, String>? = null,

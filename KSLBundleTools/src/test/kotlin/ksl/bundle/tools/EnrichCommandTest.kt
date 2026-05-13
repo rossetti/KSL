@@ -85,9 +85,35 @@ class EnrichCommandTest {
         // Both JARs carry the same set of entry paths (order may differ
         // because re-enrich moves the descriptor to the appended section).
         assertEquals(firstEntries.toSet(), secondEntries.toSet())
-        // The descriptor JSON itself is permitted to differ between runs:
-        // Model.modelDescriptor() captures a creation timestamp and an
-        // auto-incrementing experimentId, both of which change each build.
+    }
+
+    @Test
+    fun `two enrich runs against the same source JAR produce byte-identical descriptor JSON`(@TempDir dir: Path) {
+        // Build two identical source JARs in separate directories so each enrich
+        // run picks up the same model definition but writes to its own output.
+        val srcA = dir.resolve("a").also { Files.createDirectories(it) }
+        val srcB = dir.resolve("b").also { Files.createDirectories(it) }
+        val jarA = TestBundleBuilder.build(srcA, "stub", listOf(StubBundle::class.java))
+        val jarB = TestBundleBuilder.build(srcB, "stub", listOf(StubBundle::class.java))
+
+        capture { o, e -> EnrichCommand.run(listOf(jarA.toString()), out = o, err = e) }
+        capture { o, e -> EnrichCommand.run(listOf(jarB.toString()), out = o, err = e) }
+
+        val descriptorPath = BundleLayout.descriptorPath("stub")
+        val descriptorA = jarEntryBytes(EnrichCommand.defaultOutputPath(jarA), descriptorPath)
+        val descriptorB = jarEntryBytes(EnrichCommand.defaultOutputPath(jarB), descriptorPath)
+
+        assertNotNull(descriptorA, "first enrich must produce a descriptor entry")
+        assertNotNull(descriptorB, "second enrich must produce a descriptor entry")
+        // Model.modelDescriptor() now returns only model-intrinsic state; the
+        // descriptor JSON is therefore stable across enrich invocations even
+        // when the underlying Model and Experiment are reconstructed.
+        assertTrue(
+            descriptorA.contentEquals(descriptorB),
+            "descriptor JSON must be byte-identical across enrich runs.\n" +
+                    "  jarA: ${descriptorA.toString(Charsets.UTF_8)}\n" +
+                    "  jarB: ${descriptorB.toString(Charsets.UTF_8)}"
+        )
     }
 
     @Test
