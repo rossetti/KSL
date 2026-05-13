@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ The KSL provides a discrete-event simulation library for the Kotlin programming language.
+  ~     Copyright (C) 2022  Manuel D. Rossetti, rossetti@uark.edu
+  ~
+  ~     This program is free software: you can redistribute it and/or modify
+  ~     it under the terms of the GNU General Public License as published by
+  ~     the Free Software Foundation, either version 3 of the License, or
+  ~     (at your option) any later version.
+  ~
+  ~     This program is distributed in the hope that it will be useful,
+  ~     but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~     GNU General Public License for more details.
+  ~
+  ~     You should have received a copy of the GNU General Public License
+  ~     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<!--
+  Logging configuration for the kslpkg CLI tool.
+
+  This file exists so that bundling the kslpkg fat JAR does NOT fall back to
+  logback's BasicConfigurator, which writes INFO-level chatter from KSLCore
+  (notably RNStreamProvider during descriptor extraction in `kslpkg enrich`)
+  to the console.
+
+  Posture: kslpkg is a CLI tool whose data output goes to stdout.  We send
+  log output to stderr at WARN-and-above only, so that:
+    * Pipelines like `kslpkg inspect foo.jar | grep ...` see only inspect data.
+    * Real problems (WARN, ERROR) still surface, but normal operation is silent.
+
+  KSLCore's own logback.xml is deliberately excluded from KSLCore.jar (see
+  KSLCore/build.gradle.kts), so there is no merge conflict to resolve here.
+-->
+<configuration>
+    <!-- Suppress logback's own boot-time INFO chatter. -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
