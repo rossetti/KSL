@@ -3,6 +3,8 @@ package ksl.app.orchestrator
 import kotlinx.coroutines.runBlocking
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
+import ksl.app.config.ScenarioSpec
+import ksl.app.config.toOverrides
 import ksl.app.session.RunResult
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.*
@@ -41,8 +43,13 @@ class SingleRunOrchestratorTest {
     private fun mm1Config(): RunConfiguration {
         val model = mm1Provider.provideModel(MM1_ID)
         return RunConfiguration(
-            modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = model.extractRunParameters()
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "single-run",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = model.extractRunParameters().toOverrides()
+                )
+            )
         )
     }
 

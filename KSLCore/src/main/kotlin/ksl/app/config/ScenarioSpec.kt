@@ -20,41 +20,82 @@ package ksl.app.config
 
 import kotlinx.serialization.Serializable
 import ksl.controls.ModelControlsExport
-import ksl.controls.experiments.ExperimentRunParameters
 
 /**
- * Serialisable specification for a single scenario in a scenario-sweep run.
+ * Serialisable specification for a single scenario in a scenarios document.
  *
- * Lives inside [RunConfiguration.scenarios].  In Phase 2 this type is inert data
- * carried in the document for forward-compatibility with the Phase 5
- * `ScenarioOrchestrator`; no scenario-execution logic is added here.
+ * Each scenario is **self-contained**: it carries its own
+ * [modelReference] (which model from which bundle), its own partial
+ * overrides relative to that model's defaults, and its own name. There
+ * is no inheritance from a document-level "parent" — `RunConfiguration`
+ * is a thin container that holds bundle references and the list of
+ * scenarios; it does not own defaults that scenarios fall back to.
  *
- * [ksl.controls.experiments.Scenario] is not serialisable because it holds a live
- * [ksl.simulation.ModelBuilderIfc] reference.  [ScenarioSpec] is the serialisable
- * counterpart: it stores only the inputs needed to construct a `Scenario` at run time,
- * reusing the parent [RunConfiguration.modelReference] for model construction.
+ * Override semantics are uniform across all four override surfaces:
  *
- * Each spec overrides run parameters and inputs relative to the parent
- * [RunConfiguration]; fields that default to empty are inherited from the parent.
+ * - [runOverrides]      — partial run-parameter overrides; `null` means
+ *                         "use the model's `ExperimentRunDefaults` for
+ *                         every field." Non-`null` overlays only the
+ *                         fields the user set.
+ * - [controlOverrides]  — control-key → value overrides for the model's
+ *                         declared controls (numeric / string / JSON);
+ *                         an empty export means no overrides.
+ * - [rvOverrides]       — per-RV-parameter overrides; an empty list
+ *                         means no overrides.
+ * - [modelConfiguration] — optional `Map<String, String>` forwarded to
+ *                         the bundle author's `ModelBuilderIfc.build(...)`;
+ *                         `null` means no map is supplied (distinct from
+ *                         an empty map, which is supplied but contains
+ *                         nothing).
  *
- * @property name              unique scenario name within [RunConfiguration.scenarios]
- * @property runParameters     run parameters for this scenario; overrides the parent
- *                             [RunConfiguration.experimentRunParameters]
- * @property controls          control overrides for this scenario; an empty export (the
- *                             default) leaves the parent's controls unchanged
- * @property rvOverrides       RV parameter overrides for this scenario; an empty list
- *                             (the default) leaves the parent's RV parameters unchanged
- * @property modelConfiguration optional `Map<String, String>` forwarded to
- *                             [ksl.simulation.ModelBuilderIfc.build]; `null` inherits
- *                             from the parent [RunConfiguration]
+ * `ksl.app.orchestrator.ScenarioOrchestrator.buildScenario` resolves
+ * this spec at submit time by:
+ *
+ *   1. Resolving [modelReference] against the document's bundle registry
+ *      (built from `RunConfiguration.bundleRefs`).
+ *   2. Computing the runtime [ksl.controls.experiments.ExperimentRunParameters]
+ *      as `model.extractRunParameters() + runOverrides.applyTo(...)`,
+ *      with `experimentName` set to [name].
+ *   3. Applying [controlOverrides], then [rvOverrides].
+ *   4. Honoring [skipOnRun] (excluded from the runnable set at submit
+ *      time when `true`).
+ *
+ * @property name              user-given scenario name; unique within
+ *                             the enclosing `RunConfiguration.scenarios`.
+ *                             Used as the experiment name for the run.
+ * @property modelReference    which model the scenario runs; the bundled
+ *                             `(bundleId, modelId)` form is the typical
+ *                             choice (`ModelReference.ByBundleAndModelId`)
+ *                             when authoring through the GUI; legacy
+ *                             references (`ByProviderId` / `ByJar`) are
+ *                             still accepted for programmatic
+ *                             constructions.
+ * @property runOverrides      per-field run-parameter overrides; `null`
+ *                             when the scenario inherits every model
+ *                             default.
+ * @property controlOverrides  control overrides for this scenario; an
+ *                             empty export (the default) leaves model
+ *                             control values unchanged.
+ * @property rvOverrides       RV parameter overrides; an empty list
+ *                             (the default) leaves model RV parameters
+ *                             unchanged.
+ * @property modelConfiguration optional model-construction map
+ *                             forwarded to `ModelBuilderIfc.build`;
+ *                             `null` (the default) supplies no map.
+ * @property skipOnRun         when `true`, the orchestrator excludes
+ *                             this scenario from the runnable set even
+ *                             if it is otherwise valid; useful for
+ *                             staging which scenarios to run.
  */
 @Serializable
 data class ScenarioSpec(
     val name: String,
-    val runParameters: ExperimentRunParameters,
-    val controls: ModelControlsExport = ModelControlsExport(modelName = ""),
+    val modelReference: ModelReference,
+    val runOverrides: ExperimentRunOverrides? = null,
+    val controlOverrides: ModelControlsExport = ModelControlsExport(modelName = ""),
     val rvOverrides: List<RVParameterOverride> = emptyList(),
-    val modelConfiguration: Map<String, String>? = null
+    val modelConfiguration: Map<String, String>? = null,
+    val skipOnRun: Boolean = false
 ) {
     init {
         require(name.isNotBlank()) { "name must be non-blank" }

@@ -271,8 +271,13 @@ class KSLAppSession(
      */
     private fun runConfigurationOf(spec: RunSpec): RunConfiguration =
         when (spec) {
-            is RunSpec.Single -> spec.config.copy(scenarios = emptyList())
+            // RunSpec.Single now requires exactly one ScenarioSpec carrying the
+            // model reference and overrides — pass scenarios through so the
+            // validator checks them.
+            is RunSpec.Single -> spec.config
             is RunSpec.Scenarios -> spec.config
+            // RunSpec.Experiment's workload is the ParallelDesignedExperiment;
+            // any scenarios in the baseline config are irrelevant to the run.
             is RunSpec.Experiment -> spec.config.copy(scenarios = emptyList())
             is RunSpec.Optimization ->
                 error("runConfigurationOf is not applicable to RunSpec.Optimization")

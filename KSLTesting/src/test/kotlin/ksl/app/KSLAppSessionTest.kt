@@ -9,10 +9,13 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
+import ksl.app.config.RVParameterOverride
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.toOverrides
 import ksl.app.config.optimization.CoolingScheduleSpec
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationProblemSpec
@@ -81,11 +84,17 @@ class KSLAppSessionTest {
 
     private fun mm1Config(replications: Int = 3, repLength: Double = 100.0): RunConfiguration {
         val model = mm1Provider.provideModel(MM1_ID)
+        val params = model.extractRunParameters().copy(
+            numberOfReplications = replications,
+            lengthOfReplication = repLength
+        )
         return RunConfiguration(
-            modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = model.extractRunParameters().copy(
-                numberOfReplications = replications,
-                lengthOfReplication = repLength
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "single",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = params.toOverrides()
+                )
             )
         )
     }
@@ -94,20 +103,32 @@ class KSLAppSessionTest {
         val model = mm1Provider.provideModel(MM1_ID)
         val runParams = model.extractRunParameters()
         return RunConfiguration(
-            modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = runParams,
             scenarios = listOf(
-                ScenarioSpec("LowLoad", runParams),
-                ScenarioSpec("HighLoad", runParams)
+                ScenarioSpec(
+                    name = "LowLoad",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                ),
+                ScenarioSpec(
+                    name = "HighLoad",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                )
             )
         )
     }
 
     private fun lkConfig(replications: Int = 5): RunConfiguration {
         val model = lkProvider.provideModel(LK_ID)
+        val params = model.extractRunParameters().copy(numberOfReplications = replications)
         return RunConfiguration(
-            modelReference = ModelReference.ByProviderId(LK_ID),
-            experimentRunParameters = model.extractRunParameters().copy(numberOfReplications = replications)
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "single",
+                    modelReference = ModelReference.ByProviderId(LK_ID),
+                    runOverrides = params.toOverrides()
+                )
+            )
         )
     }
 
@@ -291,11 +312,18 @@ class KSLAppSessionTest {
     @Test
     fun `invalid config returns immediate ConfigurationError handle`() = runBlocking {
         KSLAppSession(mm1Provider, this).use { session ->
-            val baseConfig = mm1Config()
-            val invalidConfig = baseConfig.copy(
-                experimentRunParameters = baseConfig.experimentRunParameters.copy(
-                    lengthOfReplication = 10.0,
-                    lengthOfReplicationWarmUp = 10.0
+            // Warm-up length must be strictly less than the replication length.
+            // The validator surfaces this cross-field invariant per scenario.
+            val invalidConfig = RunConfiguration(
+                scenarios = listOf(
+                    ScenarioSpec(
+                        name = "invalid",
+                        modelReference = ModelReference.ByProviderId(MM1_ID),
+                        runOverrides = ExperimentRunOverrides(
+                            lengthOfReplication = 10.0,
+                            lengthOfReplicationWarmUp = 10.0
+                        )
+                    )
                 )
             )
             val handle = session.submit(RunSpec.Single(invalidConfig))
@@ -312,14 +340,21 @@ class KSLAppSessionTest {
     @Test
     fun `validation warnings are emitted before the Started event`() = runBlocking {
         KSLAppSession(mm1Provider, this).use { session ->
-            val warningConfig = mm1Config().let { config ->
-                config.copy(
-                    experimentRunParameters = config.experimentRunParameters.copy(
-                        experimentName = "",
-                        runName = ""
+            // Trigger a non-blocking validation warning via duplicate RV overrides
+            // for the same (rvName, paramName) pair.  The validator emits a
+            // warning per duplicate but does not block submission.
+            val warningConfig = RunConfiguration(
+                scenarios = listOf(
+                    ScenarioSpec(
+                        name = "warn",
+                        modelReference = ModelReference.ByProviderId(MM1_ID),
+                        rvOverrides = listOf(
+                            RVParameterOverride("$MM1_ID:ServiceTime", "mean", 0.4),
+                            RVParameterOverride("$MM1_ID:ServiceTime", "mean", 0.5)
+                        )
                     )
                 )
-            }
+            )
 
             val handle = session.submit(RunSpec.Single(warningConfig))
             handle.result.await()
@@ -407,14 +442,18 @@ class KSLAppSessionTest {
     @Test
     fun `submitAndAwaitBlocking surfaces ConfigurationError for invalid configs without throwing`() {
         KSLAppSession(mm1Provider).use { session ->
-            val invalidConfig = mm1Config().let { c ->
-                c.copy(
-                    experimentRunParameters = c.experimentRunParameters.copy(
-                        lengthOfReplication = 10.0,
-                        lengthOfReplicationWarmUp = 10.0
+            val invalidConfig = RunConfiguration(
+                scenarios = listOf(
+                    ScenarioSpec(
+                        name = "invalid",
+                        modelReference = ModelReference.ByProviderId(MM1_ID),
+                        runOverrides = ExperimentRunOverrides(
+                            lengthOfReplication = 10.0,
+                            lengthOfReplicationWarmUp = 10.0
+                        )
                     )
                 )
-            }
+            )
             val result = session.submitAndAwaitBlocking(RunSpec.Single(invalidConfig))
 
             assertIs<RunResult.Failed>(result)

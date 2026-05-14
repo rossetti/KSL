@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.toOverrides
 import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.app.session.OrchestratorSummary
@@ -48,11 +49,17 @@ class ScenarioOrchestratorTest {
         val model = mm1Provider.provideModel(MM1_ID)
         val runParams = model.extractRunParameters()
         return RunConfiguration(
-            modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = runParams,
             scenarios = listOf(
-                ScenarioSpec("LowLoad", runParams),
-                ScenarioSpec("HighLoad", runParams)
+                ScenarioSpec(
+                    name = "LowLoad",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                ),
+                ScenarioSpec(
+                    name = "HighLoad",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                )
             )
         )
     }
@@ -97,12 +104,7 @@ class ScenarioOrchestratorTest {
 
     @Test
     fun `empty scenarios list throws IllegalArgumentException before submitting`() {
-        val model = mm1Provider.provideModel(MM1_ID)
-        val config = RunConfiguration(
-            modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = model.extractRunParameters()
-            // no scenarios
-        )
+        val config = RunConfiguration() // no scenarios, no bundleRefs
         var threw = false
         try {
             ScenarioOrchestrator().submit(config, mm1Provider)

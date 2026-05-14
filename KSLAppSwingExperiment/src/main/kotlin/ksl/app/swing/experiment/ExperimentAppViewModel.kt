@@ -70,11 +70,10 @@ internal class ExperimentAppViewModel(
         if (activeRun != null) return
         myUiState.value = UiState.Submitting
 
-        val baseParams = provider.provideModel(selectedModelId).extractRunParameters()
-        val config = RunConfiguration(
-            modelReference = ModelReference.ByProviderId(selectedModelId),
-            experimentRunParameters = baseParams
-        )
+        // For RunSpec.Experiment, the ParallelDesignedExperiment is the
+        // workload; the baseline RunConfiguration is empty (no scenarios)
+        // because the designed experiment supplies its own model builder.
+        val config = RunConfiguration()
         val handle = session.submit(RunSpec.Experiment(config, experiment))
 
         val progressJob = scope.launch {

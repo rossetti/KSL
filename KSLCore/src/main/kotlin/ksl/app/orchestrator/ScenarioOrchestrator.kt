@@ -19,6 +19,7 @@
 package ksl.app.orchestrator
 
 import ksl.app.KSLAppSession
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -98,11 +99,10 @@ class ScenarioOrchestrator {
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
                 var completedIdx = 0
 
-                val modelIdentifier: String = when (val ref = config.modelReference) {
-                    is ModelReference.ByProviderId -> ref.providerId
-                    is ModelReference.ByJar -> ref.builderClassName ?: ref.jarPath
-                    is ModelReference.ByBundleAndModelId -> "${ref.bundleId}/${ref.modelId}"
-                }
+                // The first scenario's model is the report-friendly summary for
+                // run-level events; per-scenario events carry the scenario name,
+                // so mixed-model documents still disambiguate cleanly downstream.
+                val modelIdentifier: String = config.scenarios.first().modelReference.displayId()
                 lifecycle.emitProgress(
                     RunEvent.ScenarioRunStarted(
                         runId = runId,
@@ -144,7 +144,7 @@ class ScenarioOrchestrator {
                     RunEvent.RunCompleted(
                         RunSummary(
                             runId = runId,
-                            modelIdentifier = config.modelReference.displayId(),
+                            modelIdentifier = modelIdentifier,
                             experimentName = "ScenarioOrchestrator",
                             requestedReplications = totalScenarios,
                             completedReplications = successSnapshots.size,
@@ -178,48 +178,43 @@ class ScenarioOrchestrator {
     private fun buildScenarios(
         config: RunConfiguration,
         provider: ModelProviderIfc?
-    ): List<Scenario> = config.scenarios.map { spec -> buildScenario(config, spec, provider) }
+    ): List<Scenario> = config.scenarios
+        .filterNot { it.skipOnRun }
+        .map { spec -> buildScenario(spec, provider) }
 
+    /**
+     * Resolves a self-contained [ScenarioSpec] into a runtime
+     * [Scenario]. Each scenario is independent: its model comes from
+     * `spec.modelReference`, its run parameters are computed as
+     * `model.extractRunParameters() + spec.runOverrides.applyTo(...)` with
+     * `experimentName` set to `spec.name`, and its control / RV / model-
+     * configuration overrides come only from the spec.  There are no
+     * document-level defaults that scenarios inherit.
+     */
     private fun buildScenario(
-        config: RunConfiguration,
         spec: ScenarioSpec,
         provider: ModelProviderIfc?
     ): Scenario {
+        // Build a sample model to extract its defaults for run-parameter
+        // resolution.  The Scenario then uses its own modelBuilder lambda
+        // below to rebuild a fresh, isolated model each time it runs.
+        val sampleModel = buildModelFromReference(spec.modelReference, provider)
+        val baseParams = sampleModel.extractRunParameters().copy(experimentName = spec.name)
+        val finalParams = (spec.runOverrides ?: ExperimentRunOverrides.EMPTY).applyTo(baseParams)
+
         val builder = object : ModelBuilderIfc {
             override fun build(
                 modelConfiguration: Map<String, String>?,
                 experimentRunParameters: ExperimentRunParametersIfc?
             ): Model {
-                val model = when (val ref = config.modelReference) {
-                    is ModelReference.ByProviderId -> {
-                        requireNotNull(provider) {
-                            "ModelProviderIfc required for ByProviderId reference '${ref.providerId}'"
-                        }
-                        provider.provideModel(ref.providerId)
-                    }
-                    is ModelReference.ByJar ->
-                        JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
-                    is ModelReference.ByBundleAndModelId ->
-                        throw UnsupportedOperationException(
-                            "ModelReference.ByBundleAndModelId is not yet supported by " +
-                                    "ScenarioOrchestrator.buildScenario; this branch is replaced " +
-                                    "by the follow-up commit that reshapes ScenarioSpec to be " +
-                                    "self-contained (workflow doc §3 OQ1)."
-                        )
+                val model = buildModelFromReference(spec.modelReference, provider)
+
+                if (spec.controlOverrides.totalControls > 0) {
+                    model.controls().importAll(spec.controlOverrides)
                 }
 
-                // apply parent controls first, then scenario controls (last-write-wins)
-                if (config.controls.totalControls > 0) {
-                    model.controls().importAll(config.controls)
-                }
-                if (spec.controls.totalControls > 0) {
-                    model.controls().importAll(spec.controls)
-                }
-
-                // apply parent RV overrides, then scenario RV overrides (last-write-wins)
-                val allOverrides = config.rvOverrides + spec.rvOverrides
-                if (allOverrides.isNotEmpty()) {
-                    val paramMap = allOverrides
+                if (spec.rvOverrides.isNotEmpty()) {
+                    val paramMap = spec.rvOverrides
                         .groupBy { it.rvName }
                         .mapValues { (_, list) -> list.associate { it.paramName to it.value } }
                     val setter = RVParameterSetter(model)
@@ -227,7 +222,6 @@ class ScenarioOrchestrator {
                     setter.applyParameterChanges(model)
                 }
 
-                // apply model configuration if spec provides one, else fall back to call-site arg
                 val effectiveConfig = spec.modelConfiguration ?: modelConfiguration
                 if (effectiveConfig != null && model.modelConfigurationManager != null) {
                     model.configuration = effectiveConfig
@@ -243,8 +237,36 @@ class ScenarioOrchestrator {
             inputs = emptyMap(),
             stringInputs = emptyMap(),
             jsonInputs = emptyMap(),
-            runParameters = spec.runParameters
+            runParameters = finalParams
         )
+    }
+
+    /**
+     * Resolves a [ModelReference] to a freshly-built [Model], dispatching
+     * on the sealed-class variant.  `ByBundleAndModelId` requires
+     * [provider] to be a [BundleModelProvider] (the only provider that
+     * supports two-key lookup); the other two variants accept any
+     * [ModelProviderIfc] or none.
+     */
+    private fun buildModelFromReference(
+        ref: ModelReference,
+        provider: ModelProviderIfc?
+    ): Model = when (ref) {
+        is ModelReference.ByProviderId -> {
+            requireNotNull(provider) {
+                "ModelProviderIfc required for ByProviderId reference '${ref.providerId}'"
+            }
+            provider.provideModel(ref.providerId)
+        }
+        is ModelReference.ByJar ->
+            JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+        is ModelReference.ByBundleAndModelId -> {
+            require(provider is ksl.app.bundle.BundleModelProvider) {
+                "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
+                        (provider?.let { it::class.simpleName } ?: "null")
+            }
+            provider.provideModel(ref.bundleId, ref.modelId)
+        }
     }
 }
 

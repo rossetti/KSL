@@ -83,7 +83,69 @@ object SingleRunOrchestrator {
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
         preRunWarnings: List<RunWarningType> = emptyList()
     ): RunHandle {
-        val model = config.buildModel(provider)
+        require(config.scenarios.size == 1) {
+            "RunSpec.Single requires exactly one ScenarioSpec; got ${config.scenarios.size}"
+        }
+        val spec = config.scenarios.single()
+        val model = buildScenarioModel(spec, provider)
         return Runner().submit(RunRequest.SingleRun(model, attachments), scope, preRunWarnings)
+    }
+
+    /**
+     * Builds the single scenario's model and applies its run parameters,
+     * controls, RV overrides, and model configuration.  The shape mirrors
+     * `ScenarioOrchestrator.buildScenario` but produces a configured
+     * [Model] directly (rather than a `Scenario` wrapper) because
+     * `RunRequest.SingleRun` consumes a [Model].
+     */
+    private fun buildScenarioModel(
+        spec: ksl.app.config.ScenarioSpec,
+        provider: ModelProviderIfc?
+    ): ksl.simulation.Model {
+        val model = buildModelFromReference(spec.modelReference, provider)
+
+        val baseParams = model.extractRunParameters().copy(experimentName = spec.name)
+        val finalParams = (spec.runOverrides ?: ksl.app.config.ExperimentRunOverrides.EMPTY).applyTo(baseParams)
+        model.changeRunParameters(finalParams)
+
+        if (spec.controlOverrides.totalControls > 0) {
+            model.controls().importAll(spec.controlOverrides)
+        }
+
+        if (spec.rvOverrides.isNotEmpty()) {
+            val paramMap = spec.rvOverrides
+                .groupBy { it.rvName }
+                .mapValues { (_, list) -> list.associate { it.paramName to it.value } }
+            val setter = ksl.utilities.random.rvariable.parameters.RVParameterSetter(model)
+            setter.changeParameters(paramMap)
+            setter.applyParameterChanges(model)
+        }
+
+        if (spec.modelConfiguration != null && model.modelConfigurationManager != null) {
+            model.configuration = spec.modelConfiguration
+        }
+
+        return model
+    }
+
+    private fun buildModelFromReference(
+        ref: ksl.app.config.ModelReference,
+        provider: ModelProviderIfc?
+    ): ksl.simulation.Model = when (ref) {
+        is ksl.app.config.ModelReference.ByProviderId -> {
+            requireNotNull(provider) {
+                "ModelProviderIfc required for ByProviderId reference '${ref.providerId}'"
+            }
+            provider.provideModel(ref.providerId)
+        }
+        is ksl.app.config.ModelReference.ByJar ->
+            ksl.utilities.io.JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+        is ksl.app.config.ModelReference.ByBundleAndModelId -> {
+            require(provider is ksl.app.bundle.BundleModelProvider) {
+                "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
+                        (provider?.let { it::class.simpleName } ?: "null")
+            }
+            provider.provideModel(ref.bundleId, ref.modelId)
+        }
     }
 }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.toOverrides
 import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.controls.experiments.ParallelDesignedExperiment
@@ -64,19 +65,35 @@ class OrchestratorCancelTest {
         }
     )
 
-    private fun mm1Config(scenarios: List<ScenarioSpec> = emptyList()): RunConfiguration {
+    private fun mm1SingleScenario(name: String = "single"): ScenarioSpec {
         val model = mm1Provider.provideModel(MM1_ID)
-        return RunConfiguration(
+        return ScenarioSpec(
+            name = name,
             modelReference = ModelReference.ByProviderId(MM1_ID),
-            experimentRunParameters = model.extractRunParameters(),
-            scenarios = scenarios
+            runOverrides = model.extractRunParameters().toOverrides()
         )
     }
+
+    private fun mm1Config(scenarios: List<ScenarioSpec> = listOf(mm1SingleScenario())): RunConfiguration =
+        RunConfiguration(scenarios = scenarios)
 
     private fun twoScenarioConfig(): RunConfiguration {
         val model = mm1Provider.provideModel(MM1_ID)
         val rp = model.extractRunParameters()
-        return mm1Config(listOf(ScenarioSpec("S1", rp), ScenarioSpec("S2", rp)))
+        return mm1Config(
+            listOf(
+                ScenarioSpec(
+                    name = "S1",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = rp.toOverrides()
+                ),
+                ScenarioSpec(
+                    name = "S2",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = rp.toOverrides()
+                )
+            )
+        )
     }
 
     private val lkBuilder = object : ModelBuilderIfc {
@@ -260,10 +277,16 @@ class OrchestratorCancelTest {
         val testScope = dedicatedScope()
         try {
             // Run to completion with a minimal model
+            val baseParams = mm1Provider.provideModel(MM1_ID).extractRunParameters()
+                .also { it.numberOfReplications = 2 }
             val config = RunConfiguration(
-                modelReference = ModelReference.ByProviderId(MM1_ID),
-                experimentRunParameters = mm1Provider.provideModel(MM1_ID).extractRunParameters()
-                    .also { it.numberOfReplications = 2 }
+                scenarios = listOf(
+                    ScenarioSpec(
+                        name = "single",
+                        modelReference = ModelReference.ByProviderId(MM1_ID),
+                        runOverrides = baseParams.toOverrides()
+                    )
+                )
             )
             val handle = SingleRunOrchestrator.submit(config, mm1Provider, scope = testScope)
             withTimeout(TIMEOUT_MS) { handle.result.await() }

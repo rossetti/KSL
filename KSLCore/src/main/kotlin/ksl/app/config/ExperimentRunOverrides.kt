@@ -21,6 +21,7 @@ package ksl.app.config
 import kotlinx.serialization.Serializable
 import ksl.controls.experiments.DurationSerializer
 import ksl.controls.experiments.ExperimentRunDefaults
+import ksl.controls.experiments.ExperimentRunParameters
 import kotlin.time.Duration
 
 /**
@@ -153,6 +154,41 @@ data class ExperimentRunOverrides(
             garbageCollectAfterReplicationFlag
                 ?: defaults.garbageCollectAfterReplicationFlag
     )
+
+    /**
+     *  Runtime variant of [applyTo]: layers non-`null` overrides onto a
+     *  full [ExperimentRunParameters] while preserving the three
+     *  runtime-identity fields (`experimentName`, `experimentId`,
+     *  `runName`) of [parameters].  Used by the orchestrator to compute
+     *  the final parameter set handed to the engine, starting from the
+     *  model's current parameters (which carry KSL-assigned identity)
+     *  and overlaying the scenario's overrides on top.
+     */
+    fun applyTo(parameters: ExperimentRunParameters): ExperimentRunParameters =
+        parameters.copy(
+            numberOfReplications = numberOfReplications ?: parameters.numberOfReplications,
+            numChunks = numChunks ?: parameters.numChunks,
+            startingRepId = startingRepId ?: parameters.startingRepId,
+            lengthOfReplication = lengthOfReplication ?: parameters.lengthOfReplication,
+            lengthOfReplicationWarmUp =
+                lengthOfReplicationWarmUp ?: parameters.lengthOfReplicationWarmUp,
+            replicationInitializationOption =
+                replicationInitializationOption ?: parameters.replicationInitializationOption,
+            maximumAllowedExecutionTimePerReplication =
+                maximumAllowedExecutionTimePerReplication
+                    ?: parameters.maximumAllowedExecutionTimePerReplication,
+            resetStartStreamOption =
+                resetStartStreamOption ?: parameters.resetStartStreamOption,
+            advanceNextSubStreamOption =
+                advanceNextSubStreamOption ?: parameters.advanceNextSubStreamOption,
+            antitheticOption = antitheticOption ?: parameters.antitheticOption,
+            numberOfStreamAdvancesPriorToRunning =
+                numberOfStreamAdvancesPriorToRunning
+                    ?: parameters.numberOfStreamAdvancesPriorToRunning,
+            garbageCollectAfterReplicationFlag =
+                garbageCollectAfterReplicationFlag
+                    ?: parameters.garbageCollectAfterReplicationFlag
+        )
 
     companion object {
         /** An empty overrides object — every field is `null`. */

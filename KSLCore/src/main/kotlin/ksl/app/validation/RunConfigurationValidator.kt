@@ -20,6 +20,8 @@ package ksl.app.validation
 
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import ksl.app.config.BundleRef
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.RunConfiguration
@@ -54,13 +56,44 @@ object RunConfigurationValidator {
      */
     fun validate(config: RunConfiguration): ValidationResult {
         val builder = ValidationResultBuilder()
-        validateModelReference(config.modelReference, "modelReference", builder)
-        validateRunParameters(config.experimentRunParameters, "experimentRunParameters", builder)
-        validateControls(config.controls, "controls", builder)
-        validateRvOverrides(config.rvOverrides, "rvOverrides", builder)
+        validateBundleRefs(config.bundleRefs, builder)
         validateTracingConfig(config.tracingConfig, "tracingConfig", builder)
-        validateScenarioSpecs(config.scenarios, builder)
+        validateScenarioSpecs(config.scenarios, config.bundleRefs, builder)
         return builder.build()
+    }
+
+    private fun validateBundleRefs(
+        bundleRefs: List<BundleRef>,
+        builder: ValidationResultBuilder
+    ) {
+        val seen = mutableMapOf<String, Int>()
+        for ((index, ref) in bundleRefs.withIndex()) {
+            val path = "bundleRefs[$index]"
+            if (ref.bundleId.isBlank()) {
+                builder.error(
+                    path = "$path.bundleId",
+                    code = "BUNDLE_REF_BUNDLE_ID_BLANK",
+                    message = "Bundle id must not be blank."
+                )
+            }
+            val firstIndex = seen.putIfAbsent(ref.bundleId, index)
+            if (firstIndex != null) {
+                builder.error(
+                    path = "$path.bundleId",
+                    code = "BUNDLE_REF_BUNDLE_ID_DUPLICATE",
+                    message = "bundleId '${ref.bundleId}' duplicates bundleRefs[$firstIndex].bundleId."
+                )
+            }
+            for ((pathIndex, p) in ref.paths.withIndex()) {
+                if (p.isBlank()) {
+                    builder.error(
+                        path = "$path.paths[$pathIndex]",
+                        code = "BUNDLE_REF_PATH_BLANK",
+                        message = "Bundle ref path must not be blank."
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -78,19 +111,21 @@ object RunConfigurationValidator {
         if (!documentResult.isValid) return documentResult
 
         val builder = ValidationResultBuilder(documentResult)
-        val model = resolveProbeModel(config.modelReference, provider, "modelReference", builder)
-            ?: return builder.build()
 
-        validateControlsAgainstModel(config.controls, "controls", model, builder)
-        validateRvOverridesAgainstModel(config.rvOverrides, "rvOverrides", model, builder)
-
+        // Per-scenario: build a probe model and validate the scenario's
+        // controls / RV overrides against it.  Scenarios are independent;
+        // a probe failure for one scenario does not skip the others.
         for ((index, scenario) in config.scenarios.withIndex()) {
             val scenarioPrefix = "scenarios[$index]"
-            val scenarioModel = resolveProbeModel(config.modelReference, provider, "modelReference", builder)
-                ?: break
+            val scenarioModel = resolveProbeModel(
+                scenario.modelReference,
+                provider,
+                "$scenarioPrefix.modelReference",
+                builder
+            ) ?: continue
             validateControlsAgainstModel(
-                scenario.controls,
-                "$scenarioPrefix.controls",
+                scenario.controlOverrides,
+                "$scenarioPrefix.controlOverrides",
                 scenarioModel,
                 builder
             )
@@ -345,9 +380,11 @@ object RunConfigurationValidator {
 
     private fun validateScenarioSpecs(
         scenarios: List<ScenarioSpec>,
+        bundleRefs: List<BundleRef>,
         builder: ValidationResultBuilder
     ) {
         val names = mutableMapOf<String, Int>()
+        val knownBundleIds = bundleRefs.map { it.bundleId }.toSet()
         for ((index, scenario) in scenarios.withIndex()) {
             val path = "scenarios[$index]"
             if (scenario.name.isBlank()) {
@@ -365,9 +402,45 @@ object RunConfigurationValidator {
                     message = "Scenario name '${scenario.name}' duplicates scenarios[$firstIndex].name."
                 )
             }
-            validateRunParameters(scenario.runParameters, "$path.runParameters", builder)
-            validateControls(scenario.controls, "$path.controls", builder)
+            validateModelReference(scenario.modelReference, "$path.modelReference", builder)
+            if (scenario.modelReference is ModelReference.ByBundleAndModelId) {
+                val needed = scenario.modelReference.bundleId
+                if (needed !in knownBundleIds) {
+                    builder.error(
+                        path = "$path.modelReference.bundleId",
+                        code = "SCENARIO_BUNDLE_REF_MISSING",
+                        message = "Scenario references bundleId '$needed' which is not " +
+                                "declared in bundleRefs (declared: $knownBundleIds)."
+                    )
+                }
+            }
+            scenario.runOverrides?.let { validateRunOverrides(it, "$path.runOverrides", builder) }
+            validateControls(scenario.controlOverrides, "$path.controlOverrides", builder)
             validateRvOverrides(scenario.rvOverrides, "$path.rvOverrides", builder)
+        }
+    }
+
+    /**
+     * Validates an [ExperimentRunOverrides] block.  The override type
+     * already enforces per-field bounds in its `init` checks (e.g.
+     * `numberOfReplications >= 1` when non-null), so this method
+     * surfaces cross-field invariants only — currently, that the
+     * non-null warm-up length is strictly less than the non-null
+     * replication length.
+     */
+    private fun validateRunOverrides(
+        overrides: ExperimentRunOverrides,
+        path: String,
+        builder: ValidationResultBuilder
+    ) {
+        val length = overrides.lengthOfReplication
+        val warmUp = overrides.lengthOfReplicationWarmUp
+        if (length != null && warmUp != null && length <= warmUp) {
+            builder.error(
+                path = "$path.lengthOfReplicationWarmUp",
+                code = "WARM_UP_NOT_LESS_THAN_REPLICATION_LENGTH",
+                message = "Warm-up length ($warmUp) must be less than the replication length ($length)."
+            )
         }
     }
 
@@ -381,21 +454,7 @@ object RunConfigurationValidator {
         return when (reference) {
             is ModelReference.ByProviderId -> resolveProviderModel(reference, provider, path, builder)
             is ModelReference.ByJar -> resolveJarModel(reference, path, builder)
-            is ModelReference.ByBundleAndModelId -> {
-                // The follow-up commit that reshapes ScenarioSpec adds proper resolution
-                // here via BundleModelProvider.provideModel(bundleId, modelId).  Until
-                // then, surface the unsupported usage as a validation error rather than
-                // a runtime exception so the document health banner can show it.
-                builder.error(
-                    path = path,
-                    code = "MODEL_REFERENCE_BY_BUNDLE_NOT_YET_SUPPORTED",
-                    message = "ModelReference.ByBundleAndModelId(${reference.bundleId}, " +
-                            "${reference.modelId}) is declared but not yet supported by " +
-                            "the validator. Pending the substrate-prep commit that reshapes " +
-                            "ScenarioSpec for per-scenario model selection."
-                )
-                null
-            }
+            is ModelReference.ByBundleAndModelId -> resolveBundleAndModel(reference, provider, path, builder)
         }
     }
 
@@ -438,6 +497,34 @@ object RunConfigurationValidator {
                 path = "$path.providerId",
                 code = "MODEL_BUILD_FAILED",
                 message = "Model provider failed to build '${reference.providerId}': ${e.message}"
+            )
+            null
+        }
+    }
+
+    private fun resolveBundleAndModel(
+        reference: ModelReference.ByBundleAndModelId,
+        provider: ModelProviderIfc?,
+        path: String,
+        builder: ValidationResultBuilder
+    ): Model? {
+        if (provider !is ksl.app.bundle.BundleModelProvider) {
+            builder.error(
+                path = path,
+                code = "BUNDLE_MODEL_PROVIDER_REQUIRED",
+                message = "ModelReference.ByBundleAndModelId(${reference.bundleId}, " +
+                        "${reference.modelId}) requires a BundleModelProvider; got " +
+                        (provider?.let { it::class.simpleName } ?: "null")
+            )
+            return null
+        }
+        return try {
+            provider.provideModel(reference.bundleId, reference.modelId)
+        } catch (e: Exception) {
+            builder.error(
+                path = path,
+                code = "MODEL_BUILD_FAILED",
+                message = "Bundle provider failed to build '${reference.bundleId}/${reference.modelId}': ${e.message}"
             )
             null
         }

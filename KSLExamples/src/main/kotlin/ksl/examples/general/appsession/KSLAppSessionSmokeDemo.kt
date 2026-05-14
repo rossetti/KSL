@@ -25,7 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.RVParameterOverride
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.session.KSLRuntimeError
@@ -233,49 +235,81 @@ private fun singleRunConfig(
     replications: Int = 3,
     replicationLength: Double = 100.0
 ): RunConfiguration {
-    val runParameters = buildDemoModel().extractRunParameters().copy(
-        numberOfReplications = replications,
-        lengthOfReplication = replicationLength,
-        lengthOfReplicationWarmUp = 20.0,
-        experimentName = "App Session Smoke Demo",
-        runName = "Baseline"
-    )
     return RunConfiguration(
-        modelReference = ModelReference.ByProviderId(MODEL_ID),
-        experimentRunParameters = runParameters
+        scenarios = listOf(
+            ScenarioSpec(
+                name = "App Session Smoke Demo",
+                modelReference = ModelReference.ByProviderId(MODEL_ID),
+                runOverrides = ExperimentRunOverrides(
+                    numberOfReplications = replications,
+                    lengthOfReplication = replicationLength,
+                    lengthOfReplicationWarmUp = 20.0
+                )
+            )
+        )
     )
 }
 
 private fun warningConfig(): RunConfiguration {
-    val base = singleRunConfig()
-    return base.copy(
-        experimentRunParameters = base.experimentRunParameters.copy(
-            experimentName = "",
-            runName = ""
+    // Trigger a non-blocking validation warning via duplicate RV overrides
+    // for the same (rvName, paramName) pair.  The validator emits a warning
+    // per duplicate; the run still proceeds to Completed.
+    return RunConfiguration(
+        scenarios = listOf(
+            ScenarioSpec(
+                name = "App Session Smoke Demo - warnings",
+                modelReference = ModelReference.ByProviderId(MODEL_ID),
+                runOverrides = ExperimentRunOverrides(
+                    numberOfReplications = 3,
+                    lengthOfReplication = 100.0,
+                    lengthOfReplicationWarmUp = 20.0
+                ),
+                rvOverrides = listOf(
+                    RVParameterOverride("$MODEL_ID:ServiceTime", "mean", 0.4),
+                    RVParameterOverride("$MODEL_ID:ServiceTime", "mean", 0.5)
+                )
+            )
         )
     )
 }
 
 private fun invalidConfig(): RunConfiguration {
-    val base = singleRunConfig()
-    return base.copy(
-        experimentRunParameters = base.experimentRunParameters.copy(
-            lengthOfReplication = 10.0,
-            lengthOfReplicationWarmUp = 10.0
+    // Warm-up must be < replication length.  The substrate ExperimentRunOverrides
+    // init enforces the per-field bounds, but the cross-field invariant lives at
+    // the validator layer (per the validator's validateRunOverrides function).
+    return RunConfiguration(
+        scenarios = listOf(
+            ScenarioSpec(
+                name = "Invalid Demo",
+                modelReference = ModelReference.ByProviderId(MODEL_ID),
+                runOverrides = ExperimentRunOverrides(
+                    lengthOfReplication = 10.0,
+                    lengthOfReplicationWarmUp = 10.0
+                )
+            )
         )
     )
 }
 
 private fun scenarioConfig(): RunConfiguration {
-    val base = singleRunConfig()
-    return base.copy(
+    return RunConfiguration(
         scenarios = listOf(
-            ScenarioSpec("LowLoad", base.experimentRunParameters),
             ScenarioSpec(
-                "LongerRun",
-                base.experimentRunParameters.copy(
+                name = "LowLoad",
+                modelReference = ModelReference.ByProviderId(MODEL_ID),
+                runOverrides = ExperimentRunOverrides(
+                    numberOfReplications = 3,
+                    lengthOfReplication = 100.0,
+                    lengthOfReplicationWarmUp = 20.0
+                )
+            ),
+            ScenarioSpec(
+                name = "LongerRun",
+                modelReference = ModelReference.ByProviderId(MODEL_ID),
+                runOverrides = ExperimentRunOverrides(
                     numberOfReplications = 4,
-                    lengthOfReplication = 150.0
+                    lengthOfReplication = 150.0,
+                    lengthOfReplicationWarmUp = 20.0
                 )
             )
         )

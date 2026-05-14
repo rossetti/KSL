@@ -64,14 +64,14 @@ class ConfigInvariantsTest {
 
     @Test fun `ScenarioSpec rejects blank name`() {
         assertThrows<IllegalArgumentException> {
-            ScenarioSpec(name = "", runParameters = runParameters())
+            ScenarioSpec(name = "", modelReference = ModelReference.ByProviderId("MM1"))
         }
     }
     @Test fun `ScenarioSpec rejects blank modelConfiguration keys`() {
         assertThrows<IllegalArgumentException> {
             ScenarioSpec(
                 name = "s",
-                runParameters = runParameters(),
+                modelReference = ModelReference.ByProviderId("MM1"),
                 modelConfiguration = mapOf("" to "v")
             )
         }
@@ -110,11 +110,20 @@ class ConfigInvariantsTest {
     @Test fun `RunConfiguration rejects duplicate scenario names`() {
         assertThrows<IllegalArgumentException> {
             RunConfiguration(
-                modelReference = ModelReference.ByProviderId("MM1"),
-                experimentRunParameters = runParameters(),
                 scenarios = listOf(
-                    ScenarioSpec(name = "s", runParameters = runParameters()),
-                    ScenarioSpec(name = "s", runParameters = runParameters())
+                    ScenarioSpec(name = "s", modelReference = ModelReference.ByProviderId("MM1")),
+                    ScenarioSpec(name = "s", modelReference = ModelReference.ByProviderId("MM1"))
+                )
+            )
+        }
+    }
+
+    @Test fun `RunConfiguration rejects duplicate bundleRef bundleIds`() {
+        assertThrows<IllegalArgumentException> {
+            RunConfiguration(
+                bundleRefs = listOf(
+                    BundleRef(paths = listOf("a.jar"), bundleId = "edu.example.dup"),
+                    BundleRef(paths = listOf("b.jar"), bundleId = "edu.example.dup")
                 )
             )
         }

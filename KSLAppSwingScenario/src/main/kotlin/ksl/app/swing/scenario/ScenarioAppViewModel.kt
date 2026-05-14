@@ -72,12 +72,7 @@ internal class ScenarioAppViewModel(
         if (scenarios.isEmpty()) return
         myUiState.value = UiState.Submitting
 
-        val baseParams = provider.provideModel(selectedModelId).extractRunParameters()
-        val config = RunConfiguration(
-            modelReference = ModelReference.ByProviderId(selectedModelId),
-            experimentRunParameters = baseParams,
-            scenarios = scenarios
-        )
+        val config = RunConfiguration(scenarios = scenarios)
         val handle = session.submit(RunSpec.Scenarios(config))
 
         val progressJob = scope.launch {

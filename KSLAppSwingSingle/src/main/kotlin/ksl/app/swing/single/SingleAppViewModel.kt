@@ -16,6 +16,8 @@ import ksl.app.KSLAppSession
 import ksl.app.RunSpec
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
+import ksl.app.config.ScenarioSpec
+import ksl.app.config.toOverrides
 import ksl.app.session.KSLRuntimeError
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -86,8 +88,13 @@ internal class SingleAppViewModel(
         myUiState.value = UiState.Submitting
 
         val config = RunConfiguration(
-            modelReference = ModelReference.ByProviderId(selectedModelId),
-            experimentRunParameters = runParameters
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = runParameters.experimentName.ifBlank { selectedModelId },
+                    modelReference = ModelReference.ByProviderId(selectedModelId),
+                    runOverrides = runParameters.toOverrides()
+                )
+            )
         )
         val handle = session.submit(RunSpec.Single(config))
 

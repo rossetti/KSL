@@ -34,12 +34,13 @@ internal class ScenarioListPanel(initial: List<ScenarioSpec>) : JPanel(BorderLay
     fun renderScenarios(scenarios: List<ScenarioSpec>) {
         tableModel.rowCount = 0
         for (spec in scenarios) {
+            val o = spec.runOverrides
             tableModel.addRow(
                 arrayOf<Any?>(
                     spec.name,
-                    spec.runParameters.numberOfReplications,
-                    spec.runParameters.lengthOfReplication,
-                    spec.runParameters.lengthOfReplicationWarmUp,
+                    o?.numberOfReplications?.toString() ?: "(model default)",
+                    o?.lengthOfReplication?.toString() ?: "(model default)",
+                    o?.lengthOfReplicationWarmUp?.toString() ?: "(model default)",
                     describeVariation(spec)
                 )
             )
@@ -51,7 +52,7 @@ internal class ScenarioListPanel(initial: List<ScenarioSpec>) : JPanel(BorderLay
         spec.rvOverrides.forEach { ov ->
             parts.add("${ov.rvName}.${ov.paramName}=${ov.value}")
         }
-        if (spec.controls.totalControls > 0) {
+        if (spec.controlOverrides.totalControls > 0) {
             parts.add("controls overridden")
         }
         return if (parts.isEmpty()) "(run params only)" else parts.joinToString(", ")
