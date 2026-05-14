@@ -7,6 +7,7 @@ include(":KSLAppSwingScenario")
 include(":KSLAppSwingExperiment")
 include(":KSLAppSwingSimopt")
 include(":KSLBundleTools")
+include(":KSLTesting")
 
 //project(":KSLCore").projectDir = file("../KSLCore")
 //project(":KSLExamples").projectDir = file("../KSLExamples")
