@@ -101,6 +101,7 @@ class ScenarioOrchestrator {
                 val modelIdentifier: String = when (val ref = config.modelReference) {
                     is ModelReference.ByProviderId -> ref.providerId
                     is ModelReference.ByJar -> ref.builderClassName ?: ref.jarPath
+                    is ModelReference.ByBundleAndModelId -> "${ref.bundleId}/${ref.modelId}"
                 }
                 lifecycle.emitProgress(
                     RunEvent.ScenarioRunStarted(
@@ -198,6 +199,13 @@ class ScenarioOrchestrator {
                     }
                     is ModelReference.ByJar ->
                         JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+                    is ModelReference.ByBundleAndModelId ->
+                        throw UnsupportedOperationException(
+                            "ModelReference.ByBundleAndModelId is not yet supported by " +
+                                    "ScenarioOrchestrator.buildScenario; this branch is replaced " +
+                                    "by the follow-up commit that reshapes ScenarioSpec to be " +
+                                    "self-contained (workflow doc §3 OQ1)."
+                        )
                 }
 
                 // apply parent controls first, then scenario controls (last-write-wins)
@@ -242,6 +250,7 @@ class ScenarioOrchestrator {
 
 /** Extracts a human-readable identifier string from a [ModelReference]. */
 private fun ModelReference.displayId(): String = when (this) {
-    is ModelReference.ByProviderId -> providerId
-    is ModelReference.ByJar        -> jarPath
+    is ModelReference.ByProviderId         -> providerId
+    is ModelReference.ByJar                -> jarPath
+    is ModelReference.ByBundleAndModelId   -> "$bundleId/$modelId"
 }

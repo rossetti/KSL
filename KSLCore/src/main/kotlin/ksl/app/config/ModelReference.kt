@@ -90,4 +90,33 @@ sealed class ModelReference {
             }
         }
     }
+
+    /**
+     * References a model unambiguously by the pair of its enclosing bundle
+     * and the model identifier within that bundle.  Use when a document
+     * references multiple bundles and a scenario must select exactly one
+     * of them (the `byProviderId` variant relies on flat-`modelId` lookup
+     * which is ambiguous in a multi-bundle document).
+     *
+     * The runtime resolves this reference by calling
+     * `ksl.app.bundle.BundleModelProvider.provideModel(bundleId, modelId)`
+     * against the provider built from the document's `bundleRefs`.
+     *
+     * @property bundleId the enclosing bundle's `KSLModelBundle.bundleId`;
+     *                    must be non-blank and must match a `BundleRef`
+     *                    declared at the document level
+     * @property modelId  the `KSLBundledModel.modelId` within that bundle;
+     *                    must be non-blank
+     */
+    @Serializable
+    @SerialName("byBundleAndModelId")
+    data class ByBundleAndModelId(
+        val bundleId: String,
+        val modelId: String
+    ) : ModelReference() {
+        init {
+            require(bundleId.isNotBlank()) { "bundleId must be non-blank" }
+            require(modelId.isNotBlank()) { "modelId must be non-blank" }
+        }
+    }
 }

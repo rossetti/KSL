@@ -150,6 +150,13 @@ data class RunConfiguration(
             }
             is ModelReference.ByJar ->
                 JARModelBuilder(ref.jarPath, ref.builderClassName).use { it.build() }
+            is ModelReference.ByBundleAndModelId ->
+                throw UnsupportedOperationException(
+                    "ModelReference.ByBundleAndModelId is not yet supported by " +
+                            "RunConfiguration.buildModel; this branch is replaced by the " +
+                            "follow-up commit that reshapes RunConfiguration and ScenarioSpec " +
+                            "for per-scenario model selection (workflow doc §3 OQ1)."
+                )
         }
         model.changeRunParameters(experimentRunParameters)
         if (controls.totalControls > 0) {

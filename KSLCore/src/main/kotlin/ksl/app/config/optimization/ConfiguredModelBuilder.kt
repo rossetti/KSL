@@ -93,6 +93,13 @@ internal class ConfiguredModelBuilder(
                 JARModelBuilder(ref.jarPath, ref.builderClassName).use {
                     it.build(effectiveConfig, effectiveRunParams)
                 }
+            is ModelReference.ByBundleAndModelId ->
+                throw UnsupportedOperationException(
+                    "ModelReference.ByBundleAndModelId is not yet supported by " +
+                            "ConfiguredModelBuilder; the Optimization-app document layout " +
+                            "is not yet using the new variant. Update this branch when the " +
+                            "Optimization workflow design lands."
+                )
         }
 
         if (template.controls.totalControls > 0) {

@@ -137,6 +137,23 @@ object RunConfigurationValidator {
                     )
                 }
             }
+
+            is ModelReference.ByBundleAndModelId -> {
+                if (reference.bundleId.isBlank()) {
+                    builder.error(
+                        path = "$path.bundleId",
+                        code = "MODEL_BUNDLE_ID_BLANK",
+                        message = "Bundle id must not be blank."
+                    )
+                }
+                if (reference.modelId.isBlank()) {
+                    builder.error(
+                        path = "$path.modelId",
+                        code = "MODEL_ID_BLANK",
+                        message = "Model id must not be blank."
+                    )
+                }
+            }
         }
     }
 
@@ -364,6 +381,21 @@ object RunConfigurationValidator {
         return when (reference) {
             is ModelReference.ByProviderId -> resolveProviderModel(reference, provider, path, builder)
             is ModelReference.ByJar -> resolveJarModel(reference, path, builder)
+            is ModelReference.ByBundleAndModelId -> {
+                // The follow-up commit that reshapes ScenarioSpec adds proper resolution
+                // here via BundleModelProvider.provideModel(bundleId, modelId).  Until
+                // then, surface the unsupported usage as a validation error rather than
+                // a runtime exception so the document health banner can show it.
+                builder.error(
+                    path = path,
+                    code = "MODEL_REFERENCE_BY_BUNDLE_NOT_YET_SUPPORTED",
+                    message = "ModelReference.ByBundleAndModelId(${reference.bundleId}, " +
+                            "${reference.modelId}) is declared but not yet supported by " +
+                            "the validator. Pending the substrate-prep commit that reshapes " +
+                            "ScenarioSpec for per-scenario model selection."
+                )
+                null
+            }
         }
     }
 
