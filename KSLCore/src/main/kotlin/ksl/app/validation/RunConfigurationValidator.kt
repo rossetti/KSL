@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import ksl.app.config.BundleRef
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.OutputConfig
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -58,6 +59,7 @@ object RunConfigurationValidator {
         val builder = ValidationResultBuilder()
         validateBundleRefs(config.bundleRefs, builder)
         validateTracingConfig(config.tracingConfig, "tracingConfig", builder)
+        validateOutputConfig(config.outputConfig, "outputConfig", builder)
         validateScenarioSpecs(config.scenarios, config.bundleRefs, builder)
         return builder.build()
     }
@@ -390,6 +392,23 @@ object RunConfigurationValidator {
                 message = "Trace flush interval must be greater than 0."
             )
         }
+    }
+
+    /**
+     * Validates the document-level `outputConfig` block.
+     *
+     * The type's fields are total (two booleans plus a self-deduping
+     * `Set<ReportFormat>`), so this is a structural pass-through hook
+     * where future field-level checks (e.g. report-output-directory
+     * conflicts surfaced in Phase 6D) land in one spot.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun validateOutputConfig(
+        outputConfig: OutputConfig,
+        path: String,
+        builder: ValidationResultBuilder
+    ) {
+        // No field-level checks in the substrate-prep commit; see KDoc.
     }
 
     private fun validateScenarioSpecs(

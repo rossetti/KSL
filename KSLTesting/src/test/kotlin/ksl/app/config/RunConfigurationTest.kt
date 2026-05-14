@@ -123,4 +123,60 @@ class RunConfigurationTest {
             // expected
         }
     }
+
+    // ── OutputConfig field on RunConfiguration ───────────────────────────────
+
+    @Test
+    fun `RunConfiguration carries default OutputConfig when not specified`() {
+        val config = RunConfiguration()
+        assertEquals(OutputConfig(), config.outputConfig)
+    }
+
+    @Test
+    fun `RunConfiguration with default OutputConfig round-trips through both codecs`() {
+        val config = mm1Config()
+        val jsonDecoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        val tomlDecoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+        assertEquals(OutputConfig(), jsonDecoded.outputConfig)
+        assertEquals(OutputConfig(), tomlDecoded.outputConfig)
+    }
+
+    @Test
+    fun `RunConfiguration with non-default OutputConfig round-trips through JSON`() {
+        val config = mm1Config().copy(
+            outputConfig = OutputConfig(
+                enableKSLDatabase = true,
+                enableCSVExport = true,
+                reports = setOf(ReportFormat.HTML, ReportFormat.MARKDOWN)
+            )
+        )
+        val decoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        assertEquals(config, decoded)
+    }
+
+    @Test
+    fun `RunConfiguration with non-default OutputConfig round-trips through TOML`() {
+        val config = mm1Config().copy(
+            outputConfig = OutputConfig(
+                enableKSLDatabase = true,
+                enableCSVExport = true,
+                reports = setOf(ReportFormat.HTML, ReportFormat.MARKDOWN)
+            )
+        )
+        val decoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, decoded)
+    }
+
+    @Test
+    fun `RunConfiguration with empty reports set round-trips through both codecs`() {
+        val config = mm1Config().copy(outputConfig = OutputConfig(reports = emptySet()))
+        val jsonDecoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        val tomlDecoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+        kotlin.test.assertTrue(jsonDecoded.outputConfig.reports.isEmpty())
+        kotlin.test.assertTrue(tomlDecoded.outputConfig.reports.isEmpty())
+    }
 }

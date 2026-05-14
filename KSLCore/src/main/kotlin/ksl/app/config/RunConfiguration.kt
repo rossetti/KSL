@@ -82,12 +82,16 @@ import kotlinx.serialization.Serializable
  *                        names within the document.
  * @property tracingConfig animation trace capture settings;
  *                        document-wide.
+ * @property outputConfig pre-run side-effect toggles (database, CSV) and
+ *                        post-run report-format selection; document-wide.
+ *                        See [OutputConfig].
  */
 @Serializable
 data class RunConfiguration(
     val bundleRefs: List<BundleRef> = emptyList(),
     val scenarios: List<ScenarioSpec> = emptyList(),
-    val tracingConfig: TracingConfig = TracingConfig()
+    val tracingConfig: TracingConfig = TracingConfig(),
+    val outputConfig: OutputConfig = OutputConfig()
 ) {
     init {
         require(scenarios.map { it.name }.toSet().size == scenarios.size) {

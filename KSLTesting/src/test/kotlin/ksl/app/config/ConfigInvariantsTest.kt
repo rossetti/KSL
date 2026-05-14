@@ -5,6 +5,9 @@ import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Phase 5.85 Step 3.5 acceptance: domain invariants for `ksl.app.config`
@@ -91,6 +94,25 @@ class ConfigInvariantsTest {
         assertThrows<IllegalArgumentException> {
             TracingConfig(flushEveryNEvents = -10)
         }
+    }
+
+    // ── OutputConfig ─────────────────────────────────────────────────────────
+
+    @Test fun `OutputConfig defaults are HTML-only with no side-effects`() {
+        val config = OutputConfig()
+        assertFalse(config.enableKSLDatabase)
+        assertFalse(config.enableCSVExport)
+        assertEquals(setOf(ReportFormat.HTML), config.reports)
+    }
+
+    @Test fun `OutputConfig accepts an empty report set`() {
+        val config = OutputConfig(reports = emptySet())
+        assertTrue(config.reports.isEmpty())
+    }
+
+    @Test fun `OutputConfig accepts every report format`() {
+        val config = OutputConfig(reports = ReportFormat.values().toSet())
+        assertEquals(3, config.reports.size)
     }
 
     // ── ModelRunTemplate ─────────────────────────────────────────────────────
