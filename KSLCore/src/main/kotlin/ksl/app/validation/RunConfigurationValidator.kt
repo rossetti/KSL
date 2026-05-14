@@ -189,6 +189,20 @@ object RunConfigurationValidator {
                     )
                 }
             }
+
+            is ModelReference.Embedded -> {
+                // The data class's init { } already rejects a blank modelName at
+                // construction, so this branch is defensive only — a deserializer
+                // that bypasses the init check would still surface a field-level
+                // error rather than crash later in resolution.
+                if (reference.modelName.isBlank()) {
+                    builder.error(
+                        path = "$path.modelName",
+                        code = "MODEL_REFERENCE_EMBEDDED_NAME_BLANK",
+                        message = "Embedded modelName must not be blank."
+                    )
+                }
+            }
         }
     }
 
@@ -455,6 +469,36 @@ object RunConfigurationValidator {
             is ModelReference.ByProviderId -> resolveProviderModel(reference, provider, path, builder)
             is ModelReference.ByJar -> resolveJarModel(reference, path, builder)
             is ModelReference.ByBundleAndModelId -> resolveBundleAndModel(reference, provider, path, builder)
+            is ModelReference.Embedded -> resolveEmbeddedModel(reference, provider, path, builder)
+        }
+    }
+
+    private fun resolveEmbeddedModel(
+        reference: ModelReference.Embedded,
+        provider: ModelProviderIfc?,
+        path: String,
+        builder: ValidationResultBuilder
+    ): Model? {
+        if (provider == null || !provider.isModelProvided(reference.modelName)) {
+            builder.error(
+                path = "$path.modelName",
+                code = "MODEL_REFERENCE_EMBEDDED_NOT_RESOLVABLE",
+                message = "ModelReference.Embedded(\"${reference.modelName}\") cannot be resolved " +
+                        "here.  The configuration was authored by an app that embedded its model " +
+                        "in-process; open it in the originating framework, or re-target the " +
+                        "reference to a portable form (ByJar / ByBundleAndModelId)."
+            )
+            return null
+        }
+        return try {
+            provider.provideModel(reference.modelName)
+        } catch (e: Exception) {
+            builder.error(
+                path = "$path.modelName",
+                code = "MODEL_BUILD_FAILED",
+                message = "Embedded model build failed for '${reference.modelName}': ${e.message}"
+            )
+            null
         }
     }
 

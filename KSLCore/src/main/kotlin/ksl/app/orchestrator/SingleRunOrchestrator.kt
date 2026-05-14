@@ -147,5 +147,15 @@ object SingleRunOrchestrator {
             }
             provider.provideModel(ref.bundleId, ref.modelId)
         }
+        is ksl.app.config.ModelReference.Embedded -> {
+            requireNotNull(provider) {
+                "ModelProviderIfc required to resolve ModelReference.Embedded(\"${ref.modelName}\")"
+            }
+            require(provider.isModelProvided(ref.modelName)) {
+                "Provider has no model with id '${ref.modelName}' for ModelReference.Embedded — " +
+                        "was this configuration authored by a different app?"
+            }
+            provider.provideModel(ref.modelName)
+        }
     }
 }

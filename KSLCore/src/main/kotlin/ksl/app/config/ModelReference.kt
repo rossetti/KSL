@@ -29,10 +29,14 @@ import kotlinx.serialization.Serializable
  * [ksl.simulation.Model] is done at configuration-application time by
  * [RunConfiguration.buildModel].
  *
- * Two variants:
- * - [ByProviderId] — looks the model up in a caller-supplied [ksl.simulation.ModelProviderIfc]
- * - [ByJar]        — loads the model's [ksl.simulation.ModelBuilderIfc] from a JAR file via
- *                    [ksl.utilities.io.JARModelBuilder]
+ * Four variants:
+ * - [ByProviderId]        — looks the model up in a caller-supplied [ksl.simulation.ModelProviderIfc]
+ * - [ByJar]               — loads the model's [ksl.simulation.ModelBuilderIfc] from a JAR file via
+ *                           [ksl.utilities.io.JARModelBuilder]
+ * - [ByBundleAndModelId]  — resolves a `(bundleId, modelId)` pair against a `BundleModelProvider`
+ * - [Embedded]            — marker that the model is supplied in-process by the originating
+ *                           framework (Single-app); the saved file is intentionally non-portable
+ *                           and consuming apps surface a distinguished error
  *
  * ## Serialised form
  *
@@ -117,6 +121,34 @@ sealed class ModelReference {
         init {
             require(bundleId.isNotBlank()) { "bundleId must be non-blank" }
             require(modelId.isNotBlank()) { "modelId must be non-blank" }
+        }
+    }
+
+    /**
+     * Marker that the originating application held its model in-process
+     * (as Kotlin code, not as a JAR or bundle) and the saved configuration
+     * therefore does not contain a portable pointer to it.  Written by the
+     * Single-app framework; resolved at run time by handing the framework's
+     * own [ksl.simulation.ModelProviderIfc] — keyed on [modelName] — to the
+     * orchestrator.
+     *
+     * Consuming apps that do not host the originating model surface a
+     * distinguished validation error (`MODEL_REFERENCE_EMBEDDED_NOT_RESOLVABLE`)
+     * rather than the generic "id not found" reported for an unresolved
+     * [ByProviderId].  The intent of the variant is to make cross-app
+     * inspection of saved configurations honest: the document records
+     * "the author embedded the model" rather than implying a portable
+     * provider lookup.
+     *
+     * @property modelName the simulation model's `Model.name`; also the id
+     *                     the framework's [ksl.simulation.ModelProviderIfc]
+     *                     uses to find the model at run time
+     */
+    @Serializable
+    @SerialName("embedded")
+    data class Embedded(val modelName: String) : ModelReference() {
+        init {
+            require(modelName.isNotBlank()) { "modelName must be non-blank" }
         }
     }
 }

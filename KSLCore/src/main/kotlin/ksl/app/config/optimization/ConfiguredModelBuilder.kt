@@ -100,6 +100,12 @@ internal class ConfiguredModelBuilder(
                             "is not yet using the new variant. Update this branch when the " +
                             "Optimization workflow design lands."
                 )
+            is ModelReference.Embedded ->
+                throw UnsupportedOperationException(
+                    "ModelReference.Embedded is not consumed by the optimization layer; " +
+                            "embedded references are written only by the Single-app framework " +
+                            "and resolve only against its in-process model provider."
+                )
         }
 
         if (template.controls.totalControls > 0) {
