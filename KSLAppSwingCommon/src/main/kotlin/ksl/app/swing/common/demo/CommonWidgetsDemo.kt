@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import kotlinx.datetime.Instant
+import ksl.app.config.ExecutionMode
 import ksl.app.session.RunEvent
 import ksl.app.session.RunWarningType
 import ksl.app.settings.UserSettingsStore
@@ -44,6 +45,7 @@ import ksl.app.swing.common.overridefield.StringControlValueField
 import ksl.app.swing.common.results.DefaultDesktopOpener
 import ksl.app.swing.common.results.OpenInFileBrowserAction
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
+import ksl.app.swing.common.runcontrol.ExecutionModeToggle
 import ksl.app.swing.common.runcontrol.RunningPostureGuard
 import ksl.app.swing.common.validation.DocumentHealthBanner
 import ksl.app.swing.common.validation.FieldErrorMarker
@@ -251,7 +253,17 @@ object CommonWidgetsDemo {
                 println("[demo] flag set → $flag")
             }
         }
+        val executionModeToggle = ExecutionModeToggle(
+            initialMode = ExecutionMode.SEQUENTIAL,
+            onValueChange = { println("[demo] executionMode → $it") }
+        )
+        // Disable the toggle while a run is in flight (per scenario §10).
+        scope.launch { runningFlow.collect { executionModeToggle.isEnabled = !it } }
+
         val actionStrip = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4)).apply {
+            add(JLabel("Mode:"))
+            add(executionModeToggle)
+            add(JLabel("  "))
             add(emitEventBtn)
             add(toggleRunBtn)
             add(openFolderBtn)
