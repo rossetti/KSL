@@ -85,13 +85,18 @@ import kotlinx.serialization.Serializable
  * @property outputConfig pre-run side-effect toggles (database, CSV) and
  *                        post-run report-format selection; document-wide.
  *                        See [OutputConfig].
+ * @property executionMode whether the scenarios run sequentially (one at
+ *                        a time, in authored order) or concurrently.
+ *                        Defaults to [ExecutionMode.SEQUENTIAL].  See
+ *                        [ExecutionMode].
  */
 @Serializable
 data class RunConfiguration(
     val bundleRefs: List<BundleRef> = emptyList(),
     val scenarios: List<ScenarioSpec> = emptyList(),
     val tracingConfig: TracingConfig = TracingConfig(),
-    val outputConfig: OutputConfig = OutputConfig()
+    val outputConfig: OutputConfig = OutputConfig(),
+    val executionMode: ExecutionMode = ExecutionMode.SEQUENTIAL
 ) {
     init {
         require(scenarios.map { it.name }.toSet().size == scenarios.size) {

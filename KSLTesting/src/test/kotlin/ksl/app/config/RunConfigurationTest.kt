@@ -179,4 +179,39 @@ class RunConfigurationTest {
         kotlin.test.assertTrue(jsonDecoded.outputConfig.reports.isEmpty())
         kotlin.test.assertTrue(tomlDecoded.outputConfig.reports.isEmpty())
     }
+
+    // ── ExecutionMode field on RunConfiguration ──────────────────────────────
+
+    @Test
+    fun `RunConfiguration defaults to SEQUENTIAL execution mode`() {
+        val config = RunConfiguration()
+        assertEquals(ExecutionMode.SEQUENTIAL, config.executionMode)
+    }
+
+    @Test
+    fun `RunConfiguration with default ExecutionMode round-trips through both codecs`() {
+        val config = mm1Config()
+        val jsonDecoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        val tomlDecoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, jsonDecoded)
+        assertEquals(config, tomlDecoded)
+        assertEquals(ExecutionMode.SEQUENTIAL, jsonDecoded.executionMode)
+        assertEquals(ExecutionMode.SEQUENTIAL, tomlDecoded.executionMode)
+    }
+
+    @Test
+    fun `RunConfiguration with CONCURRENT execution mode round-trips through JSON`() {
+        val config = mm1Config().copy(executionMode = ExecutionMode.CONCURRENT)
+        val decoded = RunConfigurationJson.decode(RunConfigurationJson.encode(config))
+        assertEquals(config, decoded)
+        assertEquals(ExecutionMode.CONCURRENT, decoded.executionMode)
+    }
+
+    @Test
+    fun `RunConfiguration with CONCURRENT execution mode round-trips through TOML`() {
+        val config = mm1Config().copy(executionMode = ExecutionMode.CONCURRENT)
+        val decoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
+        assertEquals(config, decoded)
+        assertEquals(ExecutionMode.CONCURRENT, decoded.executionMode)
+    }
 }
