@@ -20,6 +20,8 @@ rootProject.name = "KSLAppSwingSingle"
 
 include(":KSLCore")
 include(":KSLExamples")
+include(":KSLAppSwingCommon")
 
 project(":KSLCore").projectDir = file("../KSLCore")
 project(":KSLExamples").projectDir = file("../KSLExamples")
+project(":KSLAppSwingCommon").projectDir = file("../KSLAppSwingCommon")

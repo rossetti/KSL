@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    implementation(project(":KSLAppSwingCommon"))
     // KSLExamples hosts the KSLModelBundle implementations for the
     // bundled example models (MM1Bundle, LKInventoryBundle wrapping
     // GIGcQueue and LKInventoryModel) — these are reference models,
