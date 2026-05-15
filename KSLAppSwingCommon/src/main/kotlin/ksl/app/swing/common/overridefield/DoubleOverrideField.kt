@@ -1,0 +1,124 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.app.swing.common.overridefield
+
+import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Toolkit
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
+import javax.swing.JPanel
+import javax.swing.JTextField
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
+
+/**
+ * Override widget for a `Double?`-valued scenario field.  Same
+ * commit policy and contract as [IntegerOverrideField]: parse on
+ * blur or Enter, blank → `null`, garbage → revert + [onParseError].
+ *
+ * Locale-aware decimal separator support is a Phase 6C tuning
+ * detail per scenario workflow §7 OQ 5 — this v1 parses with
+ * [String.toDoubleOrNull], which uses `.` as the decimal separator
+ * regardless of locale.
+ */
+class DoubleOverrideField(
+    var modelDefault: Double?,
+    private val onValueChange: (Double?) -> Unit = {},
+    private val onParseError: () -> Unit = { Toolkit.getDefaultToolkit().beep() }
+) : JPanel(BorderLayout()) {
+
+    private val textField = JTextField()
+    private val clearBtn = OverrideFieldSupport.clearButton(onClear = { value = null })
+
+    private var myValue: Double? = null
+    private var normalForeground: Color = textField.foreground
+    private var suppressDocChange: Boolean = false
+
+    var value: Double?
+        get() = myValue
+        set(next) {
+            if (next == myValue) {
+                refreshDisplay()
+                return
+            }
+            myValue = next
+            refreshDisplay()
+            onValueChange(next)
+        }
+
+    init {
+        isOpaque = false
+        add(textField, BorderLayout.CENTER)
+        add(clearBtn, BorderLayout.EAST)
+
+        textField.addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent) { commitFromText() }
+        })
+        textField.addActionListener { commitFromText() }
+        textField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) = onTextEdited()
+            override fun removeUpdate(e: DocumentEvent) = onTextEdited()
+            override fun changedUpdate(e: DocumentEvent) = onTextEdited()
+        })
+
+        refreshDisplay()
+    }
+
+    fun refreshDisplay() {
+        clearBtn.isVisible = myValue != null
+        suppressDocChange = true
+        try {
+            if (myValue == null) {
+                textField.foreground = OverrideFieldSupport.PLACEHOLDER_COLOR
+                textField.text = OverrideFieldSupport.placeholderText(modelDefault, modelDefault != null)
+            } else {
+                textField.foreground = normalForeground
+                textField.text = myValue.toString()
+            }
+        } finally {
+            suppressDocChange = false
+        }
+    }
+
+    internal val internalTextField: JTextField get() = textField
+
+    private fun onTextEdited() {
+        if (suppressDocChange) return
+        if (textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) {
+            textField.foreground = normalForeground
+        }
+    }
+
+    private fun commitFromText() {
+        if (myValue == null && textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) return
+        val raw = textField.text
+        if (raw.isBlank()) {
+            value = null
+            return
+        }
+        val parsed = raw.trim().toDoubleOrNull()
+        if (parsed == null) {
+            onParseError()
+            refreshDisplay()
+            return
+        }
+        value = parsed
+    }
+}
