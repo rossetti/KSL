@@ -32,6 +32,9 @@ import ksl.app.settings.UserSettingsStore
 import ksl.app.swing.common.editor.SelectionState
 import ksl.app.swing.common.editor.UndoStack
 import ksl.app.swing.common.editor.UndoableOperation
+import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.swing.common.notification.NotificationSpec
+import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
 import ksl.app.swing.common.overridefield.IntegerOverrideField
@@ -132,6 +135,10 @@ object CommonWidgetsDemo {
         frame.defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
         frame.preferredSize = Dimension(960, 720)
 
+        // Notification stack lives on the frame's layered pane so cards
+        // float above the editor at the bottom-right.
+        val notifications = Notifications(frame.rootPane.layeredPane)
+
         // ── Menu bar ──────────────────────────────────────────────────────
         val setWdAction = SetWorkingDirectoryAction(settingsStore, parentSupplier = { frame })
         val recentMenu = RecentWorkingDirectoriesMenu(settingsStore, scope)
@@ -195,15 +202,42 @@ object CommonWidgetsDemo {
             addActionListener {
                 runningFlow.value = !runningFlow.value
                 text = if (runningFlow.value) "Stop Running" else "Simulate Run"
+                notifications.show(
+                    if (runningFlow.value) "Run started"
+                    else "Run stopped",
+                    NotificationSeverity.INFO
+                )
             }
         }
         val openFolderBtn = JButton(
             OpenInFileBrowserAction(
                 directoryPath = Path.of(System.getProperty("user.home")),
                 desktopOpener = DefaultDesktopOpener,
-                onUnavailable = { println("[demo] could not open $it") }
+                onUnavailable = { p ->
+                    notifications.show(
+                        NotificationSpec(
+                            message = "Could not open $p in the file manager.",
+                            severity = NotificationSeverity.ERROR
+                        )
+                    )
+                }
             )
         )
+        var notifCounter = 0
+        val showNotifBtn = JButton("Show Sample Notification").apply {
+            addActionListener {
+                notifCounter++
+                val severity = when (notifCounter % 3) {
+                    0 -> NotificationSeverity.ERROR
+                    1 -> NotificationSeverity.INFO
+                    else -> NotificationSeverity.WARNING
+                }
+                notifications.show(
+                    "Notification #$notifCounter (${severity.name.lowercase()})",
+                    severity
+                )
+            }
+        }
         val toggleFlagBtn = JButton("Toggle Flag (push Undo op)").apply {
             var flag = false
             addActionListener {
@@ -222,6 +256,7 @@ object CommonWidgetsDemo {
             add(toggleRunBtn)
             add(openFolderBtn)
             add(toggleFlagBtn)
+            add(showNotifBtn)
         }
 
         // ── Bottom: console + status bar ───────────────────────────────────
