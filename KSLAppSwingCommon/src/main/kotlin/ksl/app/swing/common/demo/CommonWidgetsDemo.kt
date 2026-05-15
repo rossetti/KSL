@@ -34,7 +34,6 @@ import ksl.app.swing.common.editor.UndoStack
 import ksl.app.swing.common.editor.UndoableOperation
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
-import ksl.app.swing.common.overridefield.DurationOverrideField
 import ksl.app.swing.common.overridefield.IntegerOverrideField
 import ksl.app.swing.common.overridefield.JsonControlValueField
 import ksl.app.swing.common.overridefield.SectionHeaderWithStatus
@@ -78,7 +77,6 @@ import javax.swing.JSeparator
 import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Hand-runnable demo composing every Phase-6C Common widget into a
@@ -219,15 +217,11 @@ object CommonWidgetsDemo {
                 println("[demo] flag set → $flag")
             }
         }
-        val republishBtn = JButton("Republish Validation").apply {
-            addActionListener { bus.publish(sampleValidationResult()) }
-        }
         val actionStrip = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4)).apply {
             add(emitEventBtn)
             add(toggleRunBtn)
             add(openFolderBtn)
             add(toggleFlagBtn)
-            add(republishBtn)
         }
 
         // ── Bottom: console + status bar ───────────────────────────────────
@@ -360,12 +354,6 @@ object CommonWidgetsDemo {
             "Antithetic",
             "scenarios[0].runOverrides.antitheticOption",
             BooleanTriStateOverrideField(onValueChange = { println("[demo] antithetic → $it") }),
-            bus, scope, registry
-        ))
-        runParamsBody.add(labeledRow(
-            "Max time / replication",
-            "scenarios[0].runOverrides.maximumAllowedExecutionTimePerReplication",
-            DurationOverrideField(modelDefault = 5.minutes, onValueChange = { println("[demo] maxTime → $it") }),
             bus, scope, registry
         ))
 
