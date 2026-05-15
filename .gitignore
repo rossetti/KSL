@@ -261,3 +261,4 @@ CLAUDE.md
 /.codex
 KSLBundleTools/gradle/wrapper/gradle-wrapper.jar
 KSLBundleTools/gradle/wrapper/gradle-wrapper.properties
+/KSLAppSwingCommon/gradle
