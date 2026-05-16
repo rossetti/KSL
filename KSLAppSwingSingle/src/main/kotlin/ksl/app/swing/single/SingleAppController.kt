@@ -46,8 +46,13 @@ import ksl.app.validation.FieldError
 import ksl.app.validation.ValidationFeedbackBus
 import ksl.app.validation.ValidationResult
 import ksl.app.validation.ValidationSeverity
+import ksl.controls.ControlData
+import ksl.controls.JsonControlData
+import ksl.controls.ModelControlsExport
+import ksl.controls.StringControlData
 import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.simulation.MapModelProvider
+import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -99,6 +104,13 @@ class SingleAppController(
     val modelDefaults: ExperimentRunDefaults
 
     /**
+     * The model's controls snapshot captured at probe time.
+     * Empty (`modelName = appName`, all family lists empty) when
+     * the probe fails — see [probeFailure].
+     */
+    val controlsSnapshot: ModelControlsExport
+
+    /**
      * `null` when the probe build succeeded; the underlying
      * Throwable otherwise.  Frames surface this as an ERROR
      * notification when the app starts up so the developer can
@@ -107,8 +119,9 @@ class SingleAppController(
     val probeFailure: Throwable?
 
     init {
-        val (defaults, failure) = probeDefaults()
+        val (defaults, snapshot, failure) = probeModel()
         this.modelDefaults = defaults
+        this.controlsSnapshot = snapshot
         this.probeFailure = failure
     }
 
@@ -152,12 +165,19 @@ class SingleAppController(
         return ValidationResult(warnings = warnings)
     }
 
-    private fun probeDefaults(): Pair<ExperimentRunDefaults, Throwable?> = try {
-        val model = modelBuilder.build(null, null)
-        model.modelDescriptor().experimentRunDefaults to null
+    /**
+     * Result triple from a single probe build:
+     *  - the model's [ExperimentRunDefaults] for the parameter panel,
+     *  - the model's [ModelControlsExport] for the control-overrides panel,
+     *  - any underlying [Throwable] thrown by `modelBuilder.build(...)`.
+     */
+    private fun probeModel(): Triple<ExperimentRunDefaults, ModelControlsExport, Throwable?> = try {
+        val model: Model = modelBuilder.build(null, null)
+        val descriptor = model.modelDescriptor()
+        Triple(descriptor.experimentRunDefaults, descriptor.controls, null)
     } catch (t: Throwable) {
         logger.warn(t) { "ModelBuilder probe build failed; falling back to safe defaults." }
-        SAFE_FALLBACK_DEFAULTS to t
+        Triple(SAFE_FALLBACK_DEFAULTS, ModelControlsExport(modelName = appName), t)
     }
 
     private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
@@ -175,6 +195,25 @@ class SingleAppController(
     private val myRunOverrides = MutableStateFlow(ExperimentRunOverrides())
     /** Pending run-parameter overrides.  Threaded into the ScenarioSpec on [submit]. */
     val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
+
+    // Seeded with the probe-captured modelName so the orchestrator's
+    // Controls.importAll() doesn't emit CONTROL_MODEL_NAME_MISMATCH.  The
+    // probe ran in the first init block (above) so controlsSnapshot is
+    // already populated by the time this property initializes.  When the
+    // probe failed, the fallback snapshot has modelName = appName but its
+    // control lists are empty, so importAll is skipped entirely and the
+    // modelName never matters.
+    private val myControlOverrides = MutableStateFlow(
+        ModelControlsExport(modelName = controlsSnapshot.modelName)
+    )
+    /**
+     * Pending control overrides.  Each per-family list holds **only** the
+     * controls the analyst has explicitly overridden — entries absent from
+     * the snapshot are left at model defaults by
+     * [ksl.controls.Controls.importAll] at submit time.  Threaded into the
+     * `ScenarioSpec.controlOverrides` field on [submit].
+     */
+    val controlOverrides: StateFlow<ModelControlsExport> = myControlOverrides.asStateFlow()
 
     private var currentHandle: RunHandle? = null
 
@@ -201,6 +240,69 @@ class SingleAppController(
         myRunOverrides.value = transform(myRunOverrides.value)
     }
 
+    // ── Control overrides — per-family mutators ────────────────────────────
+
+    /**
+     * Sets the numeric-control override for [keyName] to [value].  The
+     * existing snapshot entry for that key (if any) is captured from
+     * [controlsSnapshot] for its metadata (bounds, element ids) and the
+     * value field replaced.  If [keyName] is not in the model snapshot,
+     * the call is a no-op (defensive — the GUI should only offer keys
+     * the model exposes).
+     */
+    fun setNumericOverride(keyName: String, value: Double) {
+        val template = controlsSnapshot.numericControls.firstOrNull { it.keyName == keyName } ?: return
+        myControlOverrides.value = myControlOverrides.value.copy(
+            numericControls = myControlOverrides.value.numericControls
+                .filter { it.keyName != keyName } + template.copy(value = value)
+        )
+    }
+
+    /** Removes the numeric override for [keyName], reverting to the model default. */
+    fun clearNumericOverride(keyName: String) {
+        val current = myControlOverrides.value
+        if (current.numericControls.none { it.keyName == keyName }) return
+        myControlOverrides.value = current.copy(
+            numericControls = current.numericControls.filter { it.keyName != keyName }
+        )
+    }
+
+    /** Sets the string-control override for [keyName] to [value]. */
+    fun setStringOverride(keyName: String, value: String) {
+        val template = controlsSnapshot.stringControls.firstOrNull { it.keyName == keyName } ?: return
+        myControlOverrides.value = myControlOverrides.value.copy(
+            stringControls = myControlOverrides.value.stringControls
+                .filter { it.keyName != keyName } + template.copy(value = value)
+        )
+    }
+
+    /** Removes the string override for [keyName]. */
+    fun clearStringOverride(keyName: String) {
+        val current = myControlOverrides.value
+        if (current.stringControls.none { it.keyName == keyName }) return
+        myControlOverrides.value = current.copy(
+            stringControls = current.stringControls.filter { it.keyName != keyName }
+        )
+    }
+
+    /** Sets the JSON-control override for [keyName] to [jsonValue]. */
+    fun setJsonOverride(keyName: String, jsonValue: String) {
+        val template = controlsSnapshot.jsonControls.firstOrNull { it.keyName == keyName } ?: return
+        myControlOverrides.value = myControlOverrides.value.copy(
+            jsonControls = myControlOverrides.value.jsonControls
+                .filter { it.keyName != keyName } + template.copy(jsonValue = jsonValue)
+        )
+    }
+
+    /** Removes the JSON override for [keyName]. */
+    fun clearJsonOverride(keyName: String) {
+        val current = myControlOverrides.value
+        if (current.jsonControls.none { it.keyName == keyName }) return
+        myControlOverrides.value = current.copy(
+            jsonControls = current.jsonControls.filter { it.keyName != keyName }
+        )
+    }
+
     /**
      * Submits a run with the model built fresh from [modelBuilder].
      * The configuration is a one-scenario [RunConfiguration] keyed
@@ -218,7 +320,8 @@ class SingleAppController(
                 ScenarioSpec(
                     name = appName,
                     modelReference = ModelReference.Embedded(appName),
-                    runOverrides = myRunOverrides.value
+                    runOverrides = myRunOverrides.value,
+                    controlOverrides = myControlOverrides.value
                 )
             )
         )

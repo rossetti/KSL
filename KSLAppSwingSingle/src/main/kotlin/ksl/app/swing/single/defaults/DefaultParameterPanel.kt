@@ -183,10 +183,24 @@ class DefaultParameterPanel(
 
     // ── Field helpers ──────────────────────────────────────────────────────
 
-    private fun labeledRow(label: String, field: JComponent): JComponent = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createEmptyBorder(ROW_PADDING, 0, ROW_PADDING, 0)
-        add(JLabel(label).apply { preferredSize = Dimension(LABEL_WIDTH, preferredSize.height) }, BorderLayout.WEST)
-        add(field, BorderLayout.CENTER)
+    private fun labeledRow(label: String, field: JComponent): JComponent {
+        // Cap the field's preferred + max width so it doesn't stretch to fill
+        // the full window width.  Trailing horizontal glue absorbs the rest of
+        // the row.  Vertical sizing follows the field's natural preferred height.
+        val fieldHeight = field.preferredSize.height.coerceAtLeast(MIN_ROW_HEIGHT)
+        field.preferredSize = Dimension(FIELD_WIDTH, fieldHeight)
+        field.maximumSize = Dimension(FIELD_WIDTH, fieldHeight)
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            border = BorderFactory.createEmptyBorder(ROW_PADDING, 0, ROW_PADDING, 0)
+            add(JLabel(label).apply {
+                val labelHeight = preferredSize.height.coerceAtLeast(MIN_ROW_HEIGHT)
+                preferredSize = Dimension(LABEL_WIDTH, labelHeight)
+                maximumSize = Dimension(LABEL_WIDTH, labelHeight)
+            })
+            add(field)
+            add(Box.createHorizontalGlue())
+        }
     }
 
     private fun integerField(modelDefault: Int, path: String, onChange: (Int?) -> Unit): JComponent {
@@ -213,7 +227,9 @@ class DefaultParameterPanel(
     companion object {
         private const val OUTER_PADDING: Int = 4
         private const val ROW_PADDING: Int = 1
-        private const val LABEL_WIDTH: Int = 180
+        private const val LABEL_WIDTH: Int = 220
+        private const val FIELD_WIDTH: Int = 280
+        private const val MIN_ROW_HEIGHT: Int = 24
         private const val SECTION_GAP: Int = 6
     }
 }

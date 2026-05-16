@@ -89,6 +89,7 @@ class SingleAppFrame(
     }.apply { isEnabled = false }
 
     private val parameterPanel = DefaultParameterPanel(controller)
+    private val controlOverridesPanel = ksl.app.swing.single.defaults.DefaultControlOverridesPanel(controller)
 
     private val cardLayout = CardLayout()
     private val cardContainer = JPanel(cardLayout)
@@ -175,7 +176,13 @@ class SingleAppFrame(
             add(JButton(cancelAction))
             add(Box.createHorizontalGlue())
         }
-        val scrollablePanel = JScrollPane(parameterPanel).apply {
+        val editorStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(parameterPanel)
+            add(controlOverridesPanel)
+            add(Box.createVerticalGlue())
+        }
+        val scrollablePanel = JScrollPane(editorStack).apply {
             border = BorderFactory.createEmptyBorder()
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
@@ -222,6 +229,7 @@ class SingleAppFrame(
                 runAction.isEnabled = !running
                 cancelAction.isEnabled = running
                 parameterPanel.isEnabled = !running
+                controlOverridesPanel.isEnabled = !running
                 if (running) {
                     notifications.show("Run started", NotificationSeverity.INFO)
                 }
