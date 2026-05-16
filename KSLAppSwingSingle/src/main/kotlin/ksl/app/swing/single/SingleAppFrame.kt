@@ -56,6 +56,7 @@ import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
 import javax.swing.WindowConstants
 import kotlin.time.Duration
@@ -73,15 +74,17 @@ import kotlin.time.DurationUnit
  *    completed badge with one-line summary).  Always visible so
  *    Run is one click from anywhere in the app.
  *  - **Centre tabs**:
- *      1. *Run Parameters* — analyst-facing experiment overrides.
+ *      1. *Run Control* — horizontal split pane.  Left:
+ *         [DefaultParameterPanel] for analyst-facing experiment
+ *         overrides.  Right: [ConsoleLogPanel] collecting the
+ *         controller's `eventFlow` so the user can watch run
+ *         progress while editing parameters.  The ORCHESTRATOR
+ *         category chip is suppressed because the single-run app
+ *         never emits orchestrator events.
  *      2. *Control Overrides* — annotated-property overrides
  *         (hidden when the model exposes no controls).
  *      3. *Reports* — standard-report buttons.  Disabled until a
  *         snapshot exists (after a successful run).
- *      4. *Console* — `ConsoleLogPanel` collecting the controller's
- *         `eventFlow`.  ORCHESTRATOR category chip is suppressed
- *         here because the single-run app never emits orchestrator
- *         events.
  *  - [WorkspaceStatusBar] strip at the very bottom.
  *  - [Notifications] overlay attached to the frame's layered pane.
  *
@@ -213,7 +216,16 @@ class SingleAppFrame(
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        tabs.addTab("Run Parameters", scrollableParameters)
+        val runControlSplit = JSplitPane(
+            JSplitPane.HORIZONTAL_SPLIT,
+            scrollableParameters,
+            consolePanel
+        ).apply {
+            resizeWeight = 0.45
+            isContinuousLayout = true
+            border = BorderFactory.createEmptyBorder()
+        }
+        tabs.addTab("Run Control", runControlSplit)
         if (controlOverridesPanel.isVisible) {
             tabs.addTab("Control Overrides", controlOverridesPanel)
         }
@@ -221,7 +233,6 @@ class SingleAppFrame(
         tabs.addTab("Reports", reportsPanel)
         tabs.setEnabledAt(reportsTabIndex, false)
         tabs.setToolTipTextAt(reportsTabIndex, "Run the model to enable reports")
-        tabs.addTab("Console", consolePanel)
         return tabs
     }
 
