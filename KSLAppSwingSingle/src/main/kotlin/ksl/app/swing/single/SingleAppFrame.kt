@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import ksl.app.session.RunResult
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
+import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.swing.common.validation.DocumentHealthBanner
 import ksl.app.swing.common.validation.WidgetPathRegistry
@@ -30,14 +31,16 @@ import ksl.app.swing.common.results.DefaultDesktopOpener
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
+import ksl.app.swing.single.defaults.DefaultControlOverridesPanel
 import ksl.app.swing.single.defaults.DefaultParameterPanel
-import ksl.app.swing.single.defaults.DefaultResultPanel
+import ksl.app.swing.single.defaults.DefaultReportsPanel
 import ksl.app.swing.single.defaults.StandardReportFormat
 import ksl.app.swing.single.defaults.StandardReportMaterializer
 import ksl.app.swing.single.defaults.StandardReportOutcome
 import java.awt.BorderLayout
-import java.awt.CardLayout
+import java.awt.Color
 import java.awt.Dimension
+import java.awt.Font
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import javax.swing.AbstractAction
@@ -45,34 +48,45 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JTabbedPane
 import javax.swing.WindowConstants
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 /**
  * Default top-level frame for a `kslSingleApp(...)` instance.
- * Composes Common widgets:
  *
- *  - Menu bar with **File** (Set Working Directory…, Recent
- *    Working Directories ▶, Exit).
- *  - [DocumentHealthBanner] at the top (currently empty until
- *    N2 wires the parameter panel's validation source).
- *  - Centre placeholder + Run/Cancel button.  N2 replaces the
- *    placeholder with an editable parameter panel; N3 adds a
- *    result panel after `RunCompleted`.
- *  - [ConsoleLogPanel] at the bottom collecting the controller's
- *    [SingleAppController.eventFlow].
- *  - [WorkspaceStatusBar] strip beneath the console.
- *  - [Notifications] overlay attached to the frame's layered
- *    pane; surfaces run-start / completion / cancel / failure
- *    toasts.
+ * Layout (top → bottom):
  *
- * Lifecycle: closing the window closes the [SingleAppController],
- * which cancels any in-flight run and shuts the session down.
+ *  - Menu bar (File ▸ Set Working Directory… / Recent / Exit).
+ *  - [DocumentHealthBanner] for validation findings.
+ *  - **Run toolbar**: *Run* and *Cancel* buttons on the left, a
+ *    single-line **run-status strip** on the right (idle / running /
+ *    completed badge with one-line summary).  Always visible so
+ *    Run is one click from anywhere in the app.
+ *  - **Centre tabs**:
+ *      1. *Run Parameters* — analyst-facing experiment overrides.
+ *      2. *Control Overrides* — annotated-property overrides
+ *         (hidden when the model exposes no controls).
+ *      3. *Reports* — standard-report buttons.  Disabled until a
+ *         snapshot exists (after a successful run).
+ *      4. *Console* — `ConsoleLogPanel` collecting the controller's
+ *         `eventFlow`.  ORCHESTRATOR category chip is suppressed
+ *         here because the single-run app never emits orchestrator
+ *         events.
+ *  - [WorkspaceStatusBar] strip at the very bottom.
+ *  - [Notifications] overlay attached to the frame's layered pane.
+ *
+ * Closing the window closes the [SingleAppController], which cancels
+ * any in-flight run and shuts the session down.
  */
 class SingleAppFrame(
     private val controller: SingleAppController
@@ -89,24 +103,36 @@ class SingleAppFrame(
     }.apply { isEnabled = false }
 
     private val parameterPanel = DefaultParameterPanel(controller)
-    private val controlOverridesPanel = ksl.app.swing.single.defaults.DefaultControlOverridesPanel(controller)
+    private val controlOverridesPanel = DefaultControlOverridesPanel(controller)
+    private val reportsPanel = DefaultReportsPanel(
+        onStandardReport = { format -> handleStandardReport(format) },
+        onAdvanced = {
+            notifications.show(
+                "Advanced report configuration is not yet wired (N5).",
+                NotificationSeverity.WARNING
+            )
+        }
+    )
+    private val consolePanel = ConsoleLogPanel(
+        eventFlow = controller.eventFlow,
+        scope = controller.edtScope,
+        hiddenCategories = setOf(ConsoleCategory.ORCHESTRATOR)
+    )
+    private val statusStrip = RunStatusStrip()
 
-    private val cardLayout = CardLayout()
-    private val cardContainer = JPanel(cardLayout)
-    private val resultSlot = JPanel(BorderLayout())   // replaced fresh on each terminal state
-    private var lastRenderedResult: RunResult? = null
+    private val tabs = JTabbedPane()
+    private var reportsTabIndex: Int = -1
+    private var latestSnapshotResult: RunResult? = null
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
-        preferredSize = Dimension(880, 640)
+        preferredSize = Dimension(960, 680)
 
         jMenuBar = buildMenuBar()
 
         val banner = DocumentHealthBanner(controller.validationBus, registry, controller.edtScope)
-        val centre = buildCentre()
-        val console = ConsoleLogPanel(controller.eventFlow, controller.edtScope).apply {
-            preferredSize = Dimension(0, 180)
-        }
+        val toolbar = buildRunToolbar()
+        val tabsCentre = buildTabs()
         val statusBar = WorkspaceStatusBar(
             store = controller.settingsStore,
             scope = controller.edtScope,
@@ -116,16 +142,17 @@ class SingleAppFrame(
             }
         )
 
-        val bottom = JPanel(BorderLayout()).apply {
-            add(console, BorderLayout.CENTER)
-            add(statusBar, BorderLayout.SOUTH)
+        val topStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(banner)
+            add(toolbar)
         }
 
         contentPane.apply {
             layout = BorderLayout()
-            add(banner, BorderLayout.NORTH)
-            add(centre, BorderLayout.CENTER)
-            add(bottom, BorderLayout.SOUTH)
+            add(topStack, BorderLayout.NORTH)
+            add(tabsCentre, BorderLayout.CENTER)
+            add(statusBar, BorderLayout.SOUTH)
         }
 
         wireRunningState()
@@ -139,7 +166,6 @@ class SingleAppFrame(
     private fun surfaceProbeFailureIfPresent() {
         val cause = controller.probeFailure ?: return
         controller.edtScope.launch {
-            // Defer one tick so the frame is visible before the notification appears.
             javax.swing.SwingUtilities.invokeLater {
                 notifications.show(
                     ksl.app.swing.common.notification.NotificationSpec(
@@ -166,61 +192,37 @@ class SingleAppFrame(
         }
     }
 
-    private fun buildCentre(): JPanel {
-        val runStrip = JPanel().apply {
+    private fun buildRunToolbar(): JComponent {
+        val runButton = JButton(runAction)
+        val cancelButton = JButton(cancelAction)
+        return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
-            border = BorderFactory.createEmptyBorder(8, 12, 8, 12)
-            add(Box.createHorizontalGlue())
-            add(JButton(runAction))
+            border = BorderFactory.createEmptyBorder(6, 12, 6, 12)
+            add(runButton)
             add(Box.createHorizontalStrut(8))
-            add(JButton(cancelAction))
+            add(cancelButton)
+            add(Box.createHorizontalStrut(16))
+            add(statusStrip)
             add(Box.createHorizontalGlue())
         }
-        val editorStack = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(parameterPanel)
-            add(controlOverridesPanel)
-            add(Box.createVerticalGlue())
-        }
-        val scrollablePanel = JScrollPane(editorStack).apply {
+    }
+
+    private fun buildTabs(): JComponent {
+        val scrollableParameters = JScrollPane(parameterPanel).apply {
             border = BorderFactory.createEmptyBorder()
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        val parameterCard = JPanel(BorderLayout()).apply {
-            add(scrollablePanel, BorderLayout.CENTER)
-            add(runStrip, BorderLayout.SOUTH)
+        tabs.addTab("Run Parameters", scrollableParameters)
+        if (controlOverridesPanel.isVisible) {
+            tabs.addTab("Control Overrides", controlOverridesPanel)
         }
-        cardContainer.add(parameterCard, CARD_PARAMETER)
-        cardContainer.add(resultSlot, CARD_RESULT)
-        cardLayout.show(cardContainer, CARD_PARAMETER)
-        return cardContainer
-    }
-
-    private fun showResultCard(result: RunResult) {
-        lastRenderedResult = result
-        val panel = DefaultResultPanel(
-            result = result,
-            onBack = { showParameterCard() },
-            onStandardReport = { formatLabel -> materializeStandardReport(result, formatLabel) },
-            onAdvanced = {
-                notifications.show(
-                    "Advanced report configuration is not yet wired (N5).",
-                    NotificationSeverity.WARNING
-                )
-            }
-        )
-        resultSlot.removeAll()
-        resultSlot.add(panel, BorderLayout.CENTER)
-        resultSlot.revalidate()
-        resultSlot.repaint()
-        cardLayout.show(cardContainer, CARD_RESULT)
-    }
-
-    private fun showParameterCard() {
-        cardLayout.show(cardContainer, CARD_PARAMETER)
-        resultSlot.removeAll()
-        lastRenderedResult = null
+        reportsTabIndex = tabs.tabCount
+        tabs.addTab("Reports", reportsPanel)
+        tabs.setEnabledAt(reportsTabIndex, false)
+        tabs.setToolTipTextAt(reportsTabIndex, "Run the model to enable reports")
+        tabs.addTab("Console", consolePanel)
+        return tabs
     }
 
     private fun wireRunningState() {
@@ -231,6 +233,7 @@ class SingleAppFrame(
                 parameterPanel.isEnabled = !running
                 controlOverridesPanel.isEnabled = !running
                 if (running) {
+                    statusStrip.showRunning()
                     notifications.show("Run started", NotificationSeverity.INFO)
                 }
             }
@@ -240,7 +243,17 @@ class SingleAppFrame(
     private fun wireTerminalNotifications() {
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
-                if (result == null || result === lastRenderedResult) return@collect
+                if (result == null) return@collect
+                statusStrip.showResult(result)
+                val hasSnapshot = result is RunResult.Completed || result is RunResult.BatchCompleted
+                if (reportsTabIndex >= 0) {
+                    tabs.setEnabledAt(reportsTabIndex, hasSnapshot)
+                    tabs.setToolTipTextAt(
+                        reportsTabIndex,
+                        if (hasSnapshot) null else "Run the model to enable reports"
+                    )
+                }
+                latestSnapshotResult = if (hasSnapshot) result else null
                 when (result) {
                     is RunResult.Completed ->
                         notifications.show("Run completed", NotificationSeverity.INFO)
@@ -253,9 +266,19 @@ class SingleAppFrame(
                     else ->
                         notifications.show("Run finished: ${result::class.simpleName}", NotificationSeverity.INFO)
                 }
-                showResultCard(result)
             }
         }
+    }
+
+    private fun handleStandardReport(formatLabel: String) {
+        val result = latestSnapshotResult ?: run {
+            notifications.show(
+                "No completed run available — start a run first.",
+                NotificationSeverity.WARNING
+            )
+            return
+        }
+        materializeStandardReport(result, formatLabel)
     }
 
     private fun materializeStandardReport(result: RunResult, formatLabel: String) {
@@ -295,8 +318,103 @@ class SingleAppFrame(
         else -> null
     }
 
-    companion object {
-        private const val CARD_PARAMETER: String = "parameter"
-        private const val CARD_RESULT: String = "result"
+    /**
+     * Single-line widget shown on the right side of the run toolbar.
+     * Renders a status badge + one-line summary that updates as the
+     * controller transitions through idle → running → terminal states.
+     */
+    private class RunStatusStrip : JPanel() {
+
+        private val badge: JLabel = JLabel().apply {
+            font = font.deriveFont(Font.BOLD)
+            isOpaque = true
+            border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        }
+        private val summary: JLabel = JLabel()
+
+        init {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            add(badge)
+            add(Box.createHorizontalStrut(8))
+            add(summary)
+            showIdle()
+        }
+
+        fun showIdle() {
+            setBadge("Idle", BG_IDLE, FG_IDLE)
+            summary.text = ""
+        }
+
+        fun showRunning() {
+            setBadge("Running…", BG_RUN, FG_RUN)
+            summary.text = ""
+        }
+
+        fun showResult(result: RunResult) {
+            when (result) {
+                is RunResult.Completed -> {
+                    setBadge("Completed", BG_OK, FG_OK)
+                    summary.text =
+                        "${result.summary.completedReplications} / " +
+                            "${result.summary.requestedReplications} replications" +
+                            "  ·  ${formatDuration(result.summary.wallClockDuration)}" +
+                            "  ·  ${result.summary.endingStatus}"
+                }
+                is RunResult.BatchCompleted -> {
+                    setBadge("Batch completed", BG_OK, FG_OK)
+                    summary.text =
+                        "${result.summary.completedItems} / ${result.summary.totalItems} items" +
+                            (if (result.summary.failedItems > 0) " (${result.summary.failedItems} failed)" else "") +
+                            "  ·  ${formatDuration(result.summary.endTime - result.summary.beginTime)}"
+                }
+                is RunResult.Cancelled -> {
+                    setBadge("Cancelled", BG_WARN, FG_WARN)
+                    summary.text = result.reason
+                }
+                is RunResult.Failed -> {
+                    setBadge("Failed", BG_ERR, FG_ERR)
+                    summary.text = result.error.toString()
+                }
+                is RunResult.OptimizationCompleted -> {
+                    setBadge("Optimization completed", BG_OK, FG_OK)
+                    summary.text =
+                        "${result.summary.completedItems} / ${result.summary.totalItems} iterations" +
+                            "  ·  ${formatDuration(result.summary.endTime - result.summary.beginTime)}"
+                }
+            }
+        }
+
+        private fun setBadge(label: String, bg: Color, fg: Color) {
+            badge.text = label
+            badge.background = bg
+            badge.foreground = fg
+        }
+
+        private fun formatDuration(d: Duration): String {
+            val seconds = d.toDouble(DurationUnit.SECONDS)
+            return when {
+                seconds < 1.0 -> "%.3f s".format(seconds)
+                seconds < 60.0 -> "%.1f s".format(seconds)
+                else -> {
+                    val totalSec = seconds.toInt()
+                    val m = totalSec / 60
+                    val s = totalSec % 60
+                    "%d m %02d s".format(m, s)
+                }
+            }
+        }
+
+        companion object {
+            private val BG_IDLE: Color = Color(0xEE, 0xEE, 0xEE)
+            private val FG_IDLE: Color = Color(0x55, 0x55, 0x55)
+            private val BG_RUN: Color = Color(0xE3, 0xF2, 0xFD)
+            private val FG_RUN: Color = Color(0x0D, 0x47, 0xA1)
+            private val BG_OK: Color = Color(0xE8, 0xF5, 0xE9)
+            private val FG_OK: Color = Color(0x1B, 0x5E, 0x20)
+            private val BG_WARN: Color = Color(0xFF, 0xF3, 0xE0)
+            private val FG_WARN: Color = Color(0xE6, 0x5C, 0x00)
+            private val BG_ERR: Color = Color(0xFF, 0xEB, 0xEE)
+            private val FG_ERR: Color = Color(0xC6, 0x28, 0x28)
+        }
     }
 }

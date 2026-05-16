@@ -101,11 +101,19 @@ object DefaultEventFormatter : EventFormatter {
  * @param eventFlow source of events to render.
  * @param scope owns the flow subscription.
  * @param formatter renders one line per [RunEvent].
+ * @param hiddenCategories category buckets whose toggle chip should
+ *   not be rendered in the header.  Events of these categories still
+ *   pass the filter (they're treated as always-enabled) — they just
+ *   can't be toggled off by the user.  Use to suppress chips for
+ *   categories that don't apply to a given app surface (e.g.
+ *   `ORCHESTRATOR` in the single-run app, where no orchestrator
+ *   events are ever emitted).
  */
 class ConsoleLogPanel(
     eventFlow: SharedFlow<RunEvent>,
     scope: CoroutineScope,
-    private val formatter: EventFormatter = DefaultEventFormatter
+    private val formatter: EventFormatter = DefaultEventFormatter,
+    hiddenCategories: Set<ConsoleCategory> = emptySet()
 ) : JPanel(BorderLayout()) {
 
     private val buffer: MutableList<RunEvent> = mutableListOf()
@@ -128,13 +136,15 @@ class ConsoleLogPanel(
             addActionListener { onSeverityToggle(severity, this.isSelected) }
         }
     }
-    private val categoryChips = ConsoleCategory.values().associateWith { category ->
-        JToggleButton(category.name).apply {
-            isSelected = true
-            isFocusable = false
-            addActionListener { onCategoryToggle(category, this.isSelected) }
+    private val categoryChips = ConsoleCategory.values()
+        .filterNot { it in hiddenCategories }
+        .associateWith { category ->
+            JToggleButton(category.name).apply {
+                isSelected = true
+                isFocusable = false
+                addActionListener { onCategoryToggle(category, this.isSelected) }
+            }
         }
-    }
     private val clearButton = JButton("Clear Console").apply {
         isFocusable = false
         addActionListener { clearConsole() }

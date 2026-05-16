@@ -18,7 +18,6 @@
 
 package ksl.app.swing.single.defaults
 
-import ksl.app.swing.common.overridefield.SectionHeaderWithStatus
 import ksl.app.swing.single.SingleAppController
 import ksl.controls.ControlData
 import ksl.controls.ControlType
@@ -86,15 +85,6 @@ class DefaultControlOverridesPanel(
         if (snapshot.totalControls == 0) {
             isVisible = false
         } else {
-            val body = JPanel(BorderLayout()).apply { isVisible = false }
-            val header = SectionHeaderWithStatus(
-                title = "Control Overrides",
-                pathPrefix = "scenarios[0].controlOverrides",
-                bus = controller.validationBus,
-                scope = controller.edtScope,
-                initiallyExpanded = false,
-                onToggle = { expanded -> body.isVisible = expanded; revalidate(); repaint() }
-            )
             val tabs = JTabbedPane()
             if (snapshot.numericControls.isNotEmpty()) {
                 tabs.addTab(tabTitle("Numeric", snapshot.numericControls.size), numericTab())
@@ -105,9 +95,7 @@ class DefaultControlOverridesPanel(
             if (snapshot.jsonControls.isNotEmpty()) {
                 tabs.addTab(tabTitle("JSON", snapshot.jsonControls.size), jsonTab())
             }
-            body.add(tabs, BorderLayout.CENTER)
-            add(header, BorderLayout.NORTH)
-            add(body, BorderLayout.CENTER)
+            add(tabs, BorderLayout.CENTER)
         }
     }
 
@@ -291,7 +279,7 @@ internal class NumericControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Parent", "Type", "Default", "Value", "Bounds", "Comment")
+    private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Type", "Bounds", "Comment")
 
     override val parentColumn: Int = COL_PARENT
 
@@ -378,24 +366,24 @@ internal class NumericControlTableModel(
 
     override fun applyColumnWidths(table: JTable) {
         applyWidth(table, COL_OVERRIDE, 70)
-        applyWidth(table, COL_KEY, 220)
-        applyWidth(table, COL_ELEMENT, 140)
         applyWidth(table, COL_PARENT, 140)
-        applyWidth(table, COL_TYPE, 80)
-        applyWidth(table, COL_DEFAULT, 80)
+        applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_VALUE, 100)
+        applyWidth(table, COL_DEFAULT, 80)
+        applyWidth(table, COL_TYPE, 80)
         applyWidth(table, COL_BOUNDS, 120)
         applyWidth(table, COL_COMMENT, 240)
     }
 
     companion object {
         const val COL_OVERRIDE: Int = 0
-        const val COL_KEY: Int = 1
+        const val COL_PARENT: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_PARENT: Int = 3
-        const val COL_TYPE: Int = 4
+        const val COL_KEY: Int = 3
+        const val COL_VALUE: Int = 4
         const val COL_DEFAULT: Int = 5
-        const val COL_VALUE: Int = 6
+        const val COL_TYPE: Int = 6
         const val COL_BOUNDS: Int = 7
         const val COL_COMMENT: Int = 8
     }
@@ -408,7 +396,7 @@ internal class StringControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Parent", "Allowed values", "Default", "Value", "Comment")
+    private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Allowed values", "Comment")
 
     override val parentColumn: Int = COL_PARENT
 
@@ -473,23 +461,23 @@ internal class StringControlTableModel(
 
     override fun applyColumnWidths(table: JTable) {
         applyWidth(table, COL_OVERRIDE, 70)
-        applyWidth(table, COL_KEY, 220)
-        applyWidth(table, COL_ELEMENT, 140)
         applyWidth(table, COL_PARENT, 140)
-        applyWidth(table, COL_ALLOWED, 200)
-        applyWidth(table, COL_DEFAULT, 120)
+        applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_VALUE, 160)
+        applyWidth(table, COL_DEFAULT, 120)
+        applyWidth(table, COL_ALLOWED, 200)
         applyWidth(table, COL_COMMENT, 240)
     }
 
     companion object {
         const val COL_OVERRIDE: Int = 0
-        const val COL_KEY: Int = 1
+        const val COL_PARENT: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_PARENT: Int = 3
-        const val COL_ALLOWED: Int = 4
+        const val COL_KEY: Int = 3
+        const val COL_VALUE: Int = 4
         const val COL_DEFAULT: Int = 5
-        const val COL_VALUE: Int = 6
+        const val COL_ALLOWED: Int = 6
         const val COL_COMMENT: Int = 7
     }
 }
@@ -501,7 +489,7 @@ internal class JsonControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Parent", "Type hint", "Default", "Value", "Comment")
+    private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Type hint", "Comment")
 
     override val parentColumn: Int = COL_PARENT
 
@@ -572,23 +560,23 @@ internal class JsonControlTableModel(
 
     override fun applyColumnWidths(table: JTable) {
         applyWidth(table, COL_OVERRIDE, 70)
-        applyWidth(table, COL_KEY, 220)
-        applyWidth(table, COL_ELEMENT, 140)
         applyWidth(table, COL_PARENT, 140)
-        applyWidth(table, COL_TYPE_HINT, 160)
-        applyWidth(table, COL_DEFAULT, 220)
+        applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_VALUE, 220)
+        applyWidth(table, COL_DEFAULT, 220)
+        applyWidth(table, COL_TYPE_HINT, 160)
         applyWidth(table, COL_COMMENT, 240)
     }
 
     companion object {
         const val COL_OVERRIDE: Int = 0
-        const val COL_KEY: Int = 1
+        const val COL_PARENT: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_PARENT: Int = 3
-        const val COL_TYPE_HINT: Int = 4
+        const val COL_KEY: Int = 3
+        const val COL_VALUE: Int = 4
         const val COL_DEFAULT: Int = 5
-        const val COL_VALUE: Int = 6
+        const val COL_TYPE_HINT: Int = 6
         const val COL_COMMENT: Int = 7
     }
 }

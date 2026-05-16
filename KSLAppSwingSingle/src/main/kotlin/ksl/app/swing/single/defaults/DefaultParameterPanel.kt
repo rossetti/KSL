@@ -76,20 +76,10 @@ class DefaultParameterPanel(
     init {
         border = BorderFactory.createEmptyBorder(OUTER_PADDING, OUTER_PADDING + 8, OUTER_PADDING, OUTER_PADDING + 8)
         val body = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        val header = SectionHeaderWithStatus(
-            title = "Run Parameters",
-            pathPrefix = "scenarios[0].runOverrides",
-            bus = bus,
-            scope = scope,
-            initiallyExpanded = true,
-            onToggle = { expanded -> body.isVisible = expanded; revalidate(); repaint() }
-        )
         body.add(commonRows())
         body.add(Box.createVerticalStrut(SECTION_GAP))
         body.add(advancedSection())
-
-        add(header, BorderLayout.NORTH)
-        add(body, BorderLayout.CENTER)
+        add(body, BorderLayout.NORTH)
     }
 
     override fun setEnabled(enabled: Boolean) {
