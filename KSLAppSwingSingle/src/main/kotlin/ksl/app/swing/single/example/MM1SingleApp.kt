@@ -52,6 +52,13 @@ fun main() = kslSingleApp(appName = "M/M/1 Queue") {
  * lambda) per workflow-single.md §2 OQ 2 so the same compiled
  * class is consumable from the Scenario app via
  * `ModelReference.ByJar(jarPath, "ksl.app.swing.single.example.MM1Builder")`.
+ *
+ * Also instantiates a small **synthetic-controls hierarchy**
+ * (`SyntheticSubsystem` → `SyntheticDispatcher` / `SyntheticSensorBank`,
+ * plus a peer `SyntheticBudgetHolder`) so the
+ * `DefaultControlOverridesPanel` can demonstrate non-trivial
+ * parent / element-path values across all three control families.
+ * The synthetic elements have no effect on simulation execution.
  */
 class MM1Builder : ModelBuilderIfc {
     override fun build(
@@ -60,12 +67,18 @@ class MM1Builder : ModelBuilderIfc {
     ): Model {
         val model = Model("MM1")
         GIGcQueue(model, numServers = 1, name = "MM1Queue")
-        // SyntheticControls exposes one example per control family
-        // (numeric int / double / boolean, string with allowedValues,
-        // free-form string, JSON List<Double>, JSON Map<String, Double>)
-        // so the Control Overrides panel renders all three families
-        // when MM1SingleApp launches.  Has no simulation effect.
-        SyntheticControls(model, name = "DemoControls")
+        // Synthetic-controls hierarchy.  Two levels under `FleetSubsystem`
+        // (Dispatcher, SensorBank) plus one direct child of the Model
+        // (BudgetHolder) so the Control Overrides panel exercises both
+        // the "nested" and "direct child of Model" cases for the
+        // hierarchy fields (parentElementName / parentElementType /
+        // elementPath).  None of these elements participate in the
+        // simulation; their annotated properties exist solely to
+        // populate the Control Overrides panel.
+        val fleet = SyntheticSubsystem(model, "FleetSubsystem")
+        SyntheticDispatcher(fleet, "Dispatcher")
+        SyntheticSensorBank(fleet, "SensorBank")
+        SyntheticBudgetHolder(model, "BudgetHolder")
         model.numberOfReplications = 30
         model.lengthOfReplication = 500.0
         model.lengthOfReplicationWarmUp = 50.0
@@ -76,15 +89,29 @@ class MM1Builder : ModelBuilderIfc {
     }
 }
 
+// ── Synthetic-controls fixture ─────────────────────────────────────────────
+//
+// All four classes below are file-top-level (not nested) because the
+// controls reflection layer invokes property setters via
+// `KCallable.call`, which cannot reach private nested classes' members.
+// None of them have simulation-time behavior — they exist purely as
+// demo fixtures for the Control Overrides panel.
+
 /**
- * Synthetic model element that exposes one annotated property per
- * control family.  Used by [MM1SingleApp] to give the
- * `DefaultControlOverridesPanel` something to render even though
- * the M/M/1 model itself only exposes one numeric control
- * (`MM1Queue.numServers`).  The properties have no effect on
- * simulation execution.
+ * Container element that hosts the `Dispatcher` and `SensorBank`
+ * demo elements.  Carries no controls of its own — its purpose is to
+ * sit one level below the Model so its children's controls report
+ * a non-empty `elementPath`.
  */
-class SyntheticControls(parent: ModelElement, name: String) : ModelElement(parent, name) {
+class SyntheticSubsystem(parent: ModelElement, name: String) : ModelElement(parent, name)
+
+/**
+ * Demo element under [SyntheticSubsystem] exposing the numeric-control
+ * family (Integer / Double / Boolean) plus a string control with
+ * `allowedValues`.  None of these properties affect simulation
+ * execution.
+ */
+class SyntheticDispatcher(parent: ModelElement, name: String) : ModelElement(parent, name) {
 
     @set:KSLControl(
         controlType = ControlType.INTEGER,
@@ -114,12 +141,29 @@ class SyntheticControls(parent: ModelElement, name: String) : ModelElement(paren
         comment = "Demo string control with allowedValues (renders as a combo box)"
     )
     var dispatchPolicy: String = "ROUND_ROBIN"
+}
+
+/**
+ * Demo element under [SyntheticSubsystem] exposing a free-form
+ * string control and a JSON list-of-double control.  No simulation
+ * effect.
+ */
+class SyntheticSensorBank(parent: ModelElement, name: String) : ModelElement(parent, name) {
 
     @set:KSLStringControl(comment = "Demo free-form string control")
     var operatorTag: String = "alpha"
 
     @set:KSLJsonControl(comment = "Demo JSON list-of-double control")
     var sensorWeights: List<Double> = listOf(0.5, 0.3, 0.2)
+}
+
+/**
+ * Demo element attached directly to the Model (not nested under a
+ * subsystem) so its single JSON control reports an empty
+ * `elementPath` — the contrast case to the controls hanging off
+ * [SyntheticDispatcher] / [SyntheticSensorBank].  No simulation effect.
+ */
+class SyntheticBudgetHolder(parent: ModelElement, name: String) : ModelElement(parent, name) {
 
     @set:KSLJsonControl(comment = "Demo JSON map-string-double control")
     var queueDepthBudget: Map<String, Double> =
