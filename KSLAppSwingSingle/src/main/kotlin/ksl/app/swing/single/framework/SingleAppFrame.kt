@@ -25,11 +25,16 @@ import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.swing.common.validation.DocumentHealthBanner
 import ksl.app.swing.common.validation.WidgetPathRegistry
+import ksl.app.settings.WorkspaceLayout
+import ksl.app.swing.common.results.DefaultDesktopOpener
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.single.framework.defaults.DefaultParameterPanel
 import ksl.app.swing.single.framework.defaults.DefaultResultPanel
+import ksl.app.swing.single.framework.defaults.StandardReportFormat
+import ksl.app.swing.single.framework.defaults.StandardReportMaterializer
+import ksl.app.swing.single.framework.defaults.StandardReportOutcome
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
@@ -190,13 +195,7 @@ class SingleAppFrame(
         val panel = DefaultResultPanel(
             result = result,
             onBack = { showParameterCard() },
-            onStandardReport = { format ->
-                notifications.show(
-                    "Standard $format report is not yet wired (N4 will render via " +
-                        "snapshot.toReport().writeHtml/writeMarkdown/writeText).",
-                    NotificationSeverity.WARNING
-                )
-            },
+            onStandardReport = { formatLabel -> materializeStandardReport(result, formatLabel) },
             onAdvanced = {
                 notifications.show(
                     "Advanced report configuration is not yet wired (N5).",
@@ -249,6 +248,43 @@ class SingleAppFrame(
                 showResultCard(result)
             }
         }
+    }
+
+    private fun materializeStandardReport(result: RunResult, formatLabel: String) {
+        val format = StandardReportFormat.fromButtonLabel(formatLabel) ?: return
+        val workspace = controller.settingsStore.activeWorkspace()
+        val runId = runIdOf(result) ?: return
+        val reportsDir = WorkspaceLayout.reportsDir(workspace, runId, createIfMissing = true)
+        when (val outcome = StandardReportMaterializer.materialize(result, format, reportsDir)) {
+            is StandardReportOutcome.Ok -> {
+                val opened = when (format) {
+                    StandardReportFormat.HTML -> DefaultDesktopOpener.browse(outcome.file.toURI())
+                    StandardReportFormat.MARKDOWN,
+                    StandardReportFormat.TEXT -> DefaultDesktopOpener.open(outcome.file)
+                }
+                if (opened) {
+                    notifications.show(
+                        "Opened ${format.labelForButton} report: ${outcome.file.name}",
+                        NotificationSeverity.INFO
+                    )
+                } else {
+                    notifications.show(
+                        "${format.labelForButton} report written to ${outcome.file.absolutePath} " +
+                            "(could not auto-open; open it from your file manager).",
+                        NotificationSeverity.WARNING
+                    )
+                }
+            }
+            is StandardReportOutcome.Failed -> {
+                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+            }
+        }
+    }
+
+    private fun runIdOf(result: RunResult): String? = when (result) {
+        is RunResult.Completed -> result.summary.runId
+        is RunResult.BatchCompleted -> result.summary.runId
+        else -> null
     }
 
     companion object {
