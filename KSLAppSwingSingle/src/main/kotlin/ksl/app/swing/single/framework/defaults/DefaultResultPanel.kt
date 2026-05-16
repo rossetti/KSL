@@ -20,7 +20,7 @@ package ksl.app.swing.single.framework.defaults
 
 import ksl.app.session.RunResult
 import java.awt.BorderLayout
-import java.awt.Dimension
+import java.awt.Color
 import java.awt.FlowLayout
 import java.awt.Font
 import javax.swing.BorderFactory
@@ -31,6 +31,8 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 /**
  * Default post-run surface for `kslSingleApp(...)`.  Shown after a
@@ -111,54 +113,84 @@ class DefaultResultPanel(
     private fun hasSnapshot(result: RunResult): Boolean =
         result is RunResult.Completed || result is RunResult.BatchCompleted
 
-    // ── Run info strip ─────────────────────────────────────────────────────
-
-    private fun runInfoStrip(result: RunResult): JComponent {
-        val info: List<Pair<String, String>> = when (result) {
-            is RunResult.Completed -> listOf(
-                "Run id"       to result.summary.runId,
-                "Status"       to "Completed",
-                "Started"      to result.summary.beginTime.toString(),
-                "Ended"        to result.summary.endTime.toString(),
-                "Replications" to "${result.summary.completedReplications} of ${result.summary.requestedReplications}",
-                "Ending"       to result.summary.endingStatus.toString()
-            )
-            is RunResult.BatchCompleted -> listOf(
-                "Run id"  to result.summary.runId,
-                "Status"  to "Batch completed",
-                "Started" to result.summary.beginTime.toString(),
-                "Ended"   to result.summary.endTime.toString(),
-                "Items"   to "${result.summary.completedItems} of ${result.summary.totalItems} (${result.summary.failedItems} failed)"
-            )
-            is RunResult.Cancelled -> listOf(
-                "Status" to "Cancelled",
-                "Reason" to result.reason
-            )
-            is RunResult.Failed -> listOf(
-                "Status" to "Failed",
-                "Cause"  to result.error.toString()
-            )
-            is RunResult.OptimizationCompleted -> listOf(
-                "Run id"     to result.summary.runId,
-                "Status"     to "Optimization completed",
-                "Iterations" to "${result.summary.completedItems} of ${result.summary.totalItems}"
-            )
-        }
-        val panel = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = BorderFactory.createTitledBorder("Run Info")
-        }
-        for ((label, value) in info) panel.add(infoRow(label, value))
-        return panel
+    companion object {
+        // Soft pastel backgrounds for the status badge.  Foreground colors
+        // match the SeverityIcon palette established in ksl.app.swing.common.validation.
+        private val BADGE_OK_BG: Color = Color(0xE8, 0xF5, 0xE9)   // soft green
+        private val BADGE_OK_FG: Color = Color(0x1B, 0x5E, 0x20)   // dark green
+        private val BADGE_WARN_BG: Color = Color(0xFF, 0xF3, 0xE0)
+        private val BADGE_WARN_FG: Color = Color(0xE6, 0x5C, 0x00)
+        private val BADGE_ERR_BG: Color = Color(0xFF, 0xEB, 0xEE)
+        private val BADGE_ERR_FG: Color = Color(0xC6, 0x28, 0x28)
     }
 
-    private fun infoRow(label: String, value: String): JComponent = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createEmptyBorder(2, 6, 2, 6)
-        add(JLabel("$label:").apply {
-            preferredSize = Dimension(140, preferredSize.height)
-            font = font.deriveFont(Font.BOLD)
-        }, BorderLayout.WEST)
-        add(JLabel(value), BorderLayout.CENTER)
+    // ── Run info strip (single-line) ───────────────────────────────────────
+
+    /**
+     * Renders the run's metadata as a single horizontal strip:
+     * status badge + brief outcome summary + duration.  Replaces
+     * the prior key/value block; runId and start/end timestamps
+     * are intentionally omitted (low value in-window for a
+     * Single app — they're in the report).
+     */
+    private fun runInfoStrip(result: RunResult): JComponent {
+        val (badge, body) = describeResult(result)
+        val strip = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+            border = BorderFactory.createEmptyBorder(2, 2, 2, 2)
+        }
+        strip.add(badge)
+        strip.add(JLabel(body))
+        return strip
+    }
+
+    private fun describeResult(result: RunResult): Pair<JComponent, String> = when (result) {
+        is RunResult.Completed -> Pair(
+            statusBadge("Completed", BADGE_OK_BG, BADGE_OK_FG),
+            "${result.summary.completedReplications} / ${result.summary.requestedReplications} replications" +
+                "  ·  ${formatDuration(result.summary.wallClockDuration)}" +
+                "  ·  ${result.summary.endingStatus}"
+        )
+        is RunResult.BatchCompleted -> Pair(
+            statusBadge("Batch completed", BADGE_OK_BG, BADGE_OK_FG),
+            "${result.summary.completedItems} / ${result.summary.totalItems} items" +
+                (if (result.summary.failedItems > 0) " (${result.summary.failedItems} failed)" else "") +
+                "  ·  ${formatDuration(result.summary.endTime - result.summary.beginTime)}"
+        )
+        is RunResult.Cancelled -> Pair(
+            statusBadge("Cancelled", BADGE_WARN_BG, BADGE_WARN_FG),
+            result.reason
+        )
+        is RunResult.Failed -> Pair(
+            statusBadge("Failed", BADGE_ERR_BG, BADGE_ERR_FG),
+            result.error.toString()
+        )
+        is RunResult.OptimizationCompleted -> Pair(
+            statusBadge("Optimization completed", BADGE_OK_BG, BADGE_OK_FG),
+            "${result.summary.completedItems} / ${result.summary.totalItems} iterations" +
+                "  ·  ${formatDuration(result.summary.endTime - result.summary.beginTime)}"
+        )
+    }
+
+    private fun statusBadge(label: String, bg: Color, fg: Color): JComponent = JLabel(label).apply {
+        font = font.deriveFont(Font.BOLD)
+        foreground = fg
+        background = bg
+        isOpaque = true
+        border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+    }
+
+    private fun formatDuration(d: Duration): String {
+        val seconds = d.toDouble(DurationUnit.SECONDS)
+        return when {
+            seconds < 1.0 -> "%.3f s".format(seconds)
+            seconds < 60.0 -> "%.1f s".format(seconds)
+            else -> {
+                val totalSec = seconds.toInt()
+                val m = totalSec / 60
+                val s = totalSec % 60
+                "%d m %02d s".format(m, s)
+            }
+        }
     }
 
     // ── Standard reports strip ─────────────────────────────────────────────

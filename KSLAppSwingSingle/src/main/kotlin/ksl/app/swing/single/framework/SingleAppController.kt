@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -41,10 +42,14 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
+import ksl.app.validation.FieldError
 import ksl.app.validation.ValidationFeedbackBus
+import ksl.app.validation.ValidationResult
+import ksl.app.validation.ValidationSeverity
 import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger {}
@@ -107,6 +112,46 @@ class SingleAppController(
         this.probeFailure = failure
     }
 
+    /**
+     * Recomputes pre-run validation findings from the current
+     * [runOverrides] + [modelDefaults] and publishes them to
+     * [validationBus].  Called on construction and on every
+     * `runOverrides` emission.
+     *
+     * Currently surfaces one finding:
+     *
+     *  - **Infinite-horizon, no timeout** (WARNING) — when the
+     *    effective `lengthOfReplication` is infinite AND the
+     *    model's `maximumAllowedExecutionTimePerReplication` is
+     *    `Duration.ZERO`.  Mirrors the engine-side warning
+     *    emitted by `Model.ReplicationProcess.initializeIterations`
+     *    so the user sees it before clicking Run.  The user can
+     *    clear it by overriding `lengthOfReplication` to a finite
+     *    value, or accept the warning and rely on the model's
+     *    internal stopping mechanism (e.g. `addCountLimitStoppingAction`,
+     *    `stopReplication()`, or `endSimulation()`).
+     */
+    private fun computeValidation(): ValidationResult {
+        val warnings = mutableListOf<FieldError>()
+        val effectiveLength = myRunOverrides.value.lengthOfReplication
+            ?: modelDefaults.lengthOfReplication
+        val maxTime = modelDefaults.maximumAllowedExecutionTimePerReplication
+        if (effectiveLength.isInfinite() && maxTime == Duration.ZERO) {
+            warnings.add(
+                FieldError(
+                    path = "scenarios[0].runOverrides.lengthOfReplication",
+                    message = "Length of replication is infinite and no maximum execution time is set. " +
+                        "The model must include a stopping mechanism " +
+                        "(e.g. addCountLimitStoppingAction on a Response/Counter, or call stopReplication() / endSimulation() " +
+                        "from inside the model) or the run will not terminate.",
+                    severity = ValidationSeverity.WARNING,
+                    code = "INFINITE_HORIZON_NO_TIMEOUT"
+                )
+            )
+        }
+        return ValidationResult(warnings = warnings)
+    }
+
     private fun probeDefaults(): Pair<ExperimentRunDefaults, Throwable?> = try {
         val model = modelBuilder.build(null, null)
         model.modelDescriptor().experimentRunDefaults to null
@@ -132,6 +177,17 @@ class SingleAppController(
     val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
 
     private var currentHandle: RunHandle? = null
+
+    init {
+        // Initial validation pass + subscribe to runOverrides so the bus
+        // reflects current state without the caller having to recompute.
+        validationBus.publish(computeValidation())
+        edtScope.launch {
+            myRunOverrides
+                .onEach { validationBus.publish(computeValidation()) }
+                .collect { /* no-op terminal */ }
+        }
+    }
 
     /**
      * Mutates the pending [runOverrides] via the supplied transform.
