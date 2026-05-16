@@ -34,6 +34,15 @@ internal class Control(
     override val modelName: String
         get() = modelElement.model.name
 
+    override val parentElementName: String?
+        get() = ControlHierarchy.parentElement(modelElement)?.name
+    override val parentElementId: Int?
+        get() = ControlHierarchy.parentElement(modelElement)?.id
+    override val parentElementType: String?
+        get() = ControlHierarchy.parentElement(modelElement)?.let { it::class.simpleName }
+    override val elementPath: List<String>
+        get() = ControlHierarchy.elementPath(modelElement)
+
     override var value: Double
         get() = getDoubleFromProperty()
         set(value) {

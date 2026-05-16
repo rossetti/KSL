@@ -74,7 +74,45 @@ interface ControlIfc {
     val modelName: String
 
     /**
-     *  Checks if the supplied value is within [lowerBound, upperBound]
+     *  Name of the parent of the model element holding this control,
+     *  or `null` when that element is a direct child of the Model.
+     *
+     *  Default implementation returns `null` so that external
+     *  implementations of `ControlIfc` keep compiling; the concrete
+     *  control classes in this package override to walk the
+     *  model-element hierarchy.
+     */
+    val parentElementName: String?
+        get() = null
+
+    /**
+     *  Identifier of the parent model element, or `null` when the
+     *  parent is the Model itself or when no parent info is available.
+     */
+    val parentElementId: Int?
+        get() = null
+
+    /**
+     *  Simple class name of the parent model element, or `null`.
+     */
+    val parentElementType: String?
+        get() = null
+
+    /**
+     *  Ancestor names from the model root down to (but not including)
+     *  the model element holding this control.  The list is **also
+     *  exclusive of the Model itself** — the Model is identified
+     *  separately via [modelName].  Empty when the control's element
+     *  is a direct child of the Model.
+     *
+     *  Example: for a control attached to `Server` under
+     *  `Subsystem` under the Model, `elementPath` is `["Subsystem"]`.
+     */
+    val elementPath: List<String>
+        get() = emptyList()
+
+    /**
+     *  Checks if the supplied value is within the inclusive bounds.
      */
     fun withinRange(value: Double): Boolean = value in lowerBound..upperBound
 

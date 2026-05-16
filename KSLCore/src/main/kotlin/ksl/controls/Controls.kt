@@ -294,8 +294,23 @@ class Controls(aModel: Model) {
         val list = ArrayList<ControlData>()
         for (control in myControls.values) {
             with(control) {
-                list.add(ControlData(type, value, keyName, lowerBound, upperBound,
-                    elementName, elementId, elementType, propertyName, comment, modelName))
+                list.add(ControlData(
+                    controlType = type,
+                    value = value,
+                    keyName = keyName,
+                    lowerBound = lowerBound,
+                    upperBound = upperBound,
+                    elementName = elementName,
+                    elementId = elementId,
+                    elementType = elementType,
+                    propertyName = propertyName,
+                    comment = comment,
+                    modelName = modelName,
+                    parentElementName = parentElementName,
+                    parentElementId = parentElementId,
+                    parentElementType = parentElementType,
+                    elementPath = elementPath,
+                ))
             }
         }
         return list
@@ -374,8 +389,21 @@ class Controls(aModel: Model) {
         val list = ArrayList<StringControlData>()
         for (control in myStringControls.values) {
             with(control) {
-                list.add(StringControlData(keyName, value, allowedValues,
-                    elementName, elementId, elementType, propertyName, comment, modelName))
+                list.add(StringControlData(
+                    keyName = keyName,
+                    value = value,
+                    allowedValues = allowedValues,
+                    elementName = elementName,
+                    elementId = elementId,
+                    elementType = elementType,
+                    propertyName = propertyName,
+                    comment = comment,
+                    modelName = modelName,
+                    parentElementName = parentElementName,
+                    parentElementId = parentElementId,
+                    parentElementType = parentElementType,
+                    elementPath = elementPath,
+                ))
             }
         }
         return list
@@ -454,8 +482,21 @@ class Controls(aModel: Model) {
         val list = ArrayList<JsonControlData>()
         for (control in myJsonControls.values) {
             with(control) {
-                list.add(JsonControlData(keyName, value, typeHint,
-                    elementName, elementId, elementType, propertyName, comment, modelName))
+                list.add(JsonControlData(
+                    keyName = keyName,
+                    jsonValue = value,
+                    typeHint = typeHint,
+                    elementName = elementName,
+                    elementId = elementId,
+                    elementType = elementType,
+                    propertyName = propertyName,
+                    comment = comment,
+                    modelName = modelName,
+                    parentElementName = parentElementName,
+                    parentElementId = parentElementId,
+                    parentElementType = parentElementType,
+                    elementPath = elementPath,
+                ))
             }
         }
         return list

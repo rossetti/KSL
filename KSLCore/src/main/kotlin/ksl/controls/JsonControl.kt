@@ -65,6 +65,15 @@ internal class JsonControl(
     override val comment:      String get() = myAnnotation.comment
     override val modelName:    String get() = myModelElement.model.name
 
+    override val parentElementName: String?
+        get() = ControlHierarchy.parentElement(myModelElement)?.name
+    override val parentElementId: Int?
+        get() = ControlHierarchy.parentElement(myModelElement)?.id
+    override val parentElementType: String?
+        get() = ControlHierarchy.parentElement(myModelElement)?.let { it::class.simpleName }
+    override val elementPath: List<String>
+        get() = ControlHierarchy.elementPath(myModelElement)
+
     override fun toString(): String {
         val displayValue = value.let { if (it.length > 80) it.take(80) + "…" else it }
         val sb = StringBuilder()

@@ -35,4 +35,12 @@ data class JsonControlData(
     val propertyName: String,
     val comment: String,
     val modelName: String,
+    /** See [ControlData.parentElementName]. */
+    val parentElementName: String? = null,
+    /** See [ControlData.parentElementId]. */
+    val parentElementId: Int? = null,
+    /** See [ControlData.parentElementType]. */
+    val parentElementType: String? = null,
+    /** See [ControlData.elementPath]. */
+    val elementPath: List<String> = emptyList(),
 )

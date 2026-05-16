@@ -63,6 +63,32 @@ interface StringControlIfc {
     val modelName: String
 
     /**
+     *  Name of the parent of the model element holding this control,
+     *  or `null` when that element is a direct child of the Model.
+     *  See `ControlIfc.parentElementName` for the same convention
+     *  applied to numeric controls.
+     */
+    val parentElementName: String?
+        get() = null
+
+    /** Identifier of the parent model element, or `null`. */
+    val parentElementId: Int?
+        get() = null
+
+    /** Simple class name of the parent model element, or `null`. */
+    val parentElementType: String?
+        get() = null
+
+    /**
+     *  Ancestor names from the model root down to (but not including)
+     *  the model element holding this control, **also exclusive of
+     *  the Model itself**.  Empty when the control's element is a
+     *  direct child of the Model.
+     */
+    val elementPath: List<String>
+        get() = emptyList()
+
+    /**
      * Returns `true` if [v] is permitted by [allowedValues].
      * Always returns `true` when [allowedValues] is empty (unconstrained).
      */
