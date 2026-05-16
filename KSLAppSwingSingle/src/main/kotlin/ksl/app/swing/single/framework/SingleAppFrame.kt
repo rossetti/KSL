@@ -29,7 +29,9 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.single.framework.defaults.DefaultParameterPanel
+import ksl.app.swing.single.framework.defaults.DefaultResultPanel
 import java.awt.BorderLayout
+import java.awt.CardLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -82,6 +84,11 @@ class SingleAppFrame(
     }.apply { isEnabled = false }
 
     private val parameterPanel = DefaultParameterPanel(controller)
+
+    private val cardLayout = CardLayout()
+    private val cardContainer = JPanel(cardLayout)
+    private val resultSlot = JPanel(BorderLayout())   // replaced fresh on each terminal state
+    private var lastRenderedResult: RunResult? = null
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
@@ -168,10 +175,39 @@ class SingleAppFrame(
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        return JPanel(BorderLayout()).apply {
+        val parameterCard = JPanel(BorderLayout()).apply {
             add(scrollablePanel, BorderLayout.CENTER)
             add(runStrip, BorderLayout.SOUTH)
         }
+        cardContainer.add(parameterCard, CARD_PARAMETER)
+        cardContainer.add(resultSlot, CARD_RESULT)
+        cardLayout.show(cardContainer, CARD_PARAMETER)
+        return cardContainer
+    }
+
+    private fun showResultCard(result: RunResult) {
+        lastRenderedResult = result
+        val panel = DefaultResultPanel(
+            result = result,
+            onBack = { showParameterCard() },
+            onPlaceholderArtifact = { label ->
+                notifications.show(
+                    "$label is not yet wired (requires OutputConfig orchestrator threading — later N-commit).",
+                    NotificationSeverity.WARNING
+                )
+            }
+        )
+        resultSlot.removeAll()
+        resultSlot.add(panel, BorderLayout.CENTER)
+        resultSlot.revalidate()
+        resultSlot.repaint()
+        cardLayout.show(cardContainer, CARD_RESULT)
+    }
+
+    private fun showParameterCard() {
+        cardLayout.show(cardContainer, CARD_PARAMETER)
+        resultSlot.removeAll()
+        lastRenderedResult = null
     }
 
     private fun wireRunningState() {
@@ -190,8 +226,8 @@ class SingleAppFrame(
     private fun wireTerminalNotifications() {
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
+                if (result == null || result === lastRenderedResult) return@collect
                 when (result) {
-                    null -> { /* no result yet */ }
                     is RunResult.Completed ->
                         notifications.show("Run completed", NotificationSeverity.INFO)
                     is RunResult.Cancelled ->
@@ -203,10 +239,13 @@ class SingleAppFrame(
                     else ->
                         notifications.show("Run finished: ${result::class.simpleName}", NotificationSeverity.INFO)
                 }
+                showResultCard(result)
             }
         }
     }
 
-    private fun escape(text: String): String =
-        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    companion object {
+        private const val CARD_PARAMETER: String = "parameter"
+        private const val CARD_RESULT: String = "result"
+    }
 }
