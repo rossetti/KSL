@@ -190,9 +190,16 @@ class SingleAppFrame(
         val panel = DefaultResultPanel(
             result = result,
             onBack = { showParameterCard() },
-            onPlaceholderArtifact = { label ->
+            onStandardReport = { format ->
                 notifications.show(
-                    "$label is not yet wired (requires OutputConfig orchestrator threading — later N-commit).",
+                    "Standard $format report is not yet wired (N4 will render via " +
+                        "snapshot.toReport().writeHtml/writeMarkdown/writeText).",
+                    NotificationSeverity.WARNING
+                )
+            },
+            onAdvanced = {
+                notifications.show(
+                    "Advanced report configuration is not yet wired (N5).",
                     NotificationSeverity.WARNING
                 )
             }
