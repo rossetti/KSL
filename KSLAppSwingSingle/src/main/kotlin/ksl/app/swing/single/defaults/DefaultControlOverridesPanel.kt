@@ -34,6 +34,7 @@ import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.DefaultCellEditor
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -43,6 +44,8 @@ import javax.swing.JTabbedPane
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.RowFilter
+import javax.swing.RowSorter
+import javax.swing.SortOrder
 import javax.swing.SwingUtilities
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -76,6 +79,7 @@ class DefaultControlOverridesPanel(
     private val tables: MutableList<JTable> = mutableListOf()
     private val filterFields: MutableList<JTextField> = mutableListOf()
     private val resetButtons: MutableList<JButton> = mutableListOf()
+    private val groupCheckboxes: MutableList<JCheckBox> = mutableListOf()
 
     init {
         border = BorderFactory.createEmptyBorder(OUTER_PADDING, OUTER_PADDING + 8, OUTER_PADDING, OUTER_PADDING + 8)
@@ -112,6 +116,7 @@ class DefaultControlOverridesPanel(
         for (t in tables) t.isEnabled = enabled
         for (f in filterFields) f.isEnabled = enabled
         for (b in resetButtons) b.isEnabled = enabled
+        for (cb in groupCheckboxes) cb.isEnabled = enabled
     }
 
     // ── Tab construction ───────────────────────────────────────────────────
@@ -167,10 +172,16 @@ class DefaultControlOverridesPanel(
             toolTipText = "Clear every override in this family"
             addActionListener { model.resetAllOverrides() }
         }
+        val groupCheckbox = JCheckBox("Group by parent").apply {
+            toolTipText =
+                "Pin the Parent column as the primary sort key so secondary " +
+                "sorts (by clicking other column headers) preserve the parent grouping."
+        }
         filterFields.add(filterField)
         resetButtons.add(resetBtn)
+        groupCheckboxes.add(groupCheckbox)
 
-        val sorter = TableRowSorter<AbstractTableModel>(model)
+        val sorter = GroupingRowSorter(model, model.parentColumn)
         table.rowSorter = sorter
         filterField.document.addDocumentListener(object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent) = update()
@@ -182,6 +193,9 @@ class DefaultControlOverridesPanel(
                 else RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q))
             }
         })
+        groupCheckbox.addActionListener {
+            sorter.groupByParent = groupCheckbox.isSelected
+        }
 
         val northStrip = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -189,6 +203,8 @@ class DefaultControlOverridesPanel(
             add(JLabel("Filter:").apply { border = BorderFactory.createEmptyBorder(0, 0, 0, 6) })
             add(filterField)
             add(Box.createHorizontalGlue())
+            add(groupCheckbox)
+            add(Box.createHorizontalStrut(8))
             add(resetBtn)
         }
         val scroll = JScrollPane(table).apply {
@@ -222,9 +238,50 @@ class DefaultControlOverridesPanel(
 // ── Shared base table model ────────────────────────────────────────────────
 
 internal abstract class OverrideTableModel : AbstractTableModel() {
+    /** Column ordinal that holds `parentElementName` — used by the grouping sorter. */
+    abstract val parentColumn: Int
     abstract fun isOverridden(modelRow: Int): Boolean
     abstract fun resetAllOverrides()
     abstract fun applyColumnWidths(table: JTable)
+}
+
+/**
+ * [TableRowSorter] that can pin the parent column as the primary sort key.
+ * When [groupByParent] is `true`, any user-driven sort change (e.g. clicking
+ * a different column header) has the parent column re-inserted at the head
+ * of the sort-key list, so rows remain visually grouped by parent while
+ * the secondary key drives intra-group order.
+ */
+private class GroupingRowSorter(
+    model: AbstractTableModel,
+    private val parentColumn: Int
+) : TableRowSorter<AbstractTableModel>(model) {
+
+    var groupByParent: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                // Re-apply current sort keys so the override takes effect.
+                setSortKeys(sortKeys)
+            }
+        }
+
+    override fun setSortKeys(keys: List<RowSorter.SortKey>?) {
+        if (!groupByParent || keys == null) {
+            super.setSortKeys(keys); return
+        }
+        val first = keys.firstOrNull()
+        val leadsWithParent = first?.column == parentColumn &&
+            first.sortOrder == SortOrder.ASCENDING
+        if (leadsWithParent) {
+            super.setSortKeys(keys)
+        } else {
+            val rest = keys.filterNot { it.column == parentColumn }
+            super.setSortKeys(
+                listOf(RowSorter.SortKey(parentColumn, SortOrder.ASCENDING)) + rest
+            )
+        }
+    }
 }
 
 // ── Numeric family ─────────────────────────────────────────────────────────
@@ -235,6 +292,8 @@ internal class NumericControlTableModel(
 ) : OverrideTableModel() {
 
     private val columns = listOf("Override?", "Key", "Element", "Parent", "Type", "Default", "Value", "Bounds", "Comment")
+
+    override val parentColumn: Int = COL_PARENT
 
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
@@ -351,6 +410,8 @@ internal class StringControlTableModel(
 
     private val columns = listOf("Override?", "Key", "Element", "Parent", "Allowed values", "Default", "Value", "Comment")
 
+    override val parentColumn: Int = COL_PARENT
+
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
     override fun getColumnName(column: Int): String = columns[column]
@@ -441,6 +502,8 @@ internal class JsonControlTableModel(
 ) : OverrideTableModel() {
 
     private val columns = listOf("Override?", "Key", "Element", "Parent", "Type hint", "Default", "Value", "Comment")
+
+    override val parentColumn: Int = COL_PARENT
 
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
