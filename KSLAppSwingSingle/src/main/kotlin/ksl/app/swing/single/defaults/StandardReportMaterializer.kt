@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.framework.defaults
+package ksl.app.swing.single.defaults
 
 import ksl.app.session.RunResult
 import ksl.utilities.io.dbutil.SimulationSnapshot

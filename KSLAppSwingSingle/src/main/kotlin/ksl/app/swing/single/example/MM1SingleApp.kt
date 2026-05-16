@@ -18,7 +18,7 @@
 
 package ksl.app.swing.single.example
 
-import ksl.app.swing.single.framework.kslSingleApp
+import ksl.app.swing.single.kslSingleApp
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model

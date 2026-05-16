@@ -26,7 +26,11 @@ dependencies {
 }
 
 application {
-    mainClass.set("ksl.app.swing.single.MainKt")
+    // Points at the example app's main() so :KSLAppSwingSingle:run launches
+    // the M/M/1 demo against the new kslSingleApp framework.  Real developers
+    // ship their own main() that calls kslSingleApp(appName) { modelBuilder(...) };
+    // this entry exists only as a smoke-test for Phase 6D.
+    mainClass.set("ksl.app.swing.single.example.MM1SingleAppKt")
 }
 
 kotlin {

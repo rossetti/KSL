@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.framework
+package ksl.app.swing.single
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

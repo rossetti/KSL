@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.framework.defaults
+package ksl.app.swing.single.defaults
 
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
@@ -24,7 +24,7 @@ import ksl.app.swing.common.overridefield.IntegerOverrideField
 import ksl.app.swing.common.overridefield.SectionHeaderWithStatus
 import ksl.app.swing.common.validation.FieldErrorMarker
 import ksl.app.swing.common.validation.WidgetPathRegistry
-import ksl.app.swing.single.framework.SingleAppController
+import ksl.app.swing.single.SingleAppController
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.BorderFactory

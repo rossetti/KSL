@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.framework
+package ksl.app.swing.single
 
 import ksl.simulation.ModelBuilderIfc
 import javax.swing.SwingUtilities
