@@ -30,8 +30,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -40,8 +42,12 @@ import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import ksl.app.validation.ValidationFeedbackBus
+import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.simulation.MapModelProvider
 import ksl.simulation.ModelBuilderIfc
+import kotlin.time.Duration.Companion.minutes
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Internal state-holder for one `kslSingleApp(...)` instance.
@@ -75,6 +81,40 @@ class SingleAppController(
     private val provider: MapModelProvider = MapModelProvider(appName, modelBuilder)
     private val session: KSLAppSession = KSLAppSession(provider = provider)
 
+    /**
+     * Model defaults captured by probing the developer's
+     * [ModelBuilderIfc] once at construction.  Used as the
+     * placeholder values rendered by the default parameter panel.
+     *
+     * If the probe build throws, this falls back to a safe
+     * placeholder shape ([SAFE_FALLBACK_DEFAULTS]); the underlying
+     * Throwable is exposed as [probeFailure] so the frame can
+     * surface a notification.
+     */
+    val modelDefaults: ExperimentRunDefaults
+
+    /**
+     * `null` when the probe build succeeded; the underlying
+     * Throwable otherwise.  Frames surface this as an ERROR
+     * notification when the app starts up so the developer can
+     * fix the broken builder.
+     */
+    val probeFailure: Throwable?
+
+    init {
+        val (defaults, failure) = probeDefaults()
+        this.modelDefaults = defaults
+        this.probeFailure = failure
+    }
+
+    private fun probeDefaults(): Pair<ExperimentRunDefaults, Throwable?> = try {
+        val model = modelBuilder.build(null, null)
+        model.modelDescriptor().experimentRunDefaults to null
+    } catch (t: Throwable) {
+        logger.warn(t) { "ModelBuilder probe build failed; falling back to safe defaults." }
+        SAFE_FALLBACK_DEFAULTS to t
+    }
+
     private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
     /** Hot flow of run events, fed from the active [RunHandle]. */
     val eventFlow: SharedFlow<RunEvent> = myEventFlow.asSharedFlow()
@@ -87,7 +127,23 @@ class SingleAppController(
     /** Most recently observed terminal [RunResult], or null when none yet. */
     val lastResult: StateFlow<RunResult?> = myLastResult.asStateFlow()
 
+    private val myRunOverrides = MutableStateFlow(ExperimentRunOverrides())
+    /** Pending run-parameter overrides.  Threaded into the ScenarioSpec on [submit]. */
+    val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
+
     private var currentHandle: RunHandle? = null
+
+    /**
+     * Mutates the pending [runOverrides] via the supplied transform.
+     * Typical use from a parameter-panel field:
+     *
+     * ```kotlin
+     * controller.updateRunOverride { it.copy(numberOfReplications = newValue) }
+     * ```
+     */
+    fun updateRunOverride(transform: (ExperimentRunOverrides) -> ExperimentRunOverrides) {
+        myRunOverrides.value = transform(myRunOverrides.value)
+    }
 
     /**
      * Submits a run with the model built fresh from [modelBuilder].
@@ -105,7 +161,8 @@ class SingleAppController(
             scenarios = listOf(
                 ScenarioSpec(
                     name = appName,
-                    modelReference = ModelReference.Embedded(appName)
+                    modelReference = ModelReference.Embedded(appName),
+                    runOverrides = myRunOverrides.value
                 )
             )
         )
@@ -134,5 +191,28 @@ class SingleAppController(
         currentHandle = null
         session.close()
         edtScope.cancel("controller closed")
+    }
+
+    companion object {
+        /**
+         * Defaults used when the developer's `ModelBuilderIfc` throws on the
+         * probe build.  Conservative values so the GUI renders something
+         * sensible even when the real defaults are unreachable.  See
+         * [probeFailure] for surfacing the underlying error.
+         */
+        val SAFE_FALLBACK_DEFAULTS: ExperimentRunDefaults = ExperimentRunDefaults(
+            numberOfReplications = 1,
+            numChunks = 1,
+            startingRepId = 1,
+            lengthOfReplication = 1.0,
+            lengthOfReplicationWarmUp = 0.0,
+            replicationInitializationOption = true,
+            maximumAllowedExecutionTimePerReplication = 5.minutes,
+            resetStartStreamOption = true,
+            advanceNextSubStreamOption = true,
+            antitheticOption = false,
+            numberOfStreamAdvancesPriorToRunning = 0,
+            garbageCollectAfterReplicationFlag = false
+        )
     }
 }

@@ -28,6 +28,7 @@ import ksl.app.swing.common.validation.WidgetPathRegistry
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
+import ksl.app.swing.single.framework.defaults.DefaultParameterPanel
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
@@ -38,11 +39,11 @@ import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JFrame
-import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JScrollPane
 import javax.swing.WindowConstants
 
 /**
@@ -80,14 +81,7 @@ class SingleAppFrame(
         override fun actionPerformed(e: java.awt.event.ActionEvent?) { controller.cancel() }
     }.apply { isEnabled = false }
 
-    private val placeholderLabel = JLabel(
-        "<html><div style='text-align:center'>" +
-            "<b>${escape(controller.appName)}</b><br/>" +
-            "Click <b>Run</b> to execute the model.<br/>" +
-            "<i>An editable parameter panel will appear here in a later phase.</i>" +
-            "</div></html>",
-        JLabel.CENTER
-    )
+    private val parameterPanel = DefaultParameterPanel(controller)
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
@@ -123,9 +117,27 @@ class SingleAppFrame(
 
         wireRunningState()
         wireTerminalNotifications()
+        surfaceProbeFailureIfPresent()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) { controller.close() }
         })
+    }
+
+    private fun surfaceProbeFailureIfPresent() {
+        val cause = controller.probeFailure ?: return
+        controller.edtScope.launch {
+            // Defer one tick so the frame is visible before the notification appears.
+            javax.swing.SwingUtilities.invokeLater {
+                notifications.show(
+                    ksl.app.swing.common.notification.NotificationSpec(
+                        message = "Model builder probe failed (using safe defaults): " +
+                            (cause.message ?: cause::class.simpleName ?: "unknown error"),
+                        severity = NotificationSeverity.ERROR,
+                        dismissAfter = null
+                    )
+                )
+            }
+        }
     }
 
     private fun buildMenuBar(): JMenuBar {
@@ -151,8 +163,13 @@ class SingleAppFrame(
             add(JButton(cancelAction))
             add(Box.createHorizontalGlue())
         }
+        val scrollablePanel = JScrollPane(parameterPanel).apply {
+            border = BorderFactory.createEmptyBorder()
+            verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
+            horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        }
         return JPanel(BorderLayout()).apply {
-            add(placeholderLabel, BorderLayout.CENTER)
+            add(scrollablePanel, BorderLayout.CENTER)
             add(runStrip, BorderLayout.SOUTH)
         }
     }
@@ -162,6 +179,7 @@ class SingleAppFrame(
             controller.runningFlow.collect { running ->
                 runAction.isEnabled = !running
                 cancelAction.isEnabled = running
+                parameterPanel.isEnabled = !running
                 if (running) {
                     notifications.show("Run started", NotificationSeverity.INFO)
                 }
