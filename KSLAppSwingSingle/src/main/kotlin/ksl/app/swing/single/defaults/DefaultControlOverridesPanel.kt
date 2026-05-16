@@ -234,7 +234,7 @@ internal class NumericControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Type", "Default", "Value", "Bounds", "Comment")
+    private val columns = listOf("Override?", "Key", "Element", "Parent", "Type", "Default", "Value", "Bounds", "Comment")
 
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
@@ -257,6 +257,7 @@ internal class NumericControlTableModel(
             COL_OVERRIDE -> isOverridden(rowIndex)
             COL_KEY -> c.keyName
             COL_ELEMENT -> c.elementName
+            COL_PARENT -> c.parentElementName ?: "—"
             COL_TYPE -> c.controlType.name
             COL_DEFAULT -> formatNumeric(c, c.value)
             COL_VALUE -> {
@@ -320,6 +321,7 @@ internal class NumericControlTableModel(
         applyWidth(table, COL_OVERRIDE, 70)
         applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_PARENT, 140)
         applyWidth(table, COL_TYPE, 80)
         applyWidth(table, COL_DEFAULT, 80)
         applyWidth(table, COL_VALUE, 100)
@@ -331,11 +333,12 @@ internal class NumericControlTableModel(
         const val COL_OVERRIDE: Int = 0
         const val COL_KEY: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_TYPE: Int = 3
-        const val COL_DEFAULT: Int = 4
-        const val COL_VALUE: Int = 5
-        const val COL_BOUNDS: Int = 6
-        const val COL_COMMENT: Int = 7
+        const val COL_PARENT: Int = 3
+        const val COL_TYPE: Int = 4
+        const val COL_DEFAULT: Int = 5
+        const val COL_VALUE: Int = 6
+        const val COL_BOUNDS: Int = 7
+        const val COL_COMMENT: Int = 8
     }
 }
 
@@ -346,7 +349,7 @@ internal class StringControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Allowed values", "Default", "Value", "Comment")
+    private val columns = listOf("Override?", "Key", "Element", "Parent", "Allowed values", "Default", "Value", "Comment")
 
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
@@ -369,6 +372,7 @@ internal class StringControlTableModel(
             COL_OVERRIDE -> isOverridden(rowIndex)
             COL_KEY -> c.keyName
             COL_ELEMENT -> c.elementName
+            COL_PARENT -> c.parentElementName ?: "—"
             COL_ALLOWED -> if (c.allowedValues.isEmpty()) "(free text)" else c.allowedValues.joinToString(", ")
             COL_DEFAULT -> c.value
             COL_VALUE -> controller.controlOverrides.value.stringControls.firstOrNull { it.keyName == c.keyName }?.value ?: ""
@@ -410,6 +414,7 @@ internal class StringControlTableModel(
         applyWidth(table, COL_OVERRIDE, 70)
         applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_PARENT, 140)
         applyWidth(table, COL_ALLOWED, 200)
         applyWidth(table, COL_DEFAULT, 120)
         applyWidth(table, COL_VALUE, 160)
@@ -420,10 +425,11 @@ internal class StringControlTableModel(
         const val COL_OVERRIDE: Int = 0
         const val COL_KEY: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_ALLOWED: Int = 3
-        const val COL_DEFAULT: Int = 4
-        const val COL_VALUE: Int = 5
-        const val COL_COMMENT: Int = 6
+        const val COL_PARENT: Int = 3
+        const val COL_ALLOWED: Int = 4
+        const val COL_DEFAULT: Int = 5
+        const val COL_VALUE: Int = 6
+        const val COL_COMMENT: Int = 7
     }
 }
 
@@ -434,7 +440,7 @@ internal class JsonControlTableModel(
     private val controller: SingleAppController
 ) : OverrideTableModel() {
 
-    private val columns = listOf("Override?", "Key", "Element", "Type hint", "Default", "Value", "Comment")
+    private val columns = listOf("Override?", "Key", "Element", "Parent", "Type hint", "Default", "Value", "Comment")
 
     override fun getRowCount(): Int = controls.size
     override fun getColumnCount(): Int = columns.size
@@ -453,6 +459,7 @@ internal class JsonControlTableModel(
             COL_OVERRIDE -> isOverridden(rowIndex)
             COL_KEY -> c.keyName
             COL_ELEMENT -> c.elementName
+            COL_PARENT -> c.parentElementName ?: "—"
             COL_TYPE_HINT -> c.typeHint
             COL_DEFAULT -> truncate(c.jsonValue)
             COL_VALUE -> {
@@ -504,6 +511,7 @@ internal class JsonControlTableModel(
         applyWidth(table, COL_OVERRIDE, 70)
         applyWidth(table, COL_KEY, 220)
         applyWidth(table, COL_ELEMENT, 140)
+        applyWidth(table, COL_PARENT, 140)
         applyWidth(table, COL_TYPE_HINT, 160)
         applyWidth(table, COL_DEFAULT, 220)
         applyWidth(table, COL_VALUE, 220)
@@ -514,10 +522,11 @@ internal class JsonControlTableModel(
         const val COL_OVERRIDE: Int = 0
         const val COL_KEY: Int = 1
         const val COL_ELEMENT: Int = 2
-        const val COL_TYPE_HINT: Int = 3
-        const val COL_DEFAULT: Int = 4
-        const val COL_VALUE: Int = 5
-        const val COL_COMMENT: Int = 6
+        const val COL_PARENT: Int = 3
+        const val COL_TYPE_HINT: Int = 4
+        const val COL_DEFAULT: Int = 5
+        const val COL_VALUE: Int = 6
+        const val COL_COMMENT: Int = 7
     }
 }
 
