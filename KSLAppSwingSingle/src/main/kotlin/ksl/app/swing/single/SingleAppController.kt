@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -124,6 +125,16 @@ class SingleAppController(
     val rvSnapshot: List<RVParameterData>
 
     /**
+     * Sanitized model name captured at probe time, suitable for use
+     * as a directory segment under the user's workspace.  Equals
+     * `model.name` from the probe build, which is itself the
+     * `simulationName` argument passed to `Model(...)` with spaces
+     * replaced by underscores (see `ksl.simulation.Model`).
+     * Empty when the probe failed.
+     */
+    val modelName: String
+
+    /**
      * `null` when the probe build succeeded; the underlying
      * Throwable otherwise.  Frames surface this as an ERROR
      * notification when the app starts up so the developer can
@@ -136,8 +147,27 @@ class SingleAppController(
         this.modelDefaults = probe.defaults
         this.controlsSnapshot = probe.controlsSnapshot
         this.rvSnapshot = probe.rvSnapshot
+        this.modelName = probe.modelName
         this.probeFailure = probe.failure
     }
+
+    /**
+     * Workspace subdirectory dedicated to this app.  Equal to
+     * `settingsStore.activeWorkspace().resolve(modelName)` when the
+     * probe succeeded.  All per-app files (saved configurations,
+     * model runtime output, rendered reports) live under here.  Read
+     * each access — the underlying `activeWorkspace()` is permitted
+     * to change between calls.
+     *
+     * When the probe failed (`modelName` is empty) this falls back
+     * to the parent workspace itself so file dialogs still have a
+     * valid starting point.
+     */
+    val appWorkspace: Path
+        get() {
+            val parent = settingsStore.activeWorkspace()
+            return if (modelName.isNotEmpty()) parent.resolve(modelName) else parent
+        }
 
     /**
      * Recomputes pre-run validation findings from the current
@@ -190,6 +220,7 @@ class SingleAppController(
         val defaults: ExperimentRunDefaults,
         val controlsSnapshot: ModelControlsExport,
         val rvSnapshot: List<RVParameterData>,
+        val modelName: String,
         val failure: Throwable?
     )
 
@@ -200,6 +231,7 @@ class SingleAppController(
             defaults = descriptor.experimentRunDefaults,
             controlsSnapshot = descriptor.controls,
             rvSnapshot = descriptor.rvParameterData,
+            modelName = model.name,
             failure = null
         )
     } catch (t: Throwable) {
@@ -208,6 +240,7 @@ class SingleAppController(
             defaults = SAFE_FALLBACK_DEFAULTS,
             controlsSnapshot = ModelControlsExport(modelName = appName),
             rvSnapshot = emptyList(),
+            modelName = "",
             failure = t
         )
     }
@@ -277,6 +310,31 @@ class SingleAppController(
      * marker (`*`) in the window title.
      */
     val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+
+    /**
+     * `true` when the in-memory configuration has been edited *after*
+     * a terminal run completed.  Indicates that the displayed
+     * [lastResult] no longer reflects what the next Run would
+     * execute — the analyst made changes that haven't been applied.
+     *
+     * Computed: `isDirty && lastResult != null && !runningFlow.value`.
+     *
+     * Frame consumers use this to switch the status strip from a
+     * "Completed" badge to an "Edited" / "Previous run: …" badge so
+     * the user can tell at a glance that their pending edits aren't
+     * reflected in the summary they're looking at.  Clears on the
+     * next [submit] when auto-save flips `isDirty` back to false.
+     */
+    val runConfigurationStale: StateFlow<Boolean> =
+        kotlinx.coroutines.flow.combine(
+            myIsDirty, myLastResult, myRunningFlow
+        ) { dirty, result, running ->
+            dirty && result != null && !running
+        }.stateIn(
+            edtScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            false
+        )
 
     private fun markDirty() {
         if (!myIsDirty.value) myIsDirty.value = true
@@ -515,6 +573,15 @@ class SingleAppController(
      */
     fun submit() {
         if (myRunningFlow.value) return
+        // Direct the model's runtime output (kslOutput.txt, csvDir,
+        // dbDir, plotDir, etc.) into `<appWorkspace>/output/` instead
+        // of the JVM launch directory — the orchestrator honors this
+        // via OutputConfig.outputDirectory.  Skipped when the probe
+        // failed (appWorkspace == parent workspace); the Model's
+        // constructor-supplied default is used as a fallback.
+        val outputDirectoryString = if (modelName.isNotEmpty()) {
+            appWorkspace.resolve("output").toAbsolutePath().normalize().toString()
+        } else null
         val config = RunConfiguration(
             scenarios = listOf(
                 ScenarioSpec(
@@ -524,7 +591,8 @@ class SingleAppController(
                     controlOverrides = myControlOverrides.value,
                     rvOverrides = myRVOverrides.value
                 )
-            )
+            ),
+            outputConfig = ksl.app.config.OutputConfig(outputDirectory = outputDirectoryString)
         )
         val handle = session.submit(RunSpec.Single(config))
         currentHandle = handle

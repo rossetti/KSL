@@ -230,6 +230,40 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
+    fun `modelName from the probe is the sanitized model name`() {
+        // ConfigTestModel has no spaces; modelName == simulationName as a string.
+        val c = freshController()
+        assertEquals("ConfigTestModel", c.modelName)
+    }
+
+    @Test
+    fun `appWorkspace nests under settingsStore activeWorkspace by modelName`() {
+        val c = freshController()
+        val parent = c.settingsStore.activeWorkspace()
+        assertEquals(parent.resolve("ConfigTestModel"), c.appWorkspace)
+    }
+
+    @Test
+    fun `model with spaces in simulationName produces a workspace-safe modelName`() {
+        // Verify the existing Model sanitization (spaces → underscores) lands
+        // a clean directory segment without us reinventing a sanitizer.
+        val spacedBuilder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model = Model("My Sim Name", autoCSVReports = false)
+        }
+        val c = SingleAppController("Spaced App", spacedBuilder)
+        try {
+            assertEquals("My_Sim_Name", c.modelName)
+            val parent = c.settingsStore.activeWorkspace()
+            assertEquals(parent.resolve("My_Sim_Name"), c.appWorkspace)
+        } finally {
+            c.close()
+        }
+    }
+
+    @Test
     fun `TOML round-trip via RunConfigurationToml preserves overrides`() {
         val c = freshController("RoundTripApp")
         c.updateRunOverride { it.copy(numberOfReplications = 13, lengthOfReplication = 333.0) }

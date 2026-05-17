@@ -87,7 +87,7 @@ object SingleRunOrchestrator {
             "RunSpec.Single requires exactly one ScenarioSpec; got ${config.scenarios.size}"
         }
         val spec = config.scenarios.single()
-        val model = buildScenarioModel(spec, provider)
+        val model = buildScenarioModel(spec, provider, config.outputConfig)
         return Runner().submit(RunRequest.SingleRun(model, attachments), scope, preRunWarnings)
     }
 
@@ -97,10 +97,20 @@ object SingleRunOrchestrator {
      * `ScenarioOrchestrator.buildScenario` but produces a configured
      * [Model] directly (rather than a `Scenario` wrapper) because
      * `RunRequest.SingleRun` consumes a [Model].
+     *
+     * When [outputConfig].outputDirectory is non-null, the model's
+     * [ksl.simulation.Model.outputDirectory] is replaced with a fresh
+     * [ksl.utilities.io.OutputDirectory] rooted at that path so the
+     * framework's runtime files (`kslOutput.txt`, csvDir, dbDir,
+     * plotDir, etc.) land under the host's workspace rather than the
+     * JVM launch directory.  The original constructor-supplied output
+     * directory may have been eagerly materialized; that directory is
+     * left in place as a harmless empty side-effect.
      */
     private fun buildScenarioModel(
         spec: ksl.app.config.ScenarioSpec,
-        provider: ModelProviderIfc?
+        provider: ModelProviderIfc?,
+        outputConfig: ksl.app.config.OutputConfig
     ): ksl.simulation.Model {
         val model = buildModelFromReference(spec.modelReference, provider)
 
@@ -123,6 +133,11 @@ object SingleRunOrchestrator {
 
         if (spec.modelConfiguration != null && model.modelConfigurationManager != null) {
             model.configuration = spec.modelConfiguration
+        }
+
+        outputConfig.outputDirectory?.let { pathString ->
+            val outRoot = java.nio.file.Paths.get(pathString)
+            model.outputDirectory = ksl.utilities.io.OutputDirectory(outRoot, "kslOutput.txt")
         }
 
         return model

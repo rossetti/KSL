@@ -110,8 +110,15 @@ class SingleAppFrame(
     private val notifications: Notifications = Notifications(rootPane.layeredPane)
     private val registry: WidgetPathRegistry = WidgetPathRegistry()
 
-    private val runAction = object : AbstractAction("Run") {
+    private val runAction = object : AbstractAction("Simulate") {
         override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+            // If the analyst has unsaved changes, give them an opportunity
+            // to persist before kicking off the run.  This matches the
+            // "Run = commit" mental model: edits flow into the run,
+            // and the file on disk should reflect what was actually
+            // executed.  Returns false if the user picks Cancel — abort
+            // the run entirely.
+            if (!handleDirtyOnRun()) return
             // Clear the console synchronously *before* submitting.  The
             // validator and orchestrator run on the EDT and call
             // modelBuilder.build() on this thread; anything they (or the
@@ -124,9 +131,69 @@ class SingleAppFrame(
             controller.submit()
         }
     }
+
+    /**
+     * Auto-save dance when Run is clicked with a dirty configuration.
+     *
+     *  - Clean → returns `true` immediately, nothing to do.
+     *  - Dirty *and* a file is already associated → silently writes to
+     *    that file (analyst has previously chosen where; the click is
+     *    consent), notifies, and returns `true`.
+     *  - Dirty *and* no file associated → prompts with three options:
+     *      *Save…* (opens Save As, returns `true` only after a successful
+     *        write — Cancel in the chooser aborts the run too),
+     *      *Run without saving* (returns `true`, runs with dirty state
+     *        intact),
+     *      *Cancel* (returns `false`, abort the run).
+     *
+     * Returning `false` short-circuits the Run.
+     */
+    private fun handleDirtyOnRun(): Boolean {
+        if (!controller.isDirty.value) return true
+        val existing = controller.currentFile.value
+        if (existing != null) {
+            writeConfigurationTo(existing)
+            return true
+        }
+        val choice = javax.swing.JOptionPane.showOptionDialog(
+            this,
+            "The configuration has unsaved changes.\n" +
+                "Save it to a file before simulating?",
+            "Unsaved Configuration",
+            javax.swing.JOptionPane.YES_NO_CANCEL_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE,
+            null,
+            arrayOf<Any>("Save…", "Simulate without saving", "Cancel"),
+            "Save…"
+        )
+        return when (choice) {
+            0 -> {
+                // Save…  Returns once the chooser closes.  If the user
+                // picked a file, currentFile is now set; if they cancelled
+                // the chooser, currentFile is still null.  Either way the
+                // run proceeds — declining Save As after asking for it is
+                // an explicit "run anyway" choice.
+                handleSaveAs()
+                true
+            }
+            1 -> true                          // Run without saving
+            else -> false                      // Cancel (incl. dialog dismissed)
+        }
+    }
     private val cancelAction = object : AbstractAction("Cancel") {
         override fun actionPerformed(e: java.awt.event.ActionEvent?) { controller.cancel() }
     }.apply { isEnabled = false }
+
+    /**
+     * Toolbar action equivalent of *File → Reset to Model Defaults*.
+     * Visible in the toolbar so users can find the "discard everything
+     * and start fresh" gesture without opening a menu — answers the
+     * "what does this app's New mean and how do I trigger it?" question
+     * that menu-only placement leaves implicit.
+     */
+    private val resetAction = object : AbstractAction("Reset to Defaults") {
+        override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
+    }
 
     private val parameterPanel = DefaultParameterPanel(controller)
     private val controlOverridesPanel = DefaultControlOverridesPanel(controller)
@@ -149,8 +216,33 @@ class SingleAppFrame(
     private val statusStrip = RunStatusStrip()
 
     private val tabs = JTabbedPane()
+    // Per-tab indices, recorded as tabs are added in buildTabs().  -1
+    // means "not present" (e.g. the model exposes no controls / RVs).
+    private var runControlTabIndex: Int = -1
+    private var controlOverridesTabIndex: Int = -1
+    private var rvOverridesTabIndex: Int = -1
     private var reportsTabIndex: Int = -1
+    // Base titles without the modified-from-defaults indicator dot.
+    private val runControlBaseTitle: String = "Run Control"
+    private val controlOverridesBaseTitle: String = "Control Overrides"
+    private val rvOverridesBaseTitle: String = "RV Overrides"
     private var latestSnapshotResult: RunResult? = null
+    /** Save Configuration menu item — kept field-level so we can update its
+     *  text to reflect the dirty state ("Save Configuration *"). */
+    private lateinit var saveItem: JMenuItem
+    /** Hint label rendered above the run toolbar showing how many overrides
+     *  will be applied on Run.  Hidden when no overrides are present. */
+    private lateinit var overridesHint: JLabel
+    /** Subtle dirty-state chip in the run toolbar.  Tooltip explains. */
+    private lateinit var dirtyChip: JLabel
+
+    companion object {
+        private const val SAVE_BASE_TEXT: String = "Save Configuration"
+        private const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
+        private const val CONFIG_TOOLTIP: String =
+            "Save / open the current run parameters, control overrides, and " +
+                "RV overrides as a .toml file.  Does not save model output."
+    }
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
@@ -170,10 +262,12 @@ class SingleAppFrame(
             }
         )
 
+        val hintStrip = buildOverridesHint()
         val topStack = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(banner)
             add(toolbar)
+            add(hintStrip)
         }
         // Bottom stack: collapsible console drawer above the workspace
         // status bar.  The drawer sets its own preferred height based on
@@ -192,8 +286,12 @@ class SingleAppFrame(
         }
 
         wireRunningState()
+        wireStatusStrip()
         wireTerminalNotifications()
         wireWindowTitle()
+        wireDirtyIndicators()
+        wireOverridesHint()
+        wireTabModifiedIndicators()
         surfaceProbeFailureIfPresent()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) { controller.close() }
@@ -220,21 +318,32 @@ class SingleAppFrame(
         val setWdAction = SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
         val recentMenu = RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope)
         val menuShortcutKey = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
-        val newItem = JMenuItem(object : AbstractAction("New") {
+        val newItem = JMenuItem(object : AbstractAction("Reset to Model Defaults") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
-        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, menuShortcutKey) }
+        }).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, menuShortcutKey)
+            toolTipText = "Discard all overrides and forget the currently-associated " +
+                "configuration file.  Returns the editor to model-default values."
+        }
         val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleOpen() }
-        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, menuShortcutKey) }
-        val saveItem = JMenuItem(object : AbstractAction("Save") {
+        }).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, menuShortcutKey)
+            toolTipText = CONFIG_TOOLTIP
+        }
+        saveItem = JMenuItem(object : AbstractAction(SAVE_BASE_TEXT) {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSave() }
-        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_S, menuShortcutKey) }
-        val saveAsItem = JMenuItem(object : AbstractAction("Save As…") {
+        }).apply {
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_S, menuShortcutKey)
+            toolTipText = CONFIG_TOOLTIP
+        }
+        val saveAsItem = JMenuItem(object : AbstractAction("Save Configuration As…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSaveAs() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(
                 KeyEvent.VK_S, menuShortcutKey or KeyEvent.SHIFT_DOWN_MASK
             )
+            toolTipText = CONFIG_TOOLTIP
         }
         return JMenuBar().apply {
             add(JMenu("File").apply {
@@ -262,7 +371,7 @@ class SingleAppFrame(
      * fall back to.
      */
     private fun handleNew() {
-        if (!confirmDiscardIfDirty("Discard unsaved changes and start a new configuration?")) return
+        if (!confirmDiscardIfDirty("Discard unsaved changes and reset the editor to model defaults?")) return
         controller.resetConfiguration()
     }
 
@@ -277,7 +386,7 @@ class SingleAppFrame(
      */
     private fun handleOpen() {
         if (!confirmDiscardIfDirty("Discard unsaved changes and open another configuration?")) return
-        val workspace = controller.settingsStore.activeWorkspace()
+        val workspace = controller.appWorkspace
         val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Open Configuration"
@@ -329,7 +438,7 @@ class SingleAppFrame(
      * Adds the `.toml` extension if the user didn't.
      */
     private fun handleSaveAs() {
-        val workspace = controller.settingsStore.activeWorkspace()
+        val workspace = controller.appWorkspace
         val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
         val defaultName = (controller.currentFile.value?.fileName?.toString())
             ?: "${sanitizeFileName(controller.appName)}.toml"
@@ -402,8 +511,24 @@ class SingleAppFrame(
         name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "configuration" }
 
     private fun buildRunToolbar(): JComponent {
-        val runButton = JButton(runAction)
+        val runButton = JButton(runAction).apply {
+            toolTipText = "Simulate the model using the current run parameters, " +
+                "control overrides, and RV overrides shown in the editor tabs."
+        }
         val cancelButton = JButton(cancelAction)
+        val resetButton = JButton(resetAction).apply {
+            toolTipText = "Discard all overrides and forget the currently-associated " +
+                "configuration file.  Returns the editor to model-default values."
+        }
+        dirtyChip = JLabel("● Unsaved").apply {
+            font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
+            foreground = Color(0xE6, 0x5C, 0x00)
+            border = BorderFactory.createEmptyBorder(0, 8, 0, 0)
+            toolTipText =
+                "Configuration has unsaved changes.  Use ⌘S to save " +
+                    "(or use Save Configuration in the File menu)."
+            isVisible = false
+        }
         return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(6, 12, 6, 12)
@@ -411,9 +536,28 @@ class SingleAppFrame(
             add(Box.createHorizontalStrut(8))
             add(cancelButton)
             add(Box.createHorizontalStrut(16))
+            add(resetButton)
+            add(Box.createHorizontalStrut(16))
             add(statusStrip)
             add(Box.createHorizontalGlue())
+            add(dirtyChip)
         }
+    }
+
+    /**
+     * Quiet status line rendered just under the run toolbar showing how
+     * many overrides are pending application on the next Run.  Hidden
+     * when the analyst has set zero overrides — most first-time users
+     * won't see this line at all and shouldn't be visually taxed by it.
+     */
+    private fun buildOverridesHint(): JComponent {
+        overridesHint = JLabel().apply {
+            font = font.deriveFont(Font.ITALIC, font.size2D - 1f)
+            foreground = Color(0x66, 0x66, 0x66)
+            border = BorderFactory.createEmptyBorder(0, 16, 4, 16)
+            isVisible = false
+        }
+        return overridesHint
     }
 
     private fun buildTabs(): JComponent {
@@ -424,12 +568,15 @@ class SingleAppFrame(
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        tabs.addTab("Run Control", scrollableParameters)
+        runControlTabIndex = tabs.tabCount
+        tabs.addTab(runControlBaseTitle, scrollableParameters)
         if (controlOverridesPanel.isVisible) {
-            tabs.addTab("Control Overrides", controlOverridesPanel)
+            controlOverridesTabIndex = tabs.tabCount
+            tabs.addTab(controlOverridesBaseTitle, controlOverridesPanel)
         }
         if (rvOverridesPanel.isVisible) {
-            tabs.addTab("RV Overrides", rvOverridesPanel)
+            rvOverridesTabIndex = tabs.tabCount
+            tabs.addTab(rvOverridesBaseTitle, rvOverridesPanel)
         }
         reportsTabIndex = tabs.tabCount
         tabs.addTab("Reports", reportsPanel)
@@ -467,17 +614,151 @@ class SingleAppFrame(
         }
     }
 
+    /**
+     * Bind the dirty-state chip in the run toolbar and the *Save
+     * Configuration* menu-item text to [controller.isDirty].  The
+     * chip is hidden when clean; visible (orange `●ï Unsaved`) when
+     * dirty.  The menu item gains an asterisk suffix when dirty so a
+     * user opening the File menu can tell at a glance whether they
+     * have anything to save.
+     */
+    private fun wireDirtyIndicators() {
+        controller.edtScope.launch {
+            controller.isDirty.collect { dirty ->
+                dirtyChip.isVisible = dirty
+                saveItem.text = if (dirty) SAVE_DIRTY_TEXT else SAVE_BASE_TEXT
+            }
+        }
+    }
+
+    /**
+     * Bind the override-count hint above the tab pane to the three
+     * override flows.  Reads `N control overrides · M RV overrides
+     * will be applied` when one or both are non-zero; hides
+     * otherwise.  Counts include numeric, string, and JSON control
+     * families together.
+     */
+    private fun wireOverridesHint() {
+        controller.edtScope.launch {
+            kotlinx.coroutines.flow.combine(
+                controller.controlOverrides,
+                controller.rvOverrides
+            ) { controls, rvs ->
+                controls.totalControls to rvs.size
+            }.collect { (controlCount, rvCount) ->
+                if (controlCount == 0 && rvCount == 0) {
+                    overridesHint.isVisible = false
+                } else {
+                    val parts = mutableListOf<String>()
+                    if (controlCount > 0) parts.add(
+                        "$controlCount control override${if (controlCount == 1) "" else "s"}"
+                    )
+                    if (rvCount > 0) parts.add(
+                        "$rvCount RV override${if (rvCount == 1) "" else "s"}"
+                    )
+                    overridesHint.text = parts.joinToString(" · ") + " will be applied on Simulate"
+                    overridesHint.isVisible = true
+                }
+            }
+        }
+    }
+
+    /**
+     * Decorate each tab's title with a `•` dot indicator when its
+     * content has been modified from the model's defaults.  Gives the
+     * user a spatial cue — "which tabs hold edits?" — that complements
+     * the global dirty chip and override-count hint.
+     *
+     * - *Run Control*: dot when `runOverrides != ExperimentRunOverrides()`.
+     * - *Control Overrides*: dot when `controlOverrides.totalControls > 0`.
+     * - *RV Overrides*: dot when `rvOverrides.isNotEmpty()`.
+     *
+     * Tab indices that weren't added (e.g. *Control Overrides* when
+     * the model has no controls) are simply skipped.
+     */
+    private fun wireTabModifiedIndicators() {
+        if (runControlTabIndex >= 0) {
+            controller.edtScope.launch {
+                controller.runOverrides.collect { value ->
+                    val modified = value != ksl.app.config.ExperimentRunOverrides()
+                    tabs.setTitleAt(runControlTabIndex, titleWithDot(runControlBaseTitle, modified))
+                }
+            }
+        }
+        if (controlOverridesTabIndex >= 0) {
+            controller.edtScope.launch {
+                controller.controlOverrides.collect { value ->
+                    val modified = value.totalControls > 0
+                    tabs.setTitleAt(
+                        controlOverridesTabIndex,
+                        titleWithDot(controlOverridesBaseTitle, modified)
+                    )
+                }
+            }
+        }
+        if (rvOverridesTabIndex >= 0) {
+            controller.edtScope.launch {
+                controller.rvOverrides.collect { value ->
+                    val modified = value.isNotEmpty()
+                    tabs.setTitleAt(
+                        rvOverridesTabIndex,
+                        titleWithDot(rvOverridesBaseTitle, modified)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun titleWithDot(base: String, modified: Boolean): String =
+        if (modified) "$base •" else base
+
     private fun wireRunningState() {
         controller.edtScope.launch {
             controller.runningFlow.collect { running ->
                 runAction.isEnabled = !running
                 cancelAction.isEnabled = running
+                resetAction.isEnabled = !running
                 parameterPanel.isEnabled = !running
                 controlOverridesPanel.isEnabled = !running
                 rvOverridesPanel.isEnabled = !running
                 if (running) {
-                    statusStrip.showRunning()
-                    notifications.show("Run started", NotificationSeverity.INFO)
+                    notifications.show("Simulation started", NotificationSeverity.INFO)
+                }
+            }
+        }
+    }
+
+    /**
+     * Drive the [statusStrip] from the combined state of
+     * `runningFlow`, `lastResult`, and `isDirty`.
+     *
+     * Precedence (top wins):
+     *  - running → "Running…"
+     *  - lastResult exists, dirty since → "Edited / Previous run: …" (stale)
+     *  - lastResult exists, clean → "Completed" / "Failed" / etc. with summary
+     *  - lastResult absent, dirty → "Edited / Not yet simulated"
+     *  - lastResult absent, clean → "Defaults / Model defaults loaded"
+     *
+     * Centralizing here avoids fights between separate subscribers
+     * trying to update the same badge.  Five named phases give the
+     * user one place to look for "what is the app showing me about
+     * the workflow right now?"
+     */
+    private fun wireStatusStrip() {
+        controller.edtScope.launch {
+            kotlinx.coroutines.flow.combine(
+                controller.runningFlow,
+                controller.lastResult,
+                controller.isDirty
+            ) { running, result, dirty ->
+                Triple(running, result, dirty)
+            }.collect { (running, result, dirty) ->
+                when {
+                    running -> statusStrip.showRunning()
+                    result != null && dirty -> statusStrip.showStale(result)
+                    result != null -> statusStrip.showResult(result)
+                    dirty -> statusStrip.showEditedPreRun()
+                    else -> statusStrip.showDefaults()
                 }
             }
         }
@@ -487,7 +768,6 @@ class SingleAppFrame(
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
                 if (result == null) return@collect
-                statusStrip.showResult(result)
                 val hasSnapshot = result is RunResult.Completed || result is RunResult.BatchCompleted
                 if (reportsTabIndex >= 0) {
                     tabs.setEnabledAt(reportsTabIndex, hasSnapshot)
@@ -526,7 +806,7 @@ class SingleAppFrame(
 
     private fun materializeStandardReport(result: RunResult, formatLabel: String) {
         val format = StandardReportFormat.fromButtonLabel(formatLabel) ?: return
-        val workspace = controller.settingsStore.activeWorkspace()
+        val workspace = controller.appWorkspace
         val runId = runIdOf(result) ?: return
         val reportsDir = WorkspaceLayout.reportsDir(workspace, runId, createIfMissing = true)
         when (val outcome = StandardReportMaterializer.materialize(result, format, reportsDir)) {
@@ -588,6 +868,28 @@ class SingleAppFrame(
             summary.text = ""
         }
 
+        /**
+         * Initial "freshly loaded" phase — defaults loaded, no edits
+         * yet, no run yet.  Distinct from [showIdle] only in label;
+         * makes the "you're at the model's defaults" state visible
+         * instead of letting it look identical to a generic idle.
+         */
+        fun showDefaults() {
+            setBadge("Defaults", BG_IDLE, FG_IDLE)
+            summary.text = "Model defaults loaded — click Simulate to run"
+        }
+
+        /**
+         * "User has made edits but hasn't simulated yet" phase — the
+         * pre-run analog of [showStale].  Same orange palette as the
+         * post-run stale state so both edited-but-not-simulated cases
+         * read with the same urgency.
+         */
+        fun showEditedPreRun() {
+            setBadge("Edited", BG_WARN, FG_WARN)
+            summary.text = "Not yet simulated — click Simulate to run"
+        }
+
         fun showRunning() {
             setBadge("Running…", BG_RUN, FG_RUN)
             summary.text = ""
@@ -625,6 +927,22 @@ class SingleAppFrame(
                             "  ·  ${formatDuration(result.summary.endTime - result.summary.beginTime)}"
                 }
             }
+        }
+
+        /**
+         * Stale variant of [showResult]: render the previous run's
+         * summary but flip the badge to "Edited" (orange) and prefix
+         * the summary with "Previous run:" so the analyst can tell
+         * the displayed numbers are no longer current with the
+         * in-memory configuration.  Triggered by
+         * `SingleAppController.runConfigurationStale` flipping true.
+         */
+        fun showStale(previousResult: RunResult) {
+            // Render the previous result first to populate `summary`,
+            // then overwrite the badge and prefix the summary text.
+            showResult(previousResult)
+            setBadge("Edited", BG_WARN, FG_WARN)
+            summary.text = "Previous run: ${summary.text}"
         }
 
         private fun setBadge(label: String, bg: Color, fg: Color) {

@@ -47,10 +47,23 @@ import kotlinx.serialization.Serializable
  *   csvDir.
  * @property reports the set of report formats to materialize after the
  *   run completes.  Empty set means no reports.
+ * @property outputDirectory absolute path where the framework places the
+ *   model's runtime output (the equivalent of
+ *   `ksl.simulation.Model.outputDirectory`).  When `null` (default), each
+ *   `Model` keeps its constructor-supplied default —
+ *   `<programLaunchDirectory>/kslOutput/<modelName>_OutputDir/` — which
+ *   for GUI consumers typically lands inside the JVM working directory
+ *   and pollutes the launch tree.  Hosts that own a workspace should set
+ *   this to a workspace-relative path; the orchestrator replaces the
+ *   model's `outputDirectory` with `OutputDirectory(path, "kslOutput.txt")`
+ *   before the run starts so KSL framework files (kslOutput.txt, csvDir,
+ *   dbDir, plotDir, etc.) land under the workspace instead of the launch
+ *   directory.
  */
 @Serializable
 data class OutputConfig(
     val enableKSLDatabase: Boolean = false,
     val enableCSVExport: Boolean = false,
-    val reports: Set<ReportFormat> = setOf(ReportFormat.HTML)
+    val reports: Set<ReportFormat> = setOf(ReportFormat.HTML),
+    val outputDirectory: String? = null
 )
