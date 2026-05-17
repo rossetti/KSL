@@ -34,8 +34,8 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.single.defaults.DefaultControlOverridesPanel
+import ksl.app.swing.single.defaults.DefaultOutputOptionsPanel
 import ksl.app.swing.single.defaults.DefaultParameterPanel
-import ksl.app.swing.single.defaults.DefaultReportsPanel
 import ksl.app.swing.single.defaults.DefaultRVOverridesPanel
 import ksl.app.swing.single.defaults.StandardReportFormat
 import ksl.app.swing.single.defaults.StandardReportMaterializer
@@ -198,14 +198,32 @@ class SingleAppFrame(
     private val parameterPanel = DefaultParameterPanel(controller)
     private val controlOverridesPanel = DefaultControlOverridesPanel(controller)
     private val rvOverridesPanel = DefaultRVOverridesPanel(controller)
-    private val reportsPanel = DefaultReportsPanel(
+    /**
+     * Snapshot-availability flow derived from `controller.lastResult`.
+     * `true` only when the most recent terminal result carries a
+     * snapshot (Completed / BatchCompleted), which is the precondition
+     * for the on-demand report buttons to be meaningful.
+     */
+    private val snapshotAvailable: kotlinx.coroutines.flow.StateFlow<Boolean> =
+        kotlinx.coroutines.flow.MutableStateFlow(false).also { flow ->
+            controller.edtScope.launch {
+                controller.lastResult.collect { result ->
+                    flow.value =
+                        result is RunResult.Completed || result is RunResult.BatchCompleted
+                }
+            }
+        }
+
+    private val outputOptionsPanel = DefaultOutputOptionsPanel(
+        controller = controller,
         onStandardReport = { format -> handleStandardReport(format) },
         onAdvanced = {
             notifications.show(
                 "Advanced report configuration is not yet wired (N5).",
                 NotificationSeverity.WARNING
             )
-        }
+        },
+        snapshotAvailable = snapshotAvailable
     )
     private val consolePanel = ConsoleLogPanel(
         eventFlow = controller.eventFlow,
@@ -578,10 +596,13 @@ class SingleAppFrame(
             rvOverridesTabIndex = tabs.tabCount
             tabs.addTab(rvOverridesBaseTitle, rvOverridesPanel)
         }
+        // Output Options is always enabled — pre-run configuration
+        // (Database / CSV / report formats) must be editable BEFORE
+        // the user has simulated anything.  The on-demand report
+        // buttons inside the panel gate themselves on snapshot
+        // availability via the `snapshotAvailable` StateFlow.
         reportsTabIndex = tabs.tabCount
-        tabs.addTab("Reports", reportsPanel)
-        tabs.setEnabledAt(reportsTabIndex, false)
-        tabs.setToolTipTextAt(reportsTabIndex, "Run the model to enable reports")
+        tabs.addTab("Output Options", outputOptionsPanel)
         return tabs
     }
 
@@ -771,27 +792,44 @@ class SingleAppFrame(
             controller.lastResult.collect { result ->
                 if (result == null) return@collect
                 val hasSnapshot = result is RunResult.Completed || result is RunResult.BatchCompleted
-                if (reportsTabIndex >= 0) {
-                    tabs.setEnabledAt(reportsTabIndex, hasSnapshot)
-                    tabs.setToolTipTextAt(
-                        reportsTabIndex,
-                        if (hasSnapshot) null else "Run the model to enable reports"
-                    )
-                }
                 latestSnapshotResult = if (hasSnapshot) result else null
                 when (result) {
                     is RunResult.Completed ->
-                        notifications.show("Run completed", NotificationSeverity.INFO)
+                        notifications.show("Simulation completed", NotificationSeverity.INFO)
                     is RunResult.Cancelled ->
-                        notifications.show("Run cancelled: ${result.reason}", NotificationSeverity.WARNING)
+                        notifications.show("Simulation cancelled: ${result.reason}", NotificationSeverity.WARNING)
                     is RunResult.Failed ->
-                        notifications.show("Run failed: ${result.error}", NotificationSeverity.ERROR)
+                        notifications.show("Simulation failed: ${result.error}", NotificationSeverity.ERROR)
                     is RunResult.BatchCompleted ->
                         notifications.show("Batch completed", NotificationSeverity.INFO)
                     else ->
-                        notifications.show("Run finished: ${result::class.simpleName}", NotificationSeverity.INFO)
+                        notifications.show("Simulation finished: ${result::class.simpleName}", NotificationSeverity.INFO)
                 }
+                // OUT5 — auto-materialize the configured report formats.
+                // Quiet failures: each materialize-or-fail is its own
+                // notification.  Skipped when no snapshot or when the
+                // analyst has unchecked everything in the
+                // "Auto-render after Simulate" section.
+                if (hasSnapshot) autoMaterializeReports(result)
             }
+        }
+    }
+
+    /**
+     * After a successful terminal result, materialize every
+     * [ksl.app.config.ReportFormat] in `controller.outputConfig.reports`
+     * via [StandardReportMaterializer].  Same code path as the
+     * on-demand buttons, just driven by the auto-render set rather
+     * than a user click.
+     */
+    private fun autoMaterializeReports(result: RunResult) {
+        val formats = controller.outputConfig.value.reports
+        if (formats.isEmpty()) return
+        for (format in formats) {
+            // ReportFormat.name happens to match the labels accepted
+            // by handleStandardReport ("HTML", "Markdown", "Text") —
+            // see StandardReportFormat.fromButtonLabel.
+            materializeStandardReport(result, format.name)
         }
     }
 

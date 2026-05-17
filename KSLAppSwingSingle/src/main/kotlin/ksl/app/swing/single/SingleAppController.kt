@@ -37,7 +37,9 @@ import ksl.app.KSLAppSession
 import ksl.app.RunSpec
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.OutputConfig
 import ksl.app.config.RVParameterOverride
+import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.session.RunEvent
@@ -291,6 +293,17 @@ class SingleAppController(
      */
     val rvOverrides: StateFlow<List<RVParameterOverride>> = myRVOverrides.asStateFlow()
 
+    private val myOutputConfig = MutableStateFlow(OutputConfig())
+    /**
+     * Pending output-options state — database / CSV toggles plus the
+     * set of reports to auto-render after the next Run.  Threaded into
+     * `RunConfiguration.outputConfig` on [submit].  The
+     * `outputDirectory` field is overwritten at submit time with the
+     * per-app workspace path (see [submit]) regardless of what's set
+     * here, so callers should leave that field null.
+     */
+    val outputConfig: StateFlow<OutputConfig> = myOutputConfig.asStateFlow()
+
     private val myCurrentFile = MutableStateFlow<Path?>(null)
     /**
      * Path of the configuration file currently associated with the in-memory
@@ -461,6 +474,44 @@ class SingleAppController(
         markDirty()
     }
 
+    // ── Output-options mutators ─────────────────────────────────────────────
+
+    /**
+     * Toggle the SQLite KSLDatabase observer for the next Run.  Has
+     * no effect on the current or any in-flight run.
+     */
+    fun setEnableKSLDatabase(enabled: Boolean) {
+        if (myOutputConfig.value.enableKSLDatabase == enabled) return
+        myOutputConfig.value = myOutputConfig.value.copy(enableKSLDatabase = enabled)
+        markDirty()
+    }
+
+    /** Toggle per-replication CSV output for the next Run. */
+    fun setEnableReplicationCSV(enabled: Boolean) {
+        if (myOutputConfig.value.enableReplicationCSV == enabled) return
+        myOutputConfig.value = myOutputConfig.value.copy(enableReplicationCSV = enabled)
+        markDirty()
+    }
+
+    /** Toggle across-replication summary CSV output for the next Run. */
+    fun setEnableExperimentCSV(enabled: Boolean) {
+        if (myOutputConfig.value.enableExperimentCSV == enabled) return
+        myOutputConfig.value = myOutputConfig.value.copy(enableExperimentCSV = enabled)
+        markDirty()
+    }
+
+    /**
+     * Toggle a single [ReportFormat] in the auto-render-after-Simulate
+     * set.  Idempotent — enabling an already-enabled format is a no-op.
+     */
+    fun setReportFormatEnabled(format: ReportFormat, enabled: Boolean) {
+        val current = myOutputConfig.value.reports
+        val updated = if (enabled) current + format else current - format
+        if (updated == current) return
+        myOutputConfig.value = myOutputConfig.value.copy(reports = updated)
+        markDirty()
+    }
+
     // ── Configuration snapshot / load / save ────────────────────────────────
 
     /**
@@ -493,6 +544,10 @@ class SingleAppController(
         // exists and which fields can be added, without 12 explicit-null
         // lines.  Edited fields appear under the header; absent fields
         // are simply not written.
+        //
+        // outputConfig is included.  The outputDirectory field is
+        // *not* persisted (it's per-installation, computed from the
+        // workspace) — it's blanked here and re-applied at submit time.
         RunConfiguration(
             scenarios = listOf(
                 ScenarioSpec(
@@ -502,7 +557,8 @@ class SingleAppController(
                     controlOverrides = myControlOverrides.value,
                     rvOverrides = myRVOverrides.value
                 )
-            )
+            ),
+            outputConfig = myOutputConfig.value.copy(outputDirectory = null)
         )
 
     /**
@@ -530,6 +586,9 @@ class SingleAppController(
         myRunOverrides.value = scenario.runOverrides ?: ExperimentRunOverrides()
         myControlOverrides.value = scenario.controlOverrides
         myRVOverrides.value = scenario.rvOverrides
+        // Restore outputConfig but blank outputDirectory — it's an
+        // install-local path the submit-time wiring re-computes.
+        myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
         // Clear dirty + edited-since-last-sim + lastResult AFTER the
         // StateFlow assignments so any listener-triggered state flip
         // gets overwritten.  Loading a fresh configuration starts a
@@ -551,6 +610,7 @@ class SingleAppController(
         myRunOverrides.value = ExperimentRunOverrides()
         myControlOverrides.value = ModelControlsExport(modelName = controlsSnapshot.modelName)
         myRVOverrides.value = emptyList()
+        myOutputConfig.value = OutputConfig()
         myCurrentFile.value = null
         myIsDirty.value = false
         // Reset to defaults means a virgin session: any prior run's
@@ -603,7 +663,10 @@ class SingleAppController(
                     rvOverrides = myRVOverrides.value
                 )
             ),
-            outputConfig = ksl.app.config.OutputConfig(outputDirectory = outputDirectoryString)
+            // Merge the analyst's outputConfig flags with the
+            // per-app outputDirectory we compute here.  The analyst
+            // owns the toggles; the framework owns the path.
+            outputConfig = myOutputConfig.value.copy(outputDirectory = outputDirectoryString)
         )
         val handle = session.submit(RunSpec.Single(config))
         currentHandle = handle

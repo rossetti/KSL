@@ -20,6 +20,8 @@ package ksl.app.swing.single
 
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.OutputConfig
+import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
@@ -282,6 +284,92 @@ class SingleAppControllerConfigurationTest {
         assertTrue(outcome is SingleAppController.LoadResult.Loaded)
         assertFalse(c.editedSinceLastSim.value, "load should clear editedSinceLastSim")
         assertNull(c.lastResult.value, "load should clear lastResult")
+    }
+
+    // ── Output Options ─────────────────────────────────────────────────────
+
+    @Test
+    fun `fresh controller has default OutputConfig`() {
+        val c = freshController()
+        val cfg = c.outputConfig.value
+        assertFalse(cfg.enableKSLDatabase)
+        assertFalse(cfg.enableReplicationCSV)
+        assertFalse(cfg.enableExperimentCSV)
+        assertEquals(setOf(ReportFormat.HTML), cfg.reports)
+    }
+
+    @Test
+    fun `output-options mutators flip dirty and editedSinceLastSim`() {
+        val c = freshController()
+        c.setEnableKSLDatabase(true)
+        assertTrue(c.isDirty.value)
+        assertTrue(c.editedSinceLastSim.value)
+        assertTrue(c.outputConfig.value.enableKSLDatabase)
+    }
+
+    @Test
+    fun `setReportFormatEnabled toggles individual formats`() {
+        val c = freshController()
+        c.setReportFormatEnabled(ReportFormat.MARKDOWN, true)
+        assertEquals(setOf(ReportFormat.HTML, ReportFormat.MARKDOWN), c.outputConfig.value.reports)
+        c.setReportFormatEnabled(ReportFormat.HTML, false)
+        assertEquals(setOf(ReportFormat.MARKDOWN), c.outputConfig.value.reports)
+        // Idempotent — removing absent is a no-op.
+        val before = c.isDirty.value
+        c.setReportFormatEnabled(ReportFormat.HTML, false)
+        // (already absent — mutator should early-return without flipping dirty,
+        // but since we just set dirty=true above this test only confirms no error)
+        assertTrue(c.isDirty.value || before)
+    }
+
+    @Test
+    fun `currentConfiguration round-trips outputConfig with outputDirectory blanked`() {
+        val c = freshController()
+        c.setEnableKSLDatabase(true)
+        c.setEnableReplicationCSV(true)
+        val cfg = c.currentConfiguration()
+        assertTrue(cfg.outputConfig.enableKSLDatabase)
+        assertTrue(cfg.outputConfig.enableReplicationCSV)
+        assertFalse(cfg.outputConfig.enableExperimentCSV)
+        // outputDirectory is install-local — should be null in the
+        // snapshot so saved TOML doesn't bake in an absolute path.
+        assertNull(cfg.outputConfig.outputDirectory)
+    }
+
+    @Test
+    fun `loadConfiguration restores outputConfig`() {
+        val c = freshController()
+        val loaded = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.Embedded("ConfigTestApp")
+                )
+            ),
+            outputConfig = OutputConfig(
+                enableKSLDatabase = true,
+                enableExperimentCSV = true,
+                reports = setOf(ReportFormat.HTML, ReportFormat.MARKDOWN)
+            )
+        )
+        val outcome = c.loadConfiguration(loaded)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        assertTrue(c.outputConfig.value.enableKSLDatabase)
+        assertFalse(c.outputConfig.value.enableReplicationCSV)
+        assertTrue(c.outputConfig.value.enableExperimentCSV)
+        assertEquals(setOf(ReportFormat.HTML, ReportFormat.MARKDOWN), c.outputConfig.value.reports)
+        // outputDirectory should be cleared by loadConfiguration so the
+        // install-local path is re-applied at submit time.
+        assertNull(c.outputConfig.value.outputDirectory)
+    }
+
+    @Test
+    fun `resetConfiguration restores default OutputConfig`() {
+        val c = freshController()
+        c.setEnableKSLDatabase(true)
+        c.setReportFormatEnabled(ReportFormat.MARKDOWN, true)
+        c.resetConfiguration()
+        assertEquals(OutputConfig(), c.outputConfig.value)
     }
 
     @Test

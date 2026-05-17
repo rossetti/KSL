@@ -101,7 +101,8 @@ class ConfigInvariantsTest {
     @Test fun `OutputConfig defaults are HTML-only with no side-effects`() {
         val config = OutputConfig()
         assertFalse(config.enableKSLDatabase)
-        assertFalse(config.enableCSVExport)
+        assertFalse(config.enableReplicationCSV)
+        assertFalse(config.enableExperimentCSV)
         assertEquals(setOf(ReportFormat.HTML), config.reports)
     }
 

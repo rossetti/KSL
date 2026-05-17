@@ -140,6 +140,23 @@ object SingleRunOrchestrator {
             model.outputDirectory = ksl.utilities.io.OutputDirectory(outRoot, "kslOutput.txt")
         }
 
+        // Per-kind CSV reporting flags.  Setting these before Runner
+        // takes the model ensures `Model.simulate()` picks them up
+        // when it decides which CSV observers to attach.  See
+        // `Model.simulate()` for the OR-semantics with `autoCSVReports`.
+        model.autoReplicationCSVReports = outputConfig.enableReplicationCSV
+        model.autoExperimentCSVReports = outputConfig.enableExperimentCSV
+
+        // SQLite KSLDatabase observer.  The constructor attaches the
+        // observer to the model (via `attachModelElementObserver`
+        // inside its init block); the observer's `db` field lands
+        // at `model.outputDirectory.dbDir/<modelName>.db`.  Lifecycle
+        // is bound to the model — when this fresh-per-Run model dies,
+        // the observer goes with it.  No explicit detach needed.
+        if (outputConfig.enableKSLDatabase) {
+            ksl.utilities.io.dbutil.KSLDatabaseObserver.createSQLiteKSLDatabaseObserver(model)
+        }
+
         return model
     }
 

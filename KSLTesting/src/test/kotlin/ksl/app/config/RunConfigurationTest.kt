@@ -148,7 +148,8 @@ class RunConfigurationTest {
         val config = mm1Config().copy(
             outputConfig = OutputConfig(
                 enableKSLDatabase = true,
-                enableCSVExport = true,
+                enableReplicationCSV = true,
+                enableExperimentCSV = true,
                 reports = setOf(ReportFormat.HTML, ReportFormat.MARKDOWN)
             )
         )
@@ -161,7 +162,8 @@ class RunConfigurationTest {
         val config = mm1Config().copy(
             outputConfig = OutputConfig(
                 enableKSLDatabase = true,
-                enableCSVExport = true,
+                enableReplicationCSV = true,
+                enableExperimentCSV = true,
                 reports = setOf(ReportFormat.HTML, ReportFormat.MARKDOWN)
             )
         )

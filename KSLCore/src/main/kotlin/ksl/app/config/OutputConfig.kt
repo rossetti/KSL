@@ -38,13 +38,20 @@ import kotlinx.serialization.Serializable
  * or production user can suppress all output by passing
  * `OutputConfig(reports = emptySet())`.
  *
- * @property enableKSLDatabase when true, the run-time pipeline (Phase 6D)
- *   wires a `ksl.utilities.io.dbutil.KSLDatabaseObserver` as a
- *   `ksl.app.session.RunAttachmentIfc` so the run's data lands in a
- *   `KSLDatabase` under the workspace's output directory.
- * @property enableCSVExport when true, the run-time pipeline (Phase 6D)
- *   wires CSV export so per-response data lands in the workspace's
- *   csvDir.
+ * @property enableKSLDatabase when true, the orchestrator wires a
+ *   `ksl.utilities.io.dbutil.KSLDatabaseObserver` (SQLite backend) so
+ *   the run's data lands in a `KSLDatabase` under the workspace's
+ *   output directory.
+ * @property enableReplicationCSV when true, the orchestrator sets
+ *   `ksl.simulation.Model.autoReplicationCSVReports = true` so the
+ *   per-replication CSV (one row per response per replication) is
+ *   written to the workspace's `csvDir`.
+ * @property enableExperimentCSV when true, the orchestrator sets
+ *   `ksl.simulation.Model.autoExperimentCSVReports = true` so the
+ *   across-replication summary CSV is written to the workspace's
+ *   `csvDir`.  Independent of [enableReplicationCSV] — analysts who
+ *   want only summary data (and not the larger per-replication file)
+ *   can opt in here without enabling [enableReplicationCSV].
  * @property reports the set of report formats to materialize after the
  *   run completes.  Empty set means no reports.
  * @property outputDirectory absolute path where the framework places the
@@ -63,7 +70,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class OutputConfig(
     val enableKSLDatabase: Boolean = false,
-    val enableCSVExport: Boolean = false,
+    val enableReplicationCSV: Boolean = false,
+    val enableExperimentCSV: Boolean = false,
     val reports: Set<ReportFormat> = setOf(ReportFormat.HTML),
     val outputDirectory: String? = null
 )

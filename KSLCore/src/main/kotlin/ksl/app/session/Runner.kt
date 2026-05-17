@@ -199,9 +199,25 @@ class Runner {
                     }
                 }
 
-                // Mirror simulate()'s CSV setup so model.autoCSVReports is honoured.
-                if (model.autoCSVReports) model.turnOnCSVStatisticalReports()
-                else model.turnOffCSVStatisticalReports()
+                // Mirror simulate()'s CSV setup so the per-kind CSV flags
+                // are honoured: the blanket [autoCSVReports] shortcut still
+                // toggles both, and each per-kind flag
+                // ([autoReplicationCSVReports], [autoExperimentCSVReports])
+                // independently turns its respective report on.  Must stay
+                // in sync with Model.simulate's OR-semantics — Runner
+                // bypasses simulate() entirely (it drives the model via
+                // runNextReplication so it can yield between replications
+                // for progress events).
+                if (model.autoCSVReports || model.autoReplicationCSVReports) {
+                    model.turnOnReplicationCSVStatisticReporting()
+                } else {
+                    model.turnOffReplicationCSVStatisticReporting()
+                }
+                if (model.autoCSVReports || model.autoExperimentCSVReports) {
+                    model.turnOnAcrossReplicationStatisticReporting()
+                } else {
+                    model.turnOffAcrossReplicationStatisticReporting()
+                }
 
                 val startTime = Clock.System.now()
 

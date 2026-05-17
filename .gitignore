@@ -262,3 +262,9 @@ CLAUDE.md
 KSLBundleTools/gradle/wrapper/gradle-wrapper.jar
 KSLBundleTools/gradle/wrapper/gradle-wrapper.properties
 /KSLAppSwingCommon/gradle
+
+# Kotlin incremental-compilation session metadata (per-module).
+# Created automatically by the Kotlin compiler from 1.8.20+.
+# Should never be committed; the trailing slash matches the
+# directory anywhere in the tree (every module gets its own).
+.kotlin/

@@ -80,6 +80,24 @@ class Model @JvmOverloads constructor(
 ) : ModelElement(simulationName.replace(" ", "_")), ExperimentIfc {
 
     /**
+     *  When `true`, [simulate] turns on the per-replication CSV report
+     *  before running, regardless of [autoCSVReports].  Independent
+     *  switch for callers that want exactly one kind of CSV output —
+     *  notably GUI hosts surfacing per-kind output toggles to the
+     *  analyst.  Default `false`; the existing [autoCSVReports]
+     *  shortcut still implies both CSV reports when set.
+     */
+    var autoReplicationCSVReports: Boolean = false
+
+    /**
+     *  When `true`, [simulate] turns on the across-replication CSV
+     *  report before running, regardless of [autoCSVReports].
+     *  Independent counterpart of [autoReplicationCSVReports].
+     *  Default `false`.
+     */
+    var autoExperimentCSVReports: Boolean = false
+
+    /**
      *  A general user changeable identifier for a model. In general, the identifier might not be unique.
      *  The default is the name of the model, which must be unique within the model element hierarchy, but
      *  could possibly be the same **across** models (i.e. for different models). If it is required that
@@ -1472,10 +1490,21 @@ class Model @JvmOverloads constructor(
      * Runs all remaining replications based on the current settings
      */
     fun simulate() {
-        if (autoCSVReports) {
-            turnOnCSVStatisticalReports()
+        // Honor the per-kind CSV flags alongside the original blanket
+        // [autoCSVReports] shortcut.  Each kind is independently toggled
+        // so callers can request exactly one of the two CSV outputs.
+        // Existing code that sets only [autoCSVReports] is unaffected:
+        // it still turns on both.  Callers wanting only one kind must
+        // leave [autoCSVReports] off and set just the per-kind flag.
+        if (autoCSVReports || autoReplicationCSVReports) {
+            turnOnReplicationCSVStatisticReporting()
         } else {
-            turnOffCSVStatisticalReports()
+            turnOffReplicationCSVStatisticReporting()
+        }
+        if (autoCSVReports || autoExperimentCSVReports) {
+            turnOnAcrossReplicationStatisticReporting()
+        } else {
+            turnOffAcrossReplicationStatisticReporting()
         }
         myReplicationProcess.run()
         if (autoPrintSummaryReport) {
