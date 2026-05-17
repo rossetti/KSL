@@ -56,7 +56,6 @@ import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
 import javax.swing.JScrollPane
-import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
 import javax.swing.WindowConstants
 import kotlin.time.Duration
@@ -74,13 +73,14 @@ import kotlin.time.DurationUnit
  *    completed badge with one-line summary).  Always visible so
  *    Run is one click from anywhere in the app.
  *  - **Centre tabs**:
- *      1. *Run Control* — horizontal split pane.  Left:
+ *      1. *Run Control* — vertical stack.  Top:
  *         [DefaultParameterPanel] for analyst-facing experiment
- *         overrides.  Right: [ConsoleLogPanel] collecting the
- *         controller's `eventFlow` so the user can watch run
- *         progress while editing parameters.  The ORCHESTRATOR
- *         category chip is suppressed because the single-run app
- *         never emits orchestrator events.
+ *         overrides, sized to its preferred height.  Bottom:
+ *         [ConsoleLogPanel] collecting the controller's
+ *         `eventFlow`, filling all remaining vertical space with
+ *         full window width.  The ORCHESTRATOR category chip is
+ *         suppressed because the single-run app never emits
+ *         orchestrator events.
  *      2. *Control Overrides* — annotated-property overrides
  *         (hidden when the model exposes no controls).
  *      3. *Reports* — standard-report buttons.  Disabled until a
@@ -211,21 +211,21 @@ class SingleAppFrame(
     }
 
     private fun buildTabs(): JComponent {
+        // Run Control tab: parameter panel at top (preferred height),
+        // console fills all remaining vertical space.  No divider so
+        // the user can't accidentally hide either region.  Parameter
+        // panel is wrapped in a JScrollPane sized to its preferred
+        // height so it grows up to that and scrolls beyond.
         val scrollableParameters = JScrollPane(parameterPanel).apply {
             border = BorderFactory.createEmptyBorder()
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        val runControlSplit = JSplitPane(
-            JSplitPane.HORIZONTAL_SPLIT,
-            scrollableParameters,
-            consolePanel
-        ).apply {
-            resizeWeight = 0.45
-            isContinuousLayout = true
-            border = BorderFactory.createEmptyBorder()
+        val runControl = JPanel(BorderLayout()).apply {
+            add(scrollableParameters, BorderLayout.NORTH)
+            add(consolePanel, BorderLayout.CENTER)
         }
-        tabs.addTab("Run Control", runControlSplit)
+        tabs.addTab("Run Control", runControl)
         if (controlOverridesPanel.isVisible) {
             tabs.addTab("Control Overrides", controlOverridesPanel)
         }
