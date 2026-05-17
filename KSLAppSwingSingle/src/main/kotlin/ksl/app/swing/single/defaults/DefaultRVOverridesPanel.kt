@@ -18,6 +18,7 @@
 
 package ksl.app.swing.single.defaults
 
+import kotlinx.coroutines.launch
 import ksl.app.swing.single.SingleAppController
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import java.awt.BorderLayout
@@ -78,6 +79,15 @@ class DefaultRVOverridesPanel(
             isVisible = false
         } else {
             add(buildTable(), BorderLayout.CENTER)
+            // Subscribe to controller.rvOverrides so external state
+            // changes (resetConfiguration, loadConfiguration) refresh
+            // the displayed cells.  See DefaultControlOverridesPanel
+            // for the same pattern and rationale.
+            controller.edtScope.launch {
+                controller.rvOverrides.collect {
+                    table?.let { (it.model as? AbstractTableModel)?.fireTableDataChanged() }
+                }
+            }
         }
     }
 

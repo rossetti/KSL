@@ -18,6 +18,8 @@
 
 package ksl.app.swing.single.defaults
 
+import kotlinx.coroutines.launch
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
 import ksl.app.swing.common.overridefield.IntegerOverrideField
@@ -73,6 +75,17 @@ class DefaultParameterPanel(
     private val registry: WidgetPathRegistry = WidgetPathRegistry()
     private val managedFields: MutableList<JComponent> = mutableListOf()
 
+    /**
+     * Per-field "set value from override" updaters, keyed in the
+     * order the corresponding fields appear in the panel.  Built up
+     * during [commonRows]/[advancedSection] and replayed by
+     * [syncFromController] each time `controller.runOverrides`
+     * emits a new value.  Lets external mutations (Reset to Model
+     * Defaults, Open Configuration, programmatic resets) update the
+     * displayed text without rebuilding the panel.
+     */
+    private val fieldSyncers: MutableList<(ExperimentRunOverrides) -> Unit> = mutableListOf()
+
     init {
         border = BorderFactory.createEmptyBorder(OUTER_PADDING, OUTER_PADDING + 8, OUTER_PADDING, OUTER_PADDING + 8)
         val body = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
@@ -80,6 +93,21 @@ class DefaultParameterPanel(
         body.add(Box.createVerticalStrut(SECTION_GAP))
         body.add(advancedSection())
         add(body, BorderLayout.NORTH)
+
+        // Subscribe to controller.runOverrides so external state
+        // changes (resetConfiguration, loadConfiguration) propagate
+        // into the displayed text.  Without this, fields are
+        // write-only: edits push into the controller but
+        // controller-side resets don't push back.  Safe against
+        // feedback: the field setters fire onValueChange whose
+        // updateRunOverride callback is a no-op when the new value
+        // matches the controller's current value (see
+        // SingleAppController.updateRunOverride).
+        scope.launch {
+            controller.runOverrides.collect { overrides ->
+                for (sync in fieldSyncers) sync(overrides)
+            }
+        }
     }
 
     override fun setEnabled(enabled: Boolean) {
@@ -96,7 +124,8 @@ class DefaultParameterPanel(
             integerField(
                 modelDefault = defaults.numberOfReplications,
                 path = "scenarios[0].runOverrides.numberOfReplications",
-                onChange = { v -> controller.updateRunOverride { it.copy(numberOfReplications = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(numberOfReplications = v) } },
+                read = { it.numberOfReplications }
             )
         ))
         panel.add(labeledRow(
@@ -104,7 +133,8 @@ class DefaultParameterPanel(
             doubleField(
                 modelDefault = defaults.lengthOfReplication,
                 path = "scenarios[0].runOverrides.lengthOfReplication",
-                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplication = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplication = v) } },
+                read = { it.lengthOfReplication }
             )
         ))
         panel.add(labeledRow(
@@ -112,7 +142,8 @@ class DefaultParameterPanel(
             doubleField(
                 modelDefault = defaults.lengthOfReplicationWarmUp,
                 path = "scenarios[0].runOverrides.lengthOfReplicationWarmUp",
-                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplicationWarmUp = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplicationWarmUp = v) } },
+                read = { it.lengthOfReplicationWarmUp }
             )
         ))
         return panel
@@ -141,21 +172,24 @@ class DefaultParameterPanel(
             "Antithetic option",
             booleanField(
                 path = "scenarios[0].runOverrides.antitheticOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(antitheticOption = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(antitheticOption = v) } },
+                read = { it.antitheticOption }
             )
         ))
         body.add(labeledRow(
             "Reset start-stream option",
             booleanField(
                 path = "scenarios[0].runOverrides.resetStartStreamOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(resetStartStreamOption = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(resetStartStreamOption = v) } },
+                read = { it.resetStartStreamOption }
             )
         ))
         body.add(labeledRow(
             "Advance next-sub-stream option",
             booleanField(
                 path = "scenarios[0].runOverrides.advanceNextSubStreamOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(advanceNextSubStreamOption = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(advanceNextSubStreamOption = v) } },
+                read = { it.advanceNextSubStreamOption }
             )
         ))
         body.add(labeledRow(
@@ -163,7 +197,8 @@ class DefaultParameterPanel(
             integerField(
                 modelDefault = defaults.numberOfStreamAdvancesPriorToRunning,
                 path = "scenarios[0].runOverrides.numberOfStreamAdvancesPriorToRunning",
-                onChange = { v -> controller.updateRunOverride { it.copy(numberOfStreamAdvancesPriorToRunning = v) } }
+                onChange = { v -> controller.updateRunOverride { it.copy(numberOfStreamAdvancesPriorToRunning = v) } },
+                read = { it.numberOfStreamAdvancesPriorToRunning }
             )
         ))
         outer.add(header)
@@ -193,24 +228,41 @@ class DefaultParameterPanel(
         }
     }
 
-    private fun integerField(modelDefault: Int, path: String, onChange: (Int?) -> Unit): JComponent {
+    private fun integerField(
+        modelDefault: Int,
+        path: String,
+        onChange: (Int?) -> Unit,
+        read: (ExperimentRunOverrides) -> Int?
+    ): JComponent {
         val raw = IntegerOverrideField(modelDefault = modelDefault, onValueChange = onChange)
         val wrapped = FieldErrorMarker.attach(raw, path, bus, scope, registry)
         managedFields.add(wrapped)
+        fieldSyncers.add { overrides -> raw.value = read(overrides) }
         return wrapped
     }
 
-    private fun doubleField(modelDefault: Double, path: String, onChange: (Double?) -> Unit): JComponent {
+    private fun doubleField(
+        modelDefault: Double,
+        path: String,
+        onChange: (Double?) -> Unit,
+        read: (ExperimentRunOverrides) -> Double?
+    ): JComponent {
         val raw = DoubleOverrideField(modelDefault = modelDefault, onValueChange = onChange)
         val wrapped = FieldErrorMarker.attach(raw, path, bus, scope, registry)
         managedFields.add(wrapped)
+        fieldSyncers.add { overrides -> raw.value = read(overrides) }
         return wrapped
     }
 
-    private fun booleanField(path: String, onChange: (Boolean?) -> Unit): JComponent {
+    private fun booleanField(
+        path: String,
+        onChange: (Boolean?) -> Unit,
+        read: (ExperimentRunOverrides) -> Boolean?
+    ): JComponent {
         val raw = BooleanTriStateOverrideField(onValueChange = onChange)
         val wrapped = FieldErrorMarker.attach(raw, path, bus, scope, registry)
         managedFields.add(wrapped)
+        fieldSyncers.add { overrides -> raw.value = read(overrides) }
         return wrapped
     }
 

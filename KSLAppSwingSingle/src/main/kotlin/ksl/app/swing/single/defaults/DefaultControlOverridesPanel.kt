@@ -18,6 +18,7 @@
 
 package ksl.app.swing.single.defaults
 
+import kotlinx.coroutines.launch
 import ksl.app.swing.single.SingleAppController
 import ksl.controls.ControlData
 import ksl.controls.ControlType
@@ -96,6 +97,21 @@ class DefaultControlOverridesPanel(
                 tabs.addTab(tabTitle("JSON", snapshot.jsonControls.size), jsonTab())
             }
             add(tabs, BorderLayout.CENTER)
+
+            // Subscribe to controller.controlOverrides so external state
+            // changes (resetConfiguration, loadConfiguration) refresh
+            // the displayed cells.  The TableModels read the controller's
+            // value lazily inside getValueAt, so a single
+            // fireTableDataChanged per emission is enough — JTable
+            // re-fetches all cells on the next paint.  Without this,
+            // an analyst who clicks Reset to Defaults still sees the
+            // old "Override?" checkboxes and values until they touch
+            // a row themselves.
+            controller.edtScope.launch {
+                controller.controlOverrides.collect {
+                    for (t in tables) (t.model as? AbstractTableModel)?.fireTableDataChanged()
+                }
+            }
         }
     }
 

@@ -730,34 +730,36 @@ class SingleAppFrame(
 
     /**
      * Drive the [statusStrip] from the combined state of
-     * `runningFlow`, `lastResult`, and `isDirty`.
+     * `runningFlow`, `lastResult`, and `editedSinceLastSim`.
      *
      * Precedence (top wins):
      *  - running → "Running…"
-     *  - lastResult exists, dirty since → "Edited / Previous run: …" (stale)
+     *  - lastResult exists, edited since → "Edited / Previous run: …" (stale)
      *  - lastResult exists, clean → "Completed" / "Failed" / etc. with summary
-     *  - lastResult absent, dirty → "Edited / Not yet simulated"
+     *  - lastResult absent, edited → "Edited / Not yet simulated"
      *  - lastResult absent, clean → "Defaults / Model defaults loaded"
      *
-     * Centralizing here avoids fights between separate subscribers
-     * trying to update the same badge.  Five named phases give the
-     * user one place to look for "what is the app showing me about
-     * the workflow right now?"
+     * Uses `editedSinceLastSim` rather than `isDirty` because the
+     * status strip is reporting "does the editor agree with what was
+     * last simulated?", not "does the editor agree with what's on
+     * disk?".  Save flips `isDirty` but not `editedSinceLastSim`, so
+     * the badge correctly stays "Edited / Previous run: …" after
+     * Save (the file matches; the run does not).
      */
     private fun wireStatusStrip() {
         controller.edtScope.launch {
             kotlinx.coroutines.flow.combine(
                 controller.runningFlow,
                 controller.lastResult,
-                controller.isDirty
-            ) { running, result, dirty ->
-                Triple(running, result, dirty)
-            }.collect { (running, result, dirty) ->
+                controller.editedSinceLastSim
+            ) { running, result, edited ->
+                Triple(running, result, edited)
+            }.collect { (running, result, edited) ->
                 when {
                     running -> statusStrip.showRunning()
-                    result != null && dirty -> statusStrip.showStale(result)
+                    result != null && edited -> statusStrip.showStale(result)
                     result != null -> statusStrip.showResult(result)
-                    dirty -> statusStrip.showEditedPreRun()
+                    edited -> statusStrip.showEditedPreRun()
                     else -> statusStrip.showDefaults()
                 }
             }

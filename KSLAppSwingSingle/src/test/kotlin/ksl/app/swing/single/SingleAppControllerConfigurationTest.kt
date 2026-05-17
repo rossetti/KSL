@@ -230,6 +230,61 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
+    fun `fresh controller has editedSinceLastSim = false`() {
+        val c = freshController()
+        assertFalse(c.editedSinceLastSim.value)
+    }
+
+    @Test
+    fun `editing flips editedSinceLastSim true`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 50) }
+        assertTrue(c.editedSinceLastSim.value)
+    }
+
+    @Test
+    fun `markSaved does NOT clear editedSinceLastSim`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 50) }
+        assertTrue(c.editedSinceLastSim.value)
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        // Saving clears isDirty (the editor now matches the file) but
+        // leaves editedSinceLastSim alone — saving has nothing to do
+        // with simulating.  The status badge therefore stays "Edited /
+        // Previous run: …" after Save, which was the user's bug.
+        assertFalse(c.isDirty.value)
+        assertTrue(c.editedSinceLastSim.value, "save should not clear editedSinceLastSim")
+    }
+
+    @Test
+    fun `resetConfiguration clears lastResult and editedSinceLastSim`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 50) }
+        assertTrue(c.editedSinceLastSim.value)
+        c.resetConfiguration()
+        assertFalse(c.editedSinceLastSim.value, "reset should clear editedSinceLastSim")
+        assertNull(c.lastResult.value, "reset should clear lastResult so Reports tab disables")
+    }
+
+    @Test
+    fun `loadConfiguration clears lastResult and editedSinceLastSim`() {
+        val c = freshController()
+        val loaded = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.Embedded("ConfigTestApp"),
+                    runOverrides = ExperimentRunOverrides(numberOfReplications = 11)
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(loaded)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        assertFalse(c.editedSinceLastSim.value, "load should clear editedSinceLastSim")
+        assertNull(c.lastResult.value, "load should clear lastResult")
+    }
+
+    @Test
     fun `modelName from the probe is the sanitized model name`() {
         // ConfigTestModel has no spaces; modelName == simulationName as a string.
         val c = freshController()

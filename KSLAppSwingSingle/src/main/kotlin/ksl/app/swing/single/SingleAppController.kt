@@ -311,33 +311,31 @@ class SingleAppController(
      */
     val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
 
+    private val myEditedSinceLastSim = MutableStateFlow(false)
     /**
-     * `true` when the in-memory configuration has been edited *after*
-     * a terminal run completed.  Indicates that the displayed
-     * [lastResult] no longer reflects what the next Run would
-     * execute — the analyst made changes that haven't been applied.
+     * `true` when the in-memory configuration has been edited *since*
+     * the last completed simulation.  Distinct from [isDirty], which
+     * tracks "differs from the saved file" — saving clears [isDirty]
+     * but does NOT clear this flag because saving has nothing to do
+     * with simulating.  Resetting to defaults also leaves this flag
+     * meaningful (the editor now differs from what was last
+     * simulated), though `resetConfiguration()` also clears
+     * [lastResult] so the badge falls to *Defaults* anyway.
      *
-     * Computed: `isDirty && lastResult != null && !runningFlow.value`.
-     *
-     * Frame consumers use this to switch the status strip from a
-     * "Completed" badge to an "Edited" / "Previous run: …" badge so
-     * the user can tell at a glance that their pending edits aren't
-     * reflected in the summary they're looking at.  Clears on the
-     * next [submit] when auto-save flips `isDirty` back to false.
+     * Set by every editing mutator (run-parameter, control, and RV
+     * override setters and clearers, plus this flag is left untouched
+     * by saves).  Cleared when a new terminal result arrives —
+     * the just-completed run reflects the configuration as submitted.
      */
-    val runConfigurationStale: StateFlow<Boolean> =
-        kotlinx.coroutines.flow.combine(
-            myIsDirty, myLastResult, myRunningFlow
-        ) { dirty, result, running ->
-            dirty && result != null && !running
-        }.stateIn(
-            edtScope,
-            kotlinx.coroutines.flow.SharingStarted.Eagerly,
-            false
-        )
+    val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
 
     private fun markDirty() {
+        // Editing mutators flip BOTH flags.  isDirty tracks "differs
+        // from saved file"; editedSinceLastSim tracks "differs from
+        // what was last simulated".  Saving clears isDirty only;
+        // a new terminal result clears editedSinceLastSim only.
         if (!myIsDirty.value) myIsDirty.value = true
+        if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
     }
 
     private var currentHandle: RunHandle? = null
@@ -532,9 +530,15 @@ class SingleAppController(
         myRunOverrides.value = scenario.runOverrides ?: ExperimentRunOverrides()
         myControlOverrides.value = scenario.controlOverrides
         myRVOverrides.value = scenario.rvOverrides
-        // Clear dirty AFTER the StateFlow assignments so that any
-        // listener-triggered state flip is overwritten.
+        // Clear dirty + edited-since-last-sim + lastResult AFTER the
+        // StateFlow assignments so any listener-triggered state flip
+        // gets overwritten.  Loading a fresh configuration starts a
+        // virgin session: no unsaved changes, no pending edits, and
+        // any prior run's results are no longer related to this
+        // configuration.
         myIsDirty.value = false
+        myEditedSinceLastSim.value = false
+        myLastResult.value = null
         return LoadResult.Loaded(warning)
     }
 
@@ -549,6 +553,13 @@ class SingleAppController(
         myRVOverrides.value = emptyList()
         myCurrentFile.value = null
         myIsDirty.value = false
+        // Reset to defaults means a virgin session: any prior run's
+        // result no longer applies to what's now in the editor, so
+        // clear lastResult + editedSinceLastSim and let the badge
+        // fall back to "Defaults".  The Reports tab also disables
+        // because no snapshot exists.
+        myEditedSinceLastSim.value = false
+        myLastResult.value = null
     }
 
     /**
@@ -604,6 +615,11 @@ class SingleAppController(
         edtScope.launch {
             val result = handle.result.await()
             myLastResult.value = result
+            // The just-completed run reflects the configuration as
+            // submitted; clear the "edited since last sim" flag so the
+            // status badge falls back from "Edited / Previous run: …"
+            // to "Completed (etc.) …" until the next override edit.
+            myEditedSinceLastSim.value = false
             myRunningFlow.value = false
             currentHandle = null
         }
