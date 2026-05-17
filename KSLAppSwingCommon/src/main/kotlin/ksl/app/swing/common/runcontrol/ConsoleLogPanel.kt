@@ -27,12 +27,17 @@ import kotlinx.coroutines.swing.Swing
 import ksl.app.session.RunEvent
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.FlowLayout
+import java.awt.Component
+import java.awt.Dimension
+import java.awt.Font
 import javax.swing.BorderFactory
+import javax.swing.Box
+import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JSeparator
 import javax.swing.JToggleButton
 import javax.swing.SwingConstants
 import javax.swing.text.SimpleAttributeSet
@@ -130,29 +135,35 @@ class ConsoleLogPanel(
     }
 
     private val severityChips = ConsoleSeverity.values().associateWith { severity ->
-        JToggleButton(severity.name).apply {
+        JToggleButton(severityLabel(severity)).apply {
             isSelected = true
             isFocusable = false
+            toolTipText = "${severity.name} severity events"
+            applyRailButtonSizing()
             addActionListener { onSeverityToggle(severity, this.isSelected) }
         }
     }
     private val categoryChips = ConsoleCategory.values()
         .filterNot { it in hiddenCategories }
         .associateWith { category ->
-            JToggleButton(category.name).apply {
+            JToggleButton(categoryLabel(category)).apply {
                 isSelected = true
                 isFocusable = false
+                toolTipText = "${category.name} category events"
+                applyRailButtonSizing()
                 addActionListener { onCategoryToggle(category, this.isSelected) }
             }
         }
-    private val clearButton = JButton("Clear Console").apply {
+    private val clearButton = JButton("Clear").apply {
         isFocusable = false
+        toolTipText = "Clear console (does not affect filters)"
+        applyRailButtonSizing()
         addActionListener { clearConsole() }
     }
 
     init {
         border = BorderFactory.createMatteBorder(1, 0, 0, 0, Color(0xCC, 0xCC, 0xCC))
-        add(buildHeader(), BorderLayout.NORTH)
+        add(buildFilterRail(), BorderLayout.WEST)
         add(scrollPane, BorderLayout.CENTER)
 
         scope.launch(Dispatchers.Swing) {
@@ -162,17 +173,68 @@ class ConsoleLogPanel(
         }
     }
 
-    private fun buildHeader(): JPanel {
-        val header = JPanel(BorderLayout())
-        header.border = BorderFactory.createEmptyBorder(2, 4, 2, 4)
-        val left = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
-            add(JLabel("Console", SwingConstants.LEFT))
-            for (chip in severityChips.values) add(chip)
-            for (chip in categoryChips.values) add(chip)
+    /**
+     * Vertical filter rail rendered on the WEST edge of the console.
+     * Items stack top→bottom:
+     *  - "Filter" header label
+     *  - severity chips (INFO / WARN / ERR)
+     *  - category chips (Life / Rep / Orch, minus any in `hiddenCategories`)
+     *  - vertical glue (pushes Clear to the bottom)
+     *  - "Clear" button
+     *
+     * Each chip and the Clear button share a fixed [RAIL_BUTTON_WIDTH]
+     * so the rail reads as a clean column.  Full enum names are in
+     * tooltips for affordance.
+     */
+    private fun buildFilterRail(): JPanel {
+        val rail = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            border = BorderFactory.createEmptyBorder(6, 6, 6, 6)
         }
-        header.add(left, BorderLayout.CENTER)
-        header.add(clearButton, BorderLayout.EAST)
-        return header
+        val title = JLabel("Filter", SwingConstants.LEFT).apply {
+            alignmentX = Component.LEFT_ALIGNMENT
+            font = font.deriveFont(Font.BOLD)
+        }
+        rail.add(title)
+        rail.add(Box.createVerticalStrut(4))
+        for (chip in severityChips.values) {
+            chip.alignmentX = Component.LEFT_ALIGNMENT
+            rail.add(chip)
+            rail.add(Box.createVerticalStrut(2))
+        }
+        if (categoryChips.isNotEmpty()) {
+            rail.add(Box.createVerticalStrut(4))
+            rail.add(JSeparator(SwingConstants.HORIZONTAL).apply {
+                alignmentX = Component.LEFT_ALIGNMENT
+                maximumSize = Dimension(RAIL_BUTTON_WIDTH, 2)
+            })
+            rail.add(Box.createVerticalStrut(4))
+            for (chip in categoryChips.values) {
+                chip.alignmentX = Component.LEFT_ALIGNMENT
+                rail.add(chip)
+                rail.add(Box.createVerticalStrut(2))
+            }
+        }
+        rail.add(Box.createVerticalGlue())
+        clearButton.alignmentX = Component.LEFT_ALIGNMENT
+        rail.add(clearButton)
+        return rail
+    }
+
+    private fun JToggleButton.applyRailButtonSizing() {
+        val h = preferredSize.height.coerceAtLeast(22)
+        preferredSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        maximumSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        minimumSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        margin = java.awt.Insets(1, 4, 1, 4)
+    }
+
+    private fun JButton.applyRailButtonSizing() {
+        val h = preferredSize.height.coerceAtLeast(22)
+        preferredSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        maximumSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        minimumSize = Dimension(RAIL_BUTTON_WIDTH, h)
+        margin = java.awt.Insets(1, 4, 1, 4)
     }
 
     /** Test-only: number of events currently rendered in the text pane. */
@@ -260,6 +322,26 @@ class ConsoleLogPanel(
 
     companion object {
         private const val SCROLL_EPSILON: Int = 10
+
+        /**
+         * Fixed width of the filter-rail buttons.  Sized to comfortably
+         * fit "WARN" / "Life" / "Clear" — the longest abbreviated label.
+         */
+        private const val RAIL_BUTTON_WIDTH: Int = 64
+
+        /** Short chip label for a severity bucket. */
+        private fun severityLabel(s: ConsoleSeverity): String = when (s) {
+            ConsoleSeverity.INFO -> "INFO"
+            ConsoleSeverity.WARNING -> "WARN"
+            ConsoleSeverity.ERROR -> "ERR"
+        }
+
+        /** Short chip label for a category bucket. */
+        private fun categoryLabel(c: ConsoleCategory): String = when (c) {
+            ConsoleCategory.LIFECYCLE -> "Life"
+            ConsoleCategory.REPLICATION -> "Rep"
+            ConsoleCategory.ORCHESTRATOR -> "Orch"
+        }
 
         /** Severity classification for a [RunEvent]. */
         fun severityOf(event: RunEvent): ConsoleSeverity = when (event) {
