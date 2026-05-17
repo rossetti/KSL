@@ -71,7 +71,8 @@ class KSLScenarioApp(val appName: String) {
      */
     fun launch() {
         SwingUtilities.invokeLater {
-            ScenarioAppFrame(appName).apply {
+            val controller = ScenarioAppController(appName)
+            ScenarioAppFrame(controller).apply {
                 pack()
                 setLocationRelativeTo(null)
                 isVisible = true
