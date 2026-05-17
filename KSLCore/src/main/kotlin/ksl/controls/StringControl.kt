@@ -1,6 +1,7 @@
 package ksl.controls
 
 import ksl.simulation.ModelElement
+import ksl.simulation.ModelElementHierarchy
 import kotlin.reflect.KMutableProperty
 
 internal class StringControl(
@@ -41,13 +42,13 @@ internal class StringControl(
     override val modelName:    String get() = myModelElement.model.name
 
     override val parentElementName: String?
-        get() = ControlHierarchy.parentElement(myModelElement)?.name
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.name
     override val parentElementId: Int?
-        get() = ControlHierarchy.parentElement(myModelElement)?.id
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.id
     override val parentElementType: String?
-        get() = ControlHierarchy.parentElement(myModelElement)?.let { it::class.simpleName }
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.let { it::class.simpleName }
     override val elementPath: List<String>
-        get() = ControlHierarchy.elementPath(myModelElement)
+        get() = ModelElementHierarchy.elementPath(myModelElement)
 
     override fun toString(): String {
         val sb = StringBuilder()

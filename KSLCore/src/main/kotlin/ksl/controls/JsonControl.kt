@@ -5,6 +5,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import ksl.simulation.ModelElement
+import ksl.simulation.ModelElementHierarchy
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KType
 
@@ -66,13 +67,13 @@ internal class JsonControl(
     override val modelName:    String get() = myModelElement.model.name
 
     override val parentElementName: String?
-        get() = ControlHierarchy.parentElement(myModelElement)?.name
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.name
     override val parentElementId: Int?
-        get() = ControlHierarchy.parentElement(myModelElement)?.id
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.id
     override val parentElementType: String?
-        get() = ControlHierarchy.parentElement(myModelElement)?.let { it::class.simpleName }
+        get() = ModelElementHierarchy.parentElement(myModelElement)?.let { it::class.simpleName }
     override val elementPath: List<String>
-        get() = ControlHierarchy.elementPath(myModelElement)
+        get() = ModelElementHierarchy.elementPath(myModelElement)
 
     override fun toString(): String {
         val displayValue = value.let { if (it.length > 80) it.take(80) + "…" else it }

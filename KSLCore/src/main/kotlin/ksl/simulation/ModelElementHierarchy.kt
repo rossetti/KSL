@@ -16,20 +16,23 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.controls
-
-import ksl.simulation.ModelElement
+package ksl.simulation
 
 /**
- *  Shared helpers used by `Control`, `StringControl`, and
- *  `JsonControl` to surface model-element hierarchy information
- *  on the corresponding interface members
- *  ([ControlIfc.parentElementName] et al.).
+ *  Shared helpers that walk the [ModelElement] parent chain.
  *
- *  Lives in the same module as `ksl.simulation` so it can read
- *  `ModelElement.parent` (internal visibility).
+ *  Used by control-extraction code (`ksl.controls.Control`,
+ *  `StringControl`, `JsonControl`) and by random-variable
+ *  parameter extraction (`ksl.utilities.random.rvariable.parameters.
+ *  RVParameterSetter`) to populate the hierarchy fields on their
+ *  respective DTOs.  Module-internal — other modules should not
+ *  depend on this helper directly; instead, consume the hierarchy
+ *  fields already populated on the DTOs.
+ *
+ *  Lives in `ksl.simulation` so it has visibility into
+ *  `ModelElement.parent` (also `internal`).
  */
-internal object ControlHierarchy {
+internal object ModelElementHierarchy {
 
     /**
      *  Returns the parent of [element], or `null` when [element] is

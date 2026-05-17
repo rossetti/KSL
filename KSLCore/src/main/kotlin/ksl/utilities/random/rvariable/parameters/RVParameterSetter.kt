@@ -22,6 +22,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import ksl.modeling.variable.RandomVariable
 import ksl.simulation.Model
+import ksl.simulation.ModelElement
+import ksl.simulation.ModelElementHierarchy
 import ksl.utilities.collections.KSLMaps
 import ksl.utilities.collections.toJson
 import ksl.utilities.random.RandomIfc
@@ -32,6 +34,36 @@ import java.lang.StringBuilder
  *  A data transfer class holding the information about a random
  *  variable's parameters. Used primarily to store the data within
  *  the KSL database.
+ *
+ *  The trailing `parentElement*` fields and [elementPath] surface the
+ *  random variable's location in the model element tree, parallel to
+ *  the hierarchy fields on [ksl.controls.ControlData].  GUI consumers
+ *  (e.g. an RV-overrides panel) can render an *Owner* column and
+ *  group by parent without re-walking the model graph.  Populated by
+ *  [RVParameterSetter.extractParameters]; all four default so older
+ *  snapshots predating the fields still deserialize cleanly.
+ *
+ *  @property clazzName runtime class name of the parameterized random
+ *    variable (e.g. `"ExponentialRV"`).
+ *  @property elementId id of the random variable itself
+ *    (`RandomVariable.id`, not the owner's id).
+ *  @property dataType `"DOUBLE"` or `"INTEGER"` — the expected type
+ *    of [paramValue] when the parameter is set back.
+ *  @property rvName the random variable's name as registered in the
+ *    model.
+ *  @property paramName parameter key on the parameterized RV
+ *    (e.g. `"mean"`).
+ *  @property paramValue current parameter value at snapshot time.
+ *  @property parentElementName name of the model element that owns
+ *    the random variable (its `parent`).  `null` only if the RV's
+ *    parent could not be resolved (the Model itself is reported as
+ *    the parent for top-level RVs, mirroring the controls convention).
+ *  @property parentElementId id of the owning model element.
+ *  @property parentElementType simple class name of the owning
+ *    model element.
+ *  @property elementPath ancestor names from the model root down to
+ *    (but not including) the owning element, also excluding the Model
+ *    itself.  Empty when the owner is a direct child of the Model.
  */
 @Serializable
 data class RVParameterData(
@@ -40,7 +72,11 @@ data class RVParameterData(
     val dataType: String,
     val rvName: String,
     val paramName: String,
-    val paramValue: Double
+    val paramValue: Double,
+    val parentElementName: String? = null,
+    val parentElementId: Int? = null,
+    val parentElementType: String? = null,
+    val elementPath: List<String> = emptyList()
 )
 
 /**
@@ -148,7 +184,38 @@ class RVParameterSetter(private val model: Model) {
             val rs: RandomIfc = rv.initialRandomSource
             if (rs is ParameterizedRV) {
                 rvMap[rv.name] = rs.parameters
-                rvDataList.addAll(rs.parameters.extractParameterData(rv.id, rv.name))
+                // Resolve the random variable's owning element (its parent in
+                // the model tree) once per RV and decorate every parameter
+                // datum produced for it with the matching hierarchy fields.
+                //
+                // Subtle semantic: `elementPath` for a control returns ancestors
+                // *above the holding element*, excluding the Model.  For an RV,
+                // the analogous "holding element" is the RV's parent (the
+                // element that owns the RV), not the RV itself.  Computing
+                // `elementPath(rv)` would treat the RV as the leaf and include
+                // the owner in the path — wrong.  Compute the path of the owner
+                // instead so RV and control hierarchy fields share the same
+                // convention.  For a top-level RV (owner == Model) we emit a
+                // null parent and an empty path; in practice randomVariables()
+                // returns RVs whose parent is an addressable element, so
+                // `owner == null` is defensive.
+                val owner: ModelElement? = ModelElementHierarchy.parentElement(rv)
+                val parentName: String? = owner?.name
+                val parentId: Int? = owner?.id
+                val parentType: String? = owner?.let { it::class.simpleName }
+                val path: List<String> =
+                    owner?.let { ModelElementHierarchy.elementPath(it) } ?: emptyList()
+                val rawData = rs.parameters.extractParameterData(rv.id, rv.name)
+                for (datum in rawData) {
+                    rvDataList.add(
+                        datum.copy(
+                            parentElementName = parentName,
+                            parentElementId = parentId,
+                            parentElementType = parentType,
+                            elementPath = path
+                        )
+                    )
+                }
             }
         }
         // ignores any double[] parameters

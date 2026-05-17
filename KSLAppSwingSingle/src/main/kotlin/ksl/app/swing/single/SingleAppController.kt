@@ -36,6 +36,7 @@ import ksl.app.KSLAppSession
 import ksl.app.RunSpec
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.RVParameterOverride
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.session.RunEvent
@@ -54,6 +55,7 @@ import ksl.controls.experiments.ExperimentRunDefaults
 import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import ksl.utilities.random.rvariable.parameters.RVParameterData
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -111,6 +113,16 @@ class SingleAppController(
     val controlsSnapshot: ModelControlsExport
 
     /**
+     * The model's random-variable parameter snapshot captured at
+     * probe time.  Each entry is one parameter on one parameterized
+     * `RandomVariable`; an RV with multiple parameters (e.g. a
+     * `NormalRV` with `mean` + `variance`) appears as multiple rows.
+     * Empty when the model exposes no parameterized RVs or when the
+     * probe build fails — see [probeFailure].
+     */
+    val rvSnapshot: List<RVParameterData>
+
+    /**
      * `null` when the probe build succeeded; the underlying
      * Throwable otherwise.  Frames surface this as an ERROR
      * notification when the app starts up so the developer can
@@ -119,10 +131,11 @@ class SingleAppController(
     val probeFailure: Throwable?
 
     init {
-        val (defaults, snapshot, failure) = probeModel()
-        this.modelDefaults = defaults
-        this.controlsSnapshot = snapshot
-        this.probeFailure = failure
+        val probe = probeModel()
+        this.modelDefaults = probe.defaults
+        this.controlsSnapshot = probe.controlsSnapshot
+        this.rvSnapshot = probe.rvSnapshot
+        this.probeFailure = probe.failure
     }
 
     /**
@@ -166,18 +179,36 @@ class SingleAppController(
     }
 
     /**
-     * Result triple from a single probe build:
-     *  - the model's [ExperimentRunDefaults] for the parameter panel,
-     *  - the model's [ModelControlsExport] for the control-overrides panel,
-     *  - any underlying [Throwable] thrown by `modelBuilder.build(...)`.
+     * Aggregate of everything one probe build produces for the GUI:
+     * the run-parameter defaults, the controls snapshot, the
+     * RV-parameter snapshot, and (when the build threw) the failure.
+     * Grouped as a single result object so [probeModel] can stay
+     * one-shot and the `init` block can destructure cleanly.
      */
-    private fun probeModel(): Triple<ExperimentRunDefaults, ModelControlsExport, Throwable?> = try {
+    private data class ProbeResult(
+        val defaults: ExperimentRunDefaults,
+        val controlsSnapshot: ModelControlsExport,
+        val rvSnapshot: List<RVParameterData>,
+        val failure: Throwable?
+    )
+
+    private fun probeModel(): ProbeResult = try {
         val model: Model = modelBuilder.build(null, null)
         val descriptor = model.modelDescriptor()
-        Triple(descriptor.experimentRunDefaults, descriptor.controls, null)
+        ProbeResult(
+            defaults = descriptor.experimentRunDefaults,
+            controlsSnapshot = descriptor.controls,
+            rvSnapshot = descriptor.rvParameterData,
+            failure = null
+        )
     } catch (t: Throwable) {
         logger.warn(t) { "ModelBuilder probe build failed; falling back to safe defaults." }
-        Triple(SAFE_FALLBACK_DEFAULTS, ModelControlsExport(modelName = appName), t)
+        ProbeResult(
+            defaults = SAFE_FALLBACK_DEFAULTS,
+            controlsSnapshot = ModelControlsExport(modelName = appName),
+            rvSnapshot = emptyList(),
+            failure = t
+        )
     }
 
     private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
@@ -214,6 +245,17 @@ class SingleAppController(
      * `ScenarioSpec.controlOverrides` field on [submit].
      */
     val controlOverrides: StateFlow<ModelControlsExport> = myControlOverrides.asStateFlow()
+
+    private val myRVOverrides = MutableStateFlow<List<RVParameterOverride>>(emptyList())
+    /**
+     * Pending random-variable parameter overrides.  Each entry pins a
+     * specific `(rvName, paramName)` pair to a numeric value; absent
+     * keys are left at model defaults by
+     * [ksl.utilities.random.rvariable.parameters.RVParameterSetter.changeParameters]
+     * at submit time.  Threaded into the `ScenarioSpec.rvOverrides`
+     * field on [submit].
+     */
+    val rvOverrides: StateFlow<List<RVParameterOverride>> = myRVOverrides.asStateFlow()
 
     private var currentHandle: RunHandle? = null
 
@@ -303,6 +345,29 @@ class SingleAppController(
         )
     }
 
+    // ── RV parameter overrides — mutators ───────────────────────────────────
+
+    /**
+     * Sets the RV-parameter override identified by [rvName] + [paramName]
+     * to [value].  No-op when the pair is not present in [rvSnapshot]
+     * (defensive — the GUI should only offer keys the model exposes).
+     * If an override already exists for the pair, it is replaced.
+     */
+    fun setRVOverride(rvName: String, paramName: String, value: Double) {
+        val knownPair = rvSnapshot.any { it.rvName == rvName && it.paramName == paramName }
+        if (!knownPair) return
+        val current = myRVOverrides.value
+        val without = current.filterNot { it.rvName == rvName && it.paramName == paramName }
+        myRVOverrides.value = without + RVParameterOverride(rvName, paramName, value)
+    }
+
+    /** Removes the RV-parameter override for the (rvName, paramName) pair, reverting to model default. */
+    fun clearRVOverride(rvName: String, paramName: String) {
+        val current = myRVOverrides.value
+        if (current.none { it.rvName == rvName && it.paramName == paramName }) return
+        myRVOverrides.value = current.filterNot { it.rvName == rvName && it.paramName == paramName }
+    }
+
     /**
      * Submits a run with the model built fresh from [modelBuilder].
      * The configuration is a one-scenario [RunConfiguration] keyed
@@ -321,7 +386,8 @@ class SingleAppController(
                     name = appName,
                     modelReference = ModelReference.Embedded(appName),
                     runOverrides = myRunOverrides.value,
-                    controlOverrides = myControlOverrides.value
+                    controlOverrides = myControlOverrides.value,
+                    rvOverrides = myRVOverrides.value
                 )
             )
         )

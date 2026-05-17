@@ -35,6 +35,7 @@ import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.single.defaults.DefaultControlOverridesPanel
 import ksl.app.swing.single.defaults.DefaultParameterPanel
 import ksl.app.swing.single.defaults.DefaultReportsPanel
+import ksl.app.swing.single.defaults.DefaultRVOverridesPanel
 import ksl.app.swing.single.defaults.StandardReportFormat
 import ksl.app.swing.single.defaults.StandardReportMaterializer
 import ksl.app.swing.single.defaults.StandardReportOutcome
@@ -121,6 +122,7 @@ class SingleAppFrame(
 
     private val parameterPanel = DefaultParameterPanel(controller)
     private val controlOverridesPanel = DefaultControlOverridesPanel(controller)
+    private val rvOverridesPanel = DefaultRVOverridesPanel(controller)
     private val reportsPanel = DefaultReportsPanel(
         onStandardReport = { format -> handleStandardReport(format) },
         onAdvanced = {
@@ -245,6 +247,9 @@ class SingleAppFrame(
         if (controlOverridesPanel.isVisible) {
             tabs.addTab("Control Overrides", controlOverridesPanel)
         }
+        if (rvOverridesPanel.isVisible) {
+            tabs.addTab("RV Overrides", rvOverridesPanel)
+        }
         reportsTabIndex = tabs.tabCount
         tabs.addTab("Reports", reportsPanel)
         tabs.setEnabledAt(reportsTabIndex, false)
@@ -259,6 +264,7 @@ class SingleAppFrame(
                 cancelAction.isEnabled = running
                 parameterPanel.isEnabled = !running
                 controlOverridesPanel.isEnabled = !running
+                rvOverridesPanel.isEnabled = !running
                 if (running) {
                     statusStrip.showRunning()
                     notifications.show("Run started", NotificationSeverity.INFO)

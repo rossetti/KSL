@@ -1,6 +1,7 @@
 package ksl.controls
 
 import ksl.simulation.ModelElement
+import ksl.simulation.ModelElementHierarchy
 import ksl.utilities.math.KSLMath
 import kotlin.reflect.KMutableProperty
 
@@ -35,13 +36,13 @@ internal class Control(
         get() = modelElement.model.name
 
     override val parentElementName: String?
-        get() = ControlHierarchy.parentElement(modelElement)?.name
+        get() = ModelElementHierarchy.parentElement(modelElement)?.name
     override val parentElementId: Int?
-        get() = ControlHierarchy.parentElement(modelElement)?.id
+        get() = ModelElementHierarchy.parentElement(modelElement)?.id
     override val parentElementType: String?
-        get() = ControlHierarchy.parentElement(modelElement)?.let { it::class.simpleName }
+        get() = ModelElementHierarchy.parentElement(modelElement)?.let { it::class.simpleName }
     override val elementPath: List<String>
-        get() = ControlHierarchy.elementPath(modelElement)
+        get() = ModelElementHierarchy.elementPath(modelElement)
 
     override var value: Double
         get() = getDoubleFromProperty()
