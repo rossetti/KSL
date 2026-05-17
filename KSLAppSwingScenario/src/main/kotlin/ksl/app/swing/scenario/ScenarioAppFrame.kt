@@ -1,80 +1,79 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksl.app.swing.scenario
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.swing.Swing
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
-import javax.swing.Box
-import javax.swing.BoxLayout
+import javax.swing.BorderFactory
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.SwingConstants
 import javax.swing.WindowConstants
 
 /**
- * Top-level [JFrame] for the scenario-sweep reference app.
+ * Default top-level frame for a `kslScenarioApp(...)` instance.
  *
- * Same MVVM/EDT shape as the single-model app's frame, with the
- * scenario list panel replacing the per-replication config form.
+ * **Phase A — shell only.**  Just opens a window so the module
+ * builds end-to-end and the developer-facing entry point
+ * [kslScenarioApp] has something to instantiate.  Subsequent
+ * phases build the actual content:
+ *
+ *  - Phase C — `ScenarioDocumentController` (document state).
+ *  - Phase D — File menu wiring (New / Open / Save / Save As /
+ *    Reset to Defaults / Set Working Directory / Recent).
+ *  - Phase E — *Scenarios* tab (master JTable + row actions).
+ *  - Phase F — `ScenarioEditorWindow` (modeless child window).
+ *  - Phase G — *Output Options* + *Reports* tabs.
+ *  - Phase H — Run wiring + per-scenario row chips + execution-mode
+ *    toggle + console drawer.
+ *  - Phase I — Bundle library UX.
+ *
+ * See workflow-scenario.md (forthcoming) for the implementation
+ * sequence locked at the end of the §1–12 planning discussion.
+ *
+ * @param appName window title; matches the `appName` passed to
+ *   [kslScenarioApp].  Also used as the per-app workspace
+ *   subdirectory under `<KSLWork>/<appName>/` in later phases.
  */
-internal class ScenarioAppFrame : JFrame("KSL Scenario-Sweep Run") {
-
-    private val uiScope: CoroutineScope = CoroutineScope(Dispatchers.Swing)
-    private val viewModel = ScenarioAppViewModel(scope = uiScope)
-
-    private val modelPicker = ModelPickerPanel(
-        availableModelIds = viewModel.availableModelIds,
-        initialModelId = viewModel.selectedModelId,
-        onModelSelected = { modelId ->
-            viewModel.selectModel(modelId)
-            scenarioListPanel.renderScenarios(viewModel.scenarios)
-        }
-    )
-    private val scenarioListPanel = ScenarioListPanel(viewModel.scenarios)
-    private val runControls = RunControlsPanel(
-        onRun = { viewModel.submit() },
-        onCancel = { viewModel.cancel() }
-    )
-    private val resultPanel = ResultPanel()
+class ScenarioAppFrame(
+    private val appName: String
+) : JFrame(appName) {
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
-        preferredSize = Dimension(760, 560)
+        preferredSize = Dimension(960, 680)
 
-        val content = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(modelPicker)
-            add(scenarioListPanel)
-            add(runControls)
-            add(Box.createVerticalStrut(4))
-            add(resultPanel)
-        }
-        contentPane.add(content, BorderLayout.CENTER)
-
-        viewModel.uiState
-            .onEach { state -> renderUiState(state) }
-            .launchIn(uiScope)
-
-        addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                viewModel.close()
-                uiScope.cancel("frame closed")
-            }
-        })
+        // Phase A placeholder content.  Replaced by the toolbar +
+        // tabs + console drawer + status bar layout in Phases D–I.
+        contentPane.layout = BorderLayout()
+        contentPane.add(buildPlaceholder(), BorderLayout.CENTER)
     }
 
-    private fun renderUiState(state: UiState) {
-        val editing = state is UiState.Idle ||
-            state is UiState.Completed ||
-            state is UiState.Cancelled ||
-            state is UiState.Failed
-        modelPicker.setEditingEnabled(editing)
-        runControls.renderUiState(state)
-        resultPanel.renderUiState(state)
+    private fun buildPlaceholder(): JPanel {
+        val label = JLabel(
+            "Scenario app — Phase A shell.  Content lands in Phases C–I.",
+            SwingConstants.CENTER
+        )
+        return JPanel(BorderLayout()).apply {
+            border = BorderFactory.createEmptyBorder(40, 40, 40, 40)
+            add(label, BorderLayout.CENTER)
+        }
     }
 }

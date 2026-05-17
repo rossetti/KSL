@@ -12,6 +12,11 @@ repositories {
 
 dependencies {
     implementation(project(":KSLCore"))
+    // KSLAppSwingCommon supplies the shared widgets the Scenario app
+    // reuses verbatim: ConfigurationEditorState + the per-scenario
+    // editor panels, ConsoleLogPanel + drawer, workspace status bar,
+    // notifications, validation banner, etc.
+    implementation(project(":KSLAppSwingCommon"))
     // KSLExamples hosts the KSLModelBundle implementations for the
     // bundled example models (MM1Bundle, LKInventoryBundle wrapping
     // GIGcQueue and LKInventoryModel) — these are reference models,
@@ -25,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("ksl.app.swing.scenario.MainKt")
+    mainClass.set("ksl.app.swing.scenario.example.ScenarioStudioAppKt")
 }
 
 kotlin {
