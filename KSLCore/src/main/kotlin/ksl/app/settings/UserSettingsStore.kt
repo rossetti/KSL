@@ -53,13 +53,22 @@ private val logger = KotlinLogging.logger {}
  *
  * @param settingsDir directory containing `settings.toml`; defaults to
  *   `~/.ksl/`.
- * @param userHome the user's home directory, used as the fallback when
- *   no workspace is configured and as the parent for stale-path
- *   recovery.  Defaults to the JVM's `user.home` system property.
+ * @param userHome the user's home directory, used to resolve the
+ *   default workspace path and as the last-resort fallback for
+ *   stale-path recovery.  Defaults to the JVM's `user.home` system
+ *   property.
+ * @param defaultWorkspaceProvider resolves the "out-of-the-box"
+ *   workspace location when the user has not yet set one via
+ *   [setCurrentDirectory] (and when a previously-saved path has gone
+ *   stale).  Defaults to [resolveDefaultWorkspace], which prefers
+ *   `<userHome>/Documents/KSLWork` and falls back to
+ *   `<userHome>/KSLWork` on systems without a `Documents` folder.
+ *   Tests can inject a temp-dir-based provider to stay isolated.
  */
 class UserSettingsStore(
     private val settingsDir: Path = defaultSettingsDir(),
-    private val userHome: Path = Path(System.getProperty("user.home"))
+    private val userHome: Path = Path(System.getProperty("user.home")),
+    private val defaultWorkspaceProvider: (Path) -> Path = ::resolveDefaultWorkspace
 ) {
 
     private val settingsFile: Path = settingsDir.resolve(SETTINGS_FILENAME)
@@ -73,8 +82,21 @@ class UserSettingsStore(
 
     /**
      * Resolves the active workspace path.  Returns the saved
-     * `currentDirectory` when it exists on disk, otherwise [userHome].
-     * Stale saved paths are evicted on first read.
+     * `currentDirectory` when it exists on disk; otherwise resolves
+     * the default workspace via [defaultWorkspaceProvider] and
+     * materializes the directory if it does not yet exist (so
+     * downstream consumers like file choosers always see a valid
+     * starting point).  Stale saved paths are evicted on first read.
+     *
+     * The materialized default — typically `~/Documents/KSLWork` —
+     * is *not* automatically promoted to the saved
+     * `currentDirectory`; that requires an explicit
+     * [setCurrentDirectory] call, normally from a user action
+     * (*File ▸ Set Working Directory…* or saving a configuration
+     * file into a new workspace).  Keeping the saved state empty
+     * for first-run users means an upgrade that changes the default
+     * location is transparent — there's no stale saved path to
+     * migrate.
      */
     @Synchronized
     fun activeWorkspace(): Path {
@@ -84,7 +106,7 @@ class UserSettingsStore(
             if (asPath.exists() && asPath.isDirectory()) {
                 return asPath
             }
-            logger.warn { "Saved workspace '$current' no longer exists; falling back to $userHome." }
+            logger.warn { "Saved workspace '$current' no longer exists; falling back to default." }
             mySettings.update { s ->
                 s.copy(
                     workspace = s.workspace.copy(
@@ -97,7 +119,14 @@ class UserSettingsStore(
             }
             persist()
         }
-        return userHome
+        val fallback = defaultWorkspaceProvider(userHome)
+        return try {
+            if (!fallback.exists()) fallback.createDirectories()
+            fallback
+        } catch (t: Throwable) {
+            logger.warn(t) { "Could not create default workspace '$fallback'; falling back to $userHome." }
+            userHome
+        }
     }
 
     /**
@@ -165,5 +194,29 @@ class UserSettingsStore(
         /** Default settings directory: `~/.ksl/`. */
         fun defaultSettingsDir(): Path =
             Path(System.getProperty("user.home")).resolve(".ksl")
+
+        /**
+         * Default out-of-the-box workspace location for KSL apps.
+         *
+         * Preference order:
+         *  1. `<userHome>/Documents/KSLWork` — when `Documents`
+         *     exists.  Standard on macOS and Windows; also present
+         *     on most desktop Linux distributions.
+         *  2. `<userHome>/KSLWork` — fallback for systems without a
+         *     `Documents` folder.
+         *
+         * Either path is created on demand by [activeWorkspace] when
+         * it is selected.  The "KSLWork" subdirectory keeps the
+         * app's `configs/` and `output/` folders contained, so KSL
+         * does not pollute a user's general-purpose Documents tree.
+         */
+        fun resolveDefaultWorkspace(userHome: Path): Path {
+            val documents = userHome.resolve("Documents")
+            val base = if (documents.exists() && documents.isDirectory()) documents else userHome
+            return base.resolve(WORKSPACE_FOLDER_NAME)
+        }
+
+        /** Name of the per-user workspace folder ("KSLWork"). */
+        const val WORKSPACE_FOLDER_NAME: String = "KSLWork"
     }
 }

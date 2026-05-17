@@ -429,6 +429,14 @@ class SingleAppController(
      * mutate the controller, does not clear [isDirty].
      */
     fun currentConfiguration(): RunConfiguration =
+        // Always emit a non-null runOverrides so the encoded TOML carries
+        // an empty `[scenarios.runOverrides]` section even when nothing
+        // has been edited.  Combined with `explicitNulls = false` in
+        // RunConfigurationToml, an unedited override emits the section
+        // header with no body — self-documenting hint that the section
+        // exists and which fields can be added, without 12 explicit-null
+        // lines.  Edited fields appear under the header; absent fields
+        // are simply not written.
         RunConfiguration(
             scenarios = listOf(
                 ScenarioSpec(

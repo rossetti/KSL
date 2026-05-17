@@ -53,7 +53,20 @@ import net.peanuuutz.tomlkt.Toml
  */
 object RunConfigurationToml {
 
-    private val myToml = Toml
+    /**
+     * Codec configured with `explicitNulls = false` so nullable fields
+     * that are `null` are omitted from the encoded output entirely.
+     * This keeps hand-edited configurations tidy: an unedited
+     * `ExperimentRunOverrides` has 12 null fields, all of which would
+     * otherwise appear under `[scenarios.runOverrides]` as
+     * `field = null` lines and confuse a user reading the file.  With
+     * this setting they vanish.  Decode-time semantics are
+     * symmetrical — missing fields take the property's declared
+     * default (which is `null` for every override field).
+     */
+    private val myToml = Toml {
+        explicitNulls = false
+    }
 
     /** Serialises [config] to a TOML string. */
     fun encode(config: RunConfiguration): String =

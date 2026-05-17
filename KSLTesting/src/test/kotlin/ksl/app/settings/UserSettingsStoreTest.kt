@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.assertEquals
@@ -101,19 +102,30 @@ class UserSettingsStoreTest {
     }
 
     @Test
-    fun `activeWorkspace falls back to userHome when no currentDirectory is set`(@TempDir tempDir: Path) {
+    fun `activeWorkspace falls back to the resolved default when no currentDirectory is set`(@TempDir tempDir: Path) {
         val home = tempDir.resolve("home").also { it.createDirectories() }
-        val store = UserSettingsStore(settingsDir = tempDir.resolve("settings"), userHome = home)
-        assertEquals(home, store.activeWorkspace())
+        val expectedFallback = home.resolve("test-workspace")
+        val store = UserSettingsStore(
+            settingsDir = tempDir.resolve("settings"),
+            userHome = home,
+            defaultWorkspaceProvider = { _ -> expectedFallback }
+        )
+        // First call returns the resolved default and materializes the directory.
+        assertEquals(expectedFallback, store.activeWorkspace())
+        assertTrue(expectedFallback.exists() && expectedFallback.isDirectory())
+        // currentDirectory is intentionally NOT promoted — the saved
+        // state stays empty so a future change in default resolution is
+        // transparent for first-run users.
+        assertNull(store.settings.value.workspace.currentDirectory)
     }
 
     @Test
-    fun `activeWorkspace evicts a stale currentDirectory`(@TempDir tempDir: Path) {
+    fun `activeWorkspace evicts a stale currentDirectory and falls back to the default`(@TempDir tempDir: Path) {
         val settingsDir = tempDir.resolve("settings").also { it.createDirectories() }
         val home = tempDir.resolve("home").also { it.createDirectories() }
         val stale = tempDir.resolve("stale-ws")  // never created
+        val fallback = home.resolve("test-workspace")
 
-        // Hand-write a settings file referencing the missing directory.
         settingsDir.resolve(UserSettingsStore.SETTINGS_FILENAME).writeText(
             """
             [workspace]
@@ -123,10 +135,30 @@ class UserSettingsStoreTest {
             """.trimIndent()
         )
 
-        val store = UserSettingsStore(settingsDir = settingsDir, userHome = home)
-        assertEquals(home, store.activeWorkspace())
+        val store = UserSettingsStore(
+            settingsDir = settingsDir,
+            userHome = home,
+            defaultWorkspaceProvider = { _ -> fallback }
+        )
+        assertEquals(fallback, store.activeWorkspace())
         assertNull(store.settings.value.workspace.currentDirectory)
         assertTrue(store.settings.value.workspace.recent.directories.none { it.contains("stale-ws") })
+    }
+
+    @Test
+    fun `resolveDefaultWorkspace prefers Documents subfolder when it exists`(@TempDir tempDir: Path) {
+        val home = tempDir.resolve("home").also { it.createDirectories() }
+        home.resolve("Documents").createDirectories()
+        val resolved = UserSettingsStore.resolveDefaultWorkspace(home)
+        assertEquals(home.resolve("Documents").resolve(UserSettingsStore.WORKSPACE_FOLDER_NAME), resolved)
+    }
+
+    @Test
+    fun `resolveDefaultWorkspace falls back to home when Documents does not exist`(@TempDir tempDir: Path) {
+        val home = tempDir.resolve("home").also { it.createDirectories() }
+        // Documents intentionally not created.
+        val resolved = UserSettingsStore.resolveDefaultWorkspace(home)
+        assertEquals(home.resolve(UserSettingsStore.WORKSPACE_FOLDER_NAME), resolved)
     }
 
     @Test

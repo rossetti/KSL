@@ -173,6 +173,63 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
+    fun `currentConfiguration always emits a non-null runOverrides`() {
+        val c = freshController()
+        // No edits — value is the all-null default ExperimentRunOverrides.
+        val cfg = c.currentConfiguration()
+        assertEquals(ExperimentRunOverrides(), cfg.scenarios.single().runOverrides,
+            "snapshot should carry a non-null empty ExperimentRunOverrides so encoded TOML " +
+                "shows an empty [scenarios.runOverrides] section header")
+    }
+
+    @Test
+    fun `currentConfiguration retains runOverrides once any field is set`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 5) }
+        val cfg = c.currentConfiguration()
+        assertEquals(5, cfg.scenarios.single().runOverrides?.numberOfReplications)
+    }
+
+    @Test
+    fun `encoded TOML emits an empty runOverrides section for an unedited configuration`() {
+        val c = freshController()
+        val text = RunConfigurationToml.encode(c.currentConfiguration())
+        assertTrue(
+            text.contains("[scenarios.runOverrides]"),
+            "encoded TOML should keep the runOverrides section header (self-documenting); got:\n$text"
+        )
+        // No `field = null` lines should appear under the header.
+        for (field in listOf(
+            "numberOfReplications", "numChunks", "startingRepId", "lengthOfReplication",
+            "lengthOfReplicationWarmUp", "replicationInitializationOption",
+            "maximumAllowedExecutionTimePerReplication", "resetStartStreamOption",
+            "advanceNextSubStreamOption", "antitheticOption",
+            "numberOfStreamAdvancesPriorToRunning", "garbageCollectAfterReplicationFlag"
+        )) {
+            assertFalse(text.contains("$field = null"), "unexpected null line for $field in:\n$text")
+        }
+    }
+
+    @Test
+    fun `encoded TOML emits only set fields when runOverrides is partially edited`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 7) }
+        val text = RunConfigurationToml.encode(c.currentConfiguration())
+        assertTrue(text.contains("[scenarios.runOverrides]"))
+        assertTrue(text.contains("numberOfReplications = 7"))
+        // The 11 unset fields should NOT appear as `field = null` lines.
+        for (field in listOf(
+            "numChunks", "startingRepId", "lengthOfReplication",
+            "lengthOfReplicationWarmUp", "replicationInitializationOption",
+            "maximumAllowedExecutionTimePerReplication", "resetStartStreamOption",
+            "advanceNextSubStreamOption", "antitheticOption",
+            "numberOfStreamAdvancesPriorToRunning", "garbageCollectAfterReplicationFlag"
+        )) {
+            assertFalse(text.contains("$field = null"), "unexpected null line for $field in:\n$text")
+        }
+    }
+
+    @Test
     fun `TOML round-trip via RunConfigurationToml preserves overrides`() {
         val c = freshController("RoundTripApp")
         c.updateRunOverride { it.copy(numberOfReplications = 13, lengthOfReplication = 333.0) }
