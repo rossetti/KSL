@@ -249,6 +249,23 @@
         </encoder>
     </appender>
 
+    <appender name="KSL_APP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/kslApp.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>logs/kslApp.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 2 days' worth of history capped at 30MB total size -->
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>30MB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <appender name="hikari" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/hikari.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -265,6 +282,20 @@
             <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
         </encoder>
     </appender>
+
+    <!--
+        Package-level routing for ksl.app.* (session, bundle, settings,
+        swing.*).  These modules host the GUI app surfaces; their logs
+        are useful but should not pollute the console.  Especially
+        important once stdout capture lands in the GUI console: without
+        this rule, every kotlin-logging call in ksl.app would surface
+        in the captured stream at DEBUG level.  All ksl.app.* loggers
+        inherit this routing because the name match is a prefix; more
+        specific child loggers can override.
+    -->
+    <logger name="ksl.app" level="DEBUG" additivity="false">
+        <appender-ref ref="KSL_APP" />
+    </logger>
 
     <logger name="ksl.utilities.io.dbutil.DatabaseIfc" level="INFO" additivity="false">
         <appender-ref ref="KSLDB" />
