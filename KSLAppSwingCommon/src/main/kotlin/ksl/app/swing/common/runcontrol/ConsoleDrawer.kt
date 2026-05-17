@@ -18,12 +18,6 @@
 
 package ksl.app.swing.common.runcontrol
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.swing.Swing
-import ksl.app.session.RunEvent
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -45,17 +39,21 @@ import javax.swing.JPanel
  * back to the header.
  *
  * The drawer is intended for `BorderLayout.SOUTH` (or equivalent) of the
- * main frame.  It owns the console body internally but does not own the
- * underlying [SharedFlow] — counts are computed from a parallel
- * subscription, so the embedded [ConsoleLogPanel] continues to render
- * lines independently.
+ * main frame.  It owns the console body's layout but not its event
+ * subscription — the embedded [ConsoleLogPanel] already collects from
+ * the shared `RunEvent` flow.  The drawer keeps its counts in sync by
+ * registering listeners on the panel itself
+ * ([ConsoleLogPanel.addAfterEventListener] and
+ * [ConsoleLogPanel.addOnClearListener]), so there's a single thread of
+ * control over both the buffer and the counters — no race window
+ * between a "clear" and an event arriving during it.
  *
- * Counts reset to zero on every `RunEvent.*Started` event so the user
- * always sees the *current* run's tally, not a cumulative one across
- * the session.
+ * Counts reset to zero whenever the panel's buffer is cleared, which
+ * happens (a) on every `RunEvent.Started` when the panel's
+ * `autoClearOnRunStart` is on (default), and (b) on every press of the
+ * panel's Clear button.  The header counter and the rendered log stay
+ * consistent with each other in both cases.
  *
- * @param eventFlow source of run events, shared with the embedded console.
- * @param scope owns the count-subscription job.
  * @param console the [ConsoleLogPanel] to embed as the drawer's body.
  *   The drawer takes layout ownership; do not parent it elsewhere.
  * @param initiallyExpanded whether the drawer starts open.  Default: false.
@@ -63,8 +61,6 @@ import javax.swing.JPanel
  *   Default: 220px.
  */
 class ConsoleDrawer(
-    eventFlow: SharedFlow<RunEvent>,
-    scope: CoroutineScope,
     private val console: ConsoleLogPanel,
     initiallyExpanded: Boolean = false,
     private val expandedHeight: Int = 220
@@ -103,16 +99,21 @@ class ConsoleDrawer(
         add(header, BorderLayout.NORTH)
         add(body, BorderLayout.CENTER)
 
-        scope.launch(Dispatchers.Swing) {
-            eventFlow.collect { ev ->
-                if (isRunStart(ev)) resetCounts()
-                when (ConsoleLogPanel.severityOf(ev)) {
-                    ConsoleSeverity.INFO -> infoCount++
-                    ConsoleSeverity.WARNING -> warnCount++
-                    ConsoleSeverity.ERROR -> errCount++
-                }
-                refreshCountsLabel()
+        // Drive the counters from the panel's own event pipeline so
+        // clear() (whether via the Clear button or auto-clear on run
+        // start) and event-arrival are serialized through a single
+        // thread of control on the EDT.
+        console.addOnClearListener {
+            resetCounts()
+            refreshCountsLabel()
+        }
+        console.addAfterEventListener { ev ->
+            when (ConsoleLogPanel.severityOf(ev)) {
+                ConsoleSeverity.INFO -> infoCount++
+                ConsoleSeverity.WARNING -> warnCount++
+                ConsoleSeverity.ERROR -> errCount++
             }
+            refreshCountsLabel()
         }
     }
 
@@ -171,8 +172,6 @@ class ConsoleDrawer(
 
     private fun toggleLabel(): String =
         if (expanded) "▾ Console" else "▴ Console"
-
-    private fun isRunStart(ev: RunEvent): Boolean = ev is RunEvent.Started
 
     companion object {
         private val COLOR_DEFAULT: Color = Color(0x55, 0x55, 0x55)

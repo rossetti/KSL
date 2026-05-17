@@ -113,17 +113,26 @@ object DefaultEventFormatter : EventFormatter {
  *   categories that don't apply to a given app surface (e.g.
  *   `ORCHESTRATOR` in the single-run app, where no orchestrator
  *   events are ever emitted).
+ * @param autoClearOnRunStart when `true` (default), the buffer and
+ *   text pane are cleared on every `RunEvent.Started` so each new run
+ *   begins with a fresh log.  Set to `false` if you want lines to
+ *   accumulate across runs.  The clear fires *before* the start event
+ *   is itself rendered, so the start event appears as the first line
+ *   of the new run's log.
  */
 class ConsoleLogPanel(
     eventFlow: SharedFlow<RunEvent>,
     scope: CoroutineScope,
     private val formatter: EventFormatter = DefaultEventFormatter,
-    hiddenCategories: Set<ConsoleCategory> = emptySet()
+    hiddenCategories: Set<ConsoleCategory> = emptySet(),
+    private val autoClearOnRunStart: Boolean = true
 ) : JPanel(BorderLayout()) {
 
     private val buffer: MutableList<RunEvent> = mutableListOf()
     private val enabledSeverities: MutableSet<ConsoleSeverity> = ConsoleSeverity.values().toMutableSet()
     private val enabledCategories: MutableSet<ConsoleCategory> = ConsoleCategory.values().toMutableSet()
+    private val onClearListeners: MutableList<() -> Unit> = mutableListOf()
+    private val afterEventListeners: MutableList<(RunEvent) -> Unit> = mutableListOf()
 
     private val textPane = javax.swing.JTextPane().apply {
         isEditable = false
@@ -265,9 +274,35 @@ class ConsoleLogPanel(
         onCategoryToggle(category, enabled)
     }
 
+    /**
+     * Register a callback fired after the buffer + text pane are
+     * cleared (whether by the Clear button or by auto-clear on run
+     * start).  Use to keep external counters/summaries in sync with
+     * the panel's state.  Runs on the EDT.
+     */
+    fun addOnClearListener(listener: () -> Unit) {
+        onClearListeners.add(listener)
+    }
+
+    /**
+     * Register a callback fired after each [RunEvent] has been
+     * processed by the panel (appended to the buffer and, if it
+     * passes the active filters, rendered).  Use to drive external
+     * counters/summaries from the same single thread of control that
+     * owns the buffer, avoiding races against a parallel collector.
+     * Runs on the EDT.
+     */
+    fun addAfterEventListener(listener: (RunEvent) -> Unit) {
+        afterEventListeners.add(listener)
+    }
+
     private fun onEvent(event: RunEvent) {
+        if (autoClearOnRunStart && event is RunEvent.Started) {
+            clearConsole()
+        }
         buffer.add(event)
         if (passesFilters(event)) appendLine(event)
+        for (l in afterEventListeners) l(event)
     }
 
     private fun passesFilters(event: RunEvent): Boolean =
@@ -312,6 +347,7 @@ class ConsoleLogPanel(
     private fun clearConsole() {
         buffer.clear()
         textPane.text = ""
+        for (l in onClearListeners) l()
     }
 
     private fun colorFor(severity: ConsoleSeverity): Color = when (severity) {

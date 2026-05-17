@@ -124,11 +124,7 @@ class SingleAppFrame(
         scope = controller.edtScope,
         hiddenCategories = setOf(ConsoleCategory.ORCHESTRATOR)
     )
-    private val consoleDrawer = ConsoleDrawer(
-        eventFlow = controller.eventFlow,
-        scope = controller.edtScope,
-        console = consolePanel
-    )
+    private val consoleDrawer = ConsoleDrawer(console = consolePanel)
     private val statusStrip = RunStatusStrip()
 
     private val tabs = JTabbedPane()
