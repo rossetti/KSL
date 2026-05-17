@@ -85,6 +85,8 @@ class MM1Builder : ModelBuilderIfc {
         if (experimentRunParameters != null) {
             model.changeRunParameters(experimentRunParameters)
         }
+        println("HELLO from MM1Builder (stdout test)")
+        System.err.println("WORLD from MM1Builder (stderr test)")
         return model
     }
 }

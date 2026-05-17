@@ -119,19 +119,28 @@ object DefaultEventFormatter : EventFormatter {
  *   categories that don't apply to a given app surface (e.g.
  *   `ORCHESTRATOR` in the single-run app, where no orchestrator
  *   events are ever emitted).
- * @param autoClearOnRunStart when `true` (default), the buffer and
- *   text pane are cleared on every `RunEvent.Started` so each new run
- *   begins with a fresh log.  Set to `false` if you want lines to
- *   accumulate across runs.  The clear fires *before* the start event
- *   is itself rendered, so the start event appears as the first line
- *   of the new run's log.
+ * @param autoClearOnRunStart when `true`, the buffer and text pane
+ *   are cleared on every `RunEvent.Started`.  **Default: `false`.**
+ *   The previous default of `true` clashed with synchronous setup work
+ *   that runs *before* `Started` is emitted — for example, validator
+ *   and orchestrator phases that build the model on the calling
+ *   thread.  Anything those phases write (captured `println`,
+ *   warnings, the `[Capture] capture started.` notice the GUI itself
+ *   emits) was being wiped by the auto-clear when `Started`
+ *   subsequently arrived from the simulation coroutine.  GUI hosts
+ *   should instead call [clear] explicitly from the *Run* button's
+ *   handler, *before* invoking the orchestrator — see
+ *   `SingleAppFrame.runAction` — so setup-phase output survives into
+ *   the visible run window.  Set this parameter to `true` only for
+ *   hosts that don't have a single, well-defined "run starts now"
+ *   click moment they own.
  */
 class ConsoleLogPanel(
     eventFlow: SharedFlow<RunEvent>,
     scope: CoroutineScope,
     private val formatter: EventFormatter = DefaultEventFormatter,
     hiddenCategories: Set<ConsoleCategory> = emptySet(),
-    private val autoClearOnRunStart: Boolean = true
+    private val autoClearOnRunStart: Boolean = false
 ) : JPanel(BorderLayout()) {
 
     private val buffer: ArrayDeque<RunEvent> = ArrayDeque()
@@ -296,6 +305,21 @@ class ConsoleLogPanel(
      */
     fun addOnClearListener(listener: () -> Unit) {
         onClearListeners.add(listener)
+    }
+
+    /**
+     * Clear the buffer and the rendered text.  Equivalent to a
+     * programmatic press of the rail's *Clear* button: resets the
+     * dropped-line counter, fires every registered
+     * [addOnClearListener], and leaves the panel ready to accept
+     * fresh events.  Intended for the *Run* button's handler in
+     * GUI hosts that want each run to begin with an empty log
+     * — see [autoClearOnRunStart] for the rationale on doing this
+     * synchronously from the click rather than reactively from
+     * `RunEvent.Started`.  EDT-only.
+     */
+    fun clear() {
+        clearConsole()
     }
 
     /**

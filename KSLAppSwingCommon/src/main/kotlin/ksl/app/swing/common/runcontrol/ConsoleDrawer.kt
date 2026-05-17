@@ -59,7 +59,11 @@ import javax.swing.JPanel
  *   The drawer takes layout ownership; do not parent it elsewhere.
  * @param initiallyExpanded whether the drawer starts open.  Default: false.
  * @param expandedHeight pixel height of the console body when expanded.
- *   Default: 220px.
+ *   Default: 260px — sized for macOS Aqua native button heights so the
+ *   filter rail's Clear button at the bottom remains visible regardless
+ *   of platform L&F.  Smaller L&Fs (Linux GTK at ~24px button height)
+ *   waste a few pixels of glue; that's preferable to clipping Clear
+ *   off the bottom on macOS.
  * @param showCaptureToggle whether to render a *Capture stdout*
  *   checkbox in the drawer header.  Defaults to `true` for the
  *   single-run app surface.  Multi-run app surfaces (Scenario,
@@ -74,7 +78,7 @@ import javax.swing.JPanel
 class ConsoleDrawer(
     private val console: ConsoleLogPanel,
     initiallyExpanded: Boolean = false,
-    private val expandedHeight: Int = 220,
+    private val expandedHeight: Int = 260,
     showCaptureToggle: Boolean = true
 ) : JPanel(BorderLayout()) {
 

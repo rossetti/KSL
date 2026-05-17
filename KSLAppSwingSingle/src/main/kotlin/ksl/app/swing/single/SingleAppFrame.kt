@@ -102,7 +102,18 @@ class SingleAppFrame(
     private val registry: WidgetPathRegistry = WidgetPathRegistry()
 
     private val runAction = object : AbstractAction("Run") {
-        override fun actionPerformed(e: java.awt.event.ActionEvent?) { controller.submit() }
+        override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+            // Clear the console synchronously *before* submitting.  The
+            // validator and orchestrator run on the EDT and call
+            // modelBuilder.build() on this thread; anything they (or the
+            // user's build code) write to stdout/stderr while capture is
+            // on must survive into the visible run log.  Clearing here
+            // — and letting ConsoleLogPanel.autoClearOnRunStart stay
+            // off — gives a single, predictable "this run's log starts
+            // now" boundary aligned with the user's click.
+            consolePanel.clear()
+            controller.submit()
+        }
     }
     private val cancelAction = object : AbstractAction("Cancel") {
         override fun actionPerformed(e: java.awt.event.ActionEvent?) { controller.cancel() }
