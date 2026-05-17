@@ -1,0 +1,194 @@
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2023  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.app.swing.single
+
+import ksl.app.config.ExperimentRunOverrides
+import ksl.app.config.ModelReference
+import ksl.app.config.RunConfiguration
+import ksl.app.config.RunConfigurationToml
+import ksl.app.config.ScenarioSpec
+import ksl.simulation.ExperimentRunParametersIfc
+import ksl.simulation.Model
+import ksl.simulation.ModelBuilderIfc
+import org.junit.jupiter.api.Test
+import kotlin.test.AfterTest
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.assertNull
+
+/**
+ * Tests for [SingleAppController]'s configuration snapshot / load /
+ * dirty-tracking surface (the save/load feature).
+ *
+ * No model fixture is needed to exercise the run-overrides flow — the
+ * controller's probe call accepts a trivial builder whose model has
+ * zero controls and zero RVs.  When more elaborate fixtures are
+ * required (e.g. testing control-override snapshots) the test
+ * constructs one inline.
+ */
+class SingleAppControllerConfigurationTest {
+
+    private val builder = object : ModelBuilderIfc {
+        override fun build(
+            modelConfiguration: Map<String, String>?,
+            experimentRunParameters: ExperimentRunParametersIfc?
+        ): Model = Model("ConfigTestModel", autoCSVReports = false)
+    }
+
+    private var controller: SingleAppController? = null
+
+    @AfterTest
+    fun closeController() {
+        controller?.close()
+        controller = null
+    }
+
+    private fun freshController(appName: String = "ConfigTestApp"): SingleAppController {
+        val c = SingleAppController(appName, builder)
+        controller = c
+        return c
+    }
+
+    @Test
+    fun `fresh controller starts clean with no file association`() {
+        val c = freshController()
+        assertFalse(c.isDirty.value, "fresh controller should not be dirty")
+        assertNull(c.currentFile.value, "fresh controller should have no current file")
+    }
+
+    @Test
+    fun `editing a run override flips dirty true`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 42) }
+        assertTrue(c.isDirty.value, "edit should flip dirty true")
+    }
+
+    @Test
+    fun `no-op transform leaves dirty false`() {
+        val c = freshController()
+        c.updateRunOverride { it }  // identity transform — no change
+        assertFalse(c.isDirty.value, "no-op transform should not flip dirty")
+    }
+
+    @Test
+    fun `currentConfiguration reflects all three override flows`() {
+        val c = freshController("MyApp")
+        c.updateRunOverride { it.copy(numberOfReplications = 50, lengthOfReplication = 250.0) }
+        val cfg = c.currentConfiguration()
+        assertEquals(1, cfg.scenarios.size)
+        val spec = cfg.scenarios.single()
+        assertEquals("MyApp", spec.name)
+        assertTrue(spec.modelReference is ModelReference.Embedded)
+        assertEquals(50, spec.runOverrides?.numberOfReplications)
+        assertEquals(250.0, spec.runOverrides?.lengthOfReplication)
+        assertEquals(0, spec.controlOverrides.totalControls)
+        assertEquals(0, spec.rvOverrides.size)
+    }
+
+    @Test
+    fun `loadConfiguration applies the scenario and clears dirty`() {
+        val c = freshController()
+        // Pre-dirty the controller with a different value.
+        c.updateRunOverride { it.copy(numberOfReplications = 99) }
+        assertTrue(c.isDirty.value)
+        // Load a configuration carrying numberOfReplications = 17.
+        val loaded = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.Embedded("ConfigTestApp"),
+                    runOverrides = ExperimentRunOverrides(numberOfReplications = 17)
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(loaded)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        assertEquals(17, c.runOverrides.value.numberOfReplications)
+        assertFalse(c.isDirty.value, "load should clear dirty")
+        assertNull((outcome as SingleAppController.LoadResult.Loaded).warning)
+    }
+
+    @Test
+    fun `loadConfiguration warns when modelReference name mismatches appName`() {
+        val c = freshController("AppA")
+        val foreign = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "AppA",
+                    modelReference = ModelReference.Embedded("AppB")
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(foreign)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+        val warning = (outcome as SingleAppController.LoadResult.Loaded).warning
+        assertTrue(warning != null && "AppB" in warning && "AppA" in warning)
+    }
+
+    @Test
+    fun `loadConfiguration rejects an empty configuration`() {
+        val c = freshController()
+        val outcome = c.loadConfiguration(RunConfiguration(scenarios = emptyList()))
+        assertTrue(outcome is SingleAppController.LoadResult.Rejected)
+    }
+
+    @Test
+    fun `markSaved associates a file and clears dirty`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 7) }
+        assertTrue(c.isDirty.value)
+        val path = java.nio.file.Paths.get("/tmp/fake/path.toml")
+        c.markSaved(path)
+        assertEquals(path, c.currentFile.value)
+        assertFalse(c.isDirty.value)
+    }
+
+    @Test
+    fun `resetConfiguration clears overrides and file association`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 11) }
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        c.updateRunOverride { it.copy(numberOfReplications = 12) }  // dirty again
+        c.resetConfiguration()
+        assertEquals(ExperimentRunOverrides(), c.runOverrides.value)
+        assertNull(c.currentFile.value)
+        assertFalse(c.isDirty.value)
+    }
+
+    @Test
+    fun `TOML round-trip via RunConfigurationToml preserves overrides`() {
+        val c = freshController("RoundTripApp")
+        c.updateRunOverride { it.copy(numberOfReplications = 13, lengthOfReplication = 333.0) }
+        val original = c.currentConfiguration()
+
+        val text = RunConfigurationToml.encode(original)
+        val decoded = RunConfigurationToml.decode(text)
+
+        val c2 = SingleAppController("RoundTripApp", builder)
+        try {
+            val outcome = c2.loadConfiguration(decoded)
+            assertTrue(outcome is SingleAppController.LoadResult.Loaded)
+            assertEquals(13, c2.runOverrides.value.numberOfReplications)
+            assertEquals(333.0, c2.runOverrides.value.lengthOfReplication)
+        } finally {
+            c2.close()
+        }
+    }
+}

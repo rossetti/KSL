@@ -56,6 +56,7 @@ import ksl.simulation.MapModelProvider
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.random.rvariable.parameters.RVParameterData
+import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -257,6 +258,30 @@ class SingleAppController(
      */
     val rvOverrides: StateFlow<List<RVParameterOverride>> = myRVOverrides.asStateFlow()
 
+    private val myCurrentFile = MutableStateFlow<Path?>(null)
+    /**
+     * Path of the configuration file currently associated with the in-memory
+     * state, or `null` when the state has not yet been saved or loaded.
+     * Updated by [markSaved] and by [loadConfiguration].  The frame uses
+     * this to render the current file name in the window title.
+     */
+    val currentFile: StateFlow<Path?> = myCurrentFile.asStateFlow()
+
+    private val myIsDirty = MutableStateFlow(false)
+    /**
+     * `true` when in-memory configuration has been edited since the last
+     * save or load, `false` otherwise.  Every editing mutator on this
+     * controller (run-parameter, control, and RV override setters and
+     * clearers) flips this to `true`.  [loadConfiguration] and
+     * [markSaved] clear it.  The frame uses this to render an unsaved
+     * marker (`*`) in the window title.
+     */
+    val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+
+    private fun markDirty() {
+        if (!myIsDirty.value) myIsDirty.value = true
+    }
+
     private var currentHandle: RunHandle? = null
 
     init {
@@ -279,7 +304,11 @@ class SingleAppController(
      * ```
      */
     fun updateRunOverride(transform: (ExperimentRunOverrides) -> ExperimentRunOverrides) {
-        myRunOverrides.value = transform(myRunOverrides.value)
+        val updated = transform(myRunOverrides.value)
+        if (updated != myRunOverrides.value) {
+            myRunOverrides.value = updated
+            markDirty()
+        }
     }
 
     // ── Control overrides — per-family mutators ────────────────────────────
@@ -298,6 +327,7 @@ class SingleAppController(
             numericControls = myControlOverrides.value.numericControls
                 .filter { it.keyName != keyName } + template.copy(value = value)
         )
+        markDirty()
     }
 
     /** Removes the numeric override for [keyName], reverting to the model default. */
@@ -307,6 +337,7 @@ class SingleAppController(
         myControlOverrides.value = current.copy(
             numericControls = current.numericControls.filter { it.keyName != keyName }
         )
+        markDirty()
     }
 
     /** Sets the string-control override for [keyName] to [value]. */
@@ -316,6 +347,7 @@ class SingleAppController(
             stringControls = myControlOverrides.value.stringControls
                 .filter { it.keyName != keyName } + template.copy(value = value)
         )
+        markDirty()
     }
 
     /** Removes the string override for [keyName]. */
@@ -325,6 +357,7 @@ class SingleAppController(
         myControlOverrides.value = current.copy(
             stringControls = current.stringControls.filter { it.keyName != keyName }
         )
+        markDirty()
     }
 
     /** Sets the JSON-control override for [keyName] to [jsonValue]. */
@@ -334,6 +367,7 @@ class SingleAppController(
             jsonControls = myControlOverrides.value.jsonControls
                 .filter { it.keyName != keyName } + template.copy(jsonValue = jsonValue)
         )
+        markDirty()
     }
 
     /** Removes the JSON override for [keyName]. */
@@ -343,6 +377,7 @@ class SingleAppController(
         myControlOverrides.value = current.copy(
             jsonControls = current.jsonControls.filter { it.keyName != keyName }
         )
+        markDirty()
     }
 
     // ── RV parameter overrides — mutators ───────────────────────────────────
@@ -359,6 +394,7 @@ class SingleAppController(
         val current = myRVOverrides.value
         val without = current.filterNot { it.rvName == rvName && it.paramName == paramName }
         myRVOverrides.value = without + RVParameterOverride(rvName, paramName, value)
+        markDirty()
     }
 
     /** Removes the RV-parameter override for the (rvName, paramName) pair, reverting to model default. */
@@ -366,6 +402,97 @@ class SingleAppController(
         val current = myRVOverrides.value
         if (current.none { it.rvName == rvName && it.paramName == paramName }) return
         myRVOverrides.value = current.filterNot { it.rvName == rvName && it.paramName == paramName }
+        markDirty()
+    }
+
+    // ── Configuration snapshot / load / save ────────────────────────────────
+
+    /**
+     * Outcome of [loadConfiguration]:
+     *  - [Loaded] — populated successfully, possibly with a non-fatal note
+     *    (e.g. the loaded `modelReference.modelName` doesn't match
+     *    `appName`).  The note is surfaced as a notification by the frame
+     *    and the user can decide whether to keep the loaded state.
+     *  - [Rejected] — the configuration was structurally unloadable
+     *    (zero scenarios, malformed input, etc.).  The controller state
+     *    is left unchanged.
+     */
+    sealed class LoadResult {
+        data class Loaded(val warning: String? = null) : LoadResult()
+        data class Rejected(val reason: String) : LoadResult()
+    }
+
+    /**
+     * Snapshot the current in-memory editor state as a [RunConfiguration]
+     * with a single [ScenarioSpec].  Suitable for TOML serialization via
+     * [ksl.app.config.RunConfigurationToml.encode].  Pure read — does not
+     * mutate the controller, does not clear [isDirty].
+     */
+    fun currentConfiguration(): RunConfiguration =
+        RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = appName,
+                    modelReference = ModelReference.Embedded(appName),
+                    runOverrides = myRunOverrides.value,
+                    controlOverrides = myControlOverrides.value,
+                    rvOverrides = myRVOverrides.value
+                )
+            )
+        )
+
+    /**
+     * Replace the in-memory editor state with the first scenario from
+     * [config].  Clears [isDirty] on success — the just-loaded state is by
+     * definition equivalent to the file it came from.  Does not change
+     * [currentFile]; callers (typically the *Open* flow) should call
+     * [markSaved] separately after a successful load.
+     *
+     * Returns a [LoadResult] describing the outcome.  A
+     * `modelReference.modelName` that does not match this controller's
+     * [appName] is *not* a hard error — many shared configurations
+     * legitimately move between apps that wrap the same model — so the
+     * load proceeds with a [LoadResult.Loaded] carrying a warning.
+     */
+    fun loadConfiguration(config: RunConfiguration): LoadResult {
+        val scenario = config.scenarios.firstOrNull()
+            ?: return LoadResult.Rejected("Configuration has no scenarios.")
+        val ref = scenario.modelReference
+        val warning: String? = if (ref is ModelReference.Embedded && ref.modelName != appName) {
+            "Loaded modelReference '${ref.modelName}' does not match this app's '$appName'. " +
+                "Overrides applied to whatever names match the current model."
+        } else null
+
+        myRunOverrides.value = scenario.runOverrides ?: ExperimentRunOverrides()
+        myControlOverrides.value = scenario.controlOverrides
+        myRVOverrides.value = scenario.rvOverrides
+        // Clear dirty AFTER the StateFlow assignments so that any
+        // listener-triggered state flip is overwritten.
+        myIsDirty.value = false
+        return LoadResult.Loaded(warning)
+    }
+
+    /**
+     * Reset editor state to empty defaults — equivalent to *File → New*.
+     * Clears [currentFile] and [isDirty].  Validation will subsequently
+     * re-run (via the existing `runOverrides` subscriber).
+     */
+    fun resetConfiguration() {
+        myRunOverrides.value = ExperimentRunOverrides()
+        myControlOverrides.value = ModelControlsExport(modelName = controlsSnapshot.modelName)
+        myRVOverrides.value = emptyList()
+        myCurrentFile.value = null
+        myIsDirty.value = false
+    }
+
+    /**
+     * Record that the current state has been persisted to [path].  Sets
+     * [currentFile] and clears [isDirty].  Called by the frame's *Save* /
+     * *Save As…* handlers after a successful write.
+     */
+    fun markSaved(path: Path) {
+        myCurrentFile.value = path
+        myIsDirty.value = false
     }
 
     /**

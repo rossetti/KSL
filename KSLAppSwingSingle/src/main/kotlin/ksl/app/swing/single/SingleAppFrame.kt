@@ -19,6 +19,7 @@
 package ksl.app.swing.single
 
 import kotlinx.coroutines.launch
+import ksl.app.config.RunConfigurationToml
 import ksl.app.session.RunResult
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
@@ -47,6 +48,13 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import javax.swing.AbstractAction
 import javax.swing.BorderFactory
+import javax.swing.JFileChooser
+import javax.swing.KeyStroke
+import javax.swing.filechooser.FileNameExtensionFilter
+import java.awt.Toolkit
+import java.awt.event.KeyEvent
+import java.nio.file.Files
+import java.nio.file.Path
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
@@ -185,6 +193,7 @@ class SingleAppFrame(
 
         wireRunningState()
         wireTerminalNotifications()
+        wireWindowTitle()
         surfaceProbeFailureIfPresent()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) { controller.close() }
@@ -210,8 +219,31 @@ class SingleAppFrame(
     private fun buildMenuBar(): JMenuBar {
         val setWdAction = SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
         val recentMenu = RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope)
+        val menuShortcutKey = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
+        val newItem = JMenuItem(object : AbstractAction("New") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
+        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, menuShortcutKey) }
+        val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleOpen() }
+        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, menuShortcutKey) }
+        val saveItem = JMenuItem(object : AbstractAction("Save") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSave() }
+        }).apply { accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_S, menuShortcutKey) }
+        val saveAsItem = JMenuItem(object : AbstractAction("Save As…") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSaveAs() }
+        }).apply {
+            accelerator = KeyStroke.getKeyStroke(
+                KeyEvent.VK_S, menuShortcutKey or KeyEvent.SHIFT_DOWN_MASK
+            )
+        }
         return JMenuBar().apply {
             add(JMenu("File").apply {
+                add(newItem)
+                add(openItem)
+                addSeparator()
+                add(saveItem)
+                add(saveAsItem)
+                addSeparator()
                 add(JMenuItem(setWdAction))
                 add(recentMenu)
                 addSeparator()
@@ -219,6 +251,155 @@ class SingleAppFrame(
             })
         }
     }
+
+    // ── File menu handlers ──────────────────────────────────────────────────
+
+    /**
+     * *File → New*.  Resets the controller's editor state to empty
+     * defaults.  Prompts to discard if there are unsaved changes; the
+     * dialog is a [javax.swing.JOptionPane.YES_NO_OPTION] confirm — there
+     * is no auto-save fallback because v1 has no scratch storage to
+     * fall back to.
+     */
+    private fun handleNew() {
+        if (!confirmDiscardIfDirty("Discard unsaved changes and start a new configuration?")) return
+        controller.resetConfiguration()
+    }
+
+    /**
+     * *File → Open Configuration…*.  Picks a `.toml` from
+     * `<workspace>/configs/` (the canonical save location per
+     * [ksl.app.settings.WorkspaceLayout.configsDir]) and asks the
+     * controller to load it.  A warning notification surfaces when the
+     * loaded `modelReference` does not match this app's `appName` — the
+     * load still proceeds because configurations may legitimately move
+     * between apps that share a model name.
+     */
+    private fun handleOpen() {
+        if (!confirmDiscardIfDirty("Discard unsaved changes and open another configuration?")) return
+        val workspace = controller.settingsStore.activeWorkspace()
+        val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
+        val chooser = JFileChooser(startDir.toFile()).apply {
+            dialogTitle = "Open Configuration"
+            fileSelectionMode = JFileChooser.FILES_ONLY
+            isMultiSelectionEnabled = false
+            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path: Path = chooser.selectedFile?.toPath() ?: return
+        val text = try {
+            Files.readString(path)
+        } catch (t: Throwable) {
+            notifications.show("Could not read $path: ${t.message ?: t::class.simpleName}", NotificationSeverity.ERROR)
+            return
+        }
+        val config = try {
+            RunConfigurationToml.decode(text)
+        } catch (t: Throwable) {
+            notifications.show(
+                "Failed to parse configuration: ${t.message ?: t::class.simpleName}",
+                NotificationSeverity.ERROR
+            )
+            return
+        }
+        when (val outcome = controller.loadConfiguration(config)) {
+            is SingleAppController.LoadResult.Loaded -> {
+                controller.markSaved(path)
+                outcome.warning?.let { notifications.show(it, NotificationSeverity.WARNING) }
+                notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
+            }
+            is SingleAppController.LoadResult.Rejected -> {
+                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+            }
+        }
+    }
+
+    /**
+     * *File → Save*.  Writes to the currently-associated file when one
+     * exists, falling back to *Save As…* when not (e.g. first save).
+     */
+    private fun handleSave() {
+        val existing = controller.currentFile.value
+        if (existing == null) handleSaveAs() else writeConfigurationTo(existing)
+    }
+
+    /**
+     * *File → Save As…*.  Prompts for a destination under
+     * `<workspace>/configs/`, defaulting the file name to the app name.
+     * Adds the `.toml` extension if the user didn't.
+     */
+    private fun handleSaveAs() {
+        val workspace = controller.settingsStore.activeWorkspace()
+        val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
+        val defaultName = (controller.currentFile.value?.fileName?.toString())
+            ?: "${sanitizeFileName(controller.appName)}.toml"
+        val chooser = JFileChooser(startDir.toFile()).apply {
+            dialogTitle = "Save Configuration"
+            fileSelectionMode = JFileChooser.FILES_ONLY
+            isMultiSelectionEnabled = false
+            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+            selectedFile = startDir.resolve(defaultName).toFile()
+        }
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
+        var path: Path = chooser.selectedFile?.toPath() ?: return
+        if (path.fileName.toString().substringAfterLast('.', "") != "toml") {
+            path = path.resolveSibling("${path.fileName}.toml")
+        }
+        if (Files.exists(path)) {
+            val overwrite = javax.swing.JOptionPane.showConfirmDialog(
+                this,
+                "${path.fileName} already exists.\nReplace it?",
+                "Replace Configuration",
+                javax.swing.JOptionPane.YES_NO_OPTION,
+                javax.swing.JOptionPane.WARNING_MESSAGE
+            )
+            if (overwrite != javax.swing.JOptionPane.YES_OPTION) return
+        }
+        writeConfigurationTo(path)
+    }
+
+    private fun writeConfigurationTo(path: Path) {
+        val config = controller.currentConfiguration()
+        val text = try {
+            RunConfigurationToml.encode(config)
+        } catch (t: Throwable) {
+            notifications.show(
+                "Failed to encode configuration: ${t.message ?: t::class.simpleName}",
+                NotificationSeverity.ERROR
+            )
+            return
+        }
+        try {
+            Files.createDirectories(path.parent)
+            Files.writeString(path, text)
+        } catch (t: Throwable) {
+            notifications.show(
+                "Could not write $path: ${t.message ?: t::class.simpleName}",
+                NotificationSeverity.ERROR
+            )
+            return
+        }
+        controller.markSaved(path)
+        notifications.show("Saved ${path.fileName}", NotificationSeverity.INFO)
+    }
+
+    /**
+     * Returns `true` when the user wants to proceed (no unsaved changes,
+     * or confirmed discard); `false` to abort the calling operation.
+     */
+    private fun confirmDiscardIfDirty(question: String): Boolean {
+        if (!controller.isDirty.value) return true
+        val choice = javax.swing.JOptionPane.showConfirmDialog(
+            this, question, "Unsaved Changes",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.WARNING_MESSAGE
+        )
+        return choice == javax.swing.JOptionPane.YES_OPTION
+    }
+
+    /** Strip filesystem-unsafe characters from [name] for use as a default file name. */
+    private fun sanitizeFileName(name: String): String =
+        name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "configuration" }
 
     private fun buildRunToolbar(): JComponent {
         val runButton = JButton(runAction)
@@ -255,6 +436,35 @@ class SingleAppFrame(
         tabs.setEnabledAt(reportsTabIndex, false)
         tabs.setToolTipTextAt(reportsTabIndex, "Run the model to enable reports")
         return tabs
+    }
+
+    /**
+     * Keep the window title synchronized with `appName`, the optional
+     * current file name (basename only), and the dirty flag.  Format:
+     *
+     * ```
+     * M/M/1 Queue                       (no file, clean)
+     * M/M/1 Queue *                     (no file, edited)
+     * M/M/1 Queue — MM1.toml            (file open, saved)
+     * M/M/1 Queue — MM1.toml *          (file open, edited)
+     * ```
+     *
+     * Two collectors keep the binding cheap and easy to reason about —
+     * StateFlows are conflated so each combine() emission is the latest
+     * pair.
+     */
+    private fun wireWindowTitle() {
+        controller.edtScope.launch {
+            kotlinx.coroutines.flow.combine(
+                controller.currentFile,
+                controller.isDirty
+            ) { file, dirty -> file to dirty }
+                .collect { (file, dirty) ->
+                    val fileSegment = file?.fileName?.toString()?.let { " — $it" }.orEmpty()
+                    val dirtyMark = if (dirty) " *" else ""
+                    title = "${controller.appName}$fileSegment$dirtyMark"
+                }
+        }
     }
 
     private fun wireRunningState() {
