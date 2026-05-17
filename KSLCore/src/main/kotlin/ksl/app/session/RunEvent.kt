@@ -208,6 +208,25 @@ sealed class RunEvent {
     ) : RunEvent()
 
     /**
+     * One line of output captured from `System.out` or `System.err` while
+     * a GUI host (e.g. `kslSingleApp(...)`) had its *Capture stdout* toggle
+     * enabled.  The framework itself does not emit these — they are
+     * injected by the host's capture machinery into the host's console
+     * pipeline so user `println` output appears alongside framework
+     * events.  Listeners that filter on framework lifecycle events should
+     * ignore this variant.
+     *
+     * @property text the captured line, without the trailing newline.
+     * @property fromErr `true` if the line was written to `System.err`;
+     *   `false` if to `System.out`.  Hosts use this to drive severity
+     *   classification (stderr → ERROR, stdout → INFO).
+     */
+    data class StdOutLine(
+        val text: String,
+        val fromErr: Boolean
+    ) : RunEvent()
+
+    /**
      * Terminal event — emitted when an unexpected exception is thrown during
      * replication execution.  Always the last event on the flow.
      *

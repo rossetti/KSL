@@ -171,6 +171,47 @@ class ConsoleLogPanelTest {
         }
     }
 
+    // ── stdout capture: classification + injection ─────────────────────────
+
+    @Test
+    fun `StdOutLine classifies into STDOUT category with severity by stream`() {
+        val outEvent = RunEvent.StdOutLine("hello stdout", fromErr = false)
+        val errEvent = RunEvent.StdOutLine("uh-oh stderr", fromErr = true)
+        assertEquals(ConsoleSeverity.INFO, ConsoleLogPanel.severityOf(outEvent))
+        assertEquals(ConsoleSeverity.ERROR, ConsoleLogPanel.severityOf(errEvent))
+        assertEquals(ConsoleCategory.STDOUT, ConsoleLogPanel.categoryOf(outEvent))
+        assertEquals(ConsoleCategory.STDOUT, ConsoleLogPanel.categoryOf(errEvent))
+    }
+
+    @Test
+    fun `injectStdOutLine routes captured text through the panel pipeline`() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
+        try {
+            val panel = onEdt { ConsoleLogPanel(MutableSharedFlow(), scope) }
+            onEdt {
+                panel.injectStdOutLine("hello from user code", fromErr = false)
+                panel.injectStdOutLine("oops from user code", fromErr = true)
+            }
+            onEdt {
+                val text = panel.renderedText
+                assertTrue(text.contains("hello from user code"), "stdout line should render; got: $text")
+                assertTrue(text.contains("oops from user code"), "stderr line should render; got: $text")
+                // Severity prefixes — stdout → [INFO], stderr → [ERROR]
+                assertTrue(text.contains("[INFO] hello from user code"))
+                assertTrue(text.contains("[ERROR] oops from user code"))
+            }
+            // STDOUT category filter hides both when toggled off.
+            onEdt { panel.simulateCategoryToggle(ConsoleCategory.STDOUT, enabled = false) }
+            onEdt {
+                val text = panel.renderedText
+                assertTrue(!text.contains("hello from user code"))
+                assertTrue(!text.contains("oops from user code"))
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
     // ── bounded buffer ─────────────────────────────────────────────────────
 
     @Test

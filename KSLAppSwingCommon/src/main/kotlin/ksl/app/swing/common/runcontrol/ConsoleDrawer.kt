@@ -26,6 +26,7 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -59,11 +60,22 @@ import javax.swing.JPanel
  * @param initiallyExpanded whether the drawer starts open.  Default: false.
  * @param expandedHeight pixel height of the console body when expanded.
  *   Default: 220px.
+ * @param showCaptureToggle whether to render a *Capture stdout*
+ *   checkbox in the drawer header.  Defaults to `true` for the
+ *   single-run app surface.  Multi-run app surfaces (Scenario,
+ *   Experiment, SimOpt) should pass `false`: in those, stdout
+ *   capture would interleave output across many simulated runs and
+ *   isn't useful for analyst-facing diagnostics.  When hiding the
+ *   toggle, also hide the `STDOUT` category chip from the
+ *   [ConsoleLogPanel] via its `hiddenCategories` parameter so the
+ *   rail isn't cluttered with chrome for a feature that can't be
+ *   reached.
  */
 class ConsoleDrawer(
     private val console: ConsoleLogPanel,
     initiallyExpanded: Boolean = false,
-    private val expandedHeight: Int = 220
+    private val expandedHeight: Int = 220,
+    showCaptureToggle: Boolean = true
 ) : JPanel(BorderLayout()) {
 
     private var expanded: Boolean = initiallyExpanded
@@ -79,6 +91,18 @@ class ConsoleDrawer(
     private val countsLabel: JLabel = JLabel(countsText()).apply {
         border = BorderFactory.createEmptyBorder(0, 6, 0, 0)
     }
+    private val captureCheckbox: JCheckBox? = if (showCaptureToggle) {
+        JCheckBox("Capture stdout").apply {
+            isFocusable = false
+            isSelected = StdoutCapture.isInstalled()
+            toolTipText = "Tee System.out / System.err into the console " +
+                "from this point forward.  Captured lines appear under " +
+                "the STDOUT category (filter chip: Out)."
+            addActionListener {
+                if (isSelected) startCapture() else stopCapture()
+            }
+        }
+    } else null
     private val header: JPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.X_AXIS)
         border = BorderFactory.createCompoundBorder(
@@ -89,6 +113,9 @@ class ConsoleDrawer(
         add(Box.createHorizontalStrut(12))
         add(countsLabel)
         add(Box.createHorizontalGlue())
+        if (captureCheckbox != null) {
+            add(captureCheckbox)
+        }
     }
     private val body: JPanel = JPanel(BorderLayout()).apply {
         add(console, BorderLayout.CENTER)
@@ -172,6 +199,31 @@ class ConsoleDrawer(
 
     private fun toggleLabel(): String =
         if (expanded) "▾ Console" else "▴ Console"
+
+    /**
+     * Install [StdoutCapture] with this drawer's console as the sink
+     * and announce the change with a synthetic INFO line.  Called by
+     * the capture-toggle action listener; no-op if the toggle is
+     * hidden (the listener is never registered).
+     */
+    private fun startCapture() {
+        StdoutCapture.install { text, fromErr ->
+            console.injectStdOutLine(text, fromErr)
+        }
+        console.injectStdOutLine(
+            "[Capture] stdout/stderr capture started.",
+            fromErr = false
+        )
+    }
+
+    /** Counterpart of [startCapture]: announce, then uninstall. */
+    private fun stopCapture() {
+        console.injectStdOutLine(
+            "[Capture] stdout/stderr capture stopped.",
+            fromErr = false
+        )
+        StdoutCapture.uninstall()
+    }
 
     companion object {
         private val COLOR_DEFAULT: Color = Color(0x55, 0x55, 0x55)

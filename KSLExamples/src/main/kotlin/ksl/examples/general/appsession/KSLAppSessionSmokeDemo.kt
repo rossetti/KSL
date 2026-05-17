@@ -347,7 +347,8 @@ private class ConsoleRunRenderer(
             is RunEvent.ReplicationStarted,
             is RunEvent.SimTimeAdvanced,
             is RunEvent.DesignPointCompleted,
-            is RunEvent.IterationCompleted -> Unit
+            is RunEvent.IterationCompleted,
+            is RunEvent.StdOutLine -> Unit
         }
     }
 

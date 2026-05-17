@@ -208,7 +208,8 @@ private class ConsoleOptimizationRenderer(
             is RunEvent.ReplicationEnded,
             is RunEvent.SimTimeAdvanced,
             is RunEvent.ScenarioCompleted,
-            is RunEvent.DesignPointCompleted -> Unit
+            is RunEvent.DesignPointCompleted,
+            is RunEvent.StdOutLine -> Unit
         }
     }
 

@@ -53,7 +53,7 @@ enum class ConsoleSeverity { INFO, WARNING, ERROR }
  * Category bucket used by [ConsoleLogPanel].  Independent from
  * [ConsoleSeverity].
  */
-enum class ConsoleCategory { LIFECYCLE, REPLICATION, ORCHESTRATOR }
+enum class ConsoleCategory { LIFECYCLE, REPLICATION, ORCHESTRATOR, STDOUT }
 
 /**
  * Renders a [RunEvent] as a single human-readable line.  Override
@@ -89,6 +89,12 @@ object DefaultEventFormatter : EventFormatter {
                 if (event.snapshot == null) " (failed)" else " complete"
         is RunEvent.IterationCompleted ->
             "Iteration ${event.iteration}: best objective = ${event.estimatedObjectiveValue}"
+        // Captured stdout/stderr lines: render the raw text only so
+        // user code's `println` output looks like itself.  The
+        // appendLine path still prepends `[INFO]` / `[ERR]` decoration
+        // and applies severity coloring; that's enough to indicate
+        // origin without injecting a framework-style prefix.
+        is RunEvent.StdOutLine -> event.text
     }
 }
 
@@ -293,6 +299,32 @@ class ConsoleLogPanel(
     }
 
     /**
+     * Inject a captured stdout/stderr line into the panel's event
+     * pipeline.  Synthesizes a [RunEvent.StdOutLine] and routes it
+     * through the standard [onEvent] path so the panel's buffer,
+     * filters, after-event listeners, and bounded-cap behavior all
+     * apply uniformly.
+     *
+     * Safe to call from any thread — non-EDT callers are dispatched
+     * onto the EDT via `SwingUtilities.invokeLater`.  Intended for
+     * use by a host's stdout-capture machinery (see
+     * `StdoutCapture`).  Framework code emitting `StdOutLine`
+     * through the normal `SharedFlow` does not need this method.
+     *
+     * @param text the captured line (without trailing newline).
+     * @param fromErr `true` for `System.err` lines (rendered as ERROR
+     *   severity), `false` for `System.out` (INFO severity).
+     */
+    fun injectStdOutLine(text: String, fromErr: Boolean) {
+        val event = RunEvent.StdOutLine(text, fromErr)
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            onEvent(event)
+        } else {
+            javax.swing.SwingUtilities.invokeLater { onEvent(event) }
+        }
+    }
+
+    /**
      * Register a callback fired after each [RunEvent] has been
      * processed by the panel (appended to the buffer and, if it
      * passes the active filters, rendered).  Use to drive external
@@ -446,6 +478,7 @@ class ConsoleLogPanel(
             ConsoleCategory.LIFECYCLE -> "Life"
             ConsoleCategory.REPLICATION -> "Rep"
             ConsoleCategory.ORCHESTRATOR -> "Orch"
+            ConsoleCategory.STDOUT -> "Out"
         }
 
         /** Severity classification for a [RunEvent]. */
@@ -455,6 +488,7 @@ class ConsoleLogPanel(
             is RunEvent.RunWarning -> ConsoleSeverity.WARNING
             is RunEvent.ScenarioCompleted -> if (event.snapshot == null) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
             is RunEvent.DesignPointCompleted -> if (event.snapshot == null) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
+            is RunEvent.StdOutLine -> if (event.fromErr) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
             else -> ConsoleSeverity.INFO
         }
 
@@ -466,6 +500,7 @@ class ConsoleLogPanel(
             is RunEvent.ScenarioCompleted,
             is RunEvent.DesignPointCompleted,
             is RunEvent.IterationCompleted -> ConsoleCategory.ORCHESTRATOR
+            is RunEvent.StdOutLine -> ConsoleCategory.STDOUT
             else -> ConsoleCategory.LIFECYCLE
         }
     }
