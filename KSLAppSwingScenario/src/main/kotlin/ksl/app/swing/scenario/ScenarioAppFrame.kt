@@ -35,16 +35,12 @@ import java.awt.event.WindowEvent
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.AbstractAction
-import javax.swing.BorderFactory
 import javax.swing.JFileChooser
 import javax.swing.JFrame
-import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
-import javax.swing.JPanel
 import javax.swing.KeyStroke
-import javax.swing.SwingConstants
 import javax.swing.WindowConstants
 import javax.swing.filechooser.FileNameExtensionFilter
 
@@ -81,7 +77,7 @@ class ScenarioAppFrame(
 
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
-        contentPane.add(buildPlaceholder(), BorderLayout.CENTER)
+        contentPane.add(ScenariosTablePanel(controller), BorderLayout.CENTER)
 
         wireWindowTitle()
         wireDirtyIndicators()
@@ -91,17 +87,6 @@ class ScenarioAppFrame(
                 controller.close()
             }
         })
-    }
-
-    private fun buildPlaceholder(): JPanel {
-        val label = JLabel(
-            "Scenarios tab lands in Phase E.",
-            SwingConstants.CENTER
-        )
-        return JPanel(BorderLayout()).apply {
-            border = BorderFactory.createEmptyBorder(40, 40, 40, 40)
-            add(label, BorderLayout.CENTER)
-        }
     }
 
     private fun buildMenuBar(): JMenuBar {
