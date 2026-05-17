@@ -86,6 +86,21 @@ import ksl.controls.ModelControlsExport
  *                             this scenario from the runnable set even
  *                             if it is otherwise valid; useful for
  *                             staging which scenarios to run.
+ * @property enableReplicationCSV  when `true`, the orchestrator turns
+ *                             on `Model.autoReplicationCSVReports` for
+ *                             this scenario so per-replication response
+ *                             data is written to the scenario's
+ *                             output directory.  Independent of any
+ *                             document-level CSV setting and of
+ *                             [enableExperimentCSV].  Default false.
+ * @property enableExperimentCSV   when `true`, the orchestrator turns
+ *                             on `Model.autoExperimentCSVReports` for
+ *                             this scenario so across-replication
+ *                             summary statistics are written to the
+ *                             scenario's output directory.
+ *                             Independent of any document-level CSV
+ *                             setting and of [enableReplicationCSV].
+ *                             Default false.
  */
 @Serializable
 data class ScenarioSpec(
@@ -95,7 +110,9 @@ data class ScenarioSpec(
     val controlOverrides: ModelControlsExport = ModelControlsExport(modelName = ""),
     val rvOverrides: List<RVParameterOverride> = emptyList(),
     val modelConfiguration: Map<String, String>? = null,
-    val skipOnRun: Boolean = false
+    val skipOnRun: Boolean = false,
+    val enableReplicationCSV: Boolean = false,
+    val enableExperimentCSV: Boolean = false
 ) {
     init {
         require(name.isNotBlank()) { "name must be non-blank" }

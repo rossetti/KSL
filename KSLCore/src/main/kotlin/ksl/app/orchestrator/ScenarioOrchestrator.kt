@@ -227,6 +227,15 @@ class ScenarioOrchestrator {
                     model.configuration = effectiveConfig
                 }
 
+                // Per-scenario CSV reporting flags (Scenario app's per-spec
+                // output toggles; see ScenarioSpec.enableReplicationCSV /
+                // enableExperimentCSV).  Set before Runner takes the model
+                // so Model.simulate() picks them up.  Independent of any
+                // document-level OutputConfig CSV flags — Scenario's
+                // GUI exposes only per-spec CSV.
+                model.autoReplicationCSVReports = spec.enableReplicationCSV
+                model.autoExperimentCSVReports = spec.enableExperimentCSV
+
                 return model
             }
         }
