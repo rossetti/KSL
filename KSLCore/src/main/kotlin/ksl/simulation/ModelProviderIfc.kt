@@ -15,11 +15,51 @@ typealias ModelCreator = (jsonModelConfig: String) -> Model
  * constructing a Model object.
  * It can be implemented to encapsulate the logic required to create
  * specific types of model instances.
+ *
+ * ## Build-call contract
+ *
+ * Implementations of [build] **must be pure constructors**: produce
+ * a fresh, usable [Model] from the supplied inputs and do nothing
+ * else.  The framework reserves the right to call [build] more than
+ * once per analyst-visible "Run" (e.g. the validator and the
+ * orchestrator each independently build the model for their own
+ * purposes, and a probe-time build may happen for GUI bootstrap),
+ * so implementations **must not**:
+ *
+ *  - Perform expensive or slow I/O — disk reads beyond what's needed
+ *    to construct the model, network calls, external process spawns,
+ *    etc.  A slow `build` directly slows every Run.
+ *  - Mutate external state — write to files, increment counters,
+ *    open database connections, register JVM-wide singletons.
+ *    External effects fire once per build, not once per Run.
+ *  - Hold expensive constructor-time resources beyond the returned
+ *    Model's lifetime.  A built Model that's never simulated (e.g.
+ *    discarded by a validator after shape inspection) should leave
+ *    no lingering OS resources behind.
+ *  - Assume a single `build` per Run.  Caching of immutable
+ *    configuration objects across multiple builds is fine; mutable
+ *    state is not.
+ *
+ * Implementations **may** assume:
+ *
+ *  - The same `(modelConfiguration, experimentRunParameters)` pair
+ *    yields equivalent (not necessarily identical) Models on
+ *    successive calls.
+ *  - The returned Model will be configured further by the caller
+ *    (run-parameter overrides, control overrides, RV overrides,
+ *    `model.outputDirectory = ...`) before `simulate()` is invoked
+ *    on it.  Builders should leave room for those mutations rather
+ *    than locking down state in the constructor.
  */
 interface ModelBuilderIfc {
 
     /**
      * Constructs a `Model` instance based on the provided configuration strings.
+     *
+     * See the interface KDoc for the build-call contract — in
+     * particular, that this method **may be invoked more than once
+     * per Run** and must therefore be a side-effect-free pure
+     * constructor.
      *
      * @param modelConfiguration A map of strings representing the model configuration. The key string
      * should contain the necessary information for being able to use the paired string value.
