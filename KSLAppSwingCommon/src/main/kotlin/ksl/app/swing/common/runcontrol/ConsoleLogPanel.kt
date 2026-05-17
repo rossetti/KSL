@@ -128,11 +128,19 @@ class ConsoleLogPanel(
     private val autoClearOnRunStart: Boolean = true
 ) : JPanel(BorderLayout()) {
 
-    private val buffer: MutableList<RunEvent> = mutableListOf()
+    private val buffer: ArrayDeque<RunEvent> = ArrayDeque()
     private val enabledSeverities: MutableSet<ConsoleSeverity> = ConsoleSeverity.values().toMutableSet()
     private val enabledCategories: MutableSet<ConsoleCategory> = ConsoleCategory.values().toMutableSet()
     private val onClearListeners: MutableList<() -> Unit> = mutableListOf()
     private val afterEventListeners: MutableList<(RunEvent) -> Unit> = mutableListOf()
+    /**
+     * Running count of buffer entries that have been dropped from the
+     * head due to the [MAX_BUFFER_SIZE] cap.  Surfaced as a dimmed
+     * "… N earlier line(s) dropped" notice at the top of the rendered
+     * text, so the user can tell their session has truncated history.
+     * Reset to zero by [clearConsole].
+     */
+    private var droppedCount: Int = 0
 
     private val textPane = javax.swing.JTextPane().apply {
         isEditable = false
@@ -301,7 +309,19 @@ class ConsoleLogPanel(
             clearConsole()
         }
         buffer.add(event)
-        if (passesFilters(event)) appendLine(event)
+        if (buffer.size > MAX_BUFFER_SIZE) {
+            // Soft cap exceeded — drop a batch of oldest entries at
+            // once (amortizes the rebuild cost over BUFFER_TRIM_BATCH
+            // events so it isn't O(N) per event past the cap) and
+            // re-render so the "earlier lines dropped" header refreshes.
+            repeat(BUFFER_TRIM_BATCH) {
+                if (buffer.isNotEmpty()) buffer.removeFirst()
+            }
+            droppedCount += BUFFER_TRIM_BATCH
+            rebuild()
+        } else if (passesFilters(event)) {
+            appendLine(event)
+        }
         for (l in afterEventListeners) l(event)
     }
 
@@ -341,12 +361,36 @@ class ConsoleLogPanel(
 
     private fun rebuild() {
         textPane.text = ""
+        if (droppedCount > 0) appendDroppedNotice()
         for (event in buffer) if (passesFilters(event)) appendLine(event)
+    }
+
+    /**
+     * Insert a dimmed italic notice at the current end of the document
+     * telling the user the buffer has dropped older entries.  Always
+     * called from [rebuild]; the buffer-trim path goes through rebuild
+     * so this line is always at the top of a freshly rendered view.
+     */
+    private fun appendDroppedNotice() {
+        val doc = textPane.styledDocument
+        val attrs = SimpleAttributeSet()
+        StyleConstants.setForeground(attrs, Color(0x88, 0x88, 0x88))
+        StyleConstants.setItalic(attrs, true)
+        try {
+            doc.insertString(
+                doc.length,
+                "… $droppedCount earlier line(s) dropped (buffer capped at $MAX_BUFFER_SIZE)\n",
+                attrs
+            )
+        } catch (_: javax.swing.text.BadLocationException) {
+            // Defensive: shouldn't happen with insert-at-length.
+        }
     }
 
     private fun clearConsole() {
         buffer.clear()
         textPane.text = ""
+        droppedCount = 0
         for (l in onClearListeners) l()
     }
 
@@ -356,6 +400,12 @@ class ConsoleLogPanel(
         ConsoleSeverity.ERROR -> Color(0xC6, 0x28, 0x28)
     }
 
+    /** Test-only: number of events dropped from the head due to the buffer cap. */
+    internal val droppedCountForTest: Int get() = droppedCount
+
+    /** Test-only: current buffer size (events not yet dropped). */
+    internal val bufferSizeForTest: Int get() = buffer.size
+
     companion object {
         private const val SCROLL_EPSILON: Int = 10
 
@@ -364,6 +414,25 @@ class ConsoleLogPanel(
          * fit "WARN" / "Life" / "Clear" — the longest abbreviated label.
          */
         private const val RAIL_BUTTON_WIDTH: Int = 64
+
+        /**
+         * Soft cap on the in-memory event buffer.  When exceeded, the
+         * oldest [BUFFER_TRIM_BATCH] entries are dropped at once.  Sized
+         * so a chatty model (`println` on every replication × 30 reps
+         * × 500 events ≈ 15 000 lines) overflows only a few times in
+         * a typical run — keeping the dropped-count footer visible
+         * but not alarming.  Memory footprint ~10 K events × small
+         * `RunEvent` data class ≈ a couple of MB.
+         */
+        const val MAX_BUFFER_SIZE: Int = 10_000
+
+        /**
+         * Number of oldest entries discarded in one trim pass when the
+         * buffer hits the cap.  Larger than 1 so we don't pay the
+         * rebuild cost on every event past the cap — amortized cost
+         * per event is O(1) when this is significant.
+         */
+        const val BUFFER_TRIM_BATCH: Int = 1_000
 
         /** Short chip label for a severity bucket. */
         private fun severityLabel(s: ConsoleSeverity): String = when (s) {

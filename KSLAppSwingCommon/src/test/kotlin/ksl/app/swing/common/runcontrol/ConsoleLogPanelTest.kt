@@ -171,6 +171,55 @@ class ConsoleLogPanelTest {
         }
     }
 
+    // ── bounded buffer ─────────────────────────────────────────────────────
+
+    @Test
+    fun `buffer stays bounded and surfaces a dropped-line notice past the cap`() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
+        try {
+            val panel = onEdt { ConsoleLogPanel(MutableSharedFlow(), scope) }
+            val cap = ConsoleLogPanel.MAX_BUFFER_SIZE
+            val batch = ConsoleLogPanel.BUFFER_TRIM_BATCH
+            // Push enough events to overflow the cap by two trim batches
+            // so droppedCount accumulates predictably.
+            val pushCount = cap + 2 * batch + 5
+            onEdt {
+                repeat(pushCount) { i ->
+                    panel.pushEventForTest(replicationStarted(rep = i + 1))
+                }
+            }
+            onEdt {
+                // After each trim of BUFFER_TRIM_BATCH events, buffer.size
+                // drops to (cap - batch + 1).  Subsequent pushes refill
+                // until the next trim.  Either way, buffer never exceeds
+                // the cap.
+                assertTrue(
+                    panel.bufferSizeForTest <= cap,
+                    "buffer should stay <= cap; got ${panel.bufferSizeForTest}"
+                )
+                // droppedCount must be a positive multiple of batch.
+                assertTrue(
+                    panel.droppedCountForTest > 0 &&
+                        panel.droppedCountForTest % batch == 0,
+                    "droppedCount should be a positive multiple of $batch; got ${panel.droppedCountForTest}"
+                )
+                assertTrue(
+                    panel.renderedText.contains("earlier line(s) dropped"),
+                    "rendered text should announce the dropped lines; got: ${panel.renderedText.take(200)}"
+                )
+            }
+            // Clear resets dropped count and the notice goes away.
+            onEdt { panel.simulateClear() }
+            onEdt {
+                assertEquals(0, panel.droppedCountForTest)
+                assertEquals(0, panel.bufferSizeForTest)
+                assertTrue(!panel.renderedText.contains("earlier line(s) dropped"))
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
     private fun <T> onEdt(block: () -> T): T {
         var result: Result<T>? = null
         SwingUtilities.invokeAndWait { result = runCatching(block) }
