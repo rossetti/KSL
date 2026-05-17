@@ -83,16 +83,16 @@ private val logger = KotlinLogging.logger {}
 class SingleAppController(
     val appName: String,
     val modelBuilder: ModelBuilderIfc
-) : AutoCloseable {
+) : AutoCloseable, ksl.app.swing.common.editor.ConfigurationEditorState {
 
     /** Scope for EDT-confined coroutine work (event forwarding, etc.). */
-    val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())
+    override val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())
 
     /** User-wide settings (workspace, recent list).  Real file at `~/.ksl/settings.toml`. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
     /** Validation bus.  Empty until parameter-panel wiring lands in N2. */
-    val validationBus: ValidationFeedbackBus = ValidationFeedbackBus()
+    override val validationBus: ValidationFeedbackBus = ValidationFeedbackBus()
 
     private val provider: MapModelProvider = MapModelProvider(appName, modelBuilder)
     private val session: KSLAppSession = KSLAppSession(provider = provider)
@@ -107,14 +107,14 @@ class SingleAppController(
      * Throwable is exposed as [probeFailure] so the frame can
      * surface a notification.
      */
-    val modelDefaults: ExperimentRunDefaults
+    override val modelDefaults: ExperimentRunDefaults
 
     /**
      * The model's controls snapshot captured at probe time.
      * Empty (`modelName = appName`, all family lists empty) when
      * the probe fails — see [probeFailure].
      */
-    val controlsSnapshot: ModelControlsExport
+    override val controlsSnapshot: ModelControlsExport
 
     /**
      * The model's random-variable parameter snapshot captured at
@@ -124,7 +124,7 @@ class SingleAppController(
      * Empty when the model exposes no parameterized RVs or when the
      * probe build fails — see [probeFailure].
      */
-    val rvSnapshot: List<RVParameterData>
+    override val rvSnapshot: List<RVParameterData>
 
     /**
      * Sanitized model name captured at probe time, suitable for use
@@ -261,7 +261,7 @@ class SingleAppController(
 
     private val myRunOverrides = MutableStateFlow(ExperimentRunOverrides())
     /** Pending run-parameter overrides.  Threaded into the ScenarioSpec on [submit]. */
-    val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
+    override val runOverrides: StateFlow<ExperimentRunOverrides> = myRunOverrides.asStateFlow()
 
     // Seeded with the probe-captured modelName so the orchestrator's
     // Controls.importAll() doesn't emit CONTROL_MODEL_NAME_MISMATCH.  The
@@ -280,7 +280,7 @@ class SingleAppController(
      * [ksl.controls.Controls.importAll] at submit time.  Threaded into the
      * `ScenarioSpec.controlOverrides` field on [submit].
      */
-    val controlOverrides: StateFlow<ModelControlsExport> = myControlOverrides.asStateFlow()
+    override val controlOverrides: StateFlow<ModelControlsExport> = myControlOverrides.asStateFlow()
 
     private val myRVOverrides = MutableStateFlow<List<RVParameterOverride>>(emptyList())
     /**
@@ -291,7 +291,7 @@ class SingleAppController(
      * at submit time.  Threaded into the `ScenarioSpec.rvOverrides`
      * field on [submit].
      */
-    val rvOverrides: StateFlow<List<RVParameterOverride>> = myRVOverrides.asStateFlow()
+    override val rvOverrides: StateFlow<List<RVParameterOverride>> = myRVOverrides.asStateFlow()
 
     private val myOutputConfig = MutableStateFlow(OutputConfig())
     /**
@@ -372,7 +372,7 @@ class SingleAppController(
      * controller.updateRunOverride { it.copy(numberOfReplications = newValue) }
      * ```
      */
-    fun updateRunOverride(transform: (ExperimentRunOverrides) -> ExperimentRunOverrides) {
+    override fun updateRunOverride(transform: (ExperimentRunOverrides) -> ExperimentRunOverrides) {
         val updated = transform(myRunOverrides.value)
         if (updated != myRunOverrides.value) {
             myRunOverrides.value = updated
@@ -390,7 +390,7 @@ class SingleAppController(
      * the call is a no-op (defensive — the GUI should only offer keys
      * the model exposes).
      */
-    fun setNumericOverride(keyName: String, value: Double) {
+    override fun setNumericOverride(keyName: String, value: Double) {
         val template = controlsSnapshot.numericControls.firstOrNull { it.keyName == keyName } ?: return
         myControlOverrides.value = myControlOverrides.value.copy(
             numericControls = myControlOverrides.value.numericControls
@@ -400,7 +400,7 @@ class SingleAppController(
     }
 
     /** Removes the numeric override for [keyName], reverting to the model default. */
-    fun clearNumericOverride(keyName: String) {
+    override fun clearNumericOverride(keyName: String) {
         val current = myControlOverrides.value
         if (current.numericControls.none { it.keyName == keyName }) return
         myControlOverrides.value = current.copy(
@@ -410,7 +410,7 @@ class SingleAppController(
     }
 
     /** Sets the string-control override for [keyName] to [value]. */
-    fun setStringOverride(keyName: String, value: String) {
+    override fun setStringOverride(keyName: String, value: String) {
         val template = controlsSnapshot.stringControls.firstOrNull { it.keyName == keyName } ?: return
         myControlOverrides.value = myControlOverrides.value.copy(
             stringControls = myControlOverrides.value.stringControls
@@ -420,7 +420,7 @@ class SingleAppController(
     }
 
     /** Removes the string override for [keyName]. */
-    fun clearStringOverride(keyName: String) {
+    override fun clearStringOverride(keyName: String) {
         val current = myControlOverrides.value
         if (current.stringControls.none { it.keyName == keyName }) return
         myControlOverrides.value = current.copy(
@@ -430,7 +430,7 @@ class SingleAppController(
     }
 
     /** Sets the JSON-control override for [keyName] to [jsonValue]. */
-    fun setJsonOverride(keyName: String, jsonValue: String) {
+    override fun setJsonOverride(keyName: String, jsonValue: String) {
         val template = controlsSnapshot.jsonControls.firstOrNull { it.keyName == keyName } ?: return
         myControlOverrides.value = myControlOverrides.value.copy(
             jsonControls = myControlOverrides.value.jsonControls
@@ -440,7 +440,7 @@ class SingleAppController(
     }
 
     /** Removes the JSON override for [keyName]. */
-    fun clearJsonOverride(keyName: String) {
+    override fun clearJsonOverride(keyName: String) {
         val current = myControlOverrides.value
         if (current.jsonControls.none { it.keyName == keyName }) return
         myControlOverrides.value = current.copy(
@@ -457,7 +457,7 @@ class SingleAppController(
      * (defensive — the GUI should only offer keys the model exposes).
      * If an override already exists for the pair, it is replaced.
      */
-    fun setRVOverride(rvName: String, paramName: String, value: Double) {
+    override fun setRVOverride(rvName: String, paramName: String, value: Double) {
         val knownPair = rvSnapshot.any { it.rvName == rvName && it.paramName == paramName }
         if (!knownPair) return
         val current = myRVOverrides.value
@@ -467,7 +467,7 @@ class SingleAppController(
     }
 
     /** Removes the RV-parameter override for the (rvName, paramName) pair, reverting to model default. */
-    fun clearRVOverride(rvName: String, paramName: String) {
+    override fun clearRVOverride(rvName: String, paramName: String) {
         val current = myRVOverrides.value
         if (current.none { it.rvName == rvName && it.paramName == paramName }) return
         myRVOverrides.value = current.filterNot { it.rvName == rvName && it.paramName == paramName }

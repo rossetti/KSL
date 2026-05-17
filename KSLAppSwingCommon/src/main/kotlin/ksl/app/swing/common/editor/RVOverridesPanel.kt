@@ -16,10 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.defaults
+package ksl.app.swing.common.editor
 
 import kotlinx.coroutines.launch
-import ksl.app.swing.single.SingleAppController
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 import java.awt.BorderLayout
 import java.awt.Component
@@ -56,18 +55,18 @@ import javax.swing.table.TableRowSorter
  *
  * Filter strip + Group-by-Owner toggle work the same way as the
  * control-override tabs.  The whole panel hides itself when the model
- * exposes no parameterized RVs (`controller.rvSnapshot.isEmpty()`).
+ * exposes no parameterized RVs (`state.rvSnapshot.isEmpty()`).
  *
  * Override rows pass [ksl.app.config.RVParameterOverride] objects into
- * `controller.rvOverrides`, which the orchestrator hands to
+ * `state.rvOverrides`, which the orchestrator hands to
  * `RVParameterSetter.changeParameters` at submit time.  Absent
  * (rvName, paramName) pairs are left at model defaults.
  */
-class DefaultRVOverridesPanel(
-    private val controller: SingleAppController
+class RVOverridesPanel(
+    private val state: ConfigurationEditorState
 ) : JPanel(BorderLayout()) {
 
-    private val snapshot: List<RVParameterData> get() = controller.rvSnapshot
+    private val snapshot: List<RVParameterData> get() = state.rvSnapshot
     private var table: JTable? = null
     private var filterField: JTextField? = null
     private var resetButton: JButton? = null
@@ -79,12 +78,12 @@ class DefaultRVOverridesPanel(
             isVisible = false
         } else {
             add(buildTable(), BorderLayout.CENTER)
-            // Subscribe to controller.rvOverrides so external state
+            // Subscribe to state.rvOverrides so external state
             // changes (resetConfiguration, loadConfiguration) refresh
             // the displayed cells.  See DefaultControlOverridesPanel
             // for the same pattern and rationale.
-            controller.edtScope.launch {
-                controller.rvOverrides.collect {
+            state.edtScope.launch {
+                state.rvOverrides.collect {
                     table?.let { (it.model as? AbstractTableModel)?.fireTableDataChanged() }
                 }
             }
@@ -100,7 +99,7 @@ class DefaultRVOverridesPanel(
     }
 
     private fun buildTable(): JPanel {
-        val model = RVOverridesTableModel(snapshot, controller)
+        val model = RVOverridesTableModel(snapshot, state)
         val tbl = JTable(model).apply {
             autoCreateRowSorter = false
             fillsViewportHeight = true
@@ -172,7 +171,7 @@ class DefaultRVOverridesPanel(
 
 internal class RVOverridesTableModel(
     private val rows: List<RVParameterData>,
-    private val controller: SingleAppController
+    private val state: ConfigurationEditorState
 ) : AbstractTableModel() {
 
     private val columns = listOf("Override?", "Owner", "RV", "Parameter", "Value", "Default", "Type", "Class")
@@ -200,7 +199,7 @@ internal class RVOverridesTableModel(
             COL_RV -> r.rvName
             COL_PARAM -> r.paramName
             COL_VALUE -> {
-                val ov = controller.rvOverrides.value.firstOrNull {
+                val ov = state.rvOverrides.value.firstOrNull {
                     it.rvName == r.rvName && it.paramName == r.paramName
                 }
                 if (ov == null) "" else formatValue(r, ov.value)
@@ -217,14 +216,14 @@ internal class RVOverridesTableModel(
         when (columnIndex) {
             COL_OVERRIDE -> {
                 val checked = value as? Boolean ?: false
-                if (checked) controller.setRVOverride(r.rvName, r.paramName, r.paramValue)
-                else controller.clearRVOverride(r.rvName, r.paramName)
+                if (checked) state.setRVOverride(r.rvName, r.paramName, r.paramValue)
+                else state.clearRVOverride(r.rvName, r.paramName)
                 fireTableRowsUpdated(rowIndex, rowIndex)
             }
             COL_VALUE -> {
                 val text = (value as? String)?.trim().orEmpty()
                 val parsed = parseForType(r, text) ?: return
-                controller.setRVOverride(r.rvName, r.paramName, parsed)
+                state.setRVOverride(r.rvName, r.paramName, parsed)
                 fireTableRowsUpdated(rowIndex, rowIndex)
             }
         }
@@ -235,7 +234,7 @@ internal class RVOverridesTableModel(
     /** Current effective value for the cell editor — override value if set, else snapshot default. */
     fun effectiveValue(modelRow: Int): String {
         val r = rows[modelRow]
-        val ov = controller.rvOverrides.value.firstOrNull {
+        val ov = state.rvOverrides.value.firstOrNull {
             it.rvName == r.rvName && it.paramName == r.paramName
         }
         return formatValue(r, ov?.value ?: r.paramValue)
@@ -243,13 +242,13 @@ internal class RVOverridesTableModel(
 
     fun isOverridden(modelRow: Int): Boolean {
         val r = rows[modelRow]
-        return controller.rvOverrides.value.any {
+        return state.rvOverrides.value.any {
             it.rvName == r.rvName && it.paramName == r.paramName
         }
     }
 
     fun resetAllOverrides() {
-        for (r in rows) controller.clearRVOverride(r.rvName, r.paramName)
+        for (r in rows) state.clearRVOverride(r.rvName, r.paramName)
         fireTableDataChanged()
     }
 

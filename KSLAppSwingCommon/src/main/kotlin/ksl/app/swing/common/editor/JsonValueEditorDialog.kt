@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.defaults
+package ksl.app.swing.common.editor
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement

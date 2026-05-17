@@ -16,10 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.defaults
+package ksl.app.swing.common.editor
 
 import kotlinx.coroutines.launch
-import ksl.app.swing.single.SingleAppController
 import ksl.controls.ControlData
 import ksl.controls.ControlType
 import ksl.controls.JsonControlData
@@ -71,11 +70,11 @@ import javax.swing.table.TableRowSorter
  * controls at all.  Individual tabs only appear for non-empty
  * families.
  */
-class DefaultControlOverridesPanel(
-    private val controller: SingleAppController
+class ControlOverridesPanel(
+    private val state: ConfigurationEditorState
 ) : JPanel(BorderLayout()) {
 
-    private val snapshot get() = controller.controlsSnapshot
+    private val snapshot get() = state.controlsSnapshot
     private val tables: MutableList<JTable> = mutableListOf()
     private val filterFields: MutableList<JTextField> = mutableListOf()
     private val resetButtons: MutableList<JButton> = mutableListOf()
@@ -98,7 +97,7 @@ class DefaultControlOverridesPanel(
             }
             add(tabs, BorderLayout.CENTER)
 
-            // Subscribe to controller.controlOverrides so external state
+            // Subscribe to state.controlOverrides so external state
             // changes (resetConfiguration, loadConfiguration) refresh
             // the displayed cells.  The TableModels read the controller's
             // value lazily inside getValueAt, so a single
@@ -107,8 +106,8 @@ class DefaultControlOverridesPanel(
             // an analyst who clicks Reset to Defaults still sees the
             // old "Override?" checkboxes and values until they touch
             // a row themselves.
-            controller.edtScope.launch {
-                controller.controlOverrides.collect {
+            state.edtScope.launch {
+                state.controlOverrides.collect {
                     for (t in tables) (t.model as? AbstractTableModel)?.fireTableDataChanged()
                 }
             }
@@ -126,7 +125,7 @@ class DefaultControlOverridesPanel(
     // ── Tab construction ───────────────────────────────────────────────────
 
     private fun numericTab(): JComponent {
-        val model = NumericControlTableModel(snapshot.numericControls, controller)
+        val model = NumericControlTableModel(snapshot.numericControls, state)
         val table = makeTable(model)
         table.columnModel.getColumn(NumericControlTableModel.COL_VALUE).cellEditor =
             NumericValueCellEditor(model)
@@ -134,7 +133,7 @@ class DefaultControlOverridesPanel(
     }
 
     private fun stringTab(): JComponent {
-        val model = StringControlTableModel(snapshot.stringControls, controller)
+        val model = StringControlTableModel(snapshot.stringControls, state)
         val table = makeTable(model)
         table.columnModel.getColumn(StringControlTableModel.COL_VALUE).cellEditor =
             StringValueCellEditor(model)
@@ -142,7 +141,7 @@ class DefaultControlOverridesPanel(
     }
 
     private fun jsonTab(): JComponent {
-        val model = JsonControlTableModel(snapshot.jsonControls, controller)
+        val model = JsonControlTableModel(snapshot.jsonControls, state)
         val table = makeTable(model)
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
@@ -155,7 +154,7 @@ class DefaultControlOverridesPanel(
                 val data = model.dataAt(modelRow)
                 val current = model.effectiveValue(modelRow)
                 val updated = JsonValueEditorDialog.show(
-                    owner = SwingUtilities.getWindowAncestor(this@DefaultControlOverridesPanel),
+                    owner = SwingUtilities.getWindowAncestor(this@ControlOverridesPanel),
                     keyName = data.keyName,
                     typeHint = data.typeHint,
                     initialJson = current
@@ -292,7 +291,7 @@ private class GroupingRowSorter(
 
 internal class NumericControlTableModel(
     private val controls: List<ControlData>,
-    private val controller: SingleAppController
+    private val state: ConfigurationEditorState
 ) : OverrideTableModel() {
 
     private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Type", "Bounds", "Comment")
@@ -324,7 +323,7 @@ internal class NumericControlTableModel(
             COL_TYPE -> c.controlType.name
             COL_DEFAULT -> formatNumeric(c, c.value)
             COL_VALUE -> {
-                val override = controller.controlOverrides.value.numericControls.firstOrNull { it.keyName == c.keyName }
+                val override = state.controlOverrides.value.numericControls.firstOrNull { it.keyName == c.keyName }
                 if (override == null) "" else formatNumeric(c, override.value)
             }
             COL_BOUNDS -> "[${c.lowerBound}, ${c.upperBound}]"
@@ -338,14 +337,14 @@ internal class NumericControlTableModel(
         when (columnIndex) {
             COL_OVERRIDE -> {
                 val checked = value as? Boolean ?: false
-                if (checked) controller.setNumericOverride(c.keyName, c.value)
-                else controller.clearNumericOverride(c.keyName)
+                if (checked) state.setNumericOverride(c.keyName, c.value)
+                else state.clearNumericOverride(c.keyName)
                 fireTableRowsUpdated(rowIndex, rowIndex)
             }
             COL_VALUE -> {
                 val parsed = (value as? String)?.trim()?.toDoubleOrNull()
                 if (parsed != null) {
-                    controller.setNumericOverride(c.keyName, parsed)
+                    state.setNumericOverride(c.keyName, parsed)
                     fireTableRowsUpdated(rowIndex, rowIndex)
                 }
             }
@@ -354,11 +353,11 @@ internal class NumericControlTableModel(
 
     override fun isOverridden(modelRow: Int): Boolean {
         val key = controls[modelRow].keyName
-        return controller.controlOverrides.value.numericControls.any { it.keyName == key }
+        return state.controlOverrides.value.numericControls.any { it.keyName == key }
     }
 
     override fun resetAllOverrides() {
-        for (c in controls) controller.clearNumericOverride(c.keyName)
+        for (c in controls) state.clearNumericOverride(c.keyName)
         fireTableDataChanged()
     }
 
@@ -366,7 +365,7 @@ internal class NumericControlTableModel(
 
     fun effectiveValue(modelRow: Int): String {
         val c = controls[modelRow]
-        val override = controller.controlOverrides.value.numericControls.firstOrNull { it.keyName == c.keyName }
+        val override = state.controlOverrides.value.numericControls.firstOrNull { it.keyName == c.keyName }
         return formatNumeric(c, override?.value ?: c.value)
     }
 
@@ -409,7 +408,7 @@ internal class NumericControlTableModel(
 
 internal class StringControlTableModel(
     private val controls: List<StringControlData>,
-    private val controller: SingleAppController
+    private val state: ConfigurationEditorState
 ) : OverrideTableModel() {
 
     private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Allowed values", "Comment")
@@ -440,7 +439,7 @@ internal class StringControlTableModel(
             COL_PARENT -> c.parentElementName ?: "—"
             COL_ALLOWED -> if (c.allowedValues.isEmpty()) "(free text)" else c.allowedValues.joinToString(", ")
             COL_DEFAULT -> c.value
-            COL_VALUE -> controller.controlOverrides.value.stringControls.firstOrNull { it.keyName == c.keyName }?.value ?: ""
+            COL_VALUE -> state.controlOverrides.value.stringControls.firstOrNull { it.keyName == c.keyName }?.value ?: ""
             COL_COMMENT -> c.comment
             else -> null
         }
@@ -451,13 +450,13 @@ internal class StringControlTableModel(
         when (columnIndex) {
             COL_OVERRIDE -> {
                 val checked = value as? Boolean ?: false
-                if (checked) controller.setStringOverride(c.keyName, c.value)
-                else controller.clearStringOverride(c.keyName)
+                if (checked) state.setStringOverride(c.keyName, c.value)
+                else state.clearStringOverride(c.keyName)
                 fireTableRowsUpdated(rowIndex, rowIndex)
             }
             COL_VALUE -> {
                 val text = (value as? String) ?: return
-                controller.setStringOverride(c.keyName, text)
+                state.setStringOverride(c.keyName, text)
                 fireTableRowsUpdated(rowIndex, rowIndex)
             }
         }
@@ -465,11 +464,11 @@ internal class StringControlTableModel(
 
     override fun isOverridden(modelRow: Int): Boolean {
         val key = controls[modelRow].keyName
-        return controller.controlOverrides.value.stringControls.any { it.keyName == key }
+        return state.controlOverrides.value.stringControls.any { it.keyName == key }
     }
 
     override fun resetAllOverrides() {
-        for (c in controls) controller.clearStringOverride(c.keyName)
+        for (c in controls) state.clearStringOverride(c.keyName)
         fireTableDataChanged()
     }
 
@@ -502,7 +501,7 @@ internal class StringControlTableModel(
 
 internal class JsonControlTableModel(
     private val controls: List<JsonControlData>,
-    private val controller: SingleAppController
+    private val state: ConfigurationEditorState
 ) : OverrideTableModel() {
 
     private val columns = listOf("Override?", "Parent", "Element", "Key", "Value", "Default", "Type hint", "Comment")
@@ -530,7 +529,7 @@ internal class JsonControlTableModel(
             COL_TYPE_HINT -> c.typeHint
             COL_DEFAULT -> truncate(c.jsonValue)
             COL_VALUE -> {
-                val override = controller.controlOverrides.value.jsonControls.firstOrNull { it.keyName == c.keyName }
+                val override = state.controlOverrides.value.jsonControls.firstOrNull { it.keyName == c.keyName }
                 if (override == null) "" else truncate(override.jsonValue)
             }
             COL_COMMENT -> c.comment
@@ -542,18 +541,18 @@ internal class JsonControlTableModel(
         if (columnIndex != COL_OVERRIDE) return
         val c = controls[rowIndex]
         val checked = value as? Boolean ?: false
-        if (checked) controller.setJsonOverride(c.keyName, c.jsonValue)
-        else controller.clearJsonOverride(c.keyName)
+        if (checked) state.setJsonOverride(c.keyName, c.jsonValue)
+        else state.clearJsonOverride(c.keyName)
         fireTableRowsUpdated(rowIndex, rowIndex)
     }
 
     override fun isOverridden(modelRow: Int): Boolean {
         val key = controls[modelRow].keyName
-        return controller.controlOverrides.value.jsonControls.any { it.keyName == key }
+        return state.controlOverrides.value.jsonControls.any { it.keyName == key }
     }
 
     override fun resetAllOverrides() {
-        for (c in controls) controller.clearJsonOverride(c.keyName)
+        for (c in controls) state.clearJsonOverride(c.keyName)
         fireTableDataChanged()
     }
 
@@ -561,13 +560,13 @@ internal class JsonControlTableModel(
 
     fun effectiveValue(modelRow: Int): String {
         val c = controls[modelRow]
-        return controller.controlOverrides.value.jsonControls.firstOrNull { it.keyName == c.keyName }?.jsonValue
+        return state.controlOverrides.value.jsonControls.firstOrNull { it.keyName == c.keyName }?.jsonValue
             ?: c.jsonValue
     }
 
     fun setValue(modelRow: Int, jsonValue: String) {
         val c = controls[modelRow]
-        controller.setJsonOverride(c.keyName, jsonValue)
+        state.setJsonOverride(c.keyName, jsonValue)
         fireTableRowsUpdated(modelRow, modelRow)
     }
 

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.defaults
+package ksl.app.swing.common.editor
 
 import kotlinx.coroutines.launch
 import ksl.app.config.ExperimentRunOverrides
@@ -26,7 +26,6 @@ import ksl.app.swing.common.overridefield.IntegerOverrideField
 import ksl.app.swing.common.overridefield.SectionHeaderWithStatus
 import ksl.app.swing.common.validation.FieldErrorMarker
 import ksl.app.swing.common.validation.WidgetPathRegistry
-import ksl.app.swing.single.SingleAppController
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.BorderFactory
@@ -37,8 +36,8 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 /**
- * Default parameter panel for `kslSingleApp(...)` per
- * workflow-single.md §7.  Two groupings:
+ * Run-parameters editor panel, reusable across the Single app and
+ * the Scenario app's per-scenario editor window.  Two groupings:
  *
  *  - **Common** (always visible) — `numberOfReplications`,
  *    `lengthOfReplication`, `lengthOfReplicationWarmUp`.
@@ -56,22 +55,21 @@ import javax.swing.JPanel
  *    from other tools still round-trip.
  *
  * Each field is wrapped via `FieldErrorMarker.attach` so
- * validation findings from
- * [SingleAppController.validationBus] decorate the inline
- * field automatically — notably the infinite-horizon warning
- * on `lengthOfReplication`.  [setEnabled] propagates to every
- * wrapped field so the panel can be driven read-only during a
- * run.
+ * validation findings from [ConfigurationEditorState.validationBus]
+ * decorate the inline field automatically — notably the
+ * infinite-horizon warning on `lengthOfReplication`.  [setEnabled]
+ * propagates to every wrapped field so the panel can be driven
+ * read-only during a run.
  *
- * @param controller the owning [SingleAppController].
+ * @param state the host [ConfigurationEditorState] this panel binds to.
  */
-class DefaultParameterPanel(
-    private val controller: SingleAppController
+class ParameterPanel(
+    private val state: ConfigurationEditorState
 ) : JPanel(BorderLayout()) {
 
-    private val defaults get() = controller.modelDefaults
-    private val bus get() = controller.validationBus
-    private val scope get() = controller.edtScope
+    private val defaults get() = state.modelDefaults
+    private val bus get() = state.validationBus
+    private val scope get() = state.edtScope
     private val registry: WidgetPathRegistry = WidgetPathRegistry()
     private val managedFields: MutableList<JComponent> = mutableListOf()
 
@@ -79,7 +77,7 @@ class DefaultParameterPanel(
      * Per-field "set value from override" updaters, keyed in the
      * order the corresponding fields appear in the panel.  Built up
      * during [commonRows]/[advancedSection] and replayed by
-     * [syncFromController] each time `controller.runOverrides`
+     * [syncFromController] each time `state.runOverrides`
      * emits a new value.  Lets external mutations (Reset to Model
      * Defaults, Open Configuration, programmatic resets) update the
      * displayed text without rebuilding the panel.
@@ -94,7 +92,7 @@ class DefaultParameterPanel(
         body.add(advancedSection())
         add(body, BorderLayout.NORTH)
 
-        // Subscribe to controller.runOverrides so external state
+        // Subscribe to state.runOverrides so external state
         // changes (resetConfiguration, loadConfiguration) propagate
         // into the displayed text.  Without this, fields are
         // write-only: edits push into the controller but
@@ -104,7 +102,7 @@ class DefaultParameterPanel(
         // matches the controller's current value (see
         // SingleAppController.updateRunOverride).
         scope.launch {
-            controller.runOverrides.collect { overrides ->
+            state.runOverrides.collect { overrides ->
                 for (sync in fieldSyncers) sync(overrides)
             }
         }
@@ -124,7 +122,7 @@ class DefaultParameterPanel(
             integerField(
                 modelDefault = defaults.numberOfReplications,
                 path = "scenarios[0].runOverrides.numberOfReplications",
-                onChange = { v -> controller.updateRunOverride { it.copy(numberOfReplications = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(numberOfReplications = v) } },
                 read = { it.numberOfReplications }
             )
         ))
@@ -133,7 +131,7 @@ class DefaultParameterPanel(
             doubleField(
                 modelDefault = defaults.lengthOfReplication,
                 path = "scenarios[0].runOverrides.lengthOfReplication",
-                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplication = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(lengthOfReplication = v) } },
                 read = { it.lengthOfReplication }
             )
         ))
@@ -142,7 +140,7 @@ class DefaultParameterPanel(
             doubleField(
                 modelDefault = defaults.lengthOfReplicationWarmUp,
                 path = "scenarios[0].runOverrides.lengthOfReplicationWarmUp",
-                onChange = { v -> controller.updateRunOverride { it.copy(lengthOfReplicationWarmUp = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(lengthOfReplicationWarmUp = v) } },
                 read = { it.lengthOfReplicationWarmUp }
             )
         ))
@@ -172,7 +170,7 @@ class DefaultParameterPanel(
             "Antithetic option",
             booleanField(
                 path = "scenarios[0].runOverrides.antitheticOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(antitheticOption = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(antitheticOption = v) } },
                 read = { it.antitheticOption }
             )
         ))
@@ -180,7 +178,7 @@ class DefaultParameterPanel(
             "Reset start-stream option",
             booleanField(
                 path = "scenarios[0].runOverrides.resetStartStreamOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(resetStartStreamOption = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(resetStartStreamOption = v) } },
                 read = { it.resetStartStreamOption }
             )
         ))
@@ -188,7 +186,7 @@ class DefaultParameterPanel(
             "Advance next-sub-stream option",
             booleanField(
                 path = "scenarios[0].runOverrides.advanceNextSubStreamOption",
-                onChange = { v -> controller.updateRunOverride { it.copy(advanceNextSubStreamOption = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(advanceNextSubStreamOption = v) } },
                 read = { it.advanceNextSubStreamOption }
             )
         ))
@@ -197,7 +195,7 @@ class DefaultParameterPanel(
             integerField(
                 modelDefault = defaults.numberOfStreamAdvancesPriorToRunning,
                 path = "scenarios[0].runOverrides.numberOfStreamAdvancesPriorToRunning",
-                onChange = { v -> controller.updateRunOverride { it.copy(numberOfStreamAdvancesPriorToRunning = v) } },
+                onChange = { v -> state.updateRunOverride { it.copy(numberOfStreamAdvancesPriorToRunning = v) } },
                 read = { it.numberOfStreamAdvancesPriorToRunning }
             )
         ))

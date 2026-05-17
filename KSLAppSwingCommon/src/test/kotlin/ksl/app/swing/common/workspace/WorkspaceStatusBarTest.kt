@@ -57,14 +57,21 @@ class WorkspaceStatusBarTest {
     }
 
     @Test
-    fun `bar falls back to userHome when no workspace is set`(@TempDir tempDir: Path) {
+    fun `bar falls back to the default workspace when none is set`(@TempDir tempDir: Path) {
         val home = tempDir.resolve("home").also { it.createDirectories() }
-        val store = UserSettingsStore(settingsDir = tempDir.resolve("settings"), userHome = home)
+        // Inject a deterministic fallback so the test doesn't depend on
+        // whether `~/Documents` exists in the test environment.
+        val expectedFallback = home.resolve("test-workspace")
+        val store = UserSettingsStore(
+            settingsDir = tempDir.resolve("settings"),
+            userHome = home,
+            defaultWorkspaceProvider = { _ -> expectedFallback }
+        )
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
         try {
             val bar = onEdt { WorkspaceStatusBar(store, scope) }
-            assertEquals(home, bar.currentDisplayedWorkspace())
+            assertEquals(expectedFallback, bar.currentDisplayedWorkspace())
         } finally {
             scope.cancel()
         }

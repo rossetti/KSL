@@ -33,10 +33,10 @@ import ksl.app.swing.common.results.DefaultDesktopOpener
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
-import ksl.app.swing.single.defaults.DefaultControlOverridesPanel
+import ksl.app.swing.common.editor.ControlOverridesPanel
+import ksl.app.swing.common.editor.ParameterPanel
+import ksl.app.swing.common.editor.RVOverridesPanel
 import ksl.app.swing.single.defaults.DefaultOutputOptionsPanel
-import ksl.app.swing.single.defaults.DefaultParameterPanel
-import ksl.app.swing.single.defaults.DefaultRVOverridesPanel
 import ksl.app.swing.single.defaults.StandardReportFormat
 import ksl.app.swing.single.defaults.StandardReportMaterializer
 import ksl.app.swing.single.defaults.StandardReportOutcome
@@ -195,9 +195,9 @@ class SingleAppFrame(
         override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
     }
 
-    private val parameterPanel = DefaultParameterPanel(controller)
-    private val controlOverridesPanel = DefaultControlOverridesPanel(controller)
-    private val rvOverridesPanel = DefaultRVOverridesPanel(controller)
+    private val parameterPanel = ParameterPanel(controller)
+    private val controlOverridesPanel = ControlOverridesPanel(controller)
+    private val rvOverridesPanel = RVOverridesPanel(controller)
     /**
      * Snapshot-availability flow derived from `controller.lastResult`.
      * `true` only when the most recent terminal result carries a
