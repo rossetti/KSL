@@ -23,6 +23,7 @@ import ksl.app.session.RunResult
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
+import ksl.app.swing.common.runcontrol.ConsoleDrawer
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.swing.common.validation.DocumentHealthBanner
 import ksl.app.swing.common.validation.WidgetPathRegistry
@@ -73,18 +74,20 @@ import kotlin.time.DurationUnit
  *    completed badge with one-line summary).  Always visible so
  *    Run is one click from anywhere in the app.
  *  - **Centre tabs**:
- *      1. *Run Control* — vertical stack.  Top:
- *         [DefaultParameterPanel] for analyst-facing experiment
- *         overrides, sized to its preferred height.  Bottom:
- *         [ConsoleLogPanel] collecting the controller's
- *         `eventFlow`, filling all remaining vertical space with
- *         full window width.  The ORCHESTRATOR category chip is
- *         suppressed because the single-run app never emits
- *         orchestrator events.
+ *      1. *Run Control* — [DefaultParameterPanel] for analyst-facing
+ *         experiment overrides; takes the full tab area.
  *      2. *Control Overrides* — annotated-property overrides
  *         (hidden when the model exposes no controls).
  *      3. *Reports* — standard-report buttons.  Disabled until a
  *         snapshot exists (after a successful run).
+ *  - **Console drawer** (above the workspace status bar):
+ *         collapsible [ConsoleDrawer] hosting a [ConsoleLogPanel].
+ *         Collapsed by default; the header strip shows a per-run
+ *         `INFO/WARN/ERR` count so the user gets a glance signal of
+ *         "anything interesting happened?" without expanding.  The
+ *         ORCHESTRATOR category chip is suppressed inside the
+ *         console because the single-run app never emits
+ *         orchestrator events.
  *  - [WorkspaceStatusBar] strip at the very bottom.
  *  - [Notifications] overlay attached to the frame's layered pane.
  *
@@ -121,6 +124,11 @@ class SingleAppFrame(
         scope = controller.edtScope,
         hiddenCategories = setOf(ConsoleCategory.ORCHESTRATOR)
     )
+    private val consoleDrawer = ConsoleDrawer(
+        eventFlow = controller.eventFlow,
+        scope = controller.edtScope,
+        console = consolePanel
+    )
     private val statusStrip = RunStatusStrip()
 
     private val tabs = JTabbedPane()
@@ -150,12 +158,20 @@ class SingleAppFrame(
             add(banner)
             add(toolbar)
         }
+        // Bottom stack: collapsible console drawer above the workspace
+        // status bar.  The drawer sets its own preferred height based on
+        // expanded/collapsed state, so BoxLayout handles both cases.
+        val bottomStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(consoleDrawer)
+            add(statusBar)
+        }
 
         contentPane.apply {
             layout = BorderLayout()
             add(topStack, BorderLayout.NORTH)
             add(tabsCentre, BorderLayout.CENTER)
-            add(statusBar, BorderLayout.SOUTH)
+            add(bottomStack, BorderLayout.SOUTH)
         }
 
         wireRunningState()
@@ -211,21 +227,14 @@ class SingleAppFrame(
     }
 
     private fun buildTabs(): JComponent {
-        // Run Control tab: parameter panel at top (preferred height),
-        // console fills all remaining vertical space.  No divider so
-        // the user can't accidentally hide either region.  Parameter
-        // panel is wrapped in a JScrollPane sized to its preferred
-        // height so it grows up to that and scrolls beyond.
+        // Run Control tab: parameter panel only.  Console lives in the
+        // bottom-of-window drawer below the tab area.
         val scrollableParameters = JScrollPane(parameterPanel).apply {
             border = BorderFactory.createEmptyBorder()
             verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
             horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         }
-        val runControl = JPanel(BorderLayout()).apply {
-            add(scrollableParameters, BorderLayout.NORTH)
-            add(consolePanel, BorderLayout.CENTER)
-        }
-        tabs.addTab("Run Control", runControl)
+        tabs.addTab("Run Control", scrollableParameters)
         if (controlOverridesPanel.isVisible) {
             tabs.addTab("Control Overrides", controlOverridesPanel)
         }
