@@ -20,6 +20,8 @@ package ksl.app.swing.scenario
 
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
+import ksl.app.session.RunResult
+import ksl.app.swing.common.notification.NotificationSeverity
 import java.awt.Component
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -27,6 +29,7 @@ import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
+import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 /**
@@ -54,7 +57,7 @@ class ReportsTabPanel(
     private val controller: ScenarioAppController,
     /** Lets the panel surface success/error messages through the
      *  frame's notifications overlay.  Optional — null silences feedback. */
-    private val onMessage: (message: String, severity: ksl.app.swing.common.notification.NotificationSeverity) -> Unit =
+    private val onMessage: (message: String, severity: NotificationSeverity) -> Unit =
         { _, _ -> }
 ) : JPanel() {
 
@@ -67,9 +70,10 @@ class ReportsTabPanel(
         JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
     }
 
-    private val generateButton = JButton("Generate Cross-Scenario Report").apply {
+    private val perScenarioButton = JButton("Per-Scenario Summary…").apply {
         isEnabled = false
-        toolTipText = "Available after Simulate completes for the current scenarios."
+        toolTipText = "Across-replication statistics, histograms, frequencies, and time-series " +
+            "stats for one scenario.  Pick which scenario after clicking."
     }
 
     init {
@@ -96,17 +100,18 @@ class ReportsTabPanel(
 
         add(sectionLabel("On-demand reports"))
         add(JLabel(
-            "<html>Cross-scenario reports are generated on demand after running scenarios.<br>" +
-                "No reports auto-render — pick what you want to see below."
+            "<html>Reports are written under <i>&lt;workspace&gt;/output/reports/</i> in every " +
+                "format checked above.  Nothing renders automatically — pick what you want " +
+                "to see, when you want it."
         ).apply {
             alignmentX = LEFT_ALIGNMENT
-            border = BorderFactory.createEmptyBorder(0, 16, 6, 0)
+            border = BorderFactory.createEmptyBorder(0, 16, 8, 0)
         })
         val buttonRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
             alignmentX = LEFT_ALIGNMENT
-            add(generateButton)
+            add(perScenarioButton)
             add(Box.createHorizontalGlue())
         }
         add(buttonRow)
@@ -143,46 +148,76 @@ class ReportsTabPanel(
                 )
             }
         }
-        generateButton.addActionListener { onGenerate() }
+        perScenarioButton.addActionListener { onPerScenarioSummary() }
     }
 
-    private fun onGenerate() {
-        val result = controller.lastResult.value
-        if (result !is ksl.app.session.RunResult.BatchCompleted) {
+    private fun onPerScenarioSummary() {
+        val result = batchResultOrWarn() ?: return
+        val formats = formatsOrWarn() ?: return
+        val names = ScenarioReports.availableScenarioNames(result)
+        if (names.isEmpty()) {
             onMessage(
-                "No completed run available to report on.",
-                ksl.app.swing.common.notification.NotificationSeverity.WARNING
+                "No completed scenarios in the most recent run.",
+                NotificationSeverity.WARNING
             )
             return
         }
-        val formats = controller.outputConfig.value.reports
-        if (formats.isEmpty()) {
-            onMessage(
-                "Pick at least one report format above before generating.",
-                ksl.app.swing.common.notification.NotificationSeverity.WARNING
-            )
-            return
+        val scenario = if (names.size == 1) {
+            names.single()
+        } else {
+            JOptionPane.showInputDialog(
+                this,
+                "Pick a scenario to summarise:",
+                "Per-Scenario Summary",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                names.toTypedArray(),
+                names.first()
+            ) as? String ?: return
         }
         val outputDir = controller.appWorkspace.resolve("output").resolve("reports")
         val outcome = try {
-            CrossScenarioReport.render(result, outputDir, formats)
+            ScenarioReports.renderPerScenarioSummary(result, scenario, outputDir, formats)
         } catch (t: Throwable) {
             onMessage(
                 "Report generation failed: ${t.message ?: t::class.simpleName}",
-                ksl.app.swing.common.notification.NotificationSeverity.ERROR
+                NotificationSeverity.ERROR
             )
             return
         }
         outcome.errors.forEach {
-            onMessage("Report error: $it", ksl.app.swing.common.notification.NotificationSeverity.WARNING)
+            onMessage("Report error: $it", NotificationSeverity.WARNING)
         }
         if (outcome.written.isNotEmpty()) {
             val files = outcome.written.joinToString(", ") { it.fileName.toString() }
             onMessage(
-                "Wrote ${outcome.written.size} report file(s) to ${outputDir}: $files",
-                ksl.app.swing.common.notification.NotificationSeverity.INFO
+                "Wrote ${outcome.written.size} report file(s) to $outputDir: $files",
+                NotificationSeverity.INFO
             )
         }
+    }
+
+    /** Returns the current batch result or surfaces a warning notification. */
+    private fun batchResultOrWarn(): RunResult.BatchCompleted? {
+        val r = controller.lastResult.value
+        if (r !is RunResult.BatchCompleted) {
+            onMessage("No completed run available to report on.", NotificationSeverity.WARNING)
+            return null
+        }
+        return r
+    }
+
+    /** Returns the current report-format set or surfaces a warning notification. */
+    private fun formatsOrWarn(): Set<ReportFormat>? {
+        val formats = controller.outputConfig.value.reports
+        if (formats.isEmpty()) {
+            onMessage(
+                "Pick at least one report format above before generating.",
+                NotificationSeverity.WARNING
+            )
+            return null
+        }
+        return formats
     }
 
     private fun wireCollectors() {
@@ -197,10 +232,12 @@ class ReportsTabPanel(
                 }
             }
         }
-        // Enable the on-demand button once a terminal result exists.
+        // Enable the on-demand button once a terminal batch result exists
+        // with at least one completed snapshot.
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
-                generateButton.isEnabled = result != null
+                perScenarioButton.isEnabled =
+                    result is RunResult.BatchCompleted && result.snapshots.isNotEmpty()
             }
         }
     }
