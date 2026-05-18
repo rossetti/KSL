@@ -29,9 +29,14 @@ import ksl.utilities.io.OutputDirectory
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SnapshotBatchWriter
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.supervisorScope
+import java.util.concurrent.ConcurrentHashMap
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.nio.file.Path
@@ -108,6 +113,43 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             addScenario(scenario)
         }
     }
+
+    /** Per-scenario job handles, populated during [simulate] so callers can
+     *  cancel one running scenario without stopping the rest of the sweep. */
+    private val jobsByName: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
+
+    /**
+     *  Cancel a single scenario by name without stopping the rest of the
+     *  sweep.  Looks up the scenario's coroutine job and issues a
+     *  cooperative cancellation against it.  Returns `true` when a running
+     *  scenario was found; `false` when the name is unknown, has already
+     *  finished, or hasn't started yet.
+     *
+     *  Cancelled scenarios produce a `null` snapshot in the commit phase,
+     *  so [RunEvent.ScenarioCompleted] is emitted for them with
+     *  `snapshot == null`.  Sibling scenarios continue to run because
+     *  [simulate] wraps each scenario's `async` in a `supervisorScope`,
+     *  preventing one child's cancellation from propagating to the others.
+     */
+    fun cancelScenario(scenarioName: String): Boolean {
+        val job = jobsByName[scenarioName] ?: return false
+        if (!job.isActive) return false
+        job.cancel(ScenarioCancellation(scenarioName))
+        return true
+    }
+
+    /**
+     *  Sentinel [CancellationException] used to mark per-scenario
+     *  cancellations issued via [cancelScenario].  Letting only this
+     *  subtype be swallowed in [awaitOrCancelled] preserves the
+     *  framework's existing contract that a scenario throwing a
+     *  plain [CancellationException] (e.g. from inside its
+     *  `modelBuilder.build`) propagates up as a true coroutine
+     *  cancellation instead of being treated as a recoverable
+     *  failed-scenario outcome.
+     */
+    private class ScenarioCancellation(val scenarioName: String) :
+        CancellationException("Scenario '$scenarioName' cancelled by user")
 
     /**
      *  Returns the scenario with the given [name], or `null` if none is registered.
@@ -211,29 +253,49 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
+        jobsByName.clear()
 
         val scenarioList = scenarios.filter { it in myScenarios.indices }.map { myScenarios[it] }
         val total = scenarioList.size
 
         // ── Phase 1: simulate ─────────────────────────────────────────────────
-        // CONCURRENT — fan out via async/awaitAll.  SEQUENTIAL — plain
-        // for-loop so each scenario waits for the previous to finish.
-        // Per-scenario start and per-replication events are forwarded to the
-        // caller's lifecycle so multi-scenario consumers can attribute
-        // progress to the correct row.
-        val outcomes: List<ScenarioRunOutcome> = when (executionMode) {
-            ksl.app.config.ExecutionMode.CONCURRENT ->
-                scenarioList.mapIndexed { i, scenario ->
-                    async(SimulationDispatcher.default) {
-                        onScenarioStart?.invoke(scenario.name, i + 1, total)
-                        runScenario(scenario, onReplicationStart, onReplicationEnd)
+        // Both modes wrap per-scenario `async` in a supervisorScope so that
+        // cancelling one scenario (via [cancelScenario]) doesn't cascade
+        // into siblings.  CONCURRENT — fan out all asyncs and await each;
+        // SEQUENTIAL — fan out one at a time, awaiting each before
+        // starting the next.  Per-scenario start and per-replication
+        // events are forwarded to the caller's lifecycle so multi-scenario
+        // consumers can attribute progress to the correct row.
+        val outcomes: List<ScenarioRunOutcome> = supervisorScope {
+            when (executionMode) {
+                ksl.app.config.ExecutionMode.CONCURRENT -> {
+                    val pairs = scenarioList.mapIndexed { i, scenario ->
+                        scenario to async(SimulationDispatcher.default) {
+                            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
+                            try {
+                                onScenarioStart?.invoke(scenario.name, i + 1, total)
+                                runScenario(scenario, onReplicationStart, onReplicationEnd)
+                            } finally {
+                                jobsByName.remove(scenario.name)
+                            }
+                        }
                     }
-                }.awaitAll()
-            ksl.app.config.ExecutionMode.SEQUENTIAL ->
-                scenarioList.mapIndexed { i, scenario ->
-                    onScenarioStart?.invoke(scenario.name, i + 1, total)
-                    runScenario(scenario, onReplicationStart, onReplicationEnd)
+                    pairs.map { (scenario, d) -> awaitOrCancelled(d) { scenario } }
                 }
+                ksl.app.config.ExecutionMode.SEQUENTIAL ->
+                    scenarioList.mapIndexed { i, scenario ->
+                        val d = async(SimulationDispatcher.default) {
+                            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
+                            try {
+                                onScenarioStart?.invoke(scenario.name, i + 1, total)
+                                runScenario(scenario, onReplicationStart, onReplicationEnd)
+                            } finally {
+                                jobsByName.remove(scenario.name)
+                            }
+                        }
+                        awaitOrCancelled(d) { scenario }
+                    }
+            }
         }
 
         // ── Phase 2: sequential DB commit ─────────────────────────────────────
@@ -258,6 +320,42 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                 onScenarioComplete?.invoke(scenario.name, null)
             }
         }
+    }
+
+    /**
+     *  Await [deferred], converting a per-scenario [CancellationException]
+     *  into a null-collector outcome so the surrounding `supervisorScope`
+     *  doesn't propagate the cancellation to siblings.  Sibling-cancel
+     *  isolation is the entire point of routing per-scenario cancels
+     *  through this helper rather than letting them bubble.
+     */
+    private suspend fun awaitOrCancelled(
+        deferred: Deferred<ScenarioRunOutcome>,
+        scenarioRef: () -> Scenario
+    ): ScenarioRunOutcome = try {
+        deferred.await()
+    } catch (e: CancellationException) {
+        // Plain CancellationException — not our doing — propagates so the
+        // orchestrator's outer catch handles it (this matches the
+        // long-standing "cancellation is not a failed scenario" contract,
+        // exercised by ConcurrentScenarioRunnerTest).
+        if (e !is ScenarioCancellation) throw e
+        // Even for an explicit per-scenario cancel, propagate if the
+        // surrounding orchestrator coroutine is itself cancelled
+        // (e.g. global Cancel button).
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        val s = scenarioRef()
+        // Synthesize a SimulationRun for the cancelled scenario so the
+        // commit phase has something to label "(cancelled)" in events.
+        val run = s.simulationRun ?: SimulationRun(
+            modelIdentifier = "",
+            experimentRunParameters = s.scenarioRunParameters,
+            inputs = s.inputs,
+            stringInputs = s.stringInputs,
+            jsonInputs = s.jsonInputs,
+            modelConfiguration = s.modelConfiguration
+        )
+        ScenarioRunOutcome(s, run, null)
     }
 
     private suspend fun runScenario(

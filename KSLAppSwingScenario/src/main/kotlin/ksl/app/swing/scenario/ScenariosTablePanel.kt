@@ -23,9 +23,13 @@ import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.ScenarioSpec
 import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Component
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.event.MouseMotionAdapter
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -36,6 +40,7 @@ import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.table.AbstractTableModel
+import javax.swing.table.DefaultTableCellRenderer
 
 /**
  * Scenarios tab body: master JTable plus row-action toolbar.
@@ -82,6 +87,10 @@ class ScenariosTablePanel(
     init {
         border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
         applyColumnWidths()
+        // Custom renderer for the Status column: when a scenario is
+        // running, show "Running k / N  ✕" with the ✕ rendered in red
+        // as a clickable cancel glyph.
+        table.columnModel.getColumn(COL_STATUS).cellRenderer = StatusCellRenderer()
         add(buildToolbar(), BorderLayout.NORTH)
         add(JScrollPane(table).apply { preferredSize = Dimension(0, 320) }, BorderLayout.CENTER)
 
@@ -92,7 +101,50 @@ class ScenariosTablePanel(
         wireProgressCollector()
         wireRunningCollector()
         wireActions()
+        wireStatusCancelClick()
         refreshActionEnablement()
+    }
+
+    /** Rightmost pixel width of the Status cell reserved for the
+     *  cancel-glyph hit region.  Clicks inside this band trigger
+     *  per-scenario cancel; clicks outside fall through to normal
+     *  row selection. */
+    private val cancelHitRegionWidth: Int = 22
+
+    private fun wireStatusCancelClick() {
+        // Click → cancel if the click landed in the cancel-glyph hit
+        // region of a running scenario's Status cell.
+        table.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.button != MouseEvent.BUTTON1 || e.clickCount != 1) return
+                if (!isCancelHit(e)) return
+                val row = table.rowAtPoint(e.point)
+                val spec = controller.scenarios.value.getOrNull(row) ?: return
+                controller.cancelScenario(spec.name)
+                e.consume()
+            }
+        })
+        // Hover feedback: pointer changes to a hand over the hit region
+        // so the user can tell the glyph is clickable.
+        table.addMouseMotionListener(object : MouseMotionAdapter() {
+            override fun mouseMoved(e: MouseEvent) {
+                table.cursor = if (isCancelHit(e)) Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                               else Cursor.getDefaultCursor()
+            }
+        })
+    }
+
+    private fun isCancelHit(e: MouseEvent): Boolean {
+        val col = table.columnAtPoint(e.point)
+        if (col != COL_STATUS) return false
+        val row = table.rowAtPoint(e.point)
+        if (row < 0) return false
+        val spec = controller.scenarios.value.getOrNull(row) ?: return false
+        val status = controller.scenarioStatuses.value[spec.name]
+        if (status != ScenarioAppController.ScenarioStatus.RUNNING) return false
+        val cellRect = table.getCellRect(row, col, false)
+        val hitRegionLeft = cellRect.x + cellRect.width - cancelHitRegionWidth
+        return e.x >= hitRegionLeft
     }
 
     private fun wireStatusCollector() {
@@ -267,6 +319,40 @@ class ScenariosTablePanel(
         const val COL_REPS: Int = 4
         const val COL_OVERRIDES: Int = 5
         private const val COLUMN_COUNT: Int = 6
+    }
+
+    /** Renders the Status column.  For running scenarios, suffixes
+     *  the status text with a red ✕ glyph that doubles as a "cancel
+     *  this scenario" affordance — actual click handling lives in
+     *  the panel's MouseListener so the renderer stays stateless. */
+    private inner class StatusCellRenderer : DefaultTableCellRenderer() {
+        override fun getTableCellRendererComponent(
+            table: JTable, value: Any?, isSelected: Boolean,
+            hasFocus: Boolean, row: Int, column: Int
+        ): Component {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+            val spec = controller.scenarios.value.getOrNull(row)
+            val status = spec?.let { controller.scenarioStatuses.value[it.name] }
+            text = if (status == ScenarioAppController.ScenarioStatus.RUNNING) {
+                // HTML lets us colour the glyph without writing a custom paint.
+                val base = (value as? String).orEmpty()
+                "<html>$base &nbsp;<font color='#C0392B'>✕</font></html>"
+            } else {
+                (value as? String).orEmpty()
+            }
+            toolTipText = if (status == ScenarioAppController.ScenarioStatus.RUNNING)
+                "Click ✕ to cancel just this scenario" else null
+            horizontalAlignment = LEFT
+            foreground = if (isSelected) table.selectionForeground else statusForeground(status)
+            return this
+        }
+
+        private fun statusForeground(s: ScenarioAppController.ScenarioStatus?): Color = when (s) {
+            ScenarioAppController.ScenarioStatus.FAILED -> Color(0xC0, 0x39, 0x2B)
+            ScenarioAppController.ScenarioStatus.COMPLETED -> Color(0x1E, 0x88, 0x44)
+            ScenarioAppController.ScenarioStatus.SKIPPED -> Color(0x77, 0x77, 0x77)
+            else -> table.foreground
+        }
     }
 
     private inner class ScenariosTableModel(

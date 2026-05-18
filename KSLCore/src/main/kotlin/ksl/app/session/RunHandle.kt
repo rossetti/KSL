@@ -92,6 +92,21 @@ interface RunHandle {
     fun cancel(reason: String = "Cancelled by user")
 
     /**
+     *  Cancel a single scenario by name without stopping the
+     *  enclosing run.  Only meaningful for scenario sweeps — other
+     *  orchestrators return `false` from the default implementation.
+     *
+     *  @param scenarioName matches the `ScenarioSpec.name` of the
+     *    scenario to cancel.  Names that aren't currently running
+     *    are silently ignored.
+     *  @return `true` when a running scenario was found and a
+     *    cancellation request was issued; `false` when the name was
+     *    unknown, not running, or this handle doesn't support
+     *    per-scenario cancellation.
+     */
+    fun cancelScenario(scenarioName: String): Boolean = false
+
+    /**
      * Synchronously waits for [result] and returns it.
      *
      * Bridges the [Deferred]-based [result] back into a non-coroutine caller
@@ -130,7 +145,8 @@ interface RunHandle {
 internal class RunHandleImpl(
     private val lifecycle: RunLifecycle,
     private val job: Job,
-    private val onCancelHook: ((String) -> Unit)? = null
+    private val onCancelHook: ((String) -> Unit)? = null,
+    private val onCancelScenario: ((String) -> Boolean)? = null
 ) : RunHandle {
 
     init {
@@ -152,4 +168,7 @@ internal class RunHandleImpl(
             job.cancel(kotlinx.coroutines.CancellationException(reason))
         }
     }
+
+    override fun cancelScenario(scenarioName: String): Boolean =
+        onCancelScenario?.invoke(scenarioName) ?: false
 }

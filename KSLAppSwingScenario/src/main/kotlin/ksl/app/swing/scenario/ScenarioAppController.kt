@@ -382,10 +382,21 @@ class ScenarioAppController(
         return true
     }
 
-    /** Cancel the in-flight run, if any.  Global — no per-scenario cancel. */
+    /** Cancel the in-flight run, if any.  Cancels every scenario; the
+     *  per-scenario form [cancelScenario] cancels just one. */
     fun cancel() {
         currentHandle?.cancel("Cancelled by user")
     }
+
+    /**
+     *  Cancel a single scenario by name without stopping the rest of
+     *  the run.  No-op when no run is in flight or [name] doesn't
+     *  match a currently-running scenario.  Returns the handle's
+     *  return value so callers can detect "nothing was running" if
+     *  needed.
+     */
+    fun cancelScenario(name: String): Boolean =
+        currentHandle?.cancelScenario(name) ?: false
 
     private val myEditedSinceLastSim = MutableStateFlow(false)
     /** `true` when in-memory state has been edited since the most

@@ -82,6 +82,11 @@ class ScenarioOrchestrator {
 
         val runId = KSL.randomUUIDString()
         val lifecycle = RunLifecycle(runId, replay = 128, extraBufferCapacity = 64)
+        // Published from inside the launch block once the runner is
+        // constructed; the RunHandleImpl's per-scenario cancel
+        // callback reads it lazily so the handle can be returned
+        // before the runner exists.
+        val runnerRef = java.util.concurrent.atomic.AtomicReference<ConcurrentScenarioRunner?>(null)
 
         val job = scope.launch(SimulationDispatcher.default, CoroutineStart.ATOMIC) {
             if (!lifecycle.tryStart()) return@launch
@@ -116,6 +121,7 @@ class ScenarioOrchestrator {
                 val runner = ConcurrentScenarioRunner(
                     "ScenarioOrchestrator_$runId", scenarios, outputDir
                 )
+                runnerRef.set(runner)
 
                 runner.simulate(
                     onScenarioComplete = { scenarioName, snapshot ->
@@ -190,7 +196,11 @@ class ScenarioOrchestrator {
             }
         }
 
-        return RunHandleImpl(lifecycle, job)
+        return RunHandleImpl(
+            lifecycle = lifecycle,
+            job = job,
+            onCancelScenario = { name -> runnerRef.get()?.cancelScenario(name) ?: false }
+        )
     }
 
     private fun buildScenarios(
