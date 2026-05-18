@@ -137,14 +137,21 @@ class ScenarioEditorWindow(
         add(Box.createVerticalGlue())
     }
 
-    private fun buildButtons(): JPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        border = BorderFactory.createEmptyBorder(0, 12, 12, 12)
-        add(Box.createHorizontalGlue())
-        add(cancelButton.also { it.addActionListener { onCancel() } })
-        add(Box.createHorizontalStrut(8))
-        add(commitButton.also { it.addActionListener { onCommit() } })
-        rootPane.defaultButton = commitButton
+    private fun buildButtons(): JPanel {
+        cancelButton.addActionListener { onCancel() }
+        commitButton.addActionListener { onCommit() }
+        // Use the *frame's* root pane (this@ScenarioEditorWindow.rootPane),
+        // not the panel's — JPanel.getRootPane() is null until the panel is
+        // added to a window.
+        this@ScenarioEditorWindow.rootPane.defaultButton = commitButton
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            border = BorderFactory.createEmptyBorder(0, 12, 12, 12)
+            add(Box.createHorizontalGlue())
+            add(cancelButton)
+            add(Box.createHorizontalStrut(8))
+            add(commitButton)
+        }
     }
 
     private fun wireFields() {

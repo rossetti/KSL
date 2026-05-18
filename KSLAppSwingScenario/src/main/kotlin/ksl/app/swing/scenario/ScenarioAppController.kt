@@ -22,18 +22,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import ksl.app.KSLAppSession
+import ksl.app.RunSpec
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
+import ksl.app.config.BundleRef
 import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.session.RunEvent
+import ksl.app.session.RunHandle
+import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import java.nio.file.Path
 
@@ -136,6 +146,7 @@ class ScenarioAppController(
 
     private fun markDirty() {
         if (!myIsDirty.value) myIsDirty.value = true
+        if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
     }
 
     // ── Bundle library ─────────────────────────────────────────────────────
@@ -202,6 +213,184 @@ class ScenarioAppController(
         updateBundles(myLoadedBundles.value + toAdd)
         return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
     }
+
+    // ── Run state ──────────────────────────────────────────────────────────
+
+    /**
+     *  Per-scenario lifecycle status driving the Scenarios-table
+     *  *Status* column chips.
+     */
+    enum class ScenarioStatus { IDLE, PENDING, RUNNING, COMPLETED, FAILED, SKIPPED }
+
+    private val myRunning = MutableStateFlow(false)
+    /** `true` while a scenario sweep is in flight. */
+    val runningFlow: StateFlow<Boolean> = myRunning.asStateFlow()
+
+    private val myLastResult = MutableStateFlow<RunResult?>(null)
+    /** Most recently observed terminal [RunResult], or null when none yet. */
+    val lastResult: StateFlow<RunResult?> = myLastResult.asStateFlow()
+
+    private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
+    /** Hot stream of [RunEvent]s from the active run, for console drawers. */
+    val eventFlow: SharedFlow<RunEvent> = myEventFlow.asSharedFlow()
+
+    private val myScenarioStatuses = MutableStateFlow<Map<String, ScenarioStatus>>(emptyMap())
+    /** Per-scenario status indexed by [ScenarioSpec.name]. */
+    val scenarioStatuses: StateFlow<Map<String, ScenarioStatus>> = myScenarioStatuses.asStateFlow()
+
+    /** Per-scenario replication progress: `(current, total)`.  Absent
+     *  entries mean "no replication events received yet" (i.e. scenario
+     *  hasn't started, or is queued).  Updated by the substrate's
+     *  `ScenarioReplicationStarted` / `ScenarioReplicationEnded` events. */
+    private val myReplicationProgress = MutableStateFlow<Map<String, Pair<Int, Int>>>(emptyMap())
+    val replicationProgress: StateFlow<Map<String, Pair<Int, Int>>> = myReplicationProgress.asStateFlow()
+
+    /** Lazily-populated cache of `(bundleId, modelId) → ExperimentRunDefaults`.
+     *  Used by the Scenarios-table *Reps* column to show the effective
+     *  replication count (override OR model default) without re-probing
+     *  on every render. */
+    private val modelDefaultsCache: MutableMap<Pair<String, String>, ksl.controls.experiments.ExperimentRunDefaults> =
+        java.util.concurrent.ConcurrentHashMap()
+
+    /**
+     *  Returns the model default `ExperimentRunDefaults` for the
+     *  scenario at [index], probing the matching bundle's descriptor
+     *  on first access.  Returns `null` when the scenario's model
+     *  reference is unresolvable (missing bundle, non-bundled
+     *  reference, or probe failure).  Cache is per-controller — survives
+     *  until [close].
+     */
+    fun modelDefaultsFor(index: Int): ksl.controls.experiments.ExperimentRunDefaults? {
+        val spec = myScenarios.value.getOrNull(index) ?: return null
+        val ref = spec.modelReference as? ModelReference.ByBundleAndModelId ?: return null
+        val key = ref.bundleId to ref.modelId
+        modelDefaultsCache[key]?.let { return it }
+        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId } ?: return null
+        return try {
+            val d = bundle.descriptorFor(ref.modelId).experimentRunDefaults
+            modelDefaultsCache[key] = d
+            d
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private var currentHandle: RunHandle? = null
+    private var session: KSLAppSession? = null
+
+    /**
+     *  Submit the document's scenarios for execution.  No-op when a
+     *  run is already in flight or there are no runnable scenarios.
+     *  Returns `true` when a submission was made.
+     *
+     *  Output is routed under `<appWorkspace>/output/`.  A fresh
+     *  [KSLAppSession] is built each call using the current
+     *  [bundleProvider] so newly-loaded bundles are picked up
+     *  without restarting the app.
+     */
+    fun submit(): Boolean {
+        if (myRunning.value) return false
+        val scenarios = myScenarios.value
+        if (scenarios.none { !it.skipOnRun }) return false
+
+        // Seed: skipped scenarios stay skipped, runnable scenarios start
+        // PENDING (queued).  The substrate's per-scenario
+        // ScenarioStarted event promotes them to RUNNING when the
+        // runner actually begins them — under SEQUENTIAL this is
+        // visibly one-at-a-time; under CONCURRENT all rows flip to
+        // RUNNING almost simultaneously.
+        myScenarioStatuses.value = scenarios.associate { spec ->
+            spec.name to if (spec.skipOnRun) ScenarioStatus.SKIPPED else ScenarioStatus.PENDING
+        }
+        myReplicationProgress.value = emptyMap()
+
+        val outputDir = appWorkspace.resolve("output").toAbsolutePath().normalize().toString()
+        val config = RunConfiguration(
+            scenarios = scenarios,
+            bundleRefs = deriveBundleRefs(scenarios),
+            outputConfig = myOutputConfig.value.copy(outputDirectory = outputDir),
+            executionMode = myExecutionMode.value
+        )
+
+        val newSession = KSLAppSession(provider = myBundleProvider.value)
+        session?.close()
+        session = newSession
+
+        val handle = newSession.submit(RunSpec.Scenarios(config))
+        currentHandle = handle
+        myRunning.value = true
+
+        edtScope.launch {
+            handle.events.collect { ev ->
+                when (ev) {
+                    is RunEvent.ScenarioStarted -> {
+                        myScenarioStatuses.value =
+                            myScenarioStatuses.value + (ev.scenarioName to ScenarioStatus.RUNNING)
+                    }
+                    is RunEvent.ScenarioReplicationStarted -> {
+                        myReplicationProgress.value =
+                            myReplicationProgress.value + (ev.scenarioName to (ev.repNumber to ev.totalReplications))
+                        // Defensive: a runner started reps before we got
+                        // the matching ScenarioStarted (event interleave).
+                        if (myScenarioStatuses.value[ev.scenarioName] == ScenarioStatus.PENDING) {
+                            myScenarioStatuses.value =
+                                myScenarioStatuses.value + (ev.scenarioName to ScenarioStatus.RUNNING)
+                        }
+                    }
+                    is RunEvent.ScenarioReplicationEnded -> {
+                        myReplicationProgress.value =
+                            myReplicationProgress.value + (ev.scenarioName to (ev.repNumber to ev.totalReplications))
+                    }
+                    is RunEvent.ScenarioCompleted -> {
+                        val status = if (ev.snapshot == null) ScenarioStatus.FAILED else ScenarioStatus.COMPLETED
+                        myScenarioStatuses.value = myScenarioStatuses.value + (ev.scenarioName to status)
+                    }
+                    else -> { /* console drawer + other surfaces handle */ }
+                }
+                myEventFlow.emit(ev)
+            }
+        }
+        edtScope.launch {
+            val result = handle.result.await()
+            myLastResult.value = result
+            myEditedSinceLastSim.value = false
+            myRunning.value = false
+            currentHandle = null
+            // Reconcile leftover statuses with what actually happened.
+            // ScenarioOrchestrator emits ScenarioCompleted only in the
+            // commit phase, after every scenario has finished its in-
+            // memory simulation; if the user cancels between "reps
+            // done" and "commit", a scenario could still read RUNNING
+            // even though its work is complete.  Use the replication
+            // progress map to disambiguate:
+            //   PENDING            → SKIPPED  (never started)
+            //   RUNNING + reps done → COMPLETED  (work finished)
+            //   RUNNING + reps unfinished → FAILED  (cut off mid-run)
+            val progress = myReplicationProgress.value
+            myScenarioStatuses.value = myScenarioStatuses.value.mapValues { (name, s) ->
+                when (s) {
+                    ScenarioStatus.PENDING -> ScenarioStatus.SKIPPED
+                    ScenarioStatus.RUNNING -> {
+                        val p = progress[name]
+                        if (p != null && p.first >= p.second) ScenarioStatus.COMPLETED
+                        else ScenarioStatus.FAILED
+                    }
+                    else -> s
+                }
+            }
+        }
+        return true
+    }
+
+    /** Cancel the in-flight run, if any.  Global — no per-scenario cancel. */
+    fun cancel() {
+        currentHandle?.cancel("Cancelled by user")
+    }
+
+    private val myEditedSinceLastSim = MutableStateFlow(false)
+    /** `true` when in-memory state has been edited since the most
+     *  recent terminal run.  Cleared by [submit] on terminal result. */
+    val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
 
     /**
      *  Returns the list of `(bundleId, modelId)` pairs in the document
@@ -427,9 +616,38 @@ class ScenarioAppController(
     fun currentConfiguration(): RunConfiguration =
         RunConfiguration(
             scenarios = myScenarios.value,
+            bundleRefs = deriveBundleRefs(myScenarios.value),
             outputConfig = myOutputConfig.value.copy(outputDirectory = null),
             executionMode = myExecutionMode.value
         )
+
+    /**
+     *  Build the `bundleRefs` manifest for a [RunConfiguration] from
+     *  the scenarios' bundled model references plus the currently
+     *  loaded bundles.  Every `ByBundleAndModelId.bundleId` referenced
+     *  by [scenarios] appears in the result; the matching
+     *  [LoadedBundle.sourceJar] (when present) is recorded as the
+     *  candidate path so the saved document is portable.  Bundles
+     *  that aren't currently loaded are still listed with empty
+     *  [BundleRef.paths] so the validator's bundleRefs check
+     *  passes — the substrate will surface unresolved refs at submit
+     *  time as a separate validation step.
+     */
+    private fun deriveBundleRefs(scenarios: List<ScenarioSpec>): List<BundleRef> {
+        val referenced = scenarios
+            .mapNotNull { it.modelReference as? ModelReference.ByBundleAndModelId }
+            .map { it.bundleId }
+            .toSet()
+        if (referenced.isEmpty()) return emptyList()
+        val loadedById = myLoadedBundles.value.associateBy { it.bundle.bundleId }
+        return referenced.sorted().map { id ->
+            val path = loadedById[id]?.sourceJar?.toString()
+            BundleRef(
+                paths = listOfNotNull(path),
+                bundleId = id
+            )
+        }
+    }
 
     /**
      *  Replace the in-memory editor state with [config].  Clears
@@ -479,7 +697,12 @@ class ScenarioAppController(
     }
 
     override fun close() {
+        currentHandle?.cancel("App closed")
+        currentHandle = null
+        session?.close()
+        session = null
         edtScope.cancel("ScenarioAppController closed")
         myLoadedBundles.value.forEach { runCatching { it.close() } }
+        modelDefaultsCache.clear()
     }
 }

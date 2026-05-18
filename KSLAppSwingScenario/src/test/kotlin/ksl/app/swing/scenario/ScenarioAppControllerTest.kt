@@ -83,6 +83,21 @@ class ScenarioAppControllerTest {
     }
 
     @Test
+    fun `submit with no scenarios is a no-op`() {
+        val c = fresh()
+        assertFalse(c.submit())
+        assertFalse(c.runningFlow.value)
+    }
+
+    @Test
+    fun `submit with all scenarios skipped is a no-op`() {
+        val c = fresh()
+        c.addScenario(spec("A").copy(skipOnRun = true))
+        assertFalse(c.submit())
+        assertFalse(c.runningFlow.value)
+    }
+
+    @Test
     fun `setReportFormats updates outputConfig and flips dirty`() {
         val c = fresh()
         assertFalse(c.isDirty.value)

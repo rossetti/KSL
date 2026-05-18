@@ -19,6 +19,7 @@
 package ksl.app.swing.scenario
 
 import kotlinx.coroutines.launch
+import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.ScenarioSpec
 import java.awt.BorderLayout
@@ -39,47 +40,30 @@ import javax.swing.table.AbstractTableModel
 /**
  * Scenarios tab body: master JTable plus row-action toolbar.
  *
- * Columns:
- *  - **Skip** (boolean, editable) — toggles [ScenarioSpec.skipOnRun].
- *  - **Name** (read-only) — [ScenarioSpec.name].
- *  - **Model** (read-only) — display id derived from
- *    [ScenarioSpec.modelReference].
- *  - **Run params** (read-only) — short summary of any
- *    [ScenarioSpec.runOverrides] (e.g. "30 reps, 480.0 length") or
- *    `(model defaults)`.
+ * Columns (left → right) — matches the layout in workflow-scenario.md §6:
+ *  - **Status** — per-scenario lifecycle text ("Running…" / "Completed" / "Failed" / "Skipped").
+ *  - **Run?** — checkbox; checked = enabled, unchecked = skipped (inverted [ScenarioSpec.skipOnRun]).
+ *  - **Name** — read-only; edit via the per-scenario editor window.
+ *  - **Model** — display id derived from [ScenarioSpec.modelReference].
+ *  - **Reps** — inline-editable replication count; blank = model default.
+ *  - **Overrides** — summary text e.g. `"3 controls · 2 RVs · run-params"` or `"(no overrides)"`.
  *
- * Row actions:
- *  - **Add** opens an [AddScenarioDialog] (name-only in Phase E); the
- *    new scenario starts with an `<unresolved>` model reference that
- *    the analyst sets in the editor (lands in Phase F).
- *  - **Clone / Delete / Move Up / Move Down** delegate to the
- *    controller; enabled only when a row is selected.
- *  - **Edit** is built but disabled (tooltip points at Phase F).
- *
- * The double-click hook is wired but no-ops until Phase F.  The table
- * is a one-way mirror of `controller.scenarios` — re-builds on every
- * emission via `fireTableDataChanged`; selection synchronises
- * `controller.selectedIndex` bidirectionally.
+ * The double-click hook and *Edit…* button both open the modeless
+ * scenario-editor window.  Selection is bidirectionally synced with
+ * `controller.selectedIndex`.
  */
 class ScenariosTablePanel(
     private val controller: ScenarioAppController,
-    /**
-     *  Supplies a new [ScenarioSpec] to append when the user clicks
-     *  *Add*, or `null` when the user cancels.  Production wiring
-     *  passes the frame-level [AddScenarioDialog] launcher (which
-     *  shows the bundle/model picker); tests can pass a stub that
-     *  fabricates a spec directly.
-     */
     private val addScenarioProvider: () -> ScenarioSpec? = { null },
-    /**
-     *  Opens the per-scenario editor for the scenario at the given
-     *  index.  Production wiring shows [ScenarioEditorWindow] as a
-     *  modeless child of the main frame; tests can pass a no-op.
-     */
     private val openEditor: (Int) -> Unit = { _ -> }
 ) : JPanel(BorderLayout()) {
 
     private val tableModel = ScenariosTableModel { controller.scenarios.value }
+
+    /** Suppresses the table→controller selection listener while the
+     *  table is being rebuilt from a controller-side update. */
+    private var suppressSelectionListener: Boolean = false
+
     val table: JTable = JTable(tableModel).apply {
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         fillsViewportHeight = true
@@ -104,17 +88,47 @@ class ScenariosTablePanel(
         wireSelectionSync()
         wireDoubleClick()
         wireScenariosCollector()
+        wireStatusCollector()
+        wireProgressCollector()
+        wireRunningCollector()
         wireActions()
         refreshActionEnablement()
     }
 
+    private fun wireStatusCollector() {
+        controller.edtScope.launch {
+            controller.scenarioStatuses.collect {
+                tableModel.fireTableDataChanged()
+            }
+        }
+    }
+
+    private fun wireProgressCollector() {
+        controller.edtScope.launch {
+            controller.replicationProgress.collect {
+                tableModel.fireTableDataChanged()
+            }
+        }
+    }
+
+    private fun wireRunningCollector() {
+        controller.edtScope.launch {
+            controller.runningFlow.collect { running ->
+                table.isEnabled = !running
+                refreshActionEnablement()
+            }
+        }
+    }
+
     private fun applyColumnWidths() {
         val cm = table.columnModel
-        cm.getColumn(COL_SKIP).preferredWidth = 50
-        cm.getColumn(COL_SKIP).maxWidth = 60
+        cm.getColumn(COL_STATUS).preferredWidth = 140
+        cm.getColumn(COL_RUN).preferredWidth = 50
+        cm.getColumn(COL_RUN).maxWidth = 60
         cm.getColumn(COL_NAME).preferredWidth = 220
-        cm.getColumn(COL_MODEL).preferredWidth = 260
-        cm.getColumn(COL_PARAMS).preferredWidth = 240
+        cm.getColumn(COL_MODEL).preferredWidth = 240
+        cm.getColumn(COL_REPS).preferredWidth = 70
+        cm.getColumn(COL_OVERRIDES).preferredWidth = 280
     }
 
     private fun buildToolbar(): JPanel = JPanel().apply {
@@ -135,14 +149,16 @@ class ScenariosTablePanel(
     }
 
     private fun wireSelectionSync() {
-        // Table → controller
         table.selectionModel.addListSelectionListener { e ->
             if (e.valueIsAdjusting) return@addListSelectionListener
+            if (suppressSelectionListener) {
+                refreshActionEnablement()
+                return@addListSelectionListener
+            }
             val row = table.selectedRow
             controller.setSelectedIndex(if (row < 0) -1 else row)
             refreshActionEnablement()
         }
-        // Controller → table
         controller.edtScope.launch {
             controller.selectedIndex.collect { idx ->
                 if (idx < 0) {
@@ -159,6 +175,11 @@ class ScenariosTablePanel(
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
                 if (e.clickCount == 2 && table.selectedRow >= 0) {
+                    // Don't open the editor when the user is double-clicking
+                    // to start an inline edit on Reps/Run? — that's a normal
+                    // table cell-edit gesture.
+                    val col = table.columnAtPoint(e.point)
+                    if (col == COL_REPS || col == COL_RUN) return
                     openEditor(table.selectedRow)
                 }
             }
@@ -168,11 +189,15 @@ class ScenariosTablePanel(
     private fun wireScenariosCollector() {
         controller.edtScope.launch {
             controller.scenarios.collect {
-                tableModel.fireTableDataChanged()
-                // After data refresh, restore selection from controller.
-                val idx = controller.selectedIndex.value
-                if (idx in 0 until table.rowCount && table.selectedRow != idx) {
-                    table.setRowSelectionInterval(idx, idx)
+                suppressSelectionListener = true
+                try {
+                    tableModel.fireTableDataChanged()
+                    val idx = controller.selectedIndex.value
+                    if (idx in 0 until table.rowCount && table.selectedRow != idx) {
+                        table.setRowSelectionInterval(idx, idx)
+                    }
+                } finally {
+                    suppressSelectionListener = false
                 }
                 refreshActionEnablement()
             }
@@ -185,15 +210,15 @@ class ScenariosTablePanel(
             controller.addScenario(spec)
         }
         editButton.addActionListener {
-            val idx = controller.selectedIndex.value
+            val idx = currentRow()
             if (idx >= 0) openEditor(idx)
         }
         cloneButton.addActionListener {
-            val idx = controller.selectedIndex.value
+            val idx = currentRow()
             if (idx >= 0) controller.cloneScenario(idx)
         }
         deleteButton.addActionListener {
-            val idx = controller.selectedIndex.value
+            val idx = currentRow()
             if (idx < 0) return@addActionListener
             val spec = controller.scenarios.value.getOrNull(idx) ?: return@addActionListener
             val choice = JOptionPane.showConfirmDialog(
@@ -206,74 +231,117 @@ class ScenariosTablePanel(
             if (choice == JOptionPane.YES_OPTION) controller.deleteScenario(idx)
         }
         upButton.addActionListener {
-            val idx = controller.selectedIndex.value
+            val idx = currentRow()
             if (idx >= 1) controller.moveScenarioUp(idx)
         }
         downButton.addActionListener {
-            val idx = controller.selectedIndex.value
+            val idx = currentRow()
             if (idx in 0 until controller.scenarios.value.lastIndex) controller.moveScenarioDown(idx)
         }
     }
 
+    private fun currentRow(): Int {
+        val row = table.selectedRow
+        if (row >= 0) return row
+        return controller.selectedIndex.value
+    }
+
     private fun refreshActionEnablement() {
-        val idx = controller.selectedIndex.value
+        val running = controller.runningFlow.value
+        val idx = currentRow()
         val count = controller.scenarios.value.size
         val hasSelection = idx in 0 until count
-        editButton.isEnabled = hasSelection
-        cloneButton.isEnabled = hasSelection
-        deleteButton.isEnabled = hasSelection
-        upButton.isEnabled = hasSelection && idx >= 1
-        downButton.isEnabled = hasSelection && idx < count - 1
+        addButton.isEnabled = !running
+        editButton.isEnabled = !running && hasSelection
+        cloneButton.isEnabled = !running && hasSelection
+        deleteButton.isEnabled = !running && hasSelection
+        upButton.isEnabled = !running && hasSelection && idx >= 1
+        downButton.isEnabled = !running && hasSelection && idx < count - 1
     }
 
     companion object {
-        const val COL_SKIP: Int = 0
-        const val COL_NAME: Int = 1
-        const val COL_MODEL: Int = 2
-        const val COL_PARAMS: Int = 3
+        const val COL_STATUS: Int = 0
+        const val COL_RUN: Int = 1
+        const val COL_NAME: Int = 2
+        const val COL_MODEL: Int = 3
+        const val COL_REPS: Int = 4
+        const val COL_OVERRIDES: Int = 5
+        private const val COLUMN_COUNT: Int = 6
     }
 
-    /** Backing table model.  Reads through the supplied snapshot
-     *  lambda on every cell access so refresh is a single
-     *  `fireTableDataChanged()` call. */
     private inner class ScenariosTableModel(
         private val snapshotProvider: () -> List<ScenarioSpec>
     ) : AbstractTableModel() {
 
         override fun getRowCount(): Int = snapshotProvider().size
-        override fun getColumnCount(): Int = 4
+        override fun getColumnCount(): Int = COLUMN_COUNT
 
         override fun getColumnName(column: Int): String = when (column) {
-            COL_SKIP -> "Skip"
+            COL_STATUS -> "Status"
+            COL_RUN -> "Run?"
             COL_NAME -> "Name"
             COL_MODEL -> "Model"
-            COL_PARAMS -> "Run params"
+            COL_REPS -> "Reps"
+            COL_OVERRIDES -> "Overrides"
             else -> ""
         }
 
         override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
-            COL_SKIP -> java.lang.Boolean::class.java
+            COL_RUN -> java.lang.Boolean::class.java
             else -> String::class.java
         }
 
         override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean =
-            columnIndex == COL_SKIP
+            !controller.runningFlow.value && (columnIndex == COL_RUN || columnIndex == COL_REPS)
 
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any? {
             val spec = snapshotProvider().getOrNull(rowIndex) ?: return null
             return when (columnIndex) {
-                COL_SKIP -> spec.skipOnRun
+                COL_STATUS -> statusText(
+                    controller.scenarioStatuses.value[spec.name],
+                    controller.replicationProgress.value[spec.name]
+                )
+                COL_RUN -> !spec.skipOnRun                       // checked = enabled
                 COL_NAME -> spec.name
                 COL_MODEL -> modelDisplay(spec.modelReference)
-                COL_PARAMS -> runParamsSummary(spec)
+                COL_REPS -> repsCellText(rowIndex, spec)
+                COL_OVERRIDES -> overridesSummary(spec)
                 else -> null
             }
         }
 
+        /** Reps cell shows the override when present; otherwise the
+         *  cached model default (italicised parentheses).  Returns an
+         *  empty string when nothing is known yet (probe failure /
+         *  unresolved bundle). */
+        private fun repsCellText(rowIndex: Int, spec: ScenarioSpec): String {
+            val override = spec.runOverrides?.numberOfReplications
+            if (override != null) return override.toString()
+            val defaults = controller.modelDefaultsFor(rowIndex) ?: return ""
+            return "(${defaults.numberOfReplications})"
+        }
+
         override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
-            if (columnIndex != COL_SKIP) return
-            val v = (aValue as? Boolean) ?: return
-            controller.setSkipOnRun(rowIndex, v)
+            val spec = snapshotProvider().getOrNull(rowIndex) ?: return
+            when (columnIndex) {
+                COL_RUN -> {
+                    val v = (aValue as? Boolean) ?: return
+                    controller.setSkipOnRun(rowIndex, !v)        // checked = enabled
+                }
+                COL_REPS -> {
+                    val text = (aValue as? String).orEmpty().trim()
+                    val newReps: Int? = if (text.isEmpty()) null else text.toIntOrNull()?.takeIf { it >= 1 }
+                    // Treat unparseable input as "no change" rather than wiping the override silently.
+                    if (text.isNotEmpty() && newReps == null) return
+                    val current = spec.runOverrides ?: ExperimentRunOverrides.EMPTY
+                    if (current.numberOfReplications == newReps) return
+                    val nextOverrides = current.copy(numberOfReplications = newReps)
+                    val nextSpec = spec.copy(
+                        runOverrides = if (nextOverrides.isEmpty) null else nextOverrides
+                    )
+                    controller.updateScenario(rowIndex, nextSpec)
+                }
+            }
         }
     }
 }
@@ -285,11 +353,62 @@ private fun modelDisplay(ref: ModelReference): String = when (ref) {
     is ModelReference.Embedded -> "embedded: ${ref.modelName}"
 }
 
-private fun runParamsSummary(spec: ScenarioSpec): String {
-    val o = spec.runOverrides ?: return "(model defaults)"
+/**
+ *  Per-row summary of every override category the scenario carries.
+ *  Includes:
+ *  - **run-params** when the spec has any non-null run-parameter override
+ *    field (other than `numberOfReplications`, which already has its own
+ *    column).
+ *  - **N controls** when the spec carries any numeric/string/JSON
+ *    control overrides.
+ *  - **N RVs** when the spec carries any RV-parameter overrides.
+ *  Returns `"(no overrides)"` when none of those apply.
+ */
+private fun overridesSummary(spec: ScenarioSpec): String {
     val parts = mutableListOf<String>()
-    o.numberOfReplications?.let { parts += "$it reps" }
-    o.lengthOfReplication?.let { parts += "len $it" }
-    o.lengthOfReplicationWarmUp?.let { parts += "warm $it" }
-    return if (parts.isEmpty()) "(model defaults)" else parts.joinToString(", ")
+
+    val runOverrideCount = countNonRepsRunOverrides(spec.runOverrides)
+    if (runOverrideCount > 0) parts += "run-params ($runOverrideCount)"
+
+    val controlCount = spec.controlOverrides.totalControls
+    if (controlCount > 0) parts += "$controlCount control${if (controlCount == 1) "" else "s"}"
+
+    val rvCount = spec.rvOverrides.size
+    if (rvCount > 0) parts += "$rvCount RV${if (rvCount == 1) "" else "s"}"
+
+    if (spec.modelConfiguration?.isNotEmpty() == true) parts += "config-map"
+
+    return if (parts.isEmpty()) "(no overrides)" else parts.joinToString(" · ")
+}
+
+/** Count of non-null run-parameter override fields excluding
+ *  `numberOfReplications` (which has its own column). */
+private fun countNonRepsRunOverrides(o: ExperimentRunOverrides?): Int {
+    if (o == null) return 0
+    var n = 0
+    if (o.lengthOfReplication != null) n++
+    if (o.lengthOfReplicationWarmUp != null) n++
+    if (o.numChunks != null) n++
+    if (o.startingRepId != null) n++
+    if (o.replicationInitializationOption != null) n++
+    if (o.maximumAllowedExecutionTimePerReplication != null) n++
+    if (o.resetStartStreamOption != null) n++
+    if (o.advanceNextSubStreamOption != null) n++
+    if (o.antitheticOption != null) n++
+    if (o.numberOfStreamAdvancesPriorToRunning != null) n++
+    if (o.garbageCollectAfterReplicationFlag != null) n++
+    return n
+}
+
+private fun statusText(
+    status: ScenarioAppController.ScenarioStatus?,
+    progress: Pair<Int, Int>?
+): String = when (status) {
+    null, ScenarioAppController.ScenarioStatus.IDLE -> ""
+    ScenarioAppController.ScenarioStatus.PENDING -> "Queued…"
+    ScenarioAppController.ScenarioStatus.RUNNING ->
+        progress?.let { (cur, total) -> "Running $cur / $total" } ?: "Running…"
+    ScenarioAppController.ScenarioStatus.COMPLETED -> "Completed"
+    ScenarioAppController.ScenarioStatus.FAILED -> "Failed"
+    ScenarioAppController.ScenarioStatus.SKIPPED -> "Skipped"
 }

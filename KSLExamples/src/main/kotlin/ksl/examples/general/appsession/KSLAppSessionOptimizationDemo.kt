@@ -203,6 +203,9 @@ private class ConsoleOptimizationRenderer(
             // Other event types are not central to the optimization narrative
             is RunEvent.ReplicationRunStarted,
             is RunEvent.ScenarioRunStarted,
+            is RunEvent.ScenarioStarted,
+            is RunEvent.ScenarioReplicationStarted,
+            is RunEvent.ScenarioReplicationEnded,
             is RunEvent.ExperimentRunStarted,
             is RunEvent.ReplicationStarted,
             is RunEvent.ReplicationEnded,

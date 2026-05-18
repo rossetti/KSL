@@ -67,13 +67,27 @@ class ConcurrentSimulationRunner(
     }
 
     /**
-     * Runs [simulationRun] using the public replication-step API on [Model].
+     *  Runs [simulationRun] using the public replication-step API on [Model].
      *
-     * The current replication is allowed to finish once it starts.  A cancellation
-     * request is observed before the next replication begins, then rethrown so
-     * parent scopes see true coroutine cancellation instead of a failed simulation.
+     *  The current replication is allowed to finish once it starts.  A
+     *  cancellation request is observed before the next replication
+     *  begins, then rethrown so parent scopes see true coroutine
+     *  cancellation instead of a failed simulation.
+     *
+     *  Optional per-replication progress
+     *  callbacks.  [onReplicationStarted] fires immediately before each
+     *  `runNextReplication()` call; [onReplicationEnded] fires immediately
+     *  after.  Both receive the 1-based replication index and the total
+     *  replication count.  Used by `ConcurrentScenarioRunner` to forward
+     *  per-scenario progress to the orchestrator's event lifecycle.
+     *  When both callbacks are `null` this method behaves exactly as the
+     *  original no-callback overload.
      */
-    suspend fun simulate(simulationRun: SimulationRun): SimulationRun {
+    suspend fun simulate(
+        simulationRun: SimulationRun,
+        onReplicationStarted: (suspend (Int, Int) -> Unit)? = null,
+        onReplicationEnded: (suspend (Int, Int) -> Unit)? = null
+    ): SimulationRun {
         var timer: SimulationTimer? = null
         var rdc: ReplicationDataCollector? = null
         var initialized = false
@@ -97,7 +111,11 @@ class ConcurrentSimulationRunner(
 
             while (model.hasNextReplication() && !model.isDone) {
                 coroutineContext.ensureActive()
+                val repNumber = model.currentReplicationNumber + 1
+                val total = model.numberOfReplications
+                onReplicationStarted?.invoke(repNumber, total)
                 model.runNextReplication()
+                onReplicationEnded?.invoke(model.currentReplicationNumber, total)
             }
 
             model.endSimulation()

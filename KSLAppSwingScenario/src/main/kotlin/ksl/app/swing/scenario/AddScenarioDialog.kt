@@ -25,6 +25,7 @@ import ksl.app.config.ScenarioSpec
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.Frame
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -36,7 +37,6 @@ import javax.swing.DefaultComboBoxModel
 import javax.swing.DefaultListModel
 import javax.swing.JButton
 import javax.swing.JComboBox
-import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JLabel
 import javax.swing.JList
@@ -48,6 +48,8 @@ import javax.swing.JTextField
 import javax.swing.ListSelectionModel
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 /**
  *  Modal *Add Scenario* dialog with cascading bundle / model picker.
@@ -88,8 +90,10 @@ object AddScenarioDialog {
             )
             return null
         }
-        val owner: Window = SwingUtilities.getWindowAncestor(parent as? JComponent ?: return null)
-            ?: JOptionPane.getRootFrame()
+        val owner: Window = when (parent) {
+            is Window -> parent
+            else -> SwingUtilities.getWindowAncestor(parent) ?: JOptionPane.getRootFrame() ?: Frame()
+        }
         val dialog = AddDialog(owner, bundles, existingNames)
         dialog.isVisible = true
         return dialog.result
@@ -103,6 +107,14 @@ object AddScenarioDialog {
 
         var result: ScenarioSpec? = null
             private set
+
+        /** `true` once the user has typed anything into the name field
+         *  themselves; suppresses auto-reseed when switching models. */
+        private var userEditedName: Boolean = false
+
+        /** Set to `true` while we update [nameField] programmatically
+         *  so the document listener doesn't mark it as user-edited. */
+        private var settingNameProgrammatically: Boolean = false
 
         private val bundleCombo = JComboBox(DefaultComboBoxModel(bundles.toTypedArray())).apply {
             renderer = BundleRenderer()
@@ -134,6 +146,18 @@ object AddScenarioDialog {
             modelList.addListSelectionListener { e ->
                 if (!e.valueIsAdjusting) refreshDescriptionAndName()
             }
+            nameField.document.addDocumentListener(object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) = mark()
+                override fun removeUpdate(e: DocumentEvent) = mark()
+                override fun changedUpdate(e: DocumentEvent) = mark()
+                private fun mark() {
+                    if (settingNameProgrammatically) return
+                    // If the user clears the field back to blank, resume
+                    // auto-tracking — they want the next model selection
+                    // to seed the name again.
+                    userEditedName = nameField.text.isNotBlank()
+                }
+            })
             addButton.addActionListener { tryAccept() }
             cancelButton.addActionListener { dispose() }
 
@@ -188,18 +212,28 @@ object AddScenarioDialog {
         }
 
         private fun refreshDescriptionAndName() {
-            val model = modelList.selectedValue
-            if (model == null) {
+            val model = modelList.selectedValue ?: run {
                 descriptionArea.text = ""
                 return
             }
             descriptionArea.text = model.description
             descriptionArea.caretPosition = 0
-            // Seed the name only when the user hasn't typed something custom yet.
-            if (nameField.text.isBlank() ||
-                bundles.any { b -> b.bundle.models.any { it.displayName == nameField.text } }
-            ) {
-                nameField.text = uniqueName(model.displayName)
+            // Reseed only when the user hasn't typed a custom name yet.
+            // The DocumentListener flips userEditedName=true on real
+            // input and back to false when the field is cleared, so a
+            // user who wants the auto-track behaviour can backspace to
+            // resume it.
+            if (!userEditedName) {
+                setNameFromModel(model.displayName)
+            }
+        }
+
+        private fun setNameFromModel(displayName: String) {
+            settingNameProgrammatically = true
+            try {
+                nameField.text = uniqueName(displayName)
+            } finally {
+                settingNameProgrammatically = false
             }
         }
 

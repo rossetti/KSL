@@ -117,13 +117,31 @@ class ScenarioOrchestrator {
                     "ScenarioOrchestrator_$runId", scenarios, outputDir
                 )
 
-                runner.simulate(onScenarioComplete = { scenarioName, snapshot ->
-                    completedIdx++
-                    capturedSnapshots.add(snapshot)
-                    lifecycle.emitProgress(
-                        RunEvent.ScenarioCompleted(scenarioName, completedIdx, totalScenarios, snapshot)
-                    )
-                })
+                runner.simulate(
+                    onScenarioComplete = { scenarioName, snapshot ->
+                        completedIdx++
+                        capturedSnapshots.add(snapshot)
+                        lifecycle.emitProgress(
+                            RunEvent.ScenarioCompleted(scenarioName, completedIdx, totalScenarios, snapshot)
+                        )
+                    },
+                    executionMode = config.executionMode,
+                    onScenarioStart = { scenarioName, scenarioIndex, total ->
+                        lifecycle.emitProgress(
+                            RunEvent.ScenarioStarted(scenarioName, scenarioIndex, total)
+                        )
+                    },
+                    onReplicationStart = { scenarioName, repNumber, totalReps ->
+                        lifecycle.emitProgress(
+                            RunEvent.ScenarioReplicationStarted(scenarioName, repNumber, totalReps)
+                        )
+                    },
+                    onReplicationEnd = { scenarioName, repNumber, totalReps ->
+                        lifecycle.emitProgress(
+                            RunEvent.ScenarioReplicationEnded(scenarioName, repNumber, totalReps)
+                        )
+                    }
+                )
 
                 val endTime = Clock.System.now()
                 val successSnapshots = capturedSnapshots.filterNotNull()

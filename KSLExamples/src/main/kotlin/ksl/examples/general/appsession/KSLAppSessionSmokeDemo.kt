@@ -345,6 +345,9 @@ private class ConsoleRunRenderer(
             is RunEvent.RunCancelled ->
                 writeLine("Run cancelled: ${event.reason}")
             is RunEvent.ReplicationStarted,
+            is RunEvent.ScenarioStarted,
+            is RunEvent.ScenarioReplicationStarted,
+            is RunEvent.ScenarioReplicationEnded,
             is RunEvent.SimTimeAdvanced,
             is RunEvent.DesignPointCompleted,
             is RunEvent.IterationCompleted,

@@ -88,31 +88,60 @@ class ScenariosTablePanelTest {
         assertEquals(1, pnl.table.rowCount)
         assertEquals("Alpha", pnl.table.getValueAt(0, ScenariosTablePanel.COL_NAME))
         assertEquals("embedded: mm1", pnl.table.getValueAt(0, ScenariosTablePanel.COL_MODEL))
-        assertEquals(false, pnl.table.getValueAt(0, ScenariosTablePanel.COL_SKIP))
-        assertEquals("(model defaults)", pnl.table.getValueAt(0, ScenariosTablePanel.COL_PARAMS))
+        // Run? checkbox: checked = enabled (inverted skipOnRun)
+        assertEquals(true, pnl.table.getValueAt(0, ScenariosTablePanel.COL_RUN))
+        assertEquals("", pnl.table.getValueAt(0, ScenariosTablePanel.COL_REPS))
+        assertEquals("(no overrides)", pnl.table.getValueAt(0, ScenariosTablePanel.COL_OVERRIDES))
     }
 
     @Test
-    fun `run params column summarises overrides`() {
+    fun `reps column shows numberOfReplications override`() {
         val (ctl, pnl) = setup()
         SwingUtilities.invokeAndWait { ctl.addScenario(spec("Beta", reps = 50)) }
         flushEdt()
-        val params = pnl.table.getValueAt(0, ScenariosTablePanel.COL_PARAMS) as String
-        assertTrue(params.contains("50 reps"), "expected '50 reps' in '$params'")
+        assertEquals("50", pnl.table.getValueAt(0, ScenariosTablePanel.COL_REPS))
+        // numberOfReplications has its own column, so the Overrides summary
+        // does not list it — a scenario with only reps shows "(no overrides)".
+        assertEquals("(no overrides)", pnl.table.getValueAt(0, ScenariosTablePanel.COL_OVERRIDES))
     }
 
     @Test
-    fun `toggling skip cell calls controller setSkipOnRun`() {
+    fun `editing reps cell writes through controller updateScenario`() {
+        val (ctl, pnl) = setup()
+        SwingUtilities.invokeAndWait { ctl.addScenario(spec("Delta")) }
+        flushEdt()
+        SwingUtilities.invokeAndWait {
+            pnl.table.setValueAt("42", 0, ScenariosTablePanel.COL_REPS)
+        }
+        flushEdt()
+        assertEquals(42, ctl.scenarios.value[0].runOverrides?.numberOfReplications)
+    }
+
+    @Test
+    fun `clearing reps cell removes the override`() {
+        val (ctl, pnl) = setup()
+        SwingUtilities.invokeAndWait { ctl.addScenario(spec("Eps", reps = 30)) }
+        flushEdt()
+        SwingUtilities.invokeAndWait {
+            pnl.table.setValueAt("", 0, ScenariosTablePanel.COL_REPS)
+        }
+        flushEdt()
+        assertEquals(null, ctl.scenarios.value[0].runOverrides)
+    }
+
+    @Test
+    fun `unchecking Run flips skipOnRun true`() {
         val (ctl, pnl) = setup()
         SwingUtilities.invokeAndWait { ctl.addScenario(spec("Gamma")) }
         flushEdt()
         assertFalse(ctl.scenarios.value[0].skipOnRun)
+        // unchecked = skip
         SwingUtilities.invokeAndWait {
-            pnl.table.setValueAt(true, 0, ScenariosTablePanel.COL_SKIP)
+            pnl.table.setValueAt(false, 0, ScenariosTablePanel.COL_RUN)
         }
         flushEdt()
         assertTrue(ctl.scenarios.value[0].skipOnRun)
-        assertEquals(true, pnl.table.getValueAt(0, ScenariosTablePanel.COL_SKIP))
+        assertEquals(false, pnl.table.getValueAt(0, ScenariosTablePanel.COL_RUN))
     }
 
     @Test

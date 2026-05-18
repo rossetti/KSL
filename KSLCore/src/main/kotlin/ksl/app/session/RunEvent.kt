@@ -254,6 +254,50 @@ sealed class RunEvent {
     // ── Orchestrator events (Phase 5) ─────────────────────────────────────────
 
     /**
+     * Emitted by `ScenarioOrchestrator` when an individual scenario's
+     * simulation begins.  Under [ksl.app.config.ExecutionMode.SEQUENTIAL]
+     * scenarios start one at a time; under [ksl.app.config.ExecutionMode.CONCURRENT]
+     * every scenario emits this event before any of them begin replications.
+     *
+     * @property scenarioName the scenario name as specified in `ScenarioSpec.name`
+     * @property index        1-based position of this scenario among all scenarios
+     * @property totalScenarios total number of scenarios in the run
+     */
+    data class ScenarioStarted(
+        val scenarioName: String,
+        val index: Int,
+        val totalScenarios: Int
+    ) : RunEvent()
+
+    /**
+     * Emitted by `ScenarioOrchestrator` immediately before scenario
+     * [scenarioName] begins replication [repNumber].  Carries the same
+     * payload as [ReplicationStarted] but tagged with the scenario name,
+     * so multi-scenario consumers (the Scenario app's GUI in particular)
+     * can attribute per-replication progress to the right row.
+     *
+     * @property scenarioName scenario whose replication is starting
+     * @property repNumber 1-based index of the replication about to execute
+     * @property totalReplications total replications for this scenario
+     */
+    data class ScenarioReplicationStarted(
+        val scenarioName: String,
+        val repNumber: Int,
+        val totalReplications: Int
+    ) : RunEvent()
+
+    /**
+     * Emitted by `ScenarioOrchestrator` immediately after scenario
+     * [scenarioName] finishes replication [repNumber].  Counterpart to
+     * [ScenarioReplicationStarted].
+     */
+    data class ScenarioReplicationEnded(
+        val scenarioName: String,
+        val repNumber: Int,
+        val totalReplications: Int
+    ) : RunEvent()
+
+    /**
      * Emitted by `ScenarioOrchestrator` after each scenario completes (or fails).
      *
      * Events are emitted in scenario-index order during the sequential commit phase

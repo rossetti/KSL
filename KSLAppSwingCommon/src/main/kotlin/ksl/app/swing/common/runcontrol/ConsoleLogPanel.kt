@@ -81,6 +81,12 @@ object DefaultEventFormatter : EventFormatter {
         is RunEvent.RunFailed -> "Run failed: ${event.error}"
         is RunEvent.RunCancelled -> "Run cancelled: ${event.reason}"
         is RunEvent.RunCompleted -> "Run completed"
+        is RunEvent.ScenarioStarted ->
+            "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios}) started"
+        is RunEvent.ScenarioReplicationStarted ->
+            "[${event.scenarioName}] replication ${event.repNumber} / ${event.totalReplications} started"
+        is RunEvent.ScenarioReplicationEnded ->
+            "[${event.scenarioName}] replication ${event.repNumber} / ${event.totalReplications} ended"
         is RunEvent.ScenarioCompleted ->
             "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios})" +
                 if (event.snapshot == null) " (failed)" else " complete"
@@ -181,7 +187,7 @@ class ConsoleLogPanel(
             JToggleButton(categoryLabel(category)).apply {
                 isSelected = true
                 isFocusable = false
-                toolTipText = "${category.name} category events"
+                toolTipText = categoryTooltip(category)
                 applyRailButtonSizing()
                 addActionListener { onCategoryToggle(category, this.isSelected) }
             }
@@ -498,6 +504,17 @@ class ConsoleLogPanel(
         }
 
         /** Short chip label for a category bucket. */
+        private fun categoryTooltip(c: ConsoleCategory): String = when (c) {
+            ConsoleCategory.LIFECYCLE -> "Lifecycle events: run started/completed/cancelled/failed, " +
+                "warnings, and orchestrator-level boundaries.  Shows the run as a whole."
+            ConsoleCategory.REPLICATION -> "Per-replication events: replication N/M started/ended " +
+                "for each scenario (or single-run model), plus simulation-time advances."
+            ConsoleCategory.ORCHESTRATOR -> "Orchestrator events: per-scenario start, per-scenario " +
+                "complete, design-point complete, optimization iteration complete."
+            ConsoleCategory.STDOUT -> "Lines captured from System.out / System.err while the " +
+                "*Capture stdout* toggle is on."
+        }
+
         private fun categoryLabel(c: ConsoleCategory): String = when (c) {
             ConsoleCategory.LIFECYCLE -> "Life"
             ConsoleCategory.REPLICATION -> "Rep"
@@ -520,7 +537,10 @@ class ConsoleLogPanel(
         fun categoryOf(event: RunEvent): ConsoleCategory = when (event) {
             is RunEvent.ReplicationStarted,
             is RunEvent.ReplicationEnded,
+            is RunEvent.ScenarioReplicationStarted,
+            is RunEvent.ScenarioReplicationEnded,
             is RunEvent.SimTimeAdvanced -> ConsoleCategory.REPLICATION
+            is RunEvent.ScenarioStarted,
             is RunEvent.ScenarioCompleted,
             is RunEvent.DesignPointCompleted,
             is RunEvent.IterationCompleted -> ConsoleCategory.ORCHESTRATOR

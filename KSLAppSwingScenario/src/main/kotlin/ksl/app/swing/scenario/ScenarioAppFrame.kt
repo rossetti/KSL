@@ -21,9 +21,14 @@ package ksl.app.swing.scenario
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import ksl.app.config.RunConfigurationToml
+import ksl.app.session.RunEvent
+import ksl.app.session.RunResult
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
+import ksl.app.swing.common.runcontrol.ConsoleCategory
+import ksl.app.swing.common.runcontrol.ConsoleDrawer
+import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import java.awt.BorderLayout
@@ -36,12 +41,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.AbstractAction
 import javax.swing.BorderFactory
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.JButton
 import javax.swing.JFileChooser
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
+import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.KeyStroke
 import javax.swing.WindowConstants
@@ -69,6 +78,40 @@ class ScenarioAppFrame(
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
 
+    private val simulateButton = JButton("Simulate")
+    private val cancelButton = JButton("Cancel").apply { isEnabled = false }
+    private val sequentialRadio = javax.swing.JRadioButton(
+        "Sequential",
+        controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL
+    )
+    private val concurrentRadio = javax.swing.JRadioButton(
+        "Concurrent",
+        controller.executionMode.value == ksl.app.config.ExecutionMode.CONCURRENT
+    )
+
+    private val consolePanel = ConsoleLogPanel(
+        eventFlow = controller.eventFlow,
+        scope = controller.edtScope,
+        hiddenCategories = setOf(ConsoleCategory.STDOUT)
+    )
+    private val consoleDrawer = ConsoleDrawer(console = consolePanel, showCaptureToggle = false)
+
+    /** Banner shown when the document has been edited since the
+     *  most recent terminal run.  Hidden when no results exist or
+     *  the document is in sync with the last submitted state. */
+    private val staleResultsBanner: JLabel = JLabel(
+        " Results are from a previous run — the document has been edited since."
+    ).apply {
+        isOpaque = true
+        background = java.awt.Color(0xFF, 0xF4, 0xCC)
+        foreground = java.awt.Color(0x66, 0x55, 0x00)
+        border = BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, java.awt.Color(0xE0, 0xC8, 0x80)),
+            BorderFactory.createEmptyBorder(4, 12, 4, 12)
+        )
+        isVisible = false
+    }
+
     companion object {
         private const val SAVE_BASE_TEXT: String = "Save Configuration"
         private const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
@@ -90,15 +133,24 @@ class ScenarioAppFrame(
         )
         val tabs = javax.swing.JTabbedPane().apply {
             addTab("Scenarios", scenariosTab)
-            addTab("Output Options", OutputOptionsPanel(controller))
-            addTab("Reports", ReportsTabPanel(controller))
+            addTab("Reports", ReportsTabPanel(controller, onMessage = { msg, sev ->
+                notifications.show(msg, sev)
+            }))
         }
+        val topStack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(buildRunToolbar())
+            add(staleResultsBanner)
+        }
+        contentPane.add(topStack, BorderLayout.NORTH)
         contentPane.add(tabs, BorderLayout.CENTER)
-        contentPane.add(buildStatusBar(), BorderLayout.SOUTH)
+        contentPane.add(buildBottomStack(), BorderLayout.SOUTH)
 
         wireWindowTitle()
         wireDirtyIndicators()
         wireBundleStatus()
+        wireRunIndicators()
+        wireStaleResultsBanner()
 
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
@@ -174,6 +226,128 @@ class ScenarioAppFrame(
         add(bundleStatusLabel, BorderLayout.WEST)
     }
 
+    private fun buildBottomStack(): JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        add(consoleDrawer)
+        add(buildStatusBar())
+    }
+
+    private fun buildRunToolbar(): JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.X_AXIS)
+        border = BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        simulateButton.addActionListener { handleSimulate() }
+        cancelButton.addActionListener { controller.cancel() }
+        val group = javax.swing.ButtonGroup().apply {
+            add(sequentialRadio); add(concurrentRadio)
+        }
+        @Suppress("UNUSED_EXPRESSION") group
+        sequentialRadio.addActionListener {
+            if (sequentialRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.SEQUENTIAL)
+        }
+        concurrentRadio.addActionListener {
+            if (concurrentRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.CONCURRENT)
+        }
+        add(simulateButton)
+        add(Box.createHorizontalStrut(8))
+        add(cancelButton)
+        add(Box.createHorizontalStrut(16))
+        add(JLabel("Mode:"))
+        add(Box.createHorizontalStrut(4))
+        add(sequentialRadio)
+        add(concurrentRadio)
+        add(Box.createHorizontalGlue())
+    }
+
+    private fun handleSimulate() {
+        if (controller.runningFlow.value) return
+        val runnable = controller.scenarios.value.count { !it.skipOnRun }
+        if (runnable == 0) {
+            notifications.show(
+                "No scenarios to run.  Add at least one scenario and ensure it isn't skipped.",
+                NotificationSeverity.WARNING
+            )
+            return
+        }
+        if (controller.isDirty.value) {
+            val choice = JOptionPane.showOptionDialog(
+                this,
+                "You have unsaved configuration changes.\n" +
+                    "Save them before simulating?",
+                "Unsaved Changes",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                arrayOf<Any>("Save…", "Simulate without saving", "Cancel"),
+                "Save…"
+            )
+            when (choice) {
+                0 -> handleSave()
+                1 -> { /* fall through to submit */ }
+                else -> return
+            }
+        }
+        consolePanel.clear()
+        if (!controller.submit()) {
+            notifications.show("Could not start the run.", NotificationSeverity.ERROR)
+        }
+    }
+
+    private fun wireRunIndicators() {
+        controller.edtScope.launch {
+            controller.runningFlow.collect { running ->
+                simulateButton.isEnabled = !running
+                cancelButton.isEnabled = running
+                sequentialRadio.isEnabled = !running
+                concurrentRadio.isEnabled = !running
+            }
+        }
+        controller.edtScope.launch {
+            controller.executionMode.collect { mode ->
+                val wantSeq = mode == ksl.app.config.ExecutionMode.SEQUENTIAL
+                if (sequentialRadio.isSelected != wantSeq) sequentialRadio.isSelected = wantSeq
+                if (concurrentRadio.isSelected == wantSeq) concurrentRadio.isSelected = !wantSeq
+            }
+        }
+        controller.edtScope.launch {
+            controller.eventFlow.collect { ev ->
+                when (ev) {
+                    is RunEvent.RunFailed ->
+                        notifications.show(
+                            "Run failed: ${describeError(ev.error)}",
+                            NotificationSeverity.ERROR
+                        )
+                    is RunEvent.ScenarioCompleted ->
+                        if (ev.snapshot == null) {
+                            notifications.show(
+                                "Scenario '${ev.scenarioName}' failed.",
+                                NotificationSeverity.WARNING
+                            )
+                        }
+                    else -> { /* console drawer renders the rest */ }
+                }
+            }
+        }
+        controller.edtScope.launch {
+            controller.lastResult.collect { result ->
+                if (result is RunResult.BatchCompleted) {
+                    notifications.show(
+                        "Run completed: ${result.summary.completedItems} of " +
+                            "${result.summary.totalItems} scenarios.",
+                        NotificationSeverity.INFO
+                    )
+                }
+            }
+        }
+    }
+
+    private fun describeError(error: ksl.app.session.KSLRuntimeError): String = when (error) {
+        is ksl.app.session.KSLRuntimeError.ModelBuildError -> error.message
+        is ksl.app.session.KSLRuntimeError.JarLoadError -> error.message
+        is ksl.app.session.KSLRuntimeError.ExecutiveError ->
+            error.cause.message ?: error.cause::class.simpleName.orEmpty()
+        is ksl.app.session.KSLRuntimeError.ConfigurationError -> error.message
+    }
+
     private fun openAddScenarioDialog(): ksl.app.config.ScenarioSpec? =
         AddScenarioDialog.prompt(
             this,
@@ -184,31 +358,38 @@ class ScenarioAppFrame(
     private val openEditors: MutableMap<String, ScenarioEditorWindow> = mutableMapOf()
 
     private fun openScenarioEditor(index: Int) {
-        val spec = controller.scenarios.value.getOrNull(index) ?: return
-        // Re-focus an existing editor for this scenario rather than
-        // spawning a duplicate.  Keyed by current name (good enough —
-        // updateScenario renames close the window before the rename
-        // commits).
-        openEditors[spec.name]?.let { existing ->
-            existing.toFront()
-            existing.requestFocus()
-            return
-        }
-        val buffer = ScenarioEditBuffer.probe(spec, controller.loadedBundles.value)
-        val others = controller.scenarios.value
-            .filterIndexed { i, _ -> i != index }
-            .map { it.name }
-            .toSet()
-        val window = ScenarioEditorWindow(controller, index, buffer, others)
-        openEditors[spec.name] = window
-        window.addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                openEditors.remove(spec.name)
+        try {
+            val spec = controller.scenarios.value.getOrNull(index) ?: return
+            // Re-focus an existing editor for this scenario rather than
+            // spawning a duplicate.  Keyed by current name (good enough —
+            // updateScenario renames close the window before the rename
+            // commits).
+            openEditors[spec.name]?.let { existing ->
+                existing.toFront()
+                existing.requestFocus()
+                return
             }
-        })
-        window.pack()
-        window.setLocationRelativeTo(this)
-        window.isVisible = true
+            val buffer = ScenarioEditBuffer.probe(spec, controller.loadedBundles.value)
+            val others = controller.scenarios.value
+                .filterIndexed { i, _ -> i != index }
+                .map { it.name }
+                .toSet()
+            val window = ScenarioEditorWindow(controller, index, buffer, others)
+            openEditors[spec.name] = window
+            window.addWindowListener(object : WindowAdapter() {
+                override fun windowClosed(e: WindowEvent?) {
+                    openEditors.remove(spec.name)
+                }
+            })
+            window.pack()
+            window.setLocationRelativeTo(this)
+            window.isVisible = true
+        } catch (t: Throwable) {
+            notifications.show(
+                "Could not open scenario editor: ${t.message ?: t::class.simpleName}",
+                NotificationSeverity.ERROR
+            )
+        }
     }
 
     private fun handleLoadBundleJar() {
@@ -380,6 +561,16 @@ class ScenarioAppFrame(
             controller.isDirty.collect { dirty ->
                 saveItem.text = if (dirty) SAVE_DIRTY_TEXT else SAVE_BASE_TEXT
             }
+        }
+    }
+
+    private fun wireStaleResultsBanner() {
+        controller.edtScope.launch {
+            kotlinx.coroutines.flow.combine(
+                controller.editedSinceLastSim,
+                controller.lastResult
+            ) { edited, result -> edited && result != null }
+                .collect { staleResultsBanner.isVisible = it }
         }
     }
 

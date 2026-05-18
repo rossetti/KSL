@@ -204,19 +204,37 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
     suspend fun simulate(
         scenarios: IntProgression = myScenarios.indices,
         clearAllData: Boolean = true,
-        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onScenarioComplete: ((scenarioName: String, snapshot: ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
+        executionMode: ksl.app.config.ExecutionMode = ksl.app.config.ExecutionMode.CONCURRENT,
+        onScenarioStart: ((scenarioName: String, scenarioIndex: Int, totalScenarios: Int) -> Unit)? = null,
+        onReplicationStart: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
+        onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
 
-        // ── Phase 1: concurrent simulation ────────────────────────────────────
-        val outcomes = scenarios
-            .filter { it in myScenarios.indices }
-            .map { myScenarios[it] }
-            .map { scenario ->
-                async(SimulationDispatcher.default) {
-                    runScenario(scenario)
+        val scenarioList = scenarios.filter { it in myScenarios.indices }.map { myScenarios[it] }
+        val total = scenarioList.size
+
+        // ── Phase 1: simulate ─────────────────────────────────────────────────
+        // CONCURRENT — fan out via async/awaitAll.  SEQUENTIAL — plain
+        // for-loop so each scenario waits for the previous to finish.
+        // Per-scenario start and per-replication events are forwarded to the
+        // caller's lifecycle so multi-scenario consumers can attribute
+        // progress to the correct row.
+        val outcomes: List<ScenarioRunOutcome> = when (executionMode) {
+            ksl.app.config.ExecutionMode.CONCURRENT ->
+                scenarioList.mapIndexed { i, scenario ->
+                    async(SimulationDispatcher.default) {
+                        onScenarioStart?.invoke(scenario.name, i + 1, total)
+                        runScenario(scenario, onReplicationStart, onReplicationEnd)
+                    }
+                }.awaitAll()
+            ksl.app.config.ExecutionMode.SEQUENTIAL ->
+                scenarioList.mapIndexed { i, scenario ->
+                    onScenarioStart?.invoke(scenario.name, i + 1, total)
+                    runScenario(scenario, onReplicationStart, onReplicationEnd)
                 }
-            }.awaitAll()
+        }
 
         // ── Phase 2: sequential DB commit ─────────────────────────────────────
         // All simulation data is held in memory until this ordered commit phase.
@@ -242,7 +260,11 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         }
     }
 
-    private suspend fun runScenario(scenario: Scenario): ScenarioRunOutcome {
+    private suspend fun runScenario(
+        scenario: Scenario,
+        onReplicationStart: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
+        onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null
+    ): ScenarioRunOutcome {
         var modelIdentifier: String? = null
         var collector: InMemorySnapshotCollector? = null
         try {
@@ -269,7 +291,20 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             // Attach collector before the simulation lifecycle starts so the
             // completed-experiment snapshot is available for the ordered DB commit.
             collector = InMemorySnapshotCollector(model.lifeCycleEmitters)
-            ConcurrentSimulationRunner(model).simulate(simulationRun)
+            // Forward per-replication progress to the caller's callbacks (if any)
+            // tagged with this scenario's name so multi-scenario consumers can
+            // attribute progress to the right row.
+            val startCb: (suspend (Int, Int) -> Unit)? = onReplicationStart?.let { cb ->
+                { rep, total -> cb(scenario.name, rep, total) }
+            }
+            val endCb: (suspend (Int, Int) -> Unit)? = onReplicationEnd?.let { cb ->
+                { rep, total -> cb(scenario.name, rep, total) }
+            }
+            ConcurrentSimulationRunner(model).simulate(
+                simulationRun = simulationRun,
+                onReplicationStarted = startCb,
+                onReplicationEnded = endCb
+            )
             return ScenarioRunOutcome(scenario, simulationRun, collector)
 
         } catch (e: CancellationException) {
