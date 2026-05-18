@@ -34,11 +34,13 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JCheckBoxMenuItem
 import javax.swing.JLabel
+import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.JScrollPane
 import javax.swing.JSeparator
-import javax.swing.JToggleButton
 import javax.swing.SwingConstants
 import javax.swing.text.SimpleAttributeSet
 import javax.swing.text.StyleConstants
@@ -172,26 +174,44 @@ class ConsoleLogPanel(
         horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
     }
 
-    private val severityChips = ConsoleSeverity.values().associateWith { severity ->
-        JToggleButton(severityLabel(severity)).apply {
-            isSelected = true
-            isFocusable = false
-            toolTipText = "${severity.name} severity events"
-            applyRailButtonSizing()
-            addActionListener { onSeverityToggle(severity, this.isSelected) }
-        }
+    /**
+     *  Categories that are visible in the *Categories* dropdown.  Driven
+     *  by the constructor's `hiddenCategories` parameter and stored
+     *  here so the dropdown builder, the test hook, and the
+     *  count-summary all see the same set.
+     */
+    private val visibleCategories: List<ConsoleCategory> =
+        ConsoleCategory.values().filterNot { it in hiddenCategories }
+
+    /**
+     *  Severity dropdown — shows which severities currently pass the
+     *  filter (e.g. "Severity (3 of 3) ▾").  Click opens a popup of
+     *  `JCheckBoxMenuItem` rows, one per severity, plus *All on* / *All
+     *  off* shortcuts.  Selected items are the severities that *get
+     *  through* — the wording mirrors the Excel-style "show me what I
+     *  check" mental model.
+     */
+    private val severityFilterButton: JButton = JButton().apply {
+        isFocusable = false
+        toolTipText = "Pick which severities appear in the console"
+        applyRailButtonSizing()
+        addActionListener { showSeverityPopup() }
     }
-    private val categoryChips = ConsoleCategory.values()
-        .filterNot { it in hiddenCategories }
-        .associateWith { category ->
-            JToggleButton(categoryLabel(category)).apply {
-                isSelected = true
-                isFocusable = false
-                toolTipText = categoryTooltip(category)
-                applyRailButtonSizing()
-                addActionListener { onCategoryToggle(category, this.isSelected) }
-            }
-        }
+
+    /**
+     *  Categories dropdown — counterpart to [severityFilterButton] for
+     *  the orthogonal category axis.  Same widget pattern; the popup's
+     *  items carry per-category explanatory tooltips.  Hidden categories
+     *  (per the constructor's `hiddenCategories` parameter) never
+     *  appear in the popup.
+     */
+    private val categoryFilterButton: JButton = JButton().apply {
+        isFocusable = false
+        toolTipText = "Pick which event categories appear in the console"
+        applyRailButtonSizing()
+        addActionListener { showCategoryPopup() }
+    }
+
     private val clearButton = JButton("Clear").apply {
         isFocusable = false
         toolTipText = "Clear console (does not affect filters)"
@@ -201,6 +221,7 @@ class ConsoleLogPanel(
 
     init {
         border = BorderFactory.createMatteBorder(1, 0, 0, 0, Color(0xCC, 0xCC, 0xCC))
+        refreshFilterButtonLabels()
         add(buildFilterRail(), BorderLayout.WEST)
         add(scrollPane, BorderLayout.CENTER)
 
@@ -211,18 +232,95 @@ class ConsoleLogPanel(
         }
     }
 
+    /** Update both dropdown button labels to show "(N of M) ▾"
+     *  alongside their axis name.  Call after every filter mutation. */
+    private fun refreshFilterButtonLabels() {
+        val sevOn = enabledSeverities.size
+        val sevAll = ConsoleSeverity.values().size
+        severityFilterButton.text = "Severity ($sevOn of $sevAll) ▾"
+
+        if (visibleCategories.isEmpty()) {
+            categoryFilterButton.isVisible = false
+        } else {
+            val catOn = visibleCategories.count { it in enabledCategories }
+            categoryFilterButton.text = "Categories ($catOn of ${visibleCategories.size}) ▾"
+        }
+    }
+
+    /** Build and show the severity dropdown.  One checkbox menu item
+     *  per severity, plus separator + *All on* / *All off* shortcuts. */
+    private fun showSeverityPopup() {
+        val menu = JPopupMenu()
+        for (severity in ConsoleSeverity.values()) {
+            val item = JCheckBoxMenuItem(severityLabel(severity), severity in enabledSeverities).apply {
+                toolTipText = "${severity.name} severity events"
+                addActionListener { onSeverityToggle(severity, this.isSelected) }
+            }
+            menu.add(item)
+        }
+        menu.addSeparator()
+        menu.add(JMenuItem("All on").apply {
+            addActionListener {
+                for (s in ConsoleSeverity.values()) {
+                    if (s !in enabledSeverities) onSeverityToggle(s, true)
+                }
+            }
+        })
+        menu.add(JMenuItem("All off").apply {
+            addActionListener {
+                for (s in ConsoleSeverity.values()) {
+                    if (s in enabledSeverities) onSeverityToggle(s, false)
+                }
+            }
+        })
+        menu.show(severityFilterButton, 0, severityFilterButton.height)
+    }
+
+    /** Build and show the category dropdown.  Same shape as
+     *  [showSeverityPopup] but for the orthogonal category axis;
+     *  per-item tooltips carry the explanatory text. */
+    private fun showCategoryPopup() {
+        if (visibleCategories.isEmpty()) return
+        val menu = JPopupMenu()
+        for (category in visibleCategories) {
+            val item = JCheckBoxMenuItem(categoryFullLabel(category), category in enabledCategories).apply {
+                toolTipText = categoryTooltip(category)
+                addActionListener { onCategoryToggle(category, this.isSelected) }
+            }
+            menu.add(item)
+        }
+        menu.addSeparator()
+        menu.add(JMenuItem("All on").apply {
+            addActionListener {
+                for (c in visibleCategories) {
+                    if (c !in enabledCategories) onCategoryToggle(c, true)
+                }
+            }
+        })
+        menu.add(JMenuItem("All off").apply {
+            addActionListener {
+                for (c in visibleCategories) {
+                    if (c in enabledCategories) onCategoryToggle(c, false)
+                }
+            }
+        })
+        menu.show(categoryFilterButton, 0, categoryFilterButton.height)
+    }
+
     /**
      * Vertical filter rail rendered on the WEST edge of the console.
      * Items stack top→bottom:
      *  - "Filter" header label
-     *  - severity chips (INFO / WARN / ERR)
-     *  - category chips (Life / Rep / Orch, minus any in `hiddenCategories`)
-     *  - vertical glue (pushes Clear to the bottom)
-     *  - "Clear" button
+     *  - *Severity* dropdown button — click opens checkbox menu
+     *  - *Categories* dropdown button — click opens checkbox menu
+     *    (hidden when the host suppressed every category via
+     *    `hiddenCategories`)
+     *  - vertical glue (pushes *Clear* to the bottom)
+     *  - *Clear* button
      *
-     * Each chip and the Clear button share a fixed [RAIL_BUTTON_WIDTH]
-     * so the rail reads as a clean column.  Full enum names are in
-     * tooltips for affordance.
+     * The two dropdown buttons render their state as "Axis (N of M) ▾"
+     * so the user sees at a glance how many of each axis is on.  Full
+     * tooltips live inside the popup items, not on the button rail.
      */
     private fun buildFilterRail(): JPanel {
         val rail = JPanel().apply {
@@ -235,36 +333,22 @@ class ConsoleLogPanel(
         }
         rail.add(title)
         rail.add(Box.createVerticalStrut(4))
-        for (chip in severityChips.values) {
-            chip.alignmentX = Component.LEFT_ALIGNMENT
-            rail.add(chip)
-            rail.add(Box.createVerticalStrut(2))
-        }
-        if (categoryChips.isNotEmpty()) {
+        severityFilterButton.alignmentX = Component.LEFT_ALIGNMENT
+        rail.add(severityFilterButton)
+        if (categoryFilterButton.isVisible) {
             rail.add(Box.createVerticalStrut(4))
             rail.add(JSeparator(SwingConstants.HORIZONTAL).apply {
                 alignmentX = Component.LEFT_ALIGNMENT
                 maximumSize = Dimension(RAIL_BUTTON_WIDTH, 2)
             })
             rail.add(Box.createVerticalStrut(4))
-            for (chip in categoryChips.values) {
-                chip.alignmentX = Component.LEFT_ALIGNMENT
-                rail.add(chip)
-                rail.add(Box.createVerticalStrut(2))
-            }
+            categoryFilterButton.alignmentX = Component.LEFT_ALIGNMENT
+            rail.add(categoryFilterButton)
         }
         rail.add(Box.createVerticalGlue())
         clearButton.alignmentX = Component.LEFT_ALIGNMENT
         rail.add(clearButton)
         return rail
-    }
-
-    private fun JToggleButton.applyRailButtonSizing() {
-        val h = preferredSize.height.coerceAtLeast(22)
-        preferredSize = Dimension(RAIL_BUTTON_WIDTH, h)
-        maximumSize = Dimension(RAIL_BUTTON_WIDTH, h)
-        minimumSize = Dimension(RAIL_BUTTON_WIDTH, h)
-        margin = java.awt.Insets(1, 4, 1, 4)
     }
 
     private fun JButton.applyRailButtonSizing() {
@@ -291,17 +375,19 @@ class ConsoleLogPanel(
 
     /** Test-only: simulate toggling a severity filter off. */
     internal fun simulateSeverityToggle(severity: ConsoleSeverity, enabled: Boolean) {
-        val chip = severityChips.getValue(severity)
-        chip.isSelected = enabled
         onSeverityToggle(severity, enabled)
     }
 
     /** Test-only: simulate toggling a category filter off. */
     internal fun simulateCategoryToggle(category: ConsoleCategory, enabled: Boolean) {
-        val chip = categoryChips.getValue(category)
-        chip.isSelected = enabled
         onCategoryToggle(category, enabled)
     }
+
+    /** Test-only: current text rendered on the severity dropdown button. */
+    internal val severityFilterButtonText: String get() = severityFilterButton.text
+
+    /** Test-only: current text rendered on the categories dropdown button. */
+    internal val categoryFilterButtonText: String get() = categoryFilterButton.text
 
     /**
      * Register a callback fired after the buffer + text pane are
@@ -413,11 +499,13 @@ class ConsoleLogPanel(
 
     private fun onSeverityToggle(severity: ConsoleSeverity, enabled: Boolean) {
         if (enabled) enabledSeverities.add(severity) else enabledSeverities.remove(severity)
+        refreshFilterButtonLabels()
         rebuild()
     }
 
     private fun onCategoryToggle(category: ConsoleCategory, enabled: Boolean) {
         if (enabled) enabledCategories.add(category) else enabledCategories.remove(category)
+        refreshFilterButtonLabels()
         rebuild()
     }
 
@@ -475,7 +563,10 @@ class ConsoleLogPanel(
          * Fixed width of the filter-rail buttons.  Sized to comfortably
          * fit "WARN" / "Life" / "Clear" — the longest abbreviated label.
          */
-        private const val RAIL_BUTTON_WIDTH: Int = 64
+        // Wide enough for "Categories (4 of 4) ▾" without truncation
+        // on stock Java look-and-feels.  The previous chip-rail value
+        // (64px) was sized for three-character abbreviations.
+        private const val RAIL_BUTTON_WIDTH: Int = 150
 
         /**
          * Soft cap on the in-memory event buffer.  When exceeded, the
@@ -520,6 +611,16 @@ class ConsoleLogPanel(
             ConsoleCategory.REPLICATION -> "Rep"
             ConsoleCategory.ORCHESTRATOR -> "Orch"
             ConsoleCategory.STDOUT -> "Out"
+        }
+
+        /** Full, descriptive category name used in the dropdown popup.
+         *  The short [categoryLabel] form was the chip-style
+         *  abbreviation used by the previous filter-rail design. */
+        private fun categoryFullLabel(c: ConsoleCategory): String = when (c) {
+            ConsoleCategory.LIFECYCLE -> "Lifecycle"
+            ConsoleCategory.REPLICATION -> "Replication"
+            ConsoleCategory.ORCHESTRATOR -> "Orchestrator"
+            ConsoleCategory.STDOUT -> "Stdout"
         }
 
         /** Severity classification for a [RunEvent]. */
