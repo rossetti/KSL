@@ -83,7 +83,14 @@ class ScenarioAppFrame(
 
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
-        contentPane.add(ScenariosTablePanel(controller, this::openAddScenarioDialog), BorderLayout.CENTER)
+        contentPane.add(
+            ScenariosTablePanel(
+                controller,
+                addScenarioProvider = this::openAddScenarioDialog,
+                openEditor = this::openScenarioEditor
+            ),
+            BorderLayout.CENTER
+        )
         contentPane.add(buildStatusBar(), BorderLayout.SOUTH)
 
         wireWindowTitle()
@@ -170,6 +177,36 @@ class ScenarioAppFrame(
             controller.loadedBundles.value,
             controller.scenarios.value.map { it.name }.toSet()
         )
+
+    private val openEditors: MutableMap<String, ScenarioEditorWindow> = mutableMapOf()
+
+    private fun openScenarioEditor(index: Int) {
+        val spec = controller.scenarios.value.getOrNull(index) ?: return
+        // Re-focus an existing editor for this scenario rather than
+        // spawning a duplicate.  Keyed by current name (good enough —
+        // updateScenario renames close the window before the rename
+        // commits).
+        openEditors[spec.name]?.let { existing ->
+            existing.toFront()
+            existing.requestFocus()
+            return
+        }
+        val buffer = ScenarioEditBuffer.probe(spec, controller.loadedBundles.value)
+        val others = controller.scenarios.value
+            .filterIndexed { i, _ -> i != index }
+            .map { it.name }
+            .toSet()
+        val window = ScenarioEditorWindow(controller, index, buffer, others)
+        openEditors[spec.name] = window
+        window.addWindowListener(object : WindowAdapter() {
+            override fun windowClosed(e: WindowEvent?) {
+                openEditors.remove(spec.name)
+            }
+        })
+        window.pack()
+        window.setLocationRelativeTo(this)
+        window.isVisible = true
+    }
 
     private fun handleLoadBundleJar() {
         val chooser = JFileChooser().apply {

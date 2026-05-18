@@ -70,7 +70,13 @@ class ScenariosTablePanel(
      *  shows the bundle/model picker); tests can pass a stub that
      *  fabricates a spec directly.
      */
-    private val addScenarioProvider: () -> ScenarioSpec? = { null }
+    private val addScenarioProvider: () -> ScenarioSpec? = { null },
+    /**
+     *  Opens the per-scenario editor for the scenario at the given
+     *  index.  Production wiring shows [ScenarioEditorWindow] as a
+     *  modeless child of the main frame; tests can pass a no-op.
+     */
+    private val openEditor: (Int) -> Unit = { _ -> }
 ) : JPanel(BorderLayout()) {
 
     private val tableModel = ScenariosTableModel { controller.scenarios.value }
@@ -83,10 +89,7 @@ class ScenariosTablePanel(
     }
 
     private val addButton = JButton("Add…")
-    private val editButton = JButton("Edit…").apply {
-        isEnabled = false
-        toolTipText = "Scenario editor lands in Phase F."
-    }
+    private val editButton = JButton("Edit…")
     private val cloneButton = JButton("Clone")
     private val deleteButton = JButton("Delete")
     private val upButton = JButton("Move Up")
@@ -156,7 +159,7 @@ class ScenariosTablePanel(
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
                 if (e.clickCount == 2 && table.selectedRow >= 0) {
-                    // Phase F: open ScenarioEditorWindow for the selected scenario.
+                    openEditor(table.selectedRow)
                 }
             }
         })
@@ -180,6 +183,10 @@ class ScenariosTablePanel(
         addButton.addActionListener {
             val spec = addScenarioProvider() ?: return@addActionListener
             controller.addScenario(spec)
+        }
+        editButton.addActionListener {
+            val idx = controller.selectedIndex.value
+            if (idx >= 0) openEditor(idx)
         }
         cloneButton.addActionListener {
             val idx = controller.selectedIndex.value
@@ -212,6 +219,7 @@ class ScenariosTablePanel(
         val idx = controller.selectedIndex.value
         val count = controller.scenarios.value.size
         val hasSelection = idx in 0 until count
+        editButton.isEnabled = hasSelection
         cloneButton.isEnabled = hasSelection
         deleteButton.isEnabled = hasSelection
         upButton.isEnabled = hasSelection && idx >= 1
