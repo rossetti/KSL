@@ -92,9 +92,55 @@ class ScenarioAppFrame(
     private val consolePanel = ConsoleLogPanel(
         eventFlow = controller.eventFlow,
         scope = controller.edtScope,
-        hiddenCategories = setOf(ConsoleCategory.STDOUT)
+        formatter = scenarioAwareFormatter(),
+        hiddenCategories = setOf(ConsoleCategory.STDOUT),
+        severityClassifier = scenarioAwareSeverity()
     )
     private val consoleDrawer = ConsoleDrawer(console = consolePanel, showCaptureToggle = false)
+
+    /**
+     *  Custom formatter that overrides the default's "(failed)" suffix
+     *  on `ScenarioCompleted` events whose `snapshot == null` *and*
+     *  whose row is in CANCELLED status — those completions are
+     *  user-cancelled, not failed.  All other events fall through to
+     *  [ksl.app.swing.common.runcontrol.DefaultEventFormatter].
+     *
+     *  Reads from `controller.scenarioStatuses` rather than the
+     *  controller's private cancel-intent fields because the status
+     *  has already been set by the controller's event handler by the
+     *  time the console drawer's subscriber sees the event (the
+     *  handler updates state before emitting onto [controller.eventFlow]).
+     */
+    private fun scenarioAwareFormatter() = ksl.app.swing.common.runcontrol.EventFormatter { event ->
+        if (event is RunEvent.ScenarioCompleted &&
+            event.snapshot == null &&
+            controller.scenarioStatuses.value[event.scenarioName] ==
+                ScenarioAppController.ScenarioStatus.CANCELLED
+        ) {
+            "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios}) (cancelled)"
+        } else {
+            ksl.app.swing.common.runcontrol.DefaultEventFormatter.format(event)
+        }
+    }
+
+    /**
+     *  Custom severity classifier — same idea as
+     *  [scenarioAwareFormatter] but for the `[INFO]/[WARN]/[ERR]`
+     *  prefix and the severity-filter pipeline.  User-cancelled
+     *  scenarios are INFO (an intentional stop, not an error).  All
+     *  other events fall through to [ConsoleLogPanel.severityOf].
+     */
+    private fun scenarioAwareSeverity(): (RunEvent) -> ksl.app.swing.common.runcontrol.ConsoleSeverity = { event ->
+        if (event is RunEvent.ScenarioCompleted &&
+            event.snapshot == null &&
+            controller.scenarioStatuses.value[event.scenarioName] ==
+                ScenarioAppController.ScenarioStatus.CANCELLED
+        ) {
+            ksl.app.swing.common.runcontrol.ConsoleSeverity.INFO
+        } else {
+            ksl.app.swing.common.runcontrol.ConsoleLogPanel.severityOf(event)
+        }
+    }
 
     /** Banner shown when the document has been edited since the
      *  most recent terminal run.  Hidden when no results exist or

@@ -148,7 +148,16 @@ class ConsoleLogPanel(
     scope: CoroutineScope,
     private val formatter: EventFormatter = DefaultEventFormatter,
     hiddenCategories: Set<ConsoleCategory> = emptySet(),
-    private val autoClearOnRunStart: Boolean = false
+    private val autoClearOnRunStart: Boolean = false,
+    /**
+     *  Optional severity classifier overriding the default mapping in
+     *  [ConsoleLogPanel.severityOf].  Hosts that have richer context
+     *  (e.g. the Scenario app, which can distinguish user-cancelled
+     *  scenarios from genuinely-failed ones) supply a closure that
+     *  reads from their own state.  Default delegates to the static
+     *  [ConsoleLogPanel.severityOf].
+     */
+    private val severityClassifier: (RunEvent) -> ConsoleSeverity = ConsoleLogPanel::severityOf
 ) : JPanel(BorderLayout()) {
 
     private val buffer: ArrayDeque<RunEvent> = ArrayDeque()
@@ -474,11 +483,11 @@ class ConsoleLogPanel(
     }
 
     private fun passesFilters(event: RunEvent): Boolean =
-        severityOf(event) in enabledSeverities && categoryOf(event) in enabledCategories
+        severityClassifier(event) in enabledSeverities && categoryOf(event) in enabledCategories
 
     private fun appendLine(event: RunEvent) {
         val atBottom = isScrolledToBottom()
-        val severity = severityOf(event)
+        val severity = severityClassifier(event)
         val doc = textPane.styledDocument
         val attrs = SimpleAttributeSet()
         StyleConstants.setForeground(attrs, colorFor(severity))

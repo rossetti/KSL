@@ -220,7 +220,19 @@ class ScenarioAppController(
      *  Per-scenario lifecycle status driving the Scenarios-table
      *  *Status* column chips.
      */
-    enum class ScenarioStatus { IDLE, PENDING, RUNNING, COMPLETED, FAILED, SKIPPED }
+    enum class ScenarioStatus {
+        IDLE,
+        PENDING,
+        RUNNING,
+        COMPLETED,
+        FAILED,
+        /** User-initiated stop — distinct from FAILED, which represents
+         *  a model-level exception.  Set by both per-row ✕ cancels and
+         *  global *Cancel* button when a scenario was running but did
+         *  not finish, or was queued and never got to start. */
+        CANCELLED,
+        SKIPPED
+    }
 
     private val myRunning = MutableStateFlow(false)
     /** `true` while a scenario sweep is in flight. */
@@ -278,6 +290,21 @@ class ScenarioAppController(
     private var currentHandle: RunHandle? = null
     private var session: KSLAppSession? = null
 
+    /** Names of scenarios the user explicitly cancelled via
+     *  [cancelScenario] during the current run.  Cleared at the start
+     *  of every [submit]; consulted by the `ScenarioCompleted` handler
+     *  and the smart-finalize step to distinguish CANCELLED from
+     *  FAILED. */
+    private val explicitlyCancelled: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** `true` once the user has pressed the global *Cancel* button
+     *  during the current run.  Cleared at the start of every
+     *  [submit].  Combined with [explicitlyCancelled] in status
+     *  reconciliation: a snapshot-null ScenarioCompleted under either
+     *  signal maps to CANCELLED instead of FAILED. */
+    @Volatile
+    private var globalCancelRequested: Boolean = false
+
     /**
      *  Submit the document's scenarios for execution.  No-op when a
      *  run is already in flight or there are no runnable scenarios.
@@ -303,6 +330,8 @@ class ScenarioAppController(
             spec.name to if (spec.skipOnRun) ScenarioStatus.SKIPPED else ScenarioStatus.PENDING
         }
         myReplicationProgress.value = emptyMap()
+        explicitlyCancelled.clear()
+        globalCancelRequested = false
 
         val outputDir = appWorkspace.resolve("output").toAbsolutePath().normalize().toString()
         val config = RunConfiguration(
@@ -342,7 +371,12 @@ class ScenarioAppController(
                             myReplicationProgress.value + (ev.scenarioName to (ev.repNumber to ev.totalReplications))
                     }
                     is RunEvent.ScenarioCompleted -> {
-                        val status = if (ev.snapshot == null) ScenarioStatus.FAILED else ScenarioStatus.COMPLETED
+                        val status = when {
+                            ev.snapshot != null -> ScenarioStatus.COMPLETED
+                            ev.scenarioName in explicitlyCancelled -> ScenarioStatus.CANCELLED
+                            globalCancelRequested -> ScenarioStatus.CANCELLED
+                            else -> ScenarioStatus.FAILED
+                        }
                         myScenarioStatuses.value = myScenarioStatuses.value + (ev.scenarioName to status)
                     }
                     else -> { /* console drawer + other surfaces handle */ }
@@ -361,19 +395,32 @@ class ScenarioAppController(
             // commit phase, after every scenario has finished its in-
             // memory simulation; if the user cancels between "reps
             // done" and "commit", a scenario could still read RUNNING
-            // even though its work is complete.  Use the replication
-            // progress map to disambiguate:
-            //   PENDING            → SKIPPED  (never started)
-            //   RUNNING + reps done → COMPLETED  (work finished)
-            //   RUNNING + reps unfinished → FAILED  (cut off mid-run)
+            // even though its work is complete.  Combine the
+            // replication progress map with the cancel-intent flags
+            // to assign accurate terminal statuses:
+            //   PENDING (never started) under cancel intent → CANCELLED
+            //   PENDING with no cancel intent → SKIPPED
+            //     (defensive; shouldn't happen under normal
+            //     flow since the orchestrator emits ScenarioStarted
+            //     before any work begins, but the substrate could
+            //     fail before reaching that point)
+            //   RUNNING + reps done → COMPLETED
+            //   RUNNING + reps unfinished, cancel intent → CANCELLED
+            //   RUNNING + reps unfinished, no cancel intent → FAILED
             val progress = myReplicationProgress.value
             myScenarioStatuses.value = myScenarioStatuses.value.mapValues { (name, s) ->
+                val cancelIntended = name in explicitlyCancelled || globalCancelRequested
                 when (s) {
-                    ScenarioStatus.PENDING -> ScenarioStatus.SKIPPED
+                    ScenarioStatus.PENDING ->
+                        if (cancelIntended) ScenarioStatus.CANCELLED else ScenarioStatus.SKIPPED
                     ScenarioStatus.RUNNING -> {
                         val p = progress[name]
-                        if (p != null && p.first >= p.second) ScenarioStatus.COMPLETED
-                        else ScenarioStatus.FAILED
+                        val repsDone = p != null && p.first >= p.second
+                        when {
+                            repsDone -> ScenarioStatus.COMPLETED
+                            cancelIntended -> ScenarioStatus.CANCELLED
+                            else -> ScenarioStatus.FAILED
+                        }
                     }
                     else -> s
                 }
@@ -383,20 +430,28 @@ class ScenarioAppController(
     }
 
     /** Cancel the in-flight run, if any.  Cancels every scenario; the
-     *  per-scenario form [cancelScenario] cancels just one. */
+     *  per-scenario form [cancelScenario] cancels just one.  Sets
+     *  [globalCancelRequested] so the status reconciliation
+     *  distinguishes "user-stopped" from "model exception." */
     fun cancel() {
+        if (currentHandle == null) return
+        globalCancelRequested = true
         currentHandle?.cancel("Cancelled by user")
     }
 
     /**
      *  Cancel a single scenario by name without stopping the rest of
      *  the run.  No-op when no run is in flight or [name] doesn't
-     *  match a currently-running scenario.  Returns the handle's
-     *  return value so callers can detect "nothing was running" if
-     *  needed.
+     *  match a currently-running scenario.  Records the intent in
+     *  [explicitlyCancelled] so the resulting `ScenarioCompleted`
+     *  event with a null snapshot is interpreted as CANCELLED rather
+     *  than FAILED.
      */
-    fun cancelScenario(name: String): Boolean =
-        currentHandle?.cancelScenario(name) ?: false
+    fun cancelScenario(name: String): Boolean {
+        val handle = currentHandle ?: return false
+        explicitlyCancelled.add(name)
+        return handle.cancelScenario(name)
+    }
 
     private val myEditedSinceLastSim = MutableStateFlow(false)
     /** `true` when in-memory state has been edited since the most

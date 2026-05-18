@@ -348,9 +348,13 @@ class ScenariosTablePanel(
         }
 
         private fun statusForeground(s: ScenarioAppController.ScenarioStatus?): Color = when (s) {
-            ScenarioAppController.ScenarioStatus.FAILED -> Color(0xC0, 0x39, 0x2B)
-            ScenarioAppController.ScenarioStatus.COMPLETED -> Color(0x1E, 0x88, 0x44)
-            ScenarioAppController.ScenarioStatus.SKIPPED -> Color(0x77, 0x77, 0x77)
+            ScenarioAppController.ScenarioStatus.FAILED -> Color(0xC0, 0x39, 0x2B)        // red
+            ScenarioAppController.ScenarioStatus.COMPLETED -> Color(0x1E, 0x88, 0x44)      // green
+            ScenarioAppController.ScenarioStatus.SKIPPED -> Color(0x77, 0x77, 0x77)        // grey
+            // Muted slate-grey: distinct from FAILED's red so the user
+            // can tell at a glance "you stopped this on purpose, nothing
+            // went wrong."  Also distinct from the lighter SKIPPED grey.
+            ScenarioAppController.ScenarioStatus.CANCELLED -> Color(0x55, 0x60, 0x6E)
             else -> table.foreground
         }
     }
@@ -496,5 +500,6 @@ private fun statusText(
         progress?.let { (cur, total) -> "Running $cur / $total" } ?: "Running…"
     ScenarioAppController.ScenarioStatus.COMPLETED -> "Completed"
     ScenarioAppController.ScenarioStatus.FAILED -> "Failed"
+    ScenarioAppController.ScenarioStatus.CANCELLED -> "Cancelled"
     ScenarioAppController.ScenarioStatus.SKIPPED -> "Skipped"
 }
