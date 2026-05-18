@@ -62,7 +62,15 @@ import javax.swing.table.AbstractTableModel
  * `controller.selectedIndex` bidirectionally.
  */
 class ScenariosTablePanel(
-    private val controller: ScenarioAppController
+    private val controller: ScenarioAppController,
+    /**
+     *  Supplies a new [ScenarioSpec] to append when the user clicks
+     *  *Add*, or `null` when the user cancels.  Production wiring
+     *  passes the frame-level [AddScenarioDialog] launcher (which
+     *  shows the bundle/model picker); tests can pass a stub that
+     *  fabricates a spec directly.
+     */
+    private val addScenarioProvider: () -> ScenarioSpec? = { null }
 ) : JPanel(BorderLayout()) {
 
     private val tableModel = ScenariosTableModel { controller.scenarios.value }
@@ -170,12 +178,7 @@ class ScenariosTablePanel(
 
     private fun wireActions() {
         addButton.addActionListener {
-            val existingNames = controller.scenarios.value.map { it.name }.toSet()
-            val name = AddScenarioDialog.prompt(this, existingNames) ?: return@addActionListener
-            val spec = ScenarioSpec(
-                name = name,
-                modelReference = ModelReference.Embedded(UNRESOLVED_MODEL_ID)
-            )
+            val spec = addScenarioProvider() ?: return@addActionListener
             controller.addScenario(spec)
         }
         cloneButton.addActionListener {
@@ -220,7 +223,6 @@ class ScenariosTablePanel(
         const val COL_NAME: Int = 1
         const val COL_MODEL: Int = 2
         const val COL_PARAMS: Int = 3
-        const val UNRESOLVED_MODEL_ID: String = "<unresolved>"
     }
 
     /** Backing table model.  Reads through the supplied snapshot

@@ -26,7 +26,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.swing.Swing
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ExecutionMode
+import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -132,6 +136,88 @@ class ScenarioAppController(
 
     private fun markDirty() {
         if (!myIsDirty.value) myIsDirty.value = true
+    }
+
+    // ── Bundle library ─────────────────────────────────────────────────────
+
+    private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
+    /** All bundles currently loaded into this controller (classpath + any
+     *  JARs the user has loaded interactively).  Append-only in v1 — no
+     *  unload because `LoadedBundle`s can share classloaders. */
+    val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
+
+    private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
+    /** Adapter exposing every loaded bundle as a single
+     *  [BundleModelProvider].  `null` when [loadedBundles] is empty. */
+    val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+
+    init {
+        // Auto-discover bundles already on the JVM classpath so analysts
+        // who launch a packaged scenario app immediately see the
+        // available models in the picker.  JAR-loaded bundles join this
+        // list later via [loadBundleJar].
+        val classpathBundles = BundleLoader.loadFromClasspath()
+        if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
+    }
+
+    private fun updateBundles(bundles: List<LoadedBundle>) {
+        myLoadedBundles.value = bundles
+        myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
+    }
+
+    /**
+     *  Outcome of [loadBundleJar].
+     *
+     *  - [Loaded] — one or more bundles were discovered and added.
+     *  - [NoBundles] — the JAR carried no `KSLModelBundle` service
+     *    registration.
+     *  - [Failed] — the load attempt threw; [Failed.reason] is suitable
+     *    for surfacing to the user.
+     */
+    sealed class LoadBundleResult {
+        data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
+        object NoBundles : LoadBundleResult()
+        data class Failed(val reason: String) : LoadBundleResult()
+    }
+
+    /**
+     *  Load every `KSLModelBundle` from the JAR at [jarPath] and append
+     *  the discovered bundles to [loadedBundles].  Bundles whose
+     *  `bundleId` already exists in the controller are skipped (the
+     *  first registration wins, matching [BundleModelProvider]'s
+     *  duplicate-handling).
+     */
+    fun loadBundleJar(jarPath: Path): LoadBundleResult {
+        val newBundles = try {
+            BundleLoader.loadJar(jarPath)
+        } catch (t: Throwable) {
+            return LoadBundleResult.Failed(t.message ?: t::class.simpleName ?: "load failed")
+        }
+        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
+        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
+        val (toAdd, duplicates) = newBundles.partition { it.bundle.bundleId !in existingIds }
+        // Close duplicates immediately — they own a redundant classloader.
+        duplicates.forEach { runCatching { it.close() } }
+        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
+        updateBundles(myLoadedBundles.value + toAdd)
+        return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
+    }
+
+    /**
+     *  Returns the list of `(bundleId, modelId)` pairs in the document
+     *  whose [ScenarioSpec.modelReference] does not resolve against
+     *  the current [bundleProvider].  Used by the Open Configuration
+     *  flow to surface unresolved-reference warnings.  References that
+     *  are not [ModelReference.ByBundleAndModelId] are ignored (only
+     *  the bundled form participates in this check).
+     */
+    fun unresolvedBundleReferences(): List<Pair<String, String>> {
+        val provider = myBundleProvider.value
+        return myScenarios.value.mapNotNull { spec ->
+            val ref = spec.modelReference as? ModelReference.ByBundleAndModelId ?: return@mapNotNull null
+            if (provider != null && provider.isModelProvided(ref.bundleId, ref.modelId)) null
+            else ref.bundleId to ref.modelId
+        }
     }
 
     // ── Document-level mutators ────────────────────────────────────────────
@@ -384,5 +470,6 @@ class ScenarioAppController(
 
     override fun close() {
         edtScope.cancel("ScenarioAppController closed")
+        myLoadedBundles.value.forEach { runCatching { it.close() } }
     }
 }

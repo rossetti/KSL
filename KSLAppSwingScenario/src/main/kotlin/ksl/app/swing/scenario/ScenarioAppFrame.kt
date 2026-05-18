@@ -35,11 +35,14 @@ import java.awt.event.WindowEvent
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.AbstractAction
+import javax.swing.BorderFactory
 import javax.swing.JFileChooser
 import javax.swing.JFrame
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
+import javax.swing.JPanel
 import javax.swing.KeyStroke
 import javax.swing.WindowConstants
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -62,6 +65,9 @@ class ScenarioAppFrame(
     private val notifications: Notifications = Notifications(rootPane.layeredPane)
 
     private lateinit var saveItem: JMenuItem
+    private val bundleStatusLabel: JLabel = JLabel(" ").apply {
+        border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+    }
 
     companion object {
         private const val SAVE_BASE_TEXT: String = "Save Configuration"
@@ -77,10 +83,12 @@ class ScenarioAppFrame(
 
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
-        contentPane.add(ScenariosTablePanel(controller), BorderLayout.CENTER)
+        contentPane.add(ScenariosTablePanel(controller, this::openAddScenarioDialog), BorderLayout.CENTER)
+        contentPane.add(buildStatusBar(), BorderLayout.SOUTH)
 
         wireWindowTitle()
         wireDirtyIndicators()
+        wireBundleStatus()
 
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
@@ -120,6 +128,14 @@ class ScenarioAppFrame(
             )
             toolTipText = CONFIG_TOOLTIP
         }
+        val loadBundleItem = JMenuItem(object : AbstractAction("Load Bundle JAR…") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleLoadBundleJar() }
+        }).apply { toolTipText = "Load a JAR that ships one or more KSLModelBundle service registrations." }
+        val loadedBundlesItem = JMenuItem(object : AbstractAction("Loaded Bundles…") {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                LoadedBundlesDialog.show(this@ScenarioAppFrame, controller.loadedBundles.value)
+            }
+        })
         return JMenuBar().apply {
             add(JMenu("File").apply {
                 add(newItem)
@@ -133,6 +149,51 @@ class ScenarioAppFrame(
                 addSeparator()
                 add(JMenuItem("Exit").apply { addActionListener { dispose() } })
             })
+            add(JMenu("Bundles").apply {
+                add(loadBundleItem)
+                add(loadedBundlesItem)
+            })
+        }
+    }
+
+    private fun buildStatusBar(): JPanel = JPanel(BorderLayout()).apply {
+        border = BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, java.awt.Color(0xCC, 0xCC, 0xCC)),
+            BorderFactory.createEmptyBorder(2, 0, 2, 0)
+        )
+        add(bundleStatusLabel, BorderLayout.WEST)
+    }
+
+    private fun openAddScenarioDialog(): ksl.app.config.ScenarioSpec? =
+        AddScenarioDialog.prompt(
+            this,
+            controller.loadedBundles.value,
+            controller.scenarios.value.map { it.name }.toSet()
+        )
+
+    private fun handleLoadBundleJar() {
+        val chooser = JFileChooser().apply {
+            dialogTitle = "Load Bundle JAR"
+            fileSelectionMode = JFileChooser.FILES_ONLY
+            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path: Path = chooser.selectedFile?.toPath() ?: return
+        when (val outcome = controller.loadBundleJar(path)) {
+            is ScenarioAppController.LoadBundleResult.Loaded -> {
+                val ids = outcome.newBundleIds.joinToString(", ")
+                notifications.show(
+                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids",
+                    NotificationSeverity.INFO
+                )
+            }
+            ScenarioAppController.LoadBundleResult.NoBundles ->
+                notifications.show(
+                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded).",
+                    NotificationSeverity.WARNING
+                )
+            is ScenarioAppController.LoadBundleResult.Failed ->
+                notifications.show("Could not load $path: ${outcome.reason}", NotificationSeverity.ERROR)
         }
     }
 
@@ -174,6 +235,14 @@ class ScenarioAppFrame(
                 controller.markSaved(path)
                 outcome.warnings.forEach {
                     notifications.show(it, NotificationSeverity.WARNING)
+                }
+                val unresolved = controller.unresolvedBundleReferences()
+                if (unresolved.isNotEmpty()) {
+                    val list = unresolved.joinToString("; ") { "${it.first}/${it.second}" }
+                    notifications.show(
+                        "Unresolved model references — load matching bundle JAR(s): $list",
+                        NotificationSeverity.WARNING
+                    )
                 }
                 notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
             }
@@ -270,6 +339,17 @@ class ScenarioAppFrame(
         controller.edtScope.launch {
             controller.isDirty.collect { dirty ->
                 saveItem.text = if (dirty) SAVE_DIRTY_TEXT else SAVE_BASE_TEXT
+            }
+        }
+    }
+
+    private fun wireBundleStatus() {
+        controller.edtScope.launch {
+            controller.loadedBundles.collect { bundles ->
+                val modelCount = bundles.sumOf { it.bundle.models.size }
+                bundleStatusLabel.text =
+                    "${bundles.size} bundle${if (bundles.size == 1) "" else "s"} · " +
+                        "$modelCount model${if (modelCount == 1) "" else "s"}"
             }
         }
     }

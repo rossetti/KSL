@@ -83,6 +83,35 @@ class ScenarioAppControllerTest {
     }
 
     @Test
+    fun `controller auto-discovers classpath bundles via BundleLoader`() {
+        val c = fresh()
+        // KSLExamples is on the test classpath; it ships MM1Bundle and
+        // LKInventoryBundle as ServiceLoader-registered KSLModelBundles.
+        // The exact count may grow over time — assert non-empty + provider
+        // populated instead of a fixed number.
+        assertTrue(c.loadedBundles.value.isNotEmpty(), "expected classpath bundles to auto-load")
+        val provider = c.bundleProvider.value
+        assertTrue(provider != null, "bundleProvider should be non-null when bundles are present")
+        assertTrue(provider!!.modelIdentifiers().isNotEmpty(), "provider should expose at least one model")
+    }
+
+    @Test
+    fun `unresolvedBundleReferences flags refs not in the loaded set`() {
+        val c = fresh()
+        c.addScenario(
+            ScenarioSpec(
+                name = "Bogus",
+                modelReference = ksl.app.config.ModelReference.ByBundleAndModelId(
+                    bundleId = "no.such.bundle", modelId = "no.such.model"
+                )
+            )
+        )
+        val unresolved = c.unresolvedBundleReferences()
+        assertEquals(1, unresolved.size)
+        assertEquals("no.such.bundle" to "no.such.model", unresolved.single())
+    }
+
+    @Test
     fun `appWorkspace nests sanitized appName under settings workspace`() {
         val c = fresh("Queueing Scenarios")
         val parent = c.settingsStore.activeWorkspace()
