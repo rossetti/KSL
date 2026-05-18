@@ -83,14 +83,17 @@ class ScenarioAppFrame(
 
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
-        contentPane.add(
-            ScenariosTablePanel(
-                controller,
-                addScenarioProvider = this::openAddScenarioDialog,
-                openEditor = this::openScenarioEditor
-            ),
-            BorderLayout.CENTER
+        val scenariosTab = ScenariosTablePanel(
+            controller,
+            addScenarioProvider = this::openAddScenarioDialog,
+            openEditor = this::openScenarioEditor
         )
+        val tabs = javax.swing.JTabbedPane().apply {
+            addTab("Scenarios", scenariosTab)
+            addTab("Output Options", OutputOptionsPanel(controller))
+            addTab("Reports", ReportsTabPanel(controller))
+        }
+        contentPane.add(tabs, BorderLayout.CENTER)
         contentPane.add(buildStatusBar(), BorderLayout.SOUTH)
 
         wireWindowTitle()
