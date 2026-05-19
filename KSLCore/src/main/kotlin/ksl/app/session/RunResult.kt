@@ -70,7 +70,26 @@ sealed class RunResult {
      */
     data class BatchCompleted(
         val summary: OrchestratorSummary,
-        val snapshots: List<SimulationSnapshot.ExperimentCompleted>
+        val snapshots: List<SimulationSnapshot.ExperimentCompleted>,
+        /**
+         *  Per-item replication-level snapshots in completion order,
+         *  keyed by the item name (matching
+         *  `SimulationRunTableData.run_name` on the corresponding
+         *  entry in [snapshots]).  Each value is the list of
+         *  [SimulationSnapshot.ReplicationCompleted] snapshots
+         *  collected during that item's run, in replication order.
+         *
+         *  Defaults to an empty map.  `ScenarioOrchestrator` populates
+         *  it (so multi-scenario consumers — the Scenario app's
+         *  reporting layer in particular — can reconstruct
+         *  per-replication observations for box plots, multiple-
+         *  comparison analyses, and replication traces from
+         *  [ksl.utilities.io.dbutil.WithinRepStatTableData]).
+         *  `ExperimentOrchestrator` leaves it empty for now; the
+         *  field shape is forward-compatible if that orchestrator
+         *  later surfaces analogous data.
+         */
+        val replicationsByItem: Map<String, List<SimulationSnapshot.ReplicationCompleted>> = emptyMap()
     ) : RunResult()
 
     /**

@@ -102,6 +102,7 @@ class ScenarioOrchestrator {
                 val scenarios = buildScenarios(config, provider)
                 val totalScenarios = scenarios.size
                 val capturedSnapshots = mutableListOf<SimulationSnapshot.ExperimentCompleted?>()
+                val capturedReplications = mutableMapOf<String, List<SimulationSnapshot.ReplicationCompleted>>()
                 var completedIdx = 0
 
                 // The first scenario's model is the report-friendly summary for
@@ -146,6 +147,9 @@ class ScenarioOrchestrator {
                         lifecycle.emitProgress(
                             RunEvent.ScenarioReplicationEnded(scenarioName, repNumber, totalReps)
                         )
+                    },
+                    onScenarioReplications = { scenarioName, reps ->
+                        capturedReplications[scenarioName] = reps
                     }
                 )
 
@@ -178,7 +182,11 @@ class ScenarioOrchestrator {
                         )
                     )
                 lifecycle.complete(
-                    RunResult.BatchCompleted(orchestratorSummary, successSnapshots),
+                    RunResult.BatchCompleted(
+                        summary = orchestratorSummary,
+                        snapshots = successSnapshots,
+                        replicationsByItem = capturedReplications
+                    ),
                     completedEvent
                 )
 

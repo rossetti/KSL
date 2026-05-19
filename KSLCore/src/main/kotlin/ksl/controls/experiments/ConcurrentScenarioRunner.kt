@@ -250,7 +250,17 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         executionMode: ksl.app.config.ExecutionMode = ksl.app.config.ExecutionMode.CONCURRENT,
         onScenarioStart: ((scenarioName: String, scenarioIndex: Int, totalScenarios: Int) -> Unit)? = null,
         onReplicationStart: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
-        onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null
+        onReplicationEnd: (suspend (scenarioName: String, repNumber: Int, totalReps: Int) -> Unit)? = null,
+        /**
+         *  Per-scenario replication snapshots filtered out of the drained
+         *  snapshot stream during the commit phase and forwarded in
+         *  replication order.  Used by the Scenario app's reporting
+         *  layer to reconstruct per-replication observations for box
+         *  plots, multiple-comparison analyses, and replication traces.
+         *  Safe to omit when the caller only needs across-replication
+         *  summaries.
+         */
+        onScenarioReplications: ((scenarioName: String, snapshots: List<ksl.utilities.io.dbutil.SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
         jobsByName.clear()
@@ -310,6 +320,11 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
                     val expCompleted = snapshots
                         .filterIsInstance<ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted>()
                         .firstOrNull()
+                    if (onScenarioReplications != null) {
+                        val reps = snapshots
+                            .filterIsInstance<ksl.utilities.io.dbutil.SimulationSnapshot.ReplicationCompleted>()
+                        onScenarioReplications.invoke(scenario.name, reps)
+                    }
                     onScenarioComplete?.invoke(scenario.name, expCompleted)
                     if (snapshots.isNotEmpty()) {
                         writer.write(snapshots)
