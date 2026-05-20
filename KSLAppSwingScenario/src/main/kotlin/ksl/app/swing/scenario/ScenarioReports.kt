@@ -24,14 +24,11 @@ import ksl.utilities.io.dbutil.AcrossRepStatTableData
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
-import ksl.utilities.io.report.extensions.multiBoxPlot
-import ksl.utilities.io.report.extensions.multipleComparison
 import ksl.utilities.io.report.extensions.snapshotSimulationResults
 import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
-import ksl.utilities.statistic.MultipleComparisonAnalyzer
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -74,40 +71,16 @@ object ScenarioReports {
     ): SimulationSnapshot.ExperimentCompleted? =
         result.snapshots.firstOrNull { it.experiment.exp_name == scenarioName }
 
-    /** Response names that appear in every scenario's replication
-     *  snapshots — the candidates for cross-scenario comparisons.
-     *  Returned in sorted order.  Empty when there are fewer than
-     *  two scenarios or any scenario has no replication snapshots. */
-    fun responsesCommonAcrossScenarios(result: RunResult.BatchCompleted): List<String> {
-        if (result.replicationsByItem.size < 2) return emptyList()
-        val perScenario = result.replicationsByItem.values.map { repsForScenario ->
-            repsForScenario.flatMap { rep -> rep.withinRepStats.map { it.stat_name } }.toSet()
-        }
-        if (perScenario.any { it.isEmpty() }) return emptyList()
-        return perScenario.reduce { acc, set -> acc intersect set }.sorted()
-    }
-
-    /** Reconstructs `Map<scenarioName, DoubleArray>` for a single
-     *  response by reading `WithinRepStatTableData.average` per
-     *  replication, in `rep_id` order, from each scenario's
-     *  replication snapshots.  Direct input to [multiBoxPlot] and
-     *  the [MultipleComparisonAnalyzer] constructor. */
-    fun observationsAsMap(
-        result: RunResult.BatchCompleted,
-        responseName: String
-    ): Map<String, DoubleArray> {
-        val out = linkedMapOf<String, DoubleArray>()
-        for ((scenarioName, reps) in result.replicationsByItem) {
-            val values = reps
-                .sortedBy { it.repId }
-                .flatMap { rep -> rep.withinRepStats.filter { it.stat_name == responseName } }
-                .mapNotNull { it.average }
-            if (values.isNotEmpty()) out[scenarioName] = values.toDoubleArray()
-        }
-        return out
-    }
-
     // ── Render entry points ───────────────────────────────────────────────
+    //
+    // Cross-scenario reporting (box plot, multiple comparison) used
+    // to live here.  Those flows now go through the cross-app
+    // Comparison Analyzer ([ksl.app.swing.common.comparison.ComparisonAnalyzerFrame]),
+    // which the Reports tab launches via
+    // [BatchCompletedComparisonSource].  Only the sweep-summary and
+    // per-scenario deep-dive renderers remain here — they're
+    // structurally unrelated to comparisons and have no analyzer
+    // equivalent.
 
     /**
      *  **Primary on-demand report.**  One document covering every
@@ -196,101 +169,6 @@ object ScenarioReports {
             snapshotSimulationResults(snapshot)
         }
         return writeAll(doc, outputDir, fileStem("scenario-deepdive", scenarioName), formats)
-    }
-
-    /**
-     *  Render a cross-scenario box plot for [responseName] in every
-     *  selected format.  Uses the substrate's
-     *  `multiBoxPlot(dataMap, …)` extension against the observation
-     *  map reconstructed from `result.replicationsByItem`.
-     */
-    fun renderCrossScenarioBoxPlot(
-        result: RunResult.BatchCompleted,
-        responseName: String,
-        outputDir: Path,
-        formats: Set<ReportFormat>
-    ): WriteOutcome {
-        if (formats.isEmpty()) {
-            return WriteOutcome(emptyList(), listOf("No report formats selected."))
-        }
-        val data = observationsAsMap(result, responseName)
-        if (data.isEmpty()) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf("No scenarios recorded values for response '$responseName'.")
-            )
-        }
-        val doc = report("Cross-Scenario Distributions — $responseName") {
-            paragraph(
-                "Per-replication distributions of response '$responseName' across " +
-                    "${data.size} scenario${if (data.size == 1) "" else "s"}, " +
-                    "drawn from per-scenario WithinRepStat averages."
-            )
-            multiBoxPlot(
-                dataMap = data,
-                caption = "Cross-Scenario Distributions — $responseName"
-            )
-        }
-        return writeAll(doc, outputDir, fileStem("cross-scenario-boxplot", responseName), formats)
-    }
-
-    /**
-     *  Render a full Multiple Comparison Analysis report for
-     *  [responseName] in every selected format.  Pre-validates the
-     *  data (≥2 scenarios, equal rep counts, ≥2 reps) and surfaces
-     *  a clear error when it doesn't qualify.
-     */
-    fun renderMultipleComparison(
-        result: RunResult.BatchCompleted,
-        responseName: String,
-        outputDir: Path,
-        formats: Set<ReportFormat>
-    ): WriteOutcome {
-        if (formats.isEmpty()) {
-            return WriteOutcome(emptyList(), listOf("No report formats selected."))
-        }
-        val data = observationsAsMap(result, responseName)
-        if (data.size < 2) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf(
-                    "Multiple comparison requires at least 2 scenarios with data for " +
-                        "response '$responseName' (found ${data.size})."
-                )
-            )
-        }
-        val lengths = data.values.map { it.size }.distinct()
-        if (lengths.size != 1) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf(
-                    "Multiple comparison requires every scenario to have the same number " +
-                        "of replications for response '$responseName' (found counts: ${lengths.sorted()})."
-                )
-            )
-        }
-        if (lengths.single() < 2) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf(
-                    "Multiple comparison requires at least 2 replications per scenario " +
-                        "(found ${lengths.single()})."
-                )
-            )
-        }
-        val mca = MultipleComparisonAnalyzer(data, responseName)
-        val doc = report("Multiple Comparison Analysis — $responseName") {
-            paragraph(
-                "Pairwise comparison of ${data.size} scenarios on response " +
-                    "'$responseName' with ${lengths.single()} replications each."
-            )
-            multipleComparison(
-                mca = mca,
-                showAltCIPlot = true,
-                showBoxPlot = true
-            )
-        }
-        return writeAll(doc, outputDir, fileStem("multiple-comparison", responseName), formats)
     }
 
     // ── DSL helpers ───────────────────────────────────────────────────────

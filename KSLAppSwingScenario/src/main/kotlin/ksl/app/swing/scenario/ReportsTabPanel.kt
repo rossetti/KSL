@@ -21,6 +21,7 @@ package ksl.app.swing.scenario
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
+import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.app.swing.common.notification.NotificationSeverity
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -75,15 +76,11 @@ class ReportsTabPanel(
             "scenario after clicking."
     }
 
-    private val crossScenarioBoxPlotButton = JButton("Cross-Scenario Box Plot…").apply {
+    private val comparisonAnalyzerButton = JButton("Open Comparison Analyzer…").apply {
         isEnabled = false
-        toolTipText = "Per-replication distributions of one response across every scenario."
-    }
-
-    private val multipleComparisonButton = JButton("Multiple Comparison Analysis…").apply {
-        isEnabled = false
-        toolTipText = "Pairwise differences, MCB intervals, and screening for one response " +
-            "across scenarios.  Requires every scenario to have the same number of replications."
+        toolTipText = "Launch the cross-scenario Comparison Analyzer — pick experiments, " +
+            "then configure Box Plot, Multiple Comparison Analysis, or Confidence Intervals " +
+            "in its own dialog with full per-analysis options."
     }
 
     init {
@@ -120,9 +117,7 @@ class ReportsTabPanel(
             add(Box.createHorizontalStrut(8))
             add(perScenarioDeepDiveButton)
             add(Box.createHorizontalStrut(8))
-            add(crossScenarioBoxPlotButton)
-            add(Box.createHorizontalStrut(8))
-            add(multipleComparisonButton)
+            add(comparisonAnalyzerButton)
             add(Box.createHorizontalGlue())
         }
         add(buttonRow)
@@ -150,8 +145,7 @@ class ReportsTabPanel(
         }
         sweepSummaryButton.addActionListener { onSweepSummary() }
         perScenarioDeepDiveButton.addActionListener { onPerScenarioDeepDive() }
-        crossScenarioBoxPlotButton.addActionListener { onCrossScenarioBoxPlot() }
-        multipleComparisonButton.addActionListener { onMultipleComparison() }
+        comparisonAnalyzerButton.addActionListener { onOpenComparisonAnalyzer() }
     }
 
     private fun onSweepSummary() {
@@ -195,54 +189,32 @@ class ReportsTabPanel(
         ) as? String
     }
 
-    private fun onCrossScenarioBoxPlot() {
+    /** Launch the cross-scenario [ComparisonAnalyzerFrame] over the
+     *  most-recent batch result.  The frame owns the analysis flow
+     *  end-to-end: experiment selection, per-analysis dialogs, and
+     *  report rendering.  This panel just supplies the data source
+     *  and the notification bridge. */
+    private fun onOpenComparisonAnalyzer() {
         val result = batchResultOrWarn() ?: return
-        val formats = formatsOrWarn() ?: return
-        val responses = ScenarioReports.responsesCommonAcrossScenarios(result)
-        if (responses.isEmpty()) {
-            onMessage(
-                "No response is recorded in every scenario — cannot build a cross-scenario plot.",
-                NotificationSeverity.WARNING
-            )
-            return
-        }
-        val response = pickResponse(responses, "Cross-Scenario Box Plot") ?: return
-        runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderCrossScenarioBoxPlot(result, response, reportsDir(), formats)
-        }
+        val source = BatchCompletedComparisonSource(result)
+        val frame = ComparisonAnalyzerFrame(
+            sources = listOf(source),
+            defaultOutputDir = reportsDir(),
+            defaultFormats = controller.outputConfig.value.reports,
+            onMessage = { msg, sev -> onMessage(msg, mapSeverity(sev)) }
+        )
+        frame.isVisible = true
     }
 
-    private fun onMultipleComparison() {
-        val result = batchResultOrWarn() ?: return
-        val formats = formatsOrWarn() ?: return
-        val responses = ScenarioReports.responsesCommonAcrossScenarios(result)
-        if (responses.isEmpty()) {
-            onMessage(
-                "No response is recorded in every scenario — cannot build a multiple-comparison report.",
-                NotificationSeverity.WARNING
-            )
-            return
-        }
-        val response = pickResponse(responses, "Multiple Comparison Analysis") ?: return
-        runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderMultipleComparison(result, response, reportsDir(), formats)
-        }
-    }
-
-    /** Modal combo-style picker for a single response.  Auto-selects
-     *  the only entry when [responses] has size 1; cancels when the
-     *  user dismisses. */
-    private fun pickResponse(responses: List<String>, title: String): String? {
-        if (responses.size == 1) return responses.single()
-        return JOptionPane.showInputDialog(
-            this,
-            "Pick a response:",
-            title,
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            responses.toTypedArray(),
-            responses.first()
-        ) as? String
+    /** Map the analyzer's [ComparisonAnalyzerFrame.Severity] to the
+     *  panel's [NotificationSeverity].  Enum values currently align
+     *  one-for-one (INFO / WARNING / ERROR); kept as an explicit
+     *  mapping so a future divergence in either enum doesn't
+     *  silently swap a level. */
+    private fun mapSeverity(s: ComparisonAnalyzerFrame.Severity): NotificationSeverity = when (s) {
+        ComparisonAnalyzerFrame.Severity.INFO -> NotificationSeverity.INFO
+        ComparisonAnalyzerFrame.Severity.WARNING -> NotificationSeverity.WARNING
+        ComparisonAnalyzerFrame.Severity.ERROR -> NotificationSeverity.ERROR
     }
 
     private fun reportsDir(): java.nio.file.Path =
@@ -303,10 +275,11 @@ class ReportsTabPanel(
             }
         }
         // Enable the on-demand buttons once a terminal batch result
-        // exists with at least one completed snapshot.  Cross-scenario
-        // buttons additionally require per-replication data to be
-        // present (the substrate populates `replicationsByItem` for
-        // scenario runs but not for other run modes).
+        // exists with at least one completed snapshot.  The
+        // Comparison Analyzer additionally requires per-replication
+        // data to be present (the substrate populates
+        // `replicationsByItem` for scenario runs but not for other
+        // run modes).
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
                 val batch = result as? RunResult.BatchCompleted
@@ -314,8 +287,7 @@ class ReportsTabPanel(
                 val hasReplications = batch != null && batch.replicationsByItem.isNotEmpty()
                 sweepSummaryButton.isEnabled = hasSnapshots
                 perScenarioDeepDiveButton.isEnabled = hasSnapshots
-                crossScenarioBoxPlotButton.isEnabled = hasReplications
-                multipleComparisonButton.isEnabled = hasReplications
+                comparisonAnalyzerButton.isEnabled = hasReplications
             }
         }
     }
