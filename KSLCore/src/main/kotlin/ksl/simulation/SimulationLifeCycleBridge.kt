@@ -136,6 +136,7 @@ internal class SimulationLifeCycleBridge(
     override fun afterExperiment(modelElement: ModelElement) {
         if (!emitters.experimentCompleted.isObserved) return
         val runRecord = myCurrentRunRecord ?: return
+        val expRecord = myCurrentExpRecord ?: extractExperimentData(model)
         val runId = runRecord.run_id
 
         val finalizedRun = runRecord.copy(
@@ -158,7 +159,8 @@ internal class SimulationLifeCycleBridge(
                 acrossRepStats = acrossRepStats,
                 histograms = histograms,
                 frequencies = frequencies,
-                timeSeries = timeSeries
+                timeSeries = timeSeries,
+                experiment = expRecord
             )
         )
 

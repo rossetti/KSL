@@ -62,16 +62,30 @@ sealed class SimulationSnapshot {
     /**
      * Emitted once after all replications of an experiment complete successfully.
      *
-     * Carries the finalized simulation run record (with end timestamp and final
-     * replication count) plus all across-replication aggregates, histogram data,
-     * frequency data, and time-series response data.
+     * Carries the experiment identity record, the finalized simulation run record
+     * (with end timestamp and final replication count), and all across-replication
+     * aggregates, histogram data, frequency data, and time-series response data.
+     *
+     * The [experiment] field mirrors the same record in [ExperimentStarted] so
+     * that consumers receiving only the completion snapshot can still identify
+     * which experiment produced the results without having to retain the
+     * earlier start snapshot.  In particular, `experiment.exp_name` is the
+     * authoritative experiment / scenario identifier; the
+     * [SimulationRunTableData.run_name] field on [simulationRun] is a separate,
+     * usually-empty per-run label and should not be used as an experiment id.
      */
     data class ExperimentCompleted(
         val simulationRun: SimulationRunTableData,
         val acrossRepStats: List<AcrossRepStatTableData>,
         val histograms: List<HistogramTableData>,
         val frequencies: List<FrequencyTableData>,
-        val timeSeries: List<TimeSeriesResponseTableData>
+        val timeSeries: List<TimeSeriesResponseTableData>,
+        /** Identity record for the experiment that produced this snapshot.
+         *  Mirrors [ExperimentStarted.experiment].  Defaults to an empty
+         *  [ExperimentTableData] so callers constructing `ExperimentCompleted`
+         *  outside the lifecycle bridge (e.g. in test fixtures) stay
+         *  source-compatible. */
+        val experiment: ExperimentTableData = ExperimentTableData()
     ) : SimulationSnapshot()
 
     /**

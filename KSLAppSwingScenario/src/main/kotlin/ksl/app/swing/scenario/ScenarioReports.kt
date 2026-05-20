@@ -20,11 +20,13 @@ package ksl.app.swing.scenario
 
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
+import ksl.utilities.io.dbutil.AcrossRepStatTableData
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.multiBoxPlot
 import ksl.utilities.io.report.extensions.multipleComparison
+import ksl.utilities.io.report.extensions.snapshotSimulationResults
 import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
@@ -34,40 +36,48 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Reporting layer for the Scenario app.  Round 1 surfaces a single
- *  *per-scenario summary* report built directly from
- *  `SimulationSnapshot.ExperimentCompleted` via the existing
- *  `ksl.utilities.io.report.extensions.snapshotSimulationResults`
- *  pipeline — no substrate change needed.
+ *  Reporting layer for the Scenario app.
  *
- *  Round 2 will add cross-scenario reports (box plots, MCA,
- *  per-replication trace) once the substrate exposes per-scenario
- *  `ReplicationCompleted` snapshots on `RunResult.BatchCompleted`.
- *  Those report types need per-replication observations that
- *  `ExperimentCompleted` (the only data the app sees today) does
- *  not carry.
+ *  All scenario-name lookups go through the substrate's authoritative
+ *  identifier — `ExperimentCompleted.experiment.exp_name` — which the
+ *  bridge populates from `model.experimentName`, which the
+ *  orchestrator sets from `ScenarioSpec.name`.  Earlier code keyed
+ *  on `simulationRun.run_name`; that's a separate (usually-empty)
+ *  field from `Model.runName` and is not the scenario identifier.
+ *
+ *  Every render path writes one file per selected [ReportFormat],
+ *  then, when HTML was among the formats, asks the platform to open
+ *  the HTML file in the user's default browser via
+ *  `ReportNode.Document.showInBrowser()`.
  */
 object ScenarioReports {
 
-    /** Result of a [renderPerScenarioSummary] (or future render)
-     *  call.  Lets the caller display per-format successes and
-     *  errors in one notification pass. */
+    /** Result of a render call.  Lets the caller surface per-format
+     *  successes and errors in one notification pass. */
     data class WriteOutcome(
         val written: List<Path>,
         val errors: List<String>
     )
 
-    /** Scenario names available for report generation — those that
-     *  produced a completed snapshot.  Drives the GUI picker. */
-    fun availableScenarioNames(result: RunResult.BatchCompleted): List<String> =
-        result.snapshots.map { it.simulationRun.run_name }
+    // ── Lookups ───────────────────────────────────────────────────────────
 
-    /**
-     *  Response names that appear in every scenario's replication
+    /** Scenario names available for report generation — those that
+     *  produced a completed snapshot, in the order the orchestrator
+     *  committed them.  Drives the GUI pickers. */
+    fun availableScenarioNames(result: RunResult.BatchCompleted): List<String> =
+        result.snapshots.map { it.experiment.exp_name }
+
+    /** Lookup a completed snapshot by scenario name. */
+    private fun snapshotFor(
+        result: RunResult.BatchCompleted,
+        scenarioName: String
+    ): SimulationSnapshot.ExperimentCompleted? =
+        result.snapshots.firstOrNull { it.experiment.exp_name == scenarioName }
+
+    /** Response names that appear in every scenario's replication
      *  snapshots — the candidates for cross-scenario comparisons.
-     *  Returned in sorted order.  Empty when there are fewer than two
-     *  scenarios or any scenario has no replication snapshots.
-     */
+     *  Returned in sorted order.  Empty when there are fewer than
+     *  two scenarios or any scenario has no replication snapshots. */
     fun responsesCommonAcrossScenarios(result: RunResult.BatchCompleted): List<String> {
         if (result.replicationsByItem.size < 2) return emptyList()
         val perScenario = result.replicationsByItem.values.map { repsForScenario ->
@@ -77,18 +87,11 @@ object ScenarioReports {
         return perScenario.reduce { acc, set -> acc intersect set }.sorted()
     }
 
-    /**
-     *  Reconstructs `Map<scenarioName, DoubleArray>` for a single
+    /** Reconstructs `Map<scenarioName, DoubleArray>` for a single
      *  response by reading `WithinRepStatTableData.average` per
      *  replication, in `rep_id` order, from each scenario's
-     *  replication snapshots.  Scenarios that have no observations
-     *  for [responseName] are omitted; the returned map keeps
-     *  insertion order matching [RunResult.BatchCompleted.replicationsByItem]
-     *  iteration.
-     *
-     *  Direct input to [multiBoxPlot] and the
-     *  [MultipleComparisonAnalyzer] constructor.
-     */
+     *  replication snapshots.  Direct input to [multiBoxPlot] and
+     *  the [MultipleComparisonAnalyzer] constructor. */
     fun observationsAsMap(
         result: RunResult.BatchCompleted,
         responseName: String
@@ -104,157 +107,102 @@ object ScenarioReports {
         return out
     }
 
+    // ── Render entry points ───────────────────────────────────────────────
+
     /**
-     *  Render a per-scenario summary for [scenarioName] in every
-     *  format in [formats], writing the files under [outputDir].
-     *  Returns the list of files actually written and any per-format
-     *  errors.
+     *  **Primary on-demand report.**  One document covering every
+     *  completed scenario.  Sections:
+     *  1. Run Overview — table with scenario name, requested reps,
+     *     completed reps, run-error flag.
+     *  2. Per-scenario across-replication statistics — one
+     *     sub-section per scenario containing the response × stat
+     *     table (Count, Mean, Std Dev, Half-width, CI bounds,
+     *     Min, Max).
      *
-     *  Internally delegates to the substrate's
-     *  `ExperimentCompleted.toReport(...)` extension, which produces
-     *  the full snapshot report: run summary, across-replication
-     *  statistics (count, mean, std-dev, half-width, CI, min/max),
-     *  histograms grouped by response, integer frequencies, and
-     *  per-period time-series statistics — every section that the
-     *  collected snapshot supports.
+     *  Designed to answer "how did all my scenarios stack up?" in one
+     *  file, without forcing the analyst to flip between per-scenario
+     *  reports.
      */
-    fun renderPerScenarioSummary(
+    fun renderSweepSummary(
         result: RunResult.BatchCompleted,
-        scenarioName: String,
-        outputDir: Path,
-        formats: Set<ReportFormat>
-    ): WriteOutcome {
-        val snapshot = result.snapshots.firstOrNull {
-            it.simulationRun.run_name == scenarioName
-        } ?: return WriteOutcome(
-            written = emptyList(),
-            errors = listOf("Scenario '$scenarioName' has no completed snapshot.")
-        )
-        if (formats.isEmpty()) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf("No report formats selected.")
-            )
-        }
-        val doc = snapshot.toReport(
-            title = "Scenario Summary — $scenarioName"
-        )
-        return writeAll(doc, outputDir, fileStem("scenario-summary", scenarioName), formats)
-    }
-
-    /**
-     *  Response names recorded as within-replication statistics for
-     *  [scenarioName].  Drives the second combo of the per-replication
-     *  trace picker.  Returned in sorted order.
-     */
-    fun responsesFor(
-        result: RunResult.BatchCompleted,
-        scenarioName: String
-    ): List<String> {
-        val reps = result.replicationsByItem[scenarioName] ?: return emptyList()
-        return reps.flatMap { rep -> rep.withinRepStats.map { it.stat_name } }
-            .distinct()
-            .sorted()
-    }
-
-    /**
-     *  Render a per-replication trace for one (scenario, response)
-     *  pair in every selected format.  For each replication in
-     *  `rep_id` order, lists the within-replication average, min,
-     *  max, and last_value pulled from the matching
-     *  `WithinRepStatTableData` row.  Includes the across-replication
-     *  summary as a footer when a matching aggregate exists in the
-     *  scenario's [SimulationSnapshot.ExperimentCompleted].
-     */
-    fun renderReplicationTrace(
-        result: RunResult.BatchCompleted,
-        scenarioName: String,
-        responseName: String,
         outputDir: Path,
         formats: Set<ReportFormat>
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
         }
-        val reps = result.replicationsByItem[scenarioName]
-            ?: return WriteOutcome(
-                written = emptyList(),
-                errors = listOf("No per-replication data captured for scenario '$scenarioName'.")
-            )
-        val rows = reps
-            .sortedBy { it.repId }
-            .flatMap { rep -> rep.withinRepStats.filter { it.stat_name == responseName } }
-        if (rows.isEmpty()) {
-            return WriteOutcome(
-                written = emptyList(),
-                errors = listOf(
-                    "Response '$responseName' was not recorded as a within-replication " +
-                        "statistic for scenario '$scenarioName'."
-                )
-            )
+        if (result.snapshots.isEmpty()) {
+            return WriteOutcome(emptyList(), listOf("No completed scenarios in the most recent run."))
         }
-        val summary = result.snapshots
-            .firstOrNull { it.simulationRun.run_name == scenarioName }
-            ?.acrossRepStats
-            ?.firstOrNull { it.stat_name == responseName }
-
-        val doc = report("Replication Trace — $scenarioName / $responseName") {
+        val doc = report("Scenario Sweep Summary — ${result.summary.orchestratorName}") {
             paragraph(
-                "Per-replication values of response '$responseName' across " +
-                    "${rows.size} replication(s) of scenario '$scenarioName'."
+                "Run id ${result.summary.runId}.  " +
+                    "${result.summary.completedItems} of ${result.summary.totalItems} " +
+                    "scenarios completed" +
+                    if (result.summary.failedItems > 0) ", ${result.summary.failedItems} failed." else "."
             )
-            section("Trace") {
+            section("Run Overview") {
                 dataTable(
-                    headers = listOf("Rep #", "Average", "Min", "Max", "Last Value"),
-                    rows = rows.map { stat ->
+                    headers = listOf("Scenario", "Requested Reps", "Completed Reps", "Run Error"),
+                    rows = result.snapshots.map { snap ->
+                        val run = snap.simulationRun
+                        val completedReps = run.last_rep_id?.let { it - run.start_rep_id + 1 }
+                            ?.toString() ?: ""
                         listOf(
-                            stat.rep_id.toString(),
-                            fmt(stat.average),
-                            fmt(stat.minimum),
-                            fmt(stat.maximum),
-                            fmt(stat.last_value)
+                            snap.experiment.exp_name,
+                            run.num_reps.toString(),
+                            completedReps,
+                            if (run.run_error_msg.isNullOrBlank()) "—" else "Yes ⚠"
                         )
                     }
                 )
             }
-            if (summary != null) {
-                section("Across-Replication Summary") {
-                    dataTable(
-                        headers = listOf("Statistic", "Value"),
-                        rows = listOf(
-                            listOf("Count", fmtInt(summary.stat_count)),
-                            listOf("Mean", fmt(summary.average)),
-                            listOf("Std Dev", fmt(summary.std_dev)),
-                            listOf("Half-width", fmt(summary.half_width)),
-                            listOf("Min", fmt(summary.minimum)),
-                            listOf("Max", fmt(summary.maximum))
-                        )
-                    )
+            section("Across-Replication Statistics — Per Scenario") {
+                for (snap in result.snapshots) {
+                    section(snap.experiment.exp_name) {
+                        if (snap.acrossRepStats.isEmpty()) {
+                            paragraph("No across-replication statistics recorded for this scenario.")
+                        } else {
+                            acrossRepStatsTable(snap.acrossRepStats)
+                        }
+                    }
                 }
             }
         }
-        return writeAll(
-            doc,
-            outputDir,
-            fileStem("replication-trace", "$scenarioName-$responseName"),
-            formats
-        )
+        return writeAll(doc, outputDir, "sweep-summary", formats)
     }
 
-    private fun fmt(v: Double?, digits: Int = 4): String =
-        v?.takeIf { !it.isNaN() && !it.isInfinite() }?.let { "%.${digits}f".format(it) } ?: ""
-
-    private fun fmtInt(v: Double?): String =
-        v?.takeIf { !it.isNaN() && !it.isInfinite() }?.toLong()?.toString() ?: ""
+    /**
+     *  Render a full per-scenario deep-dive report for [scenarioName]
+     *  using the substrate's existing `snapshotSimulationResults`
+     *  pipeline.  Includes everything the snapshot supports: run
+     *  summary, across-replication statistics, histograms,
+     *  frequencies, time-series period statistics.
+     */
+    fun renderPerScenarioDeepDive(
+        result: RunResult.BatchCompleted,
+        scenarioName: String,
+        outputDir: Path,
+        formats: Set<ReportFormat>
+    ): WriteOutcome {
+        if (formats.isEmpty()) {
+            return WriteOutcome(emptyList(), listOf("No report formats selected."))
+        }
+        val snapshot = snapshotFor(result, scenarioName) ?: return WriteOutcome(
+            written = emptyList(),
+            errors = listOf("Scenario '$scenarioName' has no completed snapshot.")
+        )
+        val doc = report(title = "Scenario Deep Dive — $scenarioName") {
+            snapshotSimulationResults(snapshot)
+        }
+        return writeAll(doc, outputDir, fileStem("scenario-deepdive", scenarioName), formats)
+    }
 
     /**
      *  Render a cross-scenario box plot for [responseName] in every
-     *  selected format.  Uses
-     *  `ksl.utilities.io.report.extensions.multiBoxPlot(...)` against
-     *  the observation map reconstructed from
-     *  `result.replicationsByItem`.  Empty observation map (no
-     *  scenario has values for the response) yields an error in the
-     *  outcome rather than an empty file.
+     *  selected format.  Uses the substrate's
+     *  `multiBoxPlot(dataMap, …)` extension against the observation
+     *  map reconstructed from `result.replicationsByItem`.
      */
     fun renderCrossScenarioBoxPlot(
         result: RunResult.BatchCompleted,
@@ -288,17 +236,9 @@ object ScenarioReports {
 
     /**
      *  Render a full Multiple Comparison Analysis report for
-     *  [responseName] in every selected format.  Constructs a
-     *  [MultipleComparisonAnalyzer] from
-     *  `observationsAsMap(result, responseName)` and renders via the
-     *  substrate's existing
-     *  `ksl.utilities.io.report.extensions.multipleComparison(...)`
-     *  extension with alternative-CI plot and response-distributions
-     *  box plot enabled.
-     *
-     *  MCA requires at least two alternatives and at least two
-     *  observations per alternative; pre-validates and surfaces a
-     *  clear error message when the data doesn't qualify.
+     *  [responseName] in every selected format.  Pre-validates the
+     *  data (≥2 scenarios, equal rep counts, ≥2 reps) and surfaces
+     *  a clear error when it doesn't qualify.
      */
     fun renderMultipleComparison(
         result: RunResult.BatchCompleted,
@@ -353,8 +293,57 @@ object ScenarioReports {
         return writeAll(doc, outputDir, fileStem("multiple-comparison", responseName), formats)
     }
 
-    // ── File writing ──────────────────────────────────────────────────────
+    // ── DSL helpers ───────────────────────────────────────────────────────
 
+    /** Across-rep stats table used by the consolidated sweep summary.
+     *  Mirrors the columns in
+     *  [snapshotSimulationResults]'s default rendering but inlined
+     *  here so we can drop the per-scenario run-summary section
+     *  (the Run Overview table at the top of the document covers
+     *  the bookkeeping already). */
+    private fun ksl.utilities.io.report.dsl.ReportBuilder.acrossRepStatsTable(
+        stats: List<AcrossRepStatTableData>
+    ) {
+        dataTable(
+            headers = listOf(
+                "Response", "Count", "Mean", "Std Dev",
+                "Half-width", "CI Lower", "CI Upper", "Min", "Max"
+            ),
+            rows = stats.sortedBy { it.stat_name }.map { row ->
+                listOf(
+                    row.stat_name,
+                    fmtInt(row.stat_count),
+                    fmt(row.average),
+                    fmt(row.std_dev),
+                    fmt(row.half_width),
+                    ci(row.average, row.half_width, subtract = true),
+                    ci(row.average, row.half_width, subtract = false),
+                    fmt(row.minimum),
+                    fmt(row.maximum)
+                )
+            }
+        )
+    }
+
+    private fun fmt(v: Double?, digits: Int = 4): String =
+        v?.takeIf { !it.isNaN() && !it.isInfinite() }?.let { "%.${digits}f".format(it) } ?: ""
+
+    private fun fmtInt(v: Double?): String =
+        v?.takeIf { !it.isNaN() && !it.isInfinite() }?.toLong()?.toString() ?: ""
+
+    private fun ci(mean: Double?, hw: Double?, subtract: Boolean): String {
+        if (mean == null || hw == null) return ""
+        if (mean.isNaN() || hw.isNaN()) return ""
+        val v = if (subtract) mean - hw else mean + hw
+        return fmt(v)
+    }
+
+    // ── File writing + browser open ──────────────────────────────────────
+
+    /** Writes [doc] in every format in [formats] using [stem] as the
+     *  filename base.  When the formats include HTML *and* the HTML
+     *  write succeeded, also asks the platform to open the HTML file
+     *  in the user's default browser. */
     private fun writeAll(
         doc: ReportNode.Document,
         outputDir: Path,
@@ -364,6 +353,7 @@ object ScenarioReports {
         Files.createDirectories(outputDir)
         val written = mutableListOf<Path>()
         val errors = mutableListOf<String>()
+        var htmlPath: Path? = null
         for (fmt in formats) {
             try {
                 val ext = when (fmt) {
@@ -373,7 +363,10 @@ object ScenarioReports {
                 }
                 val path = outputDir.resolve("$stem.$ext")
                 when (fmt) {
-                    ReportFormat.HTML -> doc.writeHtml(path = path)
+                    ReportFormat.HTML -> {
+                        doc.writeHtml(path = path)
+                        htmlPath = path
+                    }
                     ReportFormat.MARKDOWN -> doc.writeMarkdown(path = path)
                     ReportFormat.TEXT -> doc.writeText(path = path)
                 }
@@ -382,14 +375,33 @@ object ScenarioReports {
                 errors.add("${fmt.name}: ${t.message ?: t::class.simpleName ?: "unknown error"}")
             }
         }
+        if (htmlPath != null) {
+            try {
+                openInBrowser(htmlPath)
+            } catch (t: Throwable) {
+                errors.add("Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}")
+            }
+        }
         return WriteOutcome(written, errors)
     }
 
+    /** Open [htmlPath] in the user's default browser via
+     *  [java.awt.Desktop].  Bypasses the substrate's
+     *  `ReportNode.Document.showInBrowser()` because that writes its
+     *  own temp file rather than opening the one we already wrote. */
+    private fun openInBrowser(htmlPath: Path) {
+        if (!java.awt.Desktop.isDesktopSupported()) {
+            throw UnsupportedOperationException("Desktop browser open is not supported on this platform.")
+        }
+        val desktop = java.awt.Desktop.getDesktop()
+        if (!desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+            throw UnsupportedOperationException("Browser action is not supported on this platform.")
+        }
+        desktop.browse(htmlPath.toUri())
+    }
+
     /** Stable filesystem-safe filename stem so re-renders overwrite
-     *  cleanly instead of accumulating versioned files.  Sanitises
-     *  the scenario name (drops anything outside `[A-Za-z0-9._-]`)
-     *  and caps the length so unusual scenario names don't blow
-     *  past path limits on Windows. */
+     *  cleanly instead of accumulating versioned files. */
     private fun fileStem(prefix: String, key: String): String {
         val sanitised = key.replace(Regex("[^A-Za-z0-9._-]"), "_").take(60)
         return "$prefix-$sanitised"
