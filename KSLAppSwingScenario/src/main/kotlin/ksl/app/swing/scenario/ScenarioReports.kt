@@ -77,8 +77,8 @@ object ScenarioReports {
     // to live here.  Those flows now go through the cross-app
     // Comparison Analyzer ([ksl.app.swing.common.comparison.ComparisonAnalyzerFrame]),
     // which the Reports tab launches via
-    // [BatchCompletedComparisonSource].  Only the sweep-summary and
-    // per-scenario deep-dive renderers remain here — they're
+    // [BatchCompletedComparisonSource].  Only the scenario-summaries
+    // and per-scenario summary renderers remain here — they're
     // structurally unrelated to comparisons and have no analyzer
     // equivalent.
 
@@ -96,7 +96,7 @@ object ScenarioReports {
      *  file, without forcing the analyst to flip between per-scenario
      *  reports.
      */
-    fun renderSweepSummary(
+    fun renderScenarioSummaries(
         result: RunResult.BatchCompleted,
         outputDir: Path,
         formats: Set<ReportFormat>
@@ -107,7 +107,7 @@ object ScenarioReports {
         if (result.snapshots.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No completed scenarios in the most recent run."))
         }
-        val doc = report("Scenario Sweep Summary — ${result.summary.orchestratorName}") {
+        val doc = report("Scenario Summaries — ${result.summary.orchestratorName}") {
             paragraph(
                 "Run id ${result.summary.runId}.  " +
                     "${result.summary.completedItems} of ${result.summary.totalItems} " +
@@ -142,17 +142,17 @@ object ScenarioReports {
                 }
             }
         }
-        return writeAll(doc, outputDir, "sweep-summary", formats)
+        return writeAll(doc, outputDir, "scenario-summaries", formats)
     }
 
     /**
-     *  Render a full per-scenario deep-dive report for [scenarioName]
+     *  Render a single-scenario summary report for [scenarioName]
      *  using the substrate's existing `snapshotSimulationResults`
      *  pipeline.  Includes everything the snapshot supports: run
      *  summary, across-replication statistics, histograms,
      *  frequencies, time-series period statistics.
      */
-    fun renderPerScenarioDeepDive(
+    fun renderScenarioSummary(
         result: RunResult.BatchCompleted,
         scenarioName: String,
         outputDir: Path,
@@ -165,15 +165,15 @@ object ScenarioReports {
             written = emptyList(),
             errors = listOf("Scenario '$scenarioName' has no completed snapshot.")
         )
-        val doc = report(title = "Scenario Deep Dive — $scenarioName") {
+        val doc = report(title = "Scenario Summary — $scenarioName") {
             snapshotSimulationResults(snapshot)
         }
-        return writeAll(doc, outputDir, fileStem("scenario-deepdive", scenarioName), formats)
+        return writeAll(doc, outputDir, fileStem("scenario-summary", scenarioName), formats)
     }
 
     // ── DSL helpers ───────────────────────────────────────────────────────
 
-    /** Across-rep stats table used by the consolidated sweep summary.
+    /** Across-rep stats table used by the consolidated scenario-summaries report.
      *  Mirrors the columns in
      *  [snapshotSimulationResults]'s default rendering but inlined
      *  here so we can drop the per-scenario run-summary section

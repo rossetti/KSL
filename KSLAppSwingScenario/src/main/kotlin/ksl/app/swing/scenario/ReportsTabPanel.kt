@@ -63,13 +63,13 @@ class ReportsTabPanel(
         JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
     }
 
-    private val sweepSummaryButton = JButton("Scenario Summaries").apply {
+    private val scenarioSummariesButton = JButton("Scenario Summaries").apply {
         isEnabled = false
         toolTipText = "One document covering every completed scenario: run overview plus " +
             "per-scenario across-replication statistics for every response."
     }
 
-    private val perScenarioDeepDiveButton = JButton("Per-Scenario Results…").apply {
+    private val perScenarioSummaryButton = JButton("Per-Scenario Results…").apply {
         isEnabled = false
         toolTipText = "Full snapshot report for one scenario: run summary, across-rep stats, " +
             "histograms, frequencies, and time-series statistics (when present).  Pick which " +
@@ -113,9 +113,9 @@ class ReportsTabPanel(
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
             alignmentX = LEFT_ALIGNMENT
-            add(sweepSummaryButton)
+            add(scenarioSummariesButton)
             add(Box.createHorizontalStrut(8))
-            add(perScenarioDeepDiveButton)
+            add(perScenarioSummaryButton)
             add(Box.createHorizontalStrut(8))
             add(comparisonAnalyzerButton)
             add(Box.createHorizontalGlue())
@@ -143,25 +143,25 @@ class ReportsTabPanel(
                 )
             }
         }
-        sweepSummaryButton.addActionListener { onSweepSummary() }
-        perScenarioDeepDiveButton.addActionListener { onPerScenarioDeepDive() }
+        scenarioSummariesButton.addActionListener { onScenarioSummaries() }
+        perScenarioSummaryButton.addActionListener { onPerScenarioSummary() }
         comparisonAnalyzerButton.addActionListener { onOpenComparisonAnalyzer() }
     }
 
-    private fun onSweepSummary() {
+    private fun onScenarioSummaries() {
         val result = batchResultOrWarn() ?: return
         val formats = formatsOrWarn() ?: return
         runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderSweepSummary(result, reportsDir(), formats)
+            ScenarioReports.renderScenarioSummaries(result, reportsDir(), formats)
         }
     }
 
-    private fun onPerScenarioDeepDive() {
+    private fun onPerScenarioSummary() {
         val result = batchResultOrWarn() ?: return
         val formats = formatsOrWarn() ?: return
-        val scenario = pickScenario(result, "Per-Scenario Deep Dive") ?: return
+        val scenario = pickScenario(result, "Per-Scenario Summary") ?: return
         runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderPerScenarioDeepDive(result, scenario, reportsDir(), formats)
+            ScenarioReports.renderScenarioSummary(result, scenario, reportsDir(), formats)
         }
     }
 
@@ -285,8 +285,8 @@ class ReportsTabPanel(
                 val batch = result as? RunResult.BatchCompleted
                 val hasSnapshots = batch != null && batch.snapshots.isNotEmpty()
                 val hasReplications = batch != null && batch.replicationsByItem.isNotEmpty()
-                sweepSummaryButton.isEnabled = hasSnapshots
-                perScenarioDeepDiveButton.isEnabled = hasSnapshots
+                scenarioSummariesButton.isEnabled = hasSnapshots
+                perScenarioSummaryButton.isEnabled = hasSnapshots
                 comparisonAnalyzerButton.isEnabled = hasReplications
             }
         }
