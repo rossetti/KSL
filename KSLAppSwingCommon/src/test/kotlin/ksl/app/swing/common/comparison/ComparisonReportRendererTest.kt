@@ -28,10 +28,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- *  Black-box tests for [ComparisonReportRenderer].  Each test
- *  drives the renderer with a synthetic selection model, asserts
- *  the right files appear in the temp dir, and verifies pre-flight
- *  validation rejects invalid inputs without writing partial files.
+ *  Black-box tests for [ComparisonReportRenderer].  Each test drives
+ *  one of the per-analysis renderers with a synthetic observation
+ *  map, asserts the right files appear in the temp dir, and verifies
+ *  the renderer's own pre-flight validation rejects invalid inputs
+ *  without writing partial files.
  *
  *  Note: HTML writes also try to open the result in a browser via
  *  java.awt.Desktop.  In a headless build environment this raises
@@ -46,12 +47,11 @@ class ComparisonReportRendererTest {
 
     @Test
     fun `box plot writes one file per format with stable stem`() {
-        val model = mm1Selection().apply {
-            setAnalysis(AnalysisType.BOX_PLOT)
-            setResponse("NumBusy")
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderBoxPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN, ReportFormat.TEXT)
         )
@@ -67,12 +67,11 @@ class ComparisonReportRendererTest {
 
     @Test
     fun `mca writes one file per format`() {
-        val model = mm1Selection().apply {
-            setAnalysis(AnalysisType.MULTIPLE_COMPARISON)
-            setResponse("NumBusy")
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN)
         )
@@ -83,45 +82,17 @@ class ComparisonReportRendererTest {
 
     @Test
     fun `ci plot writes one file per format`() {
-        val model = mm1Selection().apply {
-            setAnalysis(AnalysisType.CONFIDENCE_INTERVALS)
-            setResponse("NumBusy")
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderCiPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN)
         )
         assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
         assertEquals(1, out.written.size)
         assertEquals("comparison-ciplot-NumBusy.md", out.written.single().fileName.toString())
-    }
-
-    @Test
-    fun `render fails fast when no response is selected`() {
-        val model = mm1Selection()       // selectAll'd, no response set
-        val out = ComparisonReportRenderer.render(
-            model = model,
-            outputDir = tempDir,
-            formats = setOf(ReportFormat.MARKDOWN)
-        )
-        assertTrue(out.written.isEmpty())
-        assertEquals(1, out.errors.size)
-        assertTrue(out.errors.single().contains("Pick a response"))
-    }
-
-    @Test
-    fun `render fails fast when formats are empty`() {
-        val model = mm1Selection().apply {
-            setResponse("NumBusy")
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
-            outputDir = tempDir,
-            formats = emptySet()
-        )
-        assertTrue(out.written.isEmpty())
-        assertFalse(out.errors.isEmpty())
     }
 
     @Test
@@ -134,13 +105,11 @@ class ComparisonReportRendererTest {
                 response("NumBusy", ResponseCategory.TIME_WEIGHTED, doubleArrayOf(0.5, 0.6))
             }
         }.build()
-        val model = ComparisonSelectionModel(listOf(src)).apply {
-            selectAll()
-            setResponse("NumBusy")
-            setAnalysis(AnalysisType.MULTIPLE_COMPARISON)
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
+        val model = ComparisonSelectionModel(listOf(src)).apply { selectAll() }
+        val out = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN)
         )
@@ -158,13 +127,11 @@ class ComparisonReportRendererTest {
                 response("System Time / Sec", ResponseCategory.OBSERVATION, doubleArrayOf(3.0, 4.0))
             }
         }.build()
-        val model = ComparisonSelectionModel(listOf(src)).apply {
-            selectAll()
-            setResponse("System Time / Sec")
-            setAnalysis(AnalysisType.BOX_PLOT)
-        }
-        val out = ComparisonReportRenderer.render(
-            model = model,
+        val model = ComparisonSelectionModel(listOf(src)).apply { selectAll() }
+        val out = ComparisonReportRenderer.renderBoxPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "System Time / Sec",
+            observations = model.gatherObservationsFor("System Time / Sec"),
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN)
         )
@@ -176,6 +143,9 @@ class ComparisonReportRendererTest {
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────
+
+    private fun sourceLabel(model: ComparisonSelectionModel): String =
+        model.sources.joinToString(" · ") { it.sourceLabel }
 
     private fun mm1Selection(): ComparisonSelectionModel {
         val src = InMemoryComparisonSource.builder("two-mm1").apply {

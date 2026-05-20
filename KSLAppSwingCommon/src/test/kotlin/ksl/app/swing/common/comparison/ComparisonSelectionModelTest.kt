@@ -19,26 +19,27 @@
 package ksl.app.swing.common.comparison
 
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  *  Behavioural tests for [ComparisonSelectionModel].  Each test
  *  builds an in-memory source via [InMemoryComparisonSource] and
- *  asserts that selection mutators / derived state / validation all
+ *  asserts that selection mutators / derived state / validation
  *  behave as the analyzer expects.
+ *
+ *  Response and analysis-type selection have moved into the per-
+ *  analysis dialogs, so the model only owns experiment selection
+ *  now — these tests reflect the trimmed surface.
  */
 class ComparisonSelectionModelTest {
 
     @Test
-    fun `initial state has no experiments selected and no response`() {
+    fun `initial state has no experiments selected`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         assertTrue(m.selectedExperimentNames.isEmpty())
-        assertNull(m.selectedResponse)
-        assertEquals(AnalysisType.BOX_PLOT, m.analysis)
         assertTrue(m.availableResponses().isEmpty())
     }
 
@@ -50,28 +51,20 @@ class ComparisonSelectionModelTest {
     }
 
     @Test
-    fun `selectNone clears experiments and the selected response`() {
+    fun `selectNone clears experiments`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         m.selectAll()
-        m.setResponse("NumBusy")
-        assertEquals("NumBusy", m.selectedResponse)
         m.selectNone()
         assertTrue(m.selectedExperimentNames.isEmpty())
-        assertNull(m.selectedResponse)
     }
 
     @Test
-    fun `toggleExperiment clears a stale response when its participants drop to zero`() {
-        val src = oneMm1OneLkSource()
-        val m = ComparisonSelectionModel(listOf(src))
-        m.selectAll()
-        m.setResponse("NumBusy")
-        assertEquals("NumBusy", m.selectedResponse)
-        // Uncheck the only MM1 experiment that records NumBusy → the
-        // response now has zero participants, so the model defensively
-        // clears it.
-        m.toggleExperiment("MM1", checked = false)
-        assertNull(m.selectedResponse)
+    fun `toggleExperiment flips checked state`() {
+        val m = ComparisonSelectionModel(listOf(twoMm1Source()))
+        m.toggleExperiment("S1", checked = true)
+        assertEquals(setOf("S1"), m.selectedExperimentNames)
+        m.toggleExperiment("S1", checked = false)
+        assertTrue(m.selectedExperimentNames.isEmpty())
     }
 
     @Test
@@ -92,49 +85,43 @@ class ComparisonSelectionModelTest {
     }
 
     @Test
-    fun `validate fails when no response is selected`() {
+    fun `validateForResponse fails when response is null`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         m.selectAll()
-        val v = m.validate()
+        val v = m.validateForResponse(null, AnalysisType.BOX_PLOT)
         assertFalse(v.ok)
         assertTrue(v.reason!!.contains("Pick a response"))
     }
 
     @Test
-    fun `validate fails when no checked experiment records the response`() {
+    fun `validateForResponse fails when no checked experiment records the response`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
-        // Don't check anything — but somehow set a response (forced via
-        // setResponse, simulating a stale-state scenario).
-        m.setResponse("NumBusy")
-        val v = m.validate()
+        // Don't check anything.
+        val v = m.validateForResponse("NumBusy", AnalysisType.BOX_PLOT)
         assertFalse(v.ok)
         assertTrue(v.reason!!.contains("No checked experiment"))
     }
 
     @Test
-    fun `validate ok for box plot with one participant`() {
+    fun `validateForResponse ok for box plot with one participant`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         m.selectAll()
         m.toggleExperiment("S2", false)         // leave only S1
-        m.setResponse("NumBusy")
-        m.setAnalysis(AnalysisType.BOX_PLOT)
-        assertTrue(m.validate().ok)
+        assertTrue(m.validateForResponse("NumBusy", AnalysisType.BOX_PLOT).ok)
     }
 
     @Test
-    fun `validate fails MCA with only one participant`() {
+    fun `validateForResponse fails MCA with only one participant`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         m.selectAll()
         m.toggleExperiment("S2", false)
-        m.setResponse("NumBusy")
-        m.setAnalysis(AnalysisType.MULTIPLE_COMPARISON)
-        val v = m.validate()
+        val v = m.validateForResponse("NumBusy", AnalysisType.MULTIPLE_COMPARISON)
         assertFalse(v.ok)
         assertTrue(v.reason!!.contains("at least 2 experiments"))
     }
 
     @Test
-    fun `validate fails MCA on unequal replication counts`() {
+    fun `validateForResponse fails MCA on unequal replication counts`() {
         // S1: 3 reps for NumBusy; S2: 5 reps for NumBusy
         val src = InMemoryComparisonSource.builder("uneven").apply {
             experiment("S1", model = "MM1") {
@@ -146,30 +133,26 @@ class ComparisonSelectionModelTest {
         }.build()
         val m = ComparisonSelectionModel(listOf(src))
         m.selectAll()
-        m.setResponse("NumBusy")
-        m.setAnalysis(AnalysisType.MULTIPLE_COMPARISON)
-        val v = m.validate()
+        val v = m.validateForResponse("NumBusy", AnalysisType.MULTIPLE_COMPARISON)
         assertFalse(v.ok)
         assertTrue(v.reason!!.contains("equal replication counts"))
     }
 
     @Test
-    fun `gatherObservations returns map keyed by experiment in selection order`() {
+    fun `gatherObservationsFor returns map keyed by experiment in selection order`() {
         val m = ComparisonSelectionModel(listOf(twoMm1Source()))
         m.selectAll()
-        m.setResponse("NumBusy")
-        val obs = m.gatherObservations()
+        val obs = m.gatherObservationsFor("NumBusy")
         assertEquals(listOf("S1", "S2"), obs.keys.toList())
         assertContentEquals(doubleArrayOf(0.5, 0.6, 0.7), obs["S1"])
         assertContentEquals(doubleArrayOf(0.8, 0.9, 1.0), obs["S2"])
     }
 
     @Test
-    fun `gatherObservations excludes experiments that do not record the response`() {
+    fun `gatherObservationsFor excludes experiments that do not record the response`() {
         val m = ComparisonSelectionModel(listOf(oneMm1OneLkSource()))
         m.selectAll()
-        m.setResponse("NumBusy")
-        val obs = m.gatherObservations()
+        val obs = m.gatherObservationsFor("NumBusy")
         // LK doesn't record NumBusy.
         assertEquals(listOf("MM1"), obs.keys.toList())
     }
@@ -180,10 +163,9 @@ class ComparisonSelectionModelTest {
         var fires = 0
         m.addListener { fires++ }
         m.selectAll()
-        m.setResponse("NumBusy")
-        m.setAnalysis(AnalysisType.MULTIPLE_COMPARISON)
         m.toggleExperiment("S1", false)
-        assertEquals(4, fires)
+        m.selectNone()
+        assertEquals(3, fires)
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────

@@ -56,42 +56,13 @@ object ComparisonReportRenderer {
         val errors: List<String>
     )
 
-    /**
-     *  Render whatever the [model] is currently configured for and
-     *  write the report files into [outputDir] in the given
-     *  [formats].
-     *
-     *  Performs the same pre-flight validation as
-     *  [ComparisonSelectionModel.validate]; returns an outcome with
-     *  the failure reason in `errors` and no files written when the
-     *  selection is invalid.
-     */
-    fun render(
-        model: ComparisonSelectionModel,
-        outputDir: Path,
-        formats: Set<ReportFormat>
-    ): WriteOutcome {
-        if (formats.isEmpty()) {
-            return WriteOutcome(emptyList(), listOf("No report formats selected."))
-        }
-        val validation = model.validate()
-        if (!validation.ok) {
-            return WriteOutcome(emptyList(), listOf(validation.reason ?: "Invalid selection."))
-        }
-        val response = model.selectedResponse!!
-        val obs = model.gatherObservations()
-        if (obs.isEmpty()) {
-            return WriteOutcome(emptyList(), listOf("No observations available for '$response'."))
-        }
-        val sourceLabel = model.sources.joinToString(" · ") { it.sourceLabel }
-        return when (model.analysis) {
-            AnalysisType.BOX_PLOT -> renderBoxPlot(sourceLabel, response, obs, outputDir, formats)
-            AnalysisType.MULTIPLE_COMPARISON -> renderMca(sourceLabel, response, obs, outputDir, formats)
-            AnalysisType.CONFIDENCE_INTERVALS -> renderCiPlot(sourceLabel, response, obs, outputDir, formats)
-        }
-    }
-
     // ── Per-analysis renderers ───────────────────────────────────────────
+    //
+    // Each per-analysis dialog calls its specific renderer directly,
+    // passing the observation map it gathered from the selection
+    // model.  There is no longer a model-driven convenience overload
+    // — analysis-specific knobs (CL, indifference δ, title, etc.)
+    // arrive through the per-analysis signature.
 
     fun renderBoxPlot(
         sourceLabel: String,

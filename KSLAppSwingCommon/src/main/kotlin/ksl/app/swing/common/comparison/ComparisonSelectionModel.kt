@@ -21,15 +21,15 @@ package ksl.app.swing.common.comparison
 /**
  *  Analysis types the Comparison Analyzer can produce.  Each one
  *  has its own validation rule against the current selection — see
- *  [ComparisonSelectionModel.validate].
+ *  [ComparisonSelectionModel.validateForResponse].
  */
 enum class AnalysisType { BOX_PLOT, MULTIPLE_COMPARISON, CONFIDENCE_INTERVALS }
 
 /**
  *  Result of pre-flight validation for a given (selection, analysis)
  *  pair.  When [ok] is `false`, [reason] carries a short user-facing
- *  explanation; the analyzer's *Generate* button is disabled with
- *  this text shown as a tooltip / status line.
+ *  explanation; the analysis dialog's *Generate* button is disabled
+ *  with this text shown as a tooltip / status line.
  */
 data class ValidationResult(
     val ok: Boolean,
@@ -42,20 +42,21 @@ data class ValidationResult(
 }
 
 /**
- *  Shared mutable state for the Comparison Analyzer's three
- *  selection components (experiments / response / analysis type).
+ *  Shared mutable state for the Comparison Analyzer's
+ *  experiments-first workflow.
  *
- *  Each component reads from this model on render, calls a mutator
- *  on user input, and registers a listener to refresh when other
- *  components change the state.  Listeners are invoked
- *  synchronously on the EDT (the same thread Swing input handlers
- *  run on).
+ *  The frame owns one of these and uses it for the *Experiments*
+ *  column only.  Response and analysis selection have moved into
+ *  the per-analysis dialogs ([BoxPlotAnalysisDialog],
+ *  `MultipleComparisonAnalysisDialog`, `ConfidenceIntervalsAnalysisDialog`)
+ *  — each dialog reads experiments from this model when it opens and
+ *  asks the user for a response inside its own configuration UI.
  *
  *  Multi-source ready: takes a list of [ComparisonDataSourceIfc].
- *  v1 hosts construct with a single-element list.  When the
- *  analyzer grows to genuinely multi-source workflows, the model
- *  flattens experiments across sources and the response/analysis
- *  selection logic adapts without changing the public surface.
+ *  v1 hosts construct with a single-element list.  When the analyzer
+ *  grows to genuinely multi-source workflows, the model flattens
+ *  experiments across sources and the helpers below adapt without
+ *  changing the public surface.
  */
 class ComparisonSelectionModel(
     val sources: List<ComparisonDataSourceIfc>
@@ -70,18 +71,6 @@ class ComparisonSelectionModel(
     /** Names of experiments the analyst has checked. */
     val selectedExperimentNames: Set<String> get() = mySelectedExperiments.toSet()
 
-    private var mySelectedResponse: String? = null
-
-    /** Currently picked response name, or `null` when nothing is
-     *  picked / the previously-picked response is no longer
-     *  available in the union of selected experiments. */
-    val selectedResponse: String? get() = mySelectedResponse
-
-    private var myAnalysis: AnalysisType = AnalysisType.BOX_PLOT
-
-    /** Currently chosen analysis type.  Defaults to box plot. */
-    val analysis: AnalysisType get() = myAnalysis
-
     private val listeners = mutableListOf<() -> Unit>()
 
     fun addListener(l: () -> Unit) {
@@ -94,14 +83,10 @@ class ComparisonSelectionModel(
 
     // ── Mutators ─────────────────────────────────────────────────────────
 
-    /** Check or uncheck the experiment with the given [name].  When
-     *  unchecking would leave the currently-selected response with
-     *  no recording experiments at all, the response is cleared too
-     *  so the analyzer doesn't sit in an obviously-invalid state. */
+    /** Check or uncheck the experiment with the given [name]. */
     fun toggleExperiment(name: String, checked: Boolean) {
         if (checked) mySelectedExperiments.add(name)
         else mySelectedExperiments.remove(name)
-        clearResponseIfStale()
         notifyChange()
     }
 
@@ -113,33 +98,24 @@ class ComparisonSelectionModel(
         notifyChange()
     }
 
-    /** Uncheck every experiment.  Clears the response too. */
+    /** Uncheck every experiment. */
     fun selectNone() {
         mySelectedExperiments.clear()
-        mySelectedResponse = null
-        notifyChange()
-    }
-
-    fun setResponse(name: String?) {
-        if (mySelectedResponse == name) return
-        mySelectedResponse = name
-        notifyChange()
-    }
-
-    fun setAnalysis(type: AnalysisType) {
-        if (myAnalysis == type) return
-        myAnalysis = type
         notifyChange()
     }
 
     // ── Derived state ────────────────────────────────────────────────────
 
-    /** Currently-checked experiments as full rows. */
+    /** Currently-checked experiments as full rows, in source-order
+     *  then natural order within each source.  Iteration order is
+     *  the canonical left→right ordering for box plots and CI plots.
+     */
     fun selectedExperiments(): List<ExperimentRow> =
         allExperiments.filter { it.name in mySelectedExperiments }
 
     /** Responses across the currently-checked experiments — the
-     *  candidate list shown in the response table. */
+     *  candidate list shown in each analysis dialog's response
+     *  sub-picker. */
     fun availableResponses(): List<ResponseRow> =
         selectedExperiments().unionOfResponses()
 
@@ -148,18 +124,19 @@ class ComparisonSelectionModel(
     fun experimentsRecording(responseName: String): List<ExperimentRow> =
         selectedExperiments().recordingResponse(responseName)
 
-    /** Collect per-experiment observation arrays for the
-     *  currently-selected response, restricted to the experiments
-     *  that record it.  Iteration order matches
-     *  [selectedExperiments].  Returns an empty map when no
-     *  response is selected or no experiment records it.
+    /** Collect per-experiment observation arrays for [responseName],
+     *  restricted to the experiments that record it.  Iteration
+     *  order matches [selectedExperiments] — i.e. source-order then
+     *  natural order within each source — which is the canonical
+     *  left→right ordering for cross-experiment box plots and CI
+     *  plots.  Returns an empty map when no experiment records the
+     *  response.
      *
      *  This is the canonical input to
      *  [ComparisonReportRenderer.renderBoxPlot] / `renderMca` /
      *  `renderCiPlot`. */
-    fun gatherObservations(): Map<String, DoubleArray> {
-        val response = mySelectedResponse ?: return emptyMap()
-        val participants = experimentsRecording(response).map { it.name }.toSet()
+    fun gatherObservationsFor(responseName: String): Map<String, DoubleArray> {
+        val participants = experimentsRecording(responseName).map { it.name }.toSet()
         if (participants.isEmpty()) return emptyMap()
         // Build a name → source lookup so we can pull observations
         // through the right adapter.  In a multi-source future, two
@@ -174,30 +151,27 @@ class ComparisonSelectionModel(
         for (exp in selectedExperiments()) {
             if (exp.name !in participants) continue
             val src = sourceByName[exp.name] ?: continue
-            val values = src.observations(exp.name, response) ?: continue
+            val values = src.observations(exp.name, responseName) ?: continue
             out[exp.name] = values
         }
         return out
     }
 
-    /** Validate that the current selection supports the given
-     *  analysis type.  Returns [ValidationResult.OK] when the
-     *  *Generate* button can fire; otherwise [ValidationResult.fail]
-     *  with a user-facing explanation. */
-    fun validate(type: AnalysisType = analysis): ValidationResult =
-        validateForResponse(mySelectedResponse, type)
-
-    /** Like [validate], but checks a hypothetical [responseName]
-     *  without changing model state.  Used by the *Choose Response*
-     *  dialog to show a validation warning for the currently-
-     *  highlighted candidate response before the user commits.
+    /** Validate that the current selection supports running [type]
+     *  against [responseName].  Returns [ValidationResult.OK] when
+     *  the analysis dialog's *Generate* button can fire; otherwise
+     *  [ValidationResult.fail] with a user-facing explanation.
+     *
+     *  This is the only validation entry point — the frame no
+     *  longer holds a "current" response or analysis, so callers
+     *  must supply both.
      */
     fun validateForResponse(
         responseName: String?,
-        type: AnalysisType = analysis
+        type: AnalysisType
     ): ValidationResult {
         val response = responseName
-            ?: return ValidationResult.fail("Pick a response from the middle column.")
+            ?: return ValidationResult.fail("Pick a response.")
         val participants = experimentsRecording(response)
         if (participants.isEmpty()) {
             return ValidationResult.fail(
@@ -231,10 +205,5 @@ class ComparisonSelectionModel(
                 ValidationResult.OK
             }
         }
-    }
-
-    private fun clearResponseIfStale() {
-        val r = mySelectedResponse ?: return
-        if (experimentsRecording(r).isEmpty()) mySelectedResponse = null
     }
 }
