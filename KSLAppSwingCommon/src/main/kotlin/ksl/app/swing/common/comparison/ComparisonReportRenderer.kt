@@ -20,15 +20,15 @@ package ksl.app.swing.common.comparison
 
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.plotting.ConfidenceIntervalsPlot
-import ksl.utilities.io.plotting.MultiBoxPlot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.MCBDirection
+import ksl.utilities.io.report.extensions.multiBoxPlot
 import ksl.utilities.io.report.extensions.multipleComparison
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
-import ksl.utilities.statistic.Statistic
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -122,38 +122,71 @@ object ComparisonReportRenderer {
         }
         val resolvedCaption = caption?.trim()?.takeIf { it.isNotEmpty() }
             ?: "Cross-experiment distributions — $responseName"
-        // Build the plot directly so we can override the inherited
-        // BasePlot axis labels (xLabel / yLabel default to "x" / "y").
-        // multiBoxPlot's extension wraps this but doesn't expose label
-        // hooks — so we inline its body.
-        val boxMap = Statistic.boxPlotSummaries(observations)
-        if (boxMap.isEmpty()) {
-            return WriteOutcome(
-                emptyList(),
-                listOf("Box plot summaries could not be computed for '$responseName'.")
-            )
-        }
-        val plot = MultiBoxPlot(boxMap).apply {
-            xLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Experiment"
-            yLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
-        }
+        // The substrate's multiBoxPlot extension accepts axis label
+        // overrides (added when the comparison analyzer landed); pass
+        // through ours with sensible defaults appropriate to the
+        // analyzer's mental model: x = "Experiment", y = response name.
         val doc = report("Comparison — Box Plot — $responseName") {
             paragraph(headerSentence(sourceLabel, observations, responseName))
-            plot(plot, caption = resolvedCaption)
+            multiBoxPlot(
+                dataMap = observations,
+                caption = resolvedCaption,
+                xAxisLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Experiment",
+                yAxisLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
+            )
         }
         return writeAll(doc, outputDir, fileStem("comparison-boxplot", responseName), formats)
     }
 
+    /**
+     *  Render a Multiple Comparison Analysis report for
+     *  [responseName] against [observations].
+     *
+     *  @param direction              [MCBDirection] for the MCB
+     *    intervals (default [MCBDirection.BOTH]).
+     *  @param indifferenceZone       δ for MCB (default 0.0).
+     *  @param altConfidenceLevel     CL for the per-alternative CIs
+     *    (default 0.95).
+     *  @param diffConfidenceLevel    CL for the pairwise-difference
+     *    CIs (default 0.95).
+     *  @param probCorrectSelection   target probability of correct
+     *    selection (default 0.95).
+     *  @param showAltCIPlot          embed the per-alternative CI
+     *    plot in the report (default `false`).
+     *  @param showBoxPlot            embed the cross-alternative box
+     *    plot in the report (default `false`).
+     *  @param title                  optional report title;
+     *    blank / null falls back to
+     *    `"Comparison — Multiple Comparison — <response>"`.
+     *  @param xAxisLabel             optional override for the x-axis
+     *    label of every embedded plot.  Defaults to `"Experiment"`.
+     *  @param yAxisLabel             optional override for the y-axis
+     *    label of every embedded plot.  Defaults to [responseName].
+     */
     fun renderMca(
         sourceLabel: String,
         responseName: String,
         observations: Map<String, DoubleArray>,
         outputDir: Path,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        direction: MCBDirection = MCBDirection.BOTH,
+        indifferenceZone: Double = 0.0,
+        altConfidenceLevel: Double = 0.95,
+        diffConfidenceLevel: Double = 0.95,
+        probCorrectSelection: Double = 0.95,
+        showAltCIPlot: Boolean = false,
+        showBoxPlot: Boolean = false,
+        title: String? = null,
+        xAxisLabel: String? = null,
+        yAxisLabel: String? = null
     ): WriteOutcome {
+        if (formats.isEmpty()) {
+            return WriteOutcome(emptyList(), listOf("No report formats selected."))
+        }
         // MCA constructor asserts ≥2 alternatives and equal lengths;
-        // ComparisonSelectionModel.validate enforces both already,
-        // but defend against direct callers that bypassed the model.
+        // ComparisonSelectionModel.validateForResponse enforces both
+        // already, but defend against direct callers that bypassed
+        // the model.
         if (observations.size < 2) {
             return WriteOutcome(
                 emptyList(),
@@ -177,24 +210,68 @@ object ComparisonReportRenderer {
             )
         }
         val mca = MultipleComparisonAnalyzer(observations, responseName)
-        val doc = report("Comparison — Multiple Comparison — $responseName") {
+        val resolvedTitle = title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Comparison — Multiple Comparison — $responseName"
+        val doc = report(resolvedTitle) {
             paragraph(headerSentence(sourceLabel, observations, responseName))
             multipleComparison(
                 mca = mca,
-                showAltCIPlot = true,
-                showBoxPlot = true
+                direction = direction,
+                indifferenceZone = indifferenceZone,
+                altConfidenceLevel = altConfidenceLevel,
+                diffConfidenceLevel = diffConfidenceLevel,
+                probCorrectSelection = probCorrectSelection,
+                showAltCIPlot = showAltCIPlot,
+                showBoxPlot = showBoxPlot,
+                xAxisLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Experiment",
+                yAxisLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
             )
         }
         return writeAll(doc, outputDir, fileStem("comparison-mca", responseName), formats)
     }
 
+    /**
+     *  Render a side-by-side CI plot for [responseName] — one mean ±
+     *  CI bar per checked experiment that records the response.
+     *
+     *  @param level           confidence level for the CIs (default
+     *    0.95).  Each alternative's CI is computed from its own
+     *    [observations] via [Statistic.confidenceIntervals], so
+     *    unequal replication counts are allowed (unlike MCA).
+     *  @param referencePoint  optional vertical reference line on
+     *    the value axis (e.g. a target throughput or known
+     *    theoretical mean).  `null` (the default) suppresses it.
+     *  @param caption         optional plot caption.  Blank / `null`
+     *    falls back to `"Mean ± <CL>% CI — <response>"`.
+     *  @param title           optional report title.  Blank / `null`
+     *    falls back to `"Comparison — Confidence Intervals — <response>"`.
+     *  @param xAxisLabel      optional override for the x-axis label
+     *    (the value axis).  Defaults to [responseName].
+     *  @param yAxisLabel      optional override for the y-axis label
+     *    (the alternative axis).  Defaults to `"Experiment"`.
+     */
     fun renderCiPlot(
         sourceLabel: String,
         responseName: String,
         observations: Map<String, DoubleArray>,
         outputDir: Path,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        level: Double = 0.95,
+        referencePoint: Double? = null,
+        caption: String? = null,
+        title: String? = null,
+        xAxisLabel: String? = null,
+        yAxisLabel: String? = null
     ): WriteOutcome {
+        if (formats.isEmpty()) {
+            return WriteOutcome(emptyList(), listOf("No report formats selected."))
+        }
+        if (observations.isEmpty()) {
+            return WriteOutcome(
+                emptyList(),
+                listOf("No checked experiment records '$responseName'.")
+            )
+        }
         // CI plot via the Statistic-based ConfidenceIntervalsPlot
         // constructor — does not require equal rep counts (Statistic
         // computes each alternative's CI from its own data), only
@@ -209,12 +286,25 @@ object ComparisonReportRenderer {
                 )
             )
         }
-        val doc = report("Comparison — Confidence Intervals — $responseName") {
+        val resolvedTitle = title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Comparison — Confidence Intervals — $responseName"
+        val percent = (level * 100).let {
+            // Render 95.0 as "95"; 97.5 as "97.5".
+            if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString()
+        }
+        val resolvedCaption = caption?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Mean ± $percent% CI — $responseName"
+        val ciPlot = ConfidenceIntervalsPlot(
+            data = observations,
+            level = level,
+            referencePoint = referencePoint
+        ).apply {
+            xLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
+            yLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Experiment"
+        }
+        val doc = report(resolvedTitle) {
             paragraph(headerSentence(sourceLabel, observations, responseName))
-            plot(
-                ConfidenceIntervalsPlot(observations, level = 0.95),
-                caption = "Mean ± 95% CI — $responseName"
-            )
+            plot(ciPlot, caption = resolvedCaption)
         }
         return writeAll(doc, outputDir, fileStem("comparison-ciplot", responseName), formats)
     }

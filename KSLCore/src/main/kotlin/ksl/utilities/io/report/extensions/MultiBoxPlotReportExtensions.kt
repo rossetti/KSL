@@ -87,17 +87,36 @@ import ksl.utilities.statistic.Statistic
  * data that does not come from [MultipleComparisonAnalyzer], [DesignedExperimentIfc],
  * or [ScenarioRunner], or when custom box labels are needed.
  *
- * @param dataMap  label → per-replication observations; must not be empty for
- *                 a plot to be emitted
- * @param caption  optional plot caption shown below the figure
+ * The constructed [MultiBoxPlot] inherits `xLabel` / `yLabel` from
+ * [ksl.utilities.io.plotting.BasePlot] whose defaults are `"x"` / `"y"`.  The
+ * caller can override either via [xAxisLabel] / [yAxisLabel]; when those
+ * are `null` (the default), this primitive applies the generic placeholders
+ * `"Label"` and `"Value"` so the rendered figure carries readable axis text
+ * even without a domain-aware caller.  Domain wrappers
+ * ([multipleComparisonBoxPlot], [designedExperimentBoxPlot],
+ * [scenarioRunnerBoxPlot]) supply context-appropriate defaults of their own.
+ *
+ * @param dataMap     label → per-replication observations; must not be empty
+ *                    for a plot to be emitted
+ * @param caption     optional plot caption shown below the figure
+ * @param xAxisLabel  optional override for the x-axis label.  Blank / `null`
+ *                    falls back to `"Label"`.
+ * @param yAxisLabel  optional override for the y-axis label.  Blank / `null`
+ *                    falls back to `"Value"`.
  */
 fun ReportBuilder.multiBoxPlot(
     dataMap: Map<String, DoubleArray>,
-    caption: String? = null
+    caption: String? = null,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
     val myBoxMap = Statistic.boxPlotSummaries(dataMap)
     if (myBoxMap.isNotEmpty()) {
-        plot(MultiBoxPlot(myBoxMap), caption)
+        val plotInstance = MultiBoxPlot(myBoxMap).apply {
+            xLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Label"
+            yLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Value"
+        }
+        plot(plotInstance, caption)
     }
 }
 
@@ -114,16 +133,26 @@ fun ReportBuilder.multiBoxPlot(
  *
  * The caption defaults to `"Response Distributions — <mca.name>"`.
  *
- * @param mca     the analyzer whose alternatives are to be plotted
- * @param caption optional plot caption; defaults to `"Response Distributions — <mca.name>"`
+ * Axis labels default to `"Alternative"` (x) and the MCA's response name (y);
+ * a blank MCA name falls the y-axis back to `"Value"`.  Either can be
+ * overridden via [xAxisLabel] / [yAxisLabel].
+ *
+ * @param mca         the analyzer whose alternatives are to be plotted
+ * @param caption     optional plot caption; defaults to `"Response Distributions — <mca.name>"`
+ * @param xAxisLabel  optional override for the x-axis label
+ * @param yAxisLabel  optional override for the y-axis label
  */
 fun ReportBuilder.multipleComparisonBoxPlot(
     mca: MultipleComparisonAnalyzer,
-    caption: String? = null
+    caption: String? = null,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
     multiBoxPlot(
         dataMap = mca.observationsAsMap,
-        caption = caption ?: "Response Distributions \u2014 ${mca.name}"
+        caption = caption ?: "Response Distributions \u2014 ${mca.name}",
+        xAxisLabel = xAxisLabel ?: "Alternative",
+        yAxisLabel = yAxisLabel ?: mca.name.ifBlank { "Value" }
     )
 }
 
@@ -136,20 +165,29 @@ fun ReportBuilder.multipleComparisonBoxPlot(
  * Design points for which [responseName] produced no observations are omitted.
  * Nothing is emitted when no design points have been executed.
  *
+ * Axis labels default to `"Design Point"` (x) and [responseName] (y); override
+ * either via [xAxisLabel] / [yAxisLabel].
+ *
  * @param de           the designed experiment
  * @param responseName the response to visualise; should appear in
  *                     [DesignedExperimentIfc.responseNames]
  * @param caption      optional plot caption; defaults to
  *                     `"Distributions by Design Point — <responseName>"`
+ * @param xAxisLabel   optional override for the x-axis label
+ * @param yAxisLabel   optional override for the y-axis label
  */
 fun ReportBuilder.designedExperimentBoxPlot(
     de: DesignedExperimentIfc,
     responseName: String,
-    caption: String? = null
+    caption: String? = null,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
     multiBoxPlot(
         dataMap = de.observationsAsMap(responseName),
-        caption = caption ?: "Distributions by Design Point \u2014 $responseName"
+        caption = caption ?: "Distributions by Design Point \u2014 $responseName",
+        xAxisLabel = xAxisLabel ?: "Design Point",
+        yAxisLabel = yAxisLabel ?: responseName
     )
 }
 
@@ -162,18 +200,27 @@ fun ReportBuilder.designedExperimentBoxPlot(
  * that produced no observations for [responseName] are omitted.
  * Nothing is emitted when fewer than one scenario produced observations.
  *
+ * Axis labels default to `"Scenario"` (x) and [responseName] (y); override
+ * either via [xAxisLabel] / [yAxisLabel].
+ *
  * @param runner       the scenario runner
  * @param responseName the response to visualise
  * @param caption      optional plot caption; defaults to
  *                     `"Cross-Scenario Distributions — <responseName>"`
+ * @param xAxisLabel   optional override for the x-axis label
+ * @param yAxisLabel   optional override for the y-axis label
  */
 fun ReportBuilder.scenarioRunnerBoxPlot(
     runner: ScenarioRunner,
     responseName: String,
-    caption: String? = null
+    caption: String? = null,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
     multiBoxPlot(
         dataMap = runner.observationsAsMap(responseName),
-        caption = caption ?: "Cross-Scenario Distributions \u2014 $responseName"
+        caption = caption ?: "Cross-Scenario Distributions \u2014 $responseName",
+        xAxisLabel = xAxisLabel ?: "Scenario",
+        yAxisLabel = yAxisLabel ?: responseName
     )
 }

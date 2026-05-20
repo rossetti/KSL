@@ -32,7 +32,6 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
-import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JSplitPane
@@ -351,15 +350,22 @@ class ComparisonAnalyzerFrame(
     }
 
     private fun openMcaDialog() {
-        showPlaceholder("Multiple Comparison configuration dialog lands in a later commit.")
+        MultipleComparisonAnalysisDialog.showDialog(
+            parent = this,
+            model = model,
+            defaultOutputDir = defaultOutputDir,
+            defaultFormats = defaultFormats,
+            onMessage = onMessage
+        )
     }
 
     private fun openCiDialog() {
-        showPlaceholder("Confidence Intervals configuration dialog lands in a later commit.")
-    }
-
-    private fun showPlaceholder(message: String) {
-        onMessage(message, Severity.INFO)
-        JOptionPane.showMessageDialog(this, message, "Coming soon", JOptionPane.INFORMATION_MESSAGE)
+        ConfidenceIntervalsAnalysisDialog.showDialog(
+            parent = this,
+            model = model,
+            defaultOutputDir = defaultOutputDir,
+            defaultFormats = defaultFormats,
+            onMessage = onMessage
+        )
     }
 }

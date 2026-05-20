@@ -102,6 +102,13 @@ enum class MCBDirection { MAX, MIN, BOTH }
  *                            [ksl.utilities.io.plotting.MultiBoxPlot] with one box per
  *                            alternative sourced from
  *                            [MultipleComparisonAnalyzer.observationsAsMap]; defaults to `false`
+ * @param xAxisLabel          optional override for the x-axis label of every plot emitted by
+ *                            this section (alt-CI, box plot, MCB max, MCB min).  Blank /
+ *                            `null` falls back to `"Alternative"`.
+ * @param yAxisLabel          optional override for the y-axis label of every plot emitted by
+ *                            this section.  Blank / `null` falls back to the MCA's response
+ *                            name ([MultipleComparisonAnalyzer.name]) or `"Value"` when the
+ *                            name is blank.
  */
 fun ReportBuilder.multipleComparison(
     mca: MultipleComparisonAnalyzer,
@@ -111,8 +118,19 @@ fun ReportBuilder.multipleComparison(
     diffConfidenceLevel: Double = mca.defaultLevel,
     probCorrectSelection: Double = mca.defaultLevel,
     showAltCIPlot: Boolean = false,
-    showBoxPlot: Boolean = false
+    showBoxPlot: Boolean = false,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
+    // Sensible defaults for the four embedded plots when the caller
+    // does not supply explicit overrides.  All four use the same
+    // labels because they share the same structural roles:
+    //   x — the alternative names
+    //   y — the response value
+    // Callers can still override either explicitly.
+    val resolvedX = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Alternative"
+    val resolvedY = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() }
+        ?: mca.name.ifBlank { "Value" }
     val myTitle = mca.name.ifBlank { "Multiple Comparison Analysis" }
     section(myTitle) {
 
@@ -126,14 +144,23 @@ fun ReportBuilder.multipleComparison(
         // ── 1a. Optional alternative CI plot ──────────────────────────────────
         if (showAltCIPlot) {
             section("Alternative Confidence Intervals") {
-                multipleComparisonCIPlot(mca, confidenceLevel = altConfidenceLevel)
+                multipleComparisonCIPlot(
+                    mca,
+                    confidenceLevel = altConfidenceLevel,
+                    xAxisLabel = resolvedX,
+                    yAxisLabel = resolvedY
+                )
             }
         }
 
         // ── 1b. Optional response distributions box plot ──────────────────────
         if (showBoxPlot) {
             section("Response Distributions") {
-                multipleComparisonBoxPlot(mca)
+                multipleComparisonBoxPlot(
+                    mca,
+                    xAxisLabel = resolvedX,
+                    yAxisLabel = resolvedY
+                )
             }
         }
 
@@ -182,7 +209,10 @@ fun ReportBuilder.multipleComparison(
                 }
                 dataTable(myHeaders, myRows, caption = "MCB Max Intervals (delta = $indifferenceZone)")
                 plot(
-                    ConfidenceIntervalsPlot(myMaxMap, referencePoint = 0.0),
+                    ConfidenceIntervalsPlot(myMaxMap, referencePoint = 0.0).apply {
+                        xLabel = resolvedX
+                        yLabel = resolvedY
+                    },
                     caption = "MCB Max Intervals: $myTitle"
                 )
             }
@@ -207,7 +237,10 @@ fun ReportBuilder.multipleComparison(
                 }
                 dataTable(myHeaders, myRows, caption = "MCB Min Intervals (delta = $indifferenceZone)")
                 plot(
-                    ConfidenceIntervalsPlot(myMinMap, referencePoint = 0.0),
+                    ConfidenceIntervalsPlot(myMinMap, referencePoint = 0.0).apply {
+                        xLabel = resolvedX
+                        yLabel = resolvedY
+                    },
                     caption = "MCB Min Intervals: $myTitle"
                 )
             }
@@ -262,22 +295,36 @@ fun ReportBuilder.multipleComparison(
  * }
  * ```
  *
+ * Axis labels default to `"Alternative"` (x) and the MCA's response name (y);
+ * a blank MCA name falls the y-axis back to `"Value"`.  Override either via
+ * [xAxisLabel] / [yAxisLabel].
+ *
  * @param mca             the analyzer whose per-alternative statistics supply the intervals
  * @param confidenceLevel confidence level for the intervals; defaults to [mca.defaultLevel]
  * @param referencePoint  optional x-intercept for a reference line; `null` suppresses it
  * @param caption         optional plot caption; defaults to
  *                        `"Alternative Confidence Intervals — <mca.name>"`
+ * @param xAxisLabel      optional override for the x-axis label
+ * @param yAxisLabel      optional override for the y-axis label
  */
 fun ReportBuilder.multipleComparisonCIPlot(
     mca: MultipleComparisonAnalyzer,
     confidenceLevel: Double = mca.defaultLevel,
     referencePoint: Double? = null,
-    caption: String? = null
+    caption: String? = null,
+    xAxisLabel: String? = null,
+    yAxisLabel: String? = null
 ) {
-    plot(
-        ConfidenceIntervalsPlot(mca.statistics, level = confidenceLevel, referencePoint = referencePoint),
-        caption ?: "Alternative Confidence Intervals \u2014 ${mca.name}"
-    )
+    val plotInstance = ConfidenceIntervalsPlot(
+        mca.statistics,
+        level = confidenceLevel,
+        referencePoint = referencePoint
+    ).apply {
+        xLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Alternative"
+        yLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() }
+            ?: mca.name.ifBlank { "Value" }
+    }
+    plot(plotInstance, caption ?: "Alternative Confidence Intervals \u2014 ${mca.name}")
 }
 
 // ── toReport() ───────────────────────────────────────────────────────────────

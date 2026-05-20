@@ -19,6 +19,7 @@
 package ksl.app.swing.common.comparison
 
 import ksl.app.config.ReportFormat
+import ksl.utilities.io.report.extensions.MCBDirection
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -125,6 +126,57 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    fun `mca honors title override`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+            title = "Custom MCA title"
+        )
+        assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
+        val body = Files.readString(out.written.single())
+        assertTrue(body.contains("Custom MCA title"), "title missing from rendered markdown")
+    }
+
+    @Test
+    fun `mca honors direction and indifference zone`() {
+        // Sanity check that the renderer accepts the configurable knobs
+        // without choking; substrate covers the statistical correctness.
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+            direction = MCBDirection.MAX,
+            indifferenceZone = 0.05,
+            altConfidenceLevel = 0.90,
+            diffConfidenceLevel = 0.90,
+            probCorrectSelection = 0.90
+        )
+        assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
+        assertEquals(1, out.written.size)
+    }
+
+    @Test
+    fun `mca fails fast when formats empty`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderMca(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = emptySet()
+        )
+        assertTrue(out.written.isEmpty())
+        assertFalse(out.errors.isEmpty())
+    }
+
+    @Test
     fun `ci plot writes one file per format`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderCiPlot(
@@ -137,6 +189,59 @@ class ComparisonReportRendererTest {
         assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
         assertEquals(1, out.written.size)
         assertEquals("comparison-ciplot-NumBusy.md", out.written.single().fileName.toString())
+    }
+
+    @Test
+    fun `ci plot honors level reference point title and caption`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderCiPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+            level = 0.90,
+            referencePoint = 0.5,
+            caption = "Custom CI caption",
+            title = "Custom CI title"
+        )
+        assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
+        val body = Files.readString(out.written.single())
+        assertTrue(body.contains("Custom CI title"), "title missing")
+        assertTrue(body.contains("Custom CI caption"), "caption missing")
+    }
+
+    @Test
+    fun `ci plot fails fast on too few observations`() {
+        val src = InMemoryComparisonSource.builder("singleton").apply {
+            experiment("S1", model = "MM1") {
+                response("NumBusy", ResponseCategory.TIME_WEIGHTED, doubleArrayOf(0.5))
+            }
+        }.build()
+        val model = ComparisonSelectionModel(listOf(src)).apply { selectAll() }
+        val out = ComparisonReportRenderer.renderCiPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN)
+        )
+        assertTrue(out.written.isEmpty())
+        assertTrue(out.errors.single().contains("at least 2 replications"))
+    }
+
+    @Test
+    fun `ci plot fails fast when formats empty`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderCiPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = emptySet()
+        )
+        assertTrue(out.written.isEmpty())
+        assertFalse(out.errors.isEmpty())
     }
 
     @Test
