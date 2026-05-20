@@ -102,7 +102,22 @@ class ComparisonAnalyzerFrame(
 
     private val model: ComparisonSelectionModel = ComparisonSelectionModel(sources)
 
-    private val outputStrip: OutputStrip
+    // Property declarations must precede the init block — the init body
+    // calls buildHeader/buildBody which dereference these fields, and
+    // Kotlin initialises class-body members in declaration order
+    // interleaved with init blocks.  Earlier code had statusLabel /
+    // experimentPanel / responsePanel / analysisChooser declared *below*
+    // init, which produced an NPE the moment buildHeader touched
+    // statusLabel.
+    private val statusLabel: JLabel = JLabel(" ").apply {
+        border = BorderFactory.createEmptyBorder(2, 12, 4, 12)
+        foreground = Color(0x66, 0x55, 0x00)
+    }
+
+    private val experimentPanel = ExperimentSelectionPanel()
+    private val responsePanel = ResponseSelectionPanel()
+    private val analysisChooser = AnalysisTypeChooser()
+    private val outputStrip = OutputStrip()
 
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
@@ -111,7 +126,6 @@ class ComparisonAnalyzerFrame(
         contentPane.layout = BorderLayout()
         contentPane.add(buildHeader(sources), BorderLayout.NORTH)
         contentPane.add(buildBody(), BorderLayout.CENTER)
-        outputStrip = OutputStrip()
         contentPane.add(outputStrip, BorderLayout.SOUTH)
 
         // Initial state: check every experiment so the analyzer opens
@@ -131,11 +145,6 @@ class ComparisonAnalyzerFrame(
     }
 
     // ── Header ───────────────────────────────────────────────────────────
-
-    private val statusLabel: JLabel = JLabel(" ").apply {
-        border = BorderFactory.createEmptyBorder(2, 12, 4, 12)
-        foreground = Color(0x66, 0x55, 0x00)
-    }
 
     private fun buildHeader(sources: List<ComparisonDataSourceIfc>): JPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -158,10 +167,6 @@ class ComparisonAnalyzerFrame(
     }
 
     // ── Body — three-column split ────────────────────────────────────────
-
-    private val experimentPanel = ExperimentSelectionPanel()
-    private val responsePanel = ResponseSelectionPanel()
-    private val analysisChooser = AnalysisTypeChooser()
 
     private fun buildBody(): JComponent {
         val midRight = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, responsePanel, analysisChooser).apply {
@@ -289,6 +294,15 @@ class ComparisonAnalyzerFrame(
         }
         private val center = JPanel(BorderLayout())
 
+        /**
+         *  Suppresses the table→model selection listener while the
+         *  table is being rebuilt from a model-side update.  Without
+         *  this, `fireTableDataChanged()` clears the selection and the
+         *  listener overwrites the model's just-set response with
+         *  null — the same race we hit in `ScenariosTablePanel`.
+         */
+        private var suppressSelectionListener: Boolean = false
+
         init {
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(8, 4, 8, 4),
@@ -300,6 +314,7 @@ class ComparisonAnalyzerFrame(
 
             table.selectionModel.addListSelectionListener { e ->
                 if (e.valueIsAdjusting) return@addListSelectionListener
+                if (suppressSelectionListener) return@addListSelectionListener
                 val viewRow = table.selectedRow
                 val name = if (viewRow >= 0) {
                     val modelRow = table.convertRowIndexToModel(viewRow)
@@ -320,25 +335,33 @@ class ComparisonAnalyzerFrame(
         }
 
         private fun refresh() {
-            tableModel.refresh()
-            val empty = model.availableResponses().isEmpty()
-            center.removeAll()
-            center.add(if (empty) emptyLabel else JScrollPane(table), BorderLayout.CENTER)
-            center.revalidate()
-            center.repaint()
+            // Guard the data refresh + selection restoration as one
+            // atomic unit so the JTable's transient selection clear
+            // doesn't propagate back into the model.
+            suppressSelectionListener = true
+            try {
+                tableModel.refresh()
+                val empty = model.availableResponses().isEmpty()
+                center.removeAll()
+                center.add(if (empty) emptyLabel else JScrollPane(table), BorderLayout.CENTER)
+                center.revalidate()
+                center.repaint()
 
-            // Keep the JTable selection in sync with the model's choice.
-            val target = model.selectedResponse
-            if (target != null) {
-                val modelRow = tableModel.indexOf(target)
-                if (modelRow >= 0) {
-                    val viewRow = table.convertRowIndexToView(modelRow)
-                    if (viewRow >= 0 && table.selectedRow != viewRow) {
-                        table.setRowSelectionInterval(viewRow, viewRow)
+                // Keep the JTable selection in sync with the model's choice.
+                val target = model.selectedResponse
+                if (target != null) {
+                    val modelRow = tableModel.indexOf(target)
+                    if (modelRow >= 0) {
+                        val viewRow = table.convertRowIndexToView(modelRow)
+                        if (viewRow >= 0 && table.selectedRow != viewRow) {
+                            table.setRowSelectionInterval(viewRow, viewRow)
+                        }
                     }
+                } else if (table.selectedRow != -1) {
+                    table.clearSelection()
                 }
-            } else if (table.selectedRow != -1) {
-                table.clearSelection()
+            } finally {
+                suppressSelectionListener = false
             }
         }
     }
