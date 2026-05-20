@@ -66,6 +66,50 @@ class ComparisonReportRendererTest {
     }
 
     @Test
+    fun `box plot honors caption override`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderBoxPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN),
+            caption = "Custom caption text"
+        )
+        assertTrue(out.errors.isEmpty(), "unexpected errors: ${out.errors}")
+        val body = Files.readString(out.written.single())
+        assertTrue(body.contains("Custom caption text"), "caption missing from rendered markdown")
+    }
+
+    @Test
+    fun `box plot fails fast when formats empty`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderBoxPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "NumBusy",
+            observations = model.gatherObservationsFor("NumBusy"),
+            outputDir = tempDir,
+            formats = emptySet()
+        )
+        assertTrue(out.written.isEmpty())
+        assertFalse(out.errors.isEmpty())
+    }
+
+    @Test
+    fun `box plot fails fast when no observations`() {
+        val model = mm1Selection()
+        val out = ComparisonReportRenderer.renderBoxPlot(
+            sourceLabel = sourceLabel(model),
+            responseName = "DoesNotExist",
+            observations = model.gatherObservationsFor("DoesNotExist"),
+            outputDir = tempDir,
+            formats = setOf(ReportFormat.MARKDOWN)
+        )
+        assertTrue(out.written.isEmpty())
+        assertTrue(out.errors.single().contains("No checked experiment"))
+    }
+
+    @Test
     fun `mca writes one file per format`() {
         val model = mm1Selection()
         val out = ComparisonReportRenderer.renderMca(

@@ -82,8 +82,8 @@ import javax.swing.table.AbstractTableModel
  */
 class ComparisonAnalyzerFrame(
     sources: List<ComparisonDataSourceIfc>,
-    @Suppress("unused") private val defaultOutputDir: Path? = null,
-    @Suppress("unused") private val defaultFormats: Set<ReportFormat> = setOf(ReportFormat.HTML),
+    private val defaultOutputDir: Path? = null,
+    private val defaultFormats: Set<ReportFormat> = setOf(ReportFormat.HTML),
     private val onMessage: (String, Severity) -> Unit = { msg, sev -> System.err.println("[$sev] $msg") }
 ) : JFrame("Comparison Analyzer") {
 
@@ -341,7 +341,13 @@ class ComparisonAnalyzerFrame(
     // ── Per-analysis dialog launchers (stubbed for commit 1) ─────────────
 
     private fun openBoxPlotDialog() {
-        showPlaceholder("Box Plot configuration dialog lands in the next commit.")
+        BoxPlotAnalysisDialog.showDialog(
+            parent = this,
+            model = model,
+            defaultOutputDir = defaultOutputDir,
+            defaultFormats = defaultFormats,
+            onMessage = onMessage
+        )
     }
 
     private fun openMcaDialog() {

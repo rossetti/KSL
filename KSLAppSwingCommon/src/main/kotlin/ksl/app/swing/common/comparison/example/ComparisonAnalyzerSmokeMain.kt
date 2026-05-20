@@ -21,6 +21,7 @@ package ksl.app.swing.common.comparison.example
 import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.app.swing.common.comparison.InMemoryComparisonSource
 import ksl.app.swing.common.comparison.ResponseCategory
+import ksl.utilities.io.KSL
 import java.nio.file.Files
 import javax.swing.SwingUtilities
 
@@ -43,13 +44,15 @@ import javax.swing.SwingUtilities
  *  ```
  *  but the typical use is the IntelliJ run gutter.
  *
- *  The output directory defaults to a fresh `system tmp` folder so
- *  generated reports don't pile up; the on-screen path is the one
- *  the analyzer opens to.
+ *  The output directory defaults to `KSL.outDir/comparison-analyzer-smoke`
+ *  — a stable, predictable location next to the project so the
+ *  generated reports are easy to find.  Override by editing the
+ *  `outputDir` line below.
  */
 fun main() {
     val source = buildSyntheticSource()
-    val outputDir = Files.createTempDirectory("comparison-analyzer-smoke-")
+    val outputDir = KSL.outDir.resolve("comparison-analyzer-smoke")
+    Files.createDirectories(outputDir)
 
     SwingUtilities.invokeLater {
         val frame = ComparisonAnalyzerFrame(

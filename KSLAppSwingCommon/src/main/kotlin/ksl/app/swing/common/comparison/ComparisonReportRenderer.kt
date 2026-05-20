@@ -20,14 +20,15 @@ package ksl.app.swing.common.comparison
 
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.plotting.ConfidenceIntervalsPlot
+import ksl.utilities.io.plotting.MultiBoxPlot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.report
-import ksl.utilities.io.report.extensions.multiBoxPlot
 import ksl.utilities.io.report.extensions.multipleComparison
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
 import ksl.utilities.statistic.MultipleComparisonAnalyzer
+import ksl.utilities.statistic.Statistic
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -64,19 +65,81 @@ object ComparisonReportRenderer {
     // — analysis-specific knobs (CL, indifference δ, title, etc.)
     // arrive through the per-analysis signature.
 
+    /**
+     *  Render a cross-experiment box plot for [responseName].
+     *
+     *  Iteration order of [observations] is preserved end-to-end:
+     *  the map's first key becomes the leftmost box, the last key
+     *  the rightmost.  Callers driving this from the analyzer pass
+     *  the LinkedHashMap returned by
+     *  [ComparisonSelectionModel.gatherObservationsFor], which
+     *  reflects the experiments column's top-to-bottom order.
+     *
+     *  @param caption  optional caption shown beneath the plot.
+     *    `null` (the default) yields "Cross-experiment distributions
+     *    — <response>".  Blank strings are treated as `null`.
+     *  @param formats  output formats to write.  Empty produces an
+     *    errors-only [WriteOutcome].
+     */
+    /**
+     *  Render a cross-experiment box plot for [responseName].
+     *
+     *  Iteration order of [observations] is preserved end-to-end:
+     *  the map's first key becomes the leftmost box, the last key
+     *  the rightmost.  Callers driving this from the analyzer pass
+     *  the LinkedHashMap returned by
+     *  [ComparisonSelectionModel.gatherObservationsFor], which
+     *  reflects the experiments column's top-to-bottom order.
+     *
+     *  @param caption  optional caption shown beneath the plot.
+     *    `null` (the default) yields "Cross-experiment distributions
+     *    — <response>".  Blank strings are treated as `null`.
+     *  @param xAxisLabel optional override for the x-axis label.
+     *    Defaults to `"Experiment"`.
+     *  @param yAxisLabel optional override for the y-axis label.
+     *    Defaults to [responseName].
+     *  @param formats  output formats to write.  Empty produces an
+     *    errors-only [WriteOutcome].
+     */
     fun renderBoxPlot(
         sourceLabel: String,
         responseName: String,
         observations: Map<String, DoubleArray>,
         outputDir: Path,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        caption: String? = null,
+        xAxisLabel: String? = null,
+        yAxisLabel: String? = null
     ): WriteOutcome {
+        if (formats.isEmpty()) {
+            return WriteOutcome(emptyList(), listOf("No report formats selected."))
+        }
+        if (observations.isEmpty()) {
+            return WriteOutcome(
+                emptyList(),
+                listOf("No checked experiment records '$responseName'.")
+            )
+        }
+        val resolvedCaption = caption?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Cross-experiment distributions — $responseName"
+        // Build the plot directly so we can override the inherited
+        // BasePlot axis labels (xLabel / yLabel default to "x" / "y").
+        // multiBoxPlot's extension wraps this but doesn't expose label
+        // hooks — so we inline its body.
+        val boxMap = Statistic.boxPlotSummaries(observations)
+        if (boxMap.isEmpty()) {
+            return WriteOutcome(
+                emptyList(),
+                listOf("Box plot summaries could not be computed for '$responseName'.")
+            )
+        }
+        val plot = MultiBoxPlot(boxMap).apply {
+            xLabel = xAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: "Experiment"
+            yLabel = yAxisLabel?.trim()?.takeIf { it.isNotEmpty() } ?: responseName
+        }
         val doc = report("Comparison — Box Plot — $responseName") {
             paragraph(headerSentence(sourceLabel, observations, responseName))
-            multiBoxPlot(
-                dataMap = observations,
-                caption = "Cross-experiment distributions — $responseName"
-            )
+            plot(plot, caption = resolvedCaption)
         }
         return writeAll(doc, outputDir, fileStem("comparison-boxplot", responseName), formats)
     }

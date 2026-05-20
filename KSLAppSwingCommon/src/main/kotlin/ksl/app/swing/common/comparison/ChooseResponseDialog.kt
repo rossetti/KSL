@@ -121,7 +121,13 @@ object ChooseResponseDialog {
         initialSelection: String?,
         validator: ((String) -> ValidationResult)?
     ): Result {
-        val owner = SwingUtilities.getWindowAncestor(parent) ?: return Result.Cancelled
+        // SwingUtilities.getWindowAncestor walks getParent() starting
+        // from parent's parent, so it returns null when parent itself
+        // is the top-level Window.  Resolve directly when parent is a
+        // Window; otherwise walk up.
+        val owner: Window = (parent as? Window)
+            ?: SwingUtilities.getWindowAncestor(parent)
+            ?: return Result.Cancelled
         val dialog = PickerDialog(owner, rows, initialSelection, validator)
         dialog.isVisible = true
         return dialog.outcome
