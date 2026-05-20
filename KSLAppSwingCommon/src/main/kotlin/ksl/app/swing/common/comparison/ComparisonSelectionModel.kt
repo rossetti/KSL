@@ -184,8 +184,19 @@ class ComparisonSelectionModel(
      *  analysis type.  Returns [ValidationResult.OK] when the
      *  *Generate* button can fire; otherwise [ValidationResult.fail]
      *  with a user-facing explanation. */
-    fun validate(type: AnalysisType = analysis): ValidationResult {
-        val response = mySelectedResponse
+    fun validate(type: AnalysisType = analysis): ValidationResult =
+        validateForResponse(mySelectedResponse, type)
+
+    /** Like [validate], but checks a hypothetical [responseName]
+     *  without changing model state.  Used by the *Choose Response*
+     *  dialog to show a validation warning for the currently-
+     *  highlighted candidate response before the user commits.
+     */
+    fun validateForResponse(
+        responseName: String?,
+        type: AnalysisType = analysis
+    ): ValidationResult {
+        val response = responseName
             ?: return ValidationResult.fail("Pick a response from the middle column.")
         val participants = experimentsRecording(response)
         if (participants.isEmpty()) {

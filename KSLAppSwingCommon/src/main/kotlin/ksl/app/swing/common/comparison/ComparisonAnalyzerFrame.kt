@@ -276,134 +276,103 @@ class ComparisonAnalyzerFrame(
         }
     }
 
-    // ── Response selection panel ─────────────────────────────────────────
+    // ── Response selection — compact widget opens a modal picker ─────────
 
-    private inner class ResponseSelectionPanel : JPanel(BorderLayout()) {
-        private val tableModel = ResponseTableModel()
-        private val table = JTable(tableModel).apply {
-            setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-            rowHeight = 22
-            autoCreateRowSorter = true
+    /**
+     *  Compact widget shown in the middle column.  Reads the
+     *  currently-selected response from the model and renders
+     *  `<name>` + metadata; the *Change…* button opens
+     *  [ChooseResponseDialog] for full selection.  Designed for
+     *  models with hundreds of responses: the inline panel never
+     *  shows the full list.
+     */
+    private inner class ResponseSelectionPanel : JPanel() {
+
+        private val nameLabel = JLabel("(no response chosen)").apply {
+            font = font.deriveFont(Font.BOLD, font.size2D + 1f)
+            alignmentX = Component.LEFT_ALIGNMENT
         }
-        private val emptyLabel = JLabel(
+        private val detailLabel = JLabel(" ").apply {
+            foreground = Color(0x55, 0x55, 0x55)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+        private val changeButton = JButton("Change…").apply {
+            alignmentX = Component.LEFT_ALIGNMENT
+            toolTipText = "Open the response picker"
+        }
+        private val emptyHint = JLabel(
             "<html><i>No response is recorded by the checked experiments.<br>" +
                 "Check experiments that share a response name.</i>"
         ).apply {
-            horizontalAlignment = SwingConstants.CENTER
             foreground = Color(0x66, 0x66, 0x66)
+            alignmentX = Component.LEFT_ALIGNMENT
         }
-        private val center = JPanel(BorderLayout())
-
-        /**
-         *  Suppresses the table→model selection listener while the
-         *  table is being rebuilt from a model-side update.  Without
-         *  this, `fireTableDataChanged()` clears the selection and the
-         *  listener overwrites the model's just-set response with
-         *  null — the same race we hit in `ScenariosTablePanel`.
-         */
-        private var suppressSelectionListener: Boolean = false
 
         init {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(8, 4, 8, 4),
                 BorderFactory.createTitledBorder("Response")
             )
-            applyColumnWidths()
-            center.add(JScrollPane(table), BorderLayout.CENTER)
-            add(center, BorderLayout.CENTER)
+            add(nameLabel)
+            add(Box.createVerticalStrut(4))
+            add(detailLabel)
+            add(Box.createVerticalStrut(10))
+            add(changeButton)
+            add(Box.createVerticalStrut(10))
+            add(emptyHint)
+            add(Box.createVerticalGlue())
 
-            table.selectionModel.addListSelectionListener { e ->
-                if (e.valueIsAdjusting) return@addListSelectionListener
-                if (suppressSelectionListener) return@addListSelectionListener
-                val viewRow = table.selectedRow
-                val name = if (viewRow >= 0) {
-                    val modelRow = table.convertRowIndexToModel(viewRow)
-                    tableModel.rowAt(modelRow)?.name
-                } else null
-                model.setResponse(name)
-            }
-
+            changeButton.addActionListener { openPicker() }
             model.addListener { refresh() }
             refresh()
         }
 
-        private fun applyColumnWidths() {
-            val cm = table.columnModel
-            cm.getColumn(0).preferredWidth = 160
-            cm.getColumn(1).preferredWidth = 90
-            cm.getColumn(2).preferredWidth = 110
-        }
-
         private fun refresh() {
-            // Guard the data refresh + selection restoration as one
-            // atomic unit so the JTable's transient selection clear
-            // doesn't propagate back into the model.
-            suppressSelectionListener = true
-            try {
-                tableModel.refresh()
-                val empty = model.availableResponses().isEmpty()
-                center.removeAll()
-                center.add(if (empty) emptyLabel else JScrollPane(table), BorderLayout.CENTER)
-                center.revalidate()
-                center.repaint()
+            val anyResponses = model.availableResponses().isNotEmpty()
+            changeButton.isEnabled = anyResponses
+            emptyHint.isVisible = !anyResponses
 
-                // Keep the JTable selection in sync with the model's choice.
-                val target = model.selectedResponse
-                if (target != null) {
-                    val modelRow = tableModel.indexOf(target)
-                    if (modelRow >= 0) {
-                        val viewRow = table.convertRowIndexToView(modelRow)
-                        if (viewRow >= 0 && table.selectedRow != viewRow) {
-                            table.setRowSelectionInterval(viewRow, viewRow)
-                        }
+            val selected = model.selectedResponse
+            if (selected == null) {
+                nameLabel.text = "(no response chosen)"
+                nameLabel.foreground = Color(0x66, 0x66, 0x66)
+                detailLabel.text = " "
+            } else {
+                nameLabel.text = selected
+                nameLabel.foreground = java.awt.Color.BLACK
+                val row = model.availableResponses().firstOrNull { it.name == selected }
+                val category = row?.category?.let {
+                    when (it) {
+                        ResponseCategory.OBSERVATION -> "Observation"
+                        ResponseCategory.TIME_WEIGHTED -> "Time-weighted"
+                        ResponseCategory.COUNTER -> "Counter"
                     }
-                } else if (table.selectedRow != -1) {
-                    table.clearSelection()
-                }
-            } finally {
-                suppressSelectionListener = false
+                } ?: "—"
+                val recording = model.experimentsRecording(selected).size
+                val totalChecked = model.selectedExperimentNames.size
+                detailLabel.text = "$category · Recorded by $recording of $totalChecked"
             }
         }
-    }
 
-    private inner class ResponseTableModel : AbstractTableModel() {
-        private var rows: List<ResponseRow> = emptyList()
-        private var recordingCounts: Map<String, Int> = emptyMap()
-
-        fun refresh() {
-            rows = model.availableResponses()
+        private fun openPicker() {
             val totalChecked = model.selectedExperimentNames.size
-            recordingCounts = rows.associate { it.name to model.experimentsRecording(it.name).size }
-            // The "N of M" column uses totalChecked as M.
-            cachedTotalChecked = totalChecked
-            fireTableDataChanged()
-        }
-
-        private var cachedTotalChecked: Int = 0
-
-        fun rowAt(index: Int): ResponseRow? = rows.getOrNull(index)
-        fun indexOf(responseName: String): Int = rows.indexOfFirst { it.name == responseName }
-
-        override fun getRowCount(): Int = rows.size
-        override fun getColumnCount(): Int = 3
-        override fun getColumnName(c: Int): String = when (c) {
-            0 -> "Response"
-            1 -> "Category"
-            2 -> "Recorded by"
-            else -> ""
-        }
-        override fun isCellEditable(r: Int, c: Int): Boolean = false
-        override fun getValueAt(r: Int, c: Int): Any? {
-            val row = rows[r]
-            return when (c) {
-                0 -> row.name
-                1 -> when (row.category) {
-                    ResponseCategory.OBSERVATION -> "Observation"
-                    ResponseCategory.TIME_WEIGHTED -> "Time-weighted"
-                    ResponseCategory.COUNTER -> "Counter"
-                }
-                2 -> "${recordingCounts[row.name] ?: 0} of $cachedTotalChecked"
-                else -> null
+            val pickerRows = model.availableResponses().map { r ->
+                ChooseResponseDialog.Row(
+                    name = r.name,
+                    category = r.category,
+                    recordingExperiments = model.experimentsRecording(r.name).size,
+                    totalCheckedExperiments = totalChecked
+                )
+            }
+            val result = ChooseResponseDialog.showDialog(
+                parent = this,
+                rows = pickerRows,
+                initialSelection = model.selectedResponse,
+                validator = { name -> model.validateForResponse(name, model.analysis) }
+            )
+            if (result is ChooseResponseDialog.Result.Chosen) {
+                model.setResponse(result.responseName)
             }
         }
     }
