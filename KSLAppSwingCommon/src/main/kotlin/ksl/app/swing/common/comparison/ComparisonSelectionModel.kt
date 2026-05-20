@@ -148,6 +148,38 @@ class ComparisonSelectionModel(
     fun experimentsRecording(responseName: String): List<ExperimentRow> =
         selectedExperiments().recordingResponse(responseName)
 
+    /** Collect per-experiment observation arrays for the
+     *  currently-selected response, restricted to the experiments
+     *  that record it.  Iteration order matches
+     *  [selectedExperiments].  Returns an empty map when no
+     *  response is selected or no experiment records it.
+     *
+     *  This is the canonical input to
+     *  [ComparisonReportRenderer.renderBoxPlot] / `renderMca` /
+     *  `renderCiPlot`. */
+    fun gatherObservations(): Map<String, DoubleArray> {
+        val response = mySelectedResponse ?: return emptyMap()
+        val participants = experimentsRecording(response).map { it.name }.toSet()
+        if (participants.isEmpty()) return emptyMap()
+        // Build a name → source lookup so we can pull observations
+        // through the right adapter.  In a multi-source future, two
+        // sources might expose experiments with the same name — for
+        // v1 they don't collide because each source has a single
+        // KSLDatabase exp-name-uniqueness invariant behind it.
+        val sourceByName = mutableMapOf<String, ComparisonDataSourceIfc>()
+        for (src in sources) {
+            for (e in src.availableExperiments()) sourceByName[e.name] = src
+        }
+        val out = linkedMapOf<String, DoubleArray>()
+        for (exp in selectedExperiments()) {
+            if (exp.name !in participants) continue
+            val src = sourceByName[exp.name] ?: continue
+            val values = src.observations(exp.name, response) ?: continue
+            out[exp.name] = values
+        }
+        return out
+    }
+
     /** Validate that the current selection supports the given
      *  analysis type.  Returns [ValidationResult.OK] when the
      *  *Generate* button can fire; otherwise [ValidationResult.fail]

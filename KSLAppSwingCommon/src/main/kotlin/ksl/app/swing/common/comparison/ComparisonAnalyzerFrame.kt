@@ -525,17 +525,24 @@ class ComparisonAnalyzerFrame(
                 onMessage("Pick an output directory.", Severity.WARNING)
                 return
             }
-            // C3 leaves the actual rendering as a TODO — C4 plumbs it in.
-            // We still surface a friendly notification so the analyst
-            // knows the click was received and what would have happened.
             val outputDir = Paths.get(pathText)
-            onMessage(
-                "Would render ${model.analysis.name} for '${model.selectedResponse}' " +
-                    "across ${model.experimentsRecording(model.selectedResponse!!).size} experiments " +
-                    "in ${formats.joinToString(", ") { it.name }} to $outputDir.  " +
-                    "Rendering lands in the next commit.",
-                Severity.INFO
-            )
+            val outcome = try {
+                ComparisonReportRenderer.render(model, outputDir, formats)
+            } catch (t: Throwable) {
+                onMessage(
+                    "Report generation failed: ${t.message ?: t::class.simpleName}",
+                    Severity.ERROR
+                )
+                return
+            }
+            outcome.errors.forEach { onMessage("Report error: $it", Severity.WARNING) }
+            if (outcome.written.isNotEmpty()) {
+                val files = outcome.written.joinToString(", ") { it.fileName.toString() }
+                onMessage(
+                    "Wrote ${outcome.written.size} report file(s) to $outputDir: $files",
+                    Severity.INFO
+                )
+            }
         }
     }
 }
