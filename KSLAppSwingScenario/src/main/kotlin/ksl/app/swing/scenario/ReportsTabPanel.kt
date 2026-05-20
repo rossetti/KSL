@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
 import ksl.app.swing.common.notification.NotificationSeverity
-import java.awt.Component
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -33,25 +32,23 @@ import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 /**
- *  *Reports* tab — combines the document-level output configuration
- *  with on-demand report generation.
+ *  *Reports* tab — on-demand report generation for the most recent
+ *  scenario run.
  *
  *  Sections:
  *
- *  - **Database** — `Enable KSL database` checkbox flipping
- *    [ksl.app.config.OutputConfig.enableKSLDatabase].  This is the
- *    shared SQLite database that captures run data across every
- *    scenario; on by default.
  *  - **Report formats** — checkbox row picking which formats the
  *    on-demand report buttons will produce
  *    ([ksl.app.config.OutputConfig.reports]).
- *  - **On-demand reports** — buttons that render cross-scenario
- *    reports against the most recent run.  Disabled until a
- *    completed run is available (Phase H ships the scaffolding;
- *    the concrete render-action wiring lands as a follow-up).
+ *  - **On-demand reports** — buttons that render reports against
+ *    the most recent run.  Disabled until a completed run is
+ *    available.
  *
- *  Per-scenario CSV toggles live on the per-scenario editor, not
- *  here.  The execution-mode toggle lives on the run toolbar.
+ *  The *Enable KSL database* checkbox lives on the run toolbar
+ *  alongside the *Simulate* button — it's a pre-run setup decision,
+ *  not a report-format decision.  Per-scenario CSV toggles live on
+ *  the per-scenario editor.  The execution-mode toggle lives on the
+ *  run toolbar.
  */
 class ReportsTabPanel(
     private val controller: ScenarioAppController,
@@ -61,22 +58,17 @@ class ReportsTabPanel(
         { _, _ -> }
 ) : JPanel() {
 
-    private val dbCheckbox = JCheckBox(
-        "Enable KSL database (shared across all scenarios)",
-        controller.outputConfig.value.enableKSLDatabase
-    )
-
     private val formatBoxes: Map<ReportFormat, JCheckBox> = ReportFormat.entries.associateWith { fmt ->
         JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
     }
 
-    private val sweepSummaryButton = JButton("Sweep Summary").apply {
+    private val sweepSummaryButton = JButton("Scenario Summaries").apply {
         isEnabled = false
         toolTipText = "One document covering every completed scenario: run overview plus " +
             "per-scenario across-replication statistics for every response."
     }
 
-    private val perScenarioDeepDiveButton = JButton("Per-Scenario Deep Dive…").apply {
+    private val perScenarioDeepDiveButton = JButton("Per-Scenario Results…").apply {
         isEnabled = false
         toolTipText = "Full snapshot report for one scenario: run summary, across-rep stats, " +
             "histograms, frequencies, and time-series statistics (when present).  Pick which " +
@@ -98,10 +90,6 @@ class ReportsTabPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
 
-        add(sectionLabel("Database"))
-        add(indent(dbCheckbox))
-        add(Box.createVerticalStrut(14))
-
         add(sectionLabel("Report formats"))
         val formatRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -119,8 +107,7 @@ class ReportsTabPanel(
         add(sectionLabel("On-demand reports"))
         add(JLabel(
             "<html>Reports are written under <i>&lt;workspace&gt;/output/reports/</i> in every " +
-                "format checked above.  Nothing renders automatically — pick what you want " +
-                "to see, when you want it."
+                "format checked above."
         ).apply {
             alignmentX = LEFT_ALIGNMENT
             border = BorderFactory.createEmptyBorder(0, 16, 8, 0)
@@ -152,18 +139,7 @@ class ReportsTabPanel(
         border = BorderFactory.createEmptyBorder(0, 0, 4, 0)
     }
 
-    private fun indent(c: Component): JPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        alignmentX = LEFT_ALIGNMENT
-        add(Box.createHorizontalStrut(16))
-        add(c)
-        add(Box.createHorizontalGlue())
-    }
-
     private fun wireEvents() {
-        dbCheckbox.addActionListener {
-            controller.setEnableKSLDatabase(dbCheckbox.isSelected)
-        }
         formatBoxes.forEach { (fmt, cb) ->
             cb.addActionListener {
                 val current = controller.outputConfig.value.reports
@@ -320,9 +296,6 @@ class ReportsTabPanel(
     private fun wireCollectors() {
         controller.edtScope.launch {
             controller.outputConfig.collect { cfg ->
-                if (dbCheckbox.isSelected != cfg.enableKSLDatabase) {
-                    dbCheckbox.isSelected = cfg.enableKSLDatabase
-                }
                 formatBoxes.forEach { (fmt, cb) ->
                     val want = fmt in cfg.reports
                     if (cb.isSelected != want) cb.isSelected = want

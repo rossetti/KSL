@@ -88,6 +88,13 @@ class ScenarioAppFrame(
         "Concurrent",
         controller.executionMode.value == ksl.app.config.ExecutionMode.CONCURRENT
     )
+    private val enableDbCheckbox = javax.swing.JCheckBox(
+        "Enable database",
+        controller.outputConfig.value.enableKSLDatabase
+    ).apply {
+        toolTipText = "Capture each scenario's results in the shared KSL SQLite database " +
+            "(<workspace>/output/).  Required for downstream Comparison-Analyzer queries."
+    }
 
     private val consolePanel = ConsoleLogPanel(
         eventFlow = controller.eventFlow,
@@ -293,6 +300,9 @@ class ScenarioAppFrame(
         concurrentRadio.addActionListener {
             if (concurrentRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.CONCURRENT)
         }
+        enableDbCheckbox.addActionListener {
+            controller.setEnableKSLDatabase(enableDbCheckbox.isSelected)
+        }
         add(simulateButton)
         add(Box.createHorizontalStrut(8))
         add(cancelButton)
@@ -301,6 +311,8 @@ class ScenarioAppFrame(
         add(Box.createHorizontalStrut(4))
         add(sequentialRadio)
         add(concurrentRadio)
+        add(Box.createHorizontalStrut(16))
+        add(enableDbCheckbox)
         add(Box.createHorizontalGlue())
     }
 
@@ -345,6 +357,7 @@ class ScenarioAppFrame(
                 cancelButton.isEnabled = running
                 sequentialRadio.isEnabled = !running
                 concurrentRadio.isEnabled = !running
+                enableDbCheckbox.isEnabled = !running
             }
         }
         controller.edtScope.launch {
@@ -352,6 +365,13 @@ class ScenarioAppFrame(
                 val wantSeq = mode == ksl.app.config.ExecutionMode.SEQUENTIAL
                 if (sequentialRadio.isSelected != wantSeq) sequentialRadio.isSelected = wantSeq
                 if (concurrentRadio.isSelected == wantSeq) concurrentRadio.isSelected = !wantSeq
+            }
+        }
+        controller.edtScope.launch {
+            controller.outputConfig.collect { cfg ->
+                if (enableDbCheckbox.isSelected != cfg.enableKSLDatabase) {
+                    enableDbCheckbox.isSelected = cfg.enableKSLDatabase
+                }
             }
         }
         controller.edtScope.launch {

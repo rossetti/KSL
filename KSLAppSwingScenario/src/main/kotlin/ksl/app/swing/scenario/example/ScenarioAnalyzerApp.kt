@@ -34,4 +34,4 @@ import ksl.app.swing.scenario.kslScenarioApp
  * JVM classpath (e.g. `MM1Bundle`, `LKInventoryBundle` from
  * `KSLExamples`).
  */
-fun main() = kslScenarioApp(appName = "KSL Scenario Studio")
+fun main() = kslScenarioApp(appName = "KSL Scenario Analyzer")

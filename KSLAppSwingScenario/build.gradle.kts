@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("ksl.app.swing.scenario.example.ScenarioStudioAppKt")
+    mainClass.set("ksl.app.swing.scenario.example.ScenarioAnalyzerAppKt")
 }
 
 kotlin {
