@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ksl.app.config.ModelReference
+import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.config.toOverrides
@@ -100,6 +101,48 @@ class ScenarioOrchestratorTest {
         assertEquals(1, scenarioEvents[0].index)
         assertEquals(2, scenarioEvents[1].index)
         assertEquals(2, scenarioEvents[0].totalScenarios)
+    }
+
+    @Test
+    fun `per-scenario CSV writes under outputConfig outputDirectory`() = runBlocking {
+        val tmp = java.nio.file.Files.createTempDirectory("scenario-orch-csv-")
+        val model = mm1Provider.provideModel(MM1_ID)
+        val runParams = model.extractRunParameters()
+        val config = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "CsvOn",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides(),
+                    enableReplicationCSV = true,
+                    enableExperimentCSV = true
+                )
+            ),
+            outputConfig = OutputConfig(
+                outputDirectory = tmp.toAbsolutePath().toString()
+            )
+        )
+        val handle = ScenarioOrchestrator().submit(config, mm1Provider, scope = this)
+        val result = handle.result.await()
+        assertIs<RunResult.BatchCompleted>(result)
+
+        // Substrate writes CSVs under
+        //   <outputDirectory>/<modelName>_OutputDir/csvDir/*.csv
+        // OutputDirectory's default ctor names the subdir from the
+        // root path it was given, so we walk the tree looking for any
+        // .csv beneath tmp rather than depending on the exact subdir
+        // layout.
+        val allFiles = java.nio.file.Files.walk(tmp).use { stream ->
+            stream.filter { java.nio.file.Files.isRegularFile(it) }
+                .map { it.toString() }
+                .toList()
+        }
+        val csvCount = allFiles.count { it.endsWith(".csv") }
+        assertTrue(
+            csvCount > 0,
+            "Expected at least one .csv file under $tmp after the run; found none.  " +
+                "Files actually present under $tmp:\n  " + allFiles.joinToString("\n  ")
+        )
     }
 
     @Test

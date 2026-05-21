@@ -118,7 +118,17 @@ class ScenarioOrchestrator {
                     )
                 )
 
-                val outputDir = KSL.createSubDirectory("scenario_run_$runId")
+                // Honor a GUI-supplied workspace output path when present
+                // — the runner overwrites each model's outputDirectory
+                // from this path (see ConcurrentScenarioRunner line 402
+                // and ScenarioRunner line 219), so CSV / KSL-database /
+                // report artifacts land where the analyst can find them.
+                // Falls back to a per-run subdir of KSL.outDir when the
+                // caller (e.g. a programmatic test) hasn't configured a
+                // workspace path.
+                val outputDir = config.outputConfig.outputDirectory
+                    ?.let { java.nio.file.Paths.get(it) }
+                    ?: KSL.createSubDirectory("scenario_run_$runId")
                 val runner = ConcurrentScenarioRunner(
                     "ScenarioOrchestrator_$runId", scenarios, outputDir
                 )
@@ -226,6 +236,14 @@ class ScenarioOrchestrator {
      * `experimentName` set to `spec.name`, and its control / RV / model-
      * configuration overrides come only from the spec.  There are no
      * document-level defaults that scenarios inherit.
+     *
+     * Workspace output redirection (CSV / KSL-database / report
+     * artifacts landing under the caller's
+     * [ksl.app.config.OutputConfig.outputDirectory]) is handled
+     * outside this method — see [submit] where the orchestrator picks
+     * the runner's `pathToOutputDirectory`.  The per-scenario runners
+     * unconditionally overwrite `model.outputDirectory` from that
+     * path, so setting it here would be silently clobbered.
      */
     private fun buildScenario(
         spec: ScenarioSpec,
@@ -269,6 +287,15 @@ class ScenarioOrchestrator {
                 // so Model.simulate() picks them up.  Independent of any
                 // document-level OutputConfig CSV flags — Scenario's
                 // GUI exposes only per-spec CSV.
+                //
+                // model.outputDirectory is *not* touched here — the
+                // ScenarioRunner / ConcurrentScenarioRunner unconditionally
+                // overwrites it inside their simulate loop with a subdir
+                // of pathToOutputDirectory (see runner construction below
+                // and ScenarioRunner.simulate line 219 /
+                // ConcurrentScenarioRunner line 402).  Pointing the
+                // workspace there is done at runner-construction time,
+                // not here.
                 model.autoReplicationCSVReports = spec.enableReplicationCSV
                 model.autoExperimentCSVReports = spec.enableExperimentCSV
 

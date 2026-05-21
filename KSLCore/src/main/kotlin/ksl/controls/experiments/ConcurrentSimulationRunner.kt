@@ -98,10 +98,24 @@ class ConcurrentSimulationRunner(
             timer = SimulationTimer(model)
             rdc = ReplicationDataCollector(model, true)
 
-            if (model.autoCSVReports) {
-                model.turnOnCSVStatisticalReports()
+            // Replicate Model.simulate()'s per-kind CSV gating exactly
+            // (Model.kt lines 1499–1508).  This runner drives the
+            // replication loop manually with initializeReplications /
+            // runNextReplication / endSimulation, so it does not pass
+            // through Model.simulate() and must apply the per-kind
+            // flags itself.  Without this, callers (notably the
+            // Scenario app's per-spec CSV checkboxes routed through
+            // ConcurrentScenarioRunner) get no CSV output unless they
+            // also set the combined [Model.autoCSVReports] flag.
+            if (model.autoCSVReports || model.autoReplicationCSVReports) {
+                model.turnOnReplicationCSVStatisticReporting()
             } else {
-                model.turnOffCSVStatisticalReports()
+                model.turnOffReplicationCSVStatisticReporting()
+            }
+            if (model.autoCSVReports || model.autoExperimentCSVReports) {
+                model.turnOnAcrossReplicationStatisticReporting()
+            } else {
+                model.turnOffAcrossReplicationStatisticReporting()
             }
 
             coroutineContext.ensureActive()
