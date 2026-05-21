@@ -10,12 +10,14 @@ import kotlin.time.Duration.Companion.seconds
 class DurationOverrideFieldTest {
 
     @Test
-    fun `default state renders the placeholder using kotlin duration form`() {
+    fun `default state leaves field empty and surfaces default via tooltip`() {
         val field = onEdt { DurationOverrideField(modelDefault = 30.seconds) }
         onEdt {
             assertNull(field.value)
-            assertEquals(true, field.internalTextField.text.contains("30"))
-            assertEquals(true, field.internalTextField.text.contains("model default"))
+            assertEquals("", field.internalTextField.text)
+            val tip = field.internalTextField.toolTipText.orEmpty()
+            assertEquals(true, tip.contains("30"), "got '$tip'")
+            assertEquals(true, tip.startsWith("Default"), "got '$tip'")
         }
     }
 

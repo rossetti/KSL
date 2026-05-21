@@ -10,22 +10,39 @@ import kotlin.test.assertTrue
 class IntegerOverrideFieldTest {
 
     @Test
-    fun `default state renders the placeholder and hides the clear button`() {
+    fun `default state leaves field empty, hides clear button, surfaces default via tooltip`() {
         val field = onEdt { IntegerOverrideField(modelDefault = 30) }
         onEdt {
             assertNull(field.value)
-            assertTrue(field.internalTextField.text.contains("30"))
-            assertTrue(field.internalTextField.text.contains("model default"))
+            assertEquals("", field.internalTextField.text)
             assertFalse(clearButton(field).isVisible)
-            assertEquals(OverrideFieldSupport.PLACEHOLDER_COLOR, field.internalTextField.foreground)
+            // Tooltip on the text field discloses the default value.
+            val tip = field.internalTextField.toolTipText.orEmpty()
+            assertTrue(tip.contains("30"), "field tooltip should surface the default; got '$tip'")
+            assertTrue(tip.startsWith("Default"), "field tooltip should say 'Default: …'; got '$tip'")
         }
     }
 
     @Test
-    fun `null modelDefault renders the unavailable placeholder`() {
+    fun `null modelDefault leaves field empty and tooltip says unavailable`() {
         val field = onEdt { IntegerOverrideField(modelDefault = null) }
         onEdt {
-            assertEquals("(model defaults unavailable)", field.internalTextField.text)
+            assertEquals("", field.internalTextField.text)
+            val tip = field.internalTextField.toolTipText.orEmpty()
+            assertTrue(tip.contains("unavailable", ignoreCase = true), "got '$tip'")
+        }
+    }
+
+    @Test
+    fun `clear button tooltip references the model default`() {
+        val field = onEdt { IntegerOverrideField(modelDefault = 30) }
+        onEdt {
+            // Tooltip is set on the button regardless of visibility,
+            // so the helper-driven assertion is reliable even with
+            // the button hidden in default state.
+            val tip = clearButton(field).toolTipText.orEmpty()
+            assertTrue(tip.contains("30"), "got '$tip'")
+            assertTrue(tip.startsWith("Reset to default"), "got '$tip'")
         }
     }
 

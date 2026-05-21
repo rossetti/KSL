@@ -42,9 +42,19 @@ import javax.swing.event.DocumentListener
  * `FieldErrorMarker.attach` to render the §4 outline / icon /
  * tooltip.  The override field is a pure value widget.
  *
- * @param modelDefault default surfaced as muted placeholder text
- *   when [value] is `null`.  Use `null` to render
- *   *"(model defaults unavailable)"*.
+ * **Default surfacing.**  Earlier revisions rendered
+ * `"30 (model default)"` *inside* the text field when [value] was
+ * `null` — convenient at a glance but it fought the user during data
+ * entry (couldn't tell what was placeholder vs. what they had typed).
+ * The field is now left truly empty when not overridden; the
+ * containing row is expected to render a sidecar "default: N" label,
+ * and this field surfaces the default via a tooltip on the text
+ * field plus a reset-affordance tooltip on the `×` button.
+ *
+ * @param modelDefault the model's default value, surfaced through
+ *   tooltips ("Default: 30").  `null` renders the tooltips as
+ *   "Default value unavailable".  Field text is empty in both cases
+ *   when [value] is `null`.
  * @param onValueChange invoked when the committed value changes.
  *   Fires on blur, Enter, and clear-button clicks.
  * @param onParseError invoked when the user's text fails to parse
@@ -102,11 +112,17 @@ class IntegerOverrideField(
      */
     fun refreshDisplay() {
         clearBtn.isVisible = myValue != null
+        clearBtn.toolTipText = OverrideFieldSupport.resetButtonTooltip(modelDefault)
+        textField.toolTipText = OverrideFieldSupport.defaultValueTooltip(modelDefault)
         suppressDocChange = true
         try {
             if (myValue == null) {
-                textField.foreground = OverrideFieldSupport.PLACEHOLDER_COLOR
-                textField.text = OverrideFieldSupport.placeholderText(modelDefault, modelDefault != null)
+                // Leave the field truly empty so the user can start
+                // typing without dismissing placeholder text.  The
+                // default value is surfaced through tooltips and the
+                // row's sidecar "default: N" label.
+                textField.foreground = normalForeground
+                textField.text = ""
             } else {
                 textField.foreground = normalForeground
                 textField.text = myValue.toString()
@@ -120,19 +136,12 @@ class IntegerOverrideField(
     internal val internalTextField: JTextField get() = textField
 
     private fun onTextEdited() {
-        if (suppressDocChange) return
-        // While the user is typing, keep the foreground normal so the placeholder
-        // styling doesn't reappear mid-edit.
-        if (textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) {
-            textField.foreground = normalForeground
-        }
+        // The field no longer carries in-field placeholder text /
+        // placeholder color, so the "restore normal foreground"
+        // bookkeeping the previous revision did is moot.
     }
 
     private fun commitFromText() {
-        if (myValue == null && textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) {
-            // Field still shows the placeholder; nothing was typed.
-            return
-        }
         val raw = textField.text
         if (raw.isBlank()) {
             value = null

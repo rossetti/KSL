@@ -50,10 +50,29 @@ object OverrideFieldSupport {
      * overridden the field.  When [available] is true, the formatted
      * [modelDefault] is shown alongside the *(model default)* tag;
      * when false, a fallback string is shown.
+     *
+     *  Still used by [JsonControlValueField] and
+     *  [StringControlValueField] whose defaults (full JSON blobs,
+     *  free-form strings) don't fit a sidecar label.  The numeric
+     *  override fields render an empty field plus a sidecar
+     *  "default: N" label and no longer use this helper.
      */
     fun placeholderText(modelDefault: Any?, available: Boolean): String =
         if (!available) "(model defaults unavailable)"
         else "${modelDefault ?: ""} (model default)".trim()
+
+    /** Tooltip text for a numeric override field's text field —
+     *  surfaces the model default on hover.  `null` modelDefault
+     *  yields "Default value unavailable". */
+    fun defaultValueTooltip(modelDefault: Any?): String =
+        if (modelDefault == null) "Default value unavailable"
+        else "Default: $modelDefault"
+
+    /** Tooltip text for the override field's `×` reset button —
+     *  identifies what value the field will revert to. */
+    fun resetButtonTooltip(modelDefault: Any?): String =
+        if (modelDefault == null) "Reset to default"
+        else "Reset to default ($modelDefault)"
 
     /**
      * Creates the standard `×` clear button used by every override

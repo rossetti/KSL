@@ -9,13 +9,14 @@ import kotlin.test.assertNull
 class DoubleOverrideFieldTest {
 
     @Test
-    fun `default state renders the placeholder`() {
+    fun `default state leaves field empty and surfaces default via tooltip`() {
         val field = onEdt { DoubleOverrideField(modelDefault = 500.0) }
         onEdt {
             assertNull(field.value)
-            val text = field.internalTextField.text
-            assertEquals(true, text.contains("500"))
-            assertEquals(true, text.contains("model default"))
+            assertEquals("", field.internalTextField.text)
+            val tip = field.internalTextField.toolTipText.orEmpty()
+            assertEquals(true, tip.contains("500"), "got '$tip'")
+            assertEquals(true, tip.startsWith("Default"), "got '$tip'")
         }
     }
 

@@ -83,15 +83,14 @@ class DoubleOverrideField(
 
     fun refreshDisplay() {
         clearBtn.isVisible = myValue != null
+        clearBtn.toolTipText = OverrideFieldSupport.resetButtonTooltip(modelDefault)
+        textField.toolTipText = OverrideFieldSupport.defaultValueTooltip(modelDefault)
         suppressDocChange = true
         try {
-            if (myValue == null) {
-                textField.foreground = OverrideFieldSupport.PLACEHOLDER_COLOR
-                textField.text = OverrideFieldSupport.placeholderText(modelDefault, modelDefault != null)
-            } else {
-                textField.foreground = normalForeground
-                textField.text = myValue.toString()
-            }
+            // Field left empty when not overridden; default surfaces
+            // via tooltip and the row's sidecar "default: N" label.
+            textField.foreground = normalForeground
+            textField.text = myValue?.toString() ?: ""
         } finally {
             suppressDocChange = false
         }
@@ -100,14 +99,10 @@ class DoubleOverrideField(
     internal val internalTextField: JTextField get() = textField
 
     private fun onTextEdited() {
-        if (suppressDocChange) return
-        if (textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) {
-            textField.foreground = normalForeground
-        }
+        // No in-field placeholder text any more; nothing to track.
     }
 
     private fun commitFromText() {
-        if (myValue == null && textField.foreground == OverrideFieldSupport.PLACEHOLDER_COLOR) return
         val raw = textField.text
         if (raw.isBlank()) {
             value = null

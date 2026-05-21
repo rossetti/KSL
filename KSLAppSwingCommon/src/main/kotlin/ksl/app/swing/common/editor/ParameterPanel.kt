@@ -23,6 +23,7 @@ import ksl.app.config.ExperimentRunOverrides
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
 import ksl.app.swing.common.overridefield.IntegerOverrideField
+import ksl.app.swing.common.overridefield.OverrideFieldSupport
 import ksl.app.swing.common.overridefield.SectionHeaderWithStatus
 import ksl.app.swing.common.validation.FieldErrorMarker
 import ksl.app.swing.common.validation.WidgetPathRegistry
@@ -124,7 +125,8 @@ class ParameterPanel(
                 path = "scenarios[0].runOverrides.numberOfReplications",
                 onChange = { v -> state.updateRunOverride { it.copy(numberOfReplications = v) } },
                 read = { it.numberOfReplications }
-            )
+            ),
+            defaultDisplay = defaults.numberOfReplications.toString()
         ))
         panel.add(labeledRow(
             "Length of replication",
@@ -133,7 +135,8 @@ class ParameterPanel(
                 path = "scenarios[0].runOverrides.lengthOfReplication",
                 onChange = { v -> state.updateRunOverride { it.copy(lengthOfReplication = v) } },
                 read = { it.lengthOfReplication }
-            )
+            ),
+            defaultDisplay = defaults.lengthOfReplication.toString()
         ))
         panel.add(labeledRow(
             "Length of replication warm-up",
@@ -142,7 +145,8 @@ class ParameterPanel(
                 path = "scenarios[0].runOverrides.lengthOfReplicationWarmUp",
                 onChange = { v -> state.updateRunOverride { it.copy(lengthOfReplicationWarmUp = v) } },
                 read = { it.lengthOfReplicationWarmUp }
-            )
+            ),
+            defaultDisplay = defaults.lengthOfReplicationWarmUp.toString()
         ))
         return panel
     }
@@ -197,7 +201,8 @@ class ParameterPanel(
                 path = "scenarios[0].runOverrides.numberOfStreamAdvancesPriorToRunning",
                 onChange = { v -> state.updateRunOverride { it.copy(numberOfStreamAdvancesPriorToRunning = v) } },
                 read = { it.numberOfStreamAdvancesPriorToRunning }
-            )
+            ),
+            defaultDisplay = defaults.numberOfStreamAdvancesPriorToRunning.toString()
         ))
         outer.add(header)
         outer.add(body)
@@ -206,7 +211,11 @@ class ParameterPanel(
 
     // ── Field helpers ──────────────────────────────────────────────────────
 
-    private fun labeledRow(label: String, field: JComponent): JComponent {
+    private fun labeledRow(
+        label: String,
+        field: JComponent,
+        defaultDisplay: String? = null
+    ): JComponent {
         // Cap the field's preferred + max width so it doesn't stretch to fill
         // the full window width.  Trailing horizontal glue absorbs the rest of
         // the row.  Vertical sizing follows the field's natural preferred height.
@@ -222,6 +231,19 @@ class ParameterPanel(
                 maximumSize = Dimension(LABEL_WIDTH, labelHeight)
             })
             add(field)
+            if (defaultDisplay != null) {
+                // Sidecar "default: N" annotation — quiet gray, fixed
+                // width so rows align vertically.  Replaces the
+                // earlier in-field "(model default)" placeholder so
+                // the text field can stay truly empty for data entry.
+                add(Box.createHorizontalStrut(8))
+                add(JLabel("default: $defaultDisplay").apply {
+                    foreground = OverrideFieldSupport.PLACEHOLDER_COLOR
+                    val h = preferredSize.height.coerceAtLeast(MIN_ROW_HEIGHT)
+                    preferredSize = Dimension(DEFAULT_LABEL_WIDTH, h)
+                    maximumSize = Dimension(DEFAULT_LABEL_WIDTH, h)
+                })
+            }
             add(Box.createHorizontalGlue())
         }
     }
@@ -267,8 +289,15 @@ class ParameterPanel(
     companion object {
         private const val OUTER_PADDING: Int = 4
         private const val ROW_PADDING: Int = 1
-        private const val LABEL_WIDTH: Int = 220
+        // LABEL_WIDTH bumped from 220 → 300 so the longest label
+        // ("Number of stream advances prior to running" in the
+        // Advanced section) no longer truncates at the default font.
+        private const val LABEL_WIDTH: Int = 300
         private const val FIELD_WIDTH: Int = 280
+        // Width reserved for the optional "default: N" sidecar label.
+        // Tuned for typical numeric defaults (single-digit up to long
+        // decimal); long values truncate gracefully thanks to JLabel.
+        private const val DEFAULT_LABEL_WIDTH: Int = 110
         private const val MIN_ROW_HEIGHT: Int = 24
         private const val SECTION_GAP: Int = 6
     }
