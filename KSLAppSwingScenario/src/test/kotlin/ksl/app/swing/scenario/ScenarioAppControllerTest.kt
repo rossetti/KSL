@@ -421,6 +421,30 @@ class ScenarioAppControllerTest {
     }
 
     @Test
+    fun `clearScenarios empties the list, clears selection, marks dirty`() {
+        val c = fresh()
+        c.addScenario(spec("a"))
+        c.addScenario(spec("b"))
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        assertFalse(c.isDirty.value)
+        assertEquals(2, c.scenarios.value.size)
+
+        c.clearScenarios()
+        assertTrue(c.scenarios.value.isEmpty())
+        assertEquals(-1, c.selectedIndex.value)
+        assertTrue(c.isDirty.value, "clearScenarios must mark the document dirty")
+    }
+
+    @Test
+    fun `clearScenarios on empty list is a no-op`() {
+        val c = fresh()
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        assertFalse(c.isDirty.value)
+        c.clearScenarios()
+        assertFalse(c.isDirty.value, "clearScenarios on empty list must not flip dirty")
+    }
+
+    @Test
     fun `markSaved sets currentFile and clears dirty`() {
         val c = fresh()
         c.addScenario(spec("a"))

@@ -81,6 +81,9 @@ class ScenariosTablePanel(
     private val editButton = JButton("Edit…")
     private val cloneButton = JButton("Clone")
     private val deleteButton = JButton("Delete")
+    private val clearAllButton = JButton("Clear All").apply {
+        toolTipText = "Remove every scenario from the list.  Asks for confirmation."
+    }
     private val upButton = JButton("Move Up")
     private val downButton = JButton("Move Down")
 
@@ -193,6 +196,8 @@ class ScenariosTablePanel(
         add(cloneButton)
         add(Box.createHorizontalStrut(6))
         add(deleteButton)
+        add(Box.createHorizontalStrut(6))
+        add(clearAllButton)
         add(Box.createHorizontalStrut(16))
         add(upButton)
         add(Box.createHorizontalStrut(6))
@@ -282,6 +287,18 @@ class ScenariosTablePanel(
             )
             if (choice == JOptionPane.YES_OPTION) controller.deleteScenario(idx)
         }
+        clearAllButton.addActionListener {
+            val count = controller.scenarios.value.size
+            if (count == 0) return@addActionListener
+            val choice = JOptionPane.showConfirmDialog(
+                this,
+                "Remove all $count scenario${if (count == 1) "" else "s"} from the list?",
+                "Clear All Scenarios",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            )
+            if (choice == JOptionPane.YES_OPTION) controller.clearScenarios()
+        }
         upButton.addActionListener {
             val idx = currentRow()
             if (idx >= 1) controller.moveScenarioUp(idx)
@@ -307,6 +324,7 @@ class ScenariosTablePanel(
         editButton.isEnabled = !running && hasSelection
         cloneButton.isEnabled = !running && hasSelection
         deleteButton.isEnabled = !running && hasSelection
+        clearAllButton.isEnabled = !running && count > 0
         upButton.isEnabled = !running && hasSelection && idx >= 1
         downButton.isEnabled = !running && hasSelection && idx < count - 1
     }

@@ -575,6 +575,24 @@ class ScenarioAppController(
         markDirty()
     }
 
+    /**
+     *  Remove every scenario from the list.  Clears the selection
+     *  (selectedIndex → -1), marks the document dirty, and is a
+     *  no-op when the list is already empty.
+     *
+     *  Stale run-time state ([lastResult], [scenarioStatuses], etc.)
+     *  is *not* touched — those are session-scoped and persist
+     *  across in-document edits.  Use [resetConfiguration] or
+     *  [loadConfiguration] for "fresh document" semantics that
+     *  also clear run state.
+     */
+    fun clearScenarios() {
+        if (myScenarios.value.isEmpty()) return
+        myScenarios.value = emptyList()
+        mySelectedIndex.value = -1
+        markDirty()
+    }
+
     /** Swap the scenario at [index] with its predecessor.  No-op when [index] is 0 or out of range. */
     fun moveScenarioUp(index: Int) {
         val list = myScenarios.value
