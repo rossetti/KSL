@@ -735,13 +735,19 @@ class ScenarioAppController(
         // Clear dirty AFTER the StateFlow assignments so any
         // listener-triggered state flip is overwritten.
         myIsDirty.value = false
+        // Also wipe any leftover run-time state from a previous
+        // document so the Reports tab doesn't think a run completed
+        // and stale FAILED badges don't appear next to fresh scenario
+        // rows.  See [clearRunState] for the full list.
+        clearRunState()
         return LoadResult.Loaded()
     }
 
     /**
      *  Reset editor state to empty defaults — equivalent to
      *  *File → Reset to Defaults*.  Clears scenarios, output config,
-     *  execution mode, current file, and dirty.
+     *  execution mode, current file, and dirty — plus all run-time
+     *  state via [clearRunState].
      */
     fun resetConfiguration() {
         myScenarios.value = emptyList()
@@ -750,6 +756,47 @@ class ScenarioAppController(
         mySelectedIndex.value = -1
         myCurrentFile.value = null
         myIsDirty.value = false
+        clearRunState()
+    }
+
+    /**
+     *  Reset every piece of run-time state — last result, per-scenario
+     *  statuses, replication progress, the "edited since last sim"
+     *  flag, and the in-flight flag — so a freshly loaded or reset
+     *  configuration starts from a clean slate.
+     *
+     *  Document-level configuration state (scenarios, output config,
+     *  execution mode, current file, dirty) is the caller's
+     *  responsibility; this helper is run-state only.
+     *
+     *  [eventFlow] has `replay = 0`, so historical events do not
+     *  replay to new collectors and there is nothing to clear here.
+     *  Already-attached collectors see only events emitted after
+     *  they subscribed.
+     */
+    internal fun clearRunState() {
+        myRunning.value = false
+        myLastResult.value = null
+        myScenarioStatuses.value = emptyMap()
+        myReplicationProgress.value = emptyMap()
+        myEditedSinceLastSim.value = false
+    }
+
+    /** Test seam — seed run-time state so [clearRunState],
+     *  [loadConfiguration], and [resetConfiguration] paths can be
+     *  verified.  Production code should not call this. */
+    internal fun seedRunStateForTesting(
+        lastResult: RunResult? = null,
+        scenarioStatuses: Map<String, ScenarioStatus> = emptyMap(),
+        replicationProgress: Map<String, Pair<Int, Int>> = emptyMap(),
+        editedSinceLastSim: Boolean = false,
+        running: Boolean = false
+    ) {
+        myLastResult.value = lastResult
+        myScenarioStatuses.value = scenarioStatuses
+        myReplicationProgress.value = replicationProgress
+        myEditedSinceLastSim.value = editedSinceLastSim
+        myRunning.value = running
     }
 
     /**

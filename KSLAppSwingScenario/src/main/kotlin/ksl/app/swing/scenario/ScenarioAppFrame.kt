@@ -520,6 +520,12 @@ class ScenarioAppFrame(
         when (val outcome = controller.loadConfiguration(config)) {
             is ScenarioAppController.LoadResult.Loaded -> {
                 controller.markSaved(path)
+                // Wipe any stale notifications from the previous
+                // document — error chips from a prior failed run,
+                // info chips from a prior completed run — so the
+                // overlay starts fresh.  Warnings / success info
+                // emitted below appear on a clean slate.
+                notifications.dismissAll()
                 outcome.warnings.forEach {
                     notifications.show(it, NotificationSeverity.WARNING)
                 }

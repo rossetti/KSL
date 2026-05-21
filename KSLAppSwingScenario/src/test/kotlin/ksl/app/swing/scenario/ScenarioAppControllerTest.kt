@@ -24,6 +24,7 @@ import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
+import ksl.app.session.RunResult
 import org.junit.jupiter.api.Test
 import kotlin.test.AfterTest
 import kotlin.test.assertEquals
@@ -378,6 +379,45 @@ class ScenarioAppControllerTest {
         assertFalse(c.isDirty.value)
         assertEquals(ExecutionMode.SEQUENTIAL, c.executionMode.value)
         assertTrue(c.outputConfig.value.enableKSLDatabase)  // back to true default
+    }
+
+    @Test
+    fun `loadConfiguration clears stale run state`() {
+        val c = fresh()
+        c.seedRunStateForTesting(
+            lastResult = RunResult.Cancelled("prior run"),
+            scenarioStatuses = mapOf("old" to ScenarioAppController.ScenarioStatus.FAILED),
+            replicationProgress = mapOf("old" to (3 to 10)),
+            editedSinceLastSim = true,
+            running = false
+        )
+        val loaded = RunConfiguration(
+            scenarios = listOf(spec("new")),
+            outputConfig = OutputConfig(enableKSLDatabase = true),
+            executionMode = ExecutionMode.SEQUENTIAL
+        )
+        c.loadConfiguration(loaded)
+        assertNull(c.lastResult.value, "loadConfiguration must clear stale lastResult")
+        assertTrue(c.scenarioStatuses.value.isEmpty(), "loadConfiguration must clear stale scenarioStatuses")
+        assertTrue(c.replicationProgress.value.isEmpty(), "loadConfiguration must clear stale replicationProgress")
+        assertFalse(c.editedSinceLastSim.value, "loadConfiguration must clear editedSinceLastSim")
+        assertFalse(c.runningFlow.value, "loadConfiguration must clear runningFlow")
+    }
+
+    @Test
+    fun `resetConfiguration clears stale run state`() {
+        val c = fresh()
+        c.seedRunStateForTesting(
+            lastResult = RunResult.Cancelled("prior run"),
+            scenarioStatuses = mapOf("old" to ScenarioAppController.ScenarioStatus.COMPLETED),
+            replicationProgress = mapOf("old" to (10 to 10)),
+            editedSinceLastSim = true
+        )
+        c.resetConfiguration()
+        assertNull(c.lastResult.value)
+        assertTrue(c.scenarioStatuses.value.isEmpty())
+        assertTrue(c.replicationProgress.value.isEmpty())
+        assertFalse(c.editedSinceLastSim.value)
     }
 
     @Test
