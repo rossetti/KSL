@@ -547,7 +547,48 @@ class ScenarioAppFrame(
 
     private fun handleSave() {
         val existing = controller.currentFile.value
-        if (existing == null) handleSaveAs() else writeConfigurationTo(existing)
+        if (existing == null) {
+            handleSaveAs()
+            return
+        }
+        // The file was loaded earlier in the session, but check that
+        // it still exists on disk.  If it's been moved or deleted
+        // externally, silently recreating it at the same path would
+        // surprise a user who removed it deliberately — prompt
+        // instead, with explicit options to recreate, redirect, or
+        // cancel.
+        if (!Files.exists(existing)) {
+            when (promptForMissingFile(existing)) {
+                MissingFileChoice.RECREATE_HERE -> writeConfigurationTo(existing)
+                MissingFileChoice.SAVE_AS -> handleSaveAs()
+                MissingFileChoice.CANCEL -> { /* isDirty stays true; user can retry */ }
+            }
+            return
+        }
+        writeConfigurationTo(existing)
+    }
+
+    private enum class MissingFileChoice { RECREATE_HERE, SAVE_AS, CANCEL }
+
+    private fun promptForMissingFile(missing: Path): MissingFileChoice {
+        val options = arrayOf("Recreate Here", "Save As…", "Cancel")
+        val choice = javax.swing.JOptionPane.showOptionDialog(
+            this,
+            "The configuration file is no longer at:\n  $missing\n\n" +
+                "It may have been moved or deleted outside the app.\n" +
+                "Recreate it at this path, or save to a new location?",
+            "File No Longer Exists",
+            javax.swing.JOptionPane.YES_NO_CANCEL_OPTION,
+            javax.swing.JOptionPane.WARNING_MESSAGE,
+            null,
+            options,
+            options[0]
+        )
+        return when (choice) {
+            0 -> MissingFileChoice.RECREATE_HERE
+            1 -> MissingFileChoice.SAVE_AS
+            else -> MissingFileChoice.CANCEL          // CANCEL_OPTION or CLOSED_OPTION
+        }
     }
 
     private fun handleSaveAs() {
