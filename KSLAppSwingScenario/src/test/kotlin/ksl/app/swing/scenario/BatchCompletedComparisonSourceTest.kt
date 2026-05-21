@@ -122,12 +122,22 @@ class BatchCompletedComparisonSourceTest {
     }
 
     @Test
-    fun `default sourceLabel reflects scenario count`() {
+    fun `default sourceLabel reflects scenario count and start time`() {
         val result = mixedResult()
         val src = BatchCompletedComparisonSource(result)
-        // Label format: "Scenario run · <runId-prefix> · N scenarios"
-        assertTrue(src.sourceLabel.startsWith("Scenario run · "))
-        assertTrue(src.sourceLabel.endsWith(" · 2 scenarios"))
+        // Label format: "Scenario run · N scenarios · started <yyyy-MM-dd HH:mm:ss>"
+        assertTrue(
+            src.sourceLabel.startsWith("Scenario run · 2 scenarios · started "),
+            "unexpected sourceLabel: ${src.sourceLabel}"
+        )
+        // The timestamp must match the local-zone formatter; check the
+        // shape rather than a specific value so the test stays
+        // independent of the system clock.
+        val tail = src.sourceLabel.removePrefix("Scenario run · 2 scenarios · started ")
+        assertTrue(
+            tail.matches(Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")),
+            "timestamp tail does not match yyyy-MM-dd HH:mm:ss: '$tail'"
+        )
     }
 
     // ── Synthetic-data helpers ───────────────────────────────────────────

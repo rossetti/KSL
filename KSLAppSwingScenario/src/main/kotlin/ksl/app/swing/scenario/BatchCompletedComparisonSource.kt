@@ -24,6 +24,10 @@ import ksl.app.swing.common.comparison.ExperimentRow
 import ksl.app.swing.common.comparison.ResponseCategory
 import ksl.app.swing.common.comparison.ResponseRow
 import ksl.utilities.io.dbutil.SimulationSnapshot
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toJavaInstant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  *  Scenario-app adapter that exposes a completed scenario sweep —
@@ -107,11 +111,27 @@ class BatchCompletedComparisonSource(
     }
 
     companion object {
-        /** Default `sourceLabel` derived from the batch summary. */
+        /** Default `sourceLabel` derived from the batch summary.
+         *
+         *  Renders the count of completed scenarios and the run's
+         *  begin time in the system default zone — e.g.
+         *  `"Scenario run · 4 scenarios · started 2026-05-20 14:32:15"`.
+         *  Earlier versions surfaced the first 8 characters of the
+         *  orchestrator's UUID; that was visually indistinguishable
+         *  from a default-`toString` hash and meant nothing to a
+         *  human staring at the analyzer header.  The full UUID is
+         *  still correlatable through logs and the KSL database for
+         *  anyone who needs it. */
         fun defaultLabel(result: RunResult.BatchCompleted): String {
-            val shortRun = result.summary.runId.take(8)
             val n = result.snapshots.size
-            return "Scenario run · $shortRun · $n scenario${if (n == 1) "" else "s"}"
+            val started = formatLocal(result.summary.beginTime)
+            return "Scenario run · $n scenario${if (n == 1) "" else "s"} · started $started"
         }
+
+        private val labelTimeFormatter: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
+
+        private fun formatLocal(instant: Instant): String =
+            labelTimeFormatter.format(instant.toJavaInstant())
     }
 }
