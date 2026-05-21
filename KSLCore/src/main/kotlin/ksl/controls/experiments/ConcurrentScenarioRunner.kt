@@ -86,8 +86,8 @@ import java.nio.file.Path
 class ConcurrentScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
-    val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
+    val pathToOutputDirectory: Path = KSL.createSubDirectory(sanitizeForFilesystem(name) + "_OutputDir"),
+    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory)
 ) : Identity(name) {
 
     private data class ScenarioRunOutcome(
@@ -381,7 +381,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         var modelIdentifier: String? = null
         var collector: InMemorySnapshotCollector? = null
         try {
-            val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
+            val modelDirName = sanitizeForFilesystem(scenario.name) + "_OutputDir"
             val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
 
             val model = scenario.modelBuilder.build(scenario.modelConfiguration)

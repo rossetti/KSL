@@ -146,6 +146,86 @@ class ScenarioOrchestratorTest {
     }
 
     @Test
+    fun `orchestrator creates outputDirectory if it does not yet exist`() = runBlocking {
+        // Regression: ScenarioOrchestrator used to pass the
+        // GUI-supplied outputDirectory straight to the runner without
+        // ensuring the directory existed on disk first.  The runner's
+        // KSLDatabase default constructor then tried to open a SQLite
+        // file inside a missing parent and failed with SQLITE_CANTOPEN.
+        // Reproduces the failure mode reported against the Scenario
+        // app on a fresh workspace.
+        val parent = java.nio.file.Files.createTempDirectory("scenario-orch-missing-")
+        // Resolve a non-existent child path.  Submit must create it.
+        val outputDir = parent.resolve("created-by-orchestrator")
+        check(!java.nio.file.Files.exists(outputDir)) { "test setup: outputDir must not exist yet" }
+
+        val model = mm1Provider.provideModel(MM1_ID)
+        val runParams = model.extractRunParameters()
+        val config = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "S",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                )
+            ),
+            outputConfig = OutputConfig(
+                outputDirectory = outputDir.toAbsolutePath().toString()
+            )
+        )
+        val handle = ScenarioOrchestrator().submit(config, mm1Provider, scope = this)
+        val result = handle.result.await()
+        assertIs<RunResult.BatchCompleted>(result)
+        assertTrue(
+            java.nio.file.Files.isDirectory(outputDir),
+            "outputDirectory was not created by the orchestrator: $outputDir"
+        )
+    }
+
+    @Test
+    fun `scenario name with slashes does not create nested output directories`() = runBlocking {
+        // Regression: scenario names like "M/M/1 Queue" used to reach
+        // KSLFileUtil.createSubDirectory unsanitized, producing a
+        // nested tree (M/M/1_Queue_OutputDir/) instead of a flat
+        // sibling (M_M_1_Queue_OutputDir/).  See sanitizeForFilesystem
+        // in ScenarioRunner.kt.
+        val tmp = java.nio.file.Files.createTempDirectory("scenario-orch-slash-")
+        val model = mm1Provider.provideModel(MM1_ID)
+        val runParams = model.extractRunParameters()
+        val config = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "M/M/1 Queue",
+                    modelReference = ModelReference.ByProviderId(MM1_ID),
+                    runOverrides = runParams.toOverrides()
+                )
+            ),
+            outputConfig = OutputConfig(
+                outputDirectory = tmp.toAbsolutePath().toString()
+            )
+        )
+        val handle = ScenarioOrchestrator().submit(config, mm1Provider, scope = this)
+        val result = handle.result.await()
+        assertIs<RunResult.BatchCompleted>(result)
+
+        // No child directory named just "M" — that would indicate the
+        // slashes were being interpreted as path separators.
+        val children = java.nio.file.Files.list(tmp).use { it.toList() }
+        val childNames = children.map { it.fileName.toString() }
+        assertTrue(
+            "M" !in childNames,
+            "Unsanitised slashes leaked into the output tree.  " +
+                "Direct children of $tmp:\n  " + childNames.joinToString("\n  ")
+        )
+        // And the sanitised model dir must be present as a flat sibling.
+        assertTrue(
+            childNames.any { it.startsWith("M_M_1_Queue") },
+            "Expected a flat 'M_M_1_Queue*_OutputDir' under $tmp.  " +
+                "Direct children:\n  " + childNames.joinToString("\n  ")
+        )
+    }
+
+    @Test
     fun `empty scenarios list throws IllegalArgumentException before submitting`() {
         val config = RunConfiguration() // no scenarios, no bundleRefs
         var threw = false

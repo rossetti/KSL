@@ -129,6 +129,15 @@ class ScenarioOrchestrator {
                 val outputDir = config.outputConfig.outputDirectory
                     ?.let { java.nio.file.Paths.get(it) }
                     ?: KSL.createSubDirectory("scenario_run_$runId")
+                // The GUI-supplied branch above hands us a Path object
+                // only — there's no guarantee the directory exists on
+                // disk yet.  ConcurrentScenarioRunner immediately
+                // constructs its default KSLDatabase inside this path,
+                // and SQLite fails with SQLITE_CANTOPEN if the parent
+                // dir is missing.  createDirectories is idempotent —
+                // safe for the fallback branch where the dir already
+                // exists.
+                java.nio.file.Files.createDirectories(outputDir)
                 val runner = ConcurrentScenarioRunner(
                     "ScenarioOrchestrator_$runId", scenarios, outputDir
                 )

@@ -26,8 +26,8 @@ import java.nio.file.Path
 class ScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
-    val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
+    val pathToOutputDirectory: Path = KSL.createSubDirectory(sanitizeForFilesystem(name) + "_OutputDir"),
+    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory)
 ) : Identity(name) {
 
     private val myScenarios = mutableListOf<Scenario>()
@@ -208,7 +208,7 @@ class ScenarioRunner @JvmOverloads constructor(
         for (scenarioIndex in scenarios) {
             if (scenarioIndex in myScenarios.indices) {
                 val scenario = myScenarios[scenarioIndex]
-                val modelDirName = scenario.name.replace(" ", "_") + "_OutputDir"
+                val modelDirName = sanitizeForFilesystem(scenario.name) + "_OutputDir"
                 val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
                 // Build a fresh model (or the same wrapped model for backward-compat scenarios)
                 // and execute it directly, keeping full control of observer lifecycle.
@@ -279,3 +279,29 @@ class ScenarioRunner @JvmOverloads constructor(
     }
 
 }
+
+/**
+ *  Collapse every character outside `[A-Za-z0-9._-]` to `_` so a
+ *  user-supplied identifier (scenario name, runner name) becomes
+ *  safe to use as a single filesystem directory or filename
+ *  component.
+ *
+ *  Without this, names like `"M/M/1 Queue"` survive only the
+ *  space → underscore replacement and reach
+ *  [KSLFileUtil.createSubDirectory] as `"M/M/1_Queue_OutputDir"`,
+ *  where the embedded slashes are interpreted as path separators
+ *  and produce a nested tree (`M/M/1_Queue_OutputDir/`) instead of
+ *  the intended flat sibling (`M_M_1_Queue_OutputDir/`).
+ *
+ *  The 120-character cap is generous enough that no realistic name
+ *  truncates, short enough that pathological inputs don't trip
+ *  filesystem name-length limits (typically 255 bytes).
+ *
+ *  Note: collisions widen — `"a/b"` and `"a_b"` both normalise to
+ *  `"a_b"`.  The substrate already had partial-collision exposure
+ *  (`"foo bar"` and `"foo_bar"` already mapped identically); this
+ *  helper simply extends the equivalence class to every
+ *  filesystem-unsafe character.
+ */
+internal fun sanitizeForFilesystem(name: String): String =
+    name.replace(Regex("[^A-Za-z0-9._-]"), "_").take(120)
