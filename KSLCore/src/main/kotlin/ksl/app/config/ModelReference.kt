@@ -20,6 +20,7 @@ package ksl.app.config
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serialisable pointer to a model source.
@@ -66,7 +67,14 @@ sealed class ModelReference {
      */
     @Serializable
     @SerialName("byProviderId")
-    data class ByProviderId(val providerId: String) : ModelReference() {
+    data class ByProviderId(
+        @TomlComment(
+            "String (required, non-blank). The id passed to\n" +
+            "ModelProviderIfc.provideModel() at run time.  Use when the\n" +
+            "consuming app supplies a provider keyed on a flat id space."
+        )
+        val providerId: String
+    ) : ModelReference() {
         init {
             require(providerId.isNotBlank()) { "providerId must be non-blank" }
         }
@@ -84,7 +92,17 @@ sealed class ModelReference {
     @Serializable
     @SerialName("byJar")
     data class ByJar(
+        @TomlComment(
+            "String (required). Filesystem path to a JAR containing a\n" +
+            "ModelBuilderIfc implementation.  Resolved at run time."
+        )
         val jarPath: String,
+
+        @TomlComment(
+            "String (optional). Fully-qualified class name inside the\n" +
+            "JAR.  Omit to use the first ModelBuilderIfc implementation\n" +
+            "the JAR loader finds (the typical case)."
+        )
         val builderClassName: String? = null
     ) : ModelReference() {
         init {
@@ -115,7 +133,17 @@ sealed class ModelReference {
     @Serializable
     @SerialName("byBundleAndModelId")
     data class ByBundleAndModelId(
+        @TomlComment(
+            "String (required, non-blank). The KSLModelBundle's bundleId\n" +
+            "as declared by the bundle JAR.  Must match a bundleId in the\n" +
+            "document's [[bundleRefs]] list."
+        )
         val bundleId: String,
+
+        @TomlComment(
+            "String (required, non-blank). The model identifier within\n" +
+            "the bundle (KSLBundledModel.modelId)."
+        )
         val modelId: String
     ) : ModelReference() {
         init {
@@ -146,7 +174,16 @@ sealed class ModelReference {
      */
     @Serializable
     @SerialName("embedded")
-    data class Embedded(val modelName: String) : ModelReference() {
+    data class Embedded(
+        @TomlComment(
+            "String (required, non-blank). The simulation Model.name as\n" +
+            "set by the in-process author.  Marks that the model lived\n" +
+            "as Kotlin code at save time and is not portable to a host\n" +
+            "that doesn't carry the same code; consuming apps surface a\n" +
+            "distinguished validation error on unresolvable embedded refs."
+        )
+        val modelName: String
+    ) : ModelReference() {
         init {
             require(modelName.isNotBlank()) { "modelName must be non-blank" }
         }

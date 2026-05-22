@@ -19,6 +19,7 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Animation trace capture settings embedded in a [RunConfiguration].
@@ -35,8 +36,27 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class TracingConfig(
+    @TomlComment(
+        "Optional filesystem path for the animation trace output file.\n" +
+        "When omitted (the default), tracing is disabled and the trace\n" +
+        "attachment is never created — zero runtime overhead.  Provide\n" +
+        "a path to enable tracing for this document."
+    )
     val animationTraceFile: String? = null,
+
+    @TomlComment(
+        "How much detail to capture when tracing is enabled.  Allowed\n" +
+        "values: 'NONE', 'MINIMAL', 'STANDARD', 'DETAILED'.\n" +
+        "Default: 'MINIMAL'.  Has no effect when animationTraceFile is\n" +
+        "omitted."
+    )
     val captureLevel: CaptureLevel = CaptureLevel.MINIMAL,
+
+    @TomlComment(
+        "Integer (positive). How often (in observed events) the trace\n" +
+        "writer flushes its buffer to disk.  Lower values trade I/O\n" +
+        "overhead for crash-survivability of the trace.  Default: 1000."
+    )
     val flushEveryNEvents: Int = 1000
 ) {
     init {

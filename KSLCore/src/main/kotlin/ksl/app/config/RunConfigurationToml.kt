@@ -68,11 +68,75 @@ object RunConfigurationToml {
         explicitNulls = false
     }
 
-    /** Serialises [config] to a TOML string. */
+    /** Serialises [config] to a TOML string, prefixed with [DOCUMENT_HEADER]. */
     fun encode(config: RunConfiguration): String =
-        myToml.encodeToString(RunConfiguration.serializer(), config)
+        DOCUMENT_HEADER + myToml.encodeToString(RunConfiguration.serializer(), config)
 
     /** Deserialises a [RunConfiguration] from a TOML string produced by [encode]. */
     fun decode(text: String): RunConfiguration =
         myToml.decodeFromString(RunConfiguration.serializer(), text)
+
+    /**
+     *  Multi-line `#`-prefixed banner prepended to every encoded TOML file.
+     *  Read by humans editing the file; ignored by the decoder.  The
+     *  per-property `@TomlComment` annotations on `RunConfiguration` and
+     *  its referenced types provide field-level documentation directly
+     *  above each key.
+     */
+    private val DOCUMENT_HEADER: String = """
+        # ────────────────────────────────────────────────────────────────────────────
+        #  KSL Run Configuration
+        # ────────────────────────────────────────────────────────────────────────────
+        #
+        #  This file describes one analysis for the KSL Single and Scenario apps.
+        #  Both apps consume the same shape: a Single document carries exactly one
+        #  entry under [[scenarios]]; a Scenario document carries one or more.  It
+        #  is read and written by the app and can also be edited by hand.
+        #
+        #  (Optimization runs use a different file format — see
+        #  OptimizationRunConfigurationToml.  The Experiment app does not yet
+        #  persist to TOML.)
+        #
+        #  Document layout (top → bottom):
+        #
+        #    [outputConfig]      Document-wide output settings.  Analysis name,
+        #                        database toggle and policy, CSV flags, report
+        #                        formats.
+        #    executionMode       Top-level string: "SEQUENTIAL" (one scenario at
+        #                        a time, in authored order) or "CONCURRENT".
+        #                        For Single documents (one scenario), this has
+        #                        no observable effect.
+        #    [tracingConfig]     Animation / trace capture settings.  Defaults
+        #                        to OFF; safe to ignore unless you are running
+        #                        a traced model.
+        #    [[scenarios]]       The scenarios to run.  One TOML "[[scenarios]]"
+        #                        array-of-tables entry per scenario; each one
+        #                        carries its own model reference plus per-
+        #                        scenario overrides.  Single documents have
+        #                        exactly one entry; Scenario documents have
+        #                        one or more (names must be unique).
+        #    [[bundleRefs]]      Optional list of model-bundle JARs the
+        #                        scenarios reference.  Each entry pins one
+        #                        bundleId and an ordered list of candidate
+        #                        file paths.
+        #
+        #  Editing guidelines:
+        #
+        #   * String values use "double quotes".  Numbers and booleans are bare
+        #     literals (numberOfReplications = 30, skipOnRun = true).
+        #   * Sections marked "optional" can be omitted entirely.  Within a
+        #     section, omitted fields take the default printed in the comment
+        #     adjacent to that field.
+        #   * Saving from the app overwrites this file.  Your hand-edited
+        #     comments WILL NOT be preserved; field VALUES are preserved
+        #     verbatim.
+        #   * Scenario names must be unique within this document.
+        #   * To find each field's expected type and units, see the comment
+        #     immediately above it.
+        #
+        #  Reference: https://rossetti.github.io/KSLBook/
+        #
+        # ────────────────────────────────────────────────────────────────────────────
+
+        """.trimIndent()
 }

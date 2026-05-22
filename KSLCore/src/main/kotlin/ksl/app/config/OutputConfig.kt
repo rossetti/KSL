@@ -19,6 +19,7 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Per-run output choices: which side-effects the framework wires before the
@@ -79,10 +80,46 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class OutputConfig(
+    @TomlComment(
+        "Boolean. When true, capture each scenario's results in the\n" +
+        "shared KSL SQLite database under\n" +
+        "<workspace>/output/<analysisName>/<analysisName>.db.\n" +
+        "Required for the Comparison Analyzer tab.  Default: false."
+    )
     val enableKSLDatabase: Boolean = false,
+
+    @TomlComment(
+        "Boolean. When true, write per-replication CSV files (one row\n" +
+        "per response per replication) to\n" +
+        "<workspace>/output/<analysisName>/csvDir/.  Document-wide\n" +
+        "default; per-scenario CSV toggles on [[scenarios]] entries\n" +
+        "override this.  Default: false."
+    )
     val enableReplicationCSV: Boolean = false,
+
+    @TomlComment(
+        "Boolean. When true, write across-replication summary CSVs.\n" +
+        "Independent of enableReplicationCSV — opt in here if you want\n" +
+        "only the summary file without the larger per-replication one.\n" +
+        "Default: false."
+    )
     val enableExperimentCSV: Boolean = false,
+
+    @TomlComment(
+        "List of report formats produced by the Single app's pre-run\n" +
+        "auto-render workflow.  Allowed elements (any subset, order\n" +
+        "preserved): 'HTML', 'MARKDOWN', 'TEXT'.  Default: ['HTML'].\n" +
+        "The Scenario app's on-demand Reports tab picks its own format\n" +
+        "per Generate click and DOES NOT read this list."
+    )
     val reports: Set<ReportFormat> = setOf(ReportFormat.HTML),
+
+    @TomlComment(
+        "Absolute filesystem path the runtime uses for the model's\n" +
+        "outputDirectory.  Set at submit time by the hosting app from\n" +
+        "the workspace plus analysisName; DO NOT edit by hand.  null =\n" +
+        "framework default ('kslOutput' under the JVM working dir)."
+    )
     val outputDirectory: String? = null,
     /**
      *  Display name for this analysis — the user's label for the set
@@ -104,6 +141,14 @@ data class OutputConfig(
      *  before it touches the filesystem; the stored value is the
      *  user-typed form so the UI shows what they typed.
      */
+    @TomlComment(
+        "String. Identity for this analysis.  Names the subdirectory\n" +
+        "<workspace>/output/<analysisName>/ where all artifacts land,\n" +
+        "and the SQLite database file stem.  Sanitised at write time\n" +
+        "(letters/digits/_/-, max 64 chars; anything else replaced\n" +
+        "with _).  Default: 'Untitled'.  The Scenario app auto-fills\n" +
+        "this from the saved file's stem the first time you save."
+    )
     val analysisName: String = "Untitled",
     /**
      *  Policy for what to do with `<analysisName>.db` when it
@@ -116,6 +161,15 @@ data class OutputConfig(
      *  database" option — re-running means *replace* or *side-by-
      *  side*.  See [DatabasePolicy] for the two outcomes.
      */
+    @TomlComment(
+        "Policy for what to do when <analysisName>.db already exists\n" +
+        "at the start of a Simulate.  Allowed values:\n" +
+        "  'OVERWRITE' — delete the existing file and create fresh (default).\n" +
+        "  'NEW'       — write <analysisName>_<yyyy-MM-dd_HHmmss>.db beside\n" +
+        "                  the existing file, leaving it untouched.\n" +
+        "There is no 'APPEND' option: KSL's schema rejects duplicate\n" +
+        "experiment names, which a same-document re-run always produces."
+    )
     val databasePolicy: DatabasePolicy = DatabasePolicy.OVERWRITE
 )
 

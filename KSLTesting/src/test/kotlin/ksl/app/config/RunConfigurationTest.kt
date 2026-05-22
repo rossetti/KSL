@@ -4,6 +4,7 @@ import ksl.examples.book.appendixD.GIGcQueue
 import ksl.simulation.Model
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Round-trip tests for the reshaped [RunConfiguration] (Phase 6B
@@ -215,5 +216,78 @@ class RunConfigurationTest {
         val decoded = RunConfigurationToml.decode(RunConfigurationToml.encode(config))
         assertEquals(config, decoded)
         assertEquals(ExecutionMode.CONCURRENT, decoded.executionMode)
+    }
+
+    // ── Self-documenting comments ──────────────────────────────────────
+
+    @Test
+    fun `encoded TOML carries the document header banner`() {
+        val text = RunConfigurationToml.encode(mm1Config())
+        // Banner anchor lines — narrow enough that a typo or accidental
+        // deletion fails the test, broad enough that re-wording the
+        // body text doesn't.
+        assertTrue(text.contains("KSL Run Configuration"), "missing banner title")
+        assertTrue(text.contains("Document layout"), "missing layout section")
+        assertTrue(text.contains("Editing guidelines"), "missing editing-guidelines section")
+        // First non-comment content must be the first section.  With
+        // the reorder, that's [outputConfig].
+        val firstSection = text.lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.startsWith("[") && !it.startsWith("[[") }
+        assertEquals("[outputConfig]", firstSection,
+            "Encoded order should start with [outputConfig]; got: $firstSection")
+    }
+
+    @Test
+    fun `encoded TOML attaches a per-field comment to a sampling of fields`() {
+        val text = RunConfigurationToml.encode(mm1Config())
+        // The annotation text for analysisName mentions the sanitised
+        // subdirectory layout — a stable phrase we can grep on.
+        assertTrue(
+            text.contains("<workspace>/output/<analysisName>/"),
+            "OutputConfig.analysisName comment did not appear in encoded text"
+        )
+        // The databasePolicy comment lists both allowed values.  Enum
+        // names are quoted with single quotes in the comment text
+        // because tomlkt's TomlCommentWriter would escape double
+        // quotes to \" — single quotes pass through unaltered.
+        assertTrue(
+            text.contains("'OVERWRITE'") && text.contains("'NEW'"),
+            "DatabasePolicy comment did not appear in encoded text"
+        )
+        // ScenarioSpec.name comment references uniqueness.
+        assertTrue(
+            text.contains("unique within this document"),
+            "ScenarioSpec.name uniqueness comment did not appear"
+        )
+    }
+
+    @Test
+    fun `legacy TOML lacking the new comments still decodes`() {
+        // Hand-rolled TOML in the pre-comment shape — only field
+        // values, no banner, no per-field comments.  Decoder must
+        // accept it unchanged (kotlinx-serialization TOML ignores
+        // comments at decode time; this guards against any
+        // hypothetical regression there).
+        val legacy = """
+            executionMode = "SEQUENTIAL"
+            scenarios = []
+            bundleRefs = []
+
+            [outputConfig]
+            enableKSLDatabase = true
+            enableReplicationCSV = false
+            enableExperimentCSV = false
+            reports = ["HTML"]
+
+            [tracingConfig]
+            captureLevel = "MINIMAL"
+            flushEveryNEvents = 1000
+        """.trimIndent()
+        val decoded = RunConfigurationToml.decode(legacy)
+        assertEquals(ExecutionMode.SEQUENTIAL, decoded.executionMode)
+        assertTrue(decoded.outputConfig.enableKSLDatabase)
+        assertEquals("Untitled", decoded.outputConfig.analysisName)
+        assertTrue(decoded.scenarios.isEmpty())
     }
 }

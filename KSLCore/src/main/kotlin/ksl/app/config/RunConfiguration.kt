@@ -19,6 +19,7 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serialisable scenarios document — the input directive for a
@@ -92,11 +93,48 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class RunConfiguration(
-    val bundleRefs: List<BundleRef> = emptyList(),
-    val scenarios: List<ScenarioSpec> = emptyList(),
-    val tracingConfig: TracingConfig = TracingConfig(),
+    @TomlComment(
+        "Document-wide output settings.  Sets the analysis identity\n" +
+        "(used as the output subdirectory and database file stem),\n" +
+        "the database toggle and existing-file policy, the CSV flags,\n" +
+        "and the report-format list consumed by the Single app's\n" +
+        "auto-render workflow.  See the [outputConfig] section for the\n" +
+        "individual fields."
+    )
     val outputConfig: OutputConfig = OutputConfig(),
-    val executionMode: ExecutionMode = ExecutionMode.SEQUENTIAL
+
+    @TomlComment(
+        "Top-level string. Allowed values:\n" +
+        "  'SEQUENTIAL' — run scenarios one at a time in authored order (default).\n" +
+        "  'CONCURRENT' — run scenarios in parallel where the substrate allows.\n" +
+        "For Single documents (one scenario) this setting has no observable effect."
+    )
+    val executionMode: ExecutionMode = ExecutionMode.SEQUENTIAL,
+
+    @TomlComment(
+        "Animation / trace capture settings.  Defaults to OFF; the\n" +
+        "[tracingConfig] block can be omitted entirely unless you are\n" +
+        "running a traced model.  See the section comment for fields."
+    )
+    val tracingConfig: TracingConfig = TracingConfig(),
+
+    @TomlComment(
+        "The scenarios to run.  One TOML [[scenarios]] entry per\n" +
+        "scenario; each entry carries its own model reference plus\n" +
+        "per-scenario overrides.  Single documents have exactly one\n" +
+        "entry; Scenario documents have one or more.  Names must be\n" +
+        "unique within this document."
+    )
+    val scenarios: List<ScenarioSpec> = emptyList(),
+
+    @TomlComment(
+        "Optional list of model-bundle JARs the scenarios reference.\n" +
+        "Omit entirely (or leave empty) when no scenario uses a bundle-\n" +
+        "backed model reference.  Each entry pins one bundleId and an\n" +
+        "ordered list of candidate filesystem paths the loader tries in\n" +
+        "order until one resolves."
+    )
+    val bundleRefs: List<BundleRef> = emptyList()
 ) {
     init {
         require(scenarios.map { it.name }.toSet().size == scenarios.size) {

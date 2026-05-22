@@ -19,6 +19,7 @@
 package ksl.app.config
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  *  A document-level reference to a bundle JAR.  Used by the Scenario-app
@@ -51,7 +52,22 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class BundleRef(
+    @TomlComment(
+        "List of candidate filesystem paths to try when resolving this\n" +
+        "bundle's JAR.  Tried in order; absolute, workspace-relative,\n" +
+        "or '~'-prefixed forms are all accepted.  May be empty when the\n" +
+        "bundle was originally dropped via a file picker — the consumer\n" +
+        "then falls back to bundleId-based discovery (Recent Bundles,\n" +
+        "~/.ksl/bundles/) before prompting the user."
+    )
     val paths: List<String> = emptyList(),
+
+    @TomlComment(
+        "String (required, non-blank). Authoritative identifier of the\n" +
+        "bundle JAR (KSLModelBundle.bundleId).  Scenarios reference\n" +
+        "this id via modelReference = { type = 'byBundleAndModelId',\n" +
+        "bundleId = '…', modelId = '…' }."
+    )
     val bundleId: String
 ) {
     init {
