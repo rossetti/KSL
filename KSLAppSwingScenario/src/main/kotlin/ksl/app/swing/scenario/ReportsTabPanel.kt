@@ -78,11 +78,27 @@ class ReportsTabPanel(
             "in its own dialog with full per-analysis options."
     }
 
+    /** Empty-state explainer that fills the void above the buttons
+     *  when there's nothing reportable.  Three messages:
+     *  - no batch reportable & not running → "Run the scenarios…"
+     *  - run in progress → "Simulation in progress…"
+     *  - batch reportable → hidden (buttons carry the affordance)
+     *
+     *  Reads as muted secondary text so the disabled buttons remain
+     *  the visual focus once the tab has populated. */
+    private val emptyStateLabel: JLabel = JLabel().apply {
+        alignmentX = LEFT_ALIGNMENT
+        border = BorderFactory.createEmptyBorder(0, 16, 8, 0)
+        foreground = java.awt.Color(0x66, 0x66, 0x66)
+        isVisible = false
+    }
+
     init {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
 
         add(sectionLabel("On-demand reports"))
+        add(emptyStateLabel)
         val buttonRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
@@ -288,15 +304,37 @@ class ReportsTabPanel(
         // Comparison Analyzer additionally requires per-replication
         // data to be present (the substrate populates
         // `replicationsByItem` for scenario runs but not for other
-        // run modes).
+        // run modes).  The empty-state label is driven by the same
+        // inputs combined with [ScenarioAppController.runningFlow] so
+        // a run-in-progress reads as "running" rather than "nothing
+        // here yet" under R1 (which nulls `lastResult` on Simulate).
         controller.edtScope.launch {
-            controller.lastResult.collect { result ->
-                val batch = result as? RunResult.BatchCompleted
-                val hasSnapshots = batch != null && batch.snapshots.isNotEmpty()
-                val hasReplications = batch != null && batch.replicationsByItem.isNotEmpty()
-                scenarioReportsButton.isEnabled = hasSnapshots
-                comparisonAnalyzerButton.isEnabled = hasReplications
+            controller.lastResult.collect { _ -> refreshEnablement() }
+        }
+        controller.edtScope.launch {
+            controller.runningFlow.collect { _ -> refreshEnablement() }
+        }
+    }
+
+    /** Recompute enablement + empty-state copy from the controller's
+     *  current state.  Single source of truth so the two collectors
+     *  can't race into inconsistent states. */
+    private fun refreshEnablement() {
+        val batch = controller.lastResult.value as? RunResult.BatchCompleted
+        val hasSnapshots = batch != null && batch.snapshots.isNotEmpty()
+        val hasReplications = batch != null && batch.replicationsByItem.isNotEmpty()
+        scenarioReportsButton.isEnabled = hasSnapshots
+        comparisonAnalyzerButton.isEnabled = hasReplications
+
+        if (hasSnapshots) {
+            emptyStateLabel.isVisible = false
+        } else {
+            emptyStateLabel.text = if (controller.runningFlow.value) {
+                "<html>Simulation in progress &mdash; reports will appear when the batch completes.</html>"
+            } else {
+                "<html>No completed scenario batch yet &mdash; run the scenarios to populate this tab.</html>"
             }
+            emptyStateLabel.isVisible = true
         }
     }
 }
