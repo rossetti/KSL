@@ -112,9 +112,24 @@ class ScenarioReportsTabPanel(
     private var summaryMtime: String = ""
 
     /** Current reports directory.  Initialised from the controller's
-     *  workspace and mutable via *Change…*. */
-    private var currentReportsDir: Path = controller.appWorkspace
-        .resolve("output").resolve("reports").toAbsolutePath()
+     *  workspace nested by the current analysis name, and mutable via
+     *  *Change…*.  When the user hasn't overridden it via Change, the
+     *  panel re-derives this path on each new batch so it tracks
+     *  analysis-name changes between Simulates. */
+    private var currentReportsDir: Path = defaultReportsDir()
+
+    /** `true` while [currentReportsDir] still reflects the controller-
+     *  derived default for the current analysis name.  Flips to `false`
+     *  the moment the user picks a directory via *Change…* — after
+     *  which the panel respects their choice and stops auto-tracking
+     *  the analysis name. */
+    private var reportsDirFollowsAnalysis: Boolean = true
+
+    private fun defaultReportsDir(): Path = controller.appWorkspace
+        .resolve("output")
+        .resolve(ksl.app.config.sanitizeAnalysisName(controller.outputConfig.value.analysisName))
+        .resolve("reports")
+        .toAbsolutePath()
 
     /** Names checked when the user last clicked Generate Summary.
      *  `null` means no summary has been generated this session (or the
@@ -426,6 +441,17 @@ class ScenarioReportsTabPanel(
         // New scenarios → previous staleness baseline is no longer
         // meaningful.  Will be reset by the next Generate Summary.
         lastGeneratedSummarySelection = null
+        // Re-derive the reports dir from the (possibly new) analysis
+        // name unless the user explicitly overrode the path via
+        // Change… in this session.  Keeps the default tracking
+        // <workspace>/output/<analysisName>/reports across batches.
+        if (reportsDirFollowsAnalysis) {
+            val derived = defaultReportsDir()
+            if (derived != currentReportsDir) {
+                currentReportsDir = derived
+                reportsDirLabel.text = derived.toString()
+            }
+        }
         tableModel.fireTableDataChanged()
         refreshAll()
     }
@@ -766,6 +792,11 @@ class ScenarioReportsTabPanel(
         currentReportsDir = picked
         reportsDirLabel.text = picked.toString()
         lastGeneratedSummarySelection = null
+        // User overrode the path — stop auto-tracking the analysis
+        // name.  They get this session's reports written wherever
+        // they pointed; the next time the lastResult flips and the
+        // panel rebuilds the table, it leaves the override in place.
+        reportsDirFollowsAnalysis = false
         refreshAll()
     }
 

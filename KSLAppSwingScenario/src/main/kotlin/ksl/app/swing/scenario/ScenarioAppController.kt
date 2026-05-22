@@ -360,7 +360,15 @@ class ScenarioAppController(
         explicitlyCancelled.clear()
         globalCancelRequested = false
 
-        val outputDir = appWorkspace.resolve("output").toAbsolutePath().normalize().toString()
+        // Nest under <workspace>/output/<analysisName>/ so every
+        // artifact of this run (KSL database, kslOutput.txt, CSVs,
+        // reports) lives in a subdirectory keyed by the user's
+        // analysis identity.  Re-running the same document writes
+        // back into the same folder (with the DatabasePolicy
+        // controlling what happens to the .db file inside).
+        val analysisDirName = ksl.app.config.sanitizeAnalysisName(myOutputConfig.value.analysisName)
+        val outputDir = appWorkspace.resolve("output").resolve(analysisDirName)
+            .toAbsolutePath().normalize().toString()
         val config = RunConfiguration(
             scenarios = scenarios,
             bundleRefs = deriveBundleRefs(scenarios),
@@ -532,6 +540,26 @@ class ScenarioAppController(
         markDirty()
     }
 
+    /**
+     *  Replace the document's analysis name.  The stored value is the
+     *  raw user input (so the UI shows what they typed); sanitisation
+     *  happens at the points that touch the filesystem.  No-op when
+     *  the value is unchanged.  Marks the document dirty so the user
+     *  is prompted to save the rename.
+     */
+    fun setAnalysisName(raw: String) {
+        if (myOutputConfig.value.analysisName == raw) return
+        myOutputConfig.value = myOutputConfig.value.copy(analysisName = raw)
+        markDirty()
+    }
+
+    /** Replace the document's [DatabasePolicy]. */
+    fun setDatabasePolicy(policy: ksl.app.config.DatabasePolicy) {
+        if (myOutputConfig.value.databasePolicy == policy) return
+        myOutputConfig.value = myOutputConfig.value.copy(databasePolicy = policy)
+        markDirty()
+    }
+
     /** Set the document-level execution mode (sequential or parallel). */
     fun setExecutionMode(mode: ExecutionMode) {
         if (myExecutionMode.value == mode) return
@@ -618,24 +646,54 @@ class ScenarioAppController(
     }
 
     /**
-     *  Remove every scenario from the list.  Clears the selection
-     *  (selectedIndex → -1), marks the document dirty, and is a
-     *  no-op when the list is already empty.
+     *  Remove every scenario from the list and detach the document
+     *  from its on-disk source file.  Returns the [Path] the document
+     *  was associated with at the time of the call, or `null` when it
+     *  had no file association (callers use this to decide whether to
+     *  surface a "detached from <file>" notification).  No-op (returns
+     *  `null`) when the list is already empty.
      *
-     *  Identity-coupled lifecycle: removing every scenario invalidates
-     *  any in-memory [lastResult] (its snapshots no longer describe
-     *  anything in the editable list).  Both `lastResult` and the
-     *  per-scenario status map are cleared.  `resetConfiguration` /
-     *  `loadConfiguration` provide the same effect at document-load
-     *  boundaries.
+     *  Why detach: this is a single-click whole-document wipe.  Under
+     *  the previous "clear-and-stay-dirty" contract, a subsequent
+     *  Save would overwrite the loaded file with an empty
+     *  configuration — a one-click data-loss path.  Treating *Clear
+     *  All* as "start a new document, keep my output-config /
+     *  execution-mode preferences" closes that path: Save now has no
+     *  current-file target and routes to *Save As*, forcing the
+     *  destination choice to be explicit.  The original file on disk
+     *  is preserved.
+     *
+     *  Identity-coupled lifecycle: removing every scenario also
+     *  invalidates any in-memory [lastResult] (its snapshots no
+     *  longer describe anything in the editable list) and the
+     *  per-scenario status map.  Dirty + edited-since-last-sim flags
+     *  are reset since the document is effectively new.  The
+     *  document-level [OutputConfig] and [ExecutionMode] are NOT
+     *  touched — those are user preferences, not document content;
+     *  `resetConfiguration` / `loadConfiguration` are the paths that
+     *  reset them.
      */
-    fun clearScenarios() {
-        if (myScenarios.value.isEmpty()) return
+    fun clearScenarios(): Path? {
+        if (myScenarios.value.isEmpty()) return null
+        val previousFile = myCurrentFile.value
         myScenarios.value = emptyList()
         mySelectedIndex.value = -1
         myLastResult.value = null
         myScenarioStatuses.value = emptyMap()
-        markDirty()
+        myCurrentFile.value = null
+        myIsDirty.value = false
+        myEditedSinceLastSim.value = false
+        // Analysis name is document identity, not a session
+        // preference — reset it alongside the file detach so a
+        // subsequent Simulate doesn't write into the directory of
+        // the document we just discarded.  Preference-style fields
+        // on OutputConfig (enableKSLDatabase, CSV toggles,
+        // databasePolicy) survive Clear All by design.
+        if (myOutputConfig.value.analysisName != "Untitled") {
+            myOutputConfig.value =
+                myOutputConfig.value.copy(analysisName = "Untitled")
+        }
+        return previousFile
     }
 
     /** Swap the scenario at [index] with its predecessor.  No-op when [index] is 0 or out of range. */
@@ -880,10 +938,24 @@ class ScenarioAppController(
      *  Record that the current state has been persisted to [path].
      *  Sets [currentFile] and clears [isDirty].  Called by the
      *  frame's *Save* / *Save As…* handlers after a successful write.
+     *
+     *  Once-at-default auto-fill: if [OutputConfig.analysisName] is
+     *  still at its default `"Untitled"` value, replace it with the
+     *  saved file's stem (e.g. `mySim.toml` → `"mySim"`).  Thereafter
+     *  the user owns the name — a subsequent *Save As* to a
+     *  differently-named file does NOT silently rename the analysis,
+     *  because the field is no longer at the default.
      */
     fun markSaved(path: Path) {
         myCurrentFile.value = path
         myIsDirty.value = false
+        if (myOutputConfig.value.analysisName == "Untitled") {
+            val stem = path.fileName.toString().substringBeforeLast('.')
+            if (stem.isNotBlank()) {
+                myOutputConfig.value =
+                    myOutputConfig.value.copy(analysisName = stem)
+            }
+        }
     }
 
     override fun close() {

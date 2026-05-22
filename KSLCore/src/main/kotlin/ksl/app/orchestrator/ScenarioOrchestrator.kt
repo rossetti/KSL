@@ -19,10 +19,13 @@
 package ksl.app.orchestrator
 
 import ksl.app.KSLAppSession
+import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
+import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.sanitizeAnalysisName
 import ksl.app.session.*
 import ksl.controls.experiments.ConcurrentScenarioRunner
 import ksl.controls.experiments.ExperimentRunParameters
@@ -30,11 +33,14 @@ import ksl.controls.experiments.Scenario
 import ksl.simulation.*
 import ksl.utilities.io.JARModelBuilder
 import ksl.utilities.io.KSL
+import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
 import ksl.simulation.IterativeProcessIfc.EndingStatus
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * Orchestrates a scenario-sweep run from a [RunConfiguration] whose
@@ -138,8 +144,21 @@ class ScenarioOrchestrator {
                 // safe for the fallback branch where the dir already
                 // exists.
                 java.nio.file.Files.createDirectories(outputDir)
+                // Resolve the run identity from the analysis name on
+                // OutputConfig.  The sanitised form is the on-disk
+                // identifier (directory / file stem); the un-sanitised
+                // form is what the user typed.  Hosts already nest
+                // outputDir under the sanitised name (see
+                // `ScenarioAppController.submit()`), so the runner
+                // name + the database file land in the right place
+                // without further path arithmetic here.
+                val runnerName = resolveRunnerName(config.outputConfig, runId)
+                val kslDb = resolveKslDatabase(config.outputConfig, runnerName, outputDir)
                 val runner = ConcurrentScenarioRunner(
-                    "ScenarioOrchestrator_$runId", scenarios, outputDir
+                    name = runnerName,
+                    scenarioList = scenarios,
+                    pathToOutputDirectory = outputDir,
+                    kslDb = kslDb
                 )
                 runnerRef.set(runner)
 
@@ -372,4 +391,63 @@ private fun ModelReference.displayId(): String = when (this) {
     is ModelReference.ByJar                -> jarPath
     is ModelReference.ByBundleAndModelId   -> "$bundleId/$modelId"
     is ModelReference.Embedded             -> "embedded:$modelName"
+}
+
+/**
+ *  Pick the [ConcurrentScenarioRunner] name for this run.  Prefers
+ *  the user-controlled analysis name from [OutputConfig.analysisName]
+ *  (sanitised), so the database file and any artifacts the runner
+ *  derives from its name carry a stable, predictable identity across
+ *  re-runs of the same document.  Falls back to the substrate's
+ *  historical `ScenarioOrchestrator_<UUID>` form only when the
+ *  caller (e.g. a low-level test that bypasses the GUI) hasn't set
+ *  a meaningful analysis name — the field defaults to `"Untitled"`
+ *  on a fresh `OutputConfig`, which still sanitises cleanly.
+ */
+private fun resolveRunnerName(outputConfig: OutputConfig, runId: String): String {
+    val sanitised = sanitizeAnalysisName(outputConfig.analysisName)
+    return sanitised.ifBlank { "ScenarioOrchestrator_$runId" }
+}
+
+/**
+ *  Open the [KSLDatabase] for this run according to
+ *  [OutputConfig.databasePolicy].
+ *
+ *  * `OVERWRITE` — delete `<runnerName>.db` (if present) before
+ *    opening a fresh database with that stem.
+ *  * `NEW` — open `<runnerName>_<yyyy-MM-dd_HHmmss>.db` alongside
+ *    any existing file, leaving the old one untouched.
+ *
+ *  KSL's schema rejects re-inserting `SimulationRun` rows with
+ *  experiment names that already appear in the database, so an
+ *  "append to existing" mode would deadlock on a same-document
+ *  re-run (every scenario carries the same name).  The two
+ *  policies above are exhaustive.
+ */
+private fun resolveKslDatabase(
+    outputConfig: OutputConfig,
+    runnerName: String,
+    outputDir: java.nio.file.Path
+): KSLDatabase {
+    val fileStem = when (outputConfig.databasePolicy) {
+        DatabasePolicy.OVERWRITE -> {
+            // Replace-in-place semantics: delete the prior file so
+            // KSLDatabase opens a fresh SQLite file with no leftover
+            // rows.  deleteIfExists is a no-op when the file is
+            // absent (first run for this analysis name).
+            val target = outputDir.resolve("$runnerName.db")
+            java.nio.file.Files.deleteIfExists(target)
+            runnerName
+        }
+        DatabasePolicy.NEW -> {
+            // Side-by-side semantics: timestamp suffix on the file
+            // stem.  Existing <runnerName>.db (or any prior NEW file)
+            // is untouched.
+            val timestamp = LocalDateTime.now().format(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss")
+            )
+            "${runnerName}_$timestamp"
+        }
+    }
+    return KSLDatabase("$fileStem.db", outputDir)
 }

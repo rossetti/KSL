@@ -98,7 +98,34 @@ class ScenarioAppFrame(
         controller.outputConfig.value.enableKSLDatabase
     ).apply {
         toolTipText = "Capture each scenario's results in the shared KSL SQLite database " +
-            "(<workspace>/output/).  Required for downstream Comparison-Analyzer queries."
+            "(<workspace>/output/<analysisName>/).  Required for downstream Comparison-Analyzer queries."
+    }
+
+    /** Editable text field for [ksl.app.config.OutputConfig.analysisName].
+     *  Round-trips through the controller's setAnalysisName mutator
+     *  on focus loss and Enter.  The value the user types is stored
+     *  as-is; the substrate sanitises at the points that touch the
+     *  filesystem.  Disabled while a run is in flight. */
+    private val analysisNameField = javax.swing.JTextField(
+        controller.outputConfig.value.analysisName, 16
+    ).apply {
+        toolTipText = "Identity for this analysis.  Names the output subdirectory " +
+            "<workspace>/output/<analysisName>/ and the SQLite database file.  " +
+            "Re-running the same analysis re-uses the same folder."
+    }
+
+    /** Dropdown for [ksl.app.config.DatabasePolicy] — what to do when
+     *  <analysisName>.db already exists on disk at Simulate time.
+     *  Two options: OVERWRITE (delete & replace) and NEW (timestamp
+     *  suffix, keep the existing file). */
+    private val databasePolicyCombo = javax.swing.JComboBox(
+        arrayOf(ksl.app.config.DatabasePolicy.OVERWRITE, ksl.app.config.DatabasePolicy.NEW)
+    ).apply {
+        selectedItem = controller.outputConfig.value.databasePolicy
+        toolTipText = "What to do when the analysis database already exists.  " +
+            "OVERWRITE: delete and replace.  NEW: keep the old file, write to " +
+            "<analysisName>_<timestamp>.db alongside it.  KSL's schema rejects " +
+            "duplicate experiment names, so there is no append option."
     }
 
     private val consolePanel = ConsoleLogPanel(
@@ -195,7 +222,10 @@ class ScenarioAppFrame(
         )
         val comparisonAnalyzerTab = ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel(
             defaultOutputDirProvider = {
-                controller.appWorkspace.resolve("output").resolve("reports")
+                controller.appWorkspace
+                    .resolve("output")
+                    .resolve(ksl.app.config.sanitizeAnalysisName(controller.outputConfig.value.analysisName))
+                    .resolve("reports")
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
             onMessage = { msg, sev ->
@@ -379,6 +409,25 @@ class ScenarioAppFrame(
         enableDbCheckbox.addActionListener {
             controller.setEnableKSLDatabase(enableDbCheckbox.isSelected)
         }
+        // Analysis name commits on focus loss and on Enter — same
+        // model as common form fields.  setAnalysisName is a no-op
+        // when the value is unchanged, so the EDT collector that
+        // pushes outputConfig changes back into the field doesn't
+        // cause re-entrant churn.
+        analysisNameField.addActionListener {
+            controller.setAnalysisName(analysisNameField.text)
+        }
+        analysisNameField.addFocusListener(object : java.awt.event.FocusListener {
+            override fun focusGained(e: java.awt.event.FocusEvent) { /* no-op */ }
+            override fun focusLost(e: java.awt.event.FocusEvent) {
+                controller.setAnalysisName(analysisNameField.text)
+            }
+        })
+        databasePolicyCombo.addActionListener {
+            val selected = databasePolicyCombo.selectedItem as? ksl.app.config.DatabasePolicy
+                ?: return@addActionListener
+            controller.setDatabasePolicy(selected)
+        }
         add(simulateButton)
         add(Box.createHorizontalStrut(8))
         add(cancelButton)
@@ -388,7 +437,15 @@ class ScenarioAppFrame(
         add(sequentialRadio)
         add(concurrentRadio)
         add(Box.createHorizontalStrut(16))
+        add(JLabel("Analysis:"))
+        add(Box.createHorizontalStrut(4))
+        add(analysisNameField)
+        add(Box.createHorizontalStrut(16))
         add(enableDbCheckbox)
+        add(Box.createHorizontalStrut(4))
+        add(JLabel("DB:"))
+        add(Box.createHorizontalStrut(4))
+        add(databasePolicyCombo)
         add(Box.createHorizontalGlue())
     }
 
@@ -449,6 +506,8 @@ class ScenarioAppFrame(
                 sequentialRadio.isEnabled = !running
                 concurrentRadio.isEnabled = !running
                 enableDbCheckbox.isEnabled = !running
+                analysisNameField.isEnabled = !running
+                databasePolicyCombo.isEnabled = !running
                 refreshSimulateEnablement()
             }
         }
@@ -468,6 +527,17 @@ class ScenarioAppFrame(
             controller.outputConfig.collect { cfg ->
                 if (enableDbCheckbox.isSelected != cfg.enableKSLDatabase) {
                     enableDbCheckbox.isSelected = cfg.enableKSLDatabase
+                }
+                // Mirror analysisName + databasePolicy into the
+                // toolbar widgets.  Guard the analysisName push with
+                // a focus check so the field doesn't stomp the user's
+                // in-progress edit when an unrelated outputConfig
+                // change fires.
+                if (analysisNameField.text != cfg.analysisName && !analysisNameField.hasFocus()) {
+                    analysisNameField.text = cfg.analysisName
+                }
+                if (databasePolicyCombo.selectedItem != cfg.databasePolicy) {
+                    databasePolicyCombo.selectedItem = cfg.databasePolicy
                 }
             }
         }

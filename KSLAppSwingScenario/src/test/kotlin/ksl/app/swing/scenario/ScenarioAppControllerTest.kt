@@ -406,26 +406,52 @@ class ScenarioAppControllerTest {
     }
 
     @Test
-    fun `clearScenarios empties the list, clears selection, marks dirty`() {
+    fun `clearScenarios detaches the file, clears dirty, and reports the previous path`() {
         val c = fresh()
         c.addScenario(spec("a"))
         c.addScenario(spec("b"))
-        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        val path = java.nio.file.Paths.get("/tmp/x.toml")
+        c.markSaved(path)
         assertFalse(c.isDirty.value)
         assertEquals(2, c.scenarios.value.size)
 
-        c.clearScenarios()
+        val detached = c.clearScenarios()
         assertTrue(c.scenarios.value.isEmpty())
         assertEquals(-1, c.selectedIndex.value)
-        assertTrue(c.isDirty.value, "clearScenarios must mark the document dirty")
+        // Option A: Clear All detaches the document from its loaded
+        // file and resets dirty.  This closes the one-click Save data-
+        // loss path (Save with an empty configuration would otherwise
+        // overwrite the file on disk).  The caller learns the previous
+        // path so it can surface a "detached from <file>" notification.
+        assertEquals(path, detached, "previous file path must be returned for the caller's notification")
+        assertNull(c.currentFile.value, "currentFile must be cleared on Clear All")
+        assertFalse(c.isDirty.value, "isDirty must be cleared on Clear All")
+        assertFalse(c.editedSinceLastSim.value, "editedSinceLastSim must be cleared on Clear All")
     }
 
     @Test
-    fun `clearScenarios on empty list is a no-op`() {
+    fun `clearScenarios without a loaded file still clears, returns null`() {
         val c = fresh()
-        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        c.addScenario(spec("a"))
+        // No markSaved — never associated with a file.
+        assertTrue(c.isDirty.value)
+
+        val detached = c.clearScenarios()
+        assertTrue(c.scenarios.value.isEmpty())
+        assertNull(detached, "no prior file association → callers should not show a detach notification")
+        assertNull(c.currentFile.value)
         assertFalse(c.isDirty.value)
-        c.clearScenarios()
+    }
+
+    @Test
+    fun `clearScenarios on empty list is a no-op and preserves file association`() {
+        val c = fresh()
+        val path = java.nio.file.Paths.get("/tmp/x.toml")
+        c.markSaved(path)
+        assertFalse(c.isDirty.value)
+        val detached = c.clearScenarios()
+        assertNull(detached, "no-op must not signal a detach")
+        assertEquals(path, c.currentFile.value, "no-op must not detach the file")
         assertFalse(c.isDirty.value, "clearScenarios on empty list must not flip dirty")
     }
 
@@ -552,6 +578,109 @@ class ScenarioAppControllerTest {
         assertFalse(c.submit())
         // And the prior result, if any, must already be cleared per R1.
         assertNull(c.lastResult.value)
+    }
+
+    // ── Analysis-name + database-policy lifecycle ─────────────────────
+
+    @Test
+    fun `fresh controller defaults analysisName to Untitled and policy to OVERWRITE`() {
+        val c = fresh()
+        assertEquals("Untitled", c.outputConfig.value.analysisName)
+        assertEquals(ksl.app.config.DatabasePolicy.OVERWRITE, c.outputConfig.value.databasePolicy)
+    }
+
+    @Test
+    fun `setAnalysisName stores the raw user input and marks dirty`() {
+        val c = fresh()
+        c.setAnalysisName("My Run #1")
+        assertEquals("My Run #1", c.outputConfig.value.analysisName)
+        assertTrue(c.isDirty.value)
+        // Subsequent identical write is a no-op (no dirty re-flip).
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        // markSaved auto-fill is once-at-default; the field is no
+        // longer "Untitled" so it must not be overwritten with the
+        // file stem.
+        assertEquals("My Run #1", c.outputConfig.value.analysisName)
+    }
+
+    @Test
+    fun `markSaved auto-fills analysisName when still at the Untitled default`() {
+        val c = fresh()
+        assertEquals("Untitled", c.outputConfig.value.analysisName)
+        c.markSaved(java.nio.file.Paths.get("/tmp/queueingExperiment.toml"))
+        // Auto-fill replaces "Untitled" with the file stem.
+        assertEquals("queueingExperiment", c.outputConfig.value.analysisName)
+    }
+
+    @Test
+    fun `markSaved does NOT overwrite a user-set analysisName`() {
+        val c = fresh()
+        c.setAnalysisName("MyAnalysis")
+        c.markSaved(java.nio.file.Paths.get("/tmp/different.toml"))
+        // User owns the name from the first non-default set.
+        assertEquals("MyAnalysis", c.outputConfig.value.analysisName)
+    }
+
+    @Test
+    fun `clearScenarios resets analysisName to Untitled but preserves databasePolicy`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.setAnalysisName("MyAnalysis")
+        c.setDatabasePolicy(ksl.app.config.DatabasePolicy.NEW)
+        c.clearScenarios()
+        // Identity field — reset.
+        assertEquals("Untitled", c.outputConfig.value.analysisName)
+        // Preference field — preserved.
+        assertEquals(ksl.app.config.DatabasePolicy.NEW, c.outputConfig.value.databasePolicy)
+    }
+
+    @Test
+    fun `sanitizeAnalysisName replaces unsafe characters and caps length`() {
+        assertEquals("OK_name-1", ksl.app.config.sanitizeAnalysisName("OK_name-1"))
+        assertEquals("a_b_c", ksl.app.config.sanitizeAnalysisName("a b c"))
+        assertEquals("with_slash_", ksl.app.config.sanitizeAnalysisName("with/slash."))
+        // Whitespace-only input collapses to "Untitled" (the empty
+        // case after sanitisation).
+        assertEquals("Untitled", ksl.app.config.sanitizeAnalysisName("   "))
+        // 64-char cap.
+        val long = "x".repeat(80)
+        val result = ksl.app.config.sanitizeAnalysisName(long)
+        assertEquals(64, result.length)
+    }
+
+    @Test
+    fun `TOML round-trip preserves analysisName and databasePolicy`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.setAnalysisName("MyAnalysis")
+        c.setDatabasePolicy(ksl.app.config.DatabasePolicy.NEW)
+        val text = RunConfigurationToml.encode(c.currentConfiguration())
+        val decoded = RunConfigurationToml.decode(text)
+        assertEquals("MyAnalysis", decoded.outputConfig.analysisName)
+        assertEquals(ksl.app.config.DatabasePolicy.NEW, decoded.outputConfig.databasePolicy)
+    }
+
+    @Test
+    fun `legacy TOML without analysisName decodes to Untitled with OVERWRITE`() {
+        // Hand-rolled minimal TOML carrying only outputConfig keys
+        // that pre-date the analysisName + databasePolicy additions.
+        // The defaults on OutputConfig must kick in cleanly so files
+        // saved before the new fields existed continue to load.
+        val legacyToml = """
+            executionMode = "SEQUENTIAL"
+            scenarios = []
+            bundleRefs = []
+
+            [outputConfig]
+            enableKSLDatabase = true
+            enableReplicationCSV = false
+            enableExperimentCSV = false
+            reports = ["HTML"]
+        """.trimIndent()
+        val decoded = RunConfigurationToml.decode(legacyToml)
+        assertEquals("Untitled", decoded.outputConfig.analysisName)
+        assertEquals(ksl.app.config.DatabasePolicy.OVERWRITE, decoded.outputConfig.databasePolicy)
+        assertTrue(decoded.outputConfig.enableKSLDatabase)
     }
 
     /**

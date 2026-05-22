@@ -290,9 +290,25 @@ class ScenariosTablePanel(
         clearAllButton.addActionListener {
             val count = controller.scenarios.value.size
             if (count == 0) return@addActionListener
+            val plural = if (count == 1) "" else "s"
+            // Clear All is a single-click whole-document wipe.  Under
+            // the controller's contract it also detaches the document
+            // from any loaded file (so a subsequent Save can't
+            // overwrite the loaded file with an empty configuration).
+            // Spell that out in the confirmation when there's a file
+            // to lose; users with a new unsaved document don't need
+            // the detach sentence.
+            val attachedFile = controller.currentFile.value
+            val body = if (attachedFile != null) {
+                "Remove all $count scenario$plural from the list?\n\n" +
+                    "The document will be detached from '${attachedFile.fileName}'.\n" +
+                    "The file on disk is preserved — re-open it to recover its scenarios."
+            } else {
+                "Remove all $count scenario$plural from the list?"
+            }
             val choice = JOptionPane.showConfirmDialog(
                 this,
-                "Remove all $count scenario${if (count == 1) "" else "s"} from the list?",
+                body,
                 "Clear All Scenarios",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE

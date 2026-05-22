@@ -83,5 +83,86 @@ data class OutputConfig(
     val enableReplicationCSV: Boolean = false,
     val enableExperimentCSV: Boolean = false,
     val reports: Set<ReportFormat> = setOf(ReportFormat.HTML),
-    val outputDirectory: String? = null
+    val outputDirectory: String? = null,
+    /**
+     *  Display name for this analysis — the user's label for the set
+     *  of scenarios in this document.  Used by hosts as:
+     *
+     *  - the subdirectory under `<workspace>/output/` where every
+     *    artifact of a Simulate (the `<analysisName>.db`, reports,
+     *    CSVs, kslOutput.txt) lands;
+     *  - the stem of the SQLite database file produced by the
+     *    `ScenarioOrchestrator` when [enableKSLDatabase] is on;
+     *  - a stable identity for the document so re-running the same
+     *    scenarios overwrites the same artifacts instead of
+     *    accumulating new ones.
+     *
+     *  Defaults to `"Untitled"` for fresh documents.  The Scenario
+     *  app auto-fills from the TOML filename stem on the first Save
+     *  while the field is still at the default; thereafter the user
+     *  owns it.  Sanitised at write time via [sanitizeAnalysisName]
+     *  before it touches the filesystem; the stored value is the
+     *  user-typed form so the UI shows what they typed.
+     */
+    val analysisName: String = "Untitled",
+    /**
+     *  Policy for what to do with `<analysisName>.db` when it
+     *  already exists on disk at the start of a Simulate.
+     *
+     *  KSL's database schema rejects re-inserting `SimulationRun`
+     *  rows whose experiment names collide with rows already present
+     *  (and a re-run of the same document has identical experiment
+     *  names by construction).  So there is no "append to existing
+     *  database" option — re-running means *replace* or *side-by-
+     *  side*.  See [DatabasePolicy] for the two outcomes.
+     */
+    val databasePolicy: DatabasePolicy = DatabasePolicy.OVERWRITE
 )
+
+/**
+ *  How the `ScenarioOrchestrator` should handle an existing
+ *  `<analysisName>.db` file at the start of a Simulate.  Stored on
+ *  [OutputConfig.databasePolicy].
+ */
+@Serializable
+enum class DatabasePolicy {
+    /**
+     *  Delete the existing `<analysisName>.db` (if present) before
+     *  the run, then create a fresh database.  Re-running the same
+     *  analysis replaces the prior database file in-place; only the
+     *  most recent run's data is kept on disk.  The default — matches
+     *  the most common workflow where the user iterates on a
+     *  configuration and only cares about the latest results.
+     */
+    OVERWRITE,
+
+    /**
+     *  Keep any existing `<analysisName>.db` untouched and open a
+     *  new database at `<analysisName>_<yyyy-MM-dd_HHmmss>.db`
+     *  alongside it.  Both files survive on disk — the user can
+     *  compare runs across time.  Disk usage accumulates; periodic
+     *  cleanup is the user's responsibility.
+     */
+    NEW
+}
+
+/**
+ *  Coerce [raw] into a filesystem-safe form suitable for both a
+ *  directory name and a database file stem.  Replaces any character
+ *  outside `[A-Za-z0-9_-]` with `_`, trims the result to at most 64
+ *  characters, and returns `"Untitled"` when the coerced form is
+ *  empty (for example, when the user typed only whitespace).
+ *
+ *  Stable and idempotent: a value that already satisfies the rules
+ *  is returned unchanged.
+ */
+fun sanitizeAnalysisName(raw: String): String {
+    // Trim first so a purely-whitespace input collapses to empty
+    // (and then to "Untitled"); otherwise each space would map to
+    // '_' and produce a meaningless "___" identifier.
+    val trimmed = raw.trim()
+    val cleaned = trimmed.map { c ->
+        if (c.isLetterOrDigit() || c == '_' || c == '-') c else '_'
+    }.joinToString("").take(64)
+    return cleaned.ifEmpty { "Untitled" }
+}
