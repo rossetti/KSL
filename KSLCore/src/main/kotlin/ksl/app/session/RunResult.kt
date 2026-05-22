@@ -130,3 +130,34 @@ sealed class RunResult {
      */
     data class Cancelled(val reason: String) : RunResult()
 }
+
+/**
+ *  Return a copy of [this] [RunResult.BatchCompleted] with the snapshot for
+ *  [scenarioName] removed, alongside the matching entry in
+ *  [RunResult.BatchCompleted.replicationsByItem].  Returns `null` when the
+ *  filter empties [RunResult.BatchCompleted.snapshots] — callers treat that
+ *  as "the result is now empty; drop it".
+ *
+ *  Matching is by `experiment.exp_name`, which is the same key
+ *  `ScenarioOrchestrator` uses when populating `replicationsByItem`.
+ *  Returns the receiver unchanged when no snapshot carries [scenarioName].
+ *
+ *  [RunResult.BatchCompleted.summary] is intentionally left untouched —
+ *  it's an audit record of the batch that actually ran (item counts,
+ *  begin/end times, etc.) and should not be rewritten to reflect a
+ *  post-hoc deletion of one of its outputs.
+ *
+ *  Supports the Scenario app's identity-coupled lifecycle: when the user
+ *  deletes a scenario from the editable list, the controller calls this
+ *  to drop the corresponding completed snapshot from the in-memory
+ *  result.  Lives as an extension rather than a member so the data class
+ *  itself doesn't grow per-host helpers; the helper is pure and has no
+ *  Scenario-app coupling.
+ */
+fun RunResult.BatchCompleted.withoutScenario(scenarioName: String): RunResult.BatchCompleted? {
+    val filtered = snapshots.filter { it.experiment.exp_name != scenarioName }
+    if (filtered.size == snapshots.size) return this  // name not present — no-op
+    if (filtered.isEmpty()) return null
+    val filteredReps = replicationsByItem - scenarioName
+    return copy(snapshots = filtered, replicationsByItem = filteredReps)
+}

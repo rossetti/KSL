@@ -44,6 +44,7 @@ import ksl.app.config.ScenarioSpec
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
+import ksl.app.session.withoutScenario
 import ksl.app.settings.UserSettingsStore
 import java.nio.file.Path
 
@@ -147,6 +148,22 @@ class ScenarioAppController(
     private fun markDirty() {
         if (!myIsDirty.value) myIsDirty.value = true
         if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
+    }
+
+    /**
+     *  Drop the snapshot for [scenarioName] from any in-memory
+     *  [RunResult.BatchCompleted], collapsing [lastResult] to `null`
+     *  when the last snapshot is removed.  No-op for any other
+     *  `RunResult` variant (Completed / Optimization / Failed /
+     *  Cancelled / null) and for unknown names — those are silent
+     *  passes so callers can fire-and-forget without guarding.
+     *
+     *  Supports identity-coupled lifecycle: scenario-list mutators
+     *  call this to keep the result aligned with the editable list.
+     */
+    private fun dropResultFor(scenarioName: String) {
+        val current = myLastResult.value as? RunResult.BatchCompleted ?: return
+        myLastResult.value = current.withoutScenario(scenarioName)
     }
 
     // ── Bundle library ─────────────────────────────────────────────────────
@@ -319,6 +336,16 @@ class ScenarioAppController(
         if (myRunning.value) return false
         val scenarios = myScenarios.value
         if (scenarios.none { !it.skipOnRun }) return false
+
+        // R1 lifecycle: hitting Simulate is a destructive act on the
+        // prior in-memory result.  Clear it *before* the run kicks off
+        // so the Reports surfaces flip to their empty state through
+        // the normal flow (rather than as a side-effect of a substrate
+        // RunStarted event, which the substrate does not emit for
+        // ScenarioOrchestrator runs anyway).  If the new run aborts,
+        // the user re-runs to repopulate; this matches the chosen
+        // R1 semantics — see the lifecycle plan for the discussion.
+        myLastResult.value = null
 
         // Seed: skipped scenarios stay skipped, runnable scenarios start
         // PENDING (queued).  The substrate's per-scenario
@@ -569,12 +596,23 @@ class ScenarioAppController(
         require(index in list.indices) {
             "deleteScenario: index $index out of range 0..${list.lastIndex}"
         }
+        val doomedName = list[index].name
         val updated = list.toMutableList().also { it.removeAt(index) }
         myScenarios.value = updated
         mySelectedIndex.value = when {
             updated.isEmpty() -> -1
             index < updated.size -> index             // keep slot
             else -> updated.lastIndex                 // was last; shift up
+        }
+        // Identity-coupled lifecycle: dropping a scenario from the
+        // editable list also drops its snapshot from any in-memory
+        // result so the Reports tabs can't render a phantom row for
+        // a scenario the user has removed.  The per-scenario status
+        // map is similarly pruned so the Scenarios table doesn't
+        // carry a status for a name that no longer exists.
+        dropResultFor(doomedName)
+        if (doomedName in myScenarioStatuses.value) {
+            myScenarioStatuses.value = myScenarioStatuses.value - doomedName
         }
         markDirty()
     }
@@ -584,16 +622,19 @@ class ScenarioAppController(
      *  (selectedIndex → -1), marks the document dirty, and is a
      *  no-op when the list is already empty.
      *
-     *  Stale run-time state ([lastResult], [scenarioStatuses], etc.)
-     *  is *not* touched — those are session-scoped and persist
-     *  across in-document edits.  Use [resetConfiguration] or
-     *  [loadConfiguration] for "fresh document" semantics that
-     *  also clear run state.
+     *  Identity-coupled lifecycle: removing every scenario invalidates
+     *  any in-memory [lastResult] (its snapshots no longer describe
+     *  anything in the editable list).  Both `lastResult` and the
+     *  per-scenario status map are cleared.  `resetConfiguration` /
+     *  `loadConfiguration` provide the same effect at document-load
+     *  boundaries.
      */
     fun clearScenarios() {
         if (myScenarios.value.isEmpty()) return
         myScenarios.value = emptyList()
         mySelectedIndex.value = -1
+        myLastResult.value = null
+        myScenarioStatuses.value = emptyMap()
         markDirty()
     }
 
@@ -645,7 +686,21 @@ class ScenarioAppController(
             "Scenario name '${updated.name}' already exists in the document"
         }
         if (list[index] == updated) return
+        val oldName = list[index].name
         myScenarios.value = list.toMutableList().also { it[index] = updated }
+        // Rename semantics: identity-breaking change.  Per the
+        // lifecycle plan, rename = delete-old + add-new at the
+        // result level — the old name's snapshot is dropped, and
+        // the new name has no snapshot until the next Simulate.
+        // Field-only edits (same name) leave the result intact;
+        // the stale-results banner handles the user-facing
+        // freshness signal.
+        if (oldName != updated.name) {
+            dropResultFor(oldName)
+            if (oldName in myScenarioStatuses.value) {
+                myScenarioStatuses.value = myScenarioStatuses.value - oldName
+            }
+        }
         markDirty()
     }
 

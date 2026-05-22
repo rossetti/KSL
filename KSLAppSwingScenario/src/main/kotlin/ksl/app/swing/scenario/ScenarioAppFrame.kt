@@ -78,7 +78,12 @@ class ScenarioAppFrame(
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
 
-    private val simulateButton = JButton("Simulate")
+    private val simulateButton = JButton("Simulate").apply {
+        // Disabled at construction; the wireRunIndicators collectors
+        // re-evaluate the combined (not-running AND has-runnable-scenario)
+        // gate as soon as they subscribe.
+        isEnabled = false
+    }
     private val cancelButton = JButton("Cancel").apply { isEnabled = false }
     private val sequentialRadio = javax.swing.JRadioButton(
         "Sequential",
@@ -353,14 +358,35 @@ class ScenarioAppFrame(
         }
     }
 
+    /** Apply the combined gate for the Simulate button.  Called from
+     *  every collector that touches one of the inputs (running flag,
+     *  scenarios list).  Q4 in the lifecycle plan: an empty scenarios
+     *  list disables Simulate. */
+    private fun refreshSimulateEnablement() {
+        val running = controller.runningFlow.value
+        val hasRunnable = controller.scenarios.value.any { !it.skipOnRun }
+        simulateButton.isEnabled = !running && hasRunnable
+    }
+
     private fun wireRunIndicators() {
+        // Simulate is enabled when: not currently running AND there is
+        // at least one runnable scenario.  The controller already
+        // returns false from submit() under those conditions, but we
+        // surface the gate visually so the user doesn't reach for a
+        // button that would no-op.  Cancel and the mode/db toggles
+        // stay on the simpler "not running" gate.
         controller.edtScope.launch {
             controller.runningFlow.collect { running ->
-                simulateButton.isEnabled = !running
                 cancelButton.isEnabled = running
                 sequentialRadio.isEnabled = !running
                 concurrentRadio.isEnabled = !running
                 enableDbCheckbox.isEnabled = !running
+                refreshSimulateEnablement()
+            }
+        }
+        controller.edtScope.launch {
+            controller.scenarios.collect { _ ->
+                refreshSimulateEnablement()
             }
         }
         controller.edtScope.launch {

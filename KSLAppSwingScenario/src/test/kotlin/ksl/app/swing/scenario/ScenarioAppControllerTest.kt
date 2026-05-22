@@ -440,6 +440,154 @@ class ScenarioAppControllerTest {
         assertFalse(c.isDirty.value)
     }
 
+    // ── Identity-coupled lifecycle (Design X + R1) ─────────────────────
+
+    @Test
+    fun `deleteScenario drops the matching snapshot from lastResult`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.addScenario(spec("S2"))
+        c.addScenario(spec("S3"))
+        c.seedRunStateForTesting(
+            lastResult = batchOf("S1", "S2", "S3"),
+            scenarioStatuses = mapOf(
+                "S1" to ScenarioAppController.ScenarioStatus.COMPLETED,
+                "S2" to ScenarioAppController.ScenarioStatus.COMPLETED,
+                "S3" to ScenarioAppController.ScenarioStatus.COMPLETED
+            )
+        )
+        c.deleteScenario(1)            // remove S2
+        val r = c.lastResult.value as RunResult.BatchCompleted
+        assertEquals(listOf("S1", "S3"), r.snapshots.map { it.experiment.exp_name })
+        // Per-scenario status map prunes the deleted name in lockstep.
+        assertFalse("S2" in c.scenarioStatuses.value)
+    }
+
+    @Test
+    fun `deleting the last reportable scenario collapses lastResult to null`() {
+        val c = fresh()
+        c.addScenario(spec("Solo"))
+        c.seedRunStateForTesting(lastResult = batchOf("Solo"))
+        c.deleteScenario(0)
+        assertNull(c.lastResult.value, "result must collapse to null when no snapshots remain")
+    }
+
+    @Test
+    fun `clearScenarios nulls lastResult and the status map`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.addScenario(spec("S2"))
+        c.seedRunStateForTesting(
+            lastResult = batchOf("S1", "S2"),
+            scenarioStatuses = mapOf(
+                "S1" to ScenarioAppController.ScenarioStatus.COMPLETED,
+                "S2" to ScenarioAppController.ScenarioStatus.COMPLETED
+            )
+        )
+        c.clearScenarios()
+        assertNull(c.lastResult.value)
+        assertTrue(c.scenarioStatuses.value.isEmpty())
+    }
+
+    @Test
+    fun `updateScenario with a name change drops the old-name snapshot`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.addScenario(spec("S2"))
+        c.seedRunStateForTesting(
+            lastResult = batchOf("S1", "S2"),
+            scenarioStatuses = mapOf(
+                "S1" to ScenarioAppController.ScenarioStatus.COMPLETED,
+                "S2" to ScenarioAppController.ScenarioStatus.COMPLETED
+            )
+        )
+        // Rename S2 → S2x.  Per Design X + Q2 this is delete-old +
+        // add-new at the result level: the S2 snapshot is dropped
+        // and the new name has no snapshot until the next Simulate.
+        c.updateScenario(1, c.scenarios.value[1].copy(name = "S2x"))
+        val r = c.lastResult.value as RunResult.BatchCompleted
+        assertEquals(listOf("S1"), r.snapshots.map { it.experiment.exp_name })
+        assertFalse("S2" in c.scenarioStatuses.value)
+        assertFalse("S2x" in c.scenarioStatuses.value)
+    }
+
+    @Test
+    fun `updateScenario with a field-only edit leaves lastResult intact`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.seedRunStateForTesting(lastResult = batchOf("S1"))
+        // Field-only edit (same name) — staleness banner handles
+        // freshness; the snapshot must survive untouched.
+        c.updateScenario(0, c.scenarios.value[0].copy(skipOnRun = true))
+        val r = c.lastResult.value as RunResult.BatchCompleted
+        assertEquals(listOf("S1"), r.snapshots.map { it.experiment.exp_name })
+    }
+
+    @Test
+    fun `submit clears lastResult before launching (R1 lifecycle)`() {
+        val c = fresh()
+        c.addScenario(spec("S1"))
+        c.seedRunStateForTesting(lastResult = batchOf("S1"))
+        // submit() will fail to actually run (no bundle resolves
+        // 'MM1' through Embedded ref in this minimal fixture); what
+        // we care about is that lastResult is nulled before the run
+        // kicks off.  If submit returns false the assertion still
+        // holds — R1 nulls happen before the early-return paths that
+        // could leave the prior result hanging.
+        c.submit()
+        assertNull(c.lastResult.value)
+    }
+
+    @Test
+    fun `submit returns false when scenarios is empty (Q4 gate)`() {
+        val c = fresh()
+        assertFalse(c.submit())
+    }
+
+    @Test
+    fun `submit returns false when every scenario is skipOnRun (Q4 gate)`() {
+        val c = fresh()
+        c.addScenario(spec("S1").copy(skipOnRun = true))
+        c.addScenario(spec("S2").copy(skipOnRun = true))
+        assertFalse(c.submit())
+        // And the prior result, if any, must already be cleared per R1.
+        assertNull(c.lastResult.value)
+    }
+
+    /**
+     *  Build a synthetic [RunResult.BatchCompleted] for lifecycle
+     *  tests.  Each name produces one `ExperimentCompleted` snapshot
+     *  and an empty replications entry.  The controller never
+     *  introspects the snapshot's interior contents during these
+     *  tests, only its `experiment.exp_name`.
+     */
+    private fun batchOf(vararg names: String): RunResult.BatchCompleted =
+        RunResult.BatchCompleted(
+            summary = ksl.app.session.OrchestratorSummary(
+                runId = "test-run",
+                orchestratorName = "TestOrchestrator",
+                totalItems = names.size,
+                completedItems = names.size,
+                failedItems = 0,
+                beginTime = kotlinx.datetime.Instant.fromEpochMilliseconds(0L),
+                endTime = kotlinx.datetime.Instant.fromEpochMilliseconds(1000L)
+            ),
+            snapshots = names.map { name ->
+                ksl.utilities.io.dbutil.SimulationSnapshot.ExperimentCompleted(
+                    simulationRun = ksl.utilities.io.dbutil.SimulationRunTableData(),
+                    acrossRepStats = emptyList(),
+                    histograms = emptyList(),
+                    frequencies = emptyList(),
+                    timeSeries = emptyList(),
+                    experiment = ksl.utilities.io.dbutil.ExperimentTableData().apply {
+                        exp_name = name
+                        model_name = "M"
+                    }
+                )
+            },
+            replicationsByItem = names.associateWith { emptyList() }
+        )
+
     @Test
     fun `TOML round-trip preserves scenarios, output, execution mode`() {
         val c = fresh()
