@@ -458,11 +458,25 @@ class SingleAppFrame(
      * `<workspace>/configs/`, defaulting the file name to the app name.
      * Adds the `.toml` extension if the user didn't.
      */
+    /**
+     *  Default filename suggested in the Save Configuration As… dialog.
+     *  Preference order: user-set analysisName (sanitised) → currently
+     *  loaded file's name → application name.  See the same helper on
+     *  `ScenarioAppFrame` for the full rationale.
+     */
+    private fun defaultSaveAsName(): String {
+        val analysis = controller.outputConfig.value.analysisName
+        if (analysis != "Untitled") {
+            return "${ksl.app.config.sanitizeAnalysisName(analysis)}.toml"
+        }
+        controller.currentFile.value?.fileName?.toString()?.let { return it }
+        return "${sanitizeFileName(controller.appName)}.toml"
+    }
+
     private fun handleSaveAs() {
         val workspace = controller.appWorkspace
         val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
-        val defaultName = (controller.currentFile.value?.fileName?.toString())
-            ?: "${sanitizeFileName(controller.appName)}.toml"
+        val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Save Configuration"
             fileSelectionMode = JFileChooser.FILES_ONLY

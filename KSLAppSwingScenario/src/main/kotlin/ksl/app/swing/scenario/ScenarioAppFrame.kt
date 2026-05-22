@@ -759,10 +759,33 @@ class ScenarioAppFrame(
         }
     }
 
+    /**
+     *  Default filename suggested in the Save Configuration As… dialog.
+     *  Preference order:
+     *
+     *  1. The user-set analysis name, sanitised for the filesystem.
+     *     This is the canonical identity for the document and is what
+     *     the user expects to see in the dialog when they've named
+     *     their analysis.
+     *  2. The current file's name, when one is loaded but no analysis
+     *     name has been set (legacy documents that pre-date the
+     *     analysisName field).
+     *  3. The application name, as a last-resort filler for a fresh
+     *     document where the user has neither saved nor named the
+     *     analysis.
+     */
+    private fun defaultSaveAsName(): String {
+        val analysis = controller.outputConfig.value.analysisName
+        if (analysis != "Untitled") {
+            return "${ksl.app.config.sanitizeAnalysisName(analysis)}.toml"
+        }
+        controller.currentFile.value?.fileName?.toString()?.let { return it }
+        return "${sanitizeFileName(controller.appName)}.toml"
+    }
+
     private fun handleSaveAs() {
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
-        val defaultName = (controller.currentFile.value?.fileName?.toString())
-            ?: "${sanitizeFileName(controller.appName)}.toml"
+        val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Save Configuration"
             fileSelectionMode = JFileChooser.FILES_ONLY
