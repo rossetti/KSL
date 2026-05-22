@@ -30,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -138,6 +139,33 @@ class ScenarioReportsTest {
             body.contains("Report filtered to"),
             "Unexpected filtered footer when whitelist matched every scenario"
         )
+    }
+
+    @Test
+    fun `renderScenarioSummary called once per scenario in a loop writes every file`() {
+        // Reproduces the exact pattern ReportsTabPanel uses for the
+        // "Full per-scenario report" Style: loop over picked names,
+        // call renderScenarioSummary for each.  If only the first
+        // file appears, the substrate has a state-carry bug between
+        // calls.
+        val result = threeScenarioResult()
+        val written = mutableListOf<java.nio.file.Path>()
+        val errors = mutableListOf<String>()
+        for (name in listOf("S1", "S2", "S3")) {
+            val out = ScenarioReports.renderScenarioSummary(
+                result = result,
+                scenarioName = name,
+                outputDir = tempDir,
+                formats = setOf(ReportFormat.MARKDOWN),
+                openHtmlInBrowser = false
+            )
+            written.addAll(out.written)
+            errors.addAll(out.errors.map { "[$name] $it" })
+        }
+        assertTrue(errors.isEmpty(), "unexpected errors: $errors")
+        assertEquals(3, written.size, "expected one file per scenario; got: $written")
+        // Each file should be a distinct path.
+        assertEquals(3, written.toSet().size, "writes collided: $written")
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────

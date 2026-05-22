@@ -20,6 +20,9 @@ package ksl.app.swing.scenario
 
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import ksl.utilities.io.dbutil.AcrossRepStatTableData
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.io.report.ast.ReportNode
@@ -53,8 +56,41 @@ object ScenarioReports {
      *  successes and errors in one notification pass. */
     data class WriteOutcome(
         val written: List<Path>,
-        val errors: List<String>
+        val errors: List<String>,
+        /** `true` when the renderer deliberately skipped writing because
+         *  the user picked [FileHandlingPolicy.SKIP_IF_EXISTS] and a
+         *  conflicting file already existed.  Distinct from a failure;
+         *  callers should not flip the dialog's row state to FAILED on
+         *  a skip. */
+        val skipped: Boolean = false
     )
+
+    /** Policy applied at write time when a destination file already
+     *  exists for the target stem.  Picked by the user via the
+     *  Scenario Reports dialog's File handling group; passed through
+     *  to both [renderScenarioSummary] and [renderScenarioSummaries]
+     *  on every Generate. */
+    enum class FileHandlingPolicy {
+        /** Default — write over any existing file with the same stem. */
+        OVERWRITE,
+
+        /** Don't write; return an empty [WriteOutcome] with `skipped=true`
+         *  when any of the target paths already exists.  Lets the user
+         *  Generate selectively without disturbing files they've kept. */
+        SKIP_IF_EXISTS,
+
+        /** Append a `_yyyy-MM-dd_HHmmss` suffix to the stem so the new
+         *  file lives alongside any prior versions.  Useful when
+         *  comparing report variants. */
+        APPEND_TIMESTAMP
+    }
+
+    private val timestampFormatter: DateTimeFormatter =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss").withZone(ZoneId.systemDefault())
+
+    /** Suffix used by [FileHandlingPolicy.APPEND_TIMESTAMP] — local
+     *  zone, second resolution, filename-safe. */
+    private fun timestampSuffix(): String = timestampFormatter.format(Instant.now())
 
     // ── Lookups ───────────────────────────────────────────────────────────
 
@@ -110,7 +146,8 @@ object ScenarioReports {
         outputDir: Path,
         formats: Set<ReportFormat>,
         scenarioNames: Set<String>? = null,
-        openHtmlInBrowser: Boolean = true
+        openHtmlInBrowser: Boolean = true,
+        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
@@ -167,7 +204,10 @@ object ScenarioReports {
                 }
             }
         }
-        return writeAll(doc, outputDir, "scenario-summaries", formats, openHtmlInBrowser)
+        val baseStem = "scenario-summaries"
+        val stemDecision = decideStem(baseStem, outputDir, formats, existingFilePolicy)
+        if (stemDecision.skipped) return stemDecision.toSkippedOutcome("summary")
+        return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
     }
 
     /**
@@ -188,7 +228,8 @@ object ScenarioReports {
         scenarioName: String,
         outputDir: Path,
         formats: Set<ReportFormat>,
-        openHtmlInBrowser: Boolean = true
+        openHtmlInBrowser: Boolean = true,
+        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
@@ -200,9 +241,100 @@ object ScenarioReports {
         val doc = report(title = "Scenario Summary — $scenarioName") {
             snapshotSimulationResults(snapshot)
         }
-        return writeAll(
-            doc, outputDir, fileStem("scenario-summary", scenarioName), formats, openHtmlInBrowser
+        val baseStem = fileStem("scenario-summary", scenarioName)
+        val stemDecision = decideStem(baseStem, outputDir, formats, existingFilePolicy)
+        if (stemDecision.skipped) return stemDecision.toSkippedOutcome(scenarioName)
+        return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
+    }
+
+    /** Outcome of [decideStem] — either a stem to write to, or a
+     *  signal that the writer should produce a skipped [WriteOutcome]. */
+    private data class StemDecision(val stem: String, val skipped: Boolean) {
+        fun toSkippedOutcome(label: String): WriteOutcome = WriteOutcome(
+            written = emptyList(),
+            errors = listOf("Skipped '$label' — a matching file already exists (policy: Skip if exists)."),
+            skipped = true
         )
+    }
+
+    /** Resolve the final stem to write based on [policy].  Returns
+     *  the base stem unchanged for [FileHandlingPolicy.OVERWRITE];
+     *  signals skip when the policy is SKIP_IF_EXISTS and any of the
+     *  target paths already exists; appends a timestamp suffix when
+     *  the policy is APPEND_TIMESTAMP. */
+    private fun decideStem(
+        baseStem: String,
+        outputDir: Path,
+        formats: Set<ReportFormat>,
+        policy: FileHandlingPolicy
+    ): StemDecision = when (policy) {
+        FileHandlingPolicy.OVERWRITE -> StemDecision(baseStem, skipped = false)
+        FileHandlingPolicy.SKIP_IF_EXISTS -> {
+            val anyExists = formats.any { fmt ->
+                Files.exists(outputDir.resolve("$baseStem.${extension(fmt)}"))
+            }
+            if (anyExists) StemDecision(baseStem, skipped = true)
+            else StemDecision(baseStem, skipped = false)
+        }
+        FileHandlingPolicy.APPEND_TIMESTAMP -> StemDecision("${baseStem}_${timestampSuffix()}", skipped = false)
+    }
+
+    // ── Artifact-path helpers (used by ScenarioReportDialog to surface  ───
+    // ── existing files without re-rendering)                            ───
+
+    /**
+     *  All files in [reportsDir] that look like a per-scenario report
+     *  for [scenarioName] — both the base-stem form
+     *  (`scenario-summary-<sanitised>.{ext}`) and any timestamped
+     *  variants written under [FileHandlingPolicy.APPEND_TIMESTAMP]
+     *  (`scenario-summary-<sanitised>_yyyy-MM-dd_HHmmss.{ext}`).
+     *  Used by the dialog's Status / Open / Delete affordances.
+     *
+     *  Returns an empty list when the directory doesn't exist or no
+     *  matching files are present.  Order is filesystem-dependent;
+     *  callers that need a specific ordering should sort.
+     */
+    fun perScenarioReportFiles(reportsDir: Path, scenarioName: String): List<Path> =
+        listMatchingFiles(reportsDir, fileStem("scenario-summary", scenarioName))
+
+    /** As [perScenarioReportFiles] but for the consolidated summary. */
+    fun summaryReportFiles(reportsDir: Path): List<Path> =
+        listMatchingFiles(reportsDir, "scenario-summaries")
+
+    /**
+     *  Most-recently-modified file from [perScenarioReportFiles], or
+     *  `null` when none exist.  This is what the dialog opens when
+     *  the user clicks a row's Open button.
+     */
+    fun mostRecentPerScenarioFile(reportsDir: Path, scenarioName: String): Path? =
+        perScenarioReportFiles(reportsDir, scenarioName)
+            .maxByOrNull { Files.getLastModifiedTime(it).toMillis() }
+
+    /** As [mostRecentPerScenarioFile] but for the consolidated summary. */
+    fun mostRecentSummaryFile(reportsDir: Path): Path? =
+        summaryReportFiles(reportsDir).maxByOrNull { Files.getLastModifiedTime(it).toMillis() }
+
+    /** Scan [reportsDir] for files whose names match
+     *  `<baseStem>` + optional `_<timestamp>` + `.{html,md,txt}`. */
+    private fun listMatchingFiles(reportsDir: Path, baseStem: String): List<Path> {
+        if (!Files.exists(reportsDir)) return emptyList()
+        val pattern = Regex(
+            "^${Regex.escape(baseStem)}(_\\d{4}-\\d{2}-\\d{2}_\\d{6})?\\.(html|md|txt)$"
+        )
+        return try {
+            Files.list(reportsDir).use { stream ->
+                stream.filter { pattern.matches(it.fileName.toString()) }.toList()
+            }
+        } catch (_: Throwable) {
+            emptyList()
+        }
+    }
+
+    /** Filesystem extension for [format] — matches what [writeAll] uses. */
+    private fun extension(format: ReportFormat): String = when (format) {
+        ReportFormat.HTML -> "html"
+        ReportFormat.MARKDOWN -> "md"
+        ReportFormat.TEXT -> "txt"
     }
 
     // ── DSL helpers ───────────────────────────────────────────────────────

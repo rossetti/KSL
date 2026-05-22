@@ -58,6 +58,7 @@ class ReportsTabPanel(
         { _, _ -> }
 ) : JPanel() {
 
+
     private val formatBoxes: Map<ReportFormat, JCheckBox> = ReportFormat.entries.associateWith { fmt ->
         JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
     }
@@ -67,6 +68,13 @@ class ReportsTabPanel(
         toolTipText = "Pick which scenarios to include and choose between a consolidated " +
             "summary or a full per-scenario report (one document per scenario)."
     }
+
+    /** Pinned open dialog instance — non-null while a
+     *  [ScenarioReportDialog] is on screen.  Re-clicking the
+     *  "Scenario Reports…" button raises this dialog instead of
+     *  opening a duplicate.  The dialog's window-closed event clears
+     *  it so the next click opens a fresh one. */
+    private var openScenarioReportDialog: javax.swing.JDialog? = null
 
     private val comparisonAnalyzerButton = JButton("Open Comparison Analyzer…").apply {
         isEnabled = false
@@ -139,14 +147,20 @@ class ReportsTabPanel(
 
     /**
      *  Unified entry point that replaced the earlier two buttons.
-     *  Opens [ScenarioReportDialog] for the user to pick which
-     *  scenarios to include and whether to produce a consolidated
-     *  summary or one full report per scenario, then dispatches
-     *  accordingly.
+     *  Opens (or raises) the modeless [ScenarioReportDialog].  The
+     *  dialog owns the per-scenario / summary action affordances —
+     *  this method just supplies callbacks the dialog uses to query
+     *  existing files and trigger renders.
      */
     private fun onScenarioReports() {
+        openScenarioReportDialog?.let { existing ->
+            if (existing.isDisplayable) {
+                existing.toFront()
+                existing.requestFocus()
+                return
+            }
+        }
         val result = batchResultOrWarn() ?: return
-        val formats = formatsOrWarn() ?: return
         val names = ScenarioReports.availableScenarioNames(result)
         if (names.isEmpty()) {
             onMessage(
@@ -155,71 +169,127 @@ class ReportsTabPanel(
             )
             return
         }
-        val outcome = ScenarioReportDialog.showDialog(this, names)
-        if (outcome !is ScenarioReportDialog.Result.Generate) return
-        when (outcome.style) {
-            ScenarioReportDialog.Style.SUMMARY -> {
-                runAndReport(outputDir = reportsDir()) {
-                    ScenarioReports.renderScenarioSummaries(
-                        result = result,
-                        outputDir = reportsDir(),
-                        formats = formats,
-                        scenarioNames = outcome.pickedNames.toSet()
+        val dialog = ScenarioReportDialog.showDialog(
+            parent = this,
+            scenarioNames = names,
+            initialReportsDir = reportsDir(),
+            // File-probe callbacks: return the most-recently-modified
+            // file matching the scenario's name pattern (base stem or
+            // any APPEND_TIMESTAMP variant).
+            perScenarioFile = { name, currentDir ->
+                ScenarioReports.mostRecentPerScenarioFile(currentDir, name)
+            },
+            summaryFile = { currentDir ->
+                ScenarioReports.mostRecentSummaryFile(currentDir)
+            },
+            // Render callbacks: re-read the format set on every click
+            // so format-toggle changes apply to the next Generate.
+            // Thread the user-picked file-handling policy through to
+            // the substrate.
+            onGenerateSummary = { pickedNames, currentDir, policy ->
+                val formats = controller.outputConfig.value.reports
+                if (formats.isEmpty()) {
+                    onMessage(
+                        "Pick at least one report format on the Reports tab before generating.",
+                        NotificationSeverity.WARNING
                     )
+                    ScenarioReportDialog.GenerateResult(emptyList(), emptyList(), skipped = false)
+                } else {
+                    val outcome = ScenarioReports.renderScenarioSummaries(
+                        result = result,
+                        outputDir = currentDir,
+                        formats = formats,
+                        scenarioNames = pickedNames.toSet(),
+                        openHtmlInBrowser = false,
+                        existingFilePolicy = policy
+                    )
+                    surfaceOutcome(outcome)
+                    ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
                 }
-            }
-            ScenarioReportDialog.Style.FULL_PER_SCENARIO -> {
-                // One document per picked scenario.  Suppress the
-                // browser-open for all but the first HTML so the user
-                // doesn't get N simultaneous tabs; the runAndReport
-                // notification still lists every file written.
-                val combined = mutableListOf<java.nio.file.Path>()
-                val errors = mutableListOf<String>()
-                var openInBrowserNext = true
-                for (name in outcome.pickedNames) {
-                    val perOutcome = try {
-                        ScenarioReports.renderScenarioSummary(
-                            result = result,
-                            scenarioName = name,
-                            outputDir = reportsDir(),
-                            formats = formats,
-                            openHtmlInBrowser = openInBrowserNext
-                        )
-                    } catch (t: Throwable) {
-                        errors.add(
-                            "Render failed for scenario '$name': ${t.message ?: t::class.simpleName}"
-                        )
-                        continue
-                    }
-                    combined.addAll(perOutcome.written)
-                    perOutcome.errors.forEach { errors.add("[$name] $it") }
-                    // Only the first successful HTML write opens the
-                    // browser.  After that, any subsequent invocation
-                    // passes false.
-                    if (perOutcome.written.any { it.toString().endsWith(".html") }) {
-                        openInBrowserNext = false
-                    }
+            },
+            onGeneratePerScenario = { scenarioName, currentDir, policy ->
+                val formats = controller.outputConfig.value.reports
+                if (formats.isEmpty()) {
+                    onMessage(
+                        "Pick at least one report format on the Reports tab before generating.",
+                        NotificationSeverity.WARNING
+                    )
+                    ScenarioReportDialog.GenerateResult(emptyList(), emptyList(), skipped = false)
+                } else {
+                    val outcome = ScenarioReports.renderScenarioSummary(
+                        result = result,
+                        scenarioName = scenarioName,
+                        outputDir = currentDir,
+                        formats = formats,
+                        openHtmlInBrowser = false,
+                        existingFilePolicy = policy
+                    )
+                    surfaceOutcome(outcome, prefix = "[$scenarioName] ")
+                    ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
                 }
-                reportCombinedOutcome(reportsDir(), combined, errors)
+            },
+            // Delete callbacks: symmetric with Open — act on the
+            // most-recently-modified file only, not every matching
+            // variant.  Older timestamped variants (under the
+            // Append-timestamp policy) stay on disk; the user can
+            // click Delete again to peel back the next-most-recent,
+            // or use Reveal… + the OS file manager for bulk cleanup.
+            onDeletePerScenario = { scenarioName, currentDir ->
+                val target = ScenarioReports.mostRecentPerScenarioFile(currentDir, scenarioName)
+                deleteFiles(listOfNotNull(target))
+            },
+            onDeleteSummary = { currentDir ->
+                val target = ScenarioReports.mostRecentSummaryFile(currentDir)
+                deleteFiles(listOfNotNull(target))
             }
-        }
+        )
+        openScenarioReportDialog = dialog
+        dialog.addWindowListener(object : java.awt.event.WindowAdapter() {
+            override fun windowClosed(e: java.awt.event.WindowEvent) {
+                if (openScenarioReportDialog === dialog) openScenarioReportDialog = null
+            }
+        })
     }
 
-    /** Single notification covering the combined outcome of a
-     *  per-scenario batch render.  Mirrors `runAndReport` for the
-     *  Summary path but accepts pre-aggregated paths and errors. */
-    private fun reportCombinedOutcome(
-        outputDir: java.nio.file.Path,
-        written: List<java.nio.file.Path>,
-        errors: List<String>
+    /** Delete every supplied file; aggregate result for the dialog's
+     *  Delete callback. */
+    private fun deleteFiles(files: List<java.nio.file.Path>): ScenarioReportDialog.DeleteResult {
+        val deleted = mutableListOf<java.nio.file.Path>()
+        val errors = mutableListOf<String>()
+        for (file in files) {
+            try {
+                if (java.nio.file.Files.deleteIfExists(file)) deleted.add(file)
+            } catch (t: Throwable) {
+                errors.add(
+                    "Could not delete ${file.fileName}: ${t.message ?: t::class.simpleName}"
+                )
+            }
+        }
+        errors.forEach { onMessage("Report delete error: $it", NotificationSeverity.WARNING) }
+        return ScenarioReportDialog.DeleteResult(deleted, errors)
+    }
+
+    /** Push a [ScenarioReports.WriteOutcome] through the panel's
+     *  notification channel.  The dialog provides its own Status /
+     *  Open feedback for the artifacts themselves; these
+     *  notifications carry **error** detail (render failures) and
+     *  let users with the dialog already closed still see render
+     *  activity.
+     *
+     *  Skip-if-exists outcomes are intentionally not surfaced here —
+     *  the substrate flags them via `outcome.skipped`, and the dialog's
+     *  status strip already states the skip in-place.  Sending a
+     *  second notification through the main-app overlay for the same
+     *  event would be redundant and distracting; only one of the
+     *  three policy options would otherwise produce a notification
+     *  on success, which the user found inconsistent. */
+    private fun surfaceOutcome(
+        outcome: ScenarioReports.WriteOutcome,
+        prefix: String = ""
     ) {
-        errors.forEach { onMessage("Report error: $it", NotificationSeverity.WARNING) }
-        if (written.isNotEmpty()) {
-            val files = written.joinToString(", ") { it.fileName.toString() }
-            onMessage(
-                "Wrote ${written.size} report file(s) to $outputDir: $files",
-                NotificationSeverity.INFO
-            )
+        if (outcome.skipped) return
+        outcome.errors.forEach {
+            onMessage("Report error: $prefix$it", NotificationSeverity.WARNING)
         }
     }
 
@@ -254,28 +324,6 @@ class ReportsTabPanel(
     private fun reportsDir(): java.nio.file.Path =
         controller.appWorkspace.resolve("output").resolve("reports")
 
-    /** Common success/error notification handling for any renderer. */
-    private fun runAndReport(
-        outputDir: java.nio.file.Path,
-        block: () -> ScenarioReports.WriteOutcome
-    ) {
-        val outcome = try { block() } catch (t: Throwable) {
-            onMessage(
-                "Report generation failed: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
-            )
-            return
-        }
-        outcome.errors.forEach { onMessage("Report error: $it", NotificationSeverity.WARNING) }
-        if (outcome.written.isNotEmpty()) {
-            val files = outcome.written.joinToString(", ") { it.fileName.toString() }
-            onMessage(
-                "Wrote ${outcome.written.size} report file(s) to $outputDir: $files",
-                NotificationSeverity.INFO
-            )
-        }
-    }
-
     /** Returns the current batch result or surfaces a warning notification. */
     private fun batchResultOrWarn(): RunResult.BatchCompleted? {
         val r = controller.lastResult.value
@@ -284,19 +332,6 @@ class ReportsTabPanel(
             return null
         }
         return r
-    }
-
-    /** Returns the current report-format set or surfaces a warning notification. */
-    private fun formatsOrWarn(): Set<ReportFormat>? {
-        val formats = controller.outputConfig.value.reports
-        if (formats.isEmpty()) {
-            onMessage(
-                "Pick at least one report format above before generating.",
-                NotificationSeverity.WARNING
-            )
-            return null
-        }
-        return formats
     }
 
     private fun wireCollectors() {
