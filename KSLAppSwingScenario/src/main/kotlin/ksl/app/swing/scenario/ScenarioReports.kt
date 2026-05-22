@@ -84,7 +84,7 @@ object ScenarioReports {
 
     /**
      *  **Primary on-demand report.**  One document covering every
-     *  completed scenario.  Sections:
+     *  completed scenario (or a caller-supplied subset).  Sections:
      *  1. Run Overview — table with scenario name, requested reps,
      *     completed reps, run-error flag.
      *  2. Per-scenario across-replication statistics — one
@@ -92,14 +92,24 @@ object ScenarioReports {
      *     table (Count, Mean, Std Dev, Half-width, CI bounds,
      *     Min, Max).
      *
-     *  Designed to answer "how did all my scenarios stack up?" in one
+     *  Designed to answer "how did my scenarios stack up?" in one
      *  file, without forcing the analyst to flip between per-scenario
      *  reports.
+     *
+     *  @param scenarioNames optional whitelist of `experiment.exp_name`
+     *    values to include.  `null` (the default) includes every
+     *    snapshot in [result]; a non-null set filters both the Run
+     *    Overview rows and the per-scenario stat sub-sections.  Empty
+     *    set means "no scenarios" and surfaces as an
+     *    error in the returned [WriteOutcome].  Unknown names in the
+     *    set are silently ignored (the corresponding snapshot simply
+     *    isn't present in the result).
      */
     fun renderScenarioSummaries(
         result: RunResult.BatchCompleted,
         outputDir: Path,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        scenarioNames: Set<String>? = null
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
@@ -107,17 +117,31 @@ object ScenarioReports {
         if (result.snapshots.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No completed scenarios in the most recent run."))
         }
+        val included = if (scenarioNames == null) {
+            result.snapshots
+        } else {
+            result.snapshots.filter { it.experiment.exp_name in scenarioNames }
+        }
+        if (included.isEmpty()) {
+            return WriteOutcome(
+                emptyList(),
+                listOf("No scenarios match the supplied selection.")
+            )
+        }
         val doc = report("Scenario Summaries — ${result.summary.orchestratorName}") {
             paragraph(
                 "Run id ${result.summary.runId}.  " +
                     "${result.summary.completedItems} of ${result.summary.totalItems} " +
                     "scenarios completed" +
-                    if (result.summary.failedItems > 0) ", ${result.summary.failedItems} failed." else "."
+                    if (result.summary.failedItems > 0) ", ${result.summary.failedItems} failed." else "." +
+                    if (scenarioNames != null && included.size < result.snapshots.size) {
+                        "  Report filtered to ${included.size} of ${result.snapshots.size} scenarios."
+                    } else ""
             )
             section("Run Overview") {
                 dataTable(
                     headers = listOf("Scenario", "Requested Reps", "Completed Reps", "Run Error"),
-                    rows = result.snapshots.map { snap ->
+                    rows = included.map { snap ->
                         val run = snap.simulationRun
                         val completedReps = run.last_rep_id?.let { it - run.start_rep_id + 1 }
                             ?.toString() ?: ""
@@ -131,7 +155,7 @@ object ScenarioReports {
                 )
             }
             section("Across-Replication Statistics — Per Scenario") {
-                for (snap in result.snapshots) {
+                for (snap in included) {
                     section(snap.experiment.exp_name) {
                         if (snap.acrossRepStats.isEmpty()) {
                             paragraph("No across-replication statistics recorded for this scenario.")
