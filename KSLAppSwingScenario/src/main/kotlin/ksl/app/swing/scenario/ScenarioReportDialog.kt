@@ -73,7 +73,18 @@ import javax.swing.table.TableCellRenderer
  *  on open, after each Generate / Delete, when the dialog regains
  *  focus, and on *Refresh* click — covering the external-deletion
  *  case without polling.
+ *
+ *  **Deprecated.**  Superseded by [ScenarioReportsTabPanel], which
+ *  hosts the same UI as an always-visible tab inside the Scenario
+ *  app frame.  Kept here for one release for any out-of-tree callers;
+ *  no in-repo code uses it any more.  Slated for deletion once the
+ *  deprecation window closes.
  */
+@Deprecated(
+    message = "Use ScenarioReportsTabPanel — the Scenario app now hosts this UI as " +
+        "a tab rather than a launched dialog.",
+    replaceWith = ReplaceWith("ScenarioReportsTabPanel")
+)
 object ScenarioReportDialog {
 
     /** Result of a single Generate invocation reported back from the

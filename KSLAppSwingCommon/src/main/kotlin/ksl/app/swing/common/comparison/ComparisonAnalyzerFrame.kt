@@ -79,6 +79,11 @@ import javax.swing.table.AbstractTableModel
  *                             hosts hook this to their own
  *                             notifications surface.
  */
+@Deprecated(
+    message = "Use ComparisonAnalyzerTabPanel — hosts now embed this UI as a tab " +
+        "rather than a standalone frame.",
+    replaceWith = ReplaceWith("ComparisonAnalyzerTabPanel")
+)
 class ComparisonAnalyzerFrame(
     sources: List<ComparisonDataSourceIfc>,
     private val defaultOutputDir: Path? = null,
@@ -86,6 +91,16 @@ class ComparisonAnalyzerFrame(
     private val onMessage: (String, Severity) -> Unit = { msg, sev -> System.err.println("[$sev] $msg") }
 ) : JFrame("Comparison Analyzer") {
 
+    /**
+     *  Severity flavors for the analyzer's notification callback.
+     *  Referenced verbatim by [ComparisonAnalyzerTabPanel] and by the
+     *  per-analysis dialogs; lives here for now because the analyzer
+     *  family was originally frame-centric.  When the deprecated
+     *  frame is eventually removed, lift this enum to top-level (e.g.
+     *  `ComparisonSeverity`) in the same package — every reference is
+     *  inside this package and an IDE rename handles the migration in
+     *  one pass.  Until then the nested form is the canonical type.
+     */
     enum class Severity { INFO, WARNING, ERROR }
 
     private val model: ComparisonSelectionModel = ComparisonSelectionModel(sources)

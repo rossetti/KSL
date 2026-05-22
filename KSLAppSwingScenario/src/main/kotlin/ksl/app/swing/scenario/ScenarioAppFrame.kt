@@ -189,11 +189,79 @@ class ScenarioAppFrame(
             addScenarioProvider = this::openAddScenarioDialog,
             openEditor = this::openScenarioEditor
         )
+        val scenarioReportsTab = ScenarioReportsTabPanel(
+            controller = controller,
+            onMessage = { msg, sev -> notifications.show(msg, sev) }
+        )
+        val comparisonAnalyzerTab = ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel(
+            defaultOutputDirProvider = {
+                controller.appWorkspace.resolve("output").resolve("reports")
+            },
+            defaultFormatsProvider = { controller.outputConfig.value.reports },
+            onMessage = { msg, sev ->
+                notifications.show(
+                    msg,
+                    when (sev) {
+                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.INFO ->
+                            ksl.app.swing.common.notification.NotificationSeverity.INFO
+                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.WARNING ->
+                            ksl.app.swing.common.notification.NotificationSeverity.WARNING
+                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.ERROR ->
+                            ksl.app.swing.common.notification.NotificationSeverity.ERROR
+                    }
+                )
+            }
+        )
         val tabs = javax.swing.JTabbedPane().apply {
             addTab("Scenarios", scenariosTab)
-            addTab("Reports", ReportsTabPanel(controller, onMessage = { msg, sev ->
-                notifications.show(msg, sev)
-            }))
+            addTab("Scenario Reports", scenarioReportsTab)
+            addTab("Comparison Analyzer", comparisonAnalyzerTab)
+        }
+        // Q2 in the lifecycle plan — refresh on tab activation.
+        // ChangeListener fires whenever the active tab changes; each
+        // panel exposes a no-arg refreshFromDisk() hook that's safe to
+        // call when the tab isn't active too.  Cheaper and cleaner than
+        // the dialog-era WindowFocusListener (which over-fired on any
+        // app re-focus regardless of the active tab).
+        tabs.addChangeListener {
+            when (tabs.selectedComponent) {
+                scenarioReportsTab -> scenarioReportsTab.refreshFromDisk()
+                comparisonAnalyzerTab -> comparisonAnalyzerTab.refreshFromDisk()
+            }
+        }
+        // Feed the Comparison Analyzer tab fresh sources whenever the
+        // batch result changes (R1: lastResult is nulled on Simulate
+        // and re-populated when the batch completes).  An empty list
+        // shows the tab's empty-state card.
+        controller.edtScope.launch {
+            controller.lastResult.collect { result ->
+                val batch = result as? ksl.app.session.RunResult.BatchCompleted
+                val sources = if (batch != null && batch.replicationsByItem.isNotEmpty()) {
+                    listOf(BatchCompletedComparisonSource(batch))
+                } else {
+                    emptyList()
+                }
+                comparisonAnalyzerTab.setSources(sources)
+            }
+        }
+        controller.edtScope.launch {
+            controller.runningFlow.collect { running ->
+                if (running) {
+                    comparisonAnalyzerTab.setEmptyStateText(
+                        "<html><div style='text-align:center;'>" +
+                            "Simulation in progress.<br>" +
+                            "Reports will appear when the batch completes." +
+                            "</div></html>"
+                    )
+                } else {
+                    comparisonAnalyzerTab.setEmptyStateText(
+                        "<html><div style='text-align:center;'>" +
+                            "No completed batch with per-replication data yet.<br>" +
+                            "Run the scenarios to populate this tab." +
+                            "</div></html>"
+                    )
+                }
+            }
         }
         val topStack = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
