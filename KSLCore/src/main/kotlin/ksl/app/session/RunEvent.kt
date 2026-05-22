@@ -298,6 +298,37 @@ sealed class RunEvent {
     ) : RunEvent()
 
     /**
+     * Emitted by `ScenarioOrchestrator` the moment a scenario successfully
+     * finishes its replications — i.e. its in-memory simulation has
+     * completed cleanly but the per-scenario commit to KSLDatabase has not
+     * yet run.  Sits between [ScenarioReplicationEnded] (per-replication)
+     * and [ScenarioCompleted] (post-commit) in the per-scenario event
+     * timeline.
+     *
+     * Order: events fire in finish order under
+     * `ConcurrentScenarioRunner.simulate(executionMode = CONCURRENT)`,
+     * matching the order in which scenarios finished their replications;
+     * under `SEQUENTIAL` they match scenario-list order.  The event is
+     * **not** emitted for scenarios that failed with a [RuntimeException]
+     * or were cancelled — those paths surface only via the eventual
+     * [ScenarioCompleted] event with `snapshot = null`.
+     *
+     * Multi-scenario GUIs use this signal to flip a scenario's status to
+     * COMPLETED at the moment its work actually finishes, rather than
+     * waiting for the orchestrator's sequential commit phase to reach
+     * that scenario.
+     *
+     * @property scenarioName the scenario name as specified in `ScenarioSpec.name`
+     * @property index         1-based position of this scenario in scenario-list order
+     * @property totalScenarios total number of scenarios in the run
+     */
+    data class ScenarioReplicationsCompleted(
+        val scenarioName: String,
+        val index: Int,
+        val totalScenarios: Int
+    ) : RunEvent()
+
+    /**
      * Emitted by `ScenarioOrchestrator` after each scenario completes (or fails).
      *
      * Events are emitted in scenario-index order during the sequential commit phase

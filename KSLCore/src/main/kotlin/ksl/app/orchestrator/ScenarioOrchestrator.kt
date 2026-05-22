@@ -169,6 +169,11 @@ class ScenarioOrchestrator {
                     },
                     onScenarioReplications = { scenarioName, reps ->
                         capturedReplications[scenarioName] = reps
+                    },
+                    onScenarioReplicationsCompleted = { scenarioName, scenarioIndex, total ->
+                        lifecycle.emitProgress(
+                            RunEvent.ScenarioReplicationsCompleted(scenarioName, scenarioIndex, total)
+                        )
                     }
                 )
 

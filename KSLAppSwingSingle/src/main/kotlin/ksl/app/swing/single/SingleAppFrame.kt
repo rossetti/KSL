@@ -376,6 +376,9 @@ class SingleAppFrame(
                 addSeparator()
                 add(JMenuItem("Exit").apply { addActionListener { dispose() } })
             })
+            add(JMenu("View").apply {
+                add(ksl.app.swing.common.appearance.ThemeMenu.build(controller.edtScope))
+            })
         }
     }
 

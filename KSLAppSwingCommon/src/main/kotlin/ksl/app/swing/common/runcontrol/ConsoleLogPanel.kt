@@ -89,6 +89,8 @@ object DefaultEventFormatter : EventFormatter {
             "[${event.scenarioName}] replication ${event.repNumber} / ${event.totalReplications} started"
         is RunEvent.ScenarioReplicationEnded ->
             "[${event.scenarioName}] replication ${event.repNumber} / ${event.totalReplications} ended"
+        is RunEvent.ScenarioReplicationsCompleted ->
+            "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios}) replications complete"
         is RunEvent.ScenarioCompleted ->
             "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios})" +
                 if (event.snapshot == null) " (failed)" else " complete"

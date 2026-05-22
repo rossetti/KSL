@@ -82,6 +82,47 @@ class ScenarioOrchestratorTest {
     }
 
     @Test
+    fun `ScenarioReplicationsCompleted fires once per successful scenario before ScenarioCompleted`() = runBlocking {
+        val config = twoScenarioConfig()
+        val orchestrator = ScenarioOrchestrator()
+        val handle = orchestrator.submit(config, mm1Provider, scope = this)
+
+        val events = mutableListOf<RunEvent>()
+        val collectJob = launch {
+            handle.events
+                .takeWhile { it !is RunEvent.RunCompleted && it !is RunEvent.RunFailed }
+                .collect { events.add(it) }
+        }
+        handle.result.await()
+        collectJob.join()
+
+        val repsDone = events.filterIsInstance<RunEvent.ScenarioReplicationsCompleted>()
+        val completed = events.filterIsInstance<RunEvent.ScenarioCompleted>()
+
+        // One ReplicationsCompleted per scenario, exactly.
+        assertEquals(2, repsDone.size, "Expected exactly one ScenarioReplicationsCompleted per scenario")
+        assertEquals(setOf("LowLoad", "HighLoad"), repsDone.map { it.scenarioName }.toSet())
+
+        // Per-scenario ordering: ReplicationsCompleted strictly precedes
+        // ScenarioCompleted for the same scenario.
+        for (name in setOf("LowLoad", "HighLoad")) {
+            val repsIdx = events.indexOfFirst {
+                it is RunEvent.ScenarioReplicationsCompleted && it.scenarioName == name
+            }
+            val completedIdx = events.indexOfFirst {
+                it is RunEvent.ScenarioCompleted && it.scenarioName == name
+            }
+            assertTrue(
+                repsIdx >= 0 && completedIdx >= 0 && repsIdx < completedIdx,
+                "ReplicationsCompleted for '$name' must precede ScenarioCompleted " +
+                    "(repsIdx=$repsIdx, completedIdx=$completedIdx)"
+            )
+        }
+        // Sanity: all expected ScenarioCompleted events still emitted.
+        assertEquals(2, completed.size)
+    }
+
+    @Test
     fun `ScenarioCompleted events emitted for each scenario in order`() = runBlocking {
         val config = twoScenarioConfig()
         val orchestrator = ScenarioOrchestrator()

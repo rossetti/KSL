@@ -18,6 +18,8 @@
 
 package ksl.app.swing.scenario
 
+import ksl.app.swing.common.appearance.AppTheme
+import ksl.app.swing.common.appearance.LookAndFeel
 import javax.swing.SwingUtilities
 
 /**
@@ -70,6 +72,10 @@ class KSLScenarioApp(val appName: String) {
      * closes the window.
      */
     fun launch() {
+        // Install FlatLaf BEFORE invokeLater so the macOS bootstrap
+        // (apple.laf.useScreenMenuBar, apple.awt.application.name)
+        // takes effect before any AWT class loads on the EDT.
+        LookAndFeel.install(theme = AppTheme.SYSTEM, appName = appName)
         SwingUtilities.invokeLater {
             val controller = ScenarioAppController(appName)
             ScenarioAppFrame(controller).apply {

@@ -268,6 +268,9 @@ class ScenarioAppFrame(
                 add(loadBundleItem)
                 add(loadedBundlesItem)
             })
+            add(JMenu("View").apply {
+                add(ksl.app.swing.common.appearance.ThemeMenu.build(controller.edtScope))
+            })
         }
     }
 

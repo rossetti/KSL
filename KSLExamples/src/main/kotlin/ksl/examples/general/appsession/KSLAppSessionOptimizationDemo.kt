@@ -206,6 +206,7 @@ private class ConsoleOptimizationRenderer(
             is RunEvent.ScenarioStarted,
             is RunEvent.ScenarioReplicationStarted,
             is RunEvent.ScenarioReplicationEnded,
+            is RunEvent.ScenarioReplicationsCompleted,
             is RunEvent.ExperimentRunStarted,
             is RunEvent.ReplicationStarted,
             is RunEvent.ReplicationEnded,

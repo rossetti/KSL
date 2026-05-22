@@ -370,6 +370,20 @@ class ScenarioAppController(
                         myReplicationProgress.value =
                             myReplicationProgress.value + (ev.scenarioName to (ev.repNumber to ev.totalReplications))
                     }
+                    is RunEvent.ScenarioReplicationsCompleted -> {
+                        // Fired in Phase 1 of ConcurrentScenarioRunner the
+                        // moment the scenario's replications finish — well
+                        // before the sequential Phase-2 commit reaches this
+                        // scenario.  Flip status to COMPLETED here so the
+                        // table reflects reality without waiting for sibling
+                        // scenarios to finish.  The eventual ScenarioCompleted
+                        // event below is idempotent on success and only
+                        // overrides this status if the commit produced a
+                        // null snapshot (rare; the existing CANCELLED /
+                        // FAILED branches handle it).
+                        myScenarioStatuses.value =
+                            myScenarioStatuses.value + (ev.scenarioName to ScenarioStatus.COMPLETED)
+                    }
                     is RunEvent.ScenarioCompleted -> {
                         val status = when {
                             ev.snapshot != null -> ScenarioStatus.COMPLETED

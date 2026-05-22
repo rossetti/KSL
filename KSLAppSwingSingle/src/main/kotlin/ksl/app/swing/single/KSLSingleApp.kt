@@ -18,6 +18,8 @@
 
 package ksl.app.swing.single
 
+import ksl.app.swing.common.appearance.AppTheme
+import ksl.app.swing.common.appearance.LookAndFeel
 import ksl.simulation.ModelBuilderIfc
 import javax.swing.SwingUtilities
 
@@ -90,6 +92,10 @@ class KSLSingleApp(val appName: String) {
     fun launch() {
         val builder = registeredBuilder
             ?: error("kslSingleApp requires modelBuilder(...) to be called inside its block")
+        // Install FlatLaf BEFORE invokeLater so the macOS bootstrap
+        // (apple.laf.useScreenMenuBar, apple.awt.application.name)
+        // takes effect before any AWT class loads on the EDT.
+        LookAndFeel.install(theme = AppTheme.SYSTEM, appName = appName)
         SwingUtilities.invokeLater {
             val controller = SingleAppController(appName, builder)
             SingleAppFrame(controller).apply {

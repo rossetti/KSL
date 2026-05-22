@@ -260,7 +260,21 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
          *  Safe to omit when the caller only needs across-replication
          *  summaries.
          */
-        onScenarioReplications: ((scenarioName: String, snapshots: List<ksl.utilities.io.dbutil.SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
+        onScenarioReplications: ((scenarioName: String, snapshots: List<ksl.utilities.io.dbutil.SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null,
+        /**
+         *  Fired in Phase 1 the moment each scenario successfully
+         *  finishes its replications, **before** the sequential commit
+         *  phase begins.  Lets a GUI flip per-scenario status to
+         *  "completed" at the moment the work actually finishes rather
+         *  than waiting for all siblings.  Not fired for failed or
+         *  cancelled scenarios — those surface only via the eventual
+         *  [onScenarioComplete] with a null snapshot.
+         *
+         *  Callback fires from within the per-scenario async coroutine,
+         *  so it may be invoked from any dispatcher thread; callers
+         *  routing to Swing should marshal onto the EDT themselves.
+         */
+        onScenarioReplicationsCompleted: ((scenarioName: String, scenarioIndex: Int, totalScenarios: Int) -> Unit)? = null
     ) = coroutineScope {
         if (clearAllData) kslDb.clearAllData()
         jobsByName.clear()
@@ -276,33 +290,43 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         // starting the next.  Per-scenario start and per-replication
         // events are forwarded to the caller's lifecycle so multi-scenario
         // consumers can attribute progress to the correct row.
+        // Helper: run one scenario in its own coroutine and fire the
+        // per-scenario replications-completed callback the moment its
+        // simulation returns successfully.  Failure / cancellation
+        // paths do NOT fire — they surface only through the eventual
+        // commit-phase onScenarioComplete.  Firing here, *inside* the
+        // async block, means the callback fires in finish order under
+        // CONCURRENT execution rather than waiting for the
+        // awaitOrCancelled loop to reach this scenario.
+        suspend fun runOne(scenario: Scenario, i: Int): ScenarioRunOutcome {
+            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
+            try {
+                onScenarioStart?.invoke(scenario.name, i + 1, total)
+                val outcome = runScenario(scenario, onReplicationStart, onReplicationEnd)
+                // runScenario returns a non-null collector only on the
+                // clean-success path; failure paths return collector = null
+                // (caught RuntimeException) and cancellation rethrows
+                // CancellationException, so it never reaches here.
+                if (outcome.collector != null) {
+                    onScenarioReplicationsCompleted?.invoke(scenario.name, i + 1, total)
+                }
+                return outcome
+            } finally {
+                jobsByName.remove(scenario.name)
+            }
+        }
+
         val outcomes: List<ScenarioRunOutcome> = supervisorScope {
             when (executionMode) {
                 ksl.app.config.ExecutionMode.CONCURRENT -> {
                     val pairs = scenarioList.mapIndexed { i, scenario ->
-                        scenario to async(SimulationDispatcher.default) {
-                            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
-                            try {
-                                onScenarioStart?.invoke(scenario.name, i + 1, total)
-                                runScenario(scenario, onReplicationStart, onReplicationEnd)
-                            } finally {
-                                jobsByName.remove(scenario.name)
-                            }
-                        }
+                        scenario to async(SimulationDispatcher.default) { runOne(scenario, i) }
                     }
                     pairs.map { (scenario, d) -> awaitOrCancelled(d) { scenario } }
                 }
                 ksl.app.config.ExecutionMode.SEQUENTIAL ->
                     scenarioList.mapIndexed { i, scenario ->
-                        val d = async(SimulationDispatcher.default) {
-                            jobsByName[scenario.name] = kotlin.coroutines.coroutineContext[Job]!!
-                            try {
-                                onScenarioStart?.invoke(scenario.name, i + 1, total)
-                                runScenario(scenario, onReplicationStart, onReplicationEnd)
-                            } finally {
-                                jobsByName.remove(scenario.name)
-                            }
-                        }
+                        val d = async(SimulationDispatcher.default) { runOne(scenario, i) }
                         awaitOrCancelled(d) { scenario }
                     }
             }
