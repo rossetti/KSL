@@ -319,12 +319,13 @@ class ScenarioAppFrame(
         val setWdAction = SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
         val recentMenu = RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope)
         val menuShortcutKey = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
-        val newItem = JMenuItem(object : AbstractAction("Reset to Defaults") {
+        val newItem = JMenuItem(object : AbstractAction("New Configuration") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, menuShortcutKey)
-            toolTipText = "Discard all scenarios and forget the currently-associated " +
-                "configuration file.  Returns the document to an empty state."
+            toolTipText = "Start a new, empty configuration.  Discards the current " +
+                "scenarios, output settings, and file association.  Prompts to save " +
+                "unsaved changes first."
         }
         val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleOpen() }

@@ -81,8 +81,11 @@ class ScenariosTablePanel(
     private val editButton = JButton("Edit…")
     private val cloneButton = JButton("Clone")
     private val deleteButton = JButton("Delete")
-    private val clearAllButton = JButton("Clear All").apply {
-        toolTipText = "Remove every scenario from the list.  Asks for confirmation."
+    private val clearAllButton = JButton("Clear Scenarios").apply {
+        toolTipText = "Remove every scenario from the list.  Output preferences " +
+            "(database toggle, CSV flags, database policy) and execution mode " +
+            "survive — this is a scenario-list reset, not a document reset.  " +
+            "For a blank document, use <i>File → New Configuration</i>."
     }
     private val upButton = JButton("Move Up")
     private val downButton = JButton("Move Down")
@@ -309,7 +312,7 @@ class ScenariosTablePanel(
             val choice = JOptionPane.showConfirmDialog(
                 this,
                 body,
-                "Clear All Scenarios",
+                "Clear Scenarios",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE
             )
