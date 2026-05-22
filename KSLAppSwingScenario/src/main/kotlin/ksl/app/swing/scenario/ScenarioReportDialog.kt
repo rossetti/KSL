@@ -18,6 +18,7 @@
 
 package ksl.app.swing.scenario
 
+import ksl.app.config.ReportFormat
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -109,12 +110,14 @@ object ScenarioReportDialog {
         onGenerateSummary: (
             pickedNames: List<String>,
             reportsDir: Path,
-            policy: ScenarioReports.FileHandlingPolicy
+            policy: ScenarioReports.FileHandlingPolicy,
+            format: ReportFormat
         ) -> GenerateResult,
         onGeneratePerScenario: (
             scenarioName: String,
             reportsDir: Path,
-            policy: ScenarioReports.FileHandlingPolicy
+            policy: ScenarioReports.FileHandlingPolicy,
+            format: ReportFormat
         ) -> GenerateResult,
         onDeletePerScenario: (scenarioName: String, reportsDir: Path) -> DeleteResult,
         onDeleteSummary: (reportsDir: Path) -> DeleteResult
@@ -152,8 +155,8 @@ object ScenarioReportDialog {
         initialReportsDir: Path,
         private val perScenarioFile: (String, Path) -> Path?,
         private val summaryFile: (Path) -> Path?,
-        private val onGenerateSummary: (List<String>, Path, ScenarioReports.FileHandlingPolicy) -> GenerateResult,
-        private val onGeneratePerScenario: (String, Path, ScenarioReports.FileHandlingPolicy) -> GenerateResult,
+        private val onGenerateSummary: (List<String>, Path, ScenarioReports.FileHandlingPolicy, ReportFormat) -> GenerateResult,
+        private val onGeneratePerScenario: (String, Path, ScenarioReports.FileHandlingPolicy, ReportFormat) -> GenerateResult,
         private val onDeletePerScenario: (String, Path) -> DeleteResult,
         private val onDeleteSummary: (Path) -> DeleteResult
     ) : JDialog(owner, "Scenario Reports", Dialog.ModalityType.MODELESS) {
@@ -246,6 +249,17 @@ object ScenarioReportDialog {
         }
         private val reportsDirLabel = JLabel(currentReportsDir.toString())
 
+        // ── Format radio group (single-choice; in-session only) ────────────
+        private val htmlRadio = JRadioButton("HTML", true).apply {
+            toolTipText = "Generate reports as HTML files (default).  Opens in the default browser."
+        }
+        private val markdownRadio = JRadioButton("Markdown").apply {
+            toolTipText = "Generate reports as .md files."
+        }
+        private val textRadio = JRadioButton("Text").apply {
+            toolTipText = "Generate reports as plain .txt files."
+        }
+
         // ── File-handling radio group ──────────────────────────────────────
         private val overwriteRadio = JRadioButton("Overwrite", true).apply {
             toolTipText = "Write over any existing file with the same stem (default)."
@@ -318,6 +332,25 @@ object ScenarioReportDialog {
                 add(revealReportsDirButton)
                 add(Box.createHorizontalStrut(6))
                 add(refreshButton)
+                add(Box.createHorizontalGlue())
+            })
+            // Format radio row — own row, kept on left edge so it doesn't
+            // get clipped when the dialog is narrowed.  In-session only;
+            // defaults to HTML on every open.
+            ButtonGroup().apply {
+                add(htmlRadio); add(markdownRadio); add(textRadio)
+            }
+            add(Box.createVerticalStrut(4))
+            add(JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
+                alignmentX = Component.LEFT_ALIGNMENT
+                add(JLabel("Format:"))
+                add(Box.createHorizontalStrut(12))
+                add(htmlRadio)
+                add(Box.createHorizontalStrut(8))
+                add(markdownRadio)
+                add(Box.createHorizontalStrut(8))
+                add(textRadio)
                 add(Box.createHorizontalGlue())
             })
         }
@@ -572,6 +605,12 @@ object ScenarioReportDialog {
             return out
         }
 
+        private fun currentFormat(): ReportFormat = when {
+            markdownRadio.isSelected -> ReportFormat.MARKDOWN
+            textRadio.isSelected -> ReportFormat.TEXT
+            else -> ReportFormat.HTML
+        }
+
         private fun currentPolicy(): ScenarioReports.FileHandlingPolicy = when {
             skipRadio.isSelected -> ScenarioReports.FileHandlingPolicy.SKIP_IF_EXISTS
             appendTimestampRadio.isSelected -> ScenarioReports.FileHandlingPolicy.APPEND_TIMESTAMP
@@ -599,12 +638,13 @@ object ScenarioReportDialog {
             val picked = collectPicked()
             if (picked.isEmpty()) return
             val policy = currentPolicy()
+            val format = currentFormat()
             var generated = 0
             var skipped = 0
             var failed = 0
             for (name in picked) {
                 val result = try {
-                    onGeneratePerScenario(name, currentReportsDir, policy)
+                    onGeneratePerScenario(name, currentReportsDir, policy, format)
                 } catch (t: Throwable) {
                     GenerateResult(emptyList(), listOf(t.message ?: t::class.simpleName.orEmpty()))
                 }
@@ -639,8 +679,9 @@ object ScenarioReportDialog {
             val picked = collectPicked()
             if (picked.isEmpty()) return
             val policy = currentPolicy()
+            val format = currentFormat()
             val result = try {
-                onGenerateSummary(picked, currentReportsDir, policy)
+                onGenerateSummary(picked, currentReportsDir, policy, format)
             } catch (t: Throwable) {
                 GenerateResult(emptyList(), listOf(t.message ?: t::class.simpleName.orEmpty()))
             }

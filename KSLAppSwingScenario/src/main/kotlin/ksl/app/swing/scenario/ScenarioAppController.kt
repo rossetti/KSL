@@ -505,16 +505,6 @@ class ScenarioAppController(
         markDirty()
     }
 
-    /**
-     *  Replace the document-level [OutputConfig.reports] set.  Drives
-     *  which formats the on-demand Reports tab is permitted to render.
-     */
-    fun setReportFormats(formats: Set<ksl.app.config.ReportFormat>) {
-        if (myOutputConfig.value.reports == formats) return
-        myOutputConfig.value = myOutputConfig.value.copy(reports = formats)
-        markDirty()
-    }
-
     /** Set the document-level execution mode (sequential or parallel). */
     fun setExecutionMode(mode: ExecutionMode) {
         if (myExecutionMode.value == mode) return

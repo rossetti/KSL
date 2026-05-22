@@ -99,21 +99,6 @@ class ScenarioAppControllerTest {
     }
 
     @Test
-    fun `setReportFormats updates outputConfig and flips dirty`() {
-        val c = fresh()
-        assertFalse(c.isDirty.value)
-        val initialDb = c.outputConfig.value.enableKSLDatabase
-        c.setReportFormats(setOf(ksl.app.config.ReportFormat.HTML, ksl.app.config.ReportFormat.TEXT))
-        assertTrue(c.isDirty.value)
-        assertEquals(
-            setOf(ksl.app.config.ReportFormat.HTML, ksl.app.config.ReportFormat.TEXT),
-            c.outputConfig.value.reports
-        )
-        // Mutating reports must not touch the database flag.
-        assertEquals(initialDb, c.outputConfig.value.enableKSLDatabase)
-    }
-
-    @Test
     fun `controller auto-discovers classpath bundles via BundleLoader`() {
         val c = fresh()
         // KSLExamples is on the test classpath; it ships MM1Bundle and

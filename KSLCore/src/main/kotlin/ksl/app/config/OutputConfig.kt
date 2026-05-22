@@ -54,6 +54,16 @@ import kotlinx.serialization.Serializable
  *   can opt in here without enabling [enableReplicationCSV].
  * @property reports the set of report formats to materialize after the
  *   run completes.  Empty set means no reports.
+ *
+ *   **Read-by-app variance.**  The Single app's auto-render workflow
+ *   honors this set verbatim — every Simulate emits one file per format.
+ *   The Scenario app **does not** read this field for its on-demand
+ *   reports; that workflow's *Scenario Reports* dialog makes its own
+ *   per-Generate format choice (single format, HTML default,
+ *   in-session only).  The two workflows have different mental models
+ *   — pre-run auto-emit vs. post-run viewing — and a shared persistent
+ *   field caused user confusion when the Scenario dialog tried to honor
+ *   a multi-format set.
  * @property outputDirectory absolute path where the framework places the
  *   model's runtime output (the equivalent of
  *   `ksl.simulation.Model.outputDirectory`).  When `null` (default), each

@@ -27,7 +27,6 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
-import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -37,12 +36,13 @@ import javax.swing.JPanel
  *
  *  Sections:
  *
- *  - **Report formats** — checkbox row picking which formats the
- *    on-demand report buttons will produce
- *    ([ksl.app.config.OutputConfig.reports]).
  *  - **On-demand reports** — buttons that render reports against
  *    the most recent run.  Disabled until a completed run is
- *    available.
+ *    available.  Format choice (HTML / Markdown / Text) is made
+ *    inside the *Scenario Reports* dialog itself (single-format,
+ *    HTML default, in-session only) — it is intentionally not
+ *    persisted to `OutputConfig.reports`, which now drives only
+ *    the Single app's pre-run auto-render.
  *
  *  The *Enable KSL database* checkbox lives on the run toolbar
  *  alongside the *Simulate* button — it's a pre-run setup decision,
@@ -57,11 +57,6 @@ class ReportsTabPanel(
     private val onMessage: (message: String, severity: NotificationSeverity) -> Unit =
         { _, _ -> }
 ) : JPanel() {
-
-
-    private val formatBoxes: Map<ReportFormat, JCheckBox> = ReportFormat.entries.associateWith { fmt ->
-        JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
-    }
 
     private val scenarioReportsButton = JButton("Scenario Reports…").apply {
         isEnabled = false
@@ -87,28 +82,7 @@ class ReportsTabPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
 
-        add(sectionLabel("Report formats"))
-        val formatRow = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.X_AXIS)
-            border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
-            alignmentX = LEFT_ALIGNMENT
-        }
-        formatBoxes.values.forEach {
-            formatRow.add(it)
-            formatRow.add(Box.createHorizontalStrut(12))
-        }
-        formatRow.add(Box.createHorizontalGlue())
-        add(formatRow)
-        add(Box.createVerticalStrut(14))
-
         add(sectionLabel("On-demand reports"))
-        add(JLabel(
-            "<html>Reports are written under <i>&lt;workspace&gt;/output/reports/</i> in every " +
-                "format checked above."
-        ).apply {
-            alignmentX = LEFT_ALIGNMENT
-            border = BorderFactory.createEmptyBorder(0, 16, 8, 0)
-        })
         val buttonRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
@@ -133,14 +107,6 @@ class ReportsTabPanel(
     }
 
     private fun wireEvents() {
-        formatBoxes.forEach { (fmt, cb) ->
-            cb.addActionListener {
-                val current = controller.outputConfig.value.reports
-                controller.setReportFormats(
-                    if (cb.isSelected) current + fmt else current - fmt
-                )
-            }
-        }
         scenarioReportsButton.addActionListener { onScenarioReports() }
         comparisonAnalyzerButton.addActionListener { onOpenComparisonAnalyzer() }
     }
@@ -182,51 +148,33 @@ class ReportsTabPanel(
             summaryFile = { currentDir ->
                 ScenarioReports.mostRecentSummaryFile(currentDir)
             },
-            // Render callbacks: re-read the format set on every click
-            // so format-toggle changes apply to the next Generate.
-            // Thread the user-picked file-handling policy through to
-            // the substrate.
-            onGenerateSummary = { pickedNames, currentDir, policy ->
-                val formats = controller.outputConfig.value.reports
-                if (formats.isEmpty()) {
-                    onMessage(
-                        "Pick at least one report format on the Reports tab before generating.",
-                        NotificationSeverity.WARNING
-                    )
-                    ScenarioReportDialog.GenerateResult(emptyList(), emptyList(), skipped = false)
-                } else {
-                    val outcome = ScenarioReports.renderScenarioSummaries(
-                        result = result,
-                        outputDir = currentDir,
-                        formats = formats,
-                        scenarioNames = pickedNames.toSet(),
-                        openHtmlInBrowser = false,
-                        existingFilePolicy = policy
-                    )
-                    surfaceOutcome(outcome)
-                    ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
-                }
+            // Render callbacks: the dialog supplies the single
+            // user-picked format per click (in-session only,
+            // HTML default).  Thread the user-picked file-handling
+            // policy through to the substrate.
+            onGenerateSummary = { pickedNames, currentDir, policy, format ->
+                val outcome = ScenarioReports.renderScenarioSummaries(
+                    result = result,
+                    outputDir = currentDir,
+                    formats = setOf(format),
+                    scenarioNames = pickedNames.toSet(),
+                    openHtmlInBrowser = false,
+                    existingFilePolicy = policy
+                )
+                surfaceOutcome(outcome)
+                ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
             },
-            onGeneratePerScenario = { scenarioName, currentDir, policy ->
-                val formats = controller.outputConfig.value.reports
-                if (formats.isEmpty()) {
-                    onMessage(
-                        "Pick at least one report format on the Reports tab before generating.",
-                        NotificationSeverity.WARNING
-                    )
-                    ScenarioReportDialog.GenerateResult(emptyList(), emptyList(), skipped = false)
-                } else {
-                    val outcome = ScenarioReports.renderScenarioSummary(
-                        result = result,
-                        scenarioName = scenarioName,
-                        outputDir = currentDir,
-                        formats = formats,
-                        openHtmlInBrowser = false,
-                        existingFilePolicy = policy
-                    )
-                    surfaceOutcome(outcome, prefix = "[$scenarioName] ")
-                    ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
-                }
+            onGeneratePerScenario = { scenarioName, currentDir, policy, format ->
+                val outcome = ScenarioReports.renderScenarioSummary(
+                    result = result,
+                    scenarioName = scenarioName,
+                    outputDir = currentDir,
+                    formats = setOf(format),
+                    openHtmlInBrowser = false,
+                    existingFilePolicy = policy
+                )
+                surfaceOutcome(outcome, prefix = "[$scenarioName] ")
+                ScenarioReportDialog.GenerateResult(outcome.written, outcome.errors, outcome.skipped)
             },
             // Delete callbacks: symmetric with Open — act on the
             // most-recently-modified file only, not every matching
@@ -335,14 +283,6 @@ class ReportsTabPanel(
     }
 
     private fun wireCollectors() {
-        controller.edtScope.launch {
-            controller.outputConfig.collect { cfg ->
-                formatBoxes.forEach { (fmt, cb) ->
-                    val want = fmt in cfg.reports
-                    if (cb.isSelected != want) cb.isSelected = want
-                }
-            }
-        }
         // Enable the on-demand buttons once a terminal batch result
         // exists with at least one completed snapshot.  The
         // Comparison Analyzer additionally requires per-replication
