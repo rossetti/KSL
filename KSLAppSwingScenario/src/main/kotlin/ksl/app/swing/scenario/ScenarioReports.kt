@@ -109,7 +109,8 @@ object ScenarioReports {
         result: RunResult.BatchCompleted,
         outputDir: Path,
         formats: Set<ReportFormat>,
-        scenarioNames: Set<String>? = null
+        scenarioNames: Set<String>? = null,
+        openHtmlInBrowser: Boolean = true
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
@@ -166,7 +167,7 @@ object ScenarioReports {
                 }
             }
         }
-        return writeAll(doc, outputDir, "scenario-summaries", formats)
+        return writeAll(doc, outputDir, "scenario-summaries", formats, openHtmlInBrowser)
     }
 
     /**
@@ -175,12 +176,19 @@ object ScenarioReports {
      *  pipeline.  Includes everything the snapshot supports: run
      *  summary, across-replication statistics, histograms,
      *  frequencies, time-series period statistics.
+     *
+     *  @param openHtmlInBrowser when `true` (the default) and HTML is
+     *    among [formats], the rendered HTML file is opened in the
+     *    user's default browser.  Pass `false` when invoking this in
+     *    a batch (e.g. one call per picked scenario) so only the
+     *    first invocation opens a browser tab rather than N.
      */
     fun renderScenarioSummary(
         result: RunResult.BatchCompleted,
         scenarioName: String,
         outputDir: Path,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        openHtmlInBrowser: Boolean = true
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
@@ -192,7 +200,9 @@ object ScenarioReports {
         val doc = report(title = "Scenario Summary — $scenarioName") {
             snapshotSimulationResults(snapshot)
         }
-        return writeAll(doc, outputDir, fileStem("scenario-summary", scenarioName), formats)
+        return writeAll(
+            doc, outputDir, fileStem("scenario-summary", scenarioName), formats, openHtmlInBrowser
+        )
     }
 
     // ── DSL helpers ───────────────────────────────────────────────────────
@@ -244,13 +254,17 @@ object ScenarioReports {
 
     /** Writes [doc] in every format in [formats] using [stem] as the
      *  filename base.  When the formats include HTML *and* the HTML
-     *  write succeeded, also asks the platform to open the HTML file
-     *  in the user's default browser. */
+     *  write succeeded *and* [openHtmlInBrowser] is `true`, also asks
+     *  the platform to open the HTML file in the user's default
+     *  browser.  Callers writing a batch of reports pass
+     *  `openHtmlInBrowser = false` for all but the first call so the
+     *  user doesn't get N browser tabs. */
     private fun writeAll(
         doc: ReportNode.Document,
         outputDir: Path,
         stem: String,
-        formats: Set<ReportFormat>
+        formats: Set<ReportFormat>,
+        openHtmlInBrowser: Boolean = true
     ): WriteOutcome {
         Files.createDirectories(outputDir)
         val written = mutableListOf<Path>()
@@ -277,7 +291,7 @@ object ScenarioReports {
                 errors.add("${fmt.name}: ${t.message ?: t::class.simpleName ?: "unknown error"}")
             }
         }
-        if (htmlPath != null) {
+        if (htmlPath != null && openHtmlInBrowser) {
             try {
                 openInBrowser(htmlPath)
             } catch (t: Throwable) {

@@ -29,7 +29,6 @@ import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
-import javax.swing.JOptionPane
 import javax.swing.JPanel
 
 /**
@@ -63,17 +62,10 @@ class ReportsTabPanel(
         JCheckBox(fmt.name, fmt in controller.outputConfig.value.reports)
     }
 
-    private val scenarioSummariesButton = JButton("Scenario Summaries").apply {
+    private val scenarioReportsButton = JButton("Scenario Reports…").apply {
         isEnabled = false
-        toolTipText = "One document covering every completed scenario: run overview plus " +
-            "per-scenario across-replication statistics for every response."
-    }
-
-    private val perScenarioSummaryButton = JButton("Per-Scenario Results…").apply {
-        isEnabled = false
-        toolTipText = "Full snapshot report for one scenario: run summary, across-rep stats, " +
-            "histograms, frequencies, and time-series statistics (when present).  Pick which " +
-            "scenario after clicking."
+        toolTipText = "Pick which scenarios to include and choose between a consolidated " +
+            "summary or a full per-scenario report (one document per scenario)."
     }
 
     private val comparisonAnalyzerButton = JButton("Open Comparison Analyzer…").apply {
@@ -113,9 +105,7 @@ class ReportsTabPanel(
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 16, 0, 0)
             alignmentX = LEFT_ALIGNMENT
-            add(scenarioSummariesButton)
-            add(Box.createHorizontalStrut(8))
-            add(perScenarioSummaryButton)
+            add(scenarioReportsButton)
             add(Box.createHorizontalStrut(8))
             add(comparisonAnalyzerButton)
             add(Box.createHorizontalGlue())
@@ -143,50 +133,94 @@ class ReportsTabPanel(
                 )
             }
         }
-        scenarioSummariesButton.addActionListener { onScenarioSummaries() }
-        perScenarioSummaryButton.addActionListener { onPerScenarioSummary() }
+        scenarioReportsButton.addActionListener { onScenarioReports() }
         comparisonAnalyzerButton.addActionListener { onOpenComparisonAnalyzer() }
     }
 
-    private fun onScenarioSummaries() {
+    /**
+     *  Unified entry point that replaced the earlier two buttons.
+     *  Opens [ScenarioReportDialog] for the user to pick which
+     *  scenarios to include and whether to produce a consolidated
+     *  summary or one full report per scenario, then dispatches
+     *  accordingly.
+     */
+    private fun onScenarioReports() {
         val result = batchResultOrWarn() ?: return
         val formats = formatsOrWarn() ?: return
-        runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderScenarioSummaries(result, reportsDir(), formats)
-        }
-    }
-
-    private fun onPerScenarioSummary() {
-        val result = batchResultOrWarn() ?: return
-        val formats = formatsOrWarn() ?: return
-        val scenario = pickScenario(result, "Per-Scenario Summary") ?: return
-        runAndReport(outputDir = reportsDir()) {
-            ScenarioReports.renderScenarioSummary(result, scenario, reportsDir(), formats)
-        }
-    }
-
-    /** Picker over scenarios that have a completed snapshot.
-     *  Source-of-truth: the substrate's `experiment.exp_name` (which
-     *  the orchestrator sets from `ScenarioSpec.name`). */
-    private fun pickScenario(result: RunResult.BatchCompleted, title: String): String? {
         val names = ScenarioReports.availableScenarioNames(result)
         if (names.isEmpty()) {
             onMessage(
                 "No completed scenarios in the most recent run.",
                 NotificationSeverity.WARNING
             )
-            return null
+            return
         }
-        if (names.size == 1) return names.single()
-        return JOptionPane.showInputDialog(
-            this,
-            "Pick a scenario:",
-            title,
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            names.toTypedArray(),
-            names.first()
-        ) as? String
+        val outcome = ScenarioReportDialog.showDialog(this, names)
+        if (outcome !is ScenarioReportDialog.Result.Generate) return
+        when (outcome.style) {
+            ScenarioReportDialog.Style.SUMMARY -> {
+                runAndReport(outputDir = reportsDir()) {
+                    ScenarioReports.renderScenarioSummaries(
+                        result = result,
+                        outputDir = reportsDir(),
+                        formats = formats,
+                        scenarioNames = outcome.pickedNames.toSet()
+                    )
+                }
+            }
+            ScenarioReportDialog.Style.FULL_PER_SCENARIO -> {
+                // One document per picked scenario.  Suppress the
+                // browser-open for all but the first HTML so the user
+                // doesn't get N simultaneous tabs; the runAndReport
+                // notification still lists every file written.
+                val combined = mutableListOf<java.nio.file.Path>()
+                val errors = mutableListOf<String>()
+                var openInBrowserNext = true
+                for (name in outcome.pickedNames) {
+                    val perOutcome = try {
+                        ScenarioReports.renderScenarioSummary(
+                            result = result,
+                            scenarioName = name,
+                            outputDir = reportsDir(),
+                            formats = formats,
+                            openHtmlInBrowser = openInBrowserNext
+                        )
+                    } catch (t: Throwable) {
+                        errors.add(
+                            "Render failed for scenario '$name': ${t.message ?: t::class.simpleName}"
+                        )
+                        continue
+                    }
+                    combined.addAll(perOutcome.written)
+                    perOutcome.errors.forEach { errors.add("[$name] $it") }
+                    // Only the first successful HTML write opens the
+                    // browser.  After that, any subsequent invocation
+                    // passes false.
+                    if (perOutcome.written.any { it.toString().endsWith(".html") }) {
+                        openInBrowserNext = false
+                    }
+                }
+                reportCombinedOutcome(reportsDir(), combined, errors)
+            }
+        }
+    }
+
+    /** Single notification covering the combined outcome of a
+     *  per-scenario batch render.  Mirrors `runAndReport` for the
+     *  Summary path but accepts pre-aggregated paths and errors. */
+    private fun reportCombinedOutcome(
+        outputDir: java.nio.file.Path,
+        written: List<java.nio.file.Path>,
+        errors: List<String>
+    ) {
+        errors.forEach { onMessage("Report error: $it", NotificationSeverity.WARNING) }
+        if (written.isNotEmpty()) {
+            val files = written.joinToString(", ") { it.fileName.toString() }
+            onMessage(
+                "Wrote ${written.size} report file(s) to $outputDir: $files",
+                NotificationSeverity.INFO
+            )
+        }
     }
 
     /** Launch the cross-scenario [ComparisonAnalyzerFrame] over the
@@ -285,8 +319,7 @@ class ReportsTabPanel(
                 val batch = result as? RunResult.BatchCompleted
                 val hasSnapshots = batch != null && batch.snapshots.isNotEmpty()
                 val hasReplications = batch != null && batch.replicationsByItem.isNotEmpty()
-                scenarioSummariesButton.isEnabled = hasSnapshots
-                perScenarioSummaryButton.isEnabled = hasSnapshots
+                scenarioReportsButton.isEnabled = hasSnapshots
                 comparisonAnalyzerButton.isEnabled = hasReplications
             }
         }
