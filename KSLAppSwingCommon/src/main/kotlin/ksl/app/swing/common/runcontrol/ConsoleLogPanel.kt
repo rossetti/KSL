@@ -321,13 +321,17 @@ class ConsoleLogPanel(
     /**
      * Vertical filter rail rendered on the WEST edge of the console.
      * Items stack top→bottom:
+     *  - *Clear* button (top — separated by a visual gap from the
+     *    filter group so accidental clicks when reaching for the
+     *    console area are far less likely.  When *Clear* sat at the
+     *    bottom of the rail it landed directly under the mouse on
+     *    first focus, producing accidental clears).
      *  - "Filter" header label
      *  - *Severity* dropdown button — click opens checkbox menu
      *  - *Categories* dropdown button — click opens checkbox menu
      *    (hidden when the host suppressed every category via
      *    `hiddenCategories`)
-     *  - vertical glue (pushes *Clear* to the bottom)
-     *  - *Clear* button
+     *  - vertical glue (trailing space)
      *
      * The two dropdown buttons render their state as "Axis (N of M) ▾"
      * so the user sees at a glance how many of each axis is on.  Full
@@ -338,6 +342,17 @@ class ConsoleLogPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createEmptyBorder(6, 6, 6, 6)
         }
+        clearButton.alignmentX = Component.LEFT_ALIGNMENT
+        rail.add(clearButton)
+        // Visible gap separating the destructive Clear button from
+        // the filter group so the user doesn't approach it while
+        // aiming for a filter dropdown.
+        rail.add(Box.createVerticalStrut(12))
+        rail.add(JSeparator(SwingConstants.HORIZONTAL).apply {
+            alignmentX = Component.LEFT_ALIGNMENT
+            maximumSize = Dimension(RAIL_BUTTON_WIDTH, 2)
+        })
+        rail.add(Box.createVerticalStrut(8))
         val title = JLabel("Filter", SwingConstants.LEFT).apply {
             alignmentX = Component.LEFT_ALIGNMENT
             font = font.deriveFont(Font.BOLD)
@@ -357,8 +372,6 @@ class ConsoleLogPanel(
             rail.add(categoryFilterButton)
         }
         rail.add(Box.createVerticalGlue())
-        clearButton.alignmentX = Component.LEFT_ALIGNMENT
-        rail.add(clearButton)
         return rail
     }
 
