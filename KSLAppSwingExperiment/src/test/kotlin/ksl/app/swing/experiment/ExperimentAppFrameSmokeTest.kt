@@ -149,6 +149,105 @@ class ExperimentAppFrameSmokeTest {
     }
 
     @Test
+    fun `Design tab activates without throwing across all four variant cards`() {
+        // Exercises each DesignSpec variant in turn — catches
+        // construction / wiring errors in the variant cards
+        // (Full factorial, Two-level fractional, Central composite,
+        // Manual).  The empty-state branch (no model, no factors) is
+        // exercised by the bare frame instantiation test.
+        var controller: ExperimentAppController? = null
+        var frame: ExperimentAppFrame? = null
+        try {
+            SwingUtilities.invokeAndWait {
+                controller = ExperimentAppController("DesignTabSmoke")
+                frame = ExperimentAppFrame(controller!!)
+            }
+            SwingUtilities.invokeAndWait {
+                controller!!.setModelReference(
+                    ksl.app.config.ModelReference.ByBundleAndModelId(
+                        bundleId = "ksl.examples.lk-inventory",
+                        modelId = ksl.examples.general.appsupport.LKInventoryBundle.MODEL_ID
+                    )
+                )
+                val descriptor = controller!!.currentModelDescriptor.value
+                if (descriptor != null) {
+                    // Need >= 2 factors so the fractional variant can load.
+                    val keys = descriptor.controls.numericControls.take(3).map { it.keyName }
+                    for ((i, k) in keys.withIndex()) {
+                        controller!!.addFactor(
+                            ksl.app.config.experiment.FactorSpec(
+                                name = "F${i + 1}",
+                                levels = listOf(1.0, 2.0),
+                                binding = ksl.app.config.experiment.ControlBinding.Control(k)
+                            )
+                        )
+                    }
+                }
+                val tabs: JTabbedPane = findFirstDescendant(frame!!, JTabbedPane::class.java)
+                    ?: error("No JTabbedPane found")
+                tabs.selectedIndex = 2   // Design tab
+            }
+            // Walk each variant — each setDesignSpec triggers the
+            // matching card's load(...) on the EDT.
+            SwingUtilities.invokeAndWait {
+                controller!!.setDesignSpec(
+                    ksl.app.config.experiment.DesignSpec.FullFactorial(centerPoints = 2)
+                )
+            }
+            SwingUtilities.invokeAndWait {
+                if (controller!!.factors.value.size >= 2) {
+                    val k = controller!!.factors.value.size
+                    val rel = (0 until k).joinToString("") { ('A' + it).toString() }
+                    controller!!.setDesignSpec(
+                        ksl.app.config.experiment.DesignSpec.TwoLevelFractional(
+                            numFactors = k,
+                            fractionExponent = 1,
+                            definingRelations = listOf(rel)
+                        )
+                    )
+                }
+            }
+            SwingUtilities.invokeAndWait {
+                controller!!.setDesignSpec(
+                    ksl.app.config.experiment.DesignSpec.CentralComposite(
+                        axialSpacing = 1.5, centerPoints = 3
+                    )
+                )
+            }
+            SwingUtilities.invokeAndWait {
+                val factors = controller!!.factors.value
+                if (factors.isNotEmpty()) {
+                    val midpoint = factors.associate { f ->
+                        f.name to ((f.levels.min() + f.levels.max()) / 2.0)
+                    }
+                    controller!!.setDesignSpec(
+                        ksl.app.config.experiment.DesignSpec.Manual(
+                            listOf(ksl.app.config.experiment.ManualPointSpec(midpoint))
+                        )
+                    )
+                }
+            }
+            // Stream-policy round-trip
+            SwingUtilities.invokeAndWait {
+                controller!!.setStreamPolicy(
+                    ksl.app.config.experiment.StreamPolicy.CommonRandomNumbers
+                )
+                controller!!.setStreamPolicy(
+                    ksl.app.config.experiment.StreamPolicy.Independent(
+                        startingStreamAdvance = 5,
+                        streamAdvanceSpacing = 3
+                    )
+                )
+            }
+        } finally {
+            SwingUtilities.invokeAndWait {
+                frame?.dispose()
+                controller?.close()
+            }
+        }
+    }
+
+    @Test
     fun `menu bar exposes File, Bundles, View`() {
         var controller: ExperimentAppController? = null
         var frame: ExperimentAppFrame? = null

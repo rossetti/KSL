@@ -197,7 +197,7 @@ class ExperimentAppFrame(
         // Authoring tabs (E5–E8) — Model + Factors functional.
         val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val factorsTab = FactorsTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
-        val designTab = placeholderPanel("Design type + stream policy — Phase E7.")
+        val designTab = DesignTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val designPointsTab = placeholderPanel("Design-point preview — Phase E8.")
         val regressionTab = placeholderPanel("Regression configuration + HTML-report materialisation — Phase E9.")
 
