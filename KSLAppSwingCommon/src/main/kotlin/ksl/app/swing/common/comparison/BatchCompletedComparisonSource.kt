@@ -16,13 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario
+package ksl.app.swing.common.comparison
 
 import ksl.app.session.RunResult
-import ksl.app.swing.common.comparison.ComparisonDataSourceIfc
-import ksl.app.swing.common.comparison.ExperimentRow
-import ksl.app.swing.common.comparison.ResponseCategory
-import ksl.app.swing.common.comparison.ResponseRow
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant

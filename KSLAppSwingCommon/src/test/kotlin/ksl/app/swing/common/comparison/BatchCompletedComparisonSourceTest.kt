@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario
+package ksl.app.swing.common.comparison
 
 import kotlinx.datetime.Instant
 import ksl.app.session.OrchestratorSummary
