@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.controls.ControlData
 import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -51,38 +52,43 @@ import javax.swing.table.AbstractTableModel
 /**
  *  *Factors* tab — author the factor list this experiment varies.
  *
- *  Master-detail layout:
- *  - Top: button toolbar (Add / Delete / Move Up / Move Down) + a
- *    [JTable] listing factors (Name, Binding summary, Levels
- *    summary).  Single-selection.
- *  - Bottom: editor for the selected factor — Name field, Binding
- *    picker (Control vs RV-parameter, with descriptor-driven
- *    dropdowns), Levels editor (comma-separated doubles).  Edits
- *    commit on Apply; Revert reloads from the controller.
+ *  Master-detail layout with explicit Add / Edit modes (E6.1
+ *  redesign — see plan doc):
  *
- *  Empty states (via `CardLayout`):
- *  - **No model selected** — instruct the user to pick a model first.
- *  - **Model selected but descriptor unavailable** — the document
- *    carries an unresolved or non-bundle ref.
- *  - **Populated** — the master-detail editor.
+ *  - **Idle**: no factor in the editor.  Prompts the user to select
+ *    a row or click *Add Factor*.
+ *  - **Add mode**: triggered by *Add Factor*.  Editor opens with
+ *    default values; the factor is NOT in the controller's list
+ *    yet.  Buttons: **Add** + **Cancel**.
+ *  - **Edit mode**: triggered by selecting a row.  Editor shows the
+ *    current factor's values.  Buttons: **Save changes** + **Cancel**
+ *    (Cancel = reload from controller, the old Revert semantics).
  *
- *  Validation:
- *  - Name uniqueness + non-blank: controller's `addFactor` /
- *    `updateFactor` `require(...)` calls.  Apply catches and shows
- *    the message inline.
- *  - ≥ 2 levels, no duplicates: substrate `FactorSpec.init`.  Apply
- *    catches and shows inline.
- *  - Levels parse: panel parser (comma-separated doubles).  Inline
- *    warning below the field.
- *  - Binding key resolves against [ModelDescriptor]: panel check.
- *    Inline warning below the binding row.
- *  - Control bounds (when both finite): soft warning when a level
- *    falls outside `lowerBound..upperBound`.  Non-blocking — some
- *    controls carry placeholder bounds; the analyst can override.
+ *  Mode transitions:
+ *  - Add + click *Add* → controller.addFactor; switches to Edit on
+ *    the newly-added factor so the user can fine-tune levels
+ *    without losing context.  Controller's `addFactor` selects the
+ *    new index for us.
+ *  - Add + click *Cancel* → returns to Idle.
+ *  - Edit + click *Save changes* → controller.updateFactor; stays
+ *    in Edit with refreshed values.
+ *  - Edit + click *Cancel* → reload from controller (drops in-flight
+ *    edits).
+ *  - Selecting another row with dirty edits prompts before switching.
  *
- *  Phase E5 publishes [ExperimentAppController.currentModelDescriptor]
- *  — this panel collects it to drive the binding picker and the
- *  resolvability check.
+ *  Binding picker improvements (E6.1):
+ *  - Filter text field above each dropdown — substring, case-
+ *    insensitive.
+ *  - **Two-level Control picker** when the model's controls split
+ *    naturally by `parentElementName`: parent dropdown → control
+ *    dropdown.  Falls back to a flat single dropdown when grouping
+ *    isn't meaningful (single parent, or all parents `null`).
+ *  - RV picker is already two-level (rvName → paramName); each
+ *    level now carries its own filter field.
+ *
+ *  Empty states unchanged: NO_MODEL, UNRESOLVED, NO_FACTORS,
+ *  POPULATED — see the original Phase E6 commit for the no-model /
+ *  unresolved-ref copy.
  */
 class FactorsTabPanel(
     private val controller: ExperimentAppController,
@@ -97,18 +103,13 @@ class FactorsTabPanel(
         "The model reference is unresolved — load its bundle on the Model tab to enable " +
             "factor authoring."
     )
-    /** Built in `init` because [makeNoFactorsCard] references
-     *  [noFactorsAddButton], which is declared further down — field
-     *  initializers run in declaration order and would NPE if this
-     *  was a field initializer. */
     private lateinit var noFactorsCard: JPanel
     private val populatedCard = JPanel(BorderLayout())
 
     // ── Toolbar buttons ────────────────────────────────────────────────────
 
     private val addButton = JButton("Add Factor").apply {
-        toolTipText = "Add a new factor with a default 2-level binding to the first " +
-            "available control."
+        toolTipText = "Open the editor for a new factor.  Click Add inside the editor to commit."
     }
     private val deleteButton = JButton("Delete").apply { isEnabled = false }
     private val moveUpButton = JButton("Move Up").apply { isEnabled = false }
@@ -128,62 +129,83 @@ class FactorsTabPanel(
         columnModel.getColumn(COL_LEVELS).preferredWidth = 240
     }
 
-    // ── Detail editor ──────────────────────────────────────────────────────
+    // ── Detail editor: state ───────────────────────────────────────────────
 
+    /** Editor state.  Three variants: [Idle], [Add], [Edit].  Add
+     *  carries no controller-side index — the factor doesn't exist
+     *  yet.  Edit pins the controller index it's authoring. */
+    private sealed class EditorMode {
+        object Idle : EditorMode()
+        object Add : EditorMode()
+        data class Edit(val index: Int) : EditorMode()
+    }
+
+    private var editorMode: EditorMode = EditorMode.Idle
+
+    /** `true` when the editor fields differ from what was last
+     *  loaded / committed.  Drives the primary-action button's
+     *  enablement and the discard-on-switch prompt. */
+    private var editsDirty: Boolean = false
+
+    /** Guards collector-driven updates so they don't mark the
+     *  editor dirty. */
+    private var programmaticEditorUpdate: Boolean = false
+
+    // ── Detail editor: widgets ─────────────────────────────────────────────
+
+    private val editorHeaderLabel = JLabel(" ").apply {
+        font = font.deriveFont(Font.BOLD)
+        foreground = Color(0x44, 0x44, 0x44)
+    }
     private val nameField = JTextField(20)
+
     private val controlRadio = JRadioButton("Control", true)
     private val rvRadio = JRadioButton("RV parameter")
+
+    // Control binding widgets.  Two-level: parent ▾  control ▾ ,
+    // with a filter text field above each.  When grouping isn't
+    // meaningful the parent combo + filter are hidden.
+    private val controlParentFilter = JTextField(10)
+    private val controlParentCombo: JComboBox<String> = JComboBox()
+    private val controlKeyFilter = JTextField(14)
     private val controlKeyCombo: JComboBox<String> = JComboBox()
+
+    // RV binding widgets.  Always two-level (rvName → paramName).
+    private val rvNameFilter = JTextField(12)
     private val rvNameCombo: JComboBox<String> = JComboBox()
+    private val rvParamFilter = JTextField(12)
     private val rvParamCombo: JComboBox<String> = JComboBox()
+
     private val levelsField = JTextField(28)
     private val levelsPreview = JLabel(" ").apply { foreground = Color(0x66, 0x66, 0x66) }
     private val bindingResolvabilityLabel = JLabel(" ").apply {
         foreground = Color(0x66, 0x66, 0x66)
     }
-    private val applyButton = JButton("Apply changes").apply { isEnabled = false }
-    private val revertButton = JButton("Revert").apply { isEnabled = false }
+
+    private val primaryActionButton = JButton("Save changes").apply { isEnabled = false }
+    private val cancelButton = JButton("Cancel").apply { isEnabled = false }
 
     private val bindingCards = CardLayout()
     private val bindingCardHost = JPanel(bindingCards)
-    private val controlBindingPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        alignmentX = Component.LEFT_ALIGNMENT
-        add(JLabel("Control key:"))
-        add(Box.createHorizontalStrut(8))
-        add(controlKeyCombo)
-        add(Box.createHorizontalGlue())
-    }
-    private val rvBindingPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
-        alignmentX = Component.LEFT_ALIGNMENT
-        add(JLabel("RV name:"))
-        add(Box.createHorizontalStrut(8))
-        add(rvNameCombo)
-        add(Box.createHorizontalStrut(16))
-        add(JLabel("Parameter:"))
-        add(Box.createHorizontalStrut(8))
-        add(rvParamCombo)
-        add(Box.createHorizontalGlue())
-    }
 
-    /** Index of the factor currently loaded into the editor, or `-1`
-     *  when no factor is selected.  Drives Apply's target index +
-     *  Revert's source. */
-    private var editorTargetIndex: Int = -1
+    /** `true` when the current model's controls split naturally
+     *  across multiple non-null parent elements.  When false the
+     *  parent dropdown + filter are hidden in the Control binding
+     *  pane.  Recomputed in [rebuildBindingDropdowns]. */
+    private var useControlParentLevel: Boolean = false
 
-    /** `true` while the editor's fields differ from the loaded
-     *  factor.  Enables Apply / Revert, gates selection changes
-     *  (prompt before discarding). */
-    private var editsDirty: Boolean = false
+    /** Master lists — all candidates, before filtering.  The combo
+     *  models are derived from these. */
+    private var allControlParents: List<String> = emptyList()
+    private var allControlKeys: List<String> = emptyList()
+    private var allRvNames: List<String> = emptyList()
 
-    /** Guards collector-driven updates so they don't trigger the
-     *  detail-editor's "dirty" listeners. */
-    private var programmaticEditorUpdate: Boolean = false
+    /** Per-parent map of control keys.  Empty when grouping isn't
+     *  used.  Indexed by parent name. */
+    private var controlKeysByParent: Map<String, List<String>> = emptyMap()
 
     init {
         layout = cards
-
         noFactorsCard = makeNoFactorsCard()
 
         populatedCard.add(buildToolbar(), BorderLayout.NORTH)
@@ -204,6 +226,7 @@ class FactorsTabPanel(
         wireCollectors()
 
         refreshCardSelection()
+        applyMode(EditorMode.Idle)
         refreshButtonEnablement()
     }
 
@@ -223,18 +246,23 @@ class FactorsTabPanel(
 
     private fun buildDetailEditor(): JComponent {
         ButtonGroup().apply { add(controlRadio); add(rvRadio) }
-        bindingCardHost.add(controlBindingPanel, CARD_BINDING_CONTROL)
-        bindingCardHost.add(rvBindingPanel, CARD_BINDING_RV)
+        bindingCardHost.add(buildControlBindingPane(), CARD_BINDING_CONTROL)
+        bindingCardHost.add(buildRvBindingPane(), CARD_BINDING_RV)
 
-        val panel = JPanel().apply {
+        return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1, 0, 0, 0, Color(0xCC, 0xCC, 0xCC)),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)
             )
 
+            editorHeaderLabel.alignmentX = Component.LEFT_ALIGNMENT
+            add(editorHeaderLabel)
+            add(Box.createVerticalStrut(6))
+
             add(row("Name:", nameField))
             add(Box.createVerticalStrut(6))
+
             add(row("Binding:", JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.X_AXIS)
                 alignmentX = Component.LEFT_ALIGNMENT
@@ -270,12 +298,87 @@ class FactorsTabPanel(
                 layout = BoxLayout(this, BoxLayout.X_AXIS)
                 alignmentX = Component.LEFT_ALIGNMENT
                 add(Box.createHorizontalGlue())
-                add(revertButton)
+                add(cancelButton)
                 add(Box.createHorizontalStrut(8))
-                add(applyButton)
+                add(primaryActionButton)
             })
         }
-        return panel
+    }
+
+    /** Control binding pane: two-level parent ▾ control ▾ inline
+     *  with filter text fields above each.  Parent combo + filter
+     *  are hidden when grouping isn't useful. */
+    private fun buildControlBindingPane(): JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        alignmentX = Component.LEFT_ALIGNMENT
+
+        // Filter row above the dropdowns.
+        add(JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            alignmentX = Component.LEFT_ALIGNMENT
+            controlParentFilter.toolTipText = "Filter parent elements"
+            controlParentFilter.maximumSize = Dimension(160, controlParentFilter.preferredSize.height)
+            controlKeyFilter.toolTipText = "Filter control keys within the chosen parent"
+            controlKeyFilter.maximumSize = Dimension(180, controlKeyFilter.preferredSize.height)
+            add(JLabel("Filter parent:"))
+            add(Box.createHorizontalStrut(4))
+            add(controlParentFilter)
+            add(Box.createHorizontalStrut(16))
+            add(JLabel("Filter control:"))
+            add(Box.createHorizontalStrut(4))
+            add(controlKeyFilter)
+            add(Box.createHorizontalGlue())
+        })
+        add(Box.createVerticalStrut(4))
+
+        // Dropdown row.
+        add(JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            alignmentX = Component.LEFT_ALIGNMENT
+            add(JLabel("Control:"))
+            add(Box.createHorizontalStrut(8))
+            add(controlParentCombo)
+            add(Box.createHorizontalStrut(8))
+            add(controlKeyCombo)
+            add(Box.createHorizontalGlue())
+        })
+    }
+
+    /** RV binding pane: rvName ▾ paramName ▾ inline with filters. */
+    private fun buildRvBindingPane(): JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        alignmentX = Component.LEFT_ALIGNMENT
+
+        add(JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            alignmentX = Component.LEFT_ALIGNMENT
+            rvNameFilter.toolTipText = "Filter RV names"
+            rvNameFilter.maximumSize = Dimension(160, rvNameFilter.preferredSize.height)
+            rvParamFilter.toolTipText = "Filter parameter names for the chosen RV"
+            rvParamFilter.maximumSize = Dimension(160, rvParamFilter.preferredSize.height)
+            add(JLabel("Filter RV:"))
+            add(Box.createHorizontalStrut(4))
+            add(rvNameFilter)
+            add(Box.createHorizontalStrut(16))
+            add(JLabel("Filter param:"))
+            add(Box.createHorizontalStrut(4))
+            add(rvParamFilter)
+            add(Box.createHorizontalGlue())
+        })
+        add(Box.createVerticalStrut(4))
+
+        add(JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            alignmentX = Component.LEFT_ALIGNMENT
+            add(JLabel("RV:"))
+            add(Box.createHorizontalStrut(8))
+            add(rvNameCombo)
+            add(Box.createHorizontalStrut(16))
+            add(JLabel("Parameter:"))
+            add(Box.createHorizontalStrut(8))
+            add(rvParamCombo)
+            add(Box.createHorizontalGlue())
+        })
     }
 
     private fun row(label: String, content: JComponent): JComponent = JPanel().apply {
@@ -317,8 +420,8 @@ class FactorsTabPanel(
     // ── Wiring: toolbar ────────────────────────────────────────────────────
 
     private fun wireToolbarListeners() {
-        addButton.addActionListener { addNewFactor() }
-        noFactorsAddButton.addActionListener { addNewFactor() }
+        addButton.addActionListener { enterAddMode() }
+        noFactorsAddButton.addActionListener { enterAddMode() }
         deleteButton.addActionListener {
             val index = currentRow()
             if (index < 0) return@addActionListener
@@ -329,6 +432,7 @@ class FactorsTabPanel(
             )
             if (choice != JOptionPane.YES_OPTION) return@addActionListener
             controller.deleteFactor(index)
+            applyMode(EditorMode.Idle)
         }
         moveUpButton.addActionListener {
             val index = currentRow()
@@ -342,7 +446,7 @@ class FactorsTabPanel(
         }
     }
 
-    private fun addNewFactor() {
+    private fun enterAddMode() {
         val descriptor = controller.currentModelDescriptor.value ?: run {
             onMessage(
                 "Select a model on the Model tab before adding factors.",
@@ -350,24 +454,44 @@ class FactorsTabPanel(
             )
             return
         }
-        val newName = nextAvailableFactorName(controller.factors.value)
-        val defaultBinding = defaultBindingFor(descriptor) ?: run {
+        if (!confirmDiscardIfDirty("Discard the in-progress factor edits?")) return
+        if (defaultBindingFor(descriptor) == null) {
             onMessage(
                 "Selected model has no controls or RV parameters to bind to.",
                 NotificationSeverity.ERROR
             )
             return
         }
-        val spec = FactorSpec(
-            name = newName,
-            levels = listOf(0.0, 1.0),
-            binding = defaultBinding
-        )
+        loadDefaultsForNewFactor()
+        applyMode(EditorMode.Add)
+    }
+
+    private fun loadDefaultsForNewFactor() {
+        val descriptor = controller.currentModelDescriptor.value ?: return
+        val newName = nextAvailableFactorName(controller.factors.value)
+        val defaultBinding = defaultBindingFor(descriptor) ?: return
+        programmaticEditorUpdate = true
         try {
-            controller.addFactor(spec)
-        } catch (t: IllegalArgumentException) {
-            onMessage("Could not add factor: ${t.message}", NotificationSeverity.ERROR)
+            nameField.text = newName
+            levelsField.text = "0.0, 1.0"
+            when (defaultBinding) {
+                is ControlBinding.Control -> {
+                    controlRadio.isSelected = true
+                    bindingCards.show(bindingCardHost, CARD_BINDING_CONTROL)
+                    selectControlBindingInUI(defaultBinding.controlKey)
+                }
+                is ControlBinding.RVParameter -> {
+                    rvRadio.isSelected = true
+                    bindingCards.show(bindingCardHost, CARD_BINDING_RV)
+                    selectRvBindingInUI(defaultBinding.rvName, defaultBinding.paramName)
+                }
+            }
+        } finally {
+            programmaticEditorUpdate = false
         }
+        refreshLevelsPreview()
+        refreshBindingResolvability()
+        editsDirty = false
     }
 
     private fun nextAvailableFactorName(existing: List<FactorSpec>): String {
@@ -396,30 +520,27 @@ class FactorsTabPanel(
         table.selectionModel.addListSelectionListener { e ->
             if (e.valueIsAdjusting) return@addListSelectionListener
             val newRow = table.selectedRow
-            if (newRow == editorTargetIndex) return@addListSelectionListener
-            if (editsDirty) {
-                val choice = JOptionPane.showConfirmDialog(
-                    this,
-                    "Discard unsaved factor edits?",
-                    "Unsaved Edits",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE
-                )
-                if (choice != JOptionPane.YES_OPTION) {
-                    // Restore the previous selection silently.
-                    if (editorTargetIndex in 0 until table.rowCount) {
-                        programmaticEditorUpdate = true
-                        try {
-                            table.selectionModel.setSelectionInterval(editorTargetIndex, editorTargetIndex)
-                        } finally {
-                            programmaticEditorUpdate = false
-                        }
+            val currentIndex = (editorMode as? EditorMode.Edit)?.index ?: -1
+            if (newRow == currentIndex && editorMode !is EditorMode.Add) return@addListSelectionListener
+            if (!confirmDiscardIfDirty("Discard unsaved factor edits?")) {
+                // Restore previous selection silently.
+                if (currentIndex in 0 until table.rowCount) {
+                    programmaticEditorUpdate = true
+                    try {
+                        table.selectionModel.setSelectionInterval(currentIndex, currentIndex)
+                    } finally {
+                        programmaticEditorUpdate = false
                     }
-                    return@addListSelectionListener
                 }
+                return@addListSelectionListener
             }
-            controller.setSelectedFactorIndex(newRow.coerceAtLeast(-1))
-            loadEditorFromController(newRow)
+            if (newRow < 0) {
+                applyMode(EditorMode.Idle)
+            } else {
+                controller.setSelectedFactorIndex(newRow)
+                loadEditorFromController(newRow)
+                applyMode(EditorMode.Edit(newRow))
+            }
         }
     }
 
@@ -429,7 +550,10 @@ class FactorsTabPanel(
 
     private fun wireDetailEditorListeners() {
         val markDirty: () -> Unit = {
-            if (!programmaticEditorUpdate && editorTargetIndex >= 0 && !editsDirty) {
+            if (!programmaticEditorUpdate &&
+                editorMode !is EditorMode.Idle &&
+                !editsDirty
+            ) {
                 editsDirty = true
                 refreshButtonEnablement()
             }
@@ -455,6 +579,12 @@ class FactorsTabPanel(
                 markDirty()
             }
         }
+        controlParentCombo.addActionListener {
+            if (programmaticEditorUpdate) return@addActionListener
+            refreshControlKeyComboForSelectedParent()
+            markDirty()
+            refreshBindingResolvability()
+        }
         controlKeyCombo.addActionListener {
             if (programmaticEditorUpdate) return@addActionListener
             markDirty()
@@ -471,10 +601,24 @@ class FactorsTabPanel(
             markDirty()
             refreshBindingResolvability()
         }
-        applyButton.addActionListener { applyEditor() }
-        revertButton.addActionListener {
-            loadEditorFromController(editorTargetIndex)
-        }
+
+        // Filter text-field listeners — re-filter the source list,
+        // rebuild the combo model, preserve selection where possible.
+        controlParentFilter.document.addDocumentListener(SimpleDocumentListener {
+            applyControlParentFilter()
+        })
+        controlKeyFilter.document.addDocumentListener(SimpleDocumentListener {
+            applyControlKeyFilter()
+        })
+        rvNameFilter.document.addDocumentListener(SimpleDocumentListener {
+            applyRvNameFilter()
+        })
+        rvParamFilter.document.addDocumentListener(SimpleDocumentListener {
+            applyRvParamFilter()
+        })
+
+        primaryActionButton.addActionListener { commitEditor() }
+        cancelButton.addActionListener { cancelEditor() }
     }
 
     // ── Wiring: controller collectors ──────────────────────────────────────
@@ -483,14 +627,14 @@ class FactorsTabPanel(
         controller.edtScope.launch {
             controller.factors.collect { _ ->
                 tableModel.fireTableDataChanged()
-                syncSelection()
+                syncSelectionFromController()
                 refreshCardSelection()
                 refreshButtonEnablement()
             }
         }
         controller.edtScope.launch {
             controller.selectedFactorIndex.collect { _ ->
-                syncSelection()
+                syncSelectionFromController()
             }
         }
         controller.edtScope.launch {
@@ -516,7 +660,7 @@ class FactorsTabPanel(
         val card = when {
             !hasModel -> CARD_NO_MODEL
             !hasDescriptor -> CARD_UNRESOLVED
-            !hasFactors -> CARD_NO_FACTORS
+            !hasFactors && editorMode !is EditorMode.Add -> CARD_NO_FACTORS
             else -> CARD_POPULATED
         }
         cards.show(this, card)
@@ -525,18 +669,31 @@ class FactorsTabPanel(
     private fun refreshButtonEnablement() {
         val factors = controller.factors.value
         val row = currentRow()
-        deleteButton.isEnabled = row in factors.indices
-        moveUpButton.isEnabled = row >= 1
-        moveDownButton.isEnabled = row in 0 until factors.lastIndex
-        applyButton.isEnabled = editsDirty
-        revertButton.isEnabled = editsDirty
+        // Don't allow Delete / Move while in Add mode (the row
+        // doesn't exist in the list yet); these act on table rows.
+        val inAddMode = editorMode is EditorMode.Add
+        deleteButton.isEnabled = !inAddMode && row in factors.indices
+        moveUpButton.isEnabled = !inAddMode && row >= 1
+        moveDownButton.isEnabled = !inAddMode && row in 0 until factors.lastIndex
+
+        primaryActionButton.isEnabled = when (editorMode) {
+            is EditorMode.Idle -> false
+            is EditorMode.Add -> true                    // always allow Add attempt — validation surfaces if it fails
+            is EditorMode.Edit -> editsDirty
+        }
+        cancelButton.isEnabled = editorMode !is EditorMode.Idle
     }
 
-    private fun syncSelection() {
+    private fun syncSelectionFromController() {
+        if (editorMode is EditorMode.Add) return  // don't disturb Add mode
         val target = controller.selectedFactorIndex.value
         if (target !in 0 until table.rowCount) {
-            if (table.selectedRow != -1) table.clearSelection()
-            if (editorTargetIndex != -1) loadEditorFromController(-1)
+            if (table.selectedRow != -1) {
+                programmaticEditorUpdate = true
+                try { table.clearSelection() }
+                finally { programmaticEditorUpdate = false }
+            }
+            if (editorMode !is EditorMode.Idle) applyMode(EditorMode.Idle)
             return
         }
         if (table.selectedRow != target) {
@@ -544,55 +701,99 @@ class FactorsTabPanel(
             try { table.selectionModel.setSelectionInterval(target, target) }
             finally { programmaticEditorUpdate = false }
         }
-        if (editorTargetIndex != target && !editsDirty) {
+        val currentIndex = (editorMode as? EditorMode.Edit)?.index ?: -1
+        if (currentIndex != target && !editsDirty) {
             loadEditorFromController(target)
+            applyMode(EditorMode.Edit(target))
         }
     }
 
-    // ── Detail editor: load / apply / state ────────────────────────────────
+    // ── Mode application ───────────────────────────────────────────────────
 
-    /** Reload the editor from controller state for the factor at
-     *  [index].  Clears the dirty flag.  Pass -1 to clear the editor. */
-    private fun loadEditorFromController(index: Int) {
+    private fun applyMode(newMode: EditorMode) {
+        editorMode = newMode
+        editsDirty = false
+        when (newMode) {
+            is EditorMode.Idle -> {
+                editorHeaderLabel.text = "Select a factor from the table, or click Add Factor."
+                clearEditorFields()
+                primaryActionButton.text = "Save changes"
+                cancelButton.text = "Cancel"
+            }
+            is EditorMode.Add -> {
+                editorHeaderLabel.text = "New factor — click Add to commit, Cancel to discard."
+                primaryActionButton.text = "Add"
+                cancelButton.text = "Cancel"
+            }
+            is EditorMode.Edit -> {
+                val name = controller.factors.value.getOrNull(newMode.index)?.name ?: "?"
+                editorHeaderLabel.text = "Editing factor '$name'."
+                primaryActionButton.text = "Save changes"
+                cancelButton.text = "Cancel"
+            }
+        }
+        refreshCardSelection()
+        refreshButtonEnablement()
+    }
+
+    private fun clearEditorFields() {
         programmaticEditorUpdate = true
         try {
-            editorTargetIndex = index
-            editsDirty = false
-            val spec = controller.factors.value.getOrNull(index)
-            if (spec == null) {
-                nameField.text = ""
-                levelsField.text = ""
-                controlRadio.isSelected = true
-                bindingCards.show(bindingCardHost, CARD_BINDING_CONTROL)
-            } else {
-                nameField.text = spec.name
-                levelsField.text = spec.levels.joinToString(", ")
-                when (val b = spec.binding) {
-                    is ControlBinding.Control -> {
-                        controlRadio.isSelected = true
-                        bindingCards.show(bindingCardHost, CARD_BINDING_CONTROL)
-                        selectComboItem(controlKeyCombo, b.controlKey)
-                    }
-                    is ControlBinding.RVParameter -> {
-                        rvRadio.isSelected = true
-                        bindingCards.show(bindingCardHost, CARD_BINDING_RV)
-                        selectComboItem(rvNameCombo, b.rvName)
-                        refreshRvParamComboForSelectedRv()
-                        selectComboItem(rvParamCombo, b.paramName)
-                    }
-                }
-            }
-            refreshLevelsPreview()
-            refreshBindingResolvability()
-            refreshButtonEnablement()
+            nameField.text = ""
+            levelsField.text = ""
+            controlRadio.isSelected = true
+            bindingCards.show(bindingCardHost, CARD_BINDING_CONTROL)
         } finally {
             programmaticEditorUpdate = false
         }
+        refreshLevelsPreview()
+        refreshBindingResolvability()
     }
 
-    private fun applyEditor() {
-        val index = editorTargetIndex
-        if (index < 0 || index !in controller.factors.value.indices) return
+    private fun confirmDiscardIfDirty(question: String): Boolean {
+        if (!editsDirty && editorMode !is EditorMode.Add) return true
+        if (editorMode is EditorMode.Add && !editsDirty) return true
+        val choice = JOptionPane.showConfirmDialog(
+            this, question, "Unsaved Edits",
+            JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE
+        )
+        return choice == JOptionPane.YES_OPTION
+    }
+
+    // ── Editor: load / commit / cancel ─────────────────────────────────────
+
+    /** Reload the editor from controller state for the factor at [index].
+     *  Clears the dirty flag. */
+    private fun loadEditorFromController(index: Int) {
+        val spec = controller.factors.value.getOrNull(index) ?: run {
+            clearEditorFields()
+            return
+        }
+        programmaticEditorUpdate = true
+        try {
+            nameField.text = spec.name
+            levelsField.text = spec.levels.joinToString(", ")
+            when (val b = spec.binding) {
+                is ControlBinding.Control -> {
+                    controlRadio.isSelected = true
+                    bindingCards.show(bindingCardHost, CARD_BINDING_CONTROL)
+                    selectControlBindingInUI(b.controlKey)
+                }
+                is ControlBinding.RVParameter -> {
+                    rvRadio.isSelected = true
+                    bindingCards.show(bindingCardHost, CARD_BINDING_RV)
+                    selectRvBindingInUI(b.rvName, b.paramName)
+                }
+            }
+        } finally {
+            programmaticEditorUpdate = false
+        }
+        refreshLevelsPreview()
+        refreshBindingResolvability()
+        editsDirty = false
+    }
+
+    private fun commitEditor() {
         val parsed = parseLevels(levelsField.text)
         if (parsed == null) {
             onMessage(
@@ -620,14 +821,46 @@ class FactorsTabPanel(
             onMessage("Invalid factor: ${t.message}", NotificationSeverity.WARNING)
             return
         }
-        try {
-            controller.updateFactor(index, newSpec)
-        } catch (t: IllegalArgumentException) {
-            onMessage("Could not apply: ${t.message}", NotificationSeverity.ERROR)
-            return
+        when (val mode = editorMode) {
+            is EditorMode.Add -> {
+                try {
+                    controller.addFactor(newSpec)
+                } catch (t: IllegalArgumentException) {
+                    onMessage("Could not add: ${t.message}", NotificationSeverity.ERROR)
+                    return
+                }
+                // Controller selected the new last index; the
+                // factors collector will sync the table.  Switch to
+                // Edit mode pointing at the new factor so the user
+                // can fine-tune without losing context.
+                val newIndex = controller.factors.value.lastIndex
+                loadEditorFromController(newIndex)
+                applyMode(EditorMode.Edit(newIndex))
+            }
+            is EditorMode.Edit -> {
+                try {
+                    controller.updateFactor(mode.index, newSpec)
+                } catch (t: IllegalArgumentException) {
+                    onMessage("Could not save: ${t.message}", NotificationSeverity.ERROR)
+                    return
+                }
+                editsDirty = false
+                editorHeaderLabel.text = "Editing factor '${newSpec.name}'."
+                refreshButtonEnablement()
+            }
+            EditorMode.Idle -> { /* primary action disabled in idle */ }
         }
-        editsDirty = false
-        refreshButtonEnablement()
+    }
+
+    private fun cancelEditor() {
+        when (val mode = editorMode) {
+            is EditorMode.Add -> applyMode(EditorMode.Idle)
+            is EditorMode.Edit -> {
+                loadEditorFromController(mode.index)
+                refreshButtonEnablement()
+            }
+            EditorMode.Idle -> { /* disabled */ }
+        }
     }
 
     private fun buildBindingFromEditor(): ControlBinding? {
@@ -644,8 +877,8 @@ class FactorsTabPanel(
         }
     }
 
-    /** Parse a comma-separated list of doubles.  Returns null on
-     *  empty input or any unparseable token. */
+    /** Parse comma-separated doubles.  null on empty or any
+     *  unparseable token. */
     private fun parseLevels(raw: String): List<Double>? {
         val parts = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
         if (parts.isEmpty()) return null
@@ -685,9 +918,6 @@ class FactorsTabPanel(
         }
     }
 
-    /** Returns a soft warning when the current binding is a control
-     *  with finite bounds and any level falls outside them.  Returns
-     *  `null` otherwise (no bounds, no binding, or all in range). */
     private fun warningForBoundsViolation(levels: List<Double>): String? {
         if (!controlRadio.isSelected) return null
         val key = controlKeyCombo.selectedItem as? String ?: return null
@@ -698,7 +928,7 @@ class FactorsTabPanel(
         val violators = levels.filter { it < control.lowerBound || it > control.upperBound }
         if (violators.isEmpty()) return null
         return "Warning: level(s) ${violators.joinToString(", ")} outside control range " +
-            "[${control.lowerBound}, ${control.upperBound}] — apply will still succeed."
+            "[${control.lowerBound}, ${control.upperBound}] — commit will still succeed."
     }
 
     private fun refreshBindingResolvability() {
@@ -736,26 +966,71 @@ class FactorsTabPanel(
 
     // ── Dropdown population ────────────────────────────────────────────────
 
+    /** Rebuild the master candidate lists + initial combo models
+     *  from the descriptor.  Called from the descriptor collector. */
     private fun rebuildBindingDropdowns(descriptor: ModelDescriptor?) {
         programmaticEditorUpdate = true
         try {
-            val controlKeys = descriptor
-                ?.controls?.numericControls
+            allControlKeys = descriptor?.controls?.numericControls
                 ?.map { it.keyName }
                 ?.sorted()
                 ?: emptyList()
-            controlKeyCombo.model = DefaultComboBoxModel(controlKeys.toTypedArray())
 
-            val rvNames = descriptor?.rvParameterMap?.keys?.sorted() ?: emptyList()
-            rvNameCombo.model = DefaultComboBoxModel(rvNames.toTypedArray())
+            // Two-level Control grouping: meaningful when there are
+            // multiple distinct non-null parent names.
+            val parentMap: Map<String, List<String>> = descriptor?.controls?.numericControls
+                ?.groupBy(
+                    keySelector = { c: ControlData -> c.parentElementName ?: "" },
+                    valueTransform = { c: ControlData -> c.keyName }
+                )
+                ?.filterKeys { it.isNotBlank() }
+                ?.mapValues { (_, v) -> v.sorted() }
+                ?: emptyMap()
+            useControlParentLevel = parentMap.size > 1
+            controlKeysByParent = parentMap
+            allControlParents = parentMap.keys.sorted()
+
+            controlParentCombo.isVisible = useControlParentLevel
+            controlParentFilter.isVisible = useControlParentLevel
+
+            controlParentCombo.model = DefaultComboBoxModel(allControlParents.toTypedArray())
+            // Initially populate the key combo with every key (flat
+            // mode) or with the first parent's keys (grouped mode).
+            val initialKeys = if (useControlParentLevel && allControlParents.isNotEmpty()) {
+                controlKeysByParent[allControlParents[0]] ?: emptyList()
+            } else {
+                allControlKeys
+            }
+            controlKeyCombo.model = DefaultComboBoxModel(initialKeys.toTypedArray())
+
+            allRvNames = descriptor?.rvParameterMap?.keys?.sorted() ?: emptyList()
+            rvNameCombo.model = DefaultComboBoxModel(allRvNames.toTypedArray())
             refreshRvParamComboForSelectedRv()
         } finally {
             programmaticEditorUpdate = false
         }
-        // After rebuilding, re-load the editor from the current
-        // factor so selections reflect the (possibly new) options.
-        if (editorTargetIndex >= 0 && !editsDirty) {
-            loadEditorFromController(editorTargetIndex)
+        // Re-load the editor for the currently-selected factor (if
+        // any) so its binding selection lands in the new combo
+        // models.  Skip in Add mode (the user is mid-creation).
+        val mode = editorMode
+        if (mode is EditorMode.Edit && !editsDirty) {
+            loadEditorFromController(mode.index)
+        }
+    }
+
+    private fun refreshControlKeyComboForSelectedParent() {
+        if (!useControlParentLevel) return
+        val parent = controlParentCombo.selectedItem as? String ?: return
+        val keys = controlKeysByParent[parent] ?: emptyList()
+        val previous = controlKeyCombo.selectedItem as? String
+        programmaticEditorUpdate = true
+        try {
+            controlKeyCombo.model = DefaultComboBoxModel(
+                applyFilter(keys, controlKeyFilter.text).toTypedArray()
+            )
+            if (previous in keys) controlKeyCombo.selectedItem = previous
+        } finally {
+            programmaticEditorUpdate = false
         }
     }
 
@@ -767,15 +1042,96 @@ class FactorsTabPanel(
         } else {
             emptyList()
         }
-        // Preserve user selection where possible.
         val previous = rvParamCombo.selectedItem as? String
         programmaticEditorUpdate = true
         try {
-            rvParamCombo.model = DefaultComboBoxModel(params.toTypedArray())
+            rvParamCombo.model = DefaultComboBoxModel(
+                applyFilter(params, rvParamFilter.text).toTypedArray()
+            )
             if (previous in params) rvParamCombo.selectedItem = previous
         } finally {
             programmaticEditorUpdate = false
         }
+    }
+
+    // ── Filter handlers ────────────────────────────────────────────────────
+
+    private fun applyControlParentFilter() {
+        val filtered = applyFilter(allControlParents, controlParentFilter.text)
+        val previous = controlParentCombo.selectedItem as? String
+        programmaticEditorUpdate = true
+        try {
+            controlParentCombo.model = DefaultComboBoxModel(filtered.toTypedArray())
+            if (previous in filtered) controlParentCombo.selectedItem = previous
+        } finally {
+            programmaticEditorUpdate = false
+        }
+        refreshControlKeyComboForSelectedParent()
+    }
+
+    private fun applyControlKeyFilter() {
+        val pool = if (useControlParentLevel) {
+            val parent = controlParentCombo.selectedItem as? String
+            controlKeysByParent[parent] ?: emptyList()
+        } else {
+            allControlKeys
+        }
+        val filtered = applyFilter(pool, controlKeyFilter.text)
+        val previous = controlKeyCombo.selectedItem as? String
+        programmaticEditorUpdate = true
+        try {
+            controlKeyCombo.model = DefaultComboBoxModel(filtered.toTypedArray())
+            if (previous in filtered) controlKeyCombo.selectedItem = previous
+        } finally {
+            programmaticEditorUpdate = false
+        }
+        refreshBindingResolvability()
+    }
+
+    private fun applyRvNameFilter() {
+        val filtered = applyFilter(allRvNames, rvNameFilter.text)
+        val previous = rvNameCombo.selectedItem as? String
+        programmaticEditorUpdate = true
+        try {
+            rvNameCombo.model = DefaultComboBoxModel(filtered.toTypedArray())
+            if (previous in filtered) rvNameCombo.selectedItem = previous
+        } finally {
+            programmaticEditorUpdate = false
+        }
+        refreshRvParamComboForSelectedRv()
+    }
+
+    private fun applyRvParamFilter() {
+        refreshRvParamComboForSelectedRv()
+    }
+
+    /** Case-insensitive substring filter.  Empty filter returns the
+     *  source unchanged. */
+    private fun applyFilter(source: List<String>, filter: String): List<String> {
+        val needle = filter.trim().lowercase()
+        if (needle.isEmpty()) return source
+        return source.filter { it.lowercase().contains(needle) }
+    }
+
+    // ── Selection helpers ──────────────────────────────────────────────────
+
+    private fun selectControlBindingInUI(controlKey: String) {
+        if (useControlParentLevel) {
+            val parent = controlKeysByParent.entries
+                .firstOrNull { controlKey in it.value }
+                ?.key
+            if (parent != null) {
+                controlParentCombo.selectedItem = parent
+                refreshControlKeyComboForSelectedParent()
+            }
+        }
+        selectComboItem(controlKeyCombo, controlKey)
+    }
+
+    private fun selectRvBindingInUI(rvName: String, paramName: String) {
+        selectComboItem(rvNameCombo, rvName)
+        refreshRvParamComboForSelectedRv()
+        selectComboItem(rvParamCombo, paramName)
     }
 
     private fun selectComboItem(combo: JComboBox<String>, value: String?) {
@@ -785,9 +1141,6 @@ class FactorsTabPanel(
         }
         val items = (0 until combo.itemCount).map { combo.getItemAt(it) }
         if (value in items) combo.selectedItem = value
-        // If value isn't in the dropdown, leave the existing
-        // selection; refreshBindingResolvability will surface the
-        // unresolvability.
     }
 
     // ── Table model ────────────────────────────────────────────────────────
@@ -820,7 +1173,6 @@ class FactorsTabPanel(
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /** Tiny DocumentListener wrapper to keep call sites concise. */
     private class SimpleDocumentListener(
         private val onChange: () -> Unit
     ) : javax.swing.event.DocumentListener {

@@ -325,8 +325,14 @@ class ExperimentAppController(
         require(myFactors.value.none { it.name == spec.name }) {
             "Factor name '${spec.name}' already exists in the document"
         }
-        myFactors.value = myFactors.value + spec
-        if (mySelectedFactorIndex.value < 0) mySelectedFactorIndex.value = 0
+        val updated = myFactors.value + spec
+        myFactors.value = updated
+        // Always select the newly-added factor so the UI's detail
+        // editor lands on it.  The earlier "select 0 only when no
+        // selection" behaviour created confusion in the Factors tab
+        // where the second Add silently kept focus on the first
+        // factor (see E6.1 follow-up in the plan doc).
+        mySelectedFactorIndex.value = updated.lastIndex
         dropRuntimeArtefacts()
         markDirty()
     }

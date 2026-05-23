@@ -106,12 +106,19 @@ class ExperimentAppControllerTest {
     }
 
     @Test
-    fun `addFactor appends to the list and marks dirty`() {
+    fun `addFactor appends to the list, selects the new factor, and marks dirty`() {
         val c = fresh()
         c.addFactor(factor("A"))
+        assertEquals(0, c.selectedFactorIndex.value)
         c.addFactor(factor("B"))
         assertEquals(listOf("A", "B"), c.factors.value.map { it.name })
-        assertEquals(0, c.selectedFactorIndex.value)  // first add sets selection
+        // E6.1 fix: addFactor always moves selection to the newly-
+        // added index, not just on the first add.  This is what the
+        // Factors panel's Add-mode flow depends on to focus the
+        // just-added factor.
+        assertEquals(1, c.selectedFactorIndex.value)
+        c.addFactor(factor("C"))
+        assertEquals(2, c.selectedFactorIndex.value)
         assertTrue(c.isDirty.value)
     }
 
