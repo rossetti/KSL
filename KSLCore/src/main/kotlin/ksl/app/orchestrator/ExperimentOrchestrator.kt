@@ -102,6 +102,26 @@ class ExperimentOrchestrator {
                 // Per-point progress + snapshot capture: identical
                 // shape for both variants thanks to the retrofitted
                 // DesignedExperiment callback.
+                //
+                // Per-point started / cancelled callbacks (PDE only —
+                // DesignedExperiment is sequential and has no per-
+                // point cancellation surface) feed
+                // [RunEvent.DesignPointStarted] and the wasCancelled
+                // flag on [RunEvent.DesignPointCompleted].
+                val cancelledPointIds = mutableSetOf<Int>()
+                val onPointStart: (DesignPoint) -> Unit = { designPoint ->
+                    lifecycle.emitProgress(
+                        RunEvent.DesignPointStarted(
+                            pointId = designPoint.number,
+                            index = designPoint.number,
+                            totalDesignPoints = totalPoints,
+                            startTime = Clock.System.now()
+                        )
+                    )
+                }
+                val onPointCancelled: (DesignPoint) -> Unit = { designPoint ->
+                    cancelledPointIds.add(designPoint.number)
+                }
                 val onPointComplete: (DesignPoint, SimulationSnapshot.ExperimentCompleted?) -> Unit =
                     { designPoint, snapshot ->
                         capturedSnapshots.add(snapshot)
@@ -110,19 +130,25 @@ class ExperimentOrchestrator {
                                 pointId = designPoint.number,
                                 index = capturedSnapshots.size,
                                 totalDesignPoints = totalPoints,
-                                snapshot = snapshot
+                                snapshot = snapshot,
+                                wasCancelled = designPoint.number in cancelledPointIds
                             )
                         )
                     }
                 when (experiment) {
                     is ParallelDesignedExperiment -> experiment.simulateAll(
                         numRepsPerDesignPoint = numRepsPerDesignPoint,
-                        onDesignPointComplete = onPointComplete
+                        onDesignPointComplete = onPointComplete,
+                        onDesignPointStart = onPointStart,
+                        onDesignPointCancelled = onPointCancelled
                     )
                     is DesignedExperiment -> {
                         // Sequential simulateAll is blocking — run it
                         // on the simulation dispatcher so the
                         // orchestrator coroutine isn't blocked.
+                        // No DesignPointStarted events — DE doesn't
+                        // expose a start callback (it runs synchronously
+                        // and per-point cancellation isn't applicable).
                         withContext(SimulationDispatcher.default) {
                             experiment.simulateAll(
                                 numRepsPerDesignPoint = numRepsPerDesignPoint,

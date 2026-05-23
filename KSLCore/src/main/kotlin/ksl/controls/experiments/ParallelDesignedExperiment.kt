@@ -116,8 +116,35 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     private data class DesignPointRunOutcome(
         val plan: DesignPointRunPlan,
         val simulationRun: SimulationRun,
-        val collector: InMemorySnapshotCollector?
+        val collector: InMemorySnapshotCollector?,
+        /** True when this point was explicitly cancelled via
+         *  [cancelDesignPoint] rather than completing or failing.
+         *  Cancelled outcomes are NOT committed to the database. */
+        val wasCancelled: Boolean = false
     )
+
+    /**
+     *  Per-design-point coroutine handles for the currently-running
+     *  `simulate(...)` call.  Populated as each point launches and
+     *  cleared after the commit phase for that point.  Keyed by
+     *  `designPoint.number` (1-based) so [cancelDesignPoint] can
+     *  target a specific point.  Concurrent because [cancelDesignPoint]
+     *  may be invoked from any thread while the launch coroutine
+     *  populates the map on another.
+     */
+    private val activeJobs: java.util.concurrent.ConcurrentHashMap<Int, kotlinx.coroutines.Job> =
+        java.util.concurrent.ConcurrentHashMap()
+
+    /**
+     *  IDs of design points whose cancellation was requested via
+     *  [cancelDesignPoint].  Consulted by the per-point coroutine
+     *  to distinguish "user cancelled THIS point" from "parent
+     *  scope was cancelled" — the former returns a cancelled
+     *  outcome to the commit phase; the latter re-throws so
+     *  whole-run cancellation propagates as expected.
+     */
+    private val cancelledPointIds: MutableSet<Int> =
+        java.util.Collections.synchronizedSet(mutableSetOf<Int>())
 
     /**
      * Convenience constructor for two-level factor setting maps.
@@ -442,9 +469,14 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
         clearAllData: Boolean = true,
-        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
+        onDesignPointStart: ((designPoint: DesignPoint) -> Unit)? = null,
+        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null
     ) {
-        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData, onDesignPointComplete)
+        simulate(
+            design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData,
+            onDesignPointComplete, onDesignPointStart, onDesignPointCancelled
+        )
     }
 
     /**
@@ -470,7 +502,9 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
         clearAllData: Boolean = true,
-        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
+        onDesignPointStart: ((designPoint: DesignPoint) -> Unit)? = null,
+        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null
     ) {
         if (clearRuns) clearSimulationRuns()
 
@@ -485,7 +519,17 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             return
         }
 
-        coroutineScope {
+        // Reset per-run cancellation state so a prior simulate() run's
+        // bookkeeping doesn't leak into this one.
+        activeJobs.clear()
+        cancelledPointIds.clear()
+
+        // supervisorScope (vs. coroutineScope): when ONE child coroutine
+        // is cancelled via [cancelDesignPoint], the cancellation does
+        // NOT propagate to sibling children.  Whole-run cancellation
+        // (cancelling the parent scope) still propagates downward
+        // because supervisorScope itself respects its own cancellation.
+        kotlinx.coroutines.supervisorScope {
             if (clearAllData) kslDb.clearAllData()
 
             val effectiveNumReps = effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint)
@@ -497,11 +541,68 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             // Scenario, even though both eventually execute one model/run pair.
             val plans = applyStreamPolicy(designPoints.map { planFor(it) })
 
-            // Phase 1: launch all design points concurrently on the simulation dispatcher
-            val jobs = plans.map { plan -> async(SimulationDispatcher.default) { runDesignPoint(plan) } }
-            val outcomes = jobs.awaitAll()
+            // Phase 1: launch all design points concurrently on the
+            // simulation dispatcher.  Each launch invokes
+            // [onDesignPointStart] just before starting the coroutine
+            // and registers its Deferred in [activeJobs] so a later
+            // [cancelDesignPoint] call can target it.
+            val planDeferreds: List<Pair<DesignPointRunPlan, kotlinx.coroutines.Deferred<DesignPointRunOutcome>>> =
+                plans.map { plan ->
+                    // async() returns immediately; the coroutine body
+                    // doesn't run until the dispatcher picks it up.
+                    // Registering the Deferred in [activeJobs] before
+                    // invoking [onDesignPointStart] closes the cancel
+                    // race window — callers reacting to the start
+                    // callback can find the Job.
+                    val deferred = async(SimulationDispatcher.default) {
+                        try {
+                            runDesignPoint(plan)
+                        } catch (ex: CancellationException) {
+                            // Per-point cancel: return a cancelled
+                            // outcome to the commit phase.  The outer
+                            // [await] catches this case too in case
+                            // the coroutine was cancelled before its
+                            // body began running (so this catch never
+                            // got a chance to fire).
+                            if (plan.designPoint.number in cancelledPointIds) {
+                                cancelledOutcome(plan)
+                            } else {
+                                throw ex
+                            }
+                        }
+                    }
+                    activeJobs[plan.designPoint.number] = deferred
+                    onDesignPointStart?.invoke(plan.designPoint)
+                    plan to deferred
+                }
 
-            // Phase 2: sequential DB commit + callback, cancellation checked between points
+            // Per-Deferred try/await — when cancellation happens before
+            // the body runs (LAZY-like edge cases or fast cancellation),
+            // [await] throws CancellationException directly without the
+            // body's catch having a chance to fire.  Translate those
+            // into cancelled outcomes here so the commit phase still
+            // sees a uniform outcome list.  Parent-scope cancellation
+            // is identifiable by [cancelledPointIds] not containing the
+            // point; in that case we re-throw to propagate the cancel
+            // as expected.
+            val outcomes = planDeferreds.map { (plan, deferred) ->
+                try {
+                    deferred.await()
+                } catch (ex: CancellationException) {
+                    if (plan.designPoint.number in cancelledPointIds) {
+                        cancelledOutcome(plan)
+                    } else {
+                        throw ex
+                    }
+                }
+            }
+
+            // Phase 2: sequential DB commit + callbacks, cancellation
+            // checked between points.  Cancelled outcomes are NOT
+            // committed (no EXPERIMENT row, no per-rep observations);
+            // they fire [onDesignPointCancelled] first (so callers can
+            // distinguish from failures), then [onDesignPointComplete]
+            // with snapshot = null for count-driving consumers.
             val writer = SnapshotBatchWriter(kslDb)
             for (outcome in outcomes) {
                 ensureActive()
@@ -509,21 +610,70 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
                 val simulationRun = outcome.simulationRun
                 val collector = outcome.collector
                 var snapshot: SimulationSnapshot.ExperimentCompleted? = null
-                if (collector != null) {
-                    collector.use { c ->
-                        val snapshots = c.drain()
-                        snapshot = snapshots
-                            .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
-                            .firstOrNull()
-                        if (snapshots.isNotEmpty()) writer.write(snapshots)
+                if (outcome.wasCancelled) {
+                    onDesignPointCancelled?.invoke(designPoint)
+                    onDesignPointComplete?.invoke(designPoint, null)
+                } else {
+                    if (collector != null) {
+                        collector.use { c ->
+                            val snapshots = c.drain()
+                            snapshot = snapshots
+                                .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
+                                .firstOrNull()
+                            if (snapshots.isNotEmpty()) writer.write(snapshots)
+                        }
+                    }
+                    onDesignPointComplete?.invoke(designPoint, snapshot)
+                    if (addRuns) {
+                        mySimulationRuns[designPoint] = simulationRun
                     }
                 }
-                onDesignPointComplete?.invoke(designPoint, snapshot)
-                if (addRuns) {
-                    mySimulationRuns[designPoint] = simulationRun
-                }
+                activeJobs.remove(designPoint.number)
             }
         }
+    }
+
+    /**
+     *  Request cancellation of the design point with the given
+     *  1-based [pointId].  If that point's coroutine is currently
+     *  running (or queued) it will be cancelled; the resulting
+     *  outcome carries `wasCancelled = true` so the commit phase
+     *  fires `onDesignPointCancelled` instead of treating it as a
+     *  failure, and skips the database write entirely.
+     *
+     *  Safe to call from any thread.  Returns `true` if a matching
+     *  active job was found and cancellation was requested; `false`
+     *  if the point was unknown, already completed, or no
+     *  `simulate(...)` is currently in flight.
+     *
+     *  No-op when the point has already completed — there's nothing
+     *  to cancel, and the recorded outcome (success / failure) is
+     *  preserved.
+     */
+    @Suppress("unused")
+    fun cancelDesignPoint(pointId: Int): Boolean {
+        val job = activeJobs[pointId] ?: return false
+        cancelledPointIds.add(pointId)
+        job.cancel()
+        return true
+    }
+
+    /**
+     *  Build a "cancelled" outcome for a design point.  Always
+     *  carries `wasCancelled = true` and a `null` collector — no
+     *  snapshot is committed.  The synthesized [SimulationRun] is
+     *  there only so the commit-phase callback signature has
+     *  something to receive; it is never written to the database.
+     */
+    private fun cancelledOutcome(plan: DesignPointRunPlan): DesignPointRunOutcome {
+        val cancelledRun = SimulationRun(
+            modelIdentifier = "",
+            experimentRunParameters = plan.runParameters,
+            inputs = plan.inputs,
+            modelConfiguration = plan.modelConfiguration
+        )
+        cancelledRun.runErrorMsg = "Design point ${plan.designPoint.number} cancelled."
+        return DesignPointRunOutcome(plan, cancelledRun, null, wasCancelled = true)
     }
 
     private fun effectiveNumRepsPerDesignPoint(numRepsPerDesignPoint: Int?): Int? {

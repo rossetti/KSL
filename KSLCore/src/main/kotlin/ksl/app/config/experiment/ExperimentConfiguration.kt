@@ -174,7 +174,14 @@ data class ExperimentConfiguration(
         "Animation / trace capture settings.  Defaults to OFF; safe\n" +
         "to omit unless you are running a traced model."
     )
-    val tracingConfig: TracingConfig = TracingConfig()
+    val tracingConfig: TracingConfig = TracingConfig(),
+
+    @TomlComment(
+        "Experiment-app output preferences (currently: per-design-\n" +
+        "point output-directory layout).  Defaults to a flat layout\n" +
+        "(one shared output dir with per-point log filenames)."
+    )
+    val experimentOutput: ExperimentOutputSpec = ExperimentOutputSpec()
 ) {
     init {
         require(factors.isNotEmpty()) {

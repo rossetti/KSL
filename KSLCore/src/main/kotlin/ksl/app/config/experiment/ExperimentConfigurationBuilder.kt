@@ -105,11 +105,11 @@ fun ExperimentConfiguration.toDesignedExperiment(
                 // ("MyAnalysis_DP_3" instead of "Experiment_11_DP_3")
                 // and stable across re-runs (no JVM-counter drift).
                 experimentName = effectiveName,
-                // Skip per-point output subdirectories — the app's
-                // primary per-point result store is the KSL database.
-                // kslOutput diagnostic logs land in pathToOutputDirectory
-                // as kslOutput_DP_<n>.txt; re-runs overwrite cleanly.
-                useDesignPointOutputDirs = false
+                // Per-point output dirs come from the document's
+                // experimentOutput spec (default false: flat layout
+                // with per-point log filenames; user can opt in for
+                // per-point CSV / config workflows via the GUI).
+                useDesignPointOutputDirs = experimentOutput.usePerPointSubdirs
             )
             applyStreamPolicy(parallel)
         }

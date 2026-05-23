@@ -348,19 +348,43 @@ sealed class RunEvent {
     ) : RunEvent()
 
     /**
+     * Emitted by `ParallelDesignedExperiment` immediately before
+     * each design-point coroutine begins its model build + run.
+     * Lets consumers track per-design-point state (PENDING → RUNNING)
+     * before the corresponding [DesignPointCompleted] event arrives.
+     *
+     * @property pointId      1-based design-point identifier within the experiment
+     * @property index        1-based position of this design point in the run order
+     * @property totalDesignPoints total number of design points in the experiment
+     * @property startTime    wall-clock instant the per-point coroutine started
+     */
+    data class DesignPointStarted(
+        val pointId: Int,
+        val index: Int,
+        val totalDesignPoints: Int,
+        val startTime: Instant
+    ) : RunEvent()
+
+    /**
      * Emitted by `ExperimentOrchestrator` after each design point completes.
      *
      * @property pointId      1-based design-point identifier within the experiment
      * @property index        1-based position of this design point in the run order
      * @property totalDesignPoints total number of design points in the experiment
      * @property snapshot     experiment-completed snapshot; `null` if the design
-     *                        point failed with a [RuntimeException]
+     *                        point failed with a [RuntimeException] OR if it was
+     *                        cancelled (see [wasCancelled] to distinguish).
+     * @property wasCancelled true when the design point was cancelled via
+     *                        `ParallelDesignedExperiment.cancelDesignPoint(...)`;
+     *                        snapshot is always null in this case.  Default false
+     *                        preserves backward compatibility for existing callers.
      */
     data class DesignPointCompleted(
         val pointId: Int,
         val index: Int,
         val totalDesignPoints: Int,
-        val snapshot: SimulationSnapshot.ExperimentCompleted?
+        val snapshot: SimulationSnapshot.ExperimentCompleted?,
+        val wasCancelled: Boolean = false
     ) : RunEvent()
 
     /**

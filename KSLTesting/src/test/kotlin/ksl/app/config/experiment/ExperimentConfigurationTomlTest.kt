@@ -170,6 +170,22 @@ class ExperimentConfigurationTomlTest {
     }
 
     @Test
+    fun `experimentOutput default is flat layout`() {
+        val cfg = baseConfig()
+        assertEquals(false, cfg.experimentOutput.usePerPointSubdirs)
+    }
+
+    @Test
+    fun `experimentOutput round-trips when enabled`() {
+        val cfg = baseConfig().copy(
+            experimentOutput = ExperimentOutputSpec(usePerPointSubdirs = true)
+        )
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        assertEquals(true, decoded.experimentOutput.usePerPointSubdirs)
+    }
+
+    @Test
     fun `uniform replications round-trips`() {
         val cfg = baseConfig(replications = ReplicationSpec.Uniform(50))
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))

@@ -249,6 +249,22 @@ class ExperimentAppControllerTest {
         assertNotNull(c.lastResult.value)
     }
 
+    @Test
+    fun `setExperimentOutput marks dirty but does NOT drop lastResult`() {
+        // Per-design-point output-dir layout is a preference like
+        // streamPolicy, not a structural change.  Same contract.
+        val c = fresh()
+        c.seedRunStateForTesting(lastResult = fakeBatch())
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        assertFalse(c.isDirty.value)
+        c.setExperimentOutput(
+            ksl.app.config.experiment.ExperimentOutputSpec(usePerPointSubdirs = true)
+        )
+        assertTrue(c.isDirty.value)
+        assertNotNull(c.lastResult.value)
+        assertEquals(true, c.experimentOutput.value.usePerPointSubdirs)
+    }
+
     // ── clearFactors (Clear-All analogue) ──────────────────────────────────
 
     @Test

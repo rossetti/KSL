@@ -570,25 +570,67 @@ class ExperimentAppFrame(
         }
     }
 
+    // Per-run progress state, mutated only on the EDT inside the
+    // event subscriber below.
+    private var progressTotal: Int = 0
+    private var progressCompleted: Int = 0
+    private var progressFailed: Int = 0
+    private var progressCancelled: Int = 0
+    private var progressCurrentRunning: Int? = null
+
+    private fun refreshRunProgressLabel() {
+        val parts = mutableListOf("${progressCompleted} of ${progressTotal} completed")
+        if (progressFailed > 0) parts += "${progressFailed} failed"
+        if (progressCancelled > 0) parts += "${progressCancelled} cancelled"
+        val tail = progressCurrentRunning?.let { "; current: point $it" } ?: ""
+        runProgressLabel.text = "Running: ${parts.joinToString(", ")}$tail"
+    }
+
+    private fun resetRunProgress(total: Int) {
+        progressTotal = total
+        progressCompleted = 0
+        progressFailed = 0
+        progressCancelled = 0
+        progressCurrentRunning = null
+    }
+
     private fun wireEventNotifications() {
         controller.edtScope.launch {
             controller.eventFlow.collect { ev ->
                 when (ev) {
                     is RunEvent.ExperimentRunStarted -> {
-                        runProgressLabel.text =
-                            "Running: 0 of ${ev.totalDesignPoints} design points completed"
+                        resetRunProgress(ev.totalDesignPoints)
+                        refreshRunProgressLabel()
                         runProgressLabel.isVisible = true
                     }
+                    is RunEvent.DesignPointStarted -> {
+                        // Show the most recently STARTED point as
+                        // "current".  With parallel execution multiple
+                        // points are technically running at once;
+                        // showing the latest start is the simplest
+                        // useful summary.
+                        progressCurrentRunning = ev.pointId
+                        refreshRunProgressLabel()
+                    }
                     is RunEvent.DesignPointCompleted -> {
-                        runProgressLabel.text =
-                            "Running: ${ev.pointId} of ${ev.totalDesignPoints} design points completed"
-                        runProgressLabel.isVisible = true
-                        if (ev.snapshot == null) {
-                            notifications.show(
-                                "Design point ${ev.pointId} failed.",
-                                NotificationSeverity.WARNING
-                            )
+                        when {
+                            ev.wasCancelled -> progressCancelled += 1
+                            ev.snapshot == null -> {
+                                progressFailed += 1
+                                notifications.show(
+                                    "Design point ${ev.pointId} failed.",
+                                    NotificationSeverity.WARNING
+                                )
+                            }
+                            else -> progressCompleted += 1
                         }
+                        // If the point that just finished was the
+                        // "current" one, clear it; otherwise leave it
+                        // (another point might still be running).
+                        if (progressCurrentRunning == ev.pointId) {
+                            progressCurrentRunning = null
+                        }
+                        refreshRunProgressLabel()
                     }
                     is RunEvent.RunCompleted,
                     is RunEvent.RunCancelled -> {

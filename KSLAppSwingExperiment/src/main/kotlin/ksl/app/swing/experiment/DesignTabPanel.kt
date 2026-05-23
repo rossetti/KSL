@@ -21,6 +21,7 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.config.experiment.AxialSpacing
 import ksl.app.config.experiment.DesignSpec
+import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.Fraction
 import ksl.app.config.experiment.ManualPointSpec
@@ -158,6 +159,20 @@ class DesignTabPanel(
     private val spacingField = JTextField("", 6)  // blank => null => cumulative
     private val advancedRow: JPanel = buildAdvancedRow()
 
+    // Per-design-point output-dir layout checkbox.  Declared before
+    // any layout method that adds it (see init {}), since
+    // buildPreviewBar() runs early in init.
+    private val perPointSubdirsCheckbox: JCheckBox = JCheckBox(
+        "Use per-design-point output folders"
+    ).apply {
+        toolTipText = "<html>When checked, each design point gets its own " +
+            "&lt;name&gt;_DP_&lt;n&gt;_OutputDir under the analysis output directory " +
+            "(each containing kslOutput.txt and any per-point CSV / plot artifacts).<br>" +
+            "When unchecked (default), all per-point models share the analysis output " +
+            "directory; per-point logs use the filename kslOutput_DP_&lt;n&gt;.txt.<br>" +
+            "Turn on for per-point CSV / configuration workflows (Phase E11).</html>"
+    }
+
     @Volatile private var suppressEvents: Boolean = false
 
     init {
@@ -198,6 +213,13 @@ class DesignTabPanel(
         wireReplications()
         wireStreamRadios()
         wireAdvancedToggle()
+        perPointSubdirsCheckbox.addActionListener {
+            if (!suppressEvents) {
+                controller.setExperimentOutput(
+                    ExperimentOutputSpec(usePerPointSubdirs = perPointSubdirsCheckbox.isSelected)
+                )
+            }
+        }
 
         observeControllerFlows()
     }
@@ -390,6 +412,8 @@ class DesignTabPanel(
             "ReplicationSpec.PerPoint is the policy) edit per-row reps overrides."
         previewBtn.addActionListener { openPreviewDialog() }
         row.add(previewBtn)
+        row.add(Box.createHorizontalStrut(16))
+        row.add(perPointSubdirsCheckbox)
         return row
     }
 
@@ -495,6 +519,16 @@ class DesignTabPanel(
                 ccdCard.onFactorsChanged(factors)
                 manualCard.onFactorsChanged(factors)
                 refreshFamilyEnablement(factors)
+            }
+        }
+        controller.edtScope.launch {
+            controller.experimentOutput.collect { spec ->
+                suppressEvents = true
+                try {
+                    perPointSubdirsCheckbox.isSelected = spec.usePerPointSubdirs
+                } finally {
+                    suppressEvents = false
+                }
             }
         }
     }

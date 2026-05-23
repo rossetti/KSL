@@ -94,9 +94,15 @@ object DefaultEventFormatter : EventFormatter {
         is RunEvent.ScenarioCompleted ->
             "Scenario ${event.scenarioName} (${event.index}/${event.totalScenarios})" +
                 if (event.snapshot == null) " (failed)" else " complete"
+        is RunEvent.DesignPointStarted ->
+            "Design point ${event.pointId} (${event.index}/${event.totalDesignPoints}) started"
         is RunEvent.DesignPointCompleted ->
             "Design point ${event.pointId} (${event.index}/${event.totalDesignPoints})" +
-                if (event.snapshot == null) " (failed)" else " complete"
+                when {
+                    event.wasCancelled -> " (cancelled)"
+                    event.snapshot == null -> " (failed)"
+                    else -> " complete"
+                }
         is RunEvent.IterationCompleted ->
             "Iteration ${event.iteration}: best objective = ${event.estimatedObjectiveValue}"
         // Captured stdout/stderr lines: render the raw text only so
@@ -667,6 +673,7 @@ class ConsoleLogPanel(
             is RunEvent.SimTimeAdvanced -> ConsoleCategory.REPLICATION
             is RunEvent.ScenarioStarted,
             is RunEvent.ScenarioCompleted,
+            is RunEvent.DesignPointStarted,
             is RunEvent.DesignPointCompleted,
             is RunEvent.IterationCompleted -> ConsoleCategory.ORCHESTRATOR
             is RunEvent.StdOutLine -> ConsoleCategory.STDOUT

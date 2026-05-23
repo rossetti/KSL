@@ -43,6 +43,8 @@ import ksl.app.config.RunConfiguration
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
+import ksl.app.config.experiment.ExperimentOutputSpec
+import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.ReplicationSpec
 import ksl.app.config.experiment.StreamPolicy
@@ -147,6 +149,13 @@ class ExperimentAppController(
      *  CONCURRENT (per the Experiment-app plan — design points are
      *  independent by construction). */
     val executionMode: StateFlow<ExecutionMode> = myExecutionMode.asStateFlow()
+
+    private val myExperimentOutput = MutableStateFlow(ExperimentOutputSpec())
+    /** Experiment-app-specific output preferences (per-design-point
+     *  output layout for now; richer per-point options when they
+     *  land in Phase E11 polish).  Distinct from [outputConfig],
+     *  which is shared across Single / Scenario / Experiment apps. */
+    val experimentOutput: StateFlow<ExperimentOutputSpec> = myExperimentOutput.asStateFlow()
 
     private val myOutputConfig = MutableStateFlow(
         OutputConfig(enableKSLDatabase = true)
@@ -271,8 +280,15 @@ class ExperimentAppController(
     // ── Run state ──────────────────────────────────────────────────────────
 
     /** Per-design-point lifecycle status, keyed by `DesignPoint.number`
-     *  (1-based — matches the substrate's `RunEvent.DesignPointCompleted.pointId`). */
-    enum class DesignPointStatus { PENDING, RUNNING, COMPLETED, FAILED }
+     *  (1-based — matches the substrate's `RunEvent.DesignPointCompleted.pointId`).
+     *
+     *  - PENDING   — queued, not yet started
+     *  - RUNNING   — coroutine launched, model is building / simulating
+     *  - COMPLETED — finished with a snapshot
+     *  - FAILED    — finished without a snapshot (model threw)
+     *  - CANCELLED — user-cancelled via [cancelDesignPoint] (no DB row written)
+     */
+    enum class DesignPointStatus { PENDING, RUNNING, COMPLETED, FAILED, CANCELLED }
 
     private val myRunning = MutableStateFlow(false)
     val runningFlow: StateFlow<Boolean> = myRunning.asStateFlow()
@@ -480,6 +496,17 @@ class ExperimentAppController(
         markDirty()
     }
 
+    /** Update the experiment-app output preferences (currently:
+     *  per-design-point output dir layout).  Marks the document
+     *  dirty but does NOT drop `lastResult` — the choice is a
+     *  layout preference, like [setStreamPolicy], not a structural
+     *  change to what gets simulated. */
+    fun setExperimentOutput(spec: ExperimentOutputSpec) {
+        if (myExperimentOutput.value == spec) return
+        myExperimentOutput.value = spec
+        markDirty()
+    }
+
     // ── Document mutators: OutputConfig ────────────────────────────────────
 
     fun setEnableKSLDatabase(enabled: Boolean) {
@@ -533,6 +560,7 @@ class ExperimentAppController(
         myReplications.value = config.replications
         myStreamPolicy.value = config.streamPolicy
         myExecutionMode.value = config.executionMode
+        myExperimentOutput.value = config.experimentOutput
         myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
         mySelectedFactorIndex.value = if (config.factors.isEmpty()) -1 else 0
         myIsDirty.value = false
@@ -550,6 +578,7 @@ class ExperimentAppController(
         myReplications.value = ReplicationSpec.Uniform(10)
         myStreamPolicy.value = StreamPolicy.Independent()
         myExecutionMode.value = ExecutionMode.CONCURRENT
+        myExperimentOutput.value = ExperimentOutputSpec()
         myOutputConfig.value = OutputConfig(enableKSLDatabase = true)
         mySelectedFactorIndex.value = -1
         myCurrentFile.value = null
@@ -572,7 +601,8 @@ class ExperimentAppController(
             designSpec = myDesignSpec.value,
             replications = myReplications.value,
             streamPolicy = myStreamPolicy.value,
-            executionMode = myExecutionMode.value
+            executionMode = myExecutionMode.value,
+            experimentOutput = myExperimentOutput.value
         )
     }
 
@@ -730,13 +760,28 @@ class ExperimentAppController(
         edtScope.launch {
             handle.events.collect { ev ->
                 when (ev) {
+                    is RunEvent.DesignPointStarted -> {
+                        myDesignPointStatuses.value =
+                            myDesignPointStatuses.value + (ev.pointId to DesignPointStatus.RUNNING)
+                    }
                     is RunEvent.DesignPointCompleted -> {
-                        val status = if (ev.snapshot != null)
-                            DesignPointStatus.COMPLETED
-                        else
-                            DesignPointStatus.FAILED
+                        val status = when {
+                            ev.wasCancelled -> DesignPointStatus.CANCELLED
+                            ev.snapshot != null -> DesignPointStatus.COMPLETED
+                            else -> DesignPointStatus.FAILED
+                        }
                         myDesignPointStatuses.value =
                             myDesignPointStatuses.value + (ev.pointId to status)
+                    }
+                    is RunEvent.RunCancelled -> {
+                        // Whole-run cancel: any still-PENDING or RUNNING
+                        // point that didn't get a per-point completion
+                        // event becomes CANCELLED.
+                        myDesignPointStatuses.value = myDesignPointStatuses.value.mapValues { (_, s) ->
+                            if (s == DesignPointStatus.PENDING || s == DesignPointStatus.RUNNING)
+                                DesignPointStatus.CANCELLED
+                            else s
+                        }
                     }
                     else -> { /* other event types handled by console */ }
                 }
@@ -756,6 +801,24 @@ class ExperimentAppController(
     /** Cancel the in-flight run, if any.  No-op when not running. */
     fun cancel() {
         currentHandle?.cancel("User-requested cancel")
+    }
+
+    /**
+     *  Request cancellation of a single in-flight design point.  Has
+     *  no effect when no run is in progress, when the targeted point
+     *  has already completed, or when the current experiment isn't a
+     *  [ParallelDesignedExperiment] (sequential designs don't support
+     *  per-point cancellation).
+     *
+     *  Returns `true` when the request was forwarded to a matching
+     *  active per-point job; `false` otherwise.  Safe to call from
+     *  the EDT (or any thread); the underlying coroutine cancellation
+     *  is thread-safe.
+     */
+    fun cancelDesignPoint(pointId: Int): Boolean {
+        val experiment = myExperimentInstance.value as? ParallelDesignedExperiment
+            ?: return false
+        return experiment.cancelDesignPoint(pointId)
     }
 
     /** `true` when the current document combines `SEQUENTIAL`

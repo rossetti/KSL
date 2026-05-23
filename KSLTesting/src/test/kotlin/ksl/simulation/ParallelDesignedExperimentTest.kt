@@ -1,6 +1,7 @@
 package ksl.simulation
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ksl.controls.experiments.DesignPointRandomStreamPolicy
 import ksl.controls.experiments.DesignedExperiment
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 //@Disabled
@@ -238,10 +240,13 @@ class ParallelDesignedExperimentTest {
         val parallel = buildParallelDesignedExperiment(length = 50.0, warmUp = 0.0)
         val callbackPoints = mutableListOf<Int>()
 
-        parallel.simulateAll(numRepsPerDesignPoint = 1) { designPoint, snapshot ->
-            callbackPoints.add(designPoint.number)
-            assertTrue(snapshot != null, "Successful design point should provide a snapshot")
-        }
+        parallel.simulateAll(
+            numRepsPerDesignPoint = 1,
+            onDesignPointComplete = { designPoint, snapshot ->
+                callbackPoints.add(designPoint.number)
+                assertTrue(snapshot != null, "Successful design point should provide a snapshot")
+            }
+        )
 
         assertEquals(
             parallel.design.designPoints().map { it.number },
@@ -360,6 +365,119 @@ class ParallelDesignedExperimentTest {
             parallel.numSimulationRuns,
             subdirs.size,
             "Legacy default should create one *_OutputDir per design point; got ${subdirs.map { it.name }}"
+        )
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Per-design-point cancellation + per-point lifecycle callbacks
+    //  (added for the Experiment app's live status display +
+    //  per-point Cancel button).
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun onDesignPointStartFiresBeforeEachPerPointCoroutine() = runBlocking {
+        val setup = buildDoeSetup("PDE_StartCb_${System.nanoTime()}")
+        val started = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        val completed = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 30.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = java.nio.file.Files.createTempDirectory("pde-startcb-")
+        )
+
+        parallel.simulateAll(
+            numRepsPerDesignPoint = 1,
+            onDesignPointStart = { dp -> started += dp.number },
+            onDesignPointComplete = { dp, _ -> completed += dp.number }
+        )
+
+        assertEquals(parallel.numSimulationRuns, started.size,
+            "onDesignPointStart should fire once per design point")
+        assertEquals(parallel.design.designPoints().map { it.number }.toSet(), started.toSet(),
+            "onDesignPointStart should fire for every point in the design")
+        assertEquals(started.toSet(), completed.toSet(),
+            "Every started point should also complete (none missing)")
+    }
+
+    @Test
+    fun cancelDesignPointSkipsTargetedPointAndContinuesOthers() = runBlocking {
+        val setup = buildDoeSetup("PDE_CancelOne_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-cancel-")
+        // Long-ish replication so we have time to observe point 1
+        // start and cancel it before the model finishes naturally.
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 2000.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir
+        )
+
+        val cancelled = java.util.Collections.synchronizedList(mutableListOf<Int>())
+        // Signal fired the moment point 1's coroutine has started; a
+        // sibling coroutine awaits it and then calls cancelDesignPoint.
+        // Cross-coroutine cancellation (vs. cancelling from inside the
+        // start callback on the supervisor coroutine) avoids the
+        // supervisorScope edge case where cancelling a child synchronously
+        // from the supervisor body fails the parent.
+        val pointOneStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val simJob = launch {
+            parallel.simulateAll(
+                numRepsPerDesignPoint = 1,
+                onDesignPointStart = { dp ->
+                    if (dp.number == 1) pointOneStarted.complete(Unit)
+                },
+                onDesignPointCancelled = { dp -> cancelled += dp.number }
+            )
+        }
+        pointOneStarted.await()
+        assertTrue(
+            parallel.cancelDesignPoint(1),
+            "cancelDesignPoint should find the Job for the in-flight point"
+        )
+        simJob.join()
+
+        assertTrue(
+            1 in cancelled,
+            "Point 1 should have been cancelled; got cancelled = $cancelled"
+        )
+        // Cancelled point is NOT recorded in simulationRuns (the commit
+        // phase skips DB writes + run accounting for cancelled outcomes).
+        val completedPointIds = parallel.simulationRuns.map { run ->
+            run.experimentRunParameters.experimentName.substringAfterLast("_DP_").toInt()
+        }
+        assertTrue(
+            1 !in completedPointIds,
+            "Cancelled point should not appear in simulationRuns; got $completedPointIds"
+        )
+        assertTrue(
+            completedPointIds.isNotEmpty(),
+            "At least one non-cancelled point should have completed"
+        )
+    }
+
+    @Test
+    fun cancelDesignPointOnUnknownIdReturnsFalse() = runBlocking {
+        val setup = buildDoeSetup("PDE_CancelUnknown_${System.nanoTime()}")
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 10.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = java.nio.file.Files.createTempDirectory("pde-cancel-unk-")
+        )
+        // Before any run is in flight, no point is active.
+        assertFalse(
+            parallel.cancelDesignPoint(999),
+            "cancelDesignPoint on an unknown / inactive point should return false"
+        )
+        // Even after a completed run, prior points are no longer active.
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+        assertFalse(
+            parallel.cancelDesignPoint(1),
+            "cancelDesignPoint on a completed point should return false"
         )
     }
 }
