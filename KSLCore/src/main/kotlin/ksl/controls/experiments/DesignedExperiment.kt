@@ -1,5 +1,6 @@
 package ksl.controls.experiments
 
+import ksl.simulation.InMemorySnapshotCollector
 import ksl.simulation.Model
 import ksl.utilities.Identity
 import ksl.utilities.KSLArrays
@@ -7,6 +8,7 @@ import ksl.utilities.io.KSLFileUtil
 import ksl.utilities.io.addColumnsFor
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.KSLDatabaseObserver
+import ksl.utilities.io.dbutil.SimulationSnapshot
 import ksl.utilities.statistic.OLSRegression
 import ksl.utilities.statistic.RegressionData
 import ksl.utilities.statistic.RegressionResultsIfc
@@ -437,9 +439,10 @@ class DesignedExperiment @JvmOverloads constructor(
     fun simulateAll(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
-        addRuns: Boolean = true
+        addRuns: Boolean = true,
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
-        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns)
+        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, onDesignPointComplete)
     }
 
     /**
@@ -462,7 +465,8 @@ class DesignedExperiment @JvmOverloads constructor(
         iterator: Iterator<DesignPoint>,
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
-        addRuns: Boolean = true
+        addRuns: Boolean = true,
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
     ) {
         if (!iterator.hasNext()) {
             val wm = "WARNING: The supplied iterator for designed experiment, $name, had no design points."
@@ -481,7 +485,31 @@ class DesignedExperiment @JvmOverloads constructor(
             if (effectiveNumReps != null) {
                 dp.numReplications = effectiveNumReps
             }
-            simulate(dp, addRuns = addRuns)
+            // Attach a fresh InMemorySnapshotCollector to the shared
+            // model only when the caller wants per-point snapshots.
+            // Mirrors how ParallelDesignedExperiment captures one
+            // ExperimentCompleted per design point so the orchestrator
+            // can emit progress events with full snapshot payloads
+            // (Reports / Comparison Analyzer / Regression all consume
+            // these).  Re-attached per point because the model is
+            // reused; closed after each point to release listeners.
+            val collector: InMemorySnapshotCollector? = onDesignPointComplete?.let {
+                InMemorySnapshotCollector(model.lifeCycleEmitters)
+            }
+            try {
+                simulate(dp, addRuns = addRuns)
+                // collector is non-null iff onDesignPointComplete was
+                // non-null at the top of the loop, so the !! below is
+                // safe (and the compiler agrees).
+                if (collector != null) {
+                    val snapshot = collector.drain()
+                        .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
+                        .firstOrNull()
+                    onDesignPointComplete!!.invoke(dp, snapshot)
+                }
+            } finally {
+                collector?.close()
+            }
         }
     }
 

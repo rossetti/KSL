@@ -21,6 +21,8 @@ package ksl.app.orchestrator
 import ksl.app.KSLAppSession
 import ksl.app.session.*
 import ksl.controls.experiments.DesignPoint
+import ksl.controls.experiments.DesignedExperiment
+import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.simulation.SimulationDispatcher
 import ksl.utilities.io.KSL
@@ -30,7 +32,10 @@ import kotlinx.datetime.Clock
 import ksl.simulation.IterativeProcessIfc.EndingStatus
 
 /**
- * Orchestrates a designed-experiment run from a pre-built [ParallelDesignedExperiment].
+ * Orchestrates a designed-experiment run from a pre-built
+ * [DesignedExperimentIfc] — either a [ParallelDesignedExperiment]
+ * (concurrent) or a [DesignedExperiment] (sequential).  Branches on
+ * the concrete type to call the right `simulateAll` entry point.
  *
  * Low-level API note: application and UI code should prefer [KSLAppSession],
  * which owns scope lifecycle, validation, warning emission, and dispatch across
@@ -38,9 +43,11 @@ import ksl.simulation.IterativeProcessIfc.EndingStatus
  * tests and advanced integrations can exercise designed-experiment execution
  * directly.
  *
- * Calls [ParallelDesignedExperiment.simulateAll] with an optional [numRepsPerDesignPoint]
- * override, capturing one [SimulationSnapshot.ExperimentCompleted] per design point via the
- * [onDesignPointComplete] callback.
+ * Capturing per-design-point snapshots via the `onDesignPointComplete`
+ * callback works for both variants — `ParallelDesignedExperiment`
+ * exposes the callback natively; `DesignedExperiment` was retrofitted
+ * to attach an `InMemorySnapshotCollector` per point so the same shape
+ * holds for both execution modes.
  *
  * The returned [RunHandle] emits:
  * - one [RunEvent.DesignPointCompleted] per design point (in commit order)
@@ -61,7 +68,7 @@ class ExperimentOrchestrator {
      * @return a [RunHandle] for observing progress and obtaining the result
      */
     fun submit(
-        experiment: ParallelDesignedExperiment,
+        experiment: DesignedExperimentIfc,
         numRepsPerDesignPoint: Int? = null,
         scope: CoroutineScope = CoroutineScope(SimulationDispatcher.default + SupervisorJob()),
         preRunWarnings: List<RunWarningType> = emptyList()
@@ -92,9 +99,11 @@ class ExperimentOrchestrator {
                     )
                 )
 
-                experiment.simulateAll(
-                    numRepsPerDesignPoint = numRepsPerDesignPoint,
-                    onDesignPointComplete = { designPoint: DesignPoint, snapshot ->
+                // Per-point progress + snapshot capture: identical
+                // shape for both variants thanks to the retrofitted
+                // DesignedExperiment callback.
+                val onPointComplete: (DesignPoint, SimulationSnapshot.ExperimentCompleted?) -> Unit =
+                    { designPoint, snapshot ->
                         capturedSnapshots.add(snapshot)
                         lifecycle.emitProgress(
                             RunEvent.DesignPointCompleted(
@@ -105,7 +114,26 @@ class ExperimentOrchestrator {
                             )
                         )
                     }
-                )
+                when (experiment) {
+                    is ParallelDesignedExperiment -> experiment.simulateAll(
+                        numRepsPerDesignPoint = numRepsPerDesignPoint,
+                        onDesignPointComplete = onPointComplete
+                    )
+                    is DesignedExperiment -> {
+                        // Sequential simulateAll is blocking — run it
+                        // on the simulation dispatcher so the
+                        // orchestrator coroutine isn't blocked.
+                        withContext(SimulationDispatcher.default) {
+                            experiment.simulateAll(
+                                numRepsPerDesignPoint = numRepsPerDesignPoint,
+                                onDesignPointComplete = onPointComplete
+                            )
+                        }
+                    }
+                    else -> error(
+                        "Unsupported DesignedExperimentIfc variant: ${experiment::class.simpleName}"
+                    )
+                }
 
                 val endTime = Clock.System.now()
                 val successSnapshots = capturedSnapshots.filterNotNull()

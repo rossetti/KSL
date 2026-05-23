@@ -20,7 +20,7 @@ package ksl.app
 
 import ksl.app.config.RunConfiguration
 import ksl.app.config.optimization.OptimizationRunConfiguration
-import ksl.controls.experiments.ParallelDesignedExperiment
+import ksl.controls.experiments.DesignedExperimentIfc
 
 /**
  * Public run request shape consumed by [KSLAppSession].
@@ -62,12 +62,18 @@ sealed class RunSpec {
     /**
      * Run a programmatically constructed designed experiment.
      *
-     * [config] is retained as the baseline validation/configuration document;
-     * [experiment] carries the non-serializable experiment structure.
+     * [config] is retained as the baseline validation/configuration
+     * document; [experiment] carries the non-serializable experiment
+     * structure as a [DesignedExperimentIfc].  Either a
+     * [ksl.controls.experiments.ParallelDesignedExperiment]
+     * (concurrent) or a
+     * [ksl.controls.experiments.DesignedExperiment] (sequential) may
+     * be supplied; the orchestrator branches on the concrete type to
+     * pick the right `simulateAll` entry point.
      */
     data class Experiment(
         val config: RunConfiguration,
-        val experiment: ParallelDesignedExperiment,
+        val experiment: DesignedExperimentIfc,
         val numRepsPerDesignPoint: Int? = null
     ) : RunSpec() {
         init {

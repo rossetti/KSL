@@ -20,6 +20,7 @@ package ksl.app.config.experiment
 
 import kotlinx.serialization.Serializable
 import ksl.app.config.BundleRef
+import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.TracingConfig
@@ -68,9 +69,18 @@ import net.peanuuutz.tomlkt.TomlComment
  *  @property replications    per-point replication strategy — uniform
  *                            or per-point overrides.  Defaults to
  *                            10 replications per point.
+ *  @property executionMode   whether design points run sequentially
+ *                            (one at a time) or concurrently (parallel
+ *                            on the simulation dispatcher).  Defaults
+ *                            to [ExecutionMode.CONCURRENT] —
+ *                            experiments typically benefit from
+ *                            parallel execution since design points
+ *                            are independent.
  *  @property streamPolicy    random-stream policy across design
  *                            points.  Defaults to
- *                            [StreamPolicy.Independent].
+ *                            [StreamPolicy.Independent].  Honoured
+ *                            under CONCURRENT only; SEQUENTIAL uses
+ *                            the model's own stream defaults.
  *  @property bundleRefs      optional list of bundle JARs the
  *                            [modelReference] depends on.  Reused
  *                            from [ksl.app.config.BundleRef].
@@ -122,6 +132,20 @@ data class ExperimentConfiguration(
         "Defaults to uniform 10 replications per design point."
     )
     val replications: ReplicationSpec = ReplicationSpec.Uniform(10),
+
+    @TomlComment(
+        "Top-level string. Allowed values:\n" +
+        "  'CONCURRENT' — run design points in parallel on the simulation\n" +
+        "                 dispatcher (default).  Choose for large designs\n" +
+        "                 on multi-core hosts.\n" +
+        "  'SEQUENTIAL' — run design points one at a time in enumerated\n" +
+        "                 order.\n" +
+        "[streamPolicy] is honoured under CONCURRENT only.  Under\n" +
+        "SEQUENTIAL the model's own stream defaults govern; a\n" +
+        "SEQUENTIAL + commonRandomNumbers combination silently uses the\n" +
+        "model defaults (the controller surfaces a warning)."
+    )
+    val executionMode: ExecutionMode = ExecutionMode.CONCURRENT,
 
     @TomlComment(
         "Random-stream policy across design points.  Sealed; rendered\n" +

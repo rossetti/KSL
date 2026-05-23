@@ -19,6 +19,7 @@
 package ksl.app.config.experiment
 
 import ksl.app.config.DatabasePolicy
+import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import org.junit.jupiter.api.Test
@@ -170,6 +171,25 @@ class ExperimentConfigurationTomlTest {
     }
 
     @Test
+    fun `executionMode CONCURRENT (default) round-trips`() {
+        // The default; tests both the default value and explicit
+        // round-trip on the freshly-introduced field.
+        val cfg = baseConfig()
+        assertEquals(ExecutionMode.CONCURRENT, cfg.executionMode)
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        assertEquals(ExecutionMode.CONCURRENT, decoded.executionMode)
+    }
+
+    @Test
+    fun `executionMode SEQUENTIAL round-trips`() {
+        val cfg = baseConfig().copy(executionMode = ExecutionMode.SEQUENTIAL)
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        assertEquals(ExecutionMode.SEQUENTIAL, decoded.executionMode)
+    }
+
+    @Test
     fun `common random numbers stream policy round-trips`() {
         val cfg = baseConfig(streamPolicy = StreamPolicy.CommonRandomNumbers)
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
@@ -277,6 +297,9 @@ class ExperimentConfigurationTomlTest {
         // Analysis name defaults to "Untitled" via OutputConfig's default.
         assertEquals("Untitled", decoded.outputConfig.analysisName)
         assertEquals(DatabasePolicy.OVERWRITE, decoded.outputConfig.databasePolicy)
+        // executionMode default is CONCURRENT (experiments benefit
+        // from parallel execution by default).
+        assertEquals(ExecutionMode.CONCURRENT, decoded.executionMode)
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────

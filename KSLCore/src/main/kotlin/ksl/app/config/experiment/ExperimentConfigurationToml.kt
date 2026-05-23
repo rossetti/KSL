@@ -86,7 +86,11 @@ object ExperimentConfigurationToml {
         #    [replications]      Per-design-point replication strategy.  Either
         #                        'uniform' (every point gets the same count) or
         #                        'perPoint' (default + index-keyed override map).
+        #    executionMode       Top-level string: 'CONCURRENT' (default — design
+        #                        points run in parallel on the simulation
+        #                        dispatcher) or 'SEQUENTIAL'.
         #    [streamPolicy]      Random-stream policy across design points.
+        #                        Honoured under CONCURRENT only.
         #                        Default is 'independent' (each point starts from
         #                        a fresh stream block); 'commonRandomNumbers' is
         #                        explicit opt-in.
