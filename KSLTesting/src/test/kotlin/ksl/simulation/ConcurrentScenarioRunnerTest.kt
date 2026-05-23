@@ -1294,4 +1294,77 @@ class ConcurrentScenarioRunnerTest {
         assertTrue(runner.kslDb.experimentNames.isEmpty())
         assertTrue(runner.observationsAsMap("System Time").isEmpty())
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  useScenarioOutputDirs (added for substrate API symmetry with
+    //  ParallelDesignedExperiment.useDesignPointOutputDirs; default
+    //  true preserves the original per-scenario-subdir behaviour, but
+    //  callers that prefer a flat layout can opt in by passing false).
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun useScenarioOutputDirsFalseFlattensOutput() {
+        val outDir = java.nio.file.Files.createTempDirectory("csr-flat-")
+        val runner = ConcurrentScenarioRunner(
+            name = "CSR_Flat_${System.nanoTime()}",
+            scenarioList = buildThreeQueueScenarios(numberReplications = 1),
+            pathToOutputDirectory = outDir,
+            useScenarioOutputDirs = false
+        )
+
+        runBlocking { runner.simulate() }
+
+        val children = outDir.toFile().listFiles().orEmpty()
+        val subdirs = children.filter { it.isDirectory }
+        assertTrue(
+            subdirs.none { it.name.endsWith("_OutputDir") },
+            "useScenarioOutputDirs = false should not create any *_OutputDir subdirs; got $subdirs"
+        )
+        val perScenarioLogs = children.filter {
+            it.isFile && it.name.startsWith("kslOutput_") && it.name.endsWith(".txt")
+        }
+        assertEquals(
+            runner.scenarioList.size,
+            perScenarioLogs.size,
+            "Expected one kslOutput_<scenarioName>.txt per scenario; got ${perScenarioLogs.map { it.name }}"
+        )
+        // Each scenario's name appears in exactly one of the log filenames.
+        for (scenario in runner.scenarioList) {
+            assertTrue(
+                perScenarioLogs.any { it.name.contains(scenario.name) },
+                "Expected a kslOutput log containing scenario name '${scenario.name}'; " +
+                    "got ${perScenarioLogs.map { it.name }}"
+            )
+        }
+    }
+
+    @Test
+    fun defaultsPreserveLegacyPerScenarioSubdirs() {
+        val outDir = java.nio.file.Files.createTempDirectory("csr-legacy-")
+        val runner = ConcurrentScenarioRunner(
+            name = "CSR_Legacy_${System.nanoTime()}",
+            scenarioList = buildThreeQueueScenarios(numberReplications = 1),
+            pathToOutputDirectory = outDir
+            // useScenarioOutputDirs intentionally untouched — should be true.
+        )
+
+        runBlocking { runner.simulate() }
+
+        val subdirs = outDir.toFile().listFiles().orEmpty().filter {
+            it.isDirectory && it.name.endsWith("_OutputDir")
+        }
+        assertEquals(
+            runner.scenarioList.size,
+            subdirs.size,
+            "Legacy default should create one *_OutputDir per scenario; got ${subdirs.map { it.name }}"
+        )
+        // Each per-scenario subdir contains the standard kslOutput.txt.
+        for (subdir in subdirs) {
+            val log = java.io.File(subdir, "kslOutput.txt")
+            assertTrue(
+                log.exists() && log.isFile,
+                "Expected kslOutput.txt inside ${subdir.name}; not found"
+            )
+        }
+    }
 }

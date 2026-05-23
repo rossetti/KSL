@@ -82,12 +82,25 @@ import java.nio.file.Path
  *  @param pathToOutputDirectory  Root directory under which per-scenario output sub-directories
  *                            are created.
  *  @param kslDb              Shared database that receives all scenario results.
+ *  @param useScenarioOutputDirs  When `true` (the default, preserving the original behaviour),
+ *                            every scenario gets its own subdirectory under
+ *                            [pathToOutputDirectory] named `<scenarioName>_OutputDir`; each
+ *                            subdir contains that scenario's `kslOutput.txt` and any per-
+ *                            scenario CSV / plot artifacts the model writes.  When `false`,
+ *                            every per-scenario model writes directly into
+ *                            [pathToOutputDirectory] and the diagnostic log uses a scenario-
+ *                            distinguished filename (`kslOutput_<scenarioName>.txt`) so
+ *                            concurrent writers don't clash and re-runs overwrite cleanly.
+ *                            Parallel to `ParallelDesignedExperiment.useDesignPointOutputDirs`
+ *                            — same substrate-level knob shape for the per-item-subdir
+ *                            question that the two runners share.
  */
 class ConcurrentScenarioRunner @JvmOverloads constructor(
     name: String,
     scenarioList: List<Scenario> = emptyList(),
     val pathToOutputDirectory: Path = KSL.createSubDirectory(sanitizeForFilesystem(name) + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory)
+    val kslDb: KSLDatabase = KSLDatabase("${sanitizeForFilesystem(name)}.db", pathToOutputDirectory),
+    private val useScenarioOutputDirs: Boolean = true
 ) : Identity(name) {
 
     private data class ScenarioRunOutcome(
@@ -405,8 +418,25 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
         var modelIdentifier: String? = null
         var collector: InMemorySnapshotCollector? = null
         try {
-            val modelDirName = sanitizeForFilesystem(scenario.name) + "_OutputDir"
-            val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, modelDirName)
+            // Per-scenario dir layout — two modes (see class KDoc for the
+            // `useScenarioOutputDirs` parameter):
+            //
+            // - true  (default, original behaviour): each scenario gets
+            //   its own subdir under [pathToOutputDirectory] named
+            //   "<scenarioName>_OutputDir" containing a `kslOutput.txt`
+            //   plus any per-scenario model artifacts.
+            // - false: all per-scenario models share [pathToOutputDirectory];
+            //   the diagnostic log is renamed to
+            //   "kslOutput_<scenarioName>.txt" so concurrent writes don't
+            //   clash and re-runs overwrite cleanly.
+            val sanitizedName = sanitizeForFilesystem(scenario.name)
+            val (modelDir, outFileName) = if (useScenarioOutputDirs) {
+                KSLFileUtil.createSubDirectory(
+                    pathToOutputDirectory, "${sanitizedName}_OutputDir"
+                ) to "kslOutput.txt"
+            } else {
+                pathToOutputDirectory to "kslOutput_${sanitizedName}.txt"
+            }
 
             val model = scenario.modelBuilder.build(scenario.modelConfiguration)
             modelIdentifier = model.modelIdentifier
@@ -423,7 +453,7 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
                 model.configuration = scenario.modelConfiguration!!
             }
-            model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+            model.outputDirectory = OutputDirectory(modelDir, outFileName = outFileName)
 
             // Attach collector before the simulation lifecycle starts so the
             // completed-experiment snapshot is available for the ordered DB commit.
