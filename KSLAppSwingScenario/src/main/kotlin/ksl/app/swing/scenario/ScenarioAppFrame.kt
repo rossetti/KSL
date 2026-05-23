@@ -216,8 +216,15 @@ class ScenarioAppFrame(
             addScenarioProvider = this::openAddScenarioDialog,
             openEditor = this::openScenarioEditor
         )
-        val scenarioReportsTab = ScenarioReportsTabPanel(
-            controller = controller,
+        val scenarioReportsTab = ksl.app.swing.common.batchreports.BatchReportsTabPanel(
+            lastResultFlow = controller.lastResult,
+            runningFlow = controller.runningFlow,
+            edtScope = controller.edtScope,
+            workspaceProvider = { controller.appWorkspace },
+            analysisNameProvider = { controller.outputConfig.value.analysisName },
+            // itemTypeName / itemTypeNamePlural / file-stem defaults
+            // preserve the Scenario app's pre-extraction wording and
+            // on-disk filenames — no user-visible change.
             onMessage = { msg, sev -> notifications.show(msg, sev) }
         )
         val comparisonAnalyzerTab = ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel(

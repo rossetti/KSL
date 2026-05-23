@@ -16,8 +16,10 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario
+package ksl.app.swing.common.batchreports
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
@@ -55,30 +57,71 @@ import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
 /**
- *  *Scenario Reports* tab — always-visible counterpart to the
- *  deprecated [ScenarioReportDialog].  Owns per-scenario deep-dive
- *  files and the consolidated summary file lifecycle for the most
- *  recent batch.
+ *  Reusable Reports tab — produces per-item and consolidated batch
+ *  summary documents from a `RunResult.BatchCompleted`.  Hosted by
+ *  the Scenario app today (items = scenarios); designed to be hosted
+ *  by the Experiment app once it ships (items = design points).
  *
- *  Lifecycle (Design X + R1 — see the controller for the full
- *  rationale): the panel subscribes to [ScenarioAppController.lastResult]
- *  and [ScenarioAppController.runningFlow], swapping between an
- *  *empty-state* card (no batch reportable / simulation in progress)
- *  and the *populated* card.  On every transition into the populated
- *  card the per-scenario rows are rebuilt from `BatchCompleted.snapshots`,
- *  with file-handling preferences (policy, format, reports dir) carried
- *  over so the user doesn't have to re-pick them between runs.
+ *  Lifecycle (Design X + R1 — see the Scenario controller's
+ *  lifecycle plan for the full rationale): the panel subscribes to
+ *  the host-supplied [lastResultFlow] and [runningFlow], swapping
+ *  between an *empty-state* card (no batch reportable / simulation in
+ *  progress) and the *populated* card.  On every transition into the
+ *  populated card the per-item rows are rebuilt from
+ *  `BatchCompleted.snapshots`, with file-handling preferences
+ *  (policy, format, reports dir) carried over so the user doesn't
+ *  have to re-pick them between runs.
  *
- *  External-deletion catch (Q2 in the lifecycle plan): refreshes from
- *  disk when [refreshFromDisk] is invoked — `ScenarioAppFrame`'s
- *  `JTabbedPane.ChangeListener` calls this every time the tab becomes
- *  active.  Sitting on the tab while deleting a file from Finder
- *  needs the explicit *Refresh* button.
+ *  External-deletion catch: refreshes from disk when [refreshFromDisk]
+ *  is invoked — the host's `JTabbedPane.ChangeListener` calls this
+ *  every time the tab becomes active.  Sitting on the tab while
+ *  deleting a file from Finder needs the explicit *Refresh* button.
+ *
+ *  ## Decoupling
+ *
+ *  This panel does NOT know about any controller type.  Hosts wire it
+ *  with closures over their own controller's state:
+ *
+ *  - [lastResultFlow] / [runningFlow] — drive empty vs. populated cards.
+ *  - [workspaceProvider] / [analysisNameProvider] — compute the default
+ *    reports directory `<workspace>/output/<analysisName>/reports/`.
+ *  - [onMessage] — surface render errors through the host's notification
+ *    overlay.
+ *  - [itemTypeName] / [itemTypeNamePlural] — substituted into UI labels
+ *    so the tab reads naturally in each app's domain.
+ *  - [itemFileStemPrefix] / [batchFileStem] — file stems on disk;
+ *    defaults preserve the Scenario app's pre-extraction filenames.
  */
-class ScenarioReportsTabPanel(
-    private val controller: ScenarioAppController,
-    /** Surfaces success/error messages through the frame's notification
-     *  overlay.  Optional — null silences feedback. */
+class BatchReportsTabPanel(
+    /** StateFlow the panel collects to decide empty vs. populated cards
+     *  and to rebuild rows on each new batch. */
+    private val lastResultFlow: StateFlow<RunResult?>,
+    /** StateFlow the panel uses to differentiate the "no batch yet"
+     *  empty-state from the "simulation in progress" one. */
+    private val runningFlow: StateFlow<Boolean>,
+    /** Coroutine scope on which the panel collects the StateFlows. */
+    private val edtScope: CoroutineScope,
+    /** Provider for the workspace root.  Called whenever the panel
+     *  needs to compute its default reports directory. */
+    private val workspaceProvider: () -> Path,
+    /** Provider for the current analysis name (raw user input).  Called
+     *  whenever the panel needs to compute its default reports
+     *  directory; sanitisation happens inside the panel. */
+    private val analysisNameProvider: () -> String,
+    /** Singular form of the per-batch item label, lower-case.  Used in
+     *  column headers, button text, dialog titles.  Defaults to
+     *  "scenario"; the Experiment app passes "design point". */
+    private val itemTypeName: String = "scenario",
+    /** Plural form of [itemTypeName]. */
+    private val itemTypeNamePlural: String = "scenarios",
+    /** File stem prefix for per-item reports.  Default preserves
+     *  the Scenario app's pre-extraction filenames. */
+    private val itemFileStemPrefix: String = "scenario-summary",
+    /** File stem for the consolidated batch summary.  Default preserves
+     *  the Scenario app's pre-extraction filenames. */
+    private val batchFileStem: String = "scenario-summaries",
+    /** Surfaces success/error messages through the host's notification
+     *  overlay.  Optional — defaults to a no-op. */
     private val onMessage: (message: String, severity: NotificationSeverity) -> Unit =
         { _, _ -> }
 ) : JPanel(CardLayout()) {
@@ -93,28 +136,34 @@ class ScenarioReportsTabPanel(
         foreground = Color(0x66, 0x66, 0x66)
     }
 
+    // ── Capitalised forms of the item-type labels for UI use ───────────────
+    private val itemTypeCapitalised: String =
+        itemTypeName.replaceFirstChar { it.uppercaseChar() }
+    private val itemTypePluralCapitalised: String =
+        itemTypeNamePlural.replaceFirstChar { it.uppercaseChar() }
+
     // ── Mutable state backing the populated card ───────────────────────────
 
-    /** Current per-row scenario names; rebuilt on each new batch. */
-    private var scenarioNames: List<String> = emptyList()
+    /** Current per-row item names; rebuilt on each new batch. */
+    private var itemNames: List<String> = emptyList()
 
-    /** Authoritative checkbox state — reallocated when scenarioNames changes. */
+    /** Authoritative checkbox state — reallocated when [itemNames] changes. */
     private var selectedFlags: BooleanArray = BooleanArray(0)
 
     /** Per-row status; refreshed against disk by [refreshFromDisk]. */
     private var rowStatus: Array<RowStatus> = emptyArray()
 
     /** Per-row "last modified" text (HH:mm:ss) for the most recent file
-     *  matching that scenario.  Empty when no file exists. */
+     *  matching that item.  Empty when no file exists. */
     private var rowMtime: Array<String> = emptyArray()
 
     /** Last-modified text for the summary file. */
     private var summaryMtime: String = ""
 
-    /** Current reports directory.  Initialised from the controller's
-     *  workspace nested by the current analysis name, and mutable via
-     *  *Change…*.  When the user hasn't overridden it via Change, the
-     *  panel re-derives this path on each new batch so it tracks
+    /** Current reports directory.  Initialised from the workspace
+     *  nested by the current analysis name, and mutable via *Change…*.
+     *  When the user hasn't overridden it via Change, the panel
+     *  re-derives this path on each new batch so it tracks
      *  analysis-name changes between Simulates. */
     private var currentReportsDir: Path = defaultReportsDir()
 
@@ -125,9 +174,9 @@ class ScenarioReportsTabPanel(
      *  the analysis name. */
     private var reportsDirFollowsAnalysis: Boolean = true
 
-    private fun defaultReportsDir(): Path = controller.appWorkspace
+    private fun defaultReportsDir(): Path = workspaceProvider()
         .resolve("output")
-        .resolve(ksl.app.config.sanitizeAnalysisName(controller.outputConfig.value.analysisName))
+        .resolve(ksl.app.config.sanitizeAnalysisName(analysisNameProvider()))
         .resolve("reports")
         .toAbsolutePath()
 
@@ -142,7 +191,7 @@ class ScenarioReportsTabPanel(
 
     // ── Populated card components ──────────────────────────────────────────
 
-    private val tableModel = ScenarioSelectionTableModel()
+    private val tableModel = ItemSelectionTableModel()
     private val table = JTable(tableModel).apply {
         rowHeight = 26
         tableHeader.reorderingAllowed = false
@@ -163,14 +212,14 @@ class ScenarioReportsTabPanel(
         columnModel.getColumn(COL_DELETE).cellEditor = OpenButtonCellEditor("Delete") { row -> onDeleteRow(row) }
     }
 
-    private val generatePerScenarioButton = JButton("Generate Selected").apply {
-        toolTipText = "Write one full deep-dive document per checked scenario."
+    private val generatePerItemButton = JButton("Generate Selected").apply {
+        toolTipText = "Write one full deep-dive document per checked $itemTypeName."
     }
     private val checkAllButton = JButton("Check All")
     private val uncheckAllButton = JButton("Uncheck All")
 
     private val generateSummaryButton = JButton("Generate Summary").apply {
-        toolTipText = "Write one consolidated document covering every checked scenario."
+        toolTipText = "Write one consolidated document covering every checked $itemTypeName."
     }
     private val summaryStatusLabel = JLabel("—")
     private val openSummaryButton = JButton("Open").apply {
@@ -237,14 +286,14 @@ class ScenarioReportsTabPanel(
         refreshEnablementAndCard()
     }
 
-    // ── Public API for ScenarioAppFrame ────────────────────────────────────
+    // ── Public API for hosts ────────────────────────────────────────────────
 
-    /** Re-read the reports directory and refresh per-row Status.  Called
-     *  by [ScenarioAppFrame]'s `JTabbedPane.ChangeListener` when this
-     *  tab becomes active so external file deletions land in the UI
+    /** Re-read the reports directory and refresh per-row Status.
+     *  Called by the host's `JTabbedPane.ChangeListener` when this tab
+     *  becomes active so external file deletions land in the UI
      *  without the user clicking *Refresh*. */
     fun refreshFromDisk() {
-        if (scenarioNames.isEmpty()) return
+        if (itemNames.isEmpty()) return
         clearStatusStrip()
         refreshAll()
     }
@@ -292,11 +341,11 @@ class ScenarioReportsTabPanel(
     }
 
     private fun buildBody(): JComponent {
-        val perScenarioSection = JPanel().apply {
+        val perItemSection = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(8, 12, 8, 12),
-                BorderFactory.createTitledBorder("Per-scenario reports")
+                BorderFactory.createTitledBorder("Per-$itemTypeName reports")
             )
             val scroll = JScrollPane(table).apply {
                 border = BorderFactory.createLineBorder(Color(0xCC, 0xCC, 0xCC))
@@ -306,7 +355,7 @@ class ScenarioReportsTabPanel(
             add(JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.X_AXIS)
                 alignmentX = Component.LEFT_ALIGNMENT
-                add(generatePerScenarioButton)
+                add(generatePerItemButton)
                 add(Box.createHorizontalStrut(12))
                 add(checkAllButton)
                 add(Box.createHorizontalStrut(6))
@@ -319,7 +368,7 @@ class ScenarioReportsTabPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createEmptyBorder(0, 12, 8, 12),
-                BorderFactory.createTitledBorder("Consolidated summary (covers checked scenarios)")
+                BorderFactory.createTitledBorder("Consolidated summary (covers checked $itemTypeNamePlural)")
             )
             add(JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -339,7 +388,7 @@ class ScenarioReportsTabPanel(
 
         return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(perScenarioSection)
+            add(perItemSection)
             add(summarySection)
             add(statusStrip.apply { alignmentX = Component.LEFT_ALIGNMENT })
         }
@@ -380,7 +429,7 @@ class ScenarioReportsTabPanel(
             clearStatusStrip()
             refreshAll()
         }
-        generatePerScenarioButton.addActionListener { onGeneratePerScenarioClick() }
+        generatePerItemButton.addActionListener { onGeneratePerItemClick() }
         generateSummaryButton.addActionListener { onGenerateSummaryClick() }
         openSummaryButton.addActionListener {
             mostRecentSummary()?.let { openFile(it) }
@@ -391,41 +440,41 @@ class ScenarioReportsTabPanel(
     }
 
     private fun wireCollectors() {
-        controller.edtScope.launch {
-            controller.lastResult.collect { _ -> refreshEnablementAndCard() }
+        edtScope.launch {
+            lastResultFlow.collect { _ -> refreshEnablementAndCard() }
         }
-        controller.edtScope.launch {
-            controller.runningFlow.collect { _ -> refreshEnablementAndCard() }
+        edtScope.launch {
+            runningFlow.collect { _ -> refreshEnablementAndCard() }
         }
     }
 
     // ── Card / state-orchestration ─────────────────────────────────────────
 
-    /** Recompute card visibility + per-card state from the controller's
-     *  current snapshot of state.  Single source of truth so the two
+    /** Recompute card visibility + per-card state from the current
+     *  snapshot of host state.  Single source of truth so the two
      *  collectors can't race into inconsistent states. */
     private fun refreshEnablementAndCard() {
-        val batch = controller.lastResult.value as? RunResult.BatchCompleted
+        val batch = lastResultFlow.value as? RunResult.BatchCompleted
         val hasSnapshots = batch != null && batch.snapshots.isNotEmpty()
         if (hasSnapshots) {
             // Snapshot names drive the table.  When the names change
-            // (new batch, deleted scenario, rename), we rebuild the
+            // (new batch, deleted item, rename), we rebuild the
             // backing arrays so per-row state is consistent.
             val names = batch!!.snapshots.map { it.experiment.exp_name }
-            if (names != scenarioNames) {
-                rebuildRowsForScenarios(names)
+            if (names != itemNames) {
+                rebuildRowsForItems(names)
             }
             cards.show(this, CARD_POPULATED)
         } else {
-            emptyStateLabel.text = if (controller.runningFlow.value) {
+            emptyStateLabel.text = if (runningFlow.value) {
                 "<html><div style='text-align:center;'>" +
                     "Simulation in progress.<br>" +
                     "Reports will appear when the batch completes." +
                     "</div></html>"
             } else {
                 "<html><div style='text-align:center;'>" +
-                    "No completed scenario batch yet.<br>" +
-                    "Run the scenarios to populate this tab." +
+                    "No completed batch yet.<br>" +
+                    "Run the $itemTypeNamePlural to populate this tab." +
                     "</div></html>"
             }
             cards.show(this, CARD_EMPTY)
@@ -433,12 +482,12 @@ class ScenarioReportsTabPanel(
         refreshButtonEnablement()
     }
 
-    private fun rebuildRowsForScenarios(names: List<String>) {
-        scenarioNames = names
+    private fun rebuildRowsForItems(names: List<String>) {
+        itemNames = names
         selectedFlags = BooleanArray(names.size) { true }
         rowStatus = Array(names.size) { RowStatus.NONE }
         rowMtime = Array(names.size) { "" }
-        // New scenarios → previous staleness baseline is no longer
+        // New items → previous staleness baseline is no longer
         // meaningful.  Will be reset by the next Generate Summary.
         lastGeneratedSummarySelection = null
         // Re-derive the reports dir from the (possibly new) analysis
@@ -458,15 +507,15 @@ class ScenarioReportsTabPanel(
 
     // ── State refreshers ──────────────────────────────────────────────────
 
-    /** Re-read everything from disk for the current scenarioNames.
+    /** Re-read everything from disk for the current [itemNames].
      *  Cheap; called by the *Refresh* button, after every state-changing
      *  action, on tab-activation via [refreshFromDisk], and after
      *  rebuilding the row arrays for a new batch.  Does NOT touch
      *  [statusStrip] — callers that want to clear / set the strip do so
      *  explicitly. */
     private fun refreshAll() {
-        for (i in scenarioNames.indices) {
-            val path = mostRecentPerScenarioFile(scenarioNames[i])
+        for (i in itemNames.indices) {
+            val path = mostRecentItemFile(itemNames[i])
             if (path != null && Files.exists(path)) {
                 rowStatus[i] = RowStatus.GENERATED
                 rowMtime[i] = mtimeOf(path)
@@ -573,7 +622,7 @@ class ScenarioReportsTabPanel(
         deleteSummaryButton.isEnabled = summaryExists
 
         val anyChecked = selectedFlags.any { it }
-        generatePerScenarioButton.isEnabled = anyChecked
+        generatePerItemButton.isEnabled = anyChecked
         generateSummaryButton.isEnabled = anyChecked
     }
 
@@ -581,8 +630,8 @@ class ScenarioReportsTabPanel(
 
     private fun currentCheckedSet(): Set<String> {
         val out = HashSet<String>(selectedFlags.size)
-        for (i in scenarioNames.indices) {
-            if (selectedFlags[i]) out.add(scenarioNames[i])
+        for (i in itemNames.indices) {
+            if (selectedFlags[i]) out.add(itemNames[i])
         }
         return out
     }
@@ -593,10 +642,10 @@ class ScenarioReportsTabPanel(
         else -> ReportFormat.HTML
     }
 
-    private fun currentPolicy(): ScenarioReports.FileHandlingPolicy = when {
-        skipRadio.isSelected -> ScenarioReports.FileHandlingPolicy.SKIP_IF_EXISTS
-        appendTimestampRadio.isSelected -> ScenarioReports.FileHandlingPolicy.APPEND_TIMESTAMP
-        else -> ScenarioReports.FileHandlingPolicy.OVERWRITE
+    private fun currentPolicy(): BatchReports.FileHandlingPolicy = when {
+        skipRadio.isSelected -> BatchReports.FileHandlingPolicy.SKIP_IF_EXISTS
+        appendTimestampRadio.isSelected -> BatchReports.FileHandlingPolicy.APPEND_TIMESTAMP
+        else -> BatchReports.FileHandlingPolicy.OVERWRITE
     }
 
     private fun setAllChecked(checked: Boolean) {
@@ -608,16 +657,16 @@ class ScenarioReportsTabPanel(
 
     private fun collectPicked(): List<String> {
         val out = ArrayList<String>(selectedFlags.size)
-        for (i in scenarioNames.indices) {
-            if (selectedFlags[i]) out.add(scenarioNames[i])
+        for (i in itemNames.indices) {
+            if (selectedFlags[i]) out.add(itemNames[i])
         }
         return out
     }
 
-    private fun onGeneratePerScenarioClick() {
+    private fun onGeneratePerItemClick() {
         val picked = collectPicked()
         if (picked.isEmpty()) return
-        val batch = controller.lastResult.value as? RunResult.BatchCompleted ?: return
+        val batch = lastResultFlow.value as? RunResult.BatchCompleted ?: return
         val policy = currentPolicy()
         val format = currentFormat()
         var generated = 0
@@ -625,27 +674,29 @@ class ScenarioReportsTabPanel(
         var failed = 0
         for (name in picked) {
             val outcome = try {
-                ScenarioReports.renderScenarioSummary(
+                BatchReports.renderItemSummary(
                     result = batch,
-                    scenarioName = name,
+                    itemName = name,
                     outputDir = currentReportsDir,
                     formats = setOf(format),
                     openHtmlInBrowser = false,
-                    existingFilePolicy = policy
+                    existingFilePolicy = policy,
+                    itemFileStemPrefix = itemFileStemPrefix,
+                    reportTitle = "$itemTypeCapitalised Summary — $name"
                 )
             } catch (t: Throwable) {
                 onMessage(
                     "Report error: [$name] ${t.message ?: t::class.simpleName}",
                     NotificationSeverity.WARNING
                 )
-                ScenarioReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
+                BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
             }
             if (!outcome.skipped) {
                 outcome.errors.forEach {
                     onMessage("Report error: [$name] $it", NotificationSeverity.WARNING)
                 }
             }
-            val i = scenarioNames.indexOf(name)
+            val i = itemNames.indexOf(name)
             if (i >= 0) {
                 when {
                     outcome.written.isNotEmpty() -> {
@@ -664,7 +715,7 @@ class ScenarioReportsTabPanel(
         }
         refreshButtonEnablement()
         applyStatusStrip(
-            summarizeGenerateOutcome("per-scenario report", generated, skipped, failed),
+            summarizeGenerateOutcome("per-$itemTypeName report", generated, skipped, failed),
             stripKindFor(generated, skipped, failed)
         )
     }
@@ -672,24 +723,28 @@ class ScenarioReportsTabPanel(
     private fun onGenerateSummaryClick() {
         val picked = collectPicked()
         if (picked.isEmpty()) return
-        val batch = controller.lastResult.value as? RunResult.BatchCompleted ?: return
+        val batch = lastResultFlow.value as? RunResult.BatchCompleted ?: return
         val policy = currentPolicy()
         val format = currentFormat()
         val outcome = try {
-            ScenarioReports.renderScenarioSummaries(
+            BatchReports.renderBatchSummary(
                 result = batch,
                 outputDir = currentReportsDir,
                 formats = setOf(format),
-                scenarioNames = picked.toSet(),
+                itemNames = picked.toSet(),
                 openHtmlInBrowser = false,
-                existingFilePolicy = policy
+                existingFilePolicy = policy,
+                batchFileStem = batchFileStem,
+                reportTitle = "$itemTypePluralCapitalised Summary — ${batch.summary.orchestratorName}",
+                itemTypeNamePlural = itemTypeNamePlural,
+                itemColumnHeader = itemTypeCapitalised
             )
         } catch (t: Throwable) {
             onMessage(
                 "Report error: ${t.message ?: t::class.simpleName}",
                 NotificationSeverity.WARNING
             )
-            ScenarioReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
+            BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
         }
         if (!outcome.skipped) {
             outcome.errors.forEach { onMessage("Report error: $it", NotificationSeverity.WARNING) }
@@ -716,19 +771,19 @@ class ScenarioReportsTabPanel(
     }
 
     private fun onOpenRow(modelRow: Int) {
-        if (modelRow !in scenarioNames.indices) return
-        val name = scenarioNames[modelRow]
-        mostRecentPerScenarioFile(name)?.let { openFile(it) }
+        if (modelRow !in itemNames.indices) return
+        val name = itemNames[modelRow]
+        mostRecentItemFile(name)?.let { openFile(it) }
     }
 
     private fun onDeleteRow(modelRow: Int) {
-        if (modelRow !in scenarioNames.indices) return
-        val name = scenarioNames[modelRow]
-        val target = mostRecentPerScenarioFile(name) ?: return
+        if (modelRow !in itemNames.indices) return
+        val name = itemNames[modelRow]
+        val target = mostRecentItemFile(name) ?: return
         val choice = JOptionPane.showConfirmDialog(
             this,
             "Delete '${target.fileName}'?\n\nThis cannot be undone.\n" +
-                "Older versions of this scenario's report (if any) are kept; " +
+                "Older versions of this $itemTypeName's report (if any) are kept; " +
                 "use Reveal… for bulk cleanup.",
             "Delete Report",
             JOptionPane.YES_NO_OPTION,
@@ -737,7 +792,7 @@ class ScenarioReportsTabPanel(
         if (choice != JOptionPane.YES_OPTION) return
         val deletedName = target.fileName.toString()
         deleteFileQuietly(target)
-        val remaining = mostRecentPerScenarioFile(name)
+        val remaining = mostRecentItemFile(name)
         if (remaining != null && Files.exists(remaining)) {
             rowStatus[modelRow] = RowStatus.GENERATED
             rowMtime[modelRow] = mtimeOf(remaining)
@@ -811,11 +866,11 @@ class ScenarioReportsTabPanel(
 
     // ── File / desktop helpers ────────────────────────────────────────────
 
-    private fun mostRecentPerScenarioFile(name: String): Path? =
-        ScenarioReports.mostRecentPerScenarioFile(currentReportsDir, name)
+    private fun mostRecentItemFile(name: String): Path? =
+        BatchReports.mostRecentItemFile(currentReportsDir, name, itemFileStemPrefix)
 
     private fun mostRecentSummary(): Path? =
-        ScenarioReports.mostRecentSummaryFile(currentReportsDir)
+        BatchReports.mostRecentSummaryFile(currentReportsDir, batchFileStem)
 
     private fun deleteFileQuietly(file: Path) {
         try {
@@ -848,12 +903,12 @@ class ScenarioReportsTabPanel(
     private enum class SummaryStatus { NONE, GENERATED, STALE, FAILED }
     private enum class StripKind { SUCCESS, WARN, ERROR, NEUTRAL }
 
-    private inner class ScenarioSelectionTableModel : AbstractTableModel() {
-        override fun getRowCount(): Int = scenarioNames.size
+    private inner class ItemSelectionTableModel : AbstractTableModel() {
+        override fun getRowCount(): Int = itemNames.size
         override fun getColumnCount(): Int = 5
         override fun getColumnName(c: Int): String = when (c) {
             COL_INCLUDE -> "Include?"
-            COL_NAME -> "Scenario"
+            COL_NAME -> itemTypeCapitalised
             COL_STATUS -> "Status"
             COL_OPEN -> "Open"
             COL_DELETE -> "Delete"
@@ -870,7 +925,7 @@ class ScenarioReportsTabPanel(
         }
         override fun getValueAt(r: Int, c: Int): Any = when (c) {
             COL_INCLUDE -> selectedFlags[r]
-            COL_NAME -> scenarioNames[r]
+            COL_NAME -> itemNames[r]
             COL_STATUS -> when (rowStatus[r]) {
                 RowStatus.NONE -> "—"
                 RowStatus.GENERATED ->

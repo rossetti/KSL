@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.scenario
+package ksl.app.swing.common.batchreports
 
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
@@ -36,21 +36,32 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Reporting layer for the Scenario app.
+ *  Reporting layer shared by every app that materialises per-batch
+ *  reports (Scenario today; Experiment when its tabs land).
  *
- *  All scenario-name lookups go through the substrate's authoritative
+ *  Batches are represented as `RunResult.BatchCompleted`, and each
+ *  snapshot in `BatchCompleted.snapshots` is an "item" — the
+ *  domain-neutral name covering Scenario-app scenarios, Experiment-app
+ *  design points, and anything else a future orchestrator emits.  All
+ *  item-name lookups go through the substrate's authoritative
  *  identifier — `ExperimentCompleted.experiment.exp_name` — which the
- *  bridge populates from `model.experimentName`, which the
- *  orchestrator sets from `ScenarioSpec.name`.  Earlier code keyed
- *  on `simulationRun.run_name`; that's a separate (usually-empty)
- *  field from `Model.runName` and is not the scenario identifier.
+ *  bridge populates from `model.experimentName`, which the orchestrator
+ *  sets from each item's name.
  *
  *  Every render path writes one file per selected [ReportFormat],
  *  then, when HTML was among the formats, asks the platform to open
- *  the HTML file in the user's default browser via
- *  `ReportNode.Document.showInBrowser()`.
+ *  the HTML file in the user's default browser.
+ *
+ *  ## File-stem defaults
+ *
+ *  The default file stems (`scenario-summary-*` and `scenario-summaries`)
+ *  preserve the names the Scenario app has been writing to disk, so
+ *  existing user files are still recognised by [perItemReportFiles] /
+ *  [mostRecentItemFile] after the rename.  New hosts (e.g. Experiment
+ *  app) override `itemFileStemPrefix` / `batchFileStem` for
+ *  domain-natural names.
  */
-object ScenarioReports {
+object BatchReports {
 
     /** Result of a render call.  Lets the caller surface per-format
      *  successes and errors in one notification pass. */
@@ -60,16 +71,14 @@ object ScenarioReports {
         /** `true` when the renderer deliberately skipped writing because
          *  the user picked [FileHandlingPolicy.SKIP_IF_EXISTS] and a
          *  conflicting file already existed.  Distinct from a failure;
-         *  callers should not flip the dialog's row state to FAILED on
-         *  a skip. */
+         *  callers should not flip the row state to FAILED on a skip. */
         val skipped: Boolean = false
     )
 
     /** Policy applied at write time when a destination file already
      *  exists for the target stem.  Picked by the user via the
-     *  Scenario Reports dialog's File handling group; passed through
-     *  to both [renderScenarioSummary] and [renderScenarioSummaries]
-     *  on every Generate. */
+     *  reports tab's File-handling group; passed through to both
+     *  [renderItemSummary] and [renderBatchSummary] on every Generate. */
     enum class FileHandlingPolicy {
         /** Default — write over any existing file with the same stem. */
         OVERWRITE,
@@ -94,91 +103,101 @@ object ScenarioReports {
 
     // ── Lookups ───────────────────────────────────────────────────────────
 
-    /** Scenario names available for report generation — those that
+    /** Item names available for report generation — those that
      *  produced a completed snapshot, in the order the orchestrator
-     *  committed them.  Drives the GUI pickers. */
-    fun availableScenarioNames(result: RunResult.BatchCompleted): List<String> =
+     *  committed them.  Drives GUI pickers. */
+    fun availableItemNames(result: RunResult.BatchCompleted): List<String> =
         result.snapshots.map { it.experiment.exp_name }
 
-    /** Lookup a completed snapshot by scenario name. */
+    /** Lookup a completed snapshot by item name. */
     private fun snapshotFor(
         result: RunResult.BatchCompleted,
-        scenarioName: String
+        itemName: String
     ): SimulationSnapshot.ExperimentCompleted? =
-        result.snapshots.firstOrNull { it.experiment.exp_name == scenarioName }
+        result.snapshots.firstOrNull { it.experiment.exp_name == itemName }
 
     // ── Render entry points ───────────────────────────────────────────────
     //
-    // Cross-scenario reporting (box plot, multiple comparison) used
-    // to live here.  Those flows now go through the cross-app
-    // Comparison Analyzer ([ksl.app.swing.common.comparison.ComparisonAnalyzerFrame]),
-    // which the Reports tab launches via
-    // [BatchCompletedComparisonSource].  Only the scenario-summaries
-    // and per-scenario summary renderers remain here — they're
-    // structurally unrelated to comparisons and have no analyzer
-    // equivalent.
+    // Cross-item reporting (box plot, multiple comparison) lives in the
+    // Comparison Analyzer family ([ksl.app.swing.common.comparison]).
+    // Only the per-batch summary and per-item summary renderers live
+    // here — they're structurally unrelated to comparisons and have no
+    // analyzer equivalent.
 
     /**
      *  **Primary on-demand report.**  One document covering every
-     *  completed scenario (or a caller-supplied subset).  Sections:
-     *  1. Run Overview — table with scenario name, requested reps,
+     *  completed item (or a caller-supplied subset).  Sections:
+     *  1. Run Overview — table with item name, requested reps,
      *     completed reps, run-error flag.
-     *  2. Per-scenario across-replication statistics — one
-     *     sub-section per scenario containing the response × stat
-     *     table (Count, Mean, Std Dev, Half-width, CI bounds,
-     *     Min, Max).
+     *  2. Per-item across-replication statistics — one sub-section per
+     *     item containing the response × stat table (Count, Mean, Std
+     *     Dev, Half-width, CI bounds, Min, Max).
      *
-     *  Designed to answer "how did my scenarios stack up?" in one
-     *  file, without forcing the analyst to flip between per-scenario
-     *  reports.
+     *  Designed to answer "how did my items stack up?" in one file,
+     *  without forcing the analyst to flip between per-item reports.
      *
-     *  @param scenarioNames optional whitelist of `experiment.exp_name`
+     *  @param itemNames optional whitelist of `experiment.exp_name`
      *    values to include.  `null` (the default) includes every
      *    snapshot in [result]; a non-null set filters both the Run
-     *    Overview rows and the per-scenario stat sub-sections.  Empty
-     *    set means "no scenarios" and surfaces as an
-     *    error in the returned [WriteOutcome].  Unknown names in the
-     *    set are silently ignored (the corresponding snapshot simply
-     *    isn't present in the result).
+     *    Overview rows and the per-item stat sub-sections.  Empty set
+     *    means "no items" and surfaces as an error in the returned
+     *    [WriteOutcome].  Unknown names in the set are silently
+     *    ignored.
+     *  @param batchFileStem filename stem (no extension) for the
+     *    consolidated document.  Defaults to `"scenario-summaries"` to
+     *    preserve Scenario-app filenames; Experiment-app hosts should
+     *    pass a domain-natural value such as `"batch-summary"`.
+     *  @param reportTitle title that goes on the rendered document.
+     *  @param itemTypeNamePlural the human-readable plural form used
+     *    in body text (e.g. "scenarios", "design points").
+     *  @param itemColumnHeader the Run Overview's leftmost column
+     *    header (e.g. "Scenario", "Design Point").
      */
-    fun renderScenarioSummaries(
+    fun renderBatchSummary(
         result: RunResult.BatchCompleted,
         outputDir: Path,
         formats: Set<ReportFormat>,
-        scenarioNames: Set<String>? = null,
+        itemNames: Set<String>? = null,
         openHtmlInBrowser: Boolean = true,
-        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE
+        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE,
+        batchFileStem: String = "scenario-summaries",
+        reportTitle: String = "Batch Summary — ${result.summary.orchestratorName}",
+        itemTypeNamePlural: String = "scenarios",
+        itemColumnHeader: String = "Scenario"
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
         }
         if (result.snapshots.isEmpty()) {
-            return WriteOutcome(emptyList(), listOf("No completed scenarios in the most recent run."))
+            return WriteOutcome(
+                emptyList(),
+                listOf("No completed $itemTypeNamePlural in the most recent run.")
+            )
         }
-        val included = if (scenarioNames == null) {
+        val included = if (itemNames == null) {
             result.snapshots
         } else {
-            result.snapshots.filter { it.experiment.exp_name in scenarioNames }
+            result.snapshots.filter { it.experiment.exp_name in itemNames }
         }
         if (included.isEmpty()) {
             return WriteOutcome(
                 emptyList(),
-                listOf("No scenarios match the supplied selection.")
+                listOf("No $itemTypeNamePlural match the supplied selection.")
             )
         }
-        val doc = report("Scenario Summaries — ${result.summary.orchestratorName}") {
+        val doc = report(reportTitle) {
             paragraph(
                 "Run id ${result.summary.runId}.  " +
                     "${result.summary.completedItems} of ${result.summary.totalItems} " +
-                    "scenarios completed" +
+                    "$itemTypeNamePlural completed" +
                     if (result.summary.failedItems > 0) ", ${result.summary.failedItems} failed." else "." +
-                    if (scenarioNames != null && included.size < result.snapshots.size) {
-                        "  Report filtered to ${included.size} of ${result.snapshots.size} scenarios."
+                    if (itemNames != null && included.size < result.snapshots.size) {
+                        "  Report filtered to ${included.size} of ${result.snapshots.size} $itemTypeNamePlural."
                     } else ""
             )
             section("Run Overview") {
                 dataTable(
-                    headers = listOf("Scenario", "Requested Reps", "Completed Reps", "Run Error"),
+                    headers = listOf(itemColumnHeader, "Requested Reps", "Completed Reps", "Run Error"),
                     rows = included.map { snap ->
                         val run = snap.simulationRun
                         val completedReps = run.last_rep_id?.let { it - run.start_rep_id + 1 }
@@ -192,11 +211,11 @@ object ScenarioReports {
                     }
                 )
             }
-            section("Across-Replication Statistics — Per Scenario") {
+            section("Across-Replication Statistics — Per $itemColumnHeader") {
                 for (snap in included) {
                     section(snap.experiment.exp_name) {
                         if (snap.acrossRepStats.isEmpty()) {
-                            paragraph("No across-replication statistics recorded for this scenario.")
+                            paragraph("No across-replication statistics recorded for this ${itemColumnHeader.lowercase()}.")
                         } else {
                             acrossRepStatsTable(snap.acrossRepStats)
                         }
@@ -204,46 +223,52 @@ object ScenarioReports {
                 }
             }
         }
-        val baseStem = "scenario-summaries"
-        val stemDecision = decideStem(baseStem, outputDir, formats, existingFilePolicy)
+        val stemDecision = decideStem(batchFileStem, outputDir, formats, existingFilePolicy)
         if (stemDecision.skipped) return stemDecision.toSkippedOutcome("summary")
         return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
     }
 
     /**
-     *  Render a single-scenario summary report for [scenarioName]
-     *  using the substrate's existing `snapshotSimulationResults`
-     *  pipeline.  Includes everything the snapshot supports: run
-     *  summary, across-replication statistics, histograms,
-     *  frequencies, time-series period statistics.
+     *  Render a single-item summary report for [itemName] using the
+     *  substrate's existing `snapshotSimulationResults` pipeline.
+     *  Includes everything the snapshot supports: run summary,
+     *  across-replication statistics, histograms, frequencies,
+     *  time-series period statistics.
      *
      *  @param openHtmlInBrowser when `true` (the default) and HTML is
      *    among [formats], the rendered HTML file is opened in the
      *    user's default browser.  Pass `false` when invoking this in
-     *    a batch (e.g. one call per picked scenario) so only the
-     *    first invocation opens a browser tab rather than N.
+     *    a batch (e.g. one call per picked item) so only the first
+     *    invocation opens a browser tab rather than N.
+     *  @param itemFileStemPrefix filename stem prefix (no key, no
+     *    extension) for the per-item document.  Defaults to
+     *    `"scenario-summary"` to preserve Scenario-app filenames; new
+     *    hosts pass a domain-natural value such as `"item-summary"`.
+     *  @param reportTitle title that goes on the rendered document.
      */
-    fun renderScenarioSummary(
+    fun renderItemSummary(
         result: RunResult.BatchCompleted,
-        scenarioName: String,
+        itemName: String,
         outputDir: Path,
         formats: Set<ReportFormat>,
         openHtmlInBrowser: Boolean = true,
-        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE
+        existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE,
+        itemFileStemPrefix: String = "scenario-summary",
+        reportTitle: String = "Item Summary — $itemName"
     ): WriteOutcome {
         if (formats.isEmpty()) {
             return WriteOutcome(emptyList(), listOf("No report formats selected."))
         }
-        val snapshot = snapshotFor(result, scenarioName) ?: return WriteOutcome(
+        val snapshot = snapshotFor(result, itemName) ?: return WriteOutcome(
             written = emptyList(),
-            errors = listOf("Scenario '$scenarioName' has no completed snapshot.")
+            errors = listOf("'$itemName' has no completed snapshot.")
         )
-        val doc = report(title = "Scenario Summary — $scenarioName") {
+        val doc = report(title = reportTitle) {
             snapshotSimulationResults(snapshot)
         }
-        val baseStem = fileStem("scenario-summary", scenarioName)
+        val baseStem = fileStem(itemFileStemPrefix, itemName)
         val stemDecision = decideStem(baseStem, outputDir, formats, existingFilePolicy)
-        if (stemDecision.skipped) return stemDecision.toSkippedOutcome(scenarioName)
+        if (stemDecision.skipped) return stemDecision.toSkippedOutcome(itemName)
         return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
     }
 
@@ -279,40 +304,53 @@ object ScenarioReports {
         FileHandlingPolicy.APPEND_TIMESTAMP -> StemDecision("${baseStem}_${timestampSuffix()}", skipped = false)
     }
 
-    // ── Artifact-path helpers (used by ScenarioReportDialog to surface  ───
-    // ── existing files without re-rendering)                            ───
+    // ── Artifact-path helpers (used by the tab panel to surface       ───
+    // ── existing files without re-rendering)                          ───
 
     /**
-     *  All files in [reportsDir] that look like a per-scenario report
-     *  for [scenarioName] — both the base-stem form
-     *  (`scenario-summary-<sanitised>.{ext}`) and any timestamped
-     *  variants written under [FileHandlingPolicy.APPEND_TIMESTAMP]
-     *  (`scenario-summary-<sanitised>_yyyy-MM-dd_HHmmss.{ext}`).
-     *  Used by the dialog's Status / Open / Delete affordances.
+     *  All files in [reportsDir] that look like a per-item report for
+     *  [itemName] — both the base-stem form and any timestamped
+     *  variants written under [FileHandlingPolicy.APPEND_TIMESTAMP].
+     *  Used by the tab's Status / Open / Delete affordances.
      *
      *  Returns an empty list when the directory doesn't exist or no
      *  matching files are present.  Order is filesystem-dependent;
      *  callers that need a specific ordering should sort.
      */
-    fun perScenarioReportFiles(reportsDir: Path, scenarioName: String): List<Path> =
-        listMatchingFiles(reportsDir, fileStem("scenario-summary", scenarioName))
+    fun perItemReportFiles(
+        reportsDir: Path,
+        itemName: String,
+        itemFileStemPrefix: String = "scenario-summary"
+    ): List<Path> =
+        listMatchingFiles(reportsDir, fileStem(itemFileStemPrefix, itemName))
 
-    /** As [perScenarioReportFiles] but for the consolidated summary. */
-    fun summaryReportFiles(reportsDir: Path): List<Path> =
-        listMatchingFiles(reportsDir, "scenario-summaries")
+    /** As [perItemReportFiles] but for the consolidated batch summary. */
+    fun summaryReportFiles(
+        reportsDir: Path,
+        batchFileStem: String = "scenario-summaries"
+    ): List<Path> =
+        listMatchingFiles(reportsDir, batchFileStem)
 
     /**
-     *  Most-recently-modified file from [perScenarioReportFiles], or
-     *  `null` when none exist.  This is what the dialog opens when
-     *  the user clicks a row's Open button.
+     *  Most-recently-modified file from [perItemReportFiles], or `null`
+     *  when none exist.  This is what the tab opens when the user
+     *  clicks a row's Open button.
      */
-    fun mostRecentPerScenarioFile(reportsDir: Path, scenarioName: String): Path? =
-        perScenarioReportFiles(reportsDir, scenarioName)
+    fun mostRecentItemFile(
+        reportsDir: Path,
+        itemName: String,
+        itemFileStemPrefix: String = "scenario-summary"
+    ): Path? =
+        perItemReportFiles(reportsDir, itemName, itemFileStemPrefix)
             .maxByOrNull { Files.getLastModifiedTime(it).toMillis() }
 
-    /** As [mostRecentPerScenarioFile] but for the consolidated summary. */
-    fun mostRecentSummaryFile(reportsDir: Path): Path? =
-        summaryReportFiles(reportsDir).maxByOrNull { Files.getLastModifiedTime(it).toMillis() }
+    /** As [mostRecentItemFile] but for the consolidated batch summary. */
+    fun mostRecentSummaryFile(
+        reportsDir: Path,
+        batchFileStem: String = "scenario-summaries"
+    ): Path? =
+        summaryReportFiles(reportsDir, batchFileStem)
+            .maxByOrNull { Files.getLastModifiedTime(it).toMillis() }
 
     /** Scan [reportsDir] for files whose names match
      *  `<baseStem>` + optional `_<timestamp>` + `.{html,md,txt}`. */
@@ -339,12 +377,11 @@ object ScenarioReports {
 
     // ── DSL helpers ───────────────────────────────────────────────────────
 
-    /** Across-rep stats table used by the consolidated scenario-summaries report.
-     *  Mirrors the columns in
-     *  [snapshotSimulationResults]'s default rendering but inlined
-     *  here so we can drop the per-scenario run-summary section
-     *  (the Run Overview table at the top of the document covers
-     *  the bookkeeping already). */
+    /** Across-rep stats table used by the consolidated batch summary.
+     *  Mirrors the columns in [snapshotSimulationResults]'s default
+     *  rendering but inlined here so we can drop the per-item
+     *  run-summary section (the Run Overview table at the top of the
+     *  document covers the bookkeeping already). */
     private fun ksl.utilities.io.report.dsl.ReportBuilder.acrossRepStatsTable(
         stats: List<AcrossRepStatTableData>
     ) {
