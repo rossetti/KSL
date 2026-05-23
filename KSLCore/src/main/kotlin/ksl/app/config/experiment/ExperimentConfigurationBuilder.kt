@@ -126,6 +126,22 @@ fun ExperimentConfiguration.toDesignedExperiment(
     }
 }
 
+/**
+ *  Materialise the experimental design alone — no model build, no
+ *  database, no factor-binding resolution.  Useful for previewing
+ *  the enumerated design points in the GUI (Design tab "Materialize
+ *  design points…" dialog).  Honours the same per-point
+ *  replications precedence rule as [toDesignedExperiment].
+ *
+ *  Throws if the spec's structural preconditions fail (e.g. CCD
+ *  with non-2-level factors); the GUI is expected to check
+ *  prerequisites before calling.
+ */
+fun ExperimentConfiguration.materializeDesign(): ExperimentalDesignIfc {
+    val (engineFactors, factorByName) = buildEngineFactors()
+    return buildEffectiveDesign(engineFactors, factorByName)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -225,16 +241,14 @@ private fun ExperimentConfiguration.buildEffectiveDesign(
         }
         is DesignSpec.CentralComposite -> {
             val twoLevelDesign = buildTwoLevelDesign(engineFactors)
-            val coreIterator = iteratorForFraction(twoLevelDesign, ds.factorialFraction)
             val alpha = resolveAxialSpacing(
                 axialSpacing = ds.axialSpacing,
                 numFactors = engineFactors.size,
-                factorialFraction = ds.factorialFraction,
                 numFactorialReps = ds.numFactorialReps,
                 numAxialReps = ds.numAxialReps
             )
             val ccd = CentralCompositeDesign(
-                twoLevelDesignItr = coreIterator,
+                twoLevelFactorialDesign = twoLevelDesign,
                 numFactorialReps = ds.numFactorialReps,
                 numAxialReps = ds.numAxialReps,
                 numCenterReps = ds.numCenterReps,
@@ -298,8 +312,11 @@ private fun iteratorForFraction(
         is Fraction.Full -> twoLevelDesign.designIterator()
         is Fraction.HalfFraction -> twoLevelDesign.halfFractionIterator(half = fraction.sign.toDouble())
         is Fraction.Custom -> {
-            val relation = fraction.relations
-                .map { generator -> generator.map { letter -> letter - 'A' + 1 }.toSet() }
+            // Each "word" is one element of the substrate's
+            // Set<Set<Int>> defining relation.  Letters A..Z map to
+            // 1-based factor indices.
+            val relation = fraction.words
+                .map { word -> word.map { letter -> letter - 'A' + 1 }.toSet() }
                 .toSet()
             twoLevelDesign.fractionalIterator(relation = relation, sign = fraction.sign.toDouble())
         }
@@ -309,31 +326,23 @@ private fun iteratorForFraction(
 /**
  *  Resolve an [AxialSpacing] to a concrete Double for the substrate
  *  CCD constructor.  [Rotatable] calls
- *  `CentralCompositeDesign.rotatableAxialSpacing(...)` with the
- *  effective fraction exponent (0 for full, 1 for half, list size
- *  for custom).
+ *  `CentralCompositeDesign.rotatableAxialSpacing(...)` with
+ *  fraction = 0 (the spec always uses a full 2^k factorial core
+ *  for v1; fractional cores are deferred to Phase E11 polish).
  */
 private fun resolveAxialSpacing(
     axialSpacing: AxialSpacing,
     numFactors: Int,
-    factorialFraction: Fraction,
     numFactorialReps: Int,
     numAxialReps: Int
 ): Double = when (axialSpacing) {
     is AxialSpacing.Explicit -> axialSpacing.value
-    AxialSpacing.Rotatable -> {
-        val p = when (factorialFraction) {
-            Fraction.Full -> 0
-            is Fraction.HalfFraction -> 1
-            is Fraction.Custom -> factorialFraction.relations.size
-        }
-        CentralCompositeDesign.rotatableAxialSpacing(
-            numFactors = numFactors,
-            fraction = p,
-            numFactorialReps = numFactorialReps,
-            numAxialReps = numAxialReps
-        )
-    }
+    AxialSpacing.Rotatable -> CentralCompositeDesign.rotatableAxialSpacing(
+        numFactors = numFactors,
+        fraction = 0,
+        numFactorialReps = numFactorialReps,
+        numAxialReps = numAxialReps
+    )
 }
 
 /**

@@ -101,7 +101,7 @@ class ExperimentConfigurationValidationTest {
     }
 
     @Test
-    fun `twoLevelFactorial with custom fraction rejects invalid defining relations`() {
+    fun `twoLevelFactorial with custom fraction rejects invalid defining relation`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             ExperimentConfiguration(
                 modelReference = model,
@@ -111,11 +111,11 @@ class ExperimentConfigurationValidationTest {
                     factor("C", listOf(0.0, 1.0))
                 ),
                 designSpec = DesignSpec.TwoLevelFactorial(
-                    fraction = Fraction.Custom(relations = listOf("ABZ"))   // 'Z' beyond A..C
+                    fraction = Fraction.Custom(words = listOf("ABZ"))   // 'Z' beyond A..C
                 )
             )
         }
-        assertTrue(ex.message!!.contains("defining relations are invalid"))
+        assertTrue(ex.message!!.contains("defining relation is invalid"))
     }
 
     @Test

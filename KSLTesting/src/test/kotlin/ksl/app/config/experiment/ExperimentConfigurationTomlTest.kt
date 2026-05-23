@@ -90,7 +90,7 @@ class ExperimentConfigurationTomlTest {
                 factor("D", listOf(0.0, 1.0))
             ),
             designSpec = DesignSpec.TwoLevelFactorial(
-                fraction = Fraction.Custom(relations = listOf("ABCD"))
+                fraction = Fraction.Custom(words = listOf("ABCD"))
             )
         )
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
@@ -99,7 +99,7 @@ class ExperimentConfigurationTomlTest {
         assertIs<DesignSpec.TwoLevelFactorial>(ds)
         val frac = ds.fraction
         assertIs<Fraction.Custom>(frac)
-        assertEquals(listOf("ABCD"), frac.relations)
+        assertEquals(listOf("ABCD"), frac.words)
     }
 
     @Test
@@ -109,8 +109,7 @@ class ExperimentConfigurationTomlTest {
                 axialSpacing = AxialSpacing.Explicit(1.414),
                 numFactorialReps = 2,
                 numAxialReps = 3,
-                numCenterReps = 4,
-                factorialFraction = Fraction.Full
+                numCenterReps = 4
             )
         )
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))

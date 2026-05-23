@@ -86,36 +86,40 @@ sealed class DesignSpec {
     ) : DesignSpec()
 
     /**
-     *  Central composite design — factorial core + axial points +
-     *  centre point(s).  Used to fit second-order response surface
-     *  models (RSM).  Requires every factor to be two-level (the
-     *  factorial portion); the substrate then adds 2k axial points
-     *  at ± [axialSpacing] and one centre point replicated
-     *  [numCenterReps] times.
+     *  Central composite design — full 2^k factorial core + 2k
+     *  axial points + 1 centre point.  Used to fit second-order
+     *  response surface models (RSM).  Requires every factor to be
+     *  two-level (the factorial core); the substrate then adds 2k
+     *  axial points at ± [axialSpacing] and one centre point
+     *  replicated [numCenterReps] times.
      *
      *  [axialSpacing] is either the classical rotatable value
-     *  (computed from k + the optional [factorialFraction]) or an
-     *  explicit user-supplied number.  See
-     *  `ksl.controls.experiments.CentralCompositeDesign.rotatableAxialSpacing`
-     *  for the formula behind the rotatable choice.
+     *  (computed from k via
+     *  `CentralCompositeDesign.rotatableAxialSpacing`) or an
+     *  explicit user-supplied number.
      *
      *  The three replication knobs override the document-level
      *  `ReplicationSpec` entirely for CCDs — see this class's KDoc.
+     *
+     *  Fractional CCD cores (passing a fractional iterator to the
+     *  substrate's `CentralCompositeDesign` primary constructor)
+     *  are a substrate capability not exposed by this spec for v1
+     *  — see Phase E11 polish.
      */
     @Serializable
     @SerialName("centralComposite")
     data class CentralComposite(
         @TomlComment(
             "Axial-point spacing (α).  { type = \"rotatable\" } computes\n" +
-            "α from k + the fractional-factorial fraction at engine-build\n" +
-            "time; { type = \"explicit\", value = 1.0 } uses the literal\n" +
-            "value (1.0 = face-centred design)."
+            "α from k at engine-build time; { type = \"explicit\",\n" +
+            "value = 1.0 } uses the literal value (1.0 = face-centred\n" +
+            "design)."
         )
         val axialSpacing: AxialSpacing = AxialSpacing.Rotatable,
 
         @TomlComment(
-            "Integer >= 1.  Replications at every factorial-portion\n" +
-            "design point.  Default 1."
+            "Integer >= 1.  Replications at every factorial-core\n" +
+            "design point (the 2^k corners).  Default 1."
         )
         val numFactorialReps: Int = 1,
 
@@ -130,14 +134,7 @@ sealed class DesignSpec {
             "Typical RSM practice is 4-6 for variance estimation.\n" +
             "Default 1."
         )
-        val numCenterReps: Int = 1,
-
-        @TomlComment(
-            "Selection for the factorial portion of the CCD.\n" +
-            "Default { type = \"full\" } (full 2^k core).  Use a\n" +
-            "fractional subtype to build a small-fraction CCD."
-        )
-        val factorialFraction: Fraction = Fraction.Full
+        val numCenterReps: Int = 1
     ) : DesignSpec() {
         init {
             require(numFactorialReps >= 1) { "numFactorialReps must be >= 1; got $numFactorialReps" }
@@ -204,28 +201,36 @@ sealed class Fraction {
     }
 
     /**
-     *  Custom fractional design — explicit list of defining
-     *  relations.  Each relation is a string of uppercase letters
+     *  Custom fractional design — one defining relation expressed
+     *  as a list of "words".  A defining relation has the algebraic
+     *  form I = w1 = w2 = ... where each word w_i is a product of
+     *  factor letters; the example I = 124 = 135 = 2345 has three
+     *  words.  Each word here is a string of uppercase letters
      *  (e.g. `"ABCD"`); the engine glue converts each letter to its
-     *  1-based factor index for the substrate's
-     *  `fractionalIterator(relation: Set<Set<Int>>)`.  The resulting
-     *  fraction realises a 2^(k-p) design where p = `relations.size`.
+     *  1-based factor index and assembles the full
+     *  `Set<Set<Int>>` the substrate's
+     *  `TwoLevelFactorialDesign.fractionalIterator` expects.  The
+     *  resulting fraction realises a 2^(k-p) design where p = the
+     *  word count.
      */
     @Serializable
     @SerialName("custom")
     data class Custom(
         @TomlComment(
-            "List of generator strings (e.g. \"ABCD\", \"ABE\").  Each\n" +
-            "entry names the factors whose product equals the identity I.\n" +
-            "Letter X refers to the X-th factor by position\n" +
-            "(A = factor 1).  Letters within one relation must be unique;\n" +
-            "every letter must lie within the document's factor count.\n" +
-            "The fraction exponent p equals the list size; the realised\n" +
-            "design is 2^(k-p).  Group-theoretic validity (that the\n" +
-            "generators realise the expected fraction without collapsing)\n" +
-            "is verified at engine-build time."
+            "Words of the single defining relation.  Each word is a\n" +
+            "sequence of uppercase letters naming the factors whose\n" +
+            "product equals the identity I.  Example: the relation\n" +
+            "I = ABCD = ABE = CDE has three words, encoded as\n" +
+            "[\"ABCD\", \"ABE\", \"CDE\"].  Letter X refers to the X-th\n" +
+            "factor by position (A = factor 1).  Letters within one\n" +
+            "word must be unique; every letter must lie within the\n" +
+            "document's factor count.  The fraction exponent p\n" +
+            "equals the word count; the realised design is 2^(k-p).\n" +
+            "Group-theoretic validity (that the words realise the\n" +
+            "expected fraction without collapsing) is verified at\n" +
+            "engine-build time."
         )
-        val relations: List<String>,
+        val words: List<String>,
 
         @TomlComment(
             "Sign of the generator I = +1 or -I = -1.  Default 1."
@@ -233,7 +238,7 @@ sealed class Fraction {
         val sign: Int = +1
     ) : Fraction() {
         init {
-            require(relations.isNotEmpty()) { "custom fraction must have at least one relation" }
+            require(words.isNotEmpty()) { "custom fraction must have at least one word" }
             require(sign == 1 || sign == -1) { "sign must be 1 or -1; got $sign" }
         }
     }

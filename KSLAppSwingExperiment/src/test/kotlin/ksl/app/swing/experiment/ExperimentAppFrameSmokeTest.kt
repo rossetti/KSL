@@ -86,7 +86,6 @@ class ExperimentAppFrameSmokeTest {
                     "Model",
                     "Factors",
                     "Design",
-                    "Design Points",
                     "Regression",
                     "Comparison Analyzer",
                     "Reports"
@@ -209,7 +208,7 @@ class ExperimentAppFrameSmokeTest {
                     controller!!.setDesignSpec(
                         ksl.app.config.experiment.DesignSpec.TwoLevelFactorial(
                             fraction = ksl.app.config.experiment.Fraction.Custom(
-                                relations = listOf("AB")
+                                words = listOf("AB")
                             )
                         )
                     )

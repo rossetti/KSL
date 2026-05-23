@@ -100,7 +100,7 @@ class ExperimentConfigurationBuilderTest {
         // 2-factor custom fraction with the single generator 'AB' -> 2 points.
         val cfg = lkConfig(
             designSpec = DesignSpec.TwoLevelFactorial(
-                fraction = Fraction.Custom(relations = listOf("AB"))
+                fraction = Fraction.Custom(words = listOf("AB"))
             )
         )
         val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)

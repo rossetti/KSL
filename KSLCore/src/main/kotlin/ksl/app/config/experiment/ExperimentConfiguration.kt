@@ -206,7 +206,6 @@ data class ExperimentConfiguration(
             }
             is DesignSpec.CentralComposite -> {
                 requireTwoLevelFactors("centralComposite")
-                validateFraction(ds.factorialFraction, factors.size)
                 if (ds.axialSpacing is AxialSpacing.Rotatable) {
                     require(factors.size >= 2) {
                         "centralComposite with rotatable axial spacing requires " +
@@ -245,16 +244,16 @@ data class ExperimentConfiguration(
                 }
             }
             is Fraction.Custom -> {
-                val p = fraction.relations.size
+                val p = fraction.words.size
                 require(p in 1..(numFactors - 1)) {
-                    "custom fraction exponent p (${p}) must be in 1..(k-1); " +
+                    "custom fraction word count p (${p}) must be in 1..(k-1); " +
                         "got k = $numFactors"
                 }
                 val syn = DefiningRelationValidator.validate(
-                    fraction.relations, numFactors, p
+                    fraction.words, numFactors, p
                 )
                 require(syn is DefiningRelationValidator.Result.Ok) {
-                    "defining relations are invalid: " +
+                    "defining relation is invalid: " +
                         (syn as DefiningRelationValidator.Result.Invalid).errors.joinToString("; ")
                 }
             }

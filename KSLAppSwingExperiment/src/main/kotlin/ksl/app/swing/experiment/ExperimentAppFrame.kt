@@ -194,11 +194,13 @@ class ExperimentAppFrame(
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
 
-        // Authoring tabs (E5–E8) — Model + Factors functional.
+        // Authoring tabs (E5–E9) — Model + Factors + Design functional.
+        // The previously-planned "Design Points" tab was replaced with
+        // a "Materialize design points..." button on the Design tab
+        // (see DesignPointsPreviewDialog).
         val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val factorsTab = FactorsTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val designTab = DesignTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
-        val designPointsTab = placeholderPanel("Design-point preview — Phase E8.")
         val regressionTab = placeholderPanel("Regression configuration + HTML-report materialisation — Phase E9.")
 
         // Analysis tabs that already exist as generic Common panels.
@@ -239,7 +241,6 @@ class ExperimentAppFrame(
             addTab("Model", modelTab)
             addTab("Factors", factorsTab)
             addTab("Design", designTab)
-            addTab("Design Points", designPointsTab)
             addTab("Regression", regressionTab)
             addTab("Comparison Analyzer", comparisonAnalyzerTab)
             addTab("Reports", reportsTab)

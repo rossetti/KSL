@@ -168,6 +168,8 @@ class DesignTabPanel(
             add(replicationsPanel)
             add(Box.createVerticalStrut(6))
             add(buildStreamPanel())
+            add(Box.createVerticalStrut(6))
+            add(buildPreviewBar())
         }
         add(south, BorderLayout.SOUTH)
 
@@ -350,6 +352,40 @@ class DesignTabPanel(
         panel.add(advancedRow)
         advancedRow.isVisible = false
         return panel
+    }
+
+    private fun buildPreviewBar(): JPanel {
+        val row = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
+        val previewBtn = JButton("Materialize design points...")
+        previewBtn.toolTipText = "Enumerate the design points implied by the current " +
+            "factors + design spec.  Lets you review the points and (when " +
+            "ReplicationSpec.PerPoint is the policy) edit per-row reps overrides."
+        previewBtn.addActionListener { openPreviewDialog() }
+        row.add(previewBtn)
+        return row
+    }
+
+    private fun openPreviewDialog() {
+        val factors = controller.factors.value
+        if (factors.isEmpty()) {
+            onMessage(
+                "Add at least one factor on the Factors tab before previewing the design.",
+                NotificationSeverity.WARNING
+            )
+            return
+        }
+        try {
+            val owner = javax.swing.SwingUtilities.getWindowAncestor(this)
+            val dlg = DesignPointsPreviewDialog(owner, controller) { msg, sev ->
+                onMessage(msg, sev)
+            }
+            dlg.isVisible = true
+        } catch (ex: Exception) {
+            onMessage(
+                "Could not materialize design: ${ex.message ?: ex::class.simpleName}",
+                NotificationSeverity.ERROR
+            )
+        }
     }
 
     private fun buildAdvancedRow(): JPanel {
@@ -553,11 +589,11 @@ class DesignTabPanel(
         }
     }
 
-    /** Two-level factorial: fraction picker + (when Custom) relations table + summary. */
+    /** Two-level factorial: fraction picker + (when Custom) words table + summary. */
     private inner class TwoLevelFactorialCard : JPanel(BorderLayout(0, 6)) {
         private val fullRadio = JRadioButton("Full 2^k", true)
         private val halfRadio = JRadioButton("Half-fraction")
-        private val customRadio = JRadioButton("Custom relations")
+        private val customRadio = JRadioButton("Custom defining relation")
         private val fracGroup = ButtonGroup().apply {
             add(fullRadio); add(halfRadio); add(customRadio)
         }
@@ -573,8 +609,8 @@ class DesignTabPanel(
         }
         private val relationsModel = RelationsTableModel()
         private val relationsTable = JTable(relationsModel)
-        private val addRelBtn = JButton("Add relation")
-        private val delRelBtn = JButton("Delete relation")
+        private val addRelBtn = JButton("Add word")
+        private val delRelBtn = JButton("Delete word")
         private val summary = JLabel(" ")
 
         private val halfRow: JPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
@@ -617,7 +653,7 @@ class DesignTabPanel(
         private fun buildCustomPanel(): JPanel {
             val panel = JPanel(BorderLayout(0, 4))
             val north = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
-            north.add(JLabel("Defining relations:"))
+            north.add(JLabel("Defining relation (one word per row, e.g. ABCD):"))
             north.add(JLabel("    sign:"))
             north.add(customSignRadio)
             north.add(customSignMinusRadio)
@@ -650,7 +686,7 @@ class DesignTabPanel(
                 }
                 is Fraction.Custom -> {
                     customRadio.isSelected = true
-                    relationsModel.setRelations(f.relations)
+                    relationsModel.setRelations(f.words)
                     if (f.sign == 1) customSignRadio.isSelected = true
                     else customSignMinusRadio.isSelected = true
                 }
@@ -676,19 +712,19 @@ class DesignTabPanel(
                     sign = if (halfSignRadio.isSelected) +1 else -1
                 )
                 customRadio.isSelected -> {
-                    val rels = relationsModel.relations()
-                    if (rels.isEmpty()) {
+                    val words = relationsModel.relations()
+                    if (words.isEmpty()) {
                         summary.text = "<html><font color='#a00'>" +
-                            "Add at least one defining relation.</font></html>"
+                            "Add at least one word to the defining relation.</font></html>"
                         return
                     }
-                    val invalid = validateRelations(rels, factors.size)
+                    val invalid = validateWords(words, factors.size)
                     if (invalid != null) {
                         summary.text = "<html><font color='#a00'>$invalid</font></html>"
                         return
                     }
                     Fraction.Custom(
-                        relations = rels,
+                        words = words,
                         sign = if (customSignRadio.isSelected) +1 else -1
                     )
                 }
@@ -703,23 +739,23 @@ class DesignTabPanel(
             }
         }
 
-        private fun validateRelations(rels: List<String>, k: Int): String? {
-            for ((i, r) in rels.withIndex()) {
-                val trimmed = r.trim()
-                if (trimmed.isEmpty()) return "Relation #${i + 1} is empty."
+        private fun validateWords(words: List<String>, k: Int): String? {
+            for ((i, w) in words.withIndex()) {
+                val trimmed = w.trim()
+                if (trimmed.isEmpty()) return "Word #${i + 1} is empty."
                 if (!trimmed.all { it in 'A'..'Z' }) {
-                    return "Relation #${i + 1} ('$trimmed') must be uppercase letters only."
+                    return "Word #${i + 1} ('$trimmed') must be uppercase letters only."
                 }
                 if (trimmed.toSet().size != trimmed.length) {
-                    return "Relation #${i + 1} ('$trimmed') has duplicate letters."
+                    return "Word #${i + 1} ('$trimmed') has duplicate letters."
                 }
                 val maxLetter = 'A' + (k - 1)
                 trimmed.firstOrNull { it > maxLetter }?.let {
-                    return "Relation #${i + 1} ('$trimmed') uses letter '$it' beyond k=$k."
+                    return "Word #${i + 1} ('$trimmed') uses letter '$it' beyond k=$k."
                 }
             }
-            if (rels.size >= k) {
-                return "Number of relations (${rels.size}) must be < k = $k."
+            if (words.size >= k) {
+                return "Number of words (${words.size}) must be < k = $k."
             }
             return null
         }
@@ -733,19 +769,21 @@ class DesignTabPanel(
             val nominal: Long = when (fraction) {
                 Fraction.Full -> 1L shl k
                 is Fraction.HalfFraction -> (1L shl k) / 2
-                is Fraction.Custom -> 1L shl (k - fraction.relations.size).coerceAtLeast(0)
+                is Fraction.Custom -> 1L shl (k - fraction.words.size).coerceAtLeast(0)
             }
             val tag = when (fraction) {
                 Fraction.Full -> "full 2^$k"
                 is Fraction.HalfFraction -> "half-fraction"
-                is Fraction.Custom -> "2^($k-${fraction.relations.size}) fraction"
+                is Fraction.Custom -> "2^($k-${fraction.words.size}) fraction"
             }
             summary.text = "<html><b>$nominal</b> design points ($tag).  " +
                 "Per-point replications come from the <b>Replications</b> panel below.</html>"
         }
     }
 
-    /** Central composite: axial spacing + three rep spinners + factorial fraction + summary. */
+    /** Central composite: axial spacing + three rep spinners + summary.
+     *  Always uses a full 2^k factorial core; fractional cores are a
+     *  substrate capability deferred to Phase E11 polish. */
     private inner class CentralCompositeCard : JPanel(GridBagLayout()) {
         private val rotatableRadio = JRadioButton("Rotatable", true)
         private val explicitRadio = JRadioButton("Explicit")
@@ -754,13 +792,6 @@ class DesignTabPanel(
         private val numFactorialSpinner = JSpinner(SpinnerNumberModel(1, 1, 100, 1))
         private val numAxialSpinner     = JSpinner(SpinnerNumberModel(1, 1, 100, 1))
         private val numCenterSpinner    = JSpinner(SpinnerNumberModel(1, 1, 100, 1))
-        private val fracFullRadio   = JRadioButton("Full 2^k core", true)
-        private val fracHalfRadio   = JRadioButton("Half-fraction core")
-        private val fracCustomRadio = JRadioButton("Custom-fraction core")
-        private val fracGroup = ButtonGroup().apply {
-            add(fracFullRadio); add(fracHalfRadio); add(fracCustomRadio)
-        }
-        private val customRelationsField = JTextField(16)
         private val summary = JLabel(" ")
 
         init {
@@ -791,20 +822,6 @@ class DesignTabPanel(
             add(repsRow, gbc)
             row++
 
-            gbc.gridx = 0; gbc.gridy = row
-            add(JLabel("Factorial core:"), gbc)
-            gbc.gridx = 1
-            val coreRow = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
-            coreRow.add(fracFullRadio); coreRow.add(fracHalfRadio); coreRow.add(fracCustomRadio)
-            add(coreRow, gbc)
-            row++
-
-            gbc.gridx = 0; gbc.gridy = row
-            add(JLabel("Custom relations (CSV):"), gbc)
-            gbc.gridx = 1
-            add(customRelationsField, gbc)
-            row++
-
             gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2
             add(summary, gbc)
 
@@ -819,13 +836,6 @@ class DesignTabPanel(
             numFactorialSpinner.addChangeListener { push() }
             numAxialSpinner.addChangeListener     { push() }
             numCenterSpinner.addChangeListener    { push() }
-            fracFullRadio.addActionListener   { push() }
-            fracHalfRadio.addActionListener   { push() }
-            fracCustomRadio.addActionListener { push() }
-            customRelationsField.addFocusListener(object : FocusAdapter() {
-                override fun focusLost(e: FocusEvent) { push() }
-            })
-            customRelationsField.addActionListener { push() }
         }
 
         fun load(spec: DesignSpec.CentralComposite) {
@@ -839,14 +849,6 @@ class DesignTabPanel(
             numFactorialSpinner.value = spec.numFactorialReps
             numAxialSpinner.value     = spec.numAxialReps
             numCenterSpinner.value    = spec.numCenterReps
-            when (val f = spec.factorialFraction) {
-                Fraction.Full -> fracFullRadio.isSelected = true
-                is Fraction.HalfFraction -> fracHalfRadio.isSelected = true
-                is Fraction.Custom -> {
-                    fracCustomRadio.isSelected = true
-                    customRelationsField.text = f.relations.joinToString(", ")
-                }
-            }
             refreshSummary(controller.factors.value, spec)
         }
 
@@ -872,28 +874,12 @@ class DesignTabPanel(
                 AxialSpacing.Explicit(v)
             } else AxialSpacing.Rotatable
 
-            val factorialFraction: Fraction = when {
-                fracHalfRadio.isSelected -> Fraction.HalfFraction()
-                fracCustomRadio.isSelected -> {
-                    val rels = customRelationsField.text.split(',')
-                        .map { it.trim().uppercase() }
-                        .filter { it.isNotEmpty() }
-                    if (rels.isEmpty()) {
-                        summary.text = "<html><font color='#a00'>" +
-                            "Enter at least one generator (comma-separated).</font></html>"
-                        return
-                    }
-                    Fraction.Custom(relations = rels)
-                }
-                else -> Fraction.Full
-            }
             try {
                 val spec = DesignSpec.CentralComposite(
                     axialSpacing = axial,
                     numFactorialReps = numFactorialSpinner.value as Int,
                     numAxialReps     = numAxialSpinner.value as Int,
-                    numCenterReps    = numCenterSpinner.value as Int,
-                    factorialFraction = factorialFraction
+                    numCenterReps    = numCenterSpinner.value as Int
                 )
                 controller.setDesignSpec(spec)
                 refreshSummary(factors, spec)
@@ -908,11 +894,7 @@ class DesignTabPanel(
                 summary.text = "<html><i>No factors defined.</i></html>"
                 return
             }
-            val factorialPoints: Long = when (val f = spec.factorialFraction) {
-                Fraction.Full -> 1L shl k
-                is Fraction.HalfFraction -> (1L shl k) / 2
-                is Fraction.Custom -> 1L shl (k - f.relations.size).coerceAtLeast(0)
-            }
+            val factorialPoints: Long = 1L shl k
             val axials = 2L * k
             val totalRuns = factorialPoints * spec.numFactorialReps +
                 axials * spec.numAxialReps + spec.numCenterReps
