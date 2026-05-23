@@ -99,7 +99,17 @@ fun ExperimentConfiguration.toDesignedExperiment(
                 kslDb = kslDatabase ?: KSLDatabase(
                     "${effectiveName}.db".replace(" ", "_"),
                     pathToOutputDirectory
-                )
+                ),
+                // Anchor per-point experiment names to the analysis
+                // name so EXPERIMENT.exp_name rows are human-readable
+                // ("MyAnalysis_DP_3" instead of "Experiment_11_DP_3")
+                // and stable across re-runs (no JVM-counter drift).
+                experimentName = effectiveName,
+                // Skip per-point output subdirectories — the app's
+                // primary per-point result store is the KSL database.
+                // kslOutput diagnostic logs land in pathToOutputDirectory
+                // as kslOutput_DP_<n>.txt; re-runs overwrite cleanly.
+                useDesignPointOutputDirs = false
             )
             applyStreamPolicy(parallel)
         }

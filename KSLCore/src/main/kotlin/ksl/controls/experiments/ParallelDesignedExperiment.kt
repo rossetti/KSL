@@ -68,6 +68,30 @@ import java.nio.file.Path
  * @param pathToOutputDirectory output directory for design-point runs and database files
  * @param kslDb database that will hold all design-point results
  */
+/**
+ *  @param experimentName  Optional override for the base experiment
+ *      name used to derive per-design-point experiment names
+ *      ("<experimentName>_DP_<n>") and the matching output-directory
+ *      names.  When `null` (the default), the base name comes from
+ *      the template model's auto-generated `Experiment_<counter>`
+ *      identity — which is JVM-counter-driven and changes between
+ *      runs.  Callers that want deterministic, human-readable per-
+ *      point names (e.g. the Experiment app: anchored to the
+ *      analysis name) should pass an explicit value.  Persists to
+ *      `EXPERIMENT.exp_name` in the KSL database, so the column
+ *      values match the on-disk folder / file names.
+ *  @param useDesignPointOutputDirs  When `true` (the default,
+ *      preserving the original behaviour), every design point gets
+ *      its own subdirectory under [pathToOutputDirectory] named
+ *      `<experimentName>_DP_<n>_OutputDir`; each subdir contains
+ *      that point's `kslOutput.txt` (and any per-point CSV / plot
+ *      artifacts the model writes).  When `false`, every per-point
+ *      model writes directly into [pathToOutputDirectory] and the
+ *      diagnostic log uses a point-distinguished filename
+ *      (`kslOutput_DP_<n>.txt`) so concurrent writers don't clash
+ *      and re-runs overwrite cleanly.  False is the right default
+ *      for callers that rely on the [kslDb] for per-point results.
+ */
 class ParallelDesignedExperiment @JvmOverloads constructor(
     name: String,
     private val modelBuilder: ModelBuilderIfc,
@@ -75,7 +99,9 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     override val design: ExperimentalDesignIfc,
     val modelConfiguration: Map<String, String>? = null,
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
-    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory)
+    val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory),
+    private val experimentName: String? = null,
+    private val useDesignPointOutputDirs: Boolean = true
 ) : Identity(name), DesignedExperimentIfc {
 
     private data class DesignPointRunPlan(
@@ -142,7 +168,16 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         kslDb = kslDb
     )
 
-    private val templateModel: Model = modelBuilder.build(modelConfiguration)
+    private val templateModel: Model = modelBuilder.build(modelConfiguration).also {
+        // Anchor the base experiment name to the caller's choice
+        // (e.g. an analysis name) so per-point experiment names are
+        // deterministic across runs.  Without this, the template
+        // model's auto-counter name leaks through and every re-run
+        // gets a different prefix.
+        if (!experimentName.isNullOrBlank()) {
+            it.experimentName = experimentName
+        }
+    }
     private val baseRunParameters: ExperimentRunParameters = templateModel.extractRunParameters()
     private val mySimulationRuns = linkedMapOf<DesignPoint, SimulationRun>()
 
@@ -534,7 +569,23 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
      * collector for the ordered commit phase.
      */
     private suspend fun runDesignPoint(plan: DesignPointRunPlan): DesignPointRunOutcome {
-        val modelDir = KSLFileUtil.createSubDirectory(pathToOutputDirectory, plan.outputDirectoryName)
+        // Per-point dir layout — two modes (see class KDoc for the
+        // `useDesignPointOutputDirs` parameter):
+        //
+        // - true  (default, original behaviour): each design point
+        //   gets its own subdir under [pathToOutputDirectory] named
+        //   "<expName>_DP_<n>_OutputDir" containing a `kslOutput.txt`
+        //   plus any per-point model artifacts.
+        // - false: all per-point models share [pathToOutputDirectory];
+        //   the diagnostic log is renamed to "kslOutput_DP_<n>.txt"
+        //   so concurrent writes don't clash and re-runs overwrite
+        //   cleanly.
+        val (modelDir, outFileName) = if (useDesignPointOutputDirs) {
+            KSLFileUtil.createSubDirectory(pathToOutputDirectory, plan.outputDirectoryName) to
+                "kslOutput.txt"
+        } else {
+            pathToOutputDirectory to "kslOutput_DP_${plan.designPoint.number}.txt"
+        }
         var collector: InMemorySnapshotCollector? = null
         var simulationRun: SimulationRun? = null
         try {
@@ -542,7 +593,7 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             if (model.modelConfigurationManager != null && plan.modelConfiguration != null) {
                 model.configuration = plan.modelConfiguration
             }
-            model.outputDirectory = OutputDirectory(modelDir, outFileName = "kslOutput.txt")
+            model.outputDirectory = OutputDirectory(modelDir, outFileName = outFileName)
             simulationRun = SimulationRun(
                 modelIdentifier = model.modelIdentifier,
                 experimentRunParameters = plan.runParameters,

@@ -282,4 +282,84 @@ class ParallelDesignedExperimentTest {
             "Coroutine cancellation should not be converted into failed design-point runs"
         )
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  experimentName override + useDesignPointOutputDirs (added when
+    //  the Experiment GUI app started getting "Experiment_<counter>_DP_*"
+    //  folder names whose prefix changed on every re-run; both knobs
+    //  added together to give callers stable, human-readable names and
+    //  a flat output layout when per-point dirs are not wanted).
+    // ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun explicitExperimentNameAnchorsPerPointNamesAndUseDirsFalseFlattensOutput() = runBlocking {
+        val setup = buildDoeSetup("PDE_Anchored_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-anchored-")
+        val anchor = "MyAnchoredAnalysis"
+        val parallel = ParallelDesignedExperiment(
+            name = "ParallelDesignedExperiment_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 50.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir,
+            experimentName = anchor,
+            useDesignPointOutputDirs = false
+        )
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+
+        // Per-point experiment names persist with the anchor as prefix,
+        // not the JVM-counter auto-name.
+        val expNames = parallel.simulationRuns.map { it.experimentRunParameters.experimentName }
+        assertTrue(
+            expNames.isNotEmpty() && expNames.all { it.startsWith("${anchor}_DP_") },
+            "All per-point experiment names should be '${anchor}_DP_<n>'; got $expNames"
+        )
+
+        // No per-point subdirectories — the flat layout puts per-point
+        // diagnostic logs as kslOutput_DP_<n>.txt at the shared dir.
+        val children = outDir.toFile().listFiles().orEmpty()
+        val subdirs = children.filter { it.isDirectory }
+        assertTrue(
+            subdirs.none { it.name.endsWith("_OutputDir") },
+            "useDesignPointOutputDirs = false should not create any *_OutputDir subdirs; got $subdirs"
+        )
+        val perPointLogs = children.filter { it.isFile && it.name.startsWith("kslOutput_DP_") }
+        assertEquals(
+            parallel.numSimulationRuns,
+            perPointLogs.size,
+            "Expected one kslOutput_DP_<n>.txt per design point; got ${perPointLogs.map { it.name }}"
+        )
+    }
+
+    @Test
+    fun defaultsPreserveLegacyAutoCounterNamingAndPerPointSubdirs() = runBlocking {
+        val setup = buildDoeSetup("PDE_Legacy_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-legacy-")
+        val parallel = ParallelDesignedExperiment(
+            name = "ParallelDesignedExperiment_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 50.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir
+            // experimentName + useDesignPointOutputDirs defaults intentionally untouched.
+        )
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+
+        // Legacy behaviour: the per-point name prefix is the template
+        // model's auto-counter name (Experiment_<counter>), and each
+        // point gets its own *_OutputDir subdir.
+        val expNames = parallel.simulationRuns.map { it.experimentRunParameters.experimentName }
+        assertTrue(
+            expNames.isNotEmpty() && expNames.all { it.contains("_DP_") },
+            "Per-point experiment names should follow '<prefix>_DP_<n>'; got $expNames"
+        )
+        val subdirs = outDir.toFile().listFiles().orEmpty().filter {
+            it.isDirectory && it.name.endsWith("_OutputDir")
+        }
+        assertEquals(
+            parallel.numSimulationRuns,
+            subdirs.size,
+            "Legacy default should create one *_OutputDir per design point; got ${subdirs.map { it.name }}"
+        )
+    }
 }
