@@ -48,10 +48,12 @@ import net.peanuuutz.tomlkt.TomlComment
  *  Structural validation runs at `init`:
  *  - At least one factor.
  *  - Factor names are unique (case-sensitive).
- *  - When [designSpec] is `TwoLevelFractional`:
- *      - `numFactors` equals `factors.size`.
+ *  - When [designSpec] is `TwoLevelFactorial` or `CentralComposite`:
  *      - Every factor has exactly 2 levels.
- *      - Defining relations pass [DefiningRelationValidator].
+ *      - If the chosen `Fraction` is `Custom`, the defining relations
+ *        pass [DefiningRelationValidator].
+ *      - `CentralComposite` with rotatable axial spacing requires
+ *        at least 2 factors.
  *
  *  Semantic validation (control bindings resolve against the model,
  *  factor levels lie within control ranges, group-theoretic validity
@@ -117,9 +119,11 @@ data class ExperimentConfiguration(
         "How the engine enumerates design points from [factors].\n" +
         "Sealed; rendered as a [designSpec] sub-table with a 'type'\n" +
         "discriminator + variant-specific keys.  Allowed values:\n" +
-        "  type = 'fullFactorial'         centerPoints?\n" +
-        "  type = 'twoLevelFractional'    numFactors, fractionExponent, definingRelations\n" +
-        "  type = 'centralComposite'      axialSpacing?, centerPoints?\n" +
+        "  type = 'fullFactorial'         (no fields)\n" +
+        "  type = 'twoLevelFactorial'     fraction (full / half / custom)\n" +
+        "  type = 'centralComposite'      axialSpacing, numFactorialReps?,\n" +
+        "                                 numAxialReps?, numCenterReps?,\n" +
+        "                                 factorialFraction?\n" +
         "  type = 'manual'                points (array of factor-value maps)"
     )
     val designSpec: DesignSpec,
@@ -196,22 +200,18 @@ data class ExperimentConfiguration(
      *  the rules are co-located with their explanations. */
     private fun validateDesignAgainstFactors() {
         when (val ds = designSpec) {
-            is DesignSpec.TwoLevelFractional -> {
-                require(ds.numFactors == factors.size) {
-                    "twoLevelFractional numFactors (${ds.numFactors}) must equal " +
-                        "the document's factor count (${factors.size})"
-                }
-                val nonTwo = factors.filter { it.levels.size != 2 }
-                require(nonTwo.isEmpty()) {
-                    "twoLevelFractional designs require exactly 2 levels per factor; " +
-                        "violators: ${nonTwo.map { "${it.name}=${it.levels.size}" }}"
-                }
-                val syn = DefiningRelationValidator.validate(
-                    ds.definingRelations, ds.numFactors, ds.fractionExponent
-                )
-                require(syn is DefiningRelationValidator.Result.Ok) {
-                    "defining relations are invalid: " +
-                        (syn as DefiningRelationValidator.Result.Invalid).errors.joinToString("; ")
+            is DesignSpec.TwoLevelFactorial -> {
+                requireTwoLevelFactors("twoLevelFactorial")
+                validateFraction(ds.fraction, factors.size)
+            }
+            is DesignSpec.CentralComposite -> {
+                requireTwoLevelFactors("centralComposite")
+                validateFraction(ds.factorialFraction, factors.size)
+                if (ds.axialSpacing is AxialSpacing.Rotatable) {
+                    require(factors.size >= 2) {
+                        "centralComposite with rotatable axial spacing requires " +
+                            "at least 2 factors; got ${factors.size}"
+                    }
                 }
             }
             is DesignSpec.Manual -> {
@@ -225,7 +225,39 @@ data class ExperimentConfiguration(
                 }
             }
             is DesignSpec.FullFactorial -> { /* no cross-validation */ }
-            is DesignSpec.CentralComposite -> { /* no cross-validation */ }
+        }
+    }
+
+    private fun requireTwoLevelFactors(designLabel: String) {
+        val nonTwo = factors.filter { it.levels.size != 2 }
+        require(nonTwo.isEmpty()) {
+            "$designLabel designs require exactly 2 levels per factor; " +
+                "violators: ${nonTwo.map { "${it.name}=${it.levels.size}" }}"
+        }
+    }
+
+    private fun validateFraction(fraction: Fraction, numFactors: Int) {
+        when (fraction) {
+            Fraction.Full -> { /* nothing to check */ }
+            is Fraction.HalfFraction -> {
+                require(numFactors >= 2) {
+                    "halfFraction requires at least 2 factors; got $numFactors"
+                }
+            }
+            is Fraction.Custom -> {
+                val p = fraction.relations.size
+                require(p in 1..(numFactors - 1)) {
+                    "custom fraction exponent p (${p}) must be in 1..(k-1); " +
+                        "got k = $numFactors"
+                }
+                val syn = DefiningRelationValidator.validate(
+                    fraction.relations, numFactors, p
+                )
+                require(syn is DefiningRelationValidator.Result.Ok) {
+                    "defining relations are invalid: " +
+                        (syn as DefiningRelationValidator.Result.Invalid).errors.joinToString("; ")
+                }
+            }
         }
     }
 }

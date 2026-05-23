@@ -67,21 +67,40 @@ class ExperimentConfigurationBuilderTest {
     @Test
     fun `FullFactorial design enumerates the Cartesian product of factor levels`() {
         // 2 factors × 2 levels each = 4 design points.
-        val cfg = lkConfig(designSpec = DesignSpec.FullFactorial())
+        val cfg = lkConfig(designSpec = DesignSpec.FullFactorial)
         val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
         val pointCount = exp.design.designIterator().asSequence().count()
         assertEquals(4, pointCount)
     }
 
     @Test
-    fun `TwoLevelFractional design realises a half fraction`() {
-        // 2-factor half-fraction (2^(2-1) = 2 points) with the single
-        // generator 'AB'.
+    fun `TwoLevelFactorial (full) realises every factor-level combination`() {
+        // 2 factors -> 4 design points.
+        val cfg = lkConfig(designSpec = DesignSpec.TwoLevelFactorial(Fraction.Full))
+        val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
+        val pointCount = exp.design.designIterator().asSequence().count()
+        assertEquals(4, pointCount)
+    }
+
+    @Test
+    fun `TwoLevelFactorial (half fraction) realises a half-fraction design`() {
+        // 2-factor half-fraction (2^(2-1) = 2 points).
         val cfg = lkConfig(
-            designSpec = DesignSpec.TwoLevelFractional(
-                numFactors = 2,
-                fractionExponent = 1,
-                definingRelations = listOf("AB")
+            designSpec = DesignSpec.TwoLevelFactorial(
+                fraction = Fraction.HalfFraction(sign = +1)
+            )
+        )
+        val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
+        val pointCount = exp.design.designIterator().asSequence().count()
+        assertEquals(2, pointCount)
+    }
+
+    @Test
+    fun `TwoLevelFactorial (custom fraction) realises a custom-relation fraction`() {
+        // 2-factor custom fraction with the single generator 'AB' -> 2 points.
+        val cfg = lkConfig(
+            designSpec = DesignSpec.TwoLevelFactorial(
+                fraction = Fraction.Custom(relations = listOf("AB"))
             )
         )
         val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
@@ -94,23 +113,56 @@ class ExperimentConfigurationBuilderTest {
         // k=2 factors:
         //   factorial points = 2^2 = 4
         //   axial points     = 2 * 2 = 4
-        //   centre points    = 1 (CCD emits ONE centre DesignPoint;
-        //                        its replication count is governed
-        //                        by the document's [replications]
-        //                        spec after re-materialisation —
-        //                        the substrate's numCenterReps shapes
-        //                        the iterator but is overridden by
-        //                        the doc-level rule)
+        //   centre points    = 1 (one DesignPoint with numCenterReps reps)
         val cfg = lkConfig(
             designSpec = DesignSpec.CentralComposite(
-                axialSpacing = 1.414,
-                centerPoints = 3
+                axialSpacing = AxialSpacing.Explicit(1.414),
+                numCenterReps = 3
             )
         )
         val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
         val pointCount = exp.design.designIterator().asSequence().count()
         // 4 factorial + 4 axial + 1 centre = 9.
         assertEquals(9, pointCount)
+    }
+
+    @Test
+    fun `CentralComposite preserves its three-way rep split`() {
+        // numFactorialReps = 2, numAxialReps = 3, numCenterReps = 5
+        // document-level Uniform(10) MUST NOT override the CCD knobs.
+        val cfg = lkConfig(
+            designSpec = DesignSpec.CentralComposite(
+                axialSpacing = AxialSpacing.Explicit(1.414),
+                numFactorialReps = 2,
+                numAxialReps = 3,
+                numCenterReps = 5
+            ),
+            replications = ReplicationSpec.Uniform(10)
+        )
+        val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
+        val pts = exp.design.designIterator().asSequence().toList()
+        assertEquals(9, pts.size)
+        // First 4 points are the factorial portion.
+        for (i in 0 until 4) assertEquals(2, pts[i].numReplications,
+            "factorial point $i expected numFactorialReps=2")
+        // Next 4 are axial.
+        for (i in 4 until 8) assertEquals(3, pts[i].numReplications,
+            "axial point $i expected numAxialReps=3")
+        // Last is centre.
+        assertEquals(5, pts[8].numReplications, "centre point expected numCenterReps=5")
+    }
+
+    @Test
+    fun `CentralComposite with rotatable axial spacing builds without error`() {
+        val cfg = lkConfig(
+            designSpec = DesignSpec.CentralComposite(
+                axialSpacing = AxialSpacing.Rotatable,
+                numCenterReps = 1
+            )
+        )
+        val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
+        // 4 factorial + 4 axial + 1 centre = 9 (k=2, full factorial core).
+        assertEquals(9, exp.design.designIterator().asSequence().count())
     }
 
     @Test
@@ -141,7 +193,7 @@ class ExperimentConfigurationBuilderTest {
     @Test
     fun `Uniform replications apply to every design point`() {
         val cfg = lkConfig(
-            designSpec = DesignSpec.FullFactorial(),
+            designSpec = DesignSpec.FullFactorial,
             replications = ReplicationSpec.Uniform(25)
         )
         val exp = cfg.toDesignedExperiment(lkBuilder, tempDir)
@@ -153,7 +205,7 @@ class ExperimentConfigurationBuilderTest {
     fun `PerPoint replications apply with overrides honoured`() {
         // Override index 0 to 99 reps; others get default 10.
         val cfg = lkConfig(
-            designSpec = DesignSpec.FullFactorial(),
+            designSpec = DesignSpec.FullFactorial,
             replications = ReplicationSpec.PerPoint(
                 default = 10,
                 overrides = mapOf(0 to 99)
@@ -248,7 +300,7 @@ class ExperimentConfigurationBuilderTest {
 
     /** Build a standard 2-factor LK Inventory experiment configuration. */
     private fun lkConfig(
-        designSpec: DesignSpec = DesignSpec.FullFactorial(),
+        designSpec: DesignSpec = DesignSpec.FullFactorial,
         replications: ReplicationSpec = ReplicationSpec.Uniform(10),
         streamPolicy: StreamPolicy = StreamPolicy.Independent(),
         executionMode: ExecutionMode = ExecutionMode.CONCURRENT

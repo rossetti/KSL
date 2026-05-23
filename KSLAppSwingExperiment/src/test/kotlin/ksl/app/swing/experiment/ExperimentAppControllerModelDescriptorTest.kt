@@ -163,7 +163,7 @@ class ExperimentAppControllerModelDescriptorTest {
                     )
                 )
             ),
-            designSpec = ksl.app.config.experiment.DesignSpec.FullFactorial()
+            designSpec = ksl.app.config.experiment.DesignSpec.FullFactorial
         )
         c.loadConfiguration(loaded)
         assertNotNull(c.currentModelDescriptor.value,

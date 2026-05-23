@@ -21,8 +21,10 @@ package ksl.app.swing.experiment
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
+import ksl.app.config.experiment.AxialSpacing
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.DesignSpec
+import ksl.app.config.experiment.Fraction
 import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentConfigurationToml
 import ksl.app.config.experiment.FactorSpec
@@ -224,7 +226,7 @@ class ExperimentAppControllerTest {
     fun `setDesignSpec drops lastResult`() {
         val c = fresh()
         c.seedRunStateForTesting(lastResult = fakeBatch())
-        c.setDesignSpec(DesignSpec.CentralComposite())
+        c.setDesignSpec(DesignSpec.CentralComposite(axialSpacing = AxialSpacing.Rotatable))
         assertNull(c.lastResult.value)
     }
 
@@ -370,7 +372,7 @@ class ExperimentAppControllerTest {
         val loaded = ExperimentConfiguration(
             modelReference = ModelReference.Embedded("LK"),
             factors = listOf(factor("A"), factor("B")),
-            designSpec = DesignSpec.CentralComposite(),
+            designSpec = DesignSpec.CentralComposite(axialSpacing = AxialSpacing.Rotatable),
             replications = ReplicationSpec.Uniform(20),
             streamPolicy = StreamPolicy.CommonRandomNumbers,
             executionMode = ExecutionMode.SEQUENTIAL
@@ -408,7 +410,7 @@ class ExperimentAppControllerTest {
         c.setModelReference(mm1)
         c.addFactor(factor("A"))
         c.addFactor(factor("B"))
-        c.setDesignSpec(DesignSpec.FullFactorial(centerPoints = 2))
+        c.setDesignSpec(DesignSpec.TwoLevelFactorial(fraction = Fraction.HalfFraction()))
         c.setReplications(ReplicationSpec.PerPoint(default = 10, overrides = mapOf(0 to 30)))
         c.setStreamPolicy(StreamPolicy.CommonRandomNumbers)
         c.setExecutionMode(ExecutionMode.SEQUENTIAL)

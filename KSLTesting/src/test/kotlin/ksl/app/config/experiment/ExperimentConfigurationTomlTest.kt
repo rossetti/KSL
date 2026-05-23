@@ -45,16 +45,42 @@ class ExperimentConfigurationTomlTest {
 
     @Test
     fun `full factorial config round-trips`() {
-        val cfg = baseConfig(designSpec = DesignSpec.FullFactorial(centerPoints = 2))
+        val cfg = baseConfig(designSpec = DesignSpec.FullFactorial)
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
         assertEquals(cfg, decoded)
-        val ds = decoded.designSpec
-        assertIs<DesignSpec.FullFactorial>(ds)
-        assertEquals(2, ds.centerPoints)
+        assertIs<DesignSpec.FullFactorial>(decoded.designSpec)
     }
 
     @Test
-    fun `two-level fractional config round-trips`() {
+    fun `two-level factorial (full) config round-trips`() {
+        val cfg = baseConfig(
+            designSpec = DesignSpec.TwoLevelFactorial(fraction = Fraction.Full)
+        )
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        val ds = decoded.designSpec
+        assertIs<DesignSpec.TwoLevelFactorial>(ds)
+        assertEquals(Fraction.Full, ds.fraction)
+    }
+
+    @Test
+    fun `two-level factorial half-fraction config round-trips`() {
+        val cfg = baseConfig(
+            designSpec = DesignSpec.TwoLevelFactorial(
+                fraction = Fraction.HalfFraction(sign = -1)
+            )
+        )
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        val ds = decoded.designSpec
+        assertIs<DesignSpec.TwoLevelFactorial>(ds)
+        val frac = ds.fraction
+        assertIs<Fraction.HalfFraction>(frac)
+        assertEquals(-1, frac.sign)
+    }
+
+    @Test
+    fun `two-level factorial custom fraction config round-trips`() {
         val cfg = ExperimentConfiguration(
             modelReference = ModelReference.Embedded("MM1"),
             factors = listOf(
@@ -63,33 +89,55 @@ class ExperimentConfigurationTomlTest {
                 factor("C", listOf(0.0, 1.0)),
                 factor("D", listOf(0.0, 1.0))
             ),
-            designSpec = DesignSpec.TwoLevelFractional(
-                numFactors = 4,
-                fractionExponent = 1,
-                definingRelations = listOf("ABCD")
+            designSpec = DesignSpec.TwoLevelFactorial(
+                fraction = Fraction.Custom(relations = listOf("ABCD"))
             )
         )
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
         assertEquals(cfg, decoded)
         val ds = decoded.designSpec
-        assertIs<DesignSpec.TwoLevelFractional>(ds)
-        assertEquals(listOf("ABCD"), ds.definingRelations)
+        assertIs<DesignSpec.TwoLevelFactorial>(ds)
+        val frac = ds.fraction
+        assertIs<Fraction.Custom>(frac)
+        assertEquals(listOf("ABCD"), frac.relations)
     }
 
     @Test
     fun `central composite config round-trips`() {
         val cfg = baseConfig(
             designSpec = DesignSpec.CentralComposite(
-                axialSpacing = 1.414,
-                centerPoints = 4
+                axialSpacing = AxialSpacing.Explicit(1.414),
+                numFactorialReps = 2,
+                numAxialReps = 3,
+                numCenterReps = 4,
+                factorialFraction = Fraction.Full
             )
         )
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
         assertEquals(cfg, decoded)
         val ds = decoded.designSpec
         assertIs<DesignSpec.CentralComposite>(ds)
-        assertEquals(1.414, ds.axialSpacing)
-        assertEquals(4, ds.centerPoints)
+        val sp = ds.axialSpacing
+        assertIs<AxialSpacing.Explicit>(sp)
+        assertEquals(1.414, sp.value)
+        assertEquals(2, ds.numFactorialReps)
+        assertEquals(3, ds.numAxialReps)
+        assertEquals(4, ds.numCenterReps)
+    }
+
+    @Test
+    fun `central composite with rotatable spacing round-trips`() {
+        val cfg = baseConfig(
+            designSpec = DesignSpec.CentralComposite(
+                axialSpacing = AxialSpacing.Rotatable,
+                numCenterReps = 5
+            )
+        )
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        val ds = decoded.designSpec
+        assertIs<DesignSpec.CentralComposite>(ds)
+        assertEquals(AxialSpacing.Rotatable, ds.axialSpacing)
     }
 
     @Test
@@ -211,7 +259,7 @@ class ExperimentConfigurationTomlTest {
                     )
                 )
             ),
-            designSpec = DesignSpec.FullFactorial()
+            designSpec = DesignSpec.FullFactorial
         )
         val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
         assertEquals(cfg, decoded)
@@ -285,7 +333,6 @@ class ExperimentConfigurationTomlTest {
 
             [designSpec]
             type = "fullFactorial"
-            centerPoints = 0
         """.trimIndent()
         val decoded = ExperimentConfigurationToml.decode(legacy)
         assertEquals(2, decoded.factors.size)
@@ -305,7 +352,7 @@ class ExperimentConfigurationTomlTest {
     // ── Fixtures ──────────────────────────────────────────────────────
 
     private fun baseConfig(
-        designSpec: DesignSpec = DesignSpec.FullFactorial(),
+        designSpec: DesignSpec = DesignSpec.FullFactorial,
         replications: ReplicationSpec = ReplicationSpec.Uniform(10),
         streamPolicy: StreamPolicy = StreamPolicy.Independent()
     ): ExperimentConfiguration = ExperimentConfiguration(

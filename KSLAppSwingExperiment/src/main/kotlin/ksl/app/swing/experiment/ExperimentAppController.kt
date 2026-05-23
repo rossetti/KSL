@@ -130,7 +130,7 @@ class ExperimentAppController(
      *  when nothing is selected.  Auto-shifts on add/delete/reorder. */
     val selectedFactorIndex: StateFlow<Int> = mySelectedFactorIndex.asStateFlow()
 
-    private val myDesignSpec = MutableStateFlow<DesignSpec>(DesignSpec.FullFactorial())
+    private val myDesignSpec = MutableStateFlow<DesignSpec>(DesignSpec.FullFactorial)
     /** How the engine enumerates design points from [factors]. */
     val designSpec: StateFlow<DesignSpec> = myDesignSpec.asStateFlow()
 
@@ -546,7 +546,7 @@ class ExperimentAppController(
     fun resetConfiguration() {
         myModelReference.value = null
         myFactors.value = emptyList()
-        myDesignSpec.value = DesignSpec.FullFactorial()
+        myDesignSpec.value = DesignSpec.FullFactorial
         myReplications.value = ReplicationSpec.Uniform(10)
         myStreamPolicy.value = StreamPolicy.Independent()
         myExecutionMode.value = ExecutionMode.CONCURRENT

@@ -137,7 +137,7 @@ fun ExperimentConfiguration.toDesignedExperiment(
  */
 private fun ExperimentConfiguration.buildEngineFactors(): Pair<List<Factor>, Map<String, Factor>> {
     val useTwoLevel = when (designSpec) {
-        is DesignSpec.TwoLevelFractional, is DesignSpec.CentralComposite -> true
+        is DesignSpec.TwoLevelFactorial, is DesignSpec.CentralComposite -> true
         else -> false
     }
     val factors = factors.map { spec ->
@@ -193,12 +193,11 @@ private fun ExperimentConfiguration.buildFactorSettings(
  *  returned `DesignPoint` instances doesn't persist because typed
  *  designs produce fresh iterators each call.
  *
- *  Centre-point augmentation for `FullFactorial` is NOT implemented
- *  in v1 — the substrate's `FactorialDesign` doesn't natively support
- *  it.  When `FullFactorial.centerPoints > 0` we leave a TODO and
- *  proceed without centre points; users wanting centre points should
- *  prefer `CentralComposite` (which has them natively) or `Manual`.
- *  See plan E2 follow-ups.
+ *  **CentralComposite replications**: CCD's three rep knobs
+ *  (`numFactorialReps`, `numAxialReps`, `numCenterReps`) override
+ *  the document-level `ReplicationSpec` entirely — see the
+ *  `DesignSpec` KDoc.  For the other families the document-level
+ *  replications rule applies.
  */
 private fun ExperimentConfiguration.buildEffectiveDesign(
     engineFactors: List<Factor>,
@@ -209,56 +208,45 @@ private fun ExperimentConfiguration.buildEffectiveDesign(
 
     return when (val ds = designSpec) {
         is DesignSpec.FullFactorial -> {
-            if (ds.centerPoints > 0) {
-                // TODO(experiment-app): native centre-point augmentation
-                //   for FullFactorial.  Substrate currently lacks it;
-                //   the controller should surface a warning when the
-                //   user picks FullFactorial.centerPoints > 0.
-            }
             materialiseAsExperimentalDesign(
                 factorSet = factorSet,
                 pointsIterator = FactorialDesign(factorSet).iterator(),
                 replications = rep
             )
         }
-        is DesignSpec.TwoLevelFractional -> {
-            val twoLevelSet: Set<TwoLevelFactor> =
-                engineFactors.filterIsInstance<TwoLevelFactor>().toSet()
-            require(twoLevelSet.size == engineFactors.size) {
-                "TwoLevelFractional design requires every factor to be TwoLevelFactor — " +
-                    "init validation should have caught this; this is a bug."
-            }
-            val twoLevelDesign = TwoLevelFactorialDesign(twoLevelSet)
-            val relation = ds.definingRelations
-                .map { generator -> generator.map { letter -> letter - 'A' + 1 }.toSet() }
-                .toSet()
+        is DesignSpec.TwoLevelFactorial -> {
+            val twoLevelDesign = buildTwoLevelDesign(engineFactors)
+            val iterator = iteratorForFraction(twoLevelDesign, ds.fraction)
             materialiseAsExperimentalDesign(
                 factorSet = factorSet,
-                pointsIterator = twoLevelDesign.fractionalIterator(relation),
+                pointsIterator = iterator,
                 replications = rep
             )
         }
         is DesignSpec.CentralComposite -> {
-            val twoLevelSet: Set<TwoLevelFactor> =
-                engineFactors.filterIsInstance<TwoLevelFactor>().toSet()
-            require(twoLevelSet.size == engineFactors.size) {
-                "CentralComposite design requires every factor to be TwoLevelFactor — " +
-                    "init validation should have caught this; this is a bug."
-            }
-            val ccd = CentralCompositeDesign(
-                factors = twoLevelSet,
+            val twoLevelDesign = buildTwoLevelDesign(engineFactors)
+            val coreIterator = iteratorForFraction(twoLevelDesign, ds.factorialFraction)
+            val alpha = resolveAxialSpacing(
                 axialSpacing = ds.axialSpacing,
-                numCenterReps = ds.centerPoints.coerceAtLeast(1)
+                numFactors = engineFactors.size,
+                factorialFraction = ds.factorialFraction,
+                numFactorialReps = ds.numFactorialReps,
+                numAxialReps = ds.numAxialReps
             )
-            // CCD's own numCenterReps controls the centre point's
-            // replication count internally; we still need to apply
-            // the document's [replications] precedence rule to the
-            // factorial + axial points uniformly, so re-materialise
-            // through the same code path.
-            materialiseAsExperimentalDesign(
+            val ccd = CentralCompositeDesign(
+                twoLevelDesignItr = coreIterator,
+                numFactorialReps = ds.numFactorialReps,
+                numAxialReps = ds.numAxialReps,
+                numCenterReps = ds.numCenterReps,
+                axialSpacing = alpha
+            )
+            // CCD's own three-way rep split is authoritative — drain
+            // its iterator preserving the per-point numReplications the
+            // CCD assigned.  We do NOT apply the document-level
+            // replications precedence here (see KDoc).
+            materialiseAsExperimentalDesignPreservingReps(
                 factorSet = factorSet,
-                pointsIterator = ccd.iterator(),
-                replications = rep
+                pointsIterator = ccd.iterator()
             )
         }
         is DesignSpec.Manual -> {
@@ -279,6 +267,72 @@ private fun ExperimentConfiguration.buildEffectiveDesign(
             }
             exp
         }
+    }
+}
+
+/**
+ *  Construct the underlying [TwoLevelFactorialDesign] used by the
+ *  TwoLevelFactorial and CentralComposite families.  Init validation
+ *  guarantees every factor has 2 levels.
+ */
+private fun buildTwoLevelDesign(engineFactors: List<Factor>): TwoLevelFactorialDesign {
+    val twoLevelSet: Set<TwoLevelFactor> =
+        engineFactors.filterIsInstance<TwoLevelFactor>().toSet()
+    require(twoLevelSet.size == engineFactors.size) {
+        "Two-level design requires every factor to be TwoLevelFactor — " +
+            "init validation should have caught this; this is a bug."
+    }
+    return TwoLevelFactorialDesign(twoLevelSet)
+}
+
+/**
+ *  Map a [Fraction] to the matching substrate iterator method.
+ *  Letters in `Custom.relations` become 1-based integer factor
+ *  indices for the substrate's `fractionalIterator`.
+ */
+private fun iteratorForFraction(
+    twoLevelDesign: TwoLevelFactorialDesign,
+    fraction: Fraction
+): FactorialDesign.FactorialDesignIterator {
+    return when (fraction) {
+        is Fraction.Full -> twoLevelDesign.designIterator()
+        is Fraction.HalfFraction -> twoLevelDesign.halfFractionIterator(half = fraction.sign.toDouble())
+        is Fraction.Custom -> {
+            val relation = fraction.relations
+                .map { generator -> generator.map { letter -> letter - 'A' + 1 }.toSet() }
+                .toSet()
+            twoLevelDesign.fractionalIterator(relation = relation, sign = fraction.sign.toDouble())
+        }
+    }
+}
+
+/**
+ *  Resolve an [AxialSpacing] to a concrete Double for the substrate
+ *  CCD constructor.  [Rotatable] calls
+ *  `CentralCompositeDesign.rotatableAxialSpacing(...)` with the
+ *  effective fraction exponent (0 for full, 1 for half, list size
+ *  for custom).
+ */
+private fun resolveAxialSpacing(
+    axialSpacing: AxialSpacing,
+    numFactors: Int,
+    factorialFraction: Fraction,
+    numFactorialReps: Int,
+    numAxialReps: Int
+): Double = when (axialSpacing) {
+    is AxialSpacing.Explicit -> axialSpacing.value
+    AxialSpacing.Rotatable -> {
+        val p = when (factorialFraction) {
+            Fraction.Full -> 0
+            is Fraction.HalfFraction -> 1
+            is Fraction.Custom -> factorialFraction.relations.size
+        }
+        CentralCompositeDesign.rotatableAxialSpacing(
+            numFactors = numFactors,
+            fraction = p,
+            numFactorialReps = numFactorialReps,
+            numAxialReps = numAxialReps
+        )
     }
 }
 
@@ -304,6 +358,29 @@ private fun materialiseAsExperimentalDesign(
             enforceRange = false
         )
         index++
+    }
+    return exp
+}
+
+/**
+ *  Like [materialiseAsExperimentalDesign] but preserves each
+ *  source point's existing `numReplications` — used for
+ *  CentralComposite, whose three-way rep split is authoritative
+ *  and would be collapsed if the document-level [ReplicationSpec]
+ *  rule were applied on top.
+ */
+private fun materialiseAsExperimentalDesignPreservingReps(
+    factorSet: Set<Factor>,
+    pointsIterator: Iterator<DesignPoint>
+): ExperimentalDesign {
+    val exp = ExperimentalDesign(factorSet)
+    while (pointsIterator.hasNext()) {
+        val dp = pointsIterator.next()
+        exp.addDesignPoint(
+            settings = dp.settings,
+            numReps = dp.numReplications,
+            enforceRange = false
+        )
     }
     return exp
 }

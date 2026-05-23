@@ -190,29 +190,51 @@ class ExperimentAppFrameSmokeTest {
             // Walk each variant — each setDesignSpec triggers the
             // matching card's load(...) on the EDT.
             SwingUtilities.invokeAndWait {
-                controller!!.setDesignSpec(
-                    ksl.app.config.experiment.DesignSpec.FullFactorial(centerPoints = 2)
-                )
+                controller!!.setDesignSpec(ksl.app.config.experiment.DesignSpec.FullFactorial)
             }
             SwingUtilities.invokeAndWait {
+                // Two-level factorial requires every factor to have
+                // exactly 2 levels — the loop above seeded F1/F2/F3
+                // with 1.0 / 2.0, which satisfies that.
                 if (controller!!.factors.value.size >= 2) {
-                    val k = controller!!.factors.value.size
-                    val rel = (0 until k).joinToString("") { ('A' + it).toString() }
                     controller!!.setDesignSpec(
-                        ksl.app.config.experiment.DesignSpec.TwoLevelFractional(
-                            numFactors = k,
-                            fractionExponent = 1,
-                            definingRelations = listOf(rel)
+                        ksl.app.config.experiment.DesignSpec.TwoLevelFactorial(
+                            fraction = ksl.app.config.experiment.Fraction.HalfFraction(sign = +1)
                         )
                     )
                 }
             }
             SwingUtilities.invokeAndWait {
-                controller!!.setDesignSpec(
-                    ksl.app.config.experiment.DesignSpec.CentralComposite(
-                        axialSpacing = 1.5, centerPoints = 3
+                if (controller!!.factors.value.size >= 2) {
+                    controller!!.setDesignSpec(
+                        ksl.app.config.experiment.DesignSpec.TwoLevelFactorial(
+                            fraction = ksl.app.config.experiment.Fraction.Custom(
+                                relations = listOf("AB")
+                            )
+                        )
                     )
-                )
+                }
+            }
+            SwingUtilities.invokeAndWait {
+                if (controller!!.factors.value.size >= 2) {
+                    controller!!.setDesignSpec(
+                        ksl.app.config.experiment.DesignSpec.CentralComposite(
+                            axialSpacing = ksl.app.config.experiment.AxialSpacing.Explicit(1.5),
+                            numFactorialReps = 2,
+                            numAxialReps = 3,
+                            numCenterReps = 4
+                        )
+                    )
+                }
+            }
+            SwingUtilities.invokeAndWait {
+                if (controller!!.factors.value.size >= 2) {
+                    controller!!.setDesignSpec(
+                        ksl.app.config.experiment.DesignSpec.CentralComposite(
+                            axialSpacing = ksl.app.config.experiment.AxialSpacing.Rotatable
+                        )
+                    )
+                }
             }
             SwingUtilities.invokeAndWait {
                 val factors = controller!!.factors.value

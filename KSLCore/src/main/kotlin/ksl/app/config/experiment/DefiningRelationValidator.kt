@@ -20,7 +20,7 @@ package ksl.app.config.experiment
 
 /**
  *  Syntactic validator for the defining-relations of a
- *  [DesignSpec.TwoLevelFractional] design.
+ *  custom-fraction two-level design (see `Fraction.Custom`).
  *
  *  A defining relation is a sequence of uppercase letters that names
  *  the factors whose product equals the identity I in the algebra of

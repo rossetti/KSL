@@ -38,7 +38,7 @@ class ExperimentConfigurationValidationTest {
             ExperimentConfiguration(
                 modelReference = model,
                 factors = emptyList(),
-                designSpec = DesignSpec.FullFactorial()
+                designSpec = DesignSpec.FullFactorial
             )
         }
         assertTrue(ex.message!!.contains("at least one factor"))
@@ -53,7 +53,7 @@ class ExperimentConfigurationValidationTest {
                     factor("A", listOf(0.0, 1.0)),
                     factor("A", listOf(2.0, 3.0))
                 ),
-                designSpec = DesignSpec.FullFactorial()
+                designSpec = DesignSpec.FullFactorial
             )
         }
         assertTrue(ex.message!!.contains("unique"))
@@ -65,7 +65,7 @@ class ExperimentConfigurationValidationTest {
             ExperimentConfiguration(
                 modelReference = model,
                 factors = listOf(factor("A", listOf(1.0))),
-                designSpec = DesignSpec.FullFactorial()
+                designSpec = DesignSpec.FullFactorial
             )
         }
         assertTrue(ex.message!!.contains("at least 2 levels"))
@@ -77,33 +77,14 @@ class ExperimentConfigurationValidationTest {
             ExperimentConfiguration(
                 modelReference = model,
                 factors = listOf(factor("A", listOf(1.0, 1.0))),
-                designSpec = DesignSpec.FullFactorial()
+                designSpec = DesignSpec.FullFactorial
             )
         }
         assertTrue(ex.message!!.contains("duplicate level"))
     }
 
     @Test
-    fun `twoLevelFractional numFactors must equal document factor count`() {
-        val ex = assertFailsWith<IllegalArgumentException> {
-            ExperimentConfiguration(
-                modelReference = model,
-                factors = listOf(
-                    factor("A", listOf(0.0, 1.0)),
-                    factor("B", listOf(0.0, 1.0))
-                ),
-                designSpec = DesignSpec.TwoLevelFractional(
-                    numFactors = 3,                // mismatched
-                    fractionExponent = 1,
-                    definingRelations = listOf("ABC")
-                )
-            )
-        }
-        assertTrue(ex.message!!.contains("must equal the document's factor count"))
-    }
-
-    @Test
-    fun `twoLevelFractional requires exactly 2 levels per factor`() {
+    fun `twoLevelFactorial requires exactly 2 levels per factor`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             ExperimentConfiguration(
                 modelReference = model,
@@ -111,10 +92,8 @@ class ExperimentConfigurationValidationTest {
                     factor("A", listOf(0.0, 1.0)),
                     factor("B", listOf(0.0, 1.0, 2.0))     // 3 levels — illegal
                 ),
-                designSpec = DesignSpec.TwoLevelFractional(
-                    numFactors = 2,
-                    fractionExponent = 1,
-                    definingRelations = listOf("AB")
+                designSpec = DesignSpec.TwoLevelFactorial(
+                    fraction = Fraction.HalfFraction()
                 )
             )
         }
@@ -122,7 +101,7 @@ class ExperimentConfigurationValidationTest {
     }
 
     @Test
-    fun `twoLevelFractional rejects invalid defining relations`() {
+    fun `twoLevelFactorial with custom fraction rejects invalid defining relations`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             ExperimentConfiguration(
                 modelReference = model,
@@ -131,14 +110,29 @@ class ExperimentConfigurationValidationTest {
                     factor("B", listOf(0.0, 1.0)),
                     factor("C", listOf(0.0, 1.0))
                 ),
-                designSpec = DesignSpec.TwoLevelFractional(
-                    numFactors = 3,
-                    fractionExponent = 1,
-                    definingRelations = listOf("ABZ")   // 'Z' beyond A..C
+                designSpec = DesignSpec.TwoLevelFactorial(
+                    fraction = Fraction.Custom(relations = listOf("ABZ"))   // 'Z' beyond A..C
                 )
             )
         }
         assertTrue(ex.message!!.contains("defining relations are invalid"))
+    }
+
+    @Test
+    fun `centralComposite requires exactly 2 levels per factor`() {
+        val ex = assertFailsWith<IllegalArgumentException> {
+            ExperimentConfiguration(
+                modelReference = model,
+                factors = listOf(
+                    factor("A", listOf(0.0, 1.0)),
+                    factor("B", listOf(0.0, 1.0, 2.0))     // 3 levels — illegal
+                ),
+                designSpec = DesignSpec.CentralComposite(
+                    axialSpacing = AxialSpacing.Explicit(1.414)
+                )
+            )
+        }
+        assertTrue(ex.message!!.contains("exactly 2 levels per factor"))
     }
 
     @Test
@@ -170,7 +164,7 @@ class ExperimentConfigurationValidationTest {
                 factor("A", listOf(0.0, 1.0)),
                 factor("B", listOf(0.0, 1.0))
             ),
-            designSpec = DesignSpec.FullFactorial()
+            designSpec = DesignSpec.FullFactorial
         )
     }
 
