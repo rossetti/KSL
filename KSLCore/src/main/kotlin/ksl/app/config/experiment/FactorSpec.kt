@@ -33,11 +33,17 @@ import net.peanuuutz.tomlkt.TomlComment
  *  factors in the same document (heterogeneous-level full factorials
  *  are supported by the underlying `FactorialDesign`).
  *
- *  Validation:
- *  - [name] must be non-blank and unique within the document.
- *  - [levels] must contain at least 2 distinct values; the GUI editor
- *    enforces this; the substrate also rejects 1-level factors at
- *    `init` time.
+ *  Validation (all enforced at `init` time so every code path — GUI,
+ *  TOML decode, programmatic construction — fails fast on bad data):
+ *  - [name] must be non-blank.
+ *  - [levels] must contain at least 2 values.
+ *  - [levels] must be **strictly increasing** (no duplicates, ordered
+ *    smallest to largest).  Mirrors the substrate `Factor` constructor's
+ *    precondition so the user finds out at factor-entry time instead
+ *    of at preview / submit time.
+ *
+ *  Cross-factor invariants (name uniqueness, count constraints per
+ *  design family) are enforced in [ExperimentConfiguration.init].
  */
 @Serializable
 data class FactorSpec(
@@ -51,7 +57,7 @@ data class FactorSpec(
 
     @TomlComment(
         "List of doubles.  Raw values of this factor's levels in\n" +
-        "increasing order.  Must contain at least 2 distinct values.\n" +
+        "strictly increasing order.  Must contain at least 2 values.\n" +
         "Two-level designs require exactly 2 levels per factor; full\n" +
         "factorials and central-composite designs accept any count\n" +
         "(heterogeneous counts across factors are allowed)."
@@ -66,7 +72,24 @@ data class FactorSpec(
         "  type = 'rvParameter'  rvName, paramName         (RV parameter)"
     )
     val binding: ControlBinding
-)
+) {
+    init {
+        require(name.isNotBlank()) { "factor name must be non-blank" }
+        require(levels.size >= 2) {
+            "factor '$name' must have at least 2 levels; got ${levels.size}"
+        }
+        // Strictly increasing: each level must be strictly less than
+        // the next.  Catches both duplicates and out-of-order entries
+        // in one check, with a message that points at the first
+        // offending adjacent pair.
+        for (i in 1 until levels.size) {
+            require(levels[i - 1] < levels[i]) {
+                "factor '$name' levels must be strictly increasing; got " +
+                    "$levels (level ${levels[i - 1]} is not < ${levels[i]})"
+            }
+        }
+    }
+}
 
 /**
  *  How a [FactorSpec]'s level value is applied to the model.  Two

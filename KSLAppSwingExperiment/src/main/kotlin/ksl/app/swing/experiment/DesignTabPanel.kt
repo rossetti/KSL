@@ -55,6 +55,15 @@ import javax.swing.ListSelectionModel
 import javax.swing.SpinnerNumberModel
 import javax.swing.table.AbstractTableModel
 
+/** Outcome of parsing a single comma-separated word string into a
+ *  list of 1-based factor indices.  File-scope so it can be nested
+ *  through `inner class` boundaries (sealed classes can't live
+ *  inside an `inner class`). */
+private sealed class WordParseResult {
+    data class Ok(val indices: List<Int>) : WordParseResult()
+    data class Err(val message: String) : WordParseResult()
+}
+
 /**
  *  *Design* tab — choose the design family, configure its settings,
  *  and set the document-level replications + random-stream policy.
@@ -168,8 +177,6 @@ class DesignTabPanel(
             add(replicationsPanel)
             add(Box.createVerticalStrut(6))
             add(buildStreamPanel())
-            add(Box.createVerticalStrut(6))
-            add(buildPreviewBar())
         }
         add(south, BorderLayout.SOUTH)
 
@@ -200,6 +207,9 @@ class DesignTabPanel(
         val wrapper = JPanel(BorderLayout())
         wrapper.border = BorderFactory.createTitledBorder("Family settings")
         wrapper.add(cards, BorderLayout.CENTER)
+        // Action that operates on the configured design lives with
+        // the design-definition container, not in a distant footer.
+        wrapper.add(buildPreviewBar(), BorderLayout.SOUTH)
         return wrapper
     }
 
@@ -250,7 +260,7 @@ class DesignTabPanel(
                     applyFamilyRadiosFor(controller.designSpec.value)
                     return
                 }
-                DesignSpec.Manual(points = listOf(midpointPoint(factors)))
+                DesignSpec.Manual(points = listOf(firstLevelPoint(factors)))
             }
             else -> DesignSpec.FullFactorial
         }
@@ -262,11 +272,14 @@ class DesignTabPanel(
     private fun factorsAreTwoLevel(factors: List<FactorSpec>): Boolean =
         factors.isNotEmpty() && factors.all { it.levels.size == 2 }
 
-    private fun midpointPoint(factors: List<FactorSpec>): ManualPointSpec {
-        val mid = factors.associate { f ->
-            f.name to ((f.levels.min() + f.levels.max()) / 2.0)
-        }
-        return ManualPointSpec(mid)
+    /** Seed point when the user switches to Custom design points
+     *  from another family — pinned at each factor's first declared
+     *  level so the seed is always a valid level (never triggers the
+     *  "not one of the declared levels" warning).  The user can edit
+     *  in-place. */
+    private fun firstLevelPoint(factors: List<FactorSpec>): ManualPointSpec {
+        val values = factors.associate { f -> f.name to f.levels.first() }
+        return ManualPointSpec(values)
     }
 
     // ───────────────────────────────────────────────────────────────
@@ -355,7 +368,8 @@ class DesignTabPanel(
     }
 
     private fun buildPreviewBar(): JPanel {
-        val row = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
+        val row = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+        row.border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
         val previewBtn = JButton("Materialize design points...")
         previewBtn.toolTipText = "Enumerate the design points implied by the current " +
             "factors + design spec.  Lets you review the points and (when " +
@@ -686,7 +700,7 @@ class DesignTabPanel(
                 }
                 is Fraction.Custom -> {
                     customRadio.isSelected = true
-                    relationsModel.setRelations(f.words)
+                    relationsModel.setWords(f.words.map { it.joinToString(", ") })
                     if (f.sign == 1) customSignRadio.isSelected = true
                     else customSignMinusRadio.isSelected = true
                 }
@@ -712,19 +726,32 @@ class DesignTabPanel(
                     sign = if (halfSignRadio.isSelected) +1 else -1
                 )
                 customRadio.isSelected -> {
-                    val words = relationsModel.relations()
-                    if (words.isEmpty()) {
+                    val rawRows = relationsModel.words()
+                    if (rawRows.isEmpty()) {
                         summary.text = "<html><font color='#a00'>" +
                             "Add at least one word to the defining relation.</font></html>"
                         return
                     }
-                    val invalid = validateWords(words, factors.size)
-                    if (invalid != null) {
-                        summary.text = "<html><font color='#a00'>$invalid</font></html>"
+                    val parsed = mutableListOf<List<Int>>()
+                    for ((i, raw) in rawRows.withIndex()) {
+                        val parseResult = parseWord(raw, i + 1, factors.size)
+                        when (parseResult) {
+                            is WordParseResult.Ok -> parsed += parseResult.indices
+                            is WordParseResult.Err -> {
+                                summary.text = "<html><font color='#a00'>" +
+                                    parseResult.message + "</font></html>"
+                                return
+                            }
+                        }
+                    }
+                    if (parsed.size >= factors.size) {
+                        summary.text = "<html><font color='#a00'>" +
+                            "Number of words (${parsed.size}) must be < k = ${factors.size}." +
+                            "</font></html>"
                         return
                     }
                     Fraction.Custom(
-                        words = words,
+                        words = parsed,
                         sign = if (customSignRadio.isSelected) +1 else -1
                     )
                 }
@@ -739,25 +766,31 @@ class DesignTabPanel(
             }
         }
 
-        private fun validateWords(words: List<String>, k: Int): String? {
-            for ((i, w) in words.withIndex()) {
-                val trimmed = w.trim()
-                if (trimmed.isEmpty()) return "Word #${i + 1} is empty."
-                if (!trimmed.all { it in 'A'..'Z' }) {
-                    return "Word #${i + 1} ('$trimmed') must be uppercase letters only."
+        private fun parseWord(raw: String, ordinal: Int, k: Int): WordParseResult {
+            val tokens = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            if (tokens.isEmpty()) return WordParseResult.Err("Word #$ordinal is empty.")
+            val parsed = mutableListOf<Int>()
+            val seen = mutableSetOf<Int>()
+            for (t in tokens) {
+                val n = t.toIntOrNull()
+                if (n == null) {
+                    return WordParseResult.Err(
+                        "Word #$ordinal token '$t' is not an integer."
+                    )
                 }
-                if (trimmed.toSet().size != trimmed.length) {
-                    return "Word #${i + 1} ('$trimmed') has duplicate letters."
+                if (n < 1 || n > k) {
+                    return WordParseResult.Err(
+                        "Word #$ordinal index $n is outside the legal range 1..$k."
+                    )
                 }
-                val maxLetter = 'A' + (k - 1)
-                trimmed.firstOrNull { it > maxLetter }?.let {
-                    return "Word #${i + 1} ('$trimmed') uses letter '$it' beyond k=$k."
+                if (!seen.add(n)) {
+                    return WordParseResult.Err(
+                        "Word #$ordinal repeats index $n."
+                    )
                 }
+                parsed += n
             }
-            if (words.size >= k) {
-                return "Number of words (${words.size}) must be < k = $k."
-            }
-            return null
+            return WordParseResult.Ok(parsed.sorted())
         }
 
         private fun refreshSummary(factors: List<FactorSpec>, fraction: Fraction) {
@@ -766,15 +799,16 @@ class DesignTabPanel(
                 summary.text = "<html><i>No factors defined.</i></html>"
                 return
             }
+            val p = if (fraction is Fraction.Custom) fraction.words.size else 0
             val nominal: Long = when (fraction) {
                 Fraction.Full -> 1L shl k
                 is Fraction.HalfFraction -> (1L shl k) / 2
-                is Fraction.Custom -> 1L shl (k - fraction.words.size).coerceAtLeast(0)
+                is Fraction.Custom -> 1L shl (k - p).coerceAtLeast(0)
             }
             val tag = when (fraction) {
                 Fraction.Full -> "full 2^$k"
                 is Fraction.HalfFraction -> "half-fraction"
-                is Fraction.Custom -> "2^($k-${fraction.words.size}) fraction"
+                is Fraction.Custom -> "2^($k-$p) fraction"
             }
             summary.text = "<html><b>$nominal</b> design points ($tag).  " +
                 "Per-point replications come from the <b>Replications</b> panel below.</html>"
@@ -907,7 +941,7 @@ class DesignTabPanel(
 
     /** Custom design points: edit-in-place JTable. */
     private inner class ManualCard : JPanel(BorderLayout(0, 6)) {
-        private val tableModel = ManualPointsTableModel()
+        private val tableModel = ManualPointsTableModel(onWarning = onMessage)
         private val table = JTable(tableModel)
         private val addRowBtn = JButton("Add point")
         private val delRowBtn = JButton("Delete point")
@@ -931,7 +965,7 @@ class DesignTabPanel(
                 if (!suppressEvents) commitFromUI()
             }
             addRowBtn.addActionListener {
-                tableModel.appendMidpointRow(controller.factors.value)
+                tableModel.appendFirstLevelRow(controller.factors.value)
             }
             delRowBtn.addActionListener {
                 val row = table.selectedRow
@@ -955,8 +989,9 @@ class DesignTabPanel(
             val cur = controller.designSpec.value as? DesignSpec.Manual ?: return
             val rebuilt = cur.points.map { p ->
                 val reshaped = factors.associate { f ->
-                    val v = p.factorValues[f.name]
-                        ?: ((f.levels.min() + f.levels.max()) / 2.0)
+                    // Backfill missing factors with the first
+                    // declared level (always a valid level).
+                    val v = p.factorValues[f.name] ?: f.levels.first()
                     f.name to v
                 }
                 if (reshaped.isEmpty()) p else p.copy(factorValues = reshaped)
@@ -992,15 +1027,20 @@ class DesignTabPanel(
     // Table models
     // ===============================================================
 
+    /** Table model for the custom-fraction words editor.  Each row
+     *  is a comma-separated string of 1-based factor indices that
+     *  represents one word in the single defining relation; the
+     *  surrounding card parses each row into List<Int> on commit. */
     private class RelationsTableModel : AbstractTableModel() {
         private val rows: MutableList<String> = mutableListOf()
         override fun getRowCount(): Int = rows.size
         override fun getColumnCount(): Int = 1
-        override fun getColumnName(column: Int): String = "Generator (e.g. ABCD)"
+        override fun getColumnName(column: Int): String =
+            "Word (comma-separated factor indices, e.g. 1, 2, 4)"
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any = rows[rowIndex]
         override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean = true
         override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
-            rows[rowIndex] = (aValue as? String ?: "").trim().uppercase()
+            rows[rowIndex] = (aValue as? String ?: "").trim()
             fireTableCellUpdated(rowIndex, columnIndex)
         }
         fun appendBlank() {
@@ -1013,16 +1053,30 @@ class DesignTabPanel(
                 fireTableRowsDeleted(index, index)
             }
         }
-        fun relations(): List<String> = rows.filter { it.isNotBlank() }
-        fun setRelations(next: List<String>) {
+        fun words(): List<String> = rows.filter { it.isNotBlank() }
+        fun setWords(next: List<String>) {
             rows.clear()
             rows.addAll(next)
             fireTableDataChanged()
         }
     }
 
-    private class ManualPointsTableModel : AbstractTableModel() {
-        private var factorNames: List<String> = emptyList()
+    /** Table model for the Manual design points editor.
+     *
+     *  Per-cell validation (Phase E7.3 follow-up):
+     *  - **Hard reject** if the value is outside the factor's
+     *    [min, max] interval — silently reverts the edit and surfaces
+     *    a notification.  Mirrors substrate's `enforceRange = true`.
+     *  - **Soft warning** if the value is within [min, max] but is
+     *    not one of the factor's declared discrete levels — commits
+     *    the value but surfaces an informational notification.
+     *    Lets the user augment CCD-style with mid-range points.
+     */
+    private class ManualPointsTableModel(
+        private val onWarning: (String, NotificationSeverity) -> Unit
+    ) : AbstractTableModel() {
+        private var factors: List<FactorSpec> = emptyList()
+        private val factorNames: List<String> get() = factors.map { it.name }
         private val rows: MutableList<MutableMap<String, Double>> = mutableListOf()
         private val reps: MutableList<Int?> = mutableListOf()
 
@@ -1049,10 +1103,31 @@ class DesignTabPanel(
                     is String -> aValue.trim().toDoubleOrNull()
                     else -> null
                 }
-                if (parsed != null) {
-                    rows[rowIndex][factorNames[columnIndex]] = parsed
-                    fireTableCellUpdated(rowIndex, columnIndex)
+                if (parsed == null) return  // unparseable: silently revert
+                val factor = factors.getOrNull(columnIndex) ?: return
+                val minLvl = factor.levels.min()
+                val maxLvl = factor.levels.max()
+                // Hard reject: outside [min, max].
+                if (parsed < minLvl || parsed > maxLvl) {
+                    onWarning(
+                        "Value $parsed for '${factor.name}' is outside its range " +
+                            "[$minLvl, $maxLvl].  Edit reverted.",
+                        NotificationSeverity.WARNING
+                    )
+                    fireTableCellUpdated(rowIndex, columnIndex)  // forces UI to re-read old value
+                    return
                 }
+                // Soft warning: within range but not a declared level.
+                if (parsed !in factor.levels) {
+                    onWarning(
+                        "Value $parsed for '${factor.name}' is within range but " +
+                            "not one of the declared levels ${factor.levels} " +
+                            "(allowed; treated as a within-range augmentation).",
+                        NotificationSeverity.INFO
+                    )
+                }
+                rows[rowIndex][factor.name] = parsed
+                fireTableCellUpdated(rowIndex, columnIndex)
             } else {
                 val s = (aValue as? String ?: "").trim()
                 val newReps = if (s.isEmpty()) null else s.toIntOrNull()?.coerceAtLeast(1)
@@ -1062,23 +1137,26 @@ class DesignTabPanel(
         }
 
         fun setFactorsAndPoints(factors: List<FactorSpec>, points: List<ManualPointSpec>) {
-            factorNames = factors.map { it.name }
+            this.factors = factors
             rows.clear()
             reps.clear()
             for (p in points) {
                 val row = mutableMapOf<String, Double>()
-                for (f in factors) row[f.name] = p.factorValues[f.name]
-                    ?: ((f.levels.min() + f.levels.max()) / 2.0)
+                // Missing values (e.g. a factor was added after this
+                // point was authored) backfill at the factor's first
+                // declared level — always a valid level, never trips
+                // the in-range-but-not-a-level soft warning.
+                for (f in factors) row[f.name] = p.factorValues[f.name] ?: f.levels.first()
                 rows += row
                 reps += p.replications
             }
             fireTableStructureChanged()
         }
 
-        fun appendMidpointRow(factors: List<FactorSpec>) {
+        fun appendFirstLevelRow(factors: List<FactorSpec>) {
             if (factors.isEmpty()) return
             val row = mutableMapOf<String, Double>()
-            for (f in factors) row[f.name] = (f.levels.min() + f.levels.max()) / 2.0
+            for (f in factors) row[f.name] = f.levels.first()
             rows += row
             reps += null
             fireTableRowsInserted(rows.lastIndex, rows.lastIndex)

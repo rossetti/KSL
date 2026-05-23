@@ -273,10 +273,15 @@ private fun ExperimentConfiguration.buildEffectiveDesign(
                 // PerPoint.default > Uniform.replications.
                 val numReps = point.replications
                     ?: effectiveRepsFor(index = index, rep = rep)
+                // enforceRange = true: substrate rejects any value
+                // outside the factor's [min, max] interval.  Belt-
+                // and-braces — the GUI also validates on entry, but
+                // CSV imports and TOML round-trips could otherwise
+                // smuggle bad values through.
                 exp.addDesignPoint(
                     settings = settings,
                     numReps = numReps,
-                    enforceRange = false
+                    enforceRange = true
                 )
             }
             exp
@@ -313,11 +318,9 @@ private fun iteratorForFraction(
         is Fraction.HalfFraction -> twoLevelDesign.halfFractionIterator(half = fraction.sign.toDouble())
         is Fraction.Custom -> {
             // Each "word" is one element of the substrate's
-            // Set<Set<Int>> defining relation.  Letters A..Z map to
-            // 1-based factor indices.
-            val relation = fraction.words
-                .map { word -> word.map { letter -> letter - 'A' + 1 }.toSet() }
-                .toSet()
+            // Set<Set<Int>> defining relation; indices are already
+            // 1-based.
+            val relation = fraction.words.map { it.toSet() }.toSet()
             twoLevelDesign.fractionalIterator(relation = relation, sign = fraction.sign.toDouble())
         }
     }

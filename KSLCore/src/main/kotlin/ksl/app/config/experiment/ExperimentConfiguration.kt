@@ -180,18 +180,13 @@ data class ExperimentConfiguration(
         require(factors.isNotEmpty()) {
             "ExperimentConfiguration must have at least one factor"
         }
+        // Per-factor invariants (non-blank name, >= 2 levels, levels
+        // strictly increasing) are enforced by FactorSpec.init.  Only
+        // the cross-factor constraint (unique names) needs to live
+        // here.
         val names = factors.map { it.name }
         require(names.toSet().size == names.size) {
             "factor names must be unique within the document; duplicates in $names"
-        }
-        for (factor in factors) {
-            require(factor.name.isNotBlank()) { "factor name must be non-blank" }
-            require(factor.levels.size >= 2) {
-                "factor '${factor.name}' must have at least 2 levels; got ${factor.levels.size}"
-            }
-            require(factor.levels.toSet().size == factor.levels.size) {
-                "factor '${factor.name}' has duplicate level values: ${factor.levels}"
-            }
         }
         validateDesignAgainstFactors()
     }

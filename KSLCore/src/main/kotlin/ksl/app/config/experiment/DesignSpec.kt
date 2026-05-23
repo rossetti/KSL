@@ -204,33 +204,32 @@ sealed class Fraction {
      *  Custom fractional design — one defining relation expressed
      *  as a list of "words".  A defining relation has the algebraic
      *  form I = w1 = w2 = ... where each word w_i is a product of
-     *  factor letters; the example I = 124 = 135 = 2345 has three
-     *  words.  Each word here is a string of uppercase letters
-     *  (e.g. `"ABCD"`); the engine glue converts each letter to its
-     *  1-based factor index and assembles the full
-     *  `Set<Set<Int>>` the substrate's
-     *  `TwoLevelFactorialDesign.fractionalIterator` expects.  The
-     *  resulting fraction realises a 2^(k-p) design where p = the
-     *  word count.
+     *  factors named by 1-based index.  Example: the relation
+     *  I = 124 = 135 = 2345 has three words and encodes as
+     *  `[[1,2,4], [1,3,5], [2,3,4,5]]`.  The engine glue maps each
+     *  word to a `Set<Int>` and the list to a `Set<Set<Int>>` for
+     *  the substrate's
+     *  `TwoLevelFactorialDesign.fractionalIterator(relation, sign)`.
+     *  The fraction exponent p equals the word count; the realised
+     *  design is 2^(k-p).
      */
     @Serializable
     @SerialName("custom")
     data class Custom(
         @TomlComment(
-            "Words of the single defining relation.  Each word is a\n" +
-            "sequence of uppercase letters naming the factors whose\n" +
-            "product equals the identity I.  Example: the relation\n" +
-            "I = ABCD = ABE = CDE has three words, encoded as\n" +
-            "[\"ABCD\", \"ABE\", \"CDE\"].  Letter X refers to the X-th\n" +
-            "factor by position (A = factor 1).  Letters within one\n" +
-            "word must be unique; every letter must lie within the\n" +
-            "document's factor count.  The fraction exponent p\n" +
-            "equals the word count; the realised design is 2^(k-p).\n" +
-            "Group-theoretic validity (that the words realise the\n" +
-            "expected fraction without collapsing) is verified at\n" +
-            "engine-build time."
+            "Words of the single defining relation, each a list of\n" +
+            "1-based factor indices.  Example: the relation I = 124 =\n" +
+            "135 = 2345 has three words, encoded as\n" +
+            "  [[1, 2, 4], [1, 3, 5], [2, 3, 4, 5]].\n" +
+            "Each integer must lie in 1..k (where k is the document's\n" +
+            "factor count); 1 references the first factor, 2 the\n" +
+            "second, and so on.  Indices within one word must be\n" +
+            "unique.  The fraction exponent p equals the word count;\n" +
+            "the realised design is 2^(k-p).  Group-theoretic validity\n" +
+            "(that the words realise the expected fraction without\n" +
+            "collapsing) is verified at engine-build time."
         )
-        val words: List<String>,
+        val words: List<List<Int>>,
 
         @TomlComment(
             "Sign of the generator I = +1 or -I = -1.  Default 1."
@@ -240,6 +239,15 @@ sealed class Fraction {
         init {
             require(words.isNotEmpty()) { "custom fraction must have at least one word" }
             require(sign == 1 || sign == -1) { "sign must be 1 or -1; got $sign" }
+            for ((i, w) in words.withIndex()) {
+                require(w.isNotEmpty()) { "word #${i + 1} must contain at least one index" }
+                require(w.all { it >= 1 }) {
+                    "word #${i + 1} has non-positive indices: $w (must be >= 1)"
+                }
+                require(w.toSet().size == w.size) {
+                    "word #${i + 1} has duplicate indices: $w"
+                }
+            }
         }
     }
 }

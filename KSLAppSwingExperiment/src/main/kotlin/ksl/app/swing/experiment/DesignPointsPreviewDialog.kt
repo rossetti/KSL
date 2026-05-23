@@ -18,22 +18,28 @@
 
 package ksl.app.swing.experiment
 
+import ksl.app.config.experiment.DesignSpec
+import ksl.app.config.experiment.FactorSpec
+import ksl.app.config.experiment.ManualPointSpec
 import ksl.app.config.experiment.ReplicationSpec
 import ksl.app.config.experiment.materializeDesign
 import ksl.app.swing.common.notification.NotificationSeverity
-import ksl.controls.experiments.DesignPoint
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Window
+import java.io.BufferedReader
+import java.io.File
 import java.io.PrintWriter
 import javax.swing.BorderFactory
+import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JDialog
 import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
+import javax.swing.JRadioButton
 import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
@@ -42,31 +48,38 @@ import javax.swing.table.AbstractTableModel
 
 /**
  *  Modal dialog that materializes the current document's design and
- *  shows the enumerated design points in a read-only-ish table.
- *  Launched from the *Materialize design points...* button on the
- *  Design tab.
+ *  shows the enumerated design points.  Launched from the
+ *  *Materialize design points...* button on the Design tab.  Replaces
+ *  the originally-planned Phase E8 *Design Points* tab — a transient
+ *  check-my-work view fits a dialog better than a persistent tab.
  *
- *  Replacing the planned Phase E8 *Design Points* tab:
- *  - Showing the enumerated points is a check-my-work activity that
- *    fits a transient dialog better than a persistent tab.
- *  - Per-point replication overrides (the other use case for E8)
- *    live in this same dialog when the document's
- *    `ReplicationSpec` is `PerPoint`; overrides stage locally and
- *    are committed to the controller only on **Apply** so the user
- *    can experiment without thrashing the document dirty bit.
+ *  ## Display mode
  *
- *  Columns: `#` (1-based index), one per factor (factor name), and
- *  `reps`.  The factor columns are read-only; the reps column is
- *  editable only when the document policy is
- *  `ReplicationSpec.PerPoint` (and even then only the override map
- *  changes — the default value is set on the Design tab's
- *  Replications panel).
+ *  A Raw / Coded toggle at the top picks how the factor columns
+ *  display.  Raw shows the substrate's raw factor values
+ *  (`DesignPoint.values()`); Coded shows the coded representation
+ *  (`DesignPoint.codedValues()`, where each factor's range maps to
+ *  [-1, +1]).  CSV export uses whichever mode is currently active.
  *
- *  CSV export uses the same column shape with no quoting needed
- *  (factor names and numbers don't contain commas).
+ *  ## Per-point reps
  *
- *  The dialog is modal to the parent window so the user can't edit
- *  the spec underneath it; closing returns to the Design tab.
+ *  When the document's `ReplicationSpec` is `PerPoint`, the `reps`
+ *  column is editable; edits stage locally and the **Apply** button
+ *  pushes the override map to the controller.  When the policy is
+ *  `Uniform`, the column is read-only (every point gets the
+ *  Uniform value).
+ *
+ *  ## CSV import (Manual designs only)
+ *
+ *  When the family is `DesignSpec.Manual`, an **Import CSV...**
+ *  button lets the user replace the manual point list with values
+ *  loaded from a CSV whose header matches the document's factor
+ *  names (in any order).  Cell values are validated against each
+ *  factor's [min, max] interval — out-of-range rows are listed in
+ *  the failure dialog and nothing is imported on error.  On
+ *  success the dialog closes (the user can reopen it to see the
+ *  imported points).
+ *
  *  Materialization runs once on open — if the design is huge
  *  (>= 10k points) this is the noticeable cost.  No streaming /
  *  pagination yet (deferred to Phase E11 polish).
@@ -77,29 +90,47 @@ class DesignPointsPreviewDialog(
     private val onMessage: (String, NotificationSeverity) -> Unit
 ) : JDialog(owner, "Design points preview", ModalityType.APPLICATION_MODAL) {
 
-    private val factorNames: List<String> = controller.factors.value.map { it.name }
+    private val factors: List<FactorSpec> = controller.factors.value
+    private val factorNames: List<String> = factors.map { it.name }
     private val originalPoints: List<EnumeratedPoint>
     private val stagedRepsOverrides: MutableMap<Int, Int>
     private val baseReps: ReplicationSpec = controller.replications.value
+    private val isManual: Boolean =
+        controller.designSpec.value is DesignSpec.Manual
 
+    private val rawRadio = JRadioButton("Raw (default)", true)
+    private val codedRadio = JRadioButton("Coded")
+    private val displayGroup = ButtonGroup().apply {
+        add(rawRadio); add(codedRadio)
+    }
     private val tableModel: PreviewTableModel
     private val table: JTable
     private val totalLabel = JLabel(" ")
     private val applyBtn = JButton("Apply")
+    private val importBtn = JButton("Import CSV...")
 
     init {
-        // Snapshot the current spec, factors, replications, and
-        // materialise the design once.  Exceptions bubble up to the
-        // caller (the Design tab) which surfaces them as
-        // notifications.
         val cfg = controller.currentConfiguration()
         val design = cfg.materializeDesign()
+        // Capture both raw + coded values per point at construction
+        // time.  Toggling the display radio is then pure UI.
         originalPoints = design.designIterator().asSequence().mapIndexed { i, dp ->
+            val rawArr = dp.values()
+            val codedArr = dp.codedValues()
+            // dp.settings is keyed by Factor (substrate type); the
+            // values() / codedValues() arrays are in factor order
+            // matching dp.design.factorNames.
+            val designFactorNames = dp.design.factorNames
+            val rawByName = LinkedHashMap<String, Double>()
+            val codedByName = LinkedHashMap<String, Double>()
+            for ((idx, name) in designFactorNames.withIndex()) {
+                rawByName[name] = rawArr.getOrNull(idx) ?: 0.0
+                codedByName[name] = codedArr.getOrNull(idx) ?: 0.0
+            }
             EnumeratedPoint(
                 index = i,
-                factorValues = factorNames.associateWith { name ->
-                    dp.settings.entries.firstOrNull { it.key.name == name }?.value ?: 0.0
-                },
+                rawValues = rawByName,
+                codedValues = codedByName,
                 defaultReps = dp.numReplications
             )
         }.toList()
@@ -114,30 +145,33 @@ class DesignPointsPreviewDialog(
             putClientProperty("terminateEditOnFocusLost", true)
         }
 
+        rawRadio.addActionListener { tableModel.fireTableDataChanged() }
+        codedRadio.addActionListener { tableModel.fireTableDataChanged() }
+
         buildLayout()
         refreshTotal()
         updateApplyEnablement()
+        importBtn.isEnabled = isManual
+        importBtn.toolTipText =
+            if (isManual) "Replace the manual point list with values from a CSV file."
+            else "Import is only available for the Custom design points family."
         pack()
         setLocationRelativeTo(owner)
-        minimumSize = Dimension(520, 360)
+        minimumSize = Dimension(560, 380)
     }
 
     private fun buildLayout() {
         layout = BorderLayout(0, 6)
         rootPane.border = BorderFactory.createEmptyBorder(10, 12, 10, 12)
 
-        val header = JPanel(BorderLayout())
+        val north = JPanel(BorderLayout())
         val headerText = buildString {
             append("Design: ")
             when (val ds = controller.designSpec.value) {
-                is ksl.app.config.experiment.DesignSpec.FullFactorial ->
-                    append("Full factorial")
-                is ksl.app.config.experiment.DesignSpec.TwoLevelFactorial ->
-                    append("Two-level factorial")
-                is ksl.app.config.experiment.DesignSpec.CentralComposite ->
-                    append("Central composite")
-                is ksl.app.config.experiment.DesignSpec.Manual ->
-                    append("Custom (${ds.points.size} points)")
+                is DesignSpec.FullFactorial -> append("Full factorial")
+                is DesignSpec.TwoLevelFactorial -> append("Two-level factorial")
+                is DesignSpec.CentralComposite -> append("Central composite")
+                is DesignSpec.Manual -> append("Custom (${ds.points.size} points)")
             }
             append("  ·  Replications: ")
             when (val rep = baseReps) {
@@ -145,11 +179,18 @@ class DesignPointsPreviewDialog(
                 is ReplicationSpec.PerPoint -> append("Per-point (default ${rep.default})")
             }
         }
-        header.add(JLabel(headerText), BorderLayout.WEST)
-        add(header, BorderLayout.NORTH)
+        north.add(JLabel(headerText), BorderLayout.NORTH)
+
+        val displayRow = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
+        displayRow.add(JLabel("Display factor values:"))
+        displayRow.add(rawRadio)
+        displayRow.add(codedRadio)
+        north.add(displayRow, BorderLayout.SOUTH)
+
+        add(north, BorderLayout.NORTH)
 
         val scroll = JScrollPane(table)
-        scroll.preferredSize = Dimension(620, 320)
+        scroll.preferredSize = Dimension(680, 320)
         add(scroll, BorderLayout.CENTER)
 
         val south = JPanel(BorderLayout())
@@ -158,10 +199,14 @@ class DesignPointsPreviewDialog(
         val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0))
         val exportBtn = JButton("Export CSV...")
         exportBtn.addActionListener { exportCsv() }
+        importBtn.addActionListener { importCsv() }
         val closeBtn = JButton("Close")
         closeBtn.addActionListener { dispose() }
         applyBtn.addActionListener { apply() }
-        buttons.add(exportBtn); buttons.add(applyBtn); buttons.add(closeBtn)
+        buttons.add(importBtn)
+        buttons.add(exportBtn)
+        buttons.add(applyBtn)
+        buttons.add(closeBtn)
         south.add(buttons, BorderLayout.EAST)
 
         add(south, BorderLayout.SOUTH)
@@ -175,18 +220,11 @@ class DesignPointsPreviewDialog(
             "<b>$totalRuns</b> total runs</html>"
     }
 
-    /** Effective reps for a single point under the staged-overrides
-     *  view.  Used both for the table's reps column display and for
-     *  the totalRuns calculation. */
     private fun effectiveDefaultReps(p: EnumeratedPoint): Int = when (val r = baseReps) {
         is ReplicationSpec.Uniform -> r.replications
         is ReplicationSpec.PerPoint -> r.default
     }
 
-    /** True when the reps column should be editable (PerPoint
-     *  policy).  Uniform makes every point's reps a function of the
-     *  document-level default, so per-row editing wouldn't have
-     *  anywhere to go. */
     private fun repsColumnEditable(): Boolean = baseReps is ReplicationSpec.PerPoint
 
     private fun updateApplyEnablement() {
@@ -212,20 +250,32 @@ class DesignPointsPreviewDialog(
             "Applied ${cleaned.size} per-point replication override${if (cleaned.size == 1) "" else "s"}.",
             NotificationSeverity.INFO
         )
-        // Re-snapshot the base so further edits compare correctly.
         dispose()
     }
+
+    private fun effectiveReps(p: EnumeratedPoint): Int =
+        stagedRepsOverrides[p.index] ?: effectiveDefaultReps(p)
+
+    /** Factor values for the active display mode.  Raw is the
+     *  default; Coded reads the precomputed coded values. */
+    private fun factorValuesFor(p: EnumeratedPoint): Map<String, Double> =
+        if (codedRadio.isSelected) p.codedValues else p.rawValues
+
+    // ---------------------------------------------------------------
+    // CSV export
+    // ---------------------------------------------------------------
 
     private fun exportCsv() {
         val chooser = JFileChooser().apply {
             dialogTitle = "Export design points to CSV"
             fileFilter = FileNameExtensionFilter("CSV files (*.csv)", "csv")
-            selectedFile = java.io.File("design-points.csv")
+            val mode = if (codedRadio.isSelected) "coded" else "raw"
+            selectedFile = File("design-points-$mode.csv")
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
         var file = chooser.selectedFile
         if (!file.name.lowercase().endsWith(".csv")) {
-            file = java.io.File(file.parentFile, "${file.name}.csv")
+            file = File(file.parentFile, "${file.name}.csv")
         }
         try {
             PrintWriter(file.bufferedWriter()).use { out ->
@@ -233,8 +283,9 @@ class DesignPointsPreviewDialog(
                 for (n in factorNames) { out.print(","); out.print(n) }
                 out.println(",reps")
                 for (p in originalPoints) {
+                    val values = factorValuesFor(p)
                     out.print(p.index + 1)
-                    for (n in factorNames) { out.print(","); out.print(p.factorValues[n] ?: 0.0) }
+                    for (n in factorNames) { out.print(","); out.print(values[n] ?: 0.0) }
                     out.print(","); out.println(effectiveReps(p))
                 }
             }
@@ -252,20 +303,142 @@ class DesignPointsPreviewDialog(
         }
     }
 
-    private fun effectiveReps(p: EnumeratedPoint): Int =
-        stagedRepsOverrides[p.index] ?: effectiveDefaultReps(p)
+    // ---------------------------------------------------------------
+    // CSV import (Manual only)
+    // ---------------------------------------------------------------
 
-    /** One row in the preview table.  factorValues is keyed by
-     *  factor name so column access is stable even when the
-     *  substrate's [DesignPoint.settings] is a Map<Factor,Double>. */
+    private fun importCsv() {
+        if (!isManual) return
+        val chooser = JFileChooser().apply {
+            dialogTitle = "Import design points from CSV"
+            fileFilter = FileNameExtensionFilter("CSV files (*.csv)", "csv")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val file = chooser.selectedFile
+        val result = parseImportCsv(file)
+        when (result) {
+            is ImportResult.Failure -> {
+                JOptionPane.showMessageDialog(
+                    this,
+                    buildString {
+                        append("Import failed (${result.errors.size} error")
+                        append(if (result.errors.size == 1) "" else "s")
+                        append("):\n\n")
+                        for ((i, msg) in result.errors.withIndex()) {
+                            append("  • $msg")
+                            if (i < result.errors.lastIndex) append("\n")
+                        }
+                    },
+                    "CSV import failed",
+                    JOptionPane.ERROR_MESSAGE
+                )
+            }
+            is ImportResult.Ok -> {
+                controller.setDesignSpec(DesignSpec.Manual(result.points))
+                onMessage(
+                    "Imported ${result.points.size} design point" +
+                        "${if (result.points.size == 1) "" else "s"} from ${file.name}.  " +
+                        "Reopen the preview to view them.",
+                    NotificationSeverity.INFO
+                )
+                dispose()
+            }
+        }
+    }
+
+    private sealed class ImportResult {
+        data class Ok(val points: List<ManualPointSpec>) : ImportResult()
+        data class Failure(val errors: List<String>) : ImportResult()
+    }
+
+    /** Parse a CSV in the shape `exportCsv` produces.  Header must
+     *  contain a column for each declared factor name; the `#` and
+     *  `reps` columns are optional.  Imported values are
+     *  range-checked against each factor's [min, max] interval.
+     *  Values that are within range but not declared levels are
+     *  accepted without a warning — the import path is for
+     *  power-user workflows where the caller knows what they're
+     *  doing. */
+    private fun parseImportCsv(file: File): ImportResult {
+        val errors = mutableListOf<String>()
+        val lines: List<String> = try {
+            file.bufferedReader().use(BufferedReader::readLines)
+        } catch (ex: Exception) {
+            return ImportResult.Failure(
+                listOf("could not read ${file.absolutePath}: ${ex.message ?: ex::class.simpleName}")
+            )
+        }
+        if (lines.isEmpty()) {
+            return ImportResult.Failure(listOf("file is empty"))
+        }
+        val header = lines[0].split(',').map { it.trim() }
+        // Build name -> column index map; require every factor name.
+        val nameToCol = header.withIndex().associate { it.value to it.index }
+        val missing = factorNames.filter { it !in nameToCol }
+        if (missing.isNotEmpty()) {
+            return ImportResult.Failure(
+                listOf("header is missing required factor column(s): ${missing.joinToString(", ")}")
+            )
+        }
+        val repsCol = nameToCol["reps"]
+        val points = mutableListOf<ManualPointSpec>()
+        for ((rowIdx, raw) in lines.drop(1).withIndex()) {
+            val lineNo = rowIdx + 2  // 1-based, accounting for the header
+            if (raw.isBlank()) continue
+            val cells = raw.split(',').map { it.trim() }
+            val values = mutableMapOf<String, Double>()
+            for (f in factors) {
+                val col = nameToCol.getValue(f.name)
+                val token = cells.getOrNull(col)
+                if (token.isNullOrEmpty()) {
+                    errors += "line $lineNo: missing value for '${f.name}'"
+                    continue
+                }
+                val v = token.toDoubleOrNull()
+                if (v == null) {
+                    errors += "line $lineNo: value for '${f.name}' is not a number: '$token'"
+                    continue
+                }
+                val minLvl = f.levels.min()
+                val maxLvl = f.levels.max()
+                if (v < minLvl || v > maxLvl) {
+                    errors += "line $lineNo: '${f.name}' value $v is outside " +
+                        "the factor's range [$minLvl, $maxLvl]"
+                    continue
+                }
+                values[f.name] = v
+            }
+            val reps: Int? = if (repsCol != null) {
+                val token = cells.getOrNull(repsCol)?.trim().orEmpty()
+                if (token.isEmpty()) null
+                else token.toIntOrNull()?.coerceAtLeast(1)
+                    ?: run {
+                        errors += "line $lineNo: reps token '$token' is not a positive integer"
+                        null
+                    }
+            } else null
+            // Only build a point if every factor's value parsed cleanly.
+            if (values.size == factors.size) {
+                points += ManualPointSpec(factorValues = values, replications = reps)
+            }
+        }
+        if (errors.isNotEmpty()) return ImportResult.Failure(errors)
+        if (points.isEmpty()) return ImportResult.Failure(listOf("no data rows found"))
+        return ImportResult.Ok(points)
+    }
+
+    // ---------------------------------------------------------------
+    // Table model
+    // ---------------------------------------------------------------
+
     private data class EnumeratedPoint(
         val index: Int,
-        val factorValues: Map<String, Double>,
+        val rawValues: Map<String, Double>,
+        val codedValues: Map<String, Double>,
         val defaultReps: Int
     )
 
     private inner class PreviewTableModel : AbstractTableModel() {
-        // Columns: # | factor1 ... factorN | reps
         private val repsColumn: Int get() = 1 + factorNames.size
         override fun getRowCount(): Int = originalPoints.size
         override fun getColumnCount(): Int = 2 + factorNames.size
@@ -287,7 +460,7 @@ class DesignPointsPreviewDialog(
             return when (columnIndex) {
                 0 -> p.index + 1
                 repsColumn -> effectiveReps(p)
-                else -> p.factorValues[factorNames[columnIndex - 1]] ?: 0.0
+                else -> factorValuesFor(p)[factorNames[columnIndex - 1]] ?: 0.0
             }
         }
 
@@ -301,11 +474,7 @@ class DesignPointsPreviewDialog(
             val p = originalPoints[rowIndex]
             val defaultReps = effectiveDefaultReps(p)
             when {
-                parsed == null || parsed < 1 -> {
-                    // Invalid input: silently revert.  No noisy
-                    // notification — the cell editor's foreground
-                    // colour or border tells the user well enough.
-                }
+                parsed == null || parsed < 1 -> { /* invalid; silently revert */ }
                 parsed == defaultReps -> stagedRepsOverrides.remove(p.index)
                 else -> stagedRepsOverrides[p.index] = parsed
             }

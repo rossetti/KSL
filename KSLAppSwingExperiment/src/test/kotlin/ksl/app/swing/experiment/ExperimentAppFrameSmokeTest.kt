@@ -208,7 +208,7 @@ class ExperimentAppFrameSmokeTest {
                     controller!!.setDesignSpec(
                         ksl.app.config.experiment.DesignSpec.TwoLevelFactorial(
                             fraction = ksl.app.config.experiment.Fraction.Custom(
-                                words = listOf("AB")
+                                words = listOf(listOf(1, 2))
                             )
                         )
                     )

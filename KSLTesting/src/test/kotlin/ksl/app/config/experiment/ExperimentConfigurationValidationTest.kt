@@ -72,15 +72,28 @@ class ExperimentConfigurationValidationTest {
     }
 
     @Test
-    fun `factor with duplicate level values is rejected`() {
+    fun `factor with duplicate level values is rejected at FactorSpec init time`() {
+        // Strictly-increasing precondition (added in E7.4) catches
+        // both duplicates and out-of-order entries with a single
+        // message, before the spec ever reaches ExperimentConfiguration.
         val ex = assertFailsWith<IllegalArgumentException> {
-            ExperimentConfiguration(
-                modelReference = model,
-                factors = listOf(factor("A", listOf(1.0, 1.0))),
-                designSpec = DesignSpec.FullFactorial
-            )
+            factor("A", listOf(1.0, 1.0))
         }
-        assertTrue(ex.message!!.contains("duplicate level"))
+        assertTrue(
+            ex.message!!.contains("strictly increasing"),
+            "expected strictly-increasing message; got: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `factor with out-of-order levels is rejected at FactorSpec init time`() {
+        val ex = assertFailsWith<IllegalArgumentException> {
+            factor("A", listOf(30.0, 10.0))
+        }
+        assertTrue(
+            ex.message!!.contains("strictly increasing"),
+            "expected strictly-increasing message; got: ${ex.message}"
+        )
     }
 
     @Test
@@ -111,7 +124,7 @@ class ExperimentConfigurationValidationTest {
                     factor("C", listOf(0.0, 1.0))
                 ),
                 designSpec = DesignSpec.TwoLevelFactorial(
-                    fraction = Fraction.Custom(words = listOf("ABZ"))   // 'Z' beyond A..C
+                    fraction = Fraction.Custom(words = listOf(listOf(1, 2, 26)))   // 26 beyond k=3
                 )
             )
         }

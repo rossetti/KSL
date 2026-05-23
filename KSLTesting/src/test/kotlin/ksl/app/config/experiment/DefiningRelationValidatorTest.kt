@@ -20,6 +20,7 @@ package ksl.app.config.experiment
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -31,36 +32,36 @@ import kotlin.test.assertTrue
 class DefiningRelationValidatorTest {
 
     @Test
-    fun `valid single-relation half fraction parses cleanly`() {
-        // 2^(4-1) design: one generator 'ABCD'.
+    fun `valid single-word half fraction parses cleanly`() {
+        // 2^(4-1) design: one word [1,2,3,4].
         val r = DefiningRelationValidator.validate(
-            relations = listOf("ABCD"),
+            words = listOf(listOf(1, 2, 3, 4)),
             numFactors = 4,
             fractionExponent = 1
         )
         assertIs<DefiningRelationValidator.Result.Ok>(r)
-        assertEquals(listOf(setOf('A', 'B', 'C', 'D')), r.parsed)
+        assertEquals(listOf(setOf(1, 2, 3, 4)), r.parsed)
     }
 
     @Test
-    fun `valid two-relation quarter fraction parses cleanly`() {
-        // 2^(5-2) design: two generators.
+    fun `valid two-word quarter fraction parses cleanly`() {
+        // 2^(5-2) design: two words.
         val r = DefiningRelationValidator.validate(
-            relations = listOf("ABCD", "ABE"),
+            words = listOf(listOf(1, 2, 3, 4), listOf(1, 2, 5)),
             numFactors = 5,
             fractionExponent = 2
         )
         assertIs<DefiningRelationValidator.Result.Ok>(r)
         assertEquals(
-            listOf(setOf('A', 'B', 'C', 'D'), setOf('A', 'B', 'E')),
+            listOf(setOf(1, 2, 3, 4), setOf(1, 2, 5)),
             r.parsed
         )
     }
 
     @Test
-    fun `empty relation string is rejected`() {
+    fun `empty word is rejected`() {
         val r = DefiningRelationValidator.validate(
-            relations = listOf(""),
+            words = listOf(emptyList()),
             numFactors = 3,
             fractionExponent = 1
         )
@@ -69,88 +70,85 @@ class DefiningRelationValidatorTest {
     }
 
     @Test
-    fun `lowercase letter is rejected`() {
+    fun `index zero is rejected as out-of-range`() {
         val r = DefiningRelationValidator.validate(
-            relations = listOf("aBC"),
+            words = listOf(listOf(0, 1, 2)),
             numFactors = 3,
             fractionExponent = 1
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "non-uppercase-letter character 'a'" in it })
+        assertTrue(r.errors.any { "index 0 outside the legal range" in it })
     }
 
     @Test
-    fun `digit in relation is rejected`() {
+    fun `negative index is rejected as out-of-range`() {
         val r = DefiningRelationValidator.validate(
-            relations = listOf("AB2"),
+            words = listOf(listOf(-1, 2)),
             numFactors = 3,
             fractionExponent = 1
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "'2'" in it })
+        assertTrue(r.errors.any { "index -1 outside the legal range" in it })
     }
 
     @Test
-    fun `letter beyond declared factor count is rejected`() {
-        // 3 factors → max letter is 'C'; using 'E' is illegal.
+    fun `index beyond declared factor count is rejected`() {
+        // 3 factors -> max index is 3; using 5 is illegal.
         val r = DefiningRelationValidator.validate(
-            relations = listOf("ACE"),
+            words = listOf(listOf(1, 3, 5)),
             numFactors = 3,
             fractionExponent = 1
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "letter 'E' beyond the legal range A..C" in it })
+        assertTrue(r.errors.any { "index 5 outside the legal range 1..3" in it })
     }
 
     @Test
-    fun `repeated letter within a single relation is rejected`() {
+    fun `repeated index within a single word is rejected`() {
         val r = DefiningRelationValidator.validate(
-            relations = listOf("ABCA"),
+            words = listOf(listOf(1, 2, 3, 1)),
             numFactors = 4,
             fractionExponent = 1
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "repeats letter" in it && "'A'" in it })
+        assertTrue(r.errors.any { "repeats" in it && "1" in it })
     }
 
     @Test
-    fun `wrong relation count is rejected`() {
-        // 2^(5-2) expects 2 relations; providing 1 is wrong.
+    fun `wrong word count is rejected`() {
+        // 2^(5-2) expects 2 words; providing 1 is wrong.
         val r = DefiningRelationValidator.validate(
-            relations = listOf("ABCD"),
+            words = listOf(listOf(1, 2, 3, 4)),
             numFactors = 5,
             fractionExponent = 2
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "expected 2 defining relation(s), got 1" in it })
+        assertTrue(r.errors.any { "expected 2 word(s), got 1" in it })
     }
 
     @Test
-    fun `multiple errors across multiple relations are all reported`() {
-        // Two relations, both broken in different ways.
+    fun `multiple errors across multiple words are all reported`() {
+        // Two words, both broken in different ways.
         val r = DefiningRelationValidator.validate(
-            relations = listOf("AAB", "abc"),
+            words = listOf(listOf(1, 1, 2), listOf(1, 2, 9)),
             numFactors = 3,
             fractionExponent = 2
         )
         assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        // Relation #1: repeats 'A'.
-        assertTrue(r.errors.any { "relation #1" in it && "repeats" in it })
-        // Relation #2: lowercase letters.
-        assertTrue(r.errors.any { "relation #2" in it && "'a'" in it })
+        // Word #1: repeats 1.
+        assertTrue(r.errors.any { "word #1" in it && "repeats" in it })
+        // Word #2: 9 out-of-range.
+        assertTrue(r.errors.any { "word #2" in it && "9" in it })
     }
 
     @Test
-    fun `numFactors out of letter range short-circuits per-relation checks`() {
-        // 27 factors can't all be encoded in single letters; the
-        // validator reports the range issue and does not try to
-        // resolve any relations.
-        val r = DefiningRelationValidator.validate(
-            relations = listOf("ABCD"),
-            numFactors = 27,
-            fractionExponent = 1
-        )
-        assertIs<DefiningRelationValidator.Result.Invalid>(r)
-        assertTrue(r.errors.any { "numFactors must be in 1..26" in it })
+    fun `non-positive numFactors throws`() {
+        assertFailsWith<IllegalArgumentException> {
+            DefiningRelationValidator.validate(
+                words = listOf(listOf(1)),
+                numFactors = 0,
+                fractionExponent = 1
+            )
+        }
     }
 }

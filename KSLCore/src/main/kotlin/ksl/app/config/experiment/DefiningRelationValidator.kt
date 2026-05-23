@@ -19,115 +19,94 @@
 package ksl.app.config.experiment
 
 /**
- *  Syntactic validator for the defining-relations of a
- *  custom-fraction two-level design (see `Fraction.Custom`).
+ *  Syntactic validator for the words of a custom-fraction two-level
+ *  design (see `Fraction.Custom`).
  *
- *  A defining relation is a sequence of uppercase letters that names
- *  the factors whose product equals the identity I in the algebra of
- *  factor effects.  Letters refer to factors by position: A = factor 1,
- *  B = factor 2, …, where position is the index in the document's
- *  `factors` list.  A 2^(5-2) design (k = 5, p = 2) needs exactly two
- *  generators, for example 'ABCD' and 'ABE'.
+ *  A defining relation has the algebraic form I = w1 = w2 = ...
+ *  where each word w_i is a product of factor indices.  This
+ *  validator covers syntax only:
  *
- *  This validator covers **syntax** only:
- *  - Each relation is a non-empty string.
- *  - All letters are uppercase A..Z within the legal range for the
- *    declared factor count.
- *  - No letter repeats within a single relation (each generator is a
- *    *set* of factors, not a multiset).
- *  - The relation count matches the fraction exponent.
+ *  - Each word is non-empty.
+ *  - Every integer index lies in 1..numFactors.
+ *  - No index repeats within a single word (each word is a *set* of
+ *    factors, not a multiset).
+ *  - The word count matches the declared fraction exponent.
  *
- *  **Group-theoretic validity** — does the chosen set of generators
- *  realise a non-degenerate 2^(k-p) fraction without collapsing
+ *  **Group-theoretic validity** — whether the chosen words realise
+ *  a non-degenerate 2^(k-p) fraction without collapsing
  *  unintentionally — is not checked here.  That is the substrate's
  *  responsibility at engine-build time
- *  (`TwoLevelFactorialDesign.fractionalIterator(...)` in Phase E2);
- *  errors surface as runtime exceptions on submit.
+ *  (`TwoLevelFactorialDesign.fractionalIterator(...)`); errors
+ *  surface as runtime exceptions on submit.
  *
- *  Exposed as an `object` so the Phase E7 GUI editor can call it
- *  directly for live feedback (red/green badges next to each
- *  relation field).
+ *  Exposed as an `object` so the GUI editor can call it directly
+ *  for live feedback (red/green badges next to each word field).
  */
 object DefiningRelationValidator {
 
-    /** Outcome of [validate].  [Ok] carries the parsed generators as
-     *  letter sets (useful for downstream engine glue); [Invalid]
+    /** Outcome of [validate].  [Ok] carries the parsed words as
+     *  integer sets (useful for downstream engine glue); [Invalid]
      *  carries one human-readable message per problem found. */
     sealed class Result {
-        data class Ok(val parsed: List<Set<Char>>) : Result()
+        data class Ok(val parsed: List<Set<Int>>) : Result()
         data class Invalid(val errors: List<String>) : Result()
     }
 
     /**
-     *  Validate [relations] against the declared factor count and
-     *  fraction exponent.  All errors are collected before returning —
-     *  a single bad relation does not short-circuit reporting of the
-     *  others.
+     *  Validate [words] against the declared factor count and
+     *  fraction exponent.  All errors are collected before
+     *  returning — a single bad word does not short-circuit
+     *  reporting of the others.
      */
     fun validate(
-        relations: List<String>,
+        words: List<List<Int>>,
         numFactors: Int,
         fractionExponent: Int
     ): Result {
         val errors = mutableListOf<String>()
 
-        if (relations.size != fractionExponent) {
+        require(numFactors >= 1) {
+            "numFactors must be >= 1; got $numFactors"
+        }
+
+        if (words.size != fractionExponent) {
             errors.add(
-                "expected $fractionExponent defining relation(s), got ${relations.size}"
+                "expected $fractionExponent word(s), got ${words.size}"
             )
         }
 
-        val maxLetter: Char = if (numFactors in 1..26) {
-            ('A'.code + numFactors - 1).toChar()
-        } else {
-            // numFactors outside 1..26 is itself an error; let the
-            // caller learn that without also reporting per-relation
-            // letter-range failures (which would be confusing).
-            errors.add(
-                "numFactors must be in 1..26 to use letter generators; got $numFactors"
-            )
-            return Result.Invalid(errors)
-        }
-
-        val parsed = mutableListOf<Set<Char>>()
-        for ((idx, raw) in relations.withIndex()) {
-            val label = "relation #${idx + 1} ('$raw')"
+        val parsed = mutableListOf<Set<Int>>()
+        for ((idx, raw) in words.withIndex()) {
+            val label = "word #${idx + 1} ($raw)"
             if (raw.isEmpty()) {
                 errors.add("$label is empty")
                 parsed.add(emptySet())
                 continue
             }
-            val seen = mutableSetOf<Char>()
-            val duplicates = mutableSetOf<Char>()
-            var hasBadChar = false
-            for (c in raw) {
-                if (c !in 'A'..'Z') {
+            val seen = mutableSetOf<Int>()
+            val duplicates = mutableSetOf<Int>()
+            var hasBadIndex = false
+            for (i in raw) {
+                if (i < 1 || i > numFactors) {
                     errors.add(
-                        "$label contains non-uppercase-letter character '$c'"
+                        "$label uses index $i outside the legal range " +
+                            "1..$numFactors"
                     )
-                    hasBadChar = true
+                    hasBadIndex = true
                     continue
                 }
-                if (c > maxLetter) {
-                    errors.add(
-                        "$label uses letter '$c' beyond the legal range " +
-                            "A..$maxLetter for $numFactors factors"
-                    )
-                    hasBadChar = true
-                    continue
-                }
-                if (!seen.add(c)) duplicates.add(c)
+                if (!seen.add(i)) duplicates.add(i)
             }
             if (duplicates.isNotEmpty()) {
                 errors.add(
-                    "$label repeats letter(s) " +
-                        duplicates.sorted().joinToString(", ") { "'$it'" }
+                    "$label repeats index(es) " +
+                        duplicates.sorted().joinToString(", ")
                 )
             }
             // Even when there are errors, capture what we parsed so a
             // partially-valid caller (e.g. the GUI editor) can still
             // highlight the bad characters in the input field.
-            if (!hasBadChar && duplicates.isEmpty()) parsed.add(seen)
+            if (!hasBadIndex && duplicates.isEmpty()) parsed.add(seen)
             else parsed.add(seen - duplicates)
         }
 
