@@ -164,21 +164,35 @@ class DesignTabPanel(
         border = BorderFactory.createEmptyBorder(10, 12, 10, 12)
         layout = BorderLayout(0, 8)
 
-        val north = JPanel().apply {
+        // Single vertical stack inside a scroll pane so the tab
+        // remains fully reachable when the window is short (console
+        // open, user resized smaller, etc.).  The previous BorderLayout
+        // NORTH+SOUTH split silently clipped SOUTH when NORTH consumed
+        // the available height.
+        val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(buildFamilyBar())
             add(Box.createVerticalStrut(6))
             add(buildCardsContainer())
-        }
-        add(north, BorderLayout.NORTH)
-
-        val south = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(Box.createVerticalStrut(8))
             add(replicationsPanel)
             add(Box.createVerticalStrut(6))
             add(buildStreamPanel())
+            // A glue at the bottom keeps the stack top-anchored when
+            // the scroll pane has more vertical space than the content
+            // needs (avoids vertical centering, which looks wrong).
+            add(Box.createVerticalGlue())
         }
-        add(south, BorderLayout.SOUTH)
+        val scroll = JScrollPane(
+            content,
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        ).apply {
+            border = BorderFactory.createEmptyBorder()
+            // Smoother mouse-wheel feel than the default 1-unit step.
+            verticalScrollBar.unitIncrement = 16
+        }
+        add(scroll, BorderLayout.CENTER)
 
         wireFamilyRadios()
         wireReplications()

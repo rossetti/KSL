@@ -178,6 +178,22 @@ class ExperimentAppFrame(
         foreground = Color(0x66, 0x66, 0x66)
     }
 
+    /** Per-design-point progress strip, shown only while a run is in
+     *  flight.  Updated on every `RunEvent.DesignPointCompleted`
+     *  event from the controller's event flow; hidden on RunCompleted
+     *  / RunFailed / RunCancelled.  Lets the user see live progress
+     *  without keeping the console drawer open. */
+    private val runProgressLabel: JLabel = JLabel(" ").apply {
+        isOpaque = true
+        background = Color(0xE8, 0xF1, 0xFC)        // pale blue
+        foreground = Color(0x22, 0x44, 0x77)
+        border = BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, Color(0xB0, 0xC8, 0xE8)),
+            BorderFactory.createEmptyBorder(3, 12, 3, 12)
+        )
+        isVisible = false
+    }
+
     companion object {
         private const val SAVE_BASE_TEXT: String = "Save Configuration"
         private const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
@@ -291,6 +307,7 @@ class ExperimentAppFrame(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(buildRunToolbar())
             add(staleResultsBanner)
+            add(runProgressLabel)
             add(designSummaryLabel)
         }
         contentPane.add(topStack, BorderLayout.NORTH)
@@ -557,18 +574,33 @@ class ExperimentAppFrame(
         controller.edtScope.launch {
             controller.eventFlow.collect { ev ->
                 when (ev) {
-                    is RunEvent.RunFailed ->
-                        notifications.show(
-                            "Run failed: ${describeError(ev.error)}",
-                            NotificationSeverity.ERROR
-                        )
-                    is RunEvent.DesignPointCompleted ->
+                    is RunEvent.ExperimentRunStarted -> {
+                        runProgressLabel.text =
+                            "Running: 0 of ${ev.totalDesignPoints} design points completed"
+                        runProgressLabel.isVisible = true
+                    }
+                    is RunEvent.DesignPointCompleted -> {
+                        runProgressLabel.text =
+                            "Running: ${ev.pointId} of ${ev.totalDesignPoints} design points completed"
+                        runProgressLabel.isVisible = true
                         if (ev.snapshot == null) {
                             notifications.show(
                                 "Design point ${ev.pointId} failed.",
                                 NotificationSeverity.WARNING
                             )
                         }
+                    }
+                    is RunEvent.RunCompleted,
+                    is RunEvent.RunCancelled -> {
+                        runProgressLabel.isVisible = false
+                    }
+                    is RunEvent.RunFailed -> {
+                        runProgressLabel.isVisible = false
+                        notifications.show(
+                            "Run failed: ${describeError(ev.error)}",
+                            NotificationSeverity.ERROR
+                        )
+                    }
                     else -> { /* console drawer renders the rest */ }
                 }
             }
@@ -673,7 +705,26 @@ class ExperimentAppFrame(
         }
     }
 
+    /**
+     *  Push the analysis-name field's current text to the controller
+     *  before any save / preview action.  Without this, a user who
+     *  types into the field and immediately clicks File → Save (or
+     *  the Materialize button) loses the typed value because the
+     *  field commits only on Enter or focus-lost, and menu/button
+     *  activation order doesn't reliably interleave focus events
+     *  before the action runs.  Pinned reactively in:
+     *  - [handleSave] / [handleSaveAs]   (filename derivation)
+     *  - [defaultSaveAsName] reads the freshly committed value
+     */
+    private fun flushPendingAnalysisName() {
+        val typed = analysisNameField.text
+        if (typed != controller.outputConfig.value.analysisName) {
+            controller.setAnalysisName(typed)
+        }
+    }
+
     private fun handleSave() {
+        flushPendingAnalysisName()
         val existing = controller.currentFile.value
         if (existing == null) {
             handleSaveAs()
@@ -729,6 +780,7 @@ class ExperimentAppFrame(
     }
 
     private fun handleSaveAs() {
+        flushPendingAnalysisName()
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
         val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
