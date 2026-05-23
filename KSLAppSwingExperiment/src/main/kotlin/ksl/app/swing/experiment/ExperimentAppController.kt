@@ -54,6 +54,7 @@ import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import ksl.controls.experiments.DesignedExperimentIfc
 import ksl.controls.experiments.LinearModel
+import ksl.simulation.ModelDescriptor
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.statistic.RegressionResultsIfc
 import java.nio.file.Files
@@ -180,6 +181,22 @@ class ExperimentAppController(
     private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
     val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
 
+    private val myCurrentModelDescriptor = MutableStateFlow<ModelDescriptor?>(null)
+    /**
+     *  Descriptor for the currently-selected model — controls,
+     *  RV-parameter surface, response names, run defaults.  Populated
+     *  whenever [modelReference] is a [ModelReference.ByBundleAndModelId]
+     *  whose bundle is present in [loadedBundles].  `null` for
+     *  non-bundle refs (`ByProviderId` / `Embedded` — those have no
+     *  introspection source from this controller) and for refs whose
+     *  bundle isn't loaded yet.
+     *
+     *  Phase E6 (Factors tab) reads this to populate the binding
+     *  picker; Phase E9 (Regression tab) reads `responseNames` to
+     *  populate the response dropdown.
+     */
+    val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
+
     init {
         // Auto-discover classpath bundles so a packaged app shows
         // available models immediately.  Mirrors Scenario controller.
@@ -190,6 +207,39 @@ class ExperimentAppController(
     private fun updateBundles(bundles: List<LoadedBundle>) {
         myLoadedBundles.value = bundles
         myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
+        // Re-resolve the descriptor — a previously-unresolvable ref
+        // may now resolve because the bundle it points at just
+        // arrived in the loaded set.
+        refreshModelDescriptor()
+    }
+
+    /**
+     *  Resolve [modelReference] against the loaded bundles and
+     *  publish the descriptor.  Sets [currentModelDescriptor] to
+     *  `null` when:
+     *  - the ref is `null` (no model picked yet),
+     *  - the ref is `ByProviderId`, `Embedded`, or `ByJar` — those
+     *    forms have no descriptor source from this controller
+     *    (`BundleModelProvider` could be queried, but the controller
+     *    doesn't carry that path today),
+     *  - the ref is `ByBundleAndModelId` but the bundle isn't loaded
+     *    or the descriptor lookup throws.
+     */
+    private fun refreshModelDescriptor() {
+        val ref = myModelReference.value as? ModelReference.ByBundleAndModelId
+        if (ref == null) {
+            if (myCurrentModelDescriptor.value != null) myCurrentModelDescriptor.value = null
+            return
+        }
+        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
+        val descriptor = try {
+            bundle?.descriptorFor(ref.modelId)
+        } catch (_: Throwable) {
+            null
+        }
+        if (myCurrentModelDescriptor.value != descriptor) {
+            myCurrentModelDescriptor.value = descriptor
+        }
     }
 
     sealed class LoadBundleResult {
@@ -266,6 +316,7 @@ class ExperimentAppController(
     fun setModelReference(ref: ModelReference) {
         if (myModelReference.value == ref) return
         myModelReference.value = ref
+        refreshModelDescriptor()
         dropRuntimeArtefacts()
         markDirty()
     }
@@ -479,6 +530,7 @@ class ExperimentAppController(
         myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
         mySelectedFactorIndex.value = if (config.factors.isEmpty()) -1 else 0
         myIsDirty.value = false
+        refreshModelDescriptor()
         clearRunState()
         return LoadResult.Loaded()
     }
@@ -496,6 +548,7 @@ class ExperimentAppController(
         mySelectedFactorIndex.value = -1
         myCurrentFile.value = null
         myIsDirty.value = false
+        refreshModelDescriptor()
         clearRunState()
     }
 

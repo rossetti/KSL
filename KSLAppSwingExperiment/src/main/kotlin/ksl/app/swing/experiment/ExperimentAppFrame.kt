@@ -194,8 +194,8 @@ class ExperimentAppFrame(
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
 
-        // Authoring tabs (E5–E8) — stub panels in this phase.
-        val modelTab = placeholderPanel("Model picker — Phase E5.")
+        // Authoring tabs (E5–E8) — Model tab functional in E5.
+        val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val factorsTab = placeholderPanel("Factor editor — Phase E6.")
         val designTab = placeholderPanel("Design type + stream policy — Phase E7.")
         val designPointsTab = placeholderPanel("Design-point preview — Phase E8.")
