@@ -102,6 +102,53 @@ class ExperimentAppFrameSmokeTest {
     }
 
     @Test
+    fun `Factors tab activates without throwing after a model is selected and a factor is added`() {
+        // Drives the same path a user would: select a model, add a
+        // factor, switch to the Factors tab.  Catches construction
+        // / wiring errors in the populated-card branch (the no-model
+        // empty-state branch is exercised by the bare frame
+        // instantiation test).
+        var controller: ExperimentAppController? = null
+        var frame: ExperimentAppFrame? = null
+        try {
+            SwingUtilities.invokeAndWait {
+                controller = ExperimentAppController("FactorsTabSmoke")
+                frame = ExperimentAppFrame(controller!!)
+            }
+            SwingUtilities.invokeAndWait {
+                controller!!.setModelReference(
+                    ksl.app.config.ModelReference.ByBundleAndModelId(
+                        bundleId = "ksl.examples.lk-inventory",
+                        modelId = ksl.examples.general.appsupport.LKInventoryBundle.MODEL_ID
+                    )
+                )
+                val descriptor = controller!!.currentModelDescriptor.value
+                if (descriptor != null) {
+                    val key = descriptor.controls.numericControls.first().keyName
+                    controller!!.addFactor(
+                        ksl.app.config.experiment.FactorSpec(
+                            name = "F1",
+                            levels = listOf(10.0, 30.0),
+                            binding = ksl.app.config.experiment.ControlBinding.Control(key)
+                        )
+                    )
+                }
+                val tabs: JTabbedPane = findFirstDescendant(frame!!, JTabbedPane::class.java)
+                    ?: error("No JTabbedPane found")
+                tabs.selectedIndex = 1   // Factors tab
+            }
+            // If we got here without an exception, the Factors panel
+            // wired its detail-editor + binding-picker collectors
+            // cleanly.
+        } finally {
+            SwingUtilities.invokeAndWait {
+                frame?.dispose()
+                controller?.close()
+            }
+        }
+    }
+
+    @Test
     fun `menu bar exposes File, Bundles, View`() {
         var controller: ExperimentAppController? = null
         var frame: ExperimentAppFrame? = null

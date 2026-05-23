@@ -194,9 +194,9 @@ class ExperimentAppFrame(
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
 
-        // Authoring tabs (E5–E8) — Model tab functional in E5.
+        // Authoring tabs (E5–E8) — Model + Factors functional.
         val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
-        val factorsTab = placeholderPanel("Factor editor — Phase E6.")
+        val factorsTab = FactorsTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val designTab = placeholderPanel("Design type + stream policy — Phase E7.")
         val designPointsTab = placeholderPanel("Design-point preview — Phase E8.")
         val regressionTab = placeholderPanel("Regression configuration + HTML-report materialisation — Phase E9.")
