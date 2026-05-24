@@ -840,6 +840,13 @@ class DesignTabPanel(
         private val table = JTable(tableModel)
         private val addRowBtn = JButton("Add point")
         private val delRowBtn = JButton("Delete point")
+        // E7.11 #4 — moved from the Materialize preview dialog.
+        // Import is naturally a Custom-design-editor concern.
+        private val importCsvBtn = JButton("Import CSV...").apply {
+            toolTipText = "Replace the manual point list with values from a CSV file.  " +
+                "Header row must contain a column for every factor name; '#' and 'reps' " +
+                "columns are optional."
+        }
         private val summary = JLabel(" ")
 
         init {
@@ -852,7 +859,7 @@ class DesignTabPanel(
             add(scroll, BorderLayout.CENTER)
 
             val btns = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
-            btns.add(addRowBtn); btns.add(delRowBtn)
+            btns.add(addRowBtn); btns.add(delRowBtn); btns.add(importCsvBtn)
             add(btns, BorderLayout.NORTH)
             add(summary, BorderLayout.SOUTH)
 
@@ -871,6 +878,55 @@ class DesignTabPanel(
                         "Custom design must keep at least one point.",
                         NotificationSeverity.WARNING
                     )
+                }
+            }
+            importCsvBtn.addActionListener { importCsv() }
+        }
+
+        private fun importCsv() {
+            val factors = controller.factors.value
+            if (factors.isEmpty()) {
+                onMessage(
+                    "Add at least one factor on the Factors tab before importing.",
+                    NotificationSeverity.WARNING
+                )
+                return
+            }
+            val chooser = javax.swing.JFileChooser().apply {
+                dialogTitle = "Import design points from CSV"
+                fileFilter = javax.swing.filechooser.FileNameExtensionFilter(
+                    "CSV files (*.csv)", "csv"
+                )
+            }
+            if (chooser.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return
+            val file = chooser.selectedFile
+            when (val result = parseManualCsv(file, factors)) {
+                is ManualCsvImportResult.Failure -> {
+                    javax.swing.JOptionPane.showMessageDialog(
+                        this,
+                        buildString {
+                            append("Import failed (${result.errors.size} error")
+                            append(if (result.errors.size == 1) "" else "s")
+                            append("):\n\n")
+                            for ((i, msg) in result.errors.withIndex()) {
+                                append("  • $msg")
+                                if (i < result.errors.lastIndex) append("\n")
+                            }
+                        },
+                        "CSV import failed",
+                        javax.swing.JOptionPane.ERROR_MESSAGE
+                    )
+                }
+                is ManualCsvImportResult.Ok -> {
+                    controller.setDesignSpec(DesignSpec.Manual(result.points))
+                    onMessage(
+                        "Imported ${result.points.size} design point" +
+                            (if (result.points.size == 1) "" else "s") +
+                            " from ${file.name}.",
+                        NotificationSeverity.INFO
+                    )
+                    // load() will fire via the designSpec collector
+                    // and rebuild the table.
                 }
             }
         }

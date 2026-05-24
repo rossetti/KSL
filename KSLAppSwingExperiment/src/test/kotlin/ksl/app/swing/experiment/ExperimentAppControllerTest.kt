@@ -287,6 +287,24 @@ class ExperimentAppControllerTest {
     }
 
     @Test
+    fun `cancelDesignPoint with no active runner returns false and does not mutate statuses`() {
+        // Without an active ParallelDesignedExperiment, cancelDesignPoint
+        // can't dispatch and must return false.  Seeded RUNNING status
+        // must not be transitioned to CANCELLING in that case.
+        val c = fresh()
+        c.seedRunStateForTesting(
+            designPointStatuses = mapOf(
+                1 to ExperimentAppController.DesignPointStatus.RUNNING
+            )
+        )
+        assertFalse(c.cancelDesignPoint(1))
+        assertEquals(
+            ExperimentAppController.DesignPointStatus.RUNNING,
+            c.designPointStatuses.value[1]
+        )
+    }
+
+    @Test
     fun `resetDesignPointStatuses clears the per-point status map`() {
         val c = fresh()
         c.seedRunStateForTesting(

@@ -23,7 +23,6 @@ import ksl.app.config.ExecutionMode
 import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
-import ksl.app.config.experiment.ManualPointSpec
 import ksl.app.config.experiment.StreamPolicy
 import ksl.app.config.experiment.materializeDesign
 import ksl.app.swing.common.notification.NotificationSeverity
@@ -33,24 +32,18 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.io.BufferedReader
-import java.io.File
-import java.io.PrintWriter
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JComponent
-import javax.swing.JFileChooser
 import javax.swing.JLabel
-import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
-import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableCellRenderer
 
@@ -189,8 +182,10 @@ class SimulateTabPanel(
 
     // ── Footer ────────────────────────────────────────────────────
 
-    private val exportCsvBtn = JButton("Export CSV...")
-    private val importCsvBtn = JButton("Import CSV...")
+    // CSV export + import buttons removed in E7.11 — the Simulate
+    // tab is an execution surface, not an editor.  Export lives on
+    // the Materialize preview dialog (Design tab); Import lives on
+    // the Custom design points sub-tab (Design tab).
     private val docStateLabel = DocumentStateLabel(controller.isDirty, controller.edtScope)
 
     // ── Re-entrancy guard ─────────────────────────────────────────
@@ -205,7 +200,8 @@ class SimulateTabPanel(
 
         wireRunControls()
         wireRunOptions()
-        wireCsvButtons()
+        // CSV button wiring removed in E7.11 — no CSV buttons on
+        // this tab anymore.
         setUpCellRenderersAndEditors()
 
         observeControllerFlows()
@@ -257,9 +253,6 @@ class SimulateTabPanel(
 
     private fun buildFooter(): JComponent {
         val footer = JPanel(BorderLayout())
-        val left = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
-        left.add(exportCsvBtn); left.add(importCsvBtn)
-        footer.add(left, BorderLayout.WEST)
         footer.add(docStateLabel, BorderLayout.EAST)
         return footer
     }
@@ -358,10 +351,7 @@ class SimulateTabPanel(
         controller.setStreamPolicy(parseAdvancedOrCurrent())
     }
 
-    private fun wireCsvButtons() {
-        exportCsvBtn.addActionListener { exportCsv() }
-        importCsvBtn.addActionListener { importCsv() }
-    }
+    // wireCsvButtons removed in E7.11.
 
     private fun setUpCellRenderersAndEditors() {
         // Status column renderer: color-coded chip.  Re-applied
@@ -374,6 +364,12 @@ class SimulateTabPanel(
                 val col = table.columnAtPoint(e.point)
                 if (row < 0 || col < 0) return
                 if (col != tableModel.cancelColumn) return
+                // E7.11 #8 — per-point cancellation is not available
+                // in Sequential mode.  The renderer shows an em-dash
+                // there; click is a no-op.
+                if (controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL) {
+                    return
+                }
                 val point = enumeratedPoints.getOrNull(row) ?: return
                 val status = controller.designPointStatuses.value[point.pointId]
                 if (status == ExperimentAppController.DesignPointStatus.RUNNING) {
@@ -429,6 +425,10 @@ class SimulateTabPanel(
                     sequentialRadio.isSelected = mode == ExecutionMode.SEQUENTIAL
                     concurrentRadio.isSelected = mode == ExecutionMode.CONCURRENT
                 } finally { suppressEvents = false }
+                // Status label format + Cancel cell renderer both
+                // depend on execution mode — refresh on change.
+                refreshStatusLabel()
+                table.repaint()
             }
         }
         controller.edtScope.launch {
@@ -495,6 +495,15 @@ class SimulateTabPanel(
             controller.modelReference.collect { refreshButtonEnablement(controller.runningFlow.value) }
         }
         controller.edtScope.launch {
+            // E7.11 #1 — factors changes ALSO need to re-evaluate
+            // the Simulate-button gate.  Without this, loading a TOML
+            // (which sets modelReference then factors) could leave
+            // the button stuck disabled because the modelReference
+            // collector fired before factors was populated and no
+            // later collector re-evaluated the gate.
+            controller.factors.collect { refreshButtonEnablement(controller.runningFlow.value) }
+        }
+        controller.edtScope.launch {
             controller.designPointStatuses.collect {
                 // Re-render Status + Cancel columns; refresh status line.
                 if (enumeratedPoints.isNotEmpty()) {
@@ -535,36 +544,76 @@ class SimulateTabPanel(
         spacingField.isEnabled = !running
     }
 
+    /**
+     *  E7.11 #6 — mode-differentiated status format.  Concurrent
+     *  shows a running count (many points active simultaneously);
+     *  sequential shows the single currently-running point + a
+     *  pending count (more meaningful when one point runs at a
+     *  time and others wait in a queue).
+     */
     private fun refreshStatusLabel() {
         val statuses = controller.designPointStatuses.value
-        if (!controller.runningFlow.value && statuses.isEmpty()) {
-            statusLabel.text = "Status: idle"
-            return
-        }
+        val running = controller.runningFlow.value
         val total = enumeratedPoints.size.coerceAtLeast(statuses.size)
-        if (total == 0) {
-            statusLabel.text = "Status: idle"
+
+        if (!running && statuses.isEmpty()) {
+            statusLabel.text = if (total > 0)
+                "Status: idle ($total design points configured)"
+            else
+                "Status: idle"
             return
         }
+
         var completed = 0
         var failed = 0
         var cancelled = 0
-        var running: Int? = null
+        var cancelling = 0
+        var pending = 0
+        var runningCount = 0
+        var currentRunning: Int? = null
         for ((id, s) in statuses) {
             when (s) {
-                ExperimentAppController.DesignPointStatus.COMPLETED -> completed++
-                ExperimentAppController.DesignPointStatus.FAILED -> failed++
-                ExperimentAppController.DesignPointStatus.CANCELLED -> cancelled++
-                ExperimentAppController.DesignPointStatus.RUNNING -> running = id
-                ExperimentAppController.DesignPointStatus.PENDING -> { /* counted in total */ }
+                ExperimentAppController.DesignPointStatus.COMPLETED  -> completed++
+                ExperimentAppController.DesignPointStatus.FAILED     -> failed++
+                ExperimentAppController.DesignPointStatus.CANCELLED  -> cancelled++
+                ExperimentAppController.DesignPointStatus.CANCELLING -> cancelling++
+                ExperimentAppController.DesignPointStatus.RUNNING -> {
+                    runningCount++
+                    currentRunning = id
+                }
+                ExperimentAppController.DesignPointStatus.PENDING    -> pending++
             }
         }
-        val parts = mutableListOf("$completed of $total completed")
+
+        // Build the parts list.  Drop zero-count entries to keep the
+        // line short.
+        val parts = mutableListOf<String>()
+        parts += "$completed completed"
         if (failed > 0) parts += "$failed failed"
         if (cancelled > 0) parts += "$cancelled cancelled"
-        val tail = running?.let { "; current: point $it" } ?: ""
-        val prefix = if (controller.runningFlow.value) "Running" else "Last run"
-        statusLabel.text = "Status: $prefix: ${parts.joinToString(", ")}$tail"
+        if (cancelling > 0) parts += "$cancelling cancelling"
+
+        val isSequential = controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL
+
+        if (running) {
+            val prefix = if (isSequential)
+                "Simulating $total design points (sequential)"
+            else
+                "Simulating $total design points"
+            val tail = if (isSequential) {
+                val cur = currentRunning?.let { "current: point $it of $total" } ?: ""
+                val pend = if (pending > 0) "$pending pending" else ""
+                listOf(cur, pend).filter { it.isNotEmpty() }.joinToString(" · ")
+            } else {
+                if (runningCount > 0) "$runningCount running" else ""
+            }
+            val parted = parts.joinToString(" · ")
+            statusLabel.text = if (tail.isEmpty()) "$prefix: $parted"
+            else "$prefix: $parted · $tail"
+        } else {
+            // Run ended — show the summary.
+            statusLabel.text = "Last run: ${parts.joinToString(" · ")}"
+        }
     }
 
     /** Re-build [enumeratedPoints] + the table model from the current
@@ -601,7 +650,6 @@ class SimulateTabPanel(
             tableModel.fireTableStructureChanged()
             applyColumnRenderers()
             refreshStatusLabel()
-            updateImportButtonEnablement()
         } catch (ex: Exception) {
             enumeratedPoints = emptyList()
             tableModel.fireTableStructureChanged()
@@ -611,145 +659,7 @@ class SimulateTabPanel(
         }
     }
 
-    private fun updateImportButtonEnablement() {
-        importCsvBtn.isEnabled = controller.designSpec.value is DesignSpec.Manual
-        importCsvBtn.toolTipText = if (importCsvBtn.isEnabled)
-            "Replace the manual point list with values from a CSV file."
-        else "Import is only available for the Custom design family."
-    }
-
-    // ───────────────────────────────────────────────────────────────
-    // CSV export / import
-    // ───────────────────────────────────────────────────────────────
-
-    private fun exportCsv() {
-        if (enumeratedPoints.isEmpty()) {
-            onMessage("No design points to export.", NotificationSeverity.WARNING)
-            return
-        }
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Export design points to CSV"
-            fileFilter = FileNameExtensionFilter("CSV files (*.csv)", "csv")
-            selectedFile = File("design-points.csv")
-        }
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
-        var file = chooser.selectedFile
-        if (!file.name.lowercase().endsWith(".csv")) file = File(file.parentFile, "${file.name}.csv")
-        try {
-            PrintWriter(file.bufferedWriter()).use { out ->
-                out.print("#")
-                for (n in factorNames) { out.print(","); out.print(n) }
-                out.println(",reps")
-                for (p in enumeratedPoints) {
-                    out.print(p.pointId)
-                    for (n in factorNames) { out.print(","); out.print(p.rawValues[n] ?: 0.0) }
-                    out.print(","); out.println(p.reps)
-                }
-            }
-            onMessage(
-                "Wrote ${enumeratedPoints.size} design points to ${file.absolutePath}",
-                NotificationSeverity.INFO
-            )
-        } catch (ex: Exception) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Could not write CSV: ${ex.message ?: ex::class.simpleName}",
-                "Export failed", JOptionPane.ERROR_MESSAGE
-            )
-        }
-    }
-
-    private fun importCsv() {
-        if (controller.designSpec.value !is DesignSpec.Manual) return
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Import design points from CSV"
-            fileFilter = FileNameExtensionFilter("CSV files (*.csv)", "csv")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val file = chooser.selectedFile
-        val errors = mutableListOf<String>()
-        val lines: List<String> = try {
-            file.bufferedReader().use(BufferedReader::readLines)
-        } catch (ex: Exception) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Could not read ${file.absolutePath}: ${ex.message ?: ex::class.simpleName}",
-                "Import failed", JOptionPane.ERROR_MESSAGE
-            )
-            return
-        }
-        if (lines.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                this, "File is empty.", "Import failed", JOptionPane.ERROR_MESSAGE
-            )
-            return
-        }
-        val factors = controller.factors.value
-        val header = lines[0].split(',').map { it.trim() }
-        val nameToCol = header.withIndex().associate { it.value to it.index }
-        val missing = factors.map { it.name }.filter { it !in nameToCol }
-        if (missing.isNotEmpty()) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Header missing required factor columns: ${missing.joinToString(", ")}",
-                "Import failed", JOptionPane.ERROR_MESSAGE
-            )
-            return
-        }
-        val repsCol = nameToCol["reps"]
-        val points = mutableListOf<ManualPointSpec>()
-        for ((rowIdx, raw) in lines.drop(1).withIndex()) {
-            val lineNo = rowIdx + 2
-            if (raw.isBlank()) continue
-            val cells = raw.split(',').map { it.trim() }
-            val values = mutableMapOf<String, Double>()
-            for (f in factors) {
-                val token = cells.getOrNull(nameToCol.getValue(f.name))
-                if (token.isNullOrEmpty()) {
-                    errors += "line $lineNo: missing value for '${f.name}'"; continue
-                }
-                val v = token.toDoubleOrNull()
-                if (v == null) {
-                    errors += "line $lineNo: '${f.name}' value '$token' is not a number"; continue
-                }
-                val minLvl = f.levels.min(); val maxLvl = f.levels.max()
-                if (v < minLvl || v > maxLvl) {
-                    errors += "line $lineNo: '${f.name}' value $v outside range [$minLvl, $maxLvl]"
-                    continue
-                }
-                values[f.name] = v
-            }
-            val reps: Int? = if (repsCol != null) {
-                val t = cells.getOrNull(repsCol)?.trim().orEmpty()
-                if (t.isEmpty()) null else t.toIntOrNull()?.coerceAtLeast(1)
-                    ?: run { errors += "line $lineNo: reps token '$t' is not a positive integer"; null }
-            } else null
-            if (values.size == factors.size) {
-                points += ManualPointSpec(factorValues = values, replications = reps)
-            }
-        }
-        if (errors.isNotEmpty()) {
-            JOptionPane.showMessageDialog(
-                this,
-                "Import failed (${errors.size} error${if (errors.size == 1) "" else "s"}):\n\n" +
-                    errors.joinToString("\n") { "  • $it" },
-                "CSV import failed", JOptionPane.ERROR_MESSAGE
-            )
-            return
-        }
-        if (points.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                this, "No data rows found.", "Import failed", JOptionPane.ERROR_MESSAGE
-            )
-            return
-        }
-        controller.setDesignSpec(DesignSpec.Manual(points))
-        onMessage(
-            "Imported ${points.size} design points from ${file.name}.",
-            NotificationSeverity.INFO
-        )
-        // rematerialise() is triggered by the designSpec flow change.
-    }
+    // updateImportButtonEnablement removed in E7.11.
 
     // ───────────────────────────────────────────────────────────────
     // Table model + renderers
@@ -802,26 +712,51 @@ class SimulateTabPanel(
         ): java.awt.Component {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
             val status = value as? ExperimentAppController.DesignPointStatus
-            text = status?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+            text = when (status) {
+                ExperimentAppController.DesignPointStatus.CANCELLING -> "Cancelling…"
+                null -> ""
+                else -> status.name.lowercase().replaceFirstChar { it.uppercase() }
+            }
             background = when (status) {
-                ExperimentAppController.DesignPointStatus.RUNNING   -> Color(0xCF, 0xE0, 0xF6)
-                ExperimentAppController.DesignPointStatus.COMPLETED -> Color(0xD4, 0xED, 0xD0)
-                ExperimentAppController.DesignPointStatus.FAILED    -> Color(0xF7, 0xCF, 0xCC)
-                ExperimentAppController.DesignPointStatus.CANCELLED -> Color(0xFB, 0xE3, 0xC3)
+                ExperimentAppController.DesignPointStatus.RUNNING    -> Color(0xCF, 0xE0, 0xF6)
+                ExperimentAppController.DesignPointStatus.COMPLETED  -> Color(0xD4, 0xED, 0xD0)
+                ExperimentAppController.DesignPointStatus.FAILED     -> Color(0xF7, 0xCF, 0xCC)
+                ExperimentAppController.DesignPointStatus.CANCELLED  -> Color(0xFB, 0xE3, 0xC3)
+                ExperimentAppController.DesignPointStatus.CANCELLING -> Color(0xFD, 0xEE, 0xC9) // paler orange
                 ExperimentAppController.DesignPointStatus.PENDING, null -> Color(0xEF, 0xEF, 0xEF)
             }
             foreground = Color(0x22, 0x22, 0x22)
+            // Italic for the transient CANCELLING state.
+            font = if (status == ExperimentAppController.DesignPointStatus.CANCELLING)
+                font.deriveFont(java.awt.Font.ITALIC)
+            else font.deriveFont(java.awt.Font.PLAIN)
             isOpaque = true
             return this
         }
     }
 
+    /** Cell renderer for the per-row Action column.
+     *  E7.11 #7 — disabled also when status is CANCELLING (the
+     *  cancellation request is already in flight; clicking again
+     *  would no-op).
+     *  E7.11 #8 — in Sequential mode, renders an em-dash with a
+     *  tooltip instead of a button, since per-point cancellation
+     *  isn't supported by the sequential substrate.
+     */
     private inner class CancelButtonCellRenderer : TableCellRenderer {
         private val btn = JButton("Cancel").apply { isFocusPainted = false }
+        private val dashLabel = JLabel("—", javax.swing.SwingConstants.CENTER).apply {
+            foreground = Color(0x99, 0x99, 0x99)
+            toolTipText = "Per-design-point cancellation requires Concurrent mode.  " +
+                "Use the whole-run Cancel button above to stop the entire run."
+        }
         override fun getTableCellRendererComponent(
             table: JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean,
             row: Int, column: Int
         ): java.awt.Component {
+            if (controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL) {
+                return dashLabel
+            }
             val point = enumeratedPoints.getOrNull(row)
             val status = point?.let { controller.designPointStatuses.value[it.pointId] }
                 ?: ExperimentAppController.DesignPointStatus.PENDING

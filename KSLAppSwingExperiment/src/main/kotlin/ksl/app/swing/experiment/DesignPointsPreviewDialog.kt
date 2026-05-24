@@ -101,8 +101,6 @@ class DesignPointsPreviewDialog(
     private val originalPoints: List<EnumeratedPoint>
     private val stagedRepsOverrides: MutableMap<Int, Int>
     private val baseReps: ReplicationSpec = controller.replications.value
-    private val isManual: Boolean =
-        controller.designSpec.value is DesignSpec.Manual
 
     private val rawRadio = JRadioButton("Raw (default)", true)
     private val codedRadio = JRadioButton("Coded")
@@ -113,7 +111,8 @@ class DesignPointsPreviewDialog(
     private val table: JTable
     private val totalLabel = JLabel(" ")
     private val applyBtn = JButton("Apply")
-    private val importBtn = JButton("Import CSV...")
+    // Import CSV moved to the Custom design points tab in E7.11 —
+    // the dialog is purely a preview now.  Export stays.
 
     init {
         val cfg = controller.currentConfiguration()
@@ -157,10 +156,6 @@ class DesignPointsPreviewDialog(
         buildLayout()
         refreshTotal()
         updateApplyEnablement()
-        importBtn.isEnabled = isManual
-        importBtn.toolTipText =
-            if (isManual) "Replace the manual point list with values from a CSV file."
-            else "Import is only available for the Custom design points family."
         pack()
         setLocationRelativeTo(owner)
         minimumSize = Dimension(640, 400)
@@ -205,11 +200,9 @@ class DesignPointsPreviewDialog(
         val buttons = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0))
         val exportBtn = JButton("Export CSV...")
         exportBtn.addActionListener { exportCsv() }
-        importBtn.addActionListener { importCsv() }
         val closeBtn = JButton("Close")
         closeBtn.addActionListener { dispose() }
         applyBtn.addActionListener { apply() }
-        buttons.add(importBtn)
         buttons.add(exportBtn)
         buttons.add(applyBtn)
         buttons.add(closeBtn)
@@ -309,129 +302,9 @@ class DesignPointsPreviewDialog(
         }
     }
 
-    // ---------------------------------------------------------------
-    // CSV import (Manual only)
-    // ---------------------------------------------------------------
-
-    private fun importCsv() {
-        if (!isManual) return
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Import design points from CSV"
-            fileFilter = FileNameExtensionFilter("CSV files (*.csv)", "csv")
-        }
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
-        val file = chooser.selectedFile
-        val result = parseImportCsv(file)
-        when (result) {
-            is ImportResult.Failure -> {
-                JOptionPane.showMessageDialog(
-                    this,
-                    buildString {
-                        append("Import failed (${result.errors.size} error")
-                        append(if (result.errors.size == 1) "" else "s")
-                        append("):\n\n")
-                        for ((i, msg) in result.errors.withIndex()) {
-                            append("  • $msg")
-                            if (i < result.errors.lastIndex) append("\n")
-                        }
-                    },
-                    "CSV import failed",
-                    JOptionPane.ERROR_MESSAGE
-                )
-            }
-            is ImportResult.Ok -> {
-                controller.setDesignSpec(DesignSpec.Manual(result.points))
-                onMessage(
-                    "Imported ${result.points.size} design point" +
-                        "${if (result.points.size == 1) "" else "s"} from ${file.name}.  " +
-                        "Reopen the preview to view them.",
-                    NotificationSeverity.INFO
-                )
-                dispose()
-            }
-        }
-    }
-
-    private sealed class ImportResult {
-        data class Ok(val points: List<ManualPointSpec>) : ImportResult()
-        data class Failure(val errors: List<String>) : ImportResult()
-    }
-
-    /** Parse a CSV in the shape `exportCsv` produces.  Header must
-     *  contain a column for each declared factor name; the `#` and
-     *  `reps` columns are optional.  Imported values are
-     *  range-checked against each factor's [min, max] interval.
-     *  Values that are within range but not declared levels are
-     *  accepted without a warning — the import path is for
-     *  power-user workflows where the caller knows what they're
-     *  doing. */
-    private fun parseImportCsv(file: File): ImportResult {
-        val errors = mutableListOf<String>()
-        val lines: List<String> = try {
-            file.bufferedReader().use(BufferedReader::readLines)
-        } catch (ex: Exception) {
-            return ImportResult.Failure(
-                listOf("could not read ${file.absolutePath}: ${ex.message ?: ex::class.simpleName}")
-            )
-        }
-        if (lines.isEmpty()) {
-            return ImportResult.Failure(listOf("file is empty"))
-        }
-        val header = lines[0].split(',').map { it.trim() }
-        // Build name -> column index map; require every factor name.
-        val nameToCol = header.withIndex().associate { it.value to it.index }
-        val missing = factorNames.filter { it !in nameToCol }
-        if (missing.isNotEmpty()) {
-            return ImportResult.Failure(
-                listOf("header is missing required factor column(s): ${missing.joinToString(", ")}")
-            )
-        }
-        val repsCol = nameToCol["reps"]
-        val points = mutableListOf<ManualPointSpec>()
-        for ((rowIdx, raw) in lines.drop(1).withIndex()) {
-            val lineNo = rowIdx + 2  // 1-based, accounting for the header
-            if (raw.isBlank()) continue
-            val cells = raw.split(',').map { it.trim() }
-            val values = mutableMapOf<String, Double>()
-            for (f in factors) {
-                val col = nameToCol.getValue(f.name)
-                val token = cells.getOrNull(col)
-                if (token.isNullOrEmpty()) {
-                    errors += "line $lineNo: missing value for '${f.name}'"
-                    continue
-                }
-                val v = token.toDoubleOrNull()
-                if (v == null) {
-                    errors += "line $lineNo: value for '${f.name}' is not a number: '$token'"
-                    continue
-                }
-                val minLvl = f.levels.min()
-                val maxLvl = f.levels.max()
-                if (v < minLvl || v > maxLvl) {
-                    errors += "line $lineNo: '${f.name}' value $v is outside " +
-                        "the factor's range [$minLvl, $maxLvl]"
-                    continue
-                }
-                values[f.name] = v
-            }
-            val reps: Int? = if (repsCol != null) {
-                val token = cells.getOrNull(repsCol)?.trim().orEmpty()
-                if (token.isEmpty()) null
-                else token.toIntOrNull()?.coerceAtLeast(1)
-                    ?: run {
-                        errors += "line $lineNo: reps token '$token' is not a positive integer"
-                        null
-                    }
-            } else null
-            // Only build a point if every factor's value parsed cleanly.
-            if (values.size == factors.size) {
-                points += ManualPointSpec(factorValues = values, replications = reps)
-            }
-        }
-        if (errors.isNotEmpty()) return ImportResult.Failure(errors)
-        if (points.isEmpty()) return ImportResult.Failure(listOf("no data rows found"))
-        return ImportResult.Ok(points)
-    }
+    // CSV import moved to the Custom design points tab in E7.11 —
+    // see ksl.app.swing.experiment.parseManualCsv in ManualCsvImport.kt
+    // and the ManualCard.importCsv() handler.
 
     // ---------------------------------------------------------------
     // Table model

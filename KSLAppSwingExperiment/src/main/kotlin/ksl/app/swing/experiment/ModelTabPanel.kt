@@ -350,6 +350,12 @@ class ModelTabPanel(
     }
 
     private fun refreshRepsFieldFromController() {
+        // E7.11 #2 — don't trample the user's in-progress edit.
+        // Unrelated state changes (dirty-flag flip, summary refresh,
+        // …) used to fire the replications collector and rewrite the
+        // field text mid-keystroke, which reset the caret and made
+        // it look like only one character was being accepted.
+        if (repsField.hasFocus()) return
         suppressRunDefaultsEvents = true
         try {
             val rep = controller.replications.value
@@ -372,6 +378,8 @@ class ModelTabPanel(
     }
 
     private fun refreshLengthFieldFromController() {
+        // E7.11 #2 — see refreshRepsFieldFromController KDoc above.
+        if (lengthField.hasFocus()) return
         suppressRunDefaultsEvents = true
         try {
             val ov = controller.runParameterOverrides.value.lengthOfReplication
@@ -380,6 +388,8 @@ class ModelTabPanel(
     }
 
     private fun refreshWarmUpFieldFromController() {
+        // E7.11 #2 — see refreshRepsFieldFromController KDoc above.
+        if (warmUpField.hasFocus()) return
         suppressRunDefaultsEvents = true
         try {
             val ov = controller.runParameterOverrides.value.lengthOfReplicationWarmUp

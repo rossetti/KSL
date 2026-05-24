@@ -291,13 +291,18 @@ class ExperimentAppController(
     /** Per-design-point lifecycle status, keyed by `DesignPoint.number`
      *  (1-based — matches the substrate's `RunEvent.DesignPointCompleted.pointId`).
      *
-     *  - PENDING   — queued, not yet started
-     *  - RUNNING   — coroutine launched, model is building / simulating
-     *  - COMPLETED — finished with a snapshot
-     *  - FAILED    — finished without a snapshot (model threw)
-     *  - CANCELLED — user-cancelled via [cancelDesignPoint] (no DB row written)
+     *  - PENDING    — queued, not yet started
+     *  - RUNNING    — coroutine launched, model is building / simulating
+     *  - CANCELLING — user-cancelled via [cancelDesignPoint] but the
+     *                 substrate hasn't fired the corresponding
+     *                 DesignPointCompleted(wasCancelled=true) yet
+     *                 (added in E7.11 #7 for immediate per-row feedback)
+     *  - COMPLETED  — finished with a snapshot
+     *  - FAILED     — finished without a snapshot (model threw)
+     *  - CANCELLED  — final terminal state for a cancelled point
+     *                 (no DB row written)
      */
-    enum class DesignPointStatus { PENDING, RUNNING, COMPLETED, FAILED, CANCELLED }
+    enum class DesignPointStatus { PENDING, RUNNING, CANCELLING, COMPLETED, FAILED, CANCELLED }
 
     private val myRunning = MutableStateFlow(false)
     val runningFlow: StateFlow<Boolean> = myRunning.asStateFlow()
@@ -875,7 +880,21 @@ class ExperimentAppController(
     fun cancelDesignPoint(pointId: Int): Boolean {
         val experiment = myExperimentInstance.value as? ParallelDesignedExperiment
             ?: return false
-        return experiment.cancelDesignPoint(pointId)
+        val ok = experiment.cancelDesignPoint(pointId)
+        if (ok) {
+            // E7.11 #7 — immediately transition to CANCELLING so the
+            // UI shows "Cancelling…" right away instead of waiting
+            // for the substrate's commit phase (which only fires the
+            // DesignPointCompleted(wasCancelled=true) event after
+            // every other in-flight point has finished too).  The
+            // eventual completed event will overwrite this to
+            // CANCELLED via the existing event subscriber.
+            val current = myDesignPointStatuses.value
+            if (current[pointId] == DesignPointStatus.RUNNING) {
+                myDesignPointStatuses.value = current + (pointId to DesignPointStatus.CANCELLING)
+            }
+        }
+        return ok
     }
 
     /** `true` when the current document combines `SEQUENTIAL`
