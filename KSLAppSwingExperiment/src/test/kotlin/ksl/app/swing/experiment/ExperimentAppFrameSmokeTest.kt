@@ -291,10 +291,10 @@ class ExperimentAppFrameSmokeTest {
             val fileItemTexts = (0 until fileMenu.itemCount).mapNotNull { fileMenu.getItem(it)?.text }
             assertTrue("New Experiment" in fileItemTexts,
                 "File → New Experiment missing; got $fileItemTexts")
-            assertTrue(fileItemTexts.any { it.startsWith("Save Configuration") },
-                "File → Save Configuration missing; got $fileItemTexts")
-            assertTrue(fileItemTexts.any { it.startsWith("Open") },
-                "File → Open Configuration missing; got $fileItemTexts")
+            assertTrue(fileItemTexts.any { it.startsWith("Save Experiment") },
+                "File → Save Experiment missing; got $fileItemTexts")
+            assertTrue(fileItemTexts.any { it.startsWith("Open Experiment") },
+                "File → Open Experiment missing; got $fileItemTexts")
         } finally {
             SwingUtilities.invokeAndWait {
                 frame?.dispose()

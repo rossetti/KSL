@@ -98,9 +98,59 @@ import java.time.format.DateTimeFormatter
  *  detaches the file and resets `analysisName` to `"Untitled"`,
  *  mirroring Scenario's Clear-All semantics.
  */
+/**
+ *  One record in the Regression tab's in-memory fit history.  Records
+ *  are appended by [ExperimentAppController.fitRegression] and survive
+ *  until either the user removes them, the bound
+ *  ([ExperimentAppController.MAX_RECENT_FITS]) evicts them, or an R1
+ *  lifecycle event (Simulate / structural mutation / reset) clears the
+ *  whole list.
+ *
+ *  The record carries the [fit] itself (a self-contained numeric
+ *  object), enough metadata to re-render its HTML report at any time,
+ *  and a (possibly-empty) list of paths previously written to disk by
+ *  the user's Save action.  [savedPaths] is the only mutable surface:
+ *  it grows when the user re-saves.  The Regression tab uses
+ *  `savedPaths.isEmpty()` as the "unsaved" badge predicate.
+ *
+ *  @param timestamp        wall clock time of the fit (for the
+ *                          Recent Fits list's time column)
+ *  @param response         response variable name the fit was against
+ *  @param modelExpression  the LinearModel as a parsable string
+ *                          (output of [LinearModel.asString])
+ *  @param coded            true if factor levels were coded (-1, +1
+ *                          style), false if natural units
+ *  @param confidenceLevel  CI level used to render the report (passed
+ *                          through to `toReport(confidenceLevel=...)`)
+ *  @param fit              the substrate regression results object
+ *  @param savedPaths       paths under
+ *                          `<workspace>/output/<analysisName>/reports/`
+ *                          that this fit has been materialised to;
+ *                          empty until the user clicks Save
+ */
+data class RegressionFitRecord(
+    val timestamp: LocalDateTime,
+    val response: String,
+    val modelExpression: String,
+    val coded: Boolean,
+    val confidenceLevel: Double,
+    val fit: RegressionResultsIfc,
+    val savedPaths: List<Path> = emptyList()
+)
+
 class ExperimentAppController(
     val appName: String
 ) : AutoCloseable {
+
+    companion object {
+        /** Bound for [recentRegressionFits].  Beyond this, the oldest
+         *  record is evicted on each new successful fit regardless of
+         *  saved state.  Kept small so the table doesn't become a
+         *  vertical scroll target — users who need persistence should
+         *  Save. */
+        const val MAX_RECENT_FITS: Int = 10
+    }
+
 
     /** Scope for EDT-confined coroutine work. */
     val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())
@@ -334,6 +384,26 @@ class ExperimentAppController(
      *  none yet this session.  In-memory only; not persisted to the
      *  TOML document.  Cleared on Simulate (R1). */
     val lastRegressionFit: StateFlow<RegressionResultsIfc?> = myLastRegressionFit.asStateFlow()
+
+    private val myRecentRegressionFits = MutableStateFlow<List<RegressionFitRecord>>(emptyList())
+    /** Bounded (most-recent-first) history of successful regression fits
+     *  produced by [fitRegression].  Bounded to [MAX_RECENT_FITS]
+     *  entries; the oldest entries are silently evicted regardless of
+     *  whether they have been materialised to disk.  Cleared on
+     *  Simulate (R1) and on any structural mutation that drops
+     *  [experimentInstance]; saved files on disk are NOT deleted —
+     *  publication is the Reports tab's domain.
+     *
+     *  Each [RegressionFitRecord] is self-contained (the fit is a
+     *  numeric object that doesn't reference the underlying
+     *  [DesignedExperimentIfc]) — clearing the experiment instance
+     *  doesn't strictly require clearing the fits, but R1 semantics
+     *  argue for consistency: once the user re-simulates, the
+     *  in-memory fits become stale relative to the new data and we'd
+     *  rather drop them than leave them around to be confused with
+     *  fits against the fresh experiment. */
+    val recentRegressionFits: StateFlow<List<RegressionFitRecord>> =
+        myRecentRegressionFits.asStateFlow()
 
     private var currentHandle: RunHandle? = null
     private var session: KSLAppSession? = null
@@ -685,6 +755,7 @@ class ExperimentAppController(
         myDesignPointStatuses.value = emptyMap()
         myExperimentInstance.value = null
         myLastRegressionFit.value = null
+        myRecentRegressionFits.value = emptyList()
         myEditedSinceLastSim.value = false
     }
 
@@ -697,6 +768,9 @@ class ExperimentAppController(
         if (myLastResult.value != null) myLastResult.value = null
         if (myExperimentInstance.value != null) myExperimentInstance.value = null
         if (myLastRegressionFit.value != null) myLastRegressionFit.value = null
+        if (myRecentRegressionFits.value.isNotEmpty()) {
+            myRecentRegressionFits.value = emptyList()
+        }
     }
 
     /**
@@ -922,12 +996,62 @@ class ExperimentAppController(
     fun fitRegression(
         response: String,
         model: LinearModel,
-        coded: Boolean
+        coded: Boolean,
+        confidenceLevel: Double = 0.95
     ): RegressionResultsIfc? {
         val experiment = myExperimentInstance.value ?: return null
         val result = experiment.regressionResults(response, model, coded)
         myLastRegressionFit.value = result
+        // Prepend the new record (most-recent-first) and FIFO-evict
+        // beyond [MAX_RECENT_FITS].  Eviction is silent regardless of
+        // saved state — per the design discussion the Recent Fits
+        // table makes saved/unsaved visible so the user can act
+        // before fitting past the bound.
+        val record = RegressionFitRecord(
+            timestamp = LocalDateTime.now(),
+            response = response,
+            modelExpression = model.asString(),
+            coded = coded,
+            confidenceLevel = confidenceLevel,
+            fit = result
+        )
+        val previous = myRecentRegressionFits.value
+        val updated = (listOf(record) + previous).take(MAX_RECENT_FITS)
+        myRecentRegressionFits.value = updated
         return result
+    }
+
+    /** Remove the record at [index] from [recentRegressionFits].
+     *  No-op when [index] is out of range.  Files on disk (referenced
+     *  by [RegressionFitRecord.savedPaths]) are NOT deleted — that's
+     *  the Reports tab / user's domain. */
+    fun removeRegressionFit(index: Int) {
+        val list = myRecentRegressionFits.value
+        if (index !in list.indices) return
+        myRecentRegressionFits.value = list.toMutableList().also { it.removeAt(index) }
+    }
+
+    /** Empty [recentRegressionFits].  Caller is responsible for any
+     *  confirmation prompts (the tab confirms only when unsaved
+     *  records are present). */
+    fun clearRegressionFits() {
+        if (myRecentRegressionFits.value.isEmpty()) return
+        myRecentRegressionFits.value = emptyList()
+    }
+
+    /** Append [paths] to the record at [index]'s [RegressionFitRecord.savedPaths]
+     *  and flip its "saved" status visible to the Regression tab.
+     *  No-op when [index] is out of range.  Multiple Save clicks on
+     *  the same row produce multiple timestamped files on disk and
+     *  multiple entries in this list. */
+    fun markRegressionFitSaved(index: Int, paths: List<Path>) {
+        val list = myRecentRegressionFits.value
+        if (index !in list.indices) return
+        if (paths.isEmpty()) return
+        val updated = list.toMutableList()
+        val current = updated[index]
+        updated[index] = current.copy(savedPaths = current.savedPaths + paths)
+        myRecentRegressionFits.value = updated
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

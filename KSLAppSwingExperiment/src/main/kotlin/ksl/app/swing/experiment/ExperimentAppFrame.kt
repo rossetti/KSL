@@ -98,6 +98,7 @@ class ExperimentAppFrame(
     private val notifications: Notifications = Notifications(rootPane.layeredPane)
 
     private lateinit var saveItem: JMenuItem
+    private lateinit var regressionTabPanel: RegressionTabPanel
     private val bundleStatusLabel: JLabel = JLabel(" ").apply {
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
@@ -220,7 +221,11 @@ class ExperimentAppFrame(
             onMessage = { msg, sev -> notifications.show(msg, sev) },
             onSimulateRequested = { handleSimulate() }
         )
-        val regressionTab = placeholderPanel("Regression configuration + HTML-report materialisation — Phase E9.")
+        val regressionTab = RegressionTabPanel(
+            controller,
+            onMessage = { msg, sev -> notifications.show(msg, sev) }
+        )
+        this.regressionTabPanel = regressionTab
 
         // Analysis tabs that already exist as generic Common panels.
         val reportsTab = BatchReportsTabPanel(
@@ -496,6 +501,31 @@ class ExperimentAppFrame(
             when (choice) {
                 0 -> handleSave()
                 1 -> { /* fall through to submit */ }
+                else -> return
+            }
+        }
+        // Unsaved regression fits: about to be wiped by the R1
+        // clearRunState() at submit-time.  Give the user a chance to
+        // materialise them to disk before they're gone — mirrors the
+        // "Unsaved Changes" dialog shape so it feels familiar.
+        val unsavedFitCount = controller.recentRegressionFits.value.count { it.savedPaths.isEmpty() }
+        if (unsavedFitCount > 0) {
+            val choice = JOptionPane.showOptionDialog(
+                this,
+                "You have $unsavedFitCount unsaved regression fit(s).\n" +
+                    "Running a new simulation will replace the experiment results " +
+                    "and clear all in-memory fits.\n\n" +
+                    "Save them to the reports directory first?",
+                "Unsaved Regression Fits",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                arrayOf<Any>("Save all and simulate", "Simulate (discard fits)", "Cancel"),
+                "Save all and simulate"
+            )
+            when (choice) {
+                0 -> regressionTabPanel.saveAllUnsavedRegressionFits()
+                1 -> { /* fall through */ }
                 else -> return
             }
         }
