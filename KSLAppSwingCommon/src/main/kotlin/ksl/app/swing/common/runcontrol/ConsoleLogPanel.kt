@@ -653,13 +653,30 @@ class ConsoleLogPanel(
             ConsoleCategory.STDOUT -> "Stdout"
         }
 
-        /** Severity classification for a [RunEvent]. */
+        /** Severity classification for a [RunEvent].
+         *
+         *  E7.12 (#2.1): a cancelled [RunEvent.DesignPointCompleted]
+         *  (snapshot == null + wasCancelled = true) is INFO, not
+         *  ERROR — cancellation is a user-driven outcome, not a
+         *  failure.  The default formatter already renders these as
+         *  "(cancelled)"; the severity classifier now matches.
+         *
+         *  [RunEvent.ScenarioCompleted] has no wasCancelled field,
+         *  so the cancelled-vs-failed distinction has to come from
+         *  the hosting app's controller state.  The Scenario app
+         *  layers its own `scenarioAwareSeverity` on top to handle
+         *  that case.
+         */
         fun severityOf(event: RunEvent): ConsoleSeverity = when (event) {
             is RunEvent.RunFailed -> ConsoleSeverity.ERROR
             is RunEvent.RunCancelled -> ConsoleSeverity.WARNING
             is RunEvent.RunWarning -> ConsoleSeverity.WARNING
             is RunEvent.ScenarioCompleted -> if (event.snapshot == null) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
-            is RunEvent.DesignPointCompleted -> if (event.snapshot == null) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
+            is RunEvent.DesignPointCompleted -> when {
+                event.wasCancelled -> ConsoleSeverity.INFO
+                event.snapshot == null -> ConsoleSeverity.ERROR
+                else -> ConsoleSeverity.INFO
+            }
             is RunEvent.StdOutLine -> if (event.fromErr) ConsoleSeverity.ERROR else ConsoleSeverity.INFO
             else -> ConsoleSeverity.INFO
         }
