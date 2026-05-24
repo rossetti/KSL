@@ -39,6 +39,8 @@ import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
 import java.awt.event.WindowAdapter
@@ -305,11 +307,27 @@ class ExperimentAppFrame(
             }
         }
 
-        val topStack = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(buildRunToolbar())
-            add(staleResultsBanner)
-            add(designSummaryRow)
+        // E7.14 — GridBagLayout instead of BoxLayout Y_AXIS so each
+        // row spans the full container width with NORTHWEST anchor.
+        // BoxLayout Y_AXIS aligns siblings on a single vertical line
+        // at max(alignmentX) × containerWidth; mixing default-CENTER
+        // children (toolbar, banner) with a LEFT-aligned child
+        // (designSummaryRow) pushed the LEFT child's left edge TO
+        // the alignment line at containerWidth/2 — that's why the
+        // summary appeared indented roughly half the frame width
+        // under the toolbar.  GridBagLayout with fill=HORIZONTAL +
+        // weightx=1.0 + anchor=NORTHWEST has no such interaction:
+        // each row sits at x=0 spanning the full width.
+        val topStack = JPanel(GridBagLayout()).apply {
+            val gbc = GridBagConstraints().apply {
+                gridx = 0
+                weightx = 1.0
+                fill = GridBagConstraints.HORIZONTAL
+                anchor = GridBagConstraints.NORTHWEST
+            }
+            gbc.gridy = 0; add(buildRunToolbar(), gbc)
+            gbc.gridy = 1; add(staleResultsBanner, gbc)
+            gbc.gridy = 2; add(designSummaryRow, gbc)
         }
         contentPane.add(topStack, BorderLayout.NORTH)
         contentPane.add(tabs, BorderLayout.CENTER)
