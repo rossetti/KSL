@@ -602,16 +602,17 @@ class ModelTabPanel(
             border = BorderFactory.createEmptyBorder(12, 12, 12, 12)
         }
 
+        // E7.12 #1B.1 — the TitledBorder moved here so the
+        // SummaryPanel gets visual heft equal to the Run-defaults
+        // panel that sits below it (which also has a TitledBorder).
+        // The inner content panel keeps only the inset padding.
         private val content: JPanel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Selected model"),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)
-            )
+            border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
         }
 
         init {
-            border = BorderFactory.createEmptyBorder(0, 0, 0, 0)
+            border = BorderFactory.createTitledBorder("Selected model")
             add(emptyState, BorderLayout.CENTER)
         }
 

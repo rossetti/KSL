@@ -543,7 +543,15 @@ class ExperimentAppFrame(
         val reps = describeReplications()
         val streams = describeStreamPolicy()
         val totalRuns = describeTotalRuns()
-        designSummaryLabel.text = buildString {
+        // E7.12 #1A — wrap in <html><body width=...> so the label
+        // grows vertically when the text exceeds the available
+        // width.  Without this, JLabel renders single-line and
+        // truncates with "..." — visible in practice for larger
+        // designs (the "Total runs: ..." tail is the first thing
+        // to disappear).  Width chosen to fit roughly the full
+        // line on a 960px-wide frame; HTML will wrap to a second
+        // line for longer summaries on narrower frames.
+        val plain = buildString {
             append("Model: ").append(modelName)
             append(" · ").append(factorCount).append(" factor")
                 .append(if (factorCount == 1) "" else "s")
@@ -552,6 +560,7 @@ class ExperimentAppFrame(
             if (streams.isNotEmpty()) append(" · Streams: ").append(streams)
             if (totalRuns != null) append(" · Total runs: ").append(totalRuns)
         }
+        designSummaryLabel.text = "<html><body width='900'>$plain</body></html>"
         designSummaryLabel.isVisible = true
     }
 
