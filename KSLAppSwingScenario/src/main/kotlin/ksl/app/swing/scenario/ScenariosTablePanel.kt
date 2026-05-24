@@ -85,7 +85,7 @@ class ScenariosTablePanel(
         toolTipText = "Remove every scenario from the list.  Output preferences " +
             "(database toggle, CSV flags, database policy) and execution mode " +
             "survive — this is a scenario-list reset, not a document reset.  " +
-            "For a blank document, use <i>File → New Configuration</i>."
+            "For a blank document, use <i>File → New Scenarios</i>."
     }
     private val upButton = JButton("Move Up")
     private val downButton = JButton("Move Down")

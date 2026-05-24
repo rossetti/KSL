@@ -643,7 +643,7 @@ class ExperimentAppController(
      *  Used by Save / Save As. */
     fun currentConfiguration(): ExperimentConfiguration {
         val ref = myModelReference.value
-            ?: error("Cannot snapshot configuration: model reference is not set")
+            ?: error("Cannot snapshot experiment: model reference is not set")
         return ExperimentConfiguration(
             outputConfig = myOutputConfig.value.copy(outputDirectory = null),
             modelReference = ref,

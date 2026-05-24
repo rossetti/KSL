@@ -199,8 +199,8 @@ class ScenarioAppFrame(
     }
 
     companion object {
-        private const val SAVE_BASE_TEXT: String = "Save Configuration"
-        private const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
+        private const val SAVE_BASE_TEXT: String = "Save Scenarios"
+        private const val SAVE_DIRTY_TEXT: String = "Save Scenarios *"
         private const val CONFIG_TOOLTIP: String =
             "Save / open the scenarios document (scenarios list, output options, " +
                 "and execution mode) as a TOML file under <workspace>/configs/."
@@ -327,15 +327,15 @@ class ScenarioAppFrame(
         val setWdAction = SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
         val recentMenu = RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope)
         val menuShortcutKey = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
-        val newItem = JMenuItem(object : AbstractAction("New Configuration") {
+        val newItem = JMenuItem(object : AbstractAction("New Scenarios") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, menuShortcutKey)
-            toolTipText = "Start a new, empty configuration.  Discards the current " +
+            toolTipText = "Start a new, empty scenarios document.  Discards the current " +
                 "scenarios, output settings, and file association.  Prompts to save " +
                 "unsaved changes first."
         }
-        val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
+        val openItem = JMenuItem(object : AbstractAction("Open Scenarios…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleOpen() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, menuShortcutKey)
@@ -347,7 +347,7 @@ class ScenarioAppFrame(
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_S, menuShortcutKey)
             toolTipText = CONFIG_TOOLTIP
         }
-        val saveAsItem = JMenuItem(object : AbstractAction("Save Configuration As…") {
+        val saveAsItem = JMenuItem(object : AbstractAction("Save Scenarios As…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSaveAs() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(
@@ -471,7 +471,7 @@ class ScenarioAppFrame(
         if (controller.isDirty.value) {
             val choice = JOptionPane.showOptionDialog(
                 this,
-                "You have unsaved configuration changes.\n" +
+                "You have unsaved scenarios changes.\n" +
                     "Save them before simulating?",
                 "Unsaved Changes",
                 JOptionPane.YES_NO_CANCEL_OPTION,
@@ -668,13 +668,13 @@ class ScenarioAppFrame(
     }
 
     private fun handleOpen() {
-        if (!confirmDiscardIfDirty("Discard unsaved changes and open another configuration?")) return
+        if (!confirmDiscardIfDirty("Discard unsaved changes and open another scenarios document?")) return
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
         val chooser = JFileChooser(startDir.toFile()).apply {
-            dialogTitle = "Open Configuration"
+            dialogTitle = "Open Scenarios"
             fileSelectionMode = JFileChooser.FILES_ONLY
             isMultiSelectionEnabled = false
-            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+            fileFilter = FileNameExtensionFilter("Scenarios TOML (*.toml)", "toml")
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val path: Path = chooser.selectedFile?.toPath() ?: return
@@ -688,7 +688,7 @@ class ScenarioAppFrame(
             RunConfigurationToml.decode(text)
         } catch (t: Throwable) {
             notifications.show(
-                "Failed to parse configuration: ${t.message ?: t::class.simpleName}",
+                "Failed to parse scenarios: ${t.message ?: t::class.simpleName}",
                 NotificationSeverity.ERROR
             )
             return
@@ -750,7 +750,7 @@ class ScenarioAppFrame(
         val options = arrayOf("Recreate Here", "Save As…", "Cancel")
         val choice = javax.swing.JOptionPane.showOptionDialog(
             this,
-            "The configuration file is no longer at:\n  $missing\n\n" +
+            "The scenarios file is no longer at:\n  $missing\n\n" +
                 "It may have been moved or deleted outside the app.\n" +
                 "Recreate it at this path, or save to a new location?",
             "File No Longer Exists",
@@ -768,7 +768,7 @@ class ScenarioAppFrame(
     }
 
     /**
-     *  Default filename suggested in the Save Configuration As… dialog.
+     *  Default filename suggested in the Save Scenarios As… dialog.
      *  Preference order:
      *
      *  1. The user-set analysis name, sanitised for the filesystem.
@@ -795,10 +795,10 @@ class ScenarioAppFrame(
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
         val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
-            dialogTitle = "Save Configuration"
+            dialogTitle = "Save Scenarios"
             fileSelectionMode = JFileChooser.FILES_ONLY
             isMultiSelectionEnabled = false
-            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+            fileFilter = FileNameExtensionFilter("Scenarios TOML (*.toml)", "toml")
             selectedFile = startDir.resolve(defaultName).toFile()
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
@@ -810,7 +810,7 @@ class ScenarioAppFrame(
             val overwrite = javax.swing.JOptionPane.showConfirmDialog(
                 this,
                 "${path.fileName} already exists.\nReplace it?",
-                "Replace Configuration",
+                "Replace Scenarios",
                 javax.swing.JOptionPane.YES_NO_OPTION,
                 javax.swing.JOptionPane.WARNING_MESSAGE
             )
@@ -825,7 +825,7 @@ class ScenarioAppFrame(
             RunConfigurationToml.encode(config)
         } catch (t: Throwable) {
             notifications.show(
-                "Failed to encode configuration: ${t.message ?: t::class.simpleName}",
+                "Failed to encode scenarios: ${t.message ?: t::class.simpleName}",
                 NotificationSeverity.ERROR
             )
             return
@@ -855,7 +855,7 @@ class ScenarioAppFrame(
     }
 
     private fun sanitizeFileName(name: String): String =
-        name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "configuration" }
+        name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "scenarios" }
 
     private fun wireWindowTitle() {
         controller.edtScope.launch {

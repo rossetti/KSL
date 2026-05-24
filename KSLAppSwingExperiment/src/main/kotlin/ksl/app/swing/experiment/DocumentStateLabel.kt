@@ -61,7 +61,7 @@ class DocumentStateLabel(
         } else {
             text = "✓ Saved"
             foreground = Color(0x77, 0x77, 0x77)   // grey
-            toolTipText = "All changes saved to the configuration file."
+            toolTipText = "All changes saved to the experiment file."
         }
     }
 }

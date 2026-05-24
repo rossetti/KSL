@@ -191,8 +191,8 @@ class ExperimentAppFrame(
     // Simulate / Cancel buttons.
 
     companion object {
-        private const val SAVE_BASE_TEXT: String = "Save Configuration"
-        private const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
+        private const val SAVE_BASE_TEXT: String = "Save Experiment"
+        private const val SAVE_DIRTY_TEXT: String = "Save Experiment *"
         private const val CONFIG_TOOLTIP: String =
             "Save / open the experiment document (model reference, factors, design, " +
                 "replications, stream policy, output options, execution mode) as a TOML " +
@@ -369,7 +369,7 @@ class ExperimentAppFrame(
                 "reference, factors, design, and file association.  Prompts to save " +
                 "unsaved changes first."
         }
-        val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
+        val openItem = JMenuItem(object : AbstractAction("Open Experiment…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleOpen() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, menuShortcutKey)
@@ -381,7 +381,7 @@ class ExperimentAppFrame(
             accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_S, menuShortcutKey)
             toolTipText = CONFIG_TOOLTIP
         }
-        val saveAsItem = JMenuItem(object : AbstractAction("Save Configuration As…") {
+        val saveAsItem = JMenuItem(object : AbstractAction("Save Experiment As…") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleSaveAs() }
         }).apply {
             accelerator = KeyStroke.getKeyStroke(
@@ -484,7 +484,7 @@ class ExperimentAppFrame(
         if (controller.isDirty.value) {
             val choice = JOptionPane.showOptionDialog(
                 this,
-                "You have unsaved configuration changes.\n" +
+                "You have unsaved experiment changes.\n" +
                     "Save them before simulating?",
                 "Unsaved Changes",
                 JOptionPane.YES_NO_CANCEL_OPTION,
@@ -787,13 +787,13 @@ class ExperimentAppFrame(
     }
 
     private fun handleOpen() {
-        if (!confirmDiscardIfDirty("Discard unsaved changes and open another configuration?")) return
+        if (!confirmDiscardIfDirty("Discard unsaved changes and open another experiment?")) return
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
         val chooser = JFileChooser(startDir.toFile()).apply {
-            dialogTitle = "Open Configuration"
+            dialogTitle = "Open Experiment"
             fileSelectionMode = JFileChooser.FILES_ONLY
             isMultiSelectionEnabled = false
-            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+            fileFilter = FileNameExtensionFilter("Experiment TOML (*.toml)", "toml")
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val path: Path = chooser.selectedFile?.toPath() ?: return
@@ -810,7 +810,7 @@ class ExperimentAppFrame(
             ExperimentConfigurationToml.decode(text)
         } catch (t: Throwable) {
             notifications.show(
-                "Failed to parse configuration: ${t.message ?: t::class.simpleName}",
+                "Failed to parse experiment: ${t.message ?: t::class.simpleName}",
                 NotificationSeverity.ERROR
             )
             return
@@ -872,7 +872,7 @@ class ExperimentAppFrame(
         val options = arrayOf("Recreate Here", "Save As…", "Cancel")
         val choice = JOptionPane.showOptionDialog(
             this,
-            "The configuration file is no longer at:\n  $missing\n\n" +
+            "The experiment file is no longer at:\n  $missing\n\n" +
                 "It may have been moved or deleted outside the app.\n" +
                 "Recreate it at this path, or save to a new location?",
             "File No Longer Exists",
@@ -890,7 +890,7 @@ class ExperimentAppFrame(
     }
 
     /**
-     *  Default filename suggested in the Save Configuration As… dialog.
+     *  Default filename suggested in the Save Experiment As… dialog.
      *  Preference order: user-set analysisName (sanitised) → currently
      *  loaded file's name → application name.  Same shape as Scenario
      *  + Single apps.
@@ -909,10 +909,10 @@ class ExperimentAppFrame(
         val startDir = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = true)
         val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
-            dialogTitle = "Save Configuration"
+            dialogTitle = "Save Experiment"
             fileSelectionMode = JFileChooser.FILES_ONLY
             isMultiSelectionEnabled = false
-            fileFilter = FileNameExtensionFilter("Configuration TOML (*.toml)", "toml")
+            fileFilter = FileNameExtensionFilter("Experiment TOML (*.toml)", "toml")
             selectedFile = startDir.resolve(defaultName).toFile()
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
@@ -924,7 +924,7 @@ class ExperimentAppFrame(
             val overwrite = JOptionPane.showConfirmDialog(
                 this,
                 "${path.fileName} already exists.\nReplace it?",
-                "Replace Configuration",
+                "Replace Experiment",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE
             )
@@ -947,7 +947,7 @@ class ExperimentAppFrame(
             ExperimentConfigurationToml.encode(config)
         } catch (t: Throwable) {
             notifications.show(
-                "Failed to encode configuration: ${t.message ?: t::class.simpleName}",
+                "Failed to encode experiment: ${t.message ?: t::class.simpleName}",
                 NotificationSeverity.ERROR
             )
             return
@@ -977,7 +977,7 @@ class ExperimentAppFrame(
     }
 
     private fun sanitizeFileName(name: String): String =
-        name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "configuration" }
+        name.replace(Regex("[^A-Za-z0-9._ -]"), "_").trim().ifEmpty { "experiment" }
 
     // ── Reactive plumbing ──────────────────────────────────────────────────
 
