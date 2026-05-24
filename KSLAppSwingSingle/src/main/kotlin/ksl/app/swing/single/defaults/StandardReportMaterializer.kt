@@ -20,6 +20,12 @@ package ksl.app.swing.single.defaults
 
 import ksl.app.session.RunResult
 import ksl.utilities.io.dbutil.SimulationSnapshot
+import ksl.utilities.io.report.ast.ReportNode
+import ksl.utilities.io.report.extensions.snapshotAcrossReplicationStatistics
+import ksl.utilities.io.report.extensions.snapshotRunSummary
+import ksl.utilities.io.report.extensions.snapshotSimulationFrequencies
+import ksl.utilities.io.report.extensions.snapshotSimulationHistograms
+import ksl.utilities.io.report.extensions.snapshotSimulationTimeSeries
 import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.renderer.RenderContext
 import ksl.utilities.io.report.writeHtml
@@ -112,11 +118,39 @@ object StandardReportMaterializer {
      *   [DEFAULT_FILE_STEM].
      * @return either the written file or a failure with cause.
      */
+    /**
+     *  Options controlling which sections of the snapshot's standard
+     *  report appear in the materialised document.  Defaults match
+     *  `SimulationSnapshot.ExperimentCompleted.toReport()`'s built-in
+     *  defaults so callers that ignore this parameter get the
+     *  pre-existing report content.  The Post-Run Reporting tab
+     *  surfaces these as checkboxes; auto-render uses the defaults.
+     */
+    data class SectionOptions(
+        val showRunSummary: Boolean = true,
+        val showAcrossReplicationStats: Boolean = true,
+        val showHistograms: Boolean = true,
+        val showFrequencies: Boolean = true,
+        val showTimeSeries: Boolean = true,
+        val showDiagnostics: Boolean = false,
+        val timeSeriesConfidenceLevel: Double = 0.95
+    ) {
+        val anySectionSelected: Boolean
+            get() = showRunSummary || showAcrossReplicationStats ||
+                showHistograms || showFrequencies || showTimeSeries
+
+        companion object {
+            val DEFAULT = SectionOptions()
+        }
+    }
+
     fun materialize(
         result: RunResult,
         format: StandardReportFormat,
         reportsDir: Path,
-        fileStem: String = DEFAULT_FILE_STEM
+        fileStem: String = DEFAULT_FILE_STEM,
+        title: String? = null,
+        sections: SectionOptions = SectionOptions.DEFAULT
     ): StandardReportOutcome {
         val snapshot = extractSnapshot(result)
             ?: return StandardReportOutcome.Failed("No simulation snapshot available to render.")
@@ -127,7 +161,7 @@ object StandardReportMaterializer {
                 plotDir = reportsDir.resolve("plots")
             )
             val target = reportsDir.resolve("$fileStem.${format.fileExtension}")
-            val doc = snapshot.toReport()
+            val doc = buildReport(snapshot, title, sections)
             val file: File = when (format) {
                 StandardReportFormat.HTML -> doc.writeHtml(path = target, ctx = ctx)
                 StandardReportFormat.MARKDOWN -> doc.writeMarkdown(path = target, ctx = ctx)
@@ -140,6 +174,68 @@ object StandardReportMaterializer {
                 cause = t
             )
         }
+    }
+
+    /**
+     *  Compose a [ksl.utilities.io.report.ast.ReportNode.Document] from
+     *  [snapshot] respecting per-section [sections] flags.  When
+     *  [title] is `null`, the snapshot's default title is used; when
+     *  non-null, it overrides — used by the Single app to inject a
+     *  meaningful "Standard Report — <modelName>" title instead of
+     *  the bare "Simulation Snapshot — <repRange>" default.
+     *
+     *  The section flags map 1:1 to the named
+     *  `snapshotXxx` extensions in
+     *  `ksl.utilities.io.report.extensions.SimulationSnapshotReportExtensions`.
+     *  This lets the Post-Run Reporting tab build a custom block that
+     *  invokes only the sections the user ticked.  An "everything off"
+     *  selection falls back to run summary alone (defensive — the
+     *  panel's Save button is disabled in that state, so this branch
+     *  is unreachable from the UI).
+     */
+    private fun buildReport(
+        snapshot: SimulationSnapshot.ExperimentCompleted,
+        title: String?,
+        sections: SectionOptions
+    ): ReportNode.Document {
+        // `defaultSnapshotTitle` in the report extensions is private,
+        // so we fall back to a generic stem here.  Callers that want a
+        // meaningful title — like the Single app — pass one explicitly
+        // (typically `"Standard Report — <modelName>"`).
+        val effectiveTitle = title ?: "Standard Report"
+        return snapshot.toReport(
+            title = effectiveTitle,
+            showPlots = true,
+            showTimeSeries = sections.showTimeSeries,
+            showDiagnostics = sections.showDiagnostics,
+            timeSeriesConfidenceLevel = sections.timeSeriesConfidenceLevel,
+            block = {
+                if (sections.showRunSummary) {
+                    snapshotRunSummary(snapshot.simulationRun)
+                }
+                if (sections.showAcrossReplicationStats) {
+                    snapshotAcrossReplicationStatistics(
+                        snapshot.acrossRepStats,
+                        showDiagnostics = sections.showDiagnostics
+                    )
+                }
+                if (sections.showHistograms) {
+                    snapshotSimulationHistograms(snapshot, showPlot = true)
+                }
+                if (sections.showFrequencies) {
+                    snapshotSimulationFrequencies(snapshot, showPlot = true)
+                }
+                if (sections.showTimeSeries) {
+                    snapshotSimulationTimeSeries(
+                        snapshot,
+                        confidenceLevel = sections.timeSeriesConfidenceLevel
+                    )
+                }
+                if (!sections.anySectionSelected) {
+                    snapshotRunSummary(snapshot.simulationRun)
+                }
+            }
+        )
     }
 
     /**

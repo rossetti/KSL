@@ -1314,6 +1314,15 @@ class ConcurrentScenarioRunnerTest {
 
         runBlocking { runner.simulate() }
 
+        // No per-scenario subdirectories AND no per-scenario log
+        // files in flat mode.  Previous behaviour materialised an
+        // empty `kslOutput_<scenarioName>.txt` per scenario — that
+        // was noise in the shared analysis directory and the
+        // substrate now suppresses it (OutputDirectory.autoCreateOutFile
+        // = false in flat mode).  The four format subdirectories
+        // (excelDir/dbDir/csvDir/plotDir) are also no longer
+        // pre-created since OutputDirectory's subdir properties are
+        // lazy — they appear only if a model writes to them.
         val children = outDir.toFile().listFiles().orEmpty()
         val subdirs = children.filter { it.isDirectory }
         assertTrue(
@@ -1323,19 +1332,17 @@ class ConcurrentScenarioRunnerTest {
         val perScenarioLogs = children.filter {
             it.isFile && it.name.startsWith("kslOutput_") && it.name.endsWith(".txt")
         }
-        assertEquals(
-            runner.scenarioList.size,
-            perScenarioLogs.size,
-            "Expected one kslOutput_<scenarioName>.txt per scenario; got ${perScenarioLogs.map { it.name }}"
+        assertTrue(
+            perScenarioLogs.isEmpty(),
+            "useScenarioOutputDirs = false should suppress per-scenario kslOutput_<name>.txt " +
+                "files; got ${perScenarioLogs.map { it.name }}"
         )
-        // Each scenario's name appears in exactly one of the log filenames.
-        for (scenario in runner.scenarioList) {
-            assertTrue(
-                perScenarioLogs.any { it.name.contains(scenario.name) },
-                "Expected a kslOutput log containing scenario name '${scenario.name}'; " +
-                    "got ${perScenarioLogs.map { it.name }}"
-            )
-        }
+        val formatSubdirs = subdirs.filter { it.name in setOf("excelDir", "dbDir", "csvDir", "plotDir") }
+        assertTrue(
+            formatSubdirs.isEmpty(),
+            "OutputDirectory subdirs (excelDir/dbDir/csvDir/plotDir) should be lazy and not " +
+                "pre-created in flat mode; got ${formatSubdirs.map { it.name }}"
+        )
     }
 
     @Test

@@ -453,7 +453,20 @@ class ConcurrentScenarioRunner @JvmOverloads constructor(
             if (model.modelConfigurationManager != null && scenario.modelConfiguration != null) {
                 model.configuration = scenario.modelConfiguration!!
             }
-            model.outputDirectory = OutputDirectory(modelDir, outFileName = outFileName)
+            // autoCreateOutFile follows the per-scenario-subdir flag.
+            // In per-scenario mode each scenario has its own folder, so
+            // a `kslOutput.txt` inside it is meaningful diagnostic
+            // output.  In flat mode the per-scenario log file would
+            // just be noise in the shared analysis directory.
+            // Suppressing the file in flat mode keeps the analysis
+            // directory clean — the routing path is still honoured for
+            // any explicit writes the model code does through the
+            // (lazy) subdirectory properties.
+            model.outputDirectory = OutputDirectory(
+                modelDir,
+                outFileName = outFileName,
+                autoCreateOutFile = useScenarioOutputDirs
+            )
 
             // Attach collector before the simulation lifecycle starts so the
             // completed-experiment snapshot is available for the ordered DB commit.

@@ -762,7 +762,22 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
             if (model.modelConfigurationManager != null && plan.modelConfiguration != null) {
                 model.configuration = plan.modelConfiguration
             }
-            model.outputDirectory = OutputDirectory(modelDir, outFileName = outFileName)
+            // autoCreateOutFile follows the per-point-subdir flag.
+            // In per-point mode each design point has its own folder, so
+            // a `kslOutput.txt` inside it is meaningful diagnostic
+            // output.  In flat mode the per-point log file would just
+            // be noise in the shared analysis directory (the model
+            // usually doesn't write to KSL.out, and even when it does
+            // the interleaving across concurrent points would be hard
+            // to read).  Suppressing the file in flat mode keeps the
+            // analysis directory clean — the routing path is still
+            // honoured for any explicit writes the model code does
+            // through the (lazy) subdirectory properties.
+            model.outputDirectory = OutputDirectory(
+                modelDir,
+                outFileName = outFileName,
+                autoCreateOutFile = useDesignPointOutputDirs
+            )
             simulationRun = SimulationRun(
                 modelIdentifier = model.modelIdentifier,
                 experimentRunParameters = plan.runParameters,

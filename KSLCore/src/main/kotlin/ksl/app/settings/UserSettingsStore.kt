@@ -168,6 +168,25 @@ class UserSettingsStore(
         persist()
     }
 
+    /**
+     * Promote [path] to the front of the recent-configurations list
+     * (dedup, cap at [RECENT_LIMIT]).  Mirrors [addRecentDirectory] but
+     * targets the configurations submenu rather than the workspace
+     * submenu.  Called after a successful Save or Open of a TOML
+     * configuration file, so reopening a recent document is one click
+     * regardless of which workspace folder the user is currently in.
+     */
+    @Synchronized
+    fun addRecentConfiguration(path: Path) {
+        val canonical = path.toAbsolutePath().normalize().toString()
+        mySettings.update { s ->
+            val newRecent = (listOf(canonical) + s.configurations.files.filter { it != canonical })
+                .take(RECENT_LIMIT)
+            s.copy(configurations = s.configurations.copy(files = newRecent))
+        }
+        persist()
+    }
+
     private fun loadOrDefault(): UserSettings =
         try {
             if (settingsFile.exists()) toml.decodeFromString(UserSettings.serializer(), settingsFile.readText())

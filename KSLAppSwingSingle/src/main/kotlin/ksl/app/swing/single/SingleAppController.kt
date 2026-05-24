@@ -35,6 +35,7 @@ import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
@@ -64,6 +65,33 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ *  One record in the Post-Run Reporting tab's in-memory save history.
+ *  Records are appended on every successful materialise (auto-render
+ *  or user-initiated from the tab) and survive until the next Simulate
+ *  click clears the list, the user removes them, or the bound
+ *  ([SingleAppController.MAX_RECENT_REPORT_SAVES]) evicts them.
+ *
+ *  Files on disk are NOT removed when a record is dropped — that's
+ *  the user's domain.  The list is a session-level navigation aid,
+ *  not the source of truth for what's been published.
+ *
+ *  @param timestamp wall-clock time of the save
+ *  @param fileName  the file's name (no directory component)
+ *  @param path      absolute path to the file on disk
+ *  @param origin    [Origin.AUTO] for auto-rendered files (post-run
+ *                   completion), [Origin.MANUAL] for user-initiated
+ *                   saves from the Post-Run Reporting tab
+ */
+data class ReportSaveRecord(
+    val timestamp: java.time.LocalDateTime,
+    val fileName: String,
+    val path: Path,
+    val origin: Origin
+) {
+    enum class Origin { AUTO, MANUAL }
+}
 
 /**
  * Internal state-holder for one `kslSingleApp(...)` instance.
@@ -154,22 +182,39 @@ class SingleAppController(
     }
 
     /**
-     * Workspace subdirectory dedicated to this app.  Equal to
-     * `settingsStore.activeWorkspace().resolve(modelName)` when the
-     * probe succeeded.  All per-app files (saved configurations,
-     * model runtime output, rendered reports) live under here.  Read
-     * each access — the underlying `activeWorkspace()` is permitted
-     * to change between calls.
+     * Workspace subdirectory dedicated to this analysis.  Derived
+     * each read so a change to [OutputConfig.analysisName] or to
+     * [UserSettingsStore.activeWorkspace] is reflected on the next
+     * call without a subscriber.
      *
-     * When the probe failed (`modelName` is empty) this falls back
-     * to the parent workspace itself so file dialogs still have a
-     * valid starting point.
+     * Path = `activeWorkspace.resolve(<sanitized-analysisName>)` when
+     * the analyst has set a non-blank analysis name other than the
+     * default `"Untitled"`.  Falls back to
+     * `activeWorkspace.resolve(modelName)` otherwise (the historical
+     * Single-app layout, preserved as the model-name fallback so a
+     * user who never touches the Analysis Name field keeps today's
+     * behaviour).  When the probe failed (`modelName` is empty), the
+     * parent workspace itself is returned so file dialogs still have
+     * a valid starting point.
      */
     val appWorkspace: Path
         get() {
             val parent = settingsStore.activeWorkspace()
-            return if (modelName.isNotEmpty()) parent.resolve(modelName) else parent
+            val analysisName = myOutputConfig.value.analysisName
+            val folderName = when {
+                analysisName.isNotBlank() && analysisName != "Untitled" ->
+                    sanitizeWorkspaceFolder(analysisName)
+                modelName.isNotEmpty() -> modelName
+                else -> return parent
+            }
+            return parent.resolve(folderName)
         }
+
+    /** Filesystem-safe form of [name] for use as a workspace folder
+     *  name under the working directory.  Mirrors the sanitisation
+     *  used elsewhere in the app for analysis-derived names. */
+    private fun sanitizeWorkspaceFolder(name: String): String =
+        name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { modelName.ifEmpty { "analysis" } }
 
     /**
      * Recomputes pre-run validation findings from the current
@@ -303,6 +348,22 @@ class SingleAppController(
      * here, so callers should leave that field null.
      */
     val outputConfig: StateFlow<OutputConfig> = myOutputConfig.asStateFlow()
+
+    private val myRecentReportSaves = MutableStateFlow<List<ReportSaveRecord>>(emptyList())
+    /**
+     * In-memory history of report files materialised since the most
+     * recent Simulate.  Populated both by auto-render (post-simulate)
+     * and by manual saves from the Post-Run Reporting tab.  Cleared
+     * on Simulate (R1), on resetConfiguration, and on loadConfiguration.
+     * Bounded at [MAX_RECENT_REPORT_SAVES]; oldest entries are
+     * silently FIFO-evicted regardless of origin.
+     *
+     * Removing a record (or clearing the whole list) does NOT delete
+     * the file on disk — publication is the user's domain, not the
+     * controller's.
+     */
+    val recentReportSaves: StateFlow<List<ReportSaveRecord>> =
+        myRecentReportSaves.asStateFlow()
 
     private val myCurrentFile = MutableStateFlow<Path?>(null)
     /**
@@ -486,6 +547,31 @@ class SingleAppController(
         markDirty()
     }
 
+    /**
+     * Set the analysis name (identity for output routing).  Names the
+     * `<workspace>/reports/<sanitized-analysisName>/` directory tree
+     * and the default report filename stem.  Whitespace-only values
+     * fall back to the model's [appName] when consumed downstream;
+     * the field itself stores whatever the user typed verbatim.
+     */
+    fun setAnalysisName(name: String) {
+        if (myOutputConfig.value.analysisName == name) return
+        myOutputConfig.value = myOutputConfig.value.copy(analysisName = name)
+        markDirty()
+    }
+
+    /**
+     * Set the [DatabasePolicy] governing what happens when the
+     * KSLDatabase file already exists at submit time.  OVERWRITE
+     * replaces the existing file; NEW writes a timestamped sibling.
+     * Has no effect when [OutputConfig.enableKSLDatabase] is `false`.
+     */
+    fun setDatabasePolicy(policy: DatabasePolicy) {
+        if (myOutputConfig.value.databasePolicy == policy) return
+        myOutputConfig.value = myOutputConfig.value.copy(databasePolicy = policy)
+        markDirty()
+    }
+
     /** Toggle per-replication CSV output for the next Run. */
     fun setEnableReplicationCSV(enabled: Boolean) {
         if (myOutputConfig.value.enableReplicationCSV == enabled) return
@@ -510,6 +596,30 @@ class SingleAppController(
         if (updated == current) return
         myOutputConfig.value = myOutputConfig.value.copy(reports = updated)
         markDirty()
+    }
+
+    /**
+     * Append [record] to [recentReportSaves], FIFO-evicting beyond
+     * [MAX_RECENT_REPORT_SAVES].  Records are prepended (most-recent
+     * first) so the UI doesn't have to reverse the list.
+     */
+    fun addReportSaveRecord(record: ReportSaveRecord) {
+        val updated = (listOf(record) + myRecentReportSaves.value).take(MAX_RECENT_REPORT_SAVES)
+        myRecentReportSaves.value = updated
+    }
+
+    /** Remove the record at [index] from [recentReportSaves].  No-op
+     *  when out of range.  The file on disk is NOT deleted. */
+    fun removeReportSaveRecord(index: Int) {
+        val list = myRecentReportSaves.value
+        if (index !in list.indices) return
+        myRecentReportSaves.value = list.toMutableList().also { it.removeAt(index) }
+    }
+
+    /** Empty [recentReportSaves].  Files on disk are NOT deleted. */
+    fun clearReportSaves() {
+        if (myRecentReportSaves.value.isEmpty()) return
+        myRecentReportSaves.value = emptyList()
     }
 
     // ── Configuration snapshot / load / save ────────────────────────────────
@@ -598,6 +708,7 @@ class SingleAppController(
         myIsDirty.value = false
         myEditedSinceLastSim.value = false
         myLastResult.value = null
+        myRecentReportSaves.value = emptyList()
         return LoadResult.Loaded(warning)
     }
 
@@ -620,6 +731,7 @@ class SingleAppController(
         // because no snapshot exists.
         myEditedSinceLastSim.value = false
         myLastResult.value = null
+        myRecentReportSaves.value = emptyList()
     }
 
     /**
@@ -644,6 +756,12 @@ class SingleAppController(
      */
     fun submit() {
         if (myRunningFlow.value) return
+        // R1: the new run will produce a fresh snapshot that replaces
+        // whatever the prior run wrote.  Drop any in-memory record of
+        // reports materialised against the prior snapshot so the
+        // Post-Run Reporting tab's "Recent saves" doesn't confusingly
+        // mix two runs.  Files on disk are not touched.
+        myRecentReportSaves.value = emptyList()
         // Direct the model's runtime output (kslOutput.txt, csvDir,
         // dbDir, plotDir, etc.) into `<appWorkspace>/output/` instead
         // of the JVM launch directory — the orchestrator honors this
@@ -707,6 +825,11 @@ class SingleAppController(
     }
 
     companion object {
+        /** Bound for [recentReportSaves].  Older records are silently
+         *  FIFO-evicted on each new append, matching the Experiment
+         *  app's regression-fits cache contract. */
+        const val MAX_RECENT_REPORT_SAVES: Int = 10
+
         /**
          * Defaults used when the developer's `ModelBuilderIfc` throws on the
          * probe build.  Conservative values so the GUI renders something

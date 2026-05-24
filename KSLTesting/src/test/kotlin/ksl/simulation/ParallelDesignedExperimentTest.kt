@@ -320,8 +320,15 @@ class ParallelDesignedExperimentTest {
             "All per-point experiment names should be '${anchor}_DP_<n>'; got $expNames"
         )
 
-        // No per-point subdirectories — the flat layout puts per-point
-        // diagnostic logs as kslOutput_DP_<n>.txt at the shared dir.
+        // No per-point subdirectories AND no per-point diagnostic
+        // log files in flat mode.  Previous behaviour materialised an
+        // empty `kslOutput_DP_<n>.txt` per design point — that was
+        // noise in the shared analysis directory and the substrate
+        // now suppresses it (OutputDirectory.autoCreateOutFile = false
+        // in flat mode).  The four format subdirectories
+        // (excelDir/dbDir/csvDir/plotDir) are also no longer
+        // pre-created since OutputDirectory's subdir properties are
+        // lazy — they appear only if a model writes to them.
         val children = outDir.toFile().listFiles().orEmpty()
         val subdirs = children.filter { it.isDirectory }
         assertTrue(
@@ -329,10 +336,16 @@ class ParallelDesignedExperimentTest {
             "useDesignPointOutputDirs = false should not create any *_OutputDir subdirs; got $subdirs"
         )
         val perPointLogs = children.filter { it.isFile && it.name.startsWith("kslOutput_DP_") }
-        assertEquals(
-            parallel.numSimulationRuns,
-            perPointLogs.size,
-            "Expected one kslOutput_DP_<n>.txt per design point; got ${perPointLogs.map { it.name }}"
+        assertTrue(
+            perPointLogs.isEmpty(),
+            "useDesignPointOutputDirs = false should suppress per-point kslOutput_DP_<n>.txt " +
+                "files; got ${perPointLogs.map { it.name }}"
+        )
+        val formatSubdirs = subdirs.filter { it.name in setOf("excelDir", "dbDir", "csvDir", "plotDir") }
+        assertTrue(
+            formatSubdirs.isEmpty(),
+            "OutputDirectory subdirs (excelDir/dbDir/csvDir/plotDir) should be lazy and not " +
+                "pre-created in flat mode; got ${formatSubdirs.map { it.name }}"
         )
     }
 

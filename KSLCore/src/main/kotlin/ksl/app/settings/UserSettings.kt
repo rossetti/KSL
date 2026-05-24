@@ -33,7 +33,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class UserSettings(
-    val workspace: WorkspaceSettings = WorkspaceSettings()
+    val workspace: WorkspaceSettings = WorkspaceSettings(),
+    val configurations: ConfigurationRecent = ConfigurationRecent()
 )
 
 /**
@@ -61,4 +62,23 @@ data class WorkspaceSettings(
 @Serializable
 data class WorkspaceRecent(
     val directories: List<String> = emptyList()
+)
+
+/**
+ * Recent-configurations list.  Tracks the last few TOML configuration
+ * files the analyst saved or loaded, surfaced as a *Recent
+ * Configurations* submenu in the per-app File menu so the user can
+ * reload a recent document without navigating the file chooser.
+ *
+ * Capped at `UserSettingsStore.RECENT_LIMIT` by the store's mutation
+ * methods.  Entries that no longer exist on disk are filtered out of
+ * the menu's display but stay in the persisted list — they may reappear
+ * if the file is restored.  Deserializing a file with more than the
+ * limit is permitted; the next mutation truncates.
+ *
+ * @property files absolute paths to TOML files, most-recent first, no duplicates.
+ */
+@Serializable
+data class ConfigurationRecent(
+    val files: List<String> = emptyList()
 )

@@ -30,13 +30,15 @@ import ksl.app.swing.common.validation.DocumentHealthBanner
 import ksl.app.swing.common.validation.WidgetPathRegistry
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.results.DefaultDesktopOpener
+import ksl.app.swing.common.workspace.RecentConfigurationsMenu
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.common.editor.ControlOverridesPanel
 import ksl.app.swing.common.editor.ParameterPanel
 import ksl.app.swing.common.editor.RVOverridesPanel
-import ksl.app.swing.single.defaults.DefaultOutputOptionsPanel
+import ksl.app.swing.single.defaults.PostRunReportingPanel
+import ksl.app.swing.single.defaults.RunControlTabPanel
 import ksl.app.swing.single.defaults.StandardReportFormat
 import ksl.app.swing.single.defaults.StandardReportMaterializer
 import ksl.app.swing.single.defaults.StandardReportOutcome
@@ -65,7 +67,6 @@ import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.JTabbedPane
 import javax.swing.WindowConstants
 import kotlin.time.Duration
@@ -119,6 +120,12 @@ class SingleAppFrame(
             // executed.  Returns false if the user picks Cancel — abort
             // the run entirely.
             if (!handleDirtyOnRun()) return
+            // Folder-collision check: if the workspace path implied by
+            // the current analysis name already exists and the user
+            // hasn't yet approved it this session, ask before writing
+            // into it.  See [confirmWorkspaceCollision] for the
+            // dialog's three branches.
+            if (!confirmWorkspaceCollision()) return
             // Clear the console synchronously *before* submitting.  The
             // validator and orchestrator run on the EDT and call
             // modelBuilder.build() on this thread; anything they (or the
@@ -129,6 +136,61 @@ class SingleAppFrame(
             // now" boundary aligned with the user's click.
             consolePanel.clear()
             controller.submit()
+        }
+    }
+
+    /**
+     *  Folder-collision gate, fired between the unsaved-changes prompt
+     *  and the actual submit.  When the workspace path implied by the
+     *  current analysis name already exists on disk AND the analyst
+     *  hasn't previously approved that exact path this session, fire
+     *  a three-button dialog letting them:
+     *
+     *   - **Use Existing Folder** — proceed; the path is added to
+     *     [approvedWorkspacePaths] so subsequent Simulates against
+     *     the same path are silent.
+     *   - **Choose Different Name…** — focus the Analysis Name field
+     *     so the user can pick a non-colliding name; abort the
+     *     Simulate.
+     *   - **Cancel Simulate** — abort.  No approval recorded.
+     *
+     *  Returns `true` when the caller may proceed with submit,
+     *  `false` when it must abort.  A path that doesn't yet exist
+     *  passes through silently — the orchestrator will create it.
+     */
+    private fun confirmWorkspaceCollision(): Boolean {
+        val target = controller.appWorkspace
+        if (!java.nio.file.Files.exists(target)) return true
+        if (target in approvedWorkspacePaths) return true
+        val options = arrayOf<Any>(
+            "Use Existing Folder",
+            "Choose Different Name…",
+            "Cancel Simulate"
+        )
+        val choice = javax.swing.JOptionPane.showOptionDialog(
+            this,
+            "A folder named \"${target.fileName}\" already exists at:\n  $target\n\n" +
+                "Running this simulation will write into that folder and may " +
+                "overwrite existing reports or outputs there.\n\n" +
+                "What would you like to do?",
+            "Folder Already Exists",
+            javax.swing.JOptionPane.YES_NO_CANCEL_OPTION,
+            javax.swing.JOptionPane.WARNING_MESSAGE,
+            null,
+            options,
+            options[0]
+        )
+        return when (choice) {
+            0 -> {
+                approvedWorkspacePaths.add(target)
+                true
+            }
+            1 -> {
+                analysisNameField.requestFocusInWindow()
+                analysisNameField.selectAll()
+                false
+            }
+            else -> false
         }
     }
 
@@ -198,32 +260,14 @@ class SingleAppFrame(
     private val parameterPanel = ParameterPanel(controller)
     private val controlOverridesPanel = ControlOverridesPanel(controller)
     private val rvOverridesPanel = RVOverridesPanel(controller)
-    /**
-     * Snapshot-availability flow derived from `controller.lastResult`.
-     * `true` only when the most recent terminal result carries a
-     * snapshot (Completed / BatchCompleted), which is the precondition
-     * for the on-demand report buttons to be meaningful.
-     */
-    private val snapshotAvailable: kotlinx.coroutines.flow.StateFlow<Boolean> =
-        kotlinx.coroutines.flow.MutableStateFlow(false).also { flow ->
-            controller.edtScope.launch {
-                controller.lastResult.collect { result ->
-                    flow.value =
-                        result is RunResult.Completed || result is RunResult.BatchCompleted
-                }
-            }
-        }
-
-    private val outputOptionsPanel = DefaultOutputOptionsPanel(
+    private val runControlPanel = RunControlTabPanel(
         controller = controller,
-        onStandardReport = { format -> handleStandardReport(format) },
-        onAdvanced = {
-            notifications.show(
-                "Advanced report configuration is not yet wired (N5).",
-                NotificationSeverity.WARNING
-            )
-        },
-        snapshotAvailable = snapshotAvailable
+        parameterEditor = parameterPanel
+    )
+    private val postRunPanel = PostRunReportingPanel(
+        controller = controller,
+        onMessage = { msg, sev -> notifications.show(msg, sev) },
+        latestSnapshot = controller.lastResult
     )
     private val consolePanel = ConsoleLogPanel(
         eventFlow = controller.eventFlow,
@@ -245,6 +289,16 @@ class SingleAppFrame(
     private val controlOverridesBaseTitle: String = "Control Overrides"
     private val rvOverridesBaseTitle: String = "RV Overrides"
     private var latestSnapshotResult: RunResult? = null
+    private lateinit var analysisNameField: javax.swing.JTextField
+
+    /** Workspace paths the analyst has explicitly approved for reuse
+     *  during this app session.  Populated by
+     *  [confirmWorkspaceCollision] when the user picks
+     *  "Use Existing Folder" against a pre-existing target.  Cleared
+     *  when the active working directory changes (a different working
+     *  directory means different actual paths even for the same
+     *  analysis name).  Not persisted across app restarts. */
+    private val approvedWorkspacePaths: MutableSet<java.nio.file.Path> = mutableSetOf()
     /** Save Configuration menu item — kept field-level so we can update its
      *  text to reflect the dirty state ("Save Configuration *"). */
     private lateinit var saveItem: JMenuItem
@@ -310,6 +364,8 @@ class SingleAppFrame(
         wireDirtyIndicators()
         wireOverridesHint()
         wireTabModifiedIndicators()
+        wireAnalysisNameField()
+        wireWorkspaceChangeReset()
         surfaceProbeFailureIfPresent()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) { controller.close() }
@@ -335,6 +391,21 @@ class SingleAppFrame(
     private fun buildMenuBar(): JMenuBar {
         val setWdAction = SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
         val recentMenu = RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope)
+        // Recent Configurations: route the chosen path back through
+        // the same load pipeline used by File → Open, with the
+        // unsaved-changes guard intact.
+        val recentConfigsMenu = RecentConfigurationsMenu(
+            store = controller.settingsStore,
+            scope = controller.edtScope,
+            onSelect = { path ->
+                if (confirmDiscardIfDirty(
+                        "Discard unsaved changes and open another configuration?"
+                    )
+                ) {
+                    loadConfigurationFile(path)
+                }
+            }
+        )
         val menuShortcutKey = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
         val newItem = JMenuItem(object : AbstractAction("Reset to Model Defaults") {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) { handleNew() }
@@ -367,6 +438,7 @@ class SingleAppFrame(
             add(JMenu("File").apply {
                 add(newItem)
                 add(openItem)
+                add(recentConfigsMenu)
                 addSeparator()
                 add(saveItem)
                 add(saveAsItem)
@@ -407,8 +479,16 @@ class SingleAppFrame(
      */
     private fun handleOpen() {
         if (!confirmDiscardIfDirty("Discard unsaved changes and open another configuration?")) return
-        val workspace = controller.appWorkspace
-        val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
+        // Smart starting directory: prefer the parent of the most
+        // recently opened/saved config (so the chooser lands where
+        // the user last did work), else the current analysis's
+        // configs/ folder (today's behaviour), else the working
+        // directory root (so per-analysis subfolders are visible).
+        // The fallback chain matters because on a fresh launch with
+        // no analysis name set yet, the analysis-name-derived
+        // workspace points at the model-name fallback folder, which
+        // is probably empty.
+        val startDir = preferredOpenStartDir()
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Open Configuration"
             fileSelectionMode = JFileChooser.FILES_ONLY
@@ -417,6 +497,44 @@ class SingleAppFrame(
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val path: Path = chooser.selectedFile?.toPath() ?: return
+        loadConfigurationFile(path)
+    }
+
+    /**
+     *  Compute the JFileChooser starting directory for Open
+     *  Configuration.  Preference order:
+     *
+     *  1. The parent directory of the most-recent entry in
+     *     `UserSettings.configurations.files` — when that file still
+     *     exists on disk.  This is the "continue where you left off"
+     *     case.
+     *  2. The current analysis's `configs/` folder, when the analyst
+     *     has typed an analysis name and that folder exists.
+     *  3. The active working directory itself — so the user can see
+     *     all per-analysis subfolders and navigate into the right one.
+     */
+    private fun preferredOpenStartDir(): Path {
+        val recent = controller.settingsStore.settings.value.configurations.files
+            .firstOrNull()
+            ?.let { java.nio.file.Paths.get(it) }
+        if (recent != null && Files.exists(recent)) {
+            return recent.parent
+        }
+        val analysisConfigs = WorkspaceLayout.configsDir(controller.appWorkspace, createIfMissing = false)
+        if (Files.exists(analysisConfigs)) {
+            return analysisConfigs
+        }
+        return controller.settingsStore.activeWorkspace()
+    }
+
+    /**
+     *  Read [path], parse it as a [RunConfiguration], and route it
+     *  through the controller's load pipeline.  Shared by the File →
+     *  Open chooser and the File → Recent Configurations submenu so
+     *  both code paths emit identical notifications and recents
+     *  bookkeeping.
+     */
+    private fun loadConfigurationFile(path: Path) {
         val text = try {
             Files.readString(path)
         } catch (t: Throwable) {
@@ -435,6 +553,7 @@ class SingleAppFrame(
         when (val outcome = controller.loadConfiguration(config)) {
             is SingleAppController.LoadResult.Loaded -> {
                 controller.markSaved(path)
+                controller.settingsStore.addRecentConfiguration(path)
                 outcome.warning?.let { notifications.show(it, NotificationSeverity.WARNING) }
                 notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
             }
@@ -524,6 +643,7 @@ class SingleAppFrame(
             return
         }
         controller.markSaved(path)
+        controller.settingsStore.addRecentConfiguration(path)
         notifications.show("Saved ${path.fileName}", NotificationSeverity.INFO)
     }
 
@@ -555,6 +675,20 @@ class SingleAppFrame(
             toolTipText = "Discard all overrides and forget the currently-associated " +
                 "configuration file.  Returns the editor to model-default values."
         }
+        analysisNameField = javax.swing.JTextField(
+            controller.outputConfig.value.analysisName, 16
+        ).apply {
+            toolTipText = "Identity for this analysis.  Names the report sub-tree at " +
+                "<workspace>/reports/<analysisName>/ and the default report filename stem " +
+                "on the Post-Run Reporting tab."
+            addActionListener { controller.setAnalysisName(text) }
+            addFocusListener(object : java.awt.event.FocusListener {
+                override fun focusGained(e: java.awt.event.FocusEvent) { /* no-op */ }
+                override fun focusLost(e: java.awt.event.FocusEvent) {
+                    controller.setAnalysisName(text)
+                }
+            })
+        }
         dirtyChip = JLabel("● Unsaved").apply {
             font = font.deriveFont(Font.PLAIN, font.size2D - 1f)
             foreground = Color(0xE6, 0x5C, 0x00)
@@ -564,18 +698,37 @@ class SingleAppFrame(
                     "(or use Save Configuration in the File menu)."
             isVisible = false
         }
-        return JPanel().apply {
+        // Two-row toolbar: actions + Analysis on row 1, run state
+        // (status strip + dirty chip) on row 2.  Visual separation
+        // between "configure" and "what the app is showing you" —
+        // avoids the prior single-row crowding where the variable-
+        // length status text shoved against the Analysis field and
+        // pushed the dirty chip off the right edge on narrow windows.
+        val actionsRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
-            border = BorderFactory.createEmptyBorder(6, 12, 6, 12)
+            border = BorderFactory.createEmptyBorder(6, 12, 0, 12)
             add(runButton)
             add(Box.createHorizontalStrut(8))
             add(cancelButton)
             add(Box.createHorizontalStrut(16))
             add(resetButton)
             add(Box.createHorizontalStrut(16))
+            add(JLabel("Analysis Name:"))
+            add(Box.createHorizontalStrut(4))
+            add(analysisNameField)
+            add(Box.createHorizontalGlue())
+        }
+        val stateRow = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            border = BorderFactory.createEmptyBorder(2, 12, 6, 12)
             add(statusStrip)
             add(Box.createHorizontalGlue())
             add(dirtyChip)
+        }
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(actionsRow)
+            add(stateRow)
         }
     }
 
@@ -596,15 +749,14 @@ class SingleAppFrame(
     }
 
     private fun buildTabs(): JComponent {
-        // Run Control tab: parameter panel only.  Console lives in the
-        // bottom-of-window drawer below the tab area.
-        val scrollableParameters = JScrollPane(parameterPanel).apply {
-            border = BorderFactory.createEmptyBorder()
-            verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
-            horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        }
+        // Run Control tab: parameter panel + Output Options block
+        // (database / CSV / auto-render-formats), consolidated so
+        // every pre-Simulate toggle lives on one tab.  The legacy
+        // separate Output Options tab is replaced by Post-Run
+        // Reporting (results-side actions only).  Console lives in
+        // the bottom-of-window drawer below the tab area.
         runControlTabIndex = tabs.tabCount
-        tabs.addTab(runControlBaseTitle, scrollableParameters)
+        tabs.addTab(runControlBaseTitle, runControlPanel)
         if (controlOverridesPanel.isVisible) {
             controlOverridesTabIndex = tabs.tabCount
             tabs.addTab(controlOverridesBaseTitle, controlOverridesPanel)
@@ -613,13 +765,12 @@ class SingleAppFrame(
             rvOverridesTabIndex = tabs.tabCount
             tabs.addTab(rvOverridesBaseTitle, rvOverridesPanel)
         }
-        // Output Options is always enabled — pre-run configuration
-        // (Database / CSV / report formats) must be editable BEFORE
-        // the user has simulated anything.  The on-demand report
-        // buttons inside the panel gate themselves on snapshot
-        // availability via the `snapshotAvailable` StateFlow.
+        // Post-Run Reporting tab: user-driven materialisation of
+        // additional standard reports against the snapshot in hand.
+        // Gated on snapshot availability via the panel's own
+        // CardLayout (empty-state card when no snapshot yet).
         reportsTabIndex = tabs.tabCount
-        tabs.addTab("Output Options", outputOptionsPanel)
+        tabs.addTab("Post-Run Reporting", postRunPanel)
         return tabs
     }
 
@@ -638,6 +789,44 @@ class SingleAppFrame(
      * StateFlows are conflated so each combine() emission is the latest
      * pair.
      */
+    /** Reset the session-scoped [approvedWorkspacePaths] when the
+     *  active working directory changes.  Different working directory
+     *  means different actual paths even for the same analysis name,
+     *  so prior approvals no longer apply.  Subscribes to the
+     *  settings store's `workspace.currentDirectory` field. */
+    private fun wireWorkspaceChangeReset() {
+        controller.edtScope.launch {
+            var previous: String? = controller.settingsStore.settings.value.workspace.currentDirectory
+            controller.settingsStore.settings.collect { s ->
+                val current = s.workspace.currentDirectory
+                if (current != previous) {
+                    approvedWorkspacePaths.clear()
+                    previous = current
+                }
+            }
+        }
+    }
+
+    /** Keep the toolbar's analysis-name field in sync with external
+     *  changes (file load, reset).  Guarded by [hasFocus] so we don't
+     *  stomp an in-progress edit when an unrelated outputConfig
+     *  change fires. */
+    private fun wireAnalysisNameField() {
+        controller.edtScope.launch {
+            controller.outputConfig.collect { cfg ->
+                if (analysisNameField.text != cfg.analysisName && !analysisNameField.hasFocus()) {
+                    analysisNameField.text = cfg.analysisName
+                }
+                analysisNameField.isEnabled = !controller.runningFlow.value
+            }
+        }
+        controller.edtScope.launch {
+            controller.runningFlow.collect { running ->
+                analysisNameField.isEnabled = !running
+            }
+        }
+    }
+
     private fun wireWindowTitle() {
         controller.edtScope.launch {
             kotlinx.coroutines.flow.combine(
@@ -850,24 +1039,37 @@ class SingleAppFrame(
         }
     }
 
-    private fun handleStandardReport(formatLabel: String) {
-        val result = latestSnapshotResult ?: run {
-            notifications.show(
-                "No completed run available — start a run first.",
-                NotificationSeverity.WARNING
-            )
-            return
-        }
-        materializeStandardReport(result, formatLabel)
-    }
-
     private fun materializeStandardReport(result: RunResult, formatLabel: String) {
         val format = StandardReportFormat.fromButtonLabel(formatLabel) ?: return
-        val workspace = controller.appWorkspace
-        val runId = runIdOf(result) ?: return
-        val reportsDir = WorkspaceLayout.reportsDir(workspace, runId, createIfMissing = true)
-        when (val outcome = StandardReportMaterializer.materialize(result, format, reportsDir)) {
+        val analysisName = controller.outputConfig.value.analysisName
+        val reportsDir = ensureAnalysisReportsDir() ?: return
+        // Auto-render filename = analysis name (or model name when
+        // analysisName is "Untitled").  Re-runs silently overwrite —
+        // this matches the user's mental model of "there is *the*
+        // HTML report for this analysis".  The Post-Run Reporting
+        // tab is the place to save preserved copies under different
+        // stems.
+        val stem = analysisStem(analysisName)
+        val title = composeReportTitle(analysisName)
+        when (val outcome = StandardReportMaterializer.materialize(
+            result = result,
+            format = format,
+            reportsDir = reportsDir,
+            fileStem = stem,
+            title = title
+        )) {
             is StandardReportOutcome.Ok -> {
+                // Record into the controller's recent-saves list so the
+                // Post-Run Reporting tab's Recent saves table shows
+                // the auto-rendered files alongside any manual saves.
+                controller.addReportSaveRecord(
+                    ksl.app.swing.single.ReportSaveRecord(
+                        timestamp = java.time.LocalDateTime.now(),
+                        fileName = outcome.file.name,
+                        path = outcome.file.toPath(),
+                        origin = ksl.app.swing.single.ReportSaveRecord.Origin.AUTO
+                    )
+                )
                 val opened = when (format) {
                     StandardReportFormat.HTML -> DefaultDesktopOpener.browse(outcome.file.toURI())
                     StandardReportFormat.MARKDOWN,
@@ -892,10 +1094,53 @@ class SingleAppFrame(
         }
     }
 
-    private fun runIdOf(result: RunResult): String? = when (result) {
-        is RunResult.Completed -> result.summary.runId
-        is RunResult.BatchCompleted -> result.summary.runId
-        else -> null
+    /**
+     *  Resolve (and create if missing) the reports directory for the
+     *  current analysis — `<appWorkspace>/reports/`.  No per-analysis
+     *  subdirectory is added: the workspace folder ([SingleAppController.appWorkspace])
+     *  is itself analysis-name-derived, so a nested `reports/<analysisName>/`
+     *  segment would just repeat the name redundantly.  Both auto-rendered
+     *  and Post-Run-Reporting-tab saves land directly in this folder.
+     */
+    private fun ensureAnalysisReportsDir(): java.nio.file.Path? = try {
+        val dir = controller.appWorkspace.resolve("reports")
+        java.nio.file.Files.createDirectories(dir)
+        dir
+    } catch (t: Throwable) {
+        notifications.show(
+            "Could not create reports directory: ${t.message ?: t::class.simpleName}",
+            NotificationSeverity.ERROR
+        )
+        null
+    }
+
+    /**
+     *  Auto-render filename stem = sanitized analysis name (or model
+     *  name when analysisName is blank/"Untitled").  No timestamp —
+     *  the user's mental model is one canonical report per analysis,
+     *  refreshed on re-simulate.  Manual saves from the Post-Run
+     *  Reporting tab use the same default and let the user vary the
+     *  stem to preserve specific runs.
+     */
+    private fun analysisStem(analysisName: String): String {
+        val baseName = if (analysisName.isBlank() || analysisName == "Untitled") {
+            controller.appName
+        } else {
+            analysisName
+        }
+        return baseName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "report" }
+    }
+
+    /** Compose a meaningful default title for the standard report —
+     *  replaces the substrate's `"Simulation Snapshot — 1..30"` default
+     *  with something the user actually wrote down. */
+    private fun composeReportTitle(analysisName: String): String {
+        val model = controller.appName
+        return if (analysisName.isBlank() || analysisName == "Untitled") {
+            "Standard Report — $model"
+        } else {
+            "Standard Report — $model ($analysisName)"
+        }
     }
 
     /**

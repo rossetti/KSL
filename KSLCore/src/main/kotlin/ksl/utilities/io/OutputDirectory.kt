@@ -21,6 +21,7 @@ package ksl.utilities.io
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
+import java.io.Writer
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -29,35 +30,79 @@ import java.nio.file.Path
  * Files and directories created by instances of this class will be relative to
  * the Path supplied at creation.
  *
- * @param outputDirectoryPath the base output directory to use for writing text files relative to this OutputDirectory instance
- * @param outFileName the name of the created text file related to property out
+ * ### Side-effects at construction
+ *
+ * - [outDir] (the base directory) is created eagerly.
+ * - [out] (the log writer) is created eagerly **only when** [autoCreateOutFile]
+ *   is `true` (the default).  When `false`, [out] is a discard-all writer
+ *   wrapping `Writer.nullWriter()` and no file is created on disk.
+ * - The four subdirectory properties ([excelDir], [dbDir], [csvDir],
+ *   [plotDir]) are **lazy**.  Each subdirectory is created on first access
+ *   to its property and not before.  Code that never reads a subdirectory
+ *   property never causes its directory to appear on disk.
+ *
+ * The laziness lets callers that fan out an `OutputDirectory` per
+ * simulation run (e.g. `ParallelDesignedExperiment` per design point,
+ * `ConcurrentScenarioRunner` per scenario) avoid materialising empty
+ * format-specific subdirectories under every run's folder when the model
+ * never writes Excel / DB / CSV / plot artefacts.  The
+ * [autoCreateOutFile] flag lets those same callers suppress the per-run
+ * log file when they're operating in a flat (shared-directory) mode where
+ * a per-run log file would be noise rather than signal.
+ *
+ * @param outputDirectoryPath the base output directory to use for writing
+ *                            text files relative to this OutputDirectory
+ *                            instance
+ * @param outFileName         the name of the file backing the [out] property
+ *                            when [autoCreateOutFile] is `true`; ignored
+ *                            otherwise
+ * @param autoCreateOutFile   when `true` (default), create [outFileName]
+ *                            under [outDir] at construction time and back
+ *                            [out] with it.  When `false`, no file is
+ *                            created and [out] is a no-op writer that
+ *                            discards everything written to it.
  */
-class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirectory, outFileName: String = "out.txt") {
+class OutputDirectory(
+    outputDirectoryPath: Path = KSLFileUtil.programLaunchDirectory,
+    private val outFileName: String = "out.txt",
+    private val autoCreateOutFile: Boolean = true
+) {
 
     /**
-     *
-     * @return the path to the base directory for this OutputDirectory
-     */
-    /**
-     * The path to the default output directory
+     * The path to the default output directory.  Always created eagerly
+     * regardless of [autoCreateOutFile] — the directory itself is the
+     * routing target the caller supplied; only the file contents are
+     * optional.
      */
     var outDir: Path = createDirectoryPath(outputDirectoryPath)
 
     /**
-     * Can be used like System.out, but instead writes to a file
-     * found in the base output directory
+     * Can be used like System.out, but writes to a file in [outDir] when
+     * [autoCreateOutFile] is `true`.  When `false`, this writer discards
+     * everything written to it (wraps `Writer.nullWriter()`) and no file
+     * is created on disk.
      */
-    val out: LogPrintWriter = KSLFileUtil.createLogPrintWriter(outDir.resolve(outFileName))
+    val out: LogPrintWriter = if (autoCreateOutFile) {
+        KSLFileUtil.createLogPrintWriter(outDir.resolve(outFileName))
+    } else {
+        LogPrintWriter(Writer.nullWriter())
+    }
 
     /** Creates a OutputDirectory with the current program launch directory with the base directory
      *
      * @param outDirName the name of the directory within the current launch directory, default "OutputDir"
      * @param outFileName the name of the created text file related to property out, default "out.txt"
+     * @param autoCreateOutFile see the primary constructor
      */
     constructor(
         outDirName: String = "OutputDir",
-        outFileName: String = "out.txt"
-    ) : this(KSLFileUtil.programLaunchDirectory.resolve(outDirName), outFileName)
+        outFileName: String = "out.txt",
+        autoCreateOutFile: Boolean = true
+    ) : this(
+        KSLFileUtil.programLaunchDirectory.resolve(outDirName),
+        outFileName,
+        autoCreateOutFile
+    )
 
     /** Creates a path to a directory by creating all nonexistent parent directories first,
      *  like Files.createDirectories().
@@ -76,48 +121,41 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
     }
 
     /**
-     * The path to the default Excel directory, relative to this output directory
+     * The path to the default Excel directory, relative to this output directory.
+     * Lazily created on first access — `OutputDirectory` instances that never
+     * read this property never cause `excelDir/` to appear on disk.
      */
-    val excelDir: Path = createExcelDirectory()
+    val excelDir: Path by lazy { resolveAndCreate(EXCEL_DIR_NAME) }
 
-    private fun createExcelDirectory(): Path {
+    /**
+     * The path to the default database directory, relative to this output
+     * directory.  Lazily created on first access (see [excelDir]).
+     */
+    val dbDir: Path by lazy { resolveAndCreate(DB_DIR_NAME) }
+
+    /**
+     * The path to the default CSV directory, relative to this output
+     * directory.  Lazily created on first access (see [excelDir]).
+     */
+    val csvDir: Path by lazy { resolveAndCreate(CSV_DIR_NAME) }
+
+    /**
+     * The path to the default plot directory, relative to this output
+     * directory.  Lazily created on first access (see [excelDir]).
+     */
+    val plotDir: Path by lazy { resolveAndCreate(PLOT_DIR_NAME) }
+
+    /** Resolves [name] under [outDir] and ensures the directory exists.
+     *  Used by the four lazy subdirectory properties — every previous
+     *  per-subdir factory function reduced to the same body, so they
+     *  collapse into one helper. */
+    private fun resolveAndCreate(name: String): Path {
         return try {
-            Files.createDirectories(outDir.resolve("excelDir"))
+            Files.createDirectories(outDir.resolve(name))
         } catch (e: IOException) {
-            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
-            KSLFileUtil.programLaunchDirectory
-        }
-    }
-
-    val dbDir: Path = createDatabaseDirectory()
-
-    private fun createDatabaseDirectory(): Path {
-        return try {
-            Files.createDirectories(outDir.resolve("dbDir"))
-        } catch (e: IOException) {
-            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("db")} used program launch directory" }
-            KSLFileUtil.programLaunchDirectory
-        }
-    }
-
-    val csvDir: Path = createCSVDirectory()
-    
-    private fun createCSVDirectory(): Path {
-        return try {
-            Files.createDirectories(outDir.resolve("csvDir"))
-        } catch (e: IOException) {
-            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("excel")} used program launch directory" }
-            KSLFileUtil.programLaunchDirectory
-        }
-    }
-
-    val plotDir: Path = createPlotDirectory()
-
-    private fun createPlotDirectory(): Path {
-        return try {
-            Files.createDirectories(outDir.resolve("plotDir"))
-        } catch (e: IOException) {
-            KSLFileUtil.logger.info { "There was a problem creating the directories for ${outDir.resolve("plotDir")} used program launch directory" }
+            KSLFileUtil.logger.info {
+                "There was a problem creating the directories for ${outDir.resolve(name)} used program launch directory"
+            }
             KSLFileUtil.programLaunchDirectory
         }
     }
@@ -152,16 +190,29 @@ class OutputDirectory(outputDirectoryPath: Path = KSLFileUtil.programLaunchDirec
         return KSLFileUtil.createSubDirectory(outDir, dirName)
     }
 
+    /** Resolves a path to the named subdirectory without creating it.
+     *  Used by [toString] so that printing an `OutputDirectory` doesn't
+     *  trigger materialisation of the lazy subdirectories. */
     override fun toString(): String {
         return buildString {
             appendLine("OutputDirectory")
             appendLine("\t outDir   = $outDir")
-            appendLine("\t out      = $out")
-            appendLine("\t excelDir = $excelDir")
-            appendLine("\t dbDir    = $dbDir")
-            appendLine("\t csvDir   = $csvDir")
-            appendLine("\t plotDir   = $plotDir")
+            if (autoCreateOutFile) {
+                appendLine("\t out      = ${outDir.resolve(outFileName)}")
+            } else {
+                appendLine("\t out      = <discard, autoCreateOutFile=false>")
+            }
+            appendLine("\t excelDir = ${outDir.resolve(EXCEL_DIR_NAME)}")
+            appendLine("\t dbDir    = ${outDir.resolve(DB_DIR_NAME)}")
+            appendLine("\t csvDir   = ${outDir.resolve(CSV_DIR_NAME)}")
+            appendLine("\t plotDir  = ${outDir.resolve(PLOT_DIR_NAME)}")
         }
     }
 
+    companion object {
+        private const val EXCEL_DIR_NAME = "excelDir"
+        private const val DB_DIR_NAME = "dbDir"
+        private const val CSV_DIR_NAME = "csvDir"
+        private const val PLOT_DIR_NAME = "plotDir"
+    }
 }
