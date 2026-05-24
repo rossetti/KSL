@@ -341,7 +341,7 @@ class DesignTabPanel(
     private fun buildPreviewBar(): JPanel {
         val row = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         row.border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
-        val previewBtn = JButton("Materialize design points...")
+        val previewBtn = JButton("View design points...")
         previewBtn.toolTipText = "Enumerate the design points implied by the current " +
             "factors + design spec.  Lets you review the points and (when " +
             "ReplicationSpec.PerPoint is the policy) edit per-row reps overrides."
