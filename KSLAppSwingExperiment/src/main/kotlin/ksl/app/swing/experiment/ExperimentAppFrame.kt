@@ -37,6 +37,7 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
@@ -151,14 +152,35 @@ class ExperimentAppFrame(
      *  what model / factors / design / reps / streams are loaded
      *  without having to switch through every tab.  Updates on
      *  every relevant StateFlow change.  Hidden when no model is
-     *  loaded (nothing meaningful to show). */
+     *  loaded (nothing meaningful to show).
+     *
+     *  E7.13 (#1A revised): label sits inside [designSummaryRow]
+     *  (a wrapper panel with BorderLayout) so it can fill the
+     *  topStack horizontally and left-anchor under the toolbar
+     *  rather than centering in the slack.  The wrapper carries
+     *  the matte+padding border; the label itself just carries
+     *  its HTML text.  refreshDesignSummaryLabel computes the
+     *  HTML body width from the wrapper's actual width and a
+     *  ComponentListener re-renders on resize so the text always
+     *  wraps to the current container width. */
     private val designSummaryLabel: JLabel = JLabel(" ").apply {
+        foreground = Color(0x44, 0x44, 0x44)
+    }
+    private val designSummaryRow: JPanel = JPanel(BorderLayout()).apply {
+        alignmentX = Component.LEFT_ALIGNMENT
         border = BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Color(0xE6, 0xE6, 0xE6)),
             BorderFactory.createEmptyBorder(3, 12, 3, 12)
         )
-        foreground = Color(0x44, 0x44, 0x44)
+        add(designSummaryLabel, BorderLayout.CENTER)
         isVisible = false
+        addComponentListener(object : java.awt.event.ComponentAdapter() {
+            override fun componentResized(e: java.awt.event.ComponentEvent) {
+                // Resize → recompute HTML body width and re-render
+                // so the label wraps to the new container width.
+                refreshDesignSummaryLabel()
+            }
+        })
     }
 
     // runProgressLabel removed in E7.9 — per-design-point status now
@@ -287,7 +309,7 @@ class ExperimentAppFrame(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(buildRunToolbar())
             add(staleResultsBanner)
-            add(designSummaryLabel)
+            add(designSummaryRow)
         }
         contentPane.add(topStack, BorderLayout.NORTH)
         contentPane.add(tabs, BorderLayout.CENTER)
@@ -527,7 +549,7 @@ class ExperimentAppFrame(
         val modelRef = controller.modelReference.value
         if (modelRef == null) {
             designSummaryLabel.text = " "
-            designSummaryLabel.isVisible = false
+            designSummaryRow.isVisible = false
             return
         }
         val modelName = controller.currentModelDescriptor.value?.modelName
@@ -543,14 +565,6 @@ class ExperimentAppFrame(
         val reps = describeReplications()
         val streams = describeStreamPolicy()
         val totalRuns = describeTotalRuns()
-        // E7.12 #1A — wrap in <html><body width=...> so the label
-        // grows vertically when the text exceeds the available
-        // width.  Without this, JLabel renders single-line and
-        // truncates with "..." — visible in practice for larger
-        // designs (the "Total runs: ..." tail is the first thing
-        // to disappear).  Width chosen to fit roughly the full
-        // line on a 960px-wide frame; HTML will wrap to a second
-        // line for longer summaries on narrower frames.
         val plain = buildString {
             append("Model: ").append(modelName)
             append(" · ").append(factorCount).append(" factor")
@@ -560,8 +574,16 @@ class ExperimentAppFrame(
             if (streams.isNotEmpty()) append(" · Streams: ").append(streams)
             if (totalRuns != null) append(" · Total runs: ").append(totalRuns)
         }
-        designSummaryLabel.text = "<html><body width='900'>$plain</body></html>"
-        designSummaryLabel.isVisible = true
+        // E7.13 (#1A revised): wrap at the wrapper row's CURRENT
+        // width (less padding) rather than a hard-coded 900px.
+        // The wrapper's ComponentListener re-fires this method on
+        // resize so the label re-renders for the new container
+        // width.  Clamp to 300px so very-narrow windows still
+        // produce something usable (HTML wraps aggressively
+        // below that).
+        val rowWidth = (designSummaryRow.width - 24).coerceAtLeast(300)
+        designSummaryLabel.text = "<html><body width='$rowWidth'>$plain</body></html>"
+        designSummaryRow.isVisible = true
     }
 
     private fun describeDesignFamilyAndPoints(): String {
