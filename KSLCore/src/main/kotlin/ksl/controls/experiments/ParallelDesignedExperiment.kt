@@ -490,11 +490,13 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         clearAllData: Boolean = true,
         onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
         onDesignPointStart: ((designPoint: DesignPoint) -> Unit)? = null,
-        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null
+        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null,
+        onDesignPointReplications: ((experimentName: String, replications: List<SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) {
         simulate(
             design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, clearAllData,
-            onDesignPointComplete, onDesignPointStart, onDesignPointCancelled
+            onDesignPointComplete, onDesignPointStart, onDesignPointCancelled,
+            onDesignPointReplications
         )
     }
 
@@ -523,7 +525,8 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         clearAllData: Boolean = true,
         onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
         onDesignPointStart: ((designPoint: DesignPoint) -> Unit)? = null,
-        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null
+        onDesignPointCancelled: ((designPoint: DesignPoint) -> Unit)? = null,
+        onDesignPointReplications: ((experimentName: String, replications: List<SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) {
         if (clearRuns) clearSimulationRuns()
 
@@ -633,16 +636,37 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
                     onDesignPointCancelled?.invoke(designPoint)
                     onDesignPointComplete?.invoke(designPoint, null)
                 } else {
+                    var replications: List<SimulationSnapshot.ReplicationCompleted> = emptyList()
                     if (collector != null) {
                         collector.use { c ->
                             val snapshots = c.drain()
                             snapshot = snapshots
                                 .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
                                 .firstOrNull()
+                            // Also extract the per-replication snapshots
+                            // so downstream consumers (e.g. the
+                            // ComparisonAnalyzer panel via
+                            // BatchCompletedComparisonSource) can key
+                            // them by experiment name.  Previously these
+                            // were committed to the database but dropped
+                            // on the way to the orchestrator's
+                            // replicationsByItem map, which is why the
+                            // Experiment app's Comparison Analyzer tab
+                            // always rendered the empty-state card.
+                            replications = snapshots
+                                .filterIsInstance<SimulationSnapshot.ReplicationCompleted>()
                             if (snapshots.isNotEmpty()) writer.write(snapshots)
                         }
                     }
                     onDesignPointComplete?.invoke(designPoint, snapshot)
+                    // Fire the new replications callback only when we
+                    // have both a name (from the snapshot) and a
+                    // non-empty list — otherwise there's nothing useful
+                    // to key in the consumer's map.
+                    val expName = snapshot?.experiment?.exp_name
+                    if (onDesignPointReplications != null && expName != null && replications.isNotEmpty()) {
+                        onDesignPointReplications.invoke(expName, replications)
+                    }
                     if (addRuns) {
                         mySimulationRuns[designPoint] = simulationRun
                     }

@@ -73,21 +73,21 @@ sealed class RunResult {
         val snapshots: List<SimulationSnapshot.ExperimentCompleted>,
         /**
          *  Per-item replication-level snapshots in completion order,
-         *  keyed by the item name (matching
-         *  `SimulationRunTableData.run_name` on the corresponding
-         *  entry in [snapshots]).  Each value is the list of
-         *  [SimulationSnapshot.ReplicationCompleted] snapshots
-         *  collected during that item's run, in replication order.
+         *  keyed by the item name — specifically
+         *  `SimulationSnapshot.ExperimentCompleted.experiment.exp_name`
+         *  on the corresponding entry in [snapshots].  Each value is
+         *  the list of [SimulationSnapshot.ReplicationCompleted]
+         *  snapshots collected during that item's run, in replication
+         *  order.
          *
-         *  Defaults to an empty map.  `ScenarioOrchestrator` populates
-         *  it (so multi-scenario consumers — the Scenario app's
-         *  reporting layer in particular — can reconstruct
-         *  per-replication observations for box plots, multiple-
-         *  comparison analyses, and replication traces from
-         *  [ksl.utilities.io.dbutil.WithinRepStatTableData]).
-         *  `ExperimentOrchestrator` leaves it empty for now; the
-         *  field shape is forward-compatible if that orchestrator
-         *  later surfaces analogous data.
+         *  Both `ScenarioOrchestrator` (per-scenario) and
+         *  `ExperimentOrchestrator` (per-design-point) populate this
+         *  map so multi-item consumers — the Comparison Analyzer tab,
+         *  the Reports tab's per-replication box plots, the
+         *  Regression tab — can reconstruct per-replication
+         *  observations uniformly regardless of which orchestrator
+         *  produced the batch.  Defaults to an empty map for
+         *  callers that don't supply one.
          */
         val replicationsByItem: Map<String, List<SimulationSnapshot.ReplicationCompleted>> = emptyMap()
     ) : RunResult()

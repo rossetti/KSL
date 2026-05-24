@@ -440,9 +440,13 @@ class DesignedExperiment @JvmOverloads constructor(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
-        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
+        onDesignPointReplications: ((experimentName: String, replications: List<SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) {
-        simulate(design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns, onDesignPointComplete)
+        simulate(
+            design.iterator(), numRepsPerDesignPoint, clearRuns, addRuns,
+            onDesignPointComplete, onDesignPointReplications
+        )
     }
 
     /**
@@ -466,7 +470,8 @@ class DesignedExperiment @JvmOverloads constructor(
         numRepsPerDesignPoint: Int? = null,
         clearRuns: Boolean = true,
         addRuns: Boolean = true,
-        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null
+        onDesignPointComplete: ((designPoint: DesignPoint, snapshot: SimulationSnapshot.ExperimentCompleted?) -> Unit)? = null,
+        onDesignPointReplications: ((experimentName: String, replications: List<SimulationSnapshot.ReplicationCompleted>) -> Unit)? = null
     ) {
         if (!iterator.hasNext()) {
             val wm = "WARNING: The supplied iterator for designed experiment, $name, had no design points."
@@ -493,19 +498,30 @@ class DesignedExperiment @JvmOverloads constructor(
             // (Reports / Comparison Analyzer / Regression all consume
             // these).  Re-attached per point because the model is
             // reused; closed after each point to release listeners.
-            val collector: InMemorySnapshotCollector? = onDesignPointComplete?.let {
+            // Collector is attached whenever EITHER callback is set.
+            // Mirrors PDE: the same collector feeds both onDesignPointComplete
+            // (drains the ExperimentCompleted) and onDesignPointReplications
+            // (drains the per-replication snapshots so consumers like
+            // BatchCompletedComparisonSource can key them by experiment
+            // name).
+            val needsCollector = onDesignPointComplete != null || onDesignPointReplications != null
+            val collector: InMemorySnapshotCollector? = if (needsCollector) {
                 InMemorySnapshotCollector(model.lifeCycleEmitters)
-            }
+            } else null
             try {
                 simulate(dp, addRuns = addRuns)
-                // collector is non-null iff onDesignPointComplete was
-                // non-null at the top of the loop, so the !! below is
-                // safe (and the compiler agrees).
                 if (collector != null) {
-                    val snapshot = collector.drain()
+                    val snapshots = collector.drain()
+                    val snapshot = snapshots
                         .filterIsInstance<SimulationSnapshot.ExperimentCompleted>()
                         .firstOrNull()
-                    onDesignPointComplete!!.invoke(dp, snapshot)
+                    val replications = snapshots
+                        .filterIsInstance<SimulationSnapshot.ReplicationCompleted>()
+                    onDesignPointComplete?.invoke(dp, snapshot)
+                    val expName = snapshot?.experiment?.exp_name
+                    if (onDesignPointReplications != null && expName != null && replications.isNotEmpty()) {
+                        onDesignPointReplications.invoke(expName, replications)
+                    }
                 }
             } finally {
                 collector?.close()

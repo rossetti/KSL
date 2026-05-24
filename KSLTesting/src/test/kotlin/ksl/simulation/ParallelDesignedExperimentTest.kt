@@ -539,6 +539,58 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
+    fun onDesignPointReplicationsFiresOncePerPointWithMatchingKeyAndNonEmptyReps() = runBlocking {
+        // Regression guard for the Comparison Analyzer empty-state bug:
+        // ExperimentOrchestrator routes per-design-point ReplicationCompleted
+        // snapshots into BatchCompleted.replicationsByItem via this
+        // callback; without it the Experiment app's Comparison
+        // Analyzer tab always rendered "No completed experiment with
+        // per-replication data yet."  Two invariants matter here:
+        //   1. The callback fires once per design point.
+        //   2. The map key the callback uses matches the
+        //      snapshot's experiment.exp_name — otherwise downstream
+        //      lookups (BatchCompletedComparisonSource keys by
+        //      snap.experiment.exp_name) silently miss.
+        val setup = buildDoeSetup("PDE_RepsCallback_${System.nanoTime()}")
+        val parallel = ParallelDesignedExperiment(
+            name = "ParallelDesignedExperiment_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = 20.0, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = java.nio.file.Files.createTempDirectory("pde-reps-cb-")
+        )
+        val numReps = 3
+        val captured = mutableMapOf<String, List<ksl.utilities.io.dbutil.SimulationSnapshot.ReplicationCompleted>>()
+        val capturedSnapshotNames = mutableListOf<String?>()
+        parallel.simulateAll(
+            numRepsPerDesignPoint = numReps,
+            onDesignPointComplete = { _, snap -> capturedSnapshotNames.add(snap?.experiment?.exp_name) },
+            onDesignPointReplications = { name, reps -> captured[name] = reps }
+        )
+        // Every design point fired the callback.
+        assertEquals(
+            parallel.numSimulationRuns,
+            captured.size,
+            "onDesignPointReplications should fire once per design point"
+        )
+        // Each captured list contains numReps ReplicationCompleted entries.
+        for ((name, reps) in captured) {
+            assertEquals(
+                numReps, reps.size,
+                "design point '$name' should yield $numReps ReplicationCompleted snapshots; got ${reps.size}"
+            )
+        }
+        // Keys match the experiment.exp_name on the corresponding
+        // snapshot — this is what BatchCompletedComparisonSource looks
+        // up with.  Mismatch would silently empty every comparison row.
+        val snapshotNames = capturedSnapshotNames.filterNotNull().toSet()
+        assertEquals(
+            snapshotNames, captured.keys,
+            "replications keys should equal the set of snapshot experiment.exp_names"
+        )
+    }
+
+    @Test
     fun cancelDesignPointOnUnknownIdReturnsFalse() = runBlocking {
         val setup = buildDoeSetup("PDE_CancelUnknown_${System.nanoTime()}")
         val parallel = ParallelDesignedExperiment(

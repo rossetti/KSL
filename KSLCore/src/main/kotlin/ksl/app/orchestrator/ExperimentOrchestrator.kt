@@ -135,12 +135,25 @@ class ExperimentOrchestrator {
                             )
                         )
                     }
+                // Per-design-point replications keyed by experiment name
+                // — feeds RunResult.BatchCompleted.replicationsByItem so
+                // downstream consumers (Reports tab, Comparison Analyzer
+                // tab, Regression) can locate per-replication data the
+                // same way they do for ScenarioOrchestrator's runs.
+                // Without this the Experiment app's Comparison Analyzer
+                // tab never escapes its "no per-replication data yet"
+                // empty state.
+                val capturedReplications =
+                    mutableMapOf<String, List<SimulationSnapshot.ReplicationCompleted>>()
+                val onPointReplications: (String, List<SimulationSnapshot.ReplicationCompleted>) -> Unit =
+                    { experimentName, reps -> capturedReplications[experimentName] = reps }
                 when (experiment) {
                     is ParallelDesignedExperiment -> experiment.simulateAll(
                         numRepsPerDesignPoint = numRepsPerDesignPoint,
                         onDesignPointComplete = onPointComplete,
                         onDesignPointStart = onPointStart,
-                        onDesignPointCancelled = onPointCancelled
+                        onDesignPointCancelled = onPointCancelled,
+                        onDesignPointReplications = onPointReplications
                     )
                     is DesignedExperiment -> {
                         // Sequential simulateAll is blocking — run it
@@ -152,7 +165,8 @@ class ExperimentOrchestrator {
                         withContext(SimulationDispatcher.default) {
                             experiment.simulateAll(
                                 numRepsPerDesignPoint = numRepsPerDesignPoint,
-                                onDesignPointComplete = onPointComplete
+                                onDesignPointComplete = onPointComplete,
+                                onDesignPointReplications = onPointReplications
                             )
                         }
                     }
@@ -190,7 +204,11 @@ class ExperimentOrchestrator {
                         )
                     )
                 lifecycle.complete(
-                    RunResult.BatchCompleted(summary, successSnapshots),
+                    RunResult.BatchCompleted(
+                        summary = summary,
+                        snapshots = successSnapshots,
+                        replicationsByItem = capturedReplications
+                    ),
                     completedEvent
                 )
 
