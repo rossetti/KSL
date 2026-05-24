@@ -29,6 +29,7 @@ import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 
 /**
  * Collapsible bottom-of-window drawer that hosts a [ConsoleLogPanel].
@@ -74,12 +75,21 @@ import javax.swing.JPanel
  *   [ConsoleLogPanel] via its `hiddenCategories` parameter so the
  *   rail isn't cluttered with chrome for a feature that can't be
  *   reached.
+ * @param growWindowOnExpand when `true` (the default, added in
+ *   E7.11), the drawer grows the enclosing window by [expandedHeight]
+ *   pixels on expand and shrinks it back on collapse — so the
+ *   drawer doesn't steal vertical space from the content above.
+ *   Falls back to the legacy "drawer takes from content" behavior
+ *   when growing would push the window off-screen, or when the
+ *   window isn't realized yet.  Pass `false` to opt out (e.g. for
+ *   tests that need deterministic frame heights).
  */
 class ConsoleDrawer(
     private val console: ConsoleLogPanel,
     initiallyExpanded: Boolean = false,
     private val expandedHeight: Int = 260,
-    showCaptureToggle: Boolean = true
+    showCaptureToggle: Boolean = true,
+    private val growWindowOnExpand: Boolean = true
 ) : JPanel(BorderLayout()) {
 
     private var expanded: Boolean = initiallyExpanded
@@ -151,9 +161,33 @@ class ConsoleDrawer(
     /** Programmatic open/close.  EDT-only. */
     fun setExpanded(value: Boolean) {
         if (expanded == value) return
+        val delta = if (value) +expandedHeight else -expandedHeight
         expanded = value
         body.isVisible = expanded
         toggleButton.text = toggleLabel()
+        // E7.11 — grow the enclosing window by the expanded-height
+        // delta so the drawer doesn't steal vertical space from
+        // content above.  Falls back to legacy "drawer takes from
+        // content" behavior when the window isn't realized OR when
+        // growing would push the bottom edge off-screen.
+        if (growWindowOnExpand) {
+            val window = SwingUtilities.getWindowAncestor(this)
+            if (window != null && window.isDisplayable) {
+                val screen = window.graphicsConfiguration?.bounds
+                val proposed = (window.height + delta)
+                    .coerceAtLeast(window.minimumSize.height)
+                val clamped = if (value && screen != null) {
+                    // Don't grow past the bottom edge of the screen.
+                    val maxHeight = screen.height - (window.y - screen.y).coerceAtLeast(0)
+                    proposed.coerceAtMost(maxHeight.coerceAtLeast(window.minimumSize.height))
+                } else {
+                    proposed
+                }
+                if (clamped != window.height) {
+                    window.setSize(window.width, clamped)
+                }
+            }
+        }
         revalidate()
         repaint()
     }
