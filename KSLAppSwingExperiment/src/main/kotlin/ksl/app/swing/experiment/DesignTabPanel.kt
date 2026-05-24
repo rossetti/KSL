@@ -21,12 +21,10 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.config.experiment.AxialSpacing
 import ksl.app.config.experiment.DesignSpec
-import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.Fraction
 import ksl.app.config.experiment.ManualPointSpec
 import ksl.app.config.experiment.ReplicationSpec
-import ksl.app.config.experiment.StreamPolicy
 import ksl.app.swing.common.notification.NotificationSeverity
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -122,23 +120,21 @@ class DesignTabPanel(
     private val onMessage: (String, NotificationSeverity) -> Unit
 ) : JPanel(BorderLayout(0, 8)) {
 
-    // -- Design-family radio row --
+    // -- Design family — sub-tabs (E7.10).  Each sub-tab IS the
+    //    settings for one design family; switching tabs IS switching
+    //    the family.  Replaces the prior radio bar + CardLayout +
+    //    "Family settings" titled border.
 
-    private val ffRadio = JRadioButton("Full factorial", true)
-    private val tlfRadio = JRadioButton("Two-level factorial")
-    private val ccdRadio = JRadioButton("Central composite")
-    private val manualRadio = JRadioButton("Custom design points")
-    private val typeGroup = ButtonGroup().apply {
-        add(ffRadio); add(tlfRadio); add(ccdRadio); add(manualRadio)
-    }
-
-    // -- Cards (family settings) --
-
-    private val cards = JPanel(CardLayout())
     private val ffCard = FullFactorialCard()
     private val tlfCard = TwoLevelFactorialCard()
     private val ccdCard = CentralCompositeCard()
     private val manualCard = ManualCard()
+    private val familyTabs = javax.swing.JTabbedPane().apply {
+        addTab("Full factorial", ffCard)
+        addTab("Two-level factorial", tlfCard)
+        addTab("Central composite", ccdCard)
+        addTab("Custom design points", manualCard)
+    }
 
     // -- Replications panel --
 
@@ -151,27 +147,13 @@ class DesignTabPanel(
 
     // -- Stream-policy panel --
 
-    private val indepRadio = JRadioButton("Independent (default)", true)
-    private val crnRadio = JRadioButton("Common Random Numbers (CRN)")
-    private val streamGroup = ButtonGroup().apply { add(indepRadio); add(crnRadio) }
-    private val advancedToggle = JCheckBox("Advanced...")
-    private val startingAdvanceField = JTextField("0", 6)
-    private val spacingField = JTextField("", 6)  // blank => null => cumulative
-    private val advancedRow: JPanel = buildAdvancedRow()
+    // Random streams widgets moved to SimulateTabPanel in E7.10 —
+    // stream policy is a runtime execution choice (variance-
+    // reduction technique), not a design specification.
 
-    // Per-design-point output-dir layout checkbox.  Declared before
-    // any layout method that adds it (see init {}), since
-    // buildPreviewBar() runs early in init.
-    private val perPointSubdirsCheckbox: JCheckBox = JCheckBox(
-        "Use per-design-point output folders"
-    ).apply {
-        toolTipText = "<html>When checked, each design point gets its own " +
-            "&lt;name&gt;_DP_&lt;n&gt;_OutputDir under the analysis output directory " +
-            "(each containing kslOutput.txt and any per-point CSV / plot artifacts).<br>" +
-            "When unchecked (default), all per-point models share the analysis output " +
-            "directory; per-point logs use the filename kslOutput_DP_&lt;n&gt;.txt.<br>" +
-            "Turn on for per-point CSV / configuration workflows (Phase E11).</html>"
-    }
+    // perPointSubdirsCheckbox moved to SimulateTabPanel's Run options
+    // box in E7.10 — per-point output layout is a runtime/output
+    // preference, not a design specification.
 
     @Volatile private var suppressEvents: Boolean = false
 
@@ -186,13 +168,16 @@ class DesignTabPanel(
         // the available height.
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(buildFamilyBar())
-            add(Box.createVerticalStrut(6))
-            add(buildCardsContainer())
+            familyTabs.alignmentX = LEFT_ALIGNMENT
+            add(familyTabs)
             add(Box.createVerticalStrut(8))
+            replicationsPanel.alignmentX = LEFT_ALIGNMENT
             add(replicationsPanel)
             add(Box.createVerticalStrut(6))
-            add(buildStreamPanel())
+            // Materialize button moved here in E7.10 — one button at
+            // the bottom of the Design tab, OUTSIDE the family sub-
+            // tabs (per-tab placement would have been awkward).
+            buildPreviewBar().also { it.alignmentX = LEFT_ALIGNMENT }.let { add(it) }
             // A glue at the bottom keeps the stack top-anchored when
             // the scroll pane has more vertical space than the content
             // needs (avoids vertical centering, which looks wrong).
@@ -214,18 +199,9 @@ class DesignTabPanel(
         footer.add(DocumentStateLabel(controller.isDirty, controller.edtScope))
         add(footer, BorderLayout.SOUTH)
 
-        wireFamilyRadios()
+        wireFamilyTabs()
         wireReplications()
-        wireStreamRadios()
-        wireAdvancedToggle()
-        perPointSubdirsCheckbox.addActionListener {
-            if (!suppressEvents) {
-                controller.setExperimentOutput(
-                    ExperimentOutputSpec(usePerPointSubdirs = perPointSubdirsCheckbox.isSelected)
-                )
-            }
-        }
-
+        // wireStreamRadios() / wireAdvancedToggle() moved to SimulateTabPanel
         observeControllerFlows()
     }
 
@@ -233,72 +209,51 @@ class DesignTabPanel(
     // Family radio bar + cards container
     // ───────────────────────────────────────────────────────────────
 
-    private fun buildFamilyBar(): JPanel {
-        val row = JPanel(FlowLayout(FlowLayout.LEFT, 12, 0))
-        row.border = BorderFactory.createTitledBorder("Design family")
-        row.add(ffRadio); row.add(tlfRadio); row.add(ccdRadio); row.add(manualRadio)
-        return row
+    private fun wireFamilyTabs() {
+        familyTabs.addChangeListener {
+            if (!suppressEvents) commitFamilySelection()
+        }
     }
 
-    private fun buildCardsContainer(): JPanel {
-        cards.add(ffCard, KEY_FF)
-        cards.add(tlfCard, KEY_TLF)
-        cards.add(ccdCard, KEY_CCD)
-        cards.add(manualCard, KEY_MN)
-        val wrapper = JPanel(BorderLayout())
-        wrapper.border = BorderFactory.createTitledBorder("Family settings")
-        wrapper.add(cards, BorderLayout.CENTER)
-        // Action that operates on the configured design lives with
-        // the design-definition container, not in a distant footer.
-        wrapper.add(buildPreviewBar(), BorderLayout.SOUTH)
-        return wrapper
-    }
-
-    private fun wireFamilyRadios() {
-        ffRadio.addActionListener     { if (!suppressEvents) commitFamilySelection() }
-        tlfRadio.addActionListener    { if (!suppressEvents) commitFamilySelection() }
-        ccdRadio.addActionListener    { if (!suppressEvents) commitFamilySelection() }
-        manualRadio.addActionListener { if (!suppressEvents) commitFamilySelection() }
-    }
-
-    /** User picked a new design family.  Push a default-valued spec
-     *  of that family to the controller; the per-card observer will
-     *  populate the widgets on the next flow tick.  When a family
-     *  has prerequisites (e.g. two-level factors), validate first
-     *  and revert the radio with a notification if they're not met. */
+    /** User picked a new design family by clicking a sub-tab.  Push
+     *  a default-valued spec of that family to the controller; the
+     *  per-card observer will populate the widgets on the next flow
+     *  tick.  When a family has prerequisites (e.g. two-level
+     *  factors), validate first and revert the tab with a
+     *  notification if they're not met. */
     private fun commitFamilySelection() {
         val factors = controller.factors.value
-        val next: DesignSpec = when {
-            ffRadio.isSelected -> DesignSpec.FullFactorial
-            tlfRadio.isSelected -> {
+        val next: DesignSpec = when (familyTabs.selectedIndex) {
+            TAB_FF -> DesignSpec.FullFactorial
+            TAB_TLF -> {
                 if (!factorsAreTwoLevel(factors)) {
                     onMessage(
                         "Two-level factorial requires every factor to have exactly 2 levels.",
                         NotificationSeverity.WARNING
                     )
-                    applyFamilyRadiosFor(controller.designSpec.value)
+                    applyFamilySelectionFor(controller.designSpec.value)
                     return
                 }
                 DesignSpec.TwoLevelFactorial(fraction = Fraction.Full)
             }
-            ccdRadio.isSelected -> {
+            TAB_CCD -> {
                 if (!factorsAreTwoLevel(factors) || factors.size < 2) {
                     onMessage(
                         "Central composite requires at least 2 factors with exactly 2 levels each.",
                         NotificationSeverity.WARNING
                     )
-                    applyFamilyRadiosFor(controller.designSpec.value)
+                    applyFamilySelectionFor(controller.designSpec.value)
                     return
                 }
                 DesignSpec.CentralComposite(axialSpacing = AxialSpacing.Rotatable)
             }
-            manualRadio.isSelected -> {
+            TAB_MN -> {
                 if (factors.isEmpty()) {
                     onMessage(
                         "Custom design points require at least 1 factor.",
                         NotificationSeverity.WARNING
                     )
-                    applyFamilyRadiosFor(controller.designSpec.value)
+                    applyFamilySelectionFor(controller.designSpec.value)
                     return
                 }
                 DesignSpec.Manual(points = listOf(firstLevelPoint(factors)))
@@ -306,7 +261,6 @@ class DesignTabPanel(
             else -> DesignSpec.FullFactorial
         }
         controller.setDesignSpec(next)
-        showCardFor(next)
         updateReplicationsVisibility(next)
     }
 
@@ -384,41 +338,6 @@ class DesignTabPanel(
     // Stream-policy panel
     // ───────────────────────────────────────────────────────────────
 
-    private fun buildStreamPanel(): JPanel {
-        val panel = JPanel()
-        panel.layout = BoxLayout(panel, BoxLayout.Y_AXIS)
-        panel.border = BorderFactory.createTitledBorder("Random streams")
-
-        val radios = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
-        radios.add(indepRadio); radios.add(crnRadio); radios.add(advancedToggle)
-        radios.alignmentX = LEFT_ALIGNMENT
-        panel.add(radios)
-
-        // The help text was previously floating to the right and
-        // getting clipped when the window was narrow.  Wrapping it
-        // in a fixed-width <html><body width="..."> + putting it in
-        // a left-aligned FlowLayout row pins it to the left edge
-        // and wraps cleanly at small window sizes.
-        val helpRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
-        helpRow.alignmentX = LEFT_ALIGNMENT
-        val help = JLabel(
-            "<html><body width='600'><i>CRN reuses the same random-stream block at every " +
-                "design point &mdash; reduces variance for cross-point comparisons but biases " +
-                "per-point standard errors.  Independent (default) gives each point a fresh " +
-                "non-overlapping block.</i></body></html>"
-        ).apply {
-            border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
-            foreground = Color(0x55, 0x55, 0x55)
-        }
-        helpRow.add(help)
-        panel.add(helpRow)
-
-        advancedRow.alignmentX = LEFT_ALIGNMENT
-        panel.add(advancedRow)
-        advancedRow.isVisible = false
-        return panel
-    }
-
     private fun buildPreviewBar(): JPanel {
         val row = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         row.border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
@@ -428,8 +347,6 @@ class DesignTabPanel(
             "ReplicationSpec.PerPoint is the policy) edit per-row reps overrides."
         previewBtn.addActionListener { openPreviewDialog() }
         row.add(previewBtn)
-        row.add(Box.createHorizontalStrut(16))
-        row.add(perPointSubdirsCheckbox)
         return row
     }
 
@@ -456,64 +373,6 @@ class DesignTabPanel(
         }
     }
 
-    private fun buildAdvancedRow(): JPanel {
-        val row = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
-        row.border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
-        row.add(JLabel("startingStreamAdvance:"))
-        row.add(startingAdvanceField)
-        row.add(JLabel("  streamAdvanceSpacing (blank = cumulative):"))
-        row.add(spacingField)
-        startingAdvanceField.addFocusListener(object : FocusAdapter() {
-            override fun focusLost(e: FocusEvent) { if (!suppressEvents) commitStreamAdvanced() }
-        })
-        startingAdvanceField.addActionListener { if (!suppressEvents) commitStreamAdvanced() }
-        spacingField.addFocusListener(object : FocusAdapter() {
-            override fun focusLost(e: FocusEvent) { if (!suppressEvents) commitStreamAdvanced() }
-        })
-        spacingField.addActionListener { if (!suppressEvents) commitStreamAdvanced() }
-        return row
-    }
-
-    private fun wireStreamRadios() {
-        val push = {
-            if (!suppressEvents) {
-                val next: StreamPolicy = if (crnRadio.isSelected) {
-                    StreamPolicy.CommonRandomNumbers
-                } else {
-                    parseAdvancedOrCurrent()
-                }
-                controller.setStreamPolicy(next)
-                advancedToggle.isEnabled = indepRadio.isSelected
-                if (!indepRadio.isSelected) advancedRow.isVisible = false
-            }
-        }
-        indepRadio.addActionListener { push() }
-        crnRadio.addActionListener { push() }
-    }
-
-    private fun wireAdvancedToggle() {
-        advancedToggle.addActionListener {
-            advancedRow.isVisible = advancedToggle.isSelected && indepRadio.isSelected
-            revalidate()
-            repaint()
-        }
-    }
-
-    private fun parseAdvancedOrCurrent(): StreamPolicy.Independent {
-        val starting = startingAdvanceField.text.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
-        val spacing = spacingField.text.trim().takeIf { it.isNotEmpty() }
-            ?.toIntOrNull()?.coerceAtLeast(1)
-        return StreamPolicy.Independent(
-            startingStreamAdvance = starting,
-            streamAdvanceSpacing = spacing
-        )
-    }
-
-    private fun commitStreamAdvanced() {
-        if (!indepRadio.isSelected) return
-        controller.setStreamPolicy(parseAdvancedOrCurrent())
-    }
-
     // ───────────────────────────────────────────────────────────────
     // Controller observation
     // ───────────────────────────────────────────────────────────────
@@ -526,9 +385,6 @@ class DesignTabPanel(
             controller.replications.collect { rep -> applyRepsToUI(rep) }
         }
         controller.edtScope.launch {
-            controller.streamPolicy.collect { policy -> applyStreamPolicyToUI(policy) }
-        }
-        controller.edtScope.launch {
             controller.factors.collect { factors ->
                 ffCard.onFactorsChanged(factors)
                 tlfCard.onFactorsChanged(factors)
@@ -537,30 +393,31 @@ class DesignTabPanel(
                 refreshFamilyEnablement(factors)
             }
         }
-        controller.edtScope.launch {
-            controller.experimentOutput.collect { spec ->
-                suppressEvents = true
-                try {
-                    perPointSubdirsCheckbox.isSelected = spec.usePerPointSubdirs
-                } finally {
-                    suppressEvents = false
-                }
-            }
-        }
+        // experimentOutput collector moved to SimulateTabPanel in
+        // E7.10 along with the perPointSubdirsCheckbox widget.
     }
 
     private fun refreshFamilyEnablement(factors: List<FactorSpec>) {
         val twoLevel = factorsAreTwoLevel(factors)
-        tlfRadio.isEnabled = twoLevel
-        ccdRadio.isEnabled = twoLevel && factors.size >= 2
-        manualRadio.isEnabled = factors.isNotEmpty()
+        familyTabs.setEnabledAt(TAB_TLF, twoLevel)
+        familyTabs.setEnabledAt(TAB_CCD, twoLevel && factors.size >= 2)
+        familyTabs.setEnabledAt(TAB_MN, factors.isNotEmpty())
+        // Per-tab tooltips explain why a disabled tab is disabled.
+        familyTabs.setToolTipTextAt(TAB_TLF,
+            if (twoLevel) null
+            else "Requires every factor to have exactly 2 levels.")
+        familyTabs.setToolTipTextAt(TAB_CCD,
+            if (twoLevel && factors.size >= 2) null
+            else "Requires at least 2 factors with exactly 2 levels each.")
+        familyTabs.setToolTipTextAt(TAB_MN,
+            if (factors.isNotEmpty()) null
+            else "Requires at least 1 factor.")
     }
 
     private fun applySpecToUI(spec: DesignSpec) {
         suppressEvents = true
         try {
-            applyFamilyRadiosFor(spec)
-            showCardFor(spec)
+            applyFamilySelectionFor(spec)
             when (spec) {
                 is DesignSpec.FullFactorial      -> ffCard.load()
                 is DesignSpec.TwoLevelFactorial  -> tlfCard.load(spec)
@@ -573,23 +430,16 @@ class DesignTabPanel(
         }
     }
 
-    private fun applyFamilyRadiosFor(spec: DesignSpec) {
-        when (spec) {
-            is DesignSpec.FullFactorial     -> ffRadio.isSelected = true
-            is DesignSpec.TwoLevelFactorial -> tlfRadio.isSelected = true
-            is DesignSpec.CentralComposite  -> ccdRadio.isSelected = true
-            is DesignSpec.Manual            -> manualRadio.isSelected = true
+    private fun applyFamilySelectionFor(spec: DesignSpec) {
+        val idx = when (spec) {
+            is DesignSpec.FullFactorial     -> TAB_FF
+            is DesignSpec.TwoLevelFactorial -> TAB_TLF
+            is DesignSpec.CentralComposite  -> TAB_CCD
+            is DesignSpec.Manual            -> TAB_MN
         }
-    }
-
-    private fun showCardFor(spec: DesignSpec) {
-        val key = when (spec) {
-            is DesignSpec.FullFactorial     -> KEY_FF
-            is DesignSpec.TwoLevelFactorial -> KEY_TLF
-            is DesignSpec.CentralComposite  -> KEY_CCD
-            is DesignSpec.Manual            -> KEY_MN
+        if (familyTabs.selectedIndex != idx) {
+            familyTabs.selectedIndex = idx
         }
-        (cards.layout as CardLayout).show(cards, key)
     }
 
     private fun applyRepsToUI(rep: ReplicationSpec) {
@@ -618,26 +468,7 @@ class DesignTabPanel(
         }
     }
 
-    private fun applyStreamPolicyToUI(policy: StreamPolicy) {
-        suppressEvents = true
-        try {
-            when (policy) {
-                is StreamPolicy.Independent -> {
-                    indepRadio.isSelected = true
-                    startingAdvanceField.text = policy.startingStreamAdvance.toString()
-                    spacingField.text = policy.streamAdvanceSpacing?.toString() ?: ""
-                    advancedToggle.isEnabled = true
-                }
-                is StreamPolicy.CommonRandomNumbers -> {
-                    crnRadio.isSelected = true
-                    advancedToggle.isEnabled = false
-                    advancedRow.isVisible = false
-                }
-            }
-        } finally {
-            suppressEvents = false
-        }
-    }
+    // applyStreamPolicyToUI moved to SimulateTabPanel (E7.10).
 
     // ===============================================================
     // Family cards
@@ -1244,10 +1075,12 @@ class DesignTabPanel(
     }
 
     companion object {
-        private const val KEY_FF  = "fullFactorial"
-        private const val KEY_TLF = "twoLevelFactorial"
-        private const val KEY_CCD = "centralComposite"
-        private const val KEY_MN  = "manual"
+        // Sub-tab indices on familyTabs.  Matches insertion order
+        // in the JTabbedPane constructor block.
+        private const val TAB_FF  = 0
+        private const val TAB_TLF = 1
+        private const val TAB_CCD = 2
+        private const val TAB_MN  = 3
     }
 
     // Suppress unused-import warnings for utility types referenced

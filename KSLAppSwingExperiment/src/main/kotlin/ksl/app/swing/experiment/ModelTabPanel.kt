@@ -23,6 +23,7 @@ import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.simulation.ModelDescriptor
+import javax.swing.JScrollPane
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -111,9 +112,9 @@ class ModelTabPanel(
     // because Kotlin executes property initializers and init blocks
     // in source order; init's buildRunDefaultsPanel() would NPE on
     // any of these if they were declared below.
-    private val repsField = javax.swing.JTextField(8)
-    private val lengthField = javax.swing.JTextField(8)
-    private val warmUpField = javax.swing.JTextField(8)
+    private val repsField = javax.swing.JTextField(12)
+    private val lengthField = javax.swing.JTextField(12)
+    private val warmUpField = javax.swing.JTextField(12)
     private val repsModelDefaultLabel = JLabel(" ").apply {
         foreground = Color(0x77, 0x77, 0x77)
     }
@@ -162,26 +163,36 @@ class ModelTabPanel(
 
     // ── Layout builders ────────────────────────────────────────────────────
 
-    private fun buildPickerCard(): JPanel = JPanel().apply {
-        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+    private fun buildPickerCard(): JPanel = JPanel(BorderLayout(0, 12)).apply {
+        // BorderLayout (E7.10) — fixes a layout problem where the
+        // BoxLayout used here previously squished the run-defaults
+        // SOUTH panel against the picker and ignored its constraint.
+        // Now: picker row in NORTH, summary in CENTER (gets all
+        // remaining space), run defaults panel goes in pickerCard's
+        // SOUTH from init {}.
         border = BorderFactory.createEmptyBorder(16, 16, 16, 16)
 
-        // Picker row
         val pickerRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
-            alignmentX = Component.LEFT_ALIGNMENT
             add(JLabel("Model: ").apply { font = font.deriveFont(Font.BOLD) })
             add(Box.createHorizontalStrut(8))
             add(modelCombo)
             add(Box.createHorizontalGlue())
         }
-        add(pickerRow)
-        add(Box.createVerticalStrut(16))
+        add(pickerRow, BorderLayout.NORTH)
 
-        // Summary card
-        summaryArea.alignmentX = Component.LEFT_ALIGNMENT
-        add(summaryArea)
-        add(Box.createVerticalGlue())
+        // Summary area takes the remaining vertical space.  Wrap in
+        // a scroll pane in case the model has a lot of controls /
+        // RVs and the summary grows long.
+        val summaryScroll = JScrollPane(
+            summaryArea,
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        ).apply {
+            border = BorderFactory.createEmptyBorder()
+            verticalScrollBar.unitIncrement = 16
+        }
+        add(summaryScroll, BorderLayout.CENTER)
     }
 
     private fun buildUnresolvedCard(): JPanel = JPanel(BorderLayout()).apply {
@@ -209,38 +220,57 @@ class ModelTabPanel(
             BorderFactory.createTitledBorder("Run parameter defaults"),
             BorderFactory.createEmptyBorder(2, 6, 2, 6)
         )
-        val gbc = java.awt.GridBagConstraints().apply {
+
+        // Column weights: label column rigid (weightx 0), field
+        // column takes 60% of slack, default-label column takes
+        // 40%.  Fields fill horizontally so resizing the window
+        // gives them more room.
+        fun label(text: String) = JLabel(text)
+        fun labelGbc(rowIdx: Int) = java.awt.GridBagConstraints().apply {
+            gridx = 0; gridy = rowIdx
             anchor = java.awt.GridBagConstraints.WEST
             insets = java.awt.Insets(2, 4, 2, 8)
         }
-        var row = 0
+        fun fieldGbc(rowIdx: Int) = java.awt.GridBagConstraints().apply {
+            gridx = 1; gridy = rowIdx
+            anchor = java.awt.GridBagConstraints.WEST
+            insets = java.awt.Insets(2, 4, 2, 8)
+            fill = java.awt.GridBagConstraints.HORIZONTAL
+            weightx = 0.6
+        }
+        fun defaultGbc(rowIdx: Int) = java.awt.GridBagConstraints().apply {
+            gridx = 2; gridy = rowIdx
+            anchor = java.awt.GridBagConstraints.WEST
+            insets = java.awt.Insets(2, 4, 2, 4)
+            weightx = 0.4
+        }
 
-        gbc.gridx = 0; gbc.gridy = row
-        panel.add(JLabel("Replications:"), gbc)
-        gbc.gridx = 1; panel.add(repsField, gbc)
-        gbc.gridx = 2; panel.add(repsModelDefaultLabel, gbc)
-        row++
+        panel.add(label("Replications:"), labelGbc(0))
+        panel.add(repsField, fieldGbc(0))
+        panel.add(repsModelDefaultLabel, defaultGbc(0))
 
-        gbc.gridx = 0; gbc.gridy = row
-        panel.add(JLabel("Length of replication:"), gbc)
-        gbc.gridx = 1; panel.add(lengthField, gbc)
-        gbc.gridx = 2; panel.add(lengthModelDefaultLabel, gbc)
-        row++
+        panel.add(label("Length of replication:"), labelGbc(1))
+        panel.add(lengthField, fieldGbc(1))
+        panel.add(lengthModelDefaultLabel, defaultGbc(1))
 
-        gbc.gridx = 0; gbc.gridy = row
-        panel.add(JLabel("Length of warm-up:"), gbc)
-        gbc.gridx = 1; panel.add(warmUpField, gbc)
-        gbc.gridx = 2; panel.add(warmUpModelDefaultLabel, gbc)
-        row++
+        panel.add(label("Length of warm-up:"), labelGbc(2))
+        panel.add(warmUpField, fieldGbc(2))
+        panel.add(warmUpModelDefaultLabel, defaultGbc(2))
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3
+        val helpRowGbc = java.awt.GridBagConstraints().apply {
+            gridx = 0; gridy = 3; gridwidth = 3
+            anchor = java.awt.GridBagConstraints.WEST
+            insets = java.awt.Insets(6, 4, 2, 4)
+            fill = java.awt.GridBagConstraints.HORIZONTAL
+            weightx = 1.0
+        }
         val helpText = JLabel(
             "<html><i>Leave blank to inherit the model author's defaults.  " +
                 "Replications is the document-level uniform value; switch to " +
                 "Per-point on the Design tab to author per-row overrides.</i></html>"
         )
         helpText.foreground = Color(0x55, 0x55, 0x55)
-        panel.add(helpText, gbc)
+        panel.add(helpText, helpRowGbc)
 
         // Commit on Enter / focus-lost.
         wireRunDefaultsCommit()
@@ -371,12 +401,71 @@ class ModelTabPanel(
         modelCombo.addActionListener {
             if (programmaticComboUpdate) return@addActionListener
             val choice = modelCombo.selectedItem as? ModelChoice ?: return@addActionListener
-            controller.setModelReference(
-                ModelReference.ByBundleAndModelId(
-                    bundleId = choice.bundleId,
-                    modelId = choice.modelId
-                )
+            val newRef = ModelReference.ByBundleAndModelId(
+                bundleId = choice.bundleId,
+                modelId = choice.modelId
             )
+            val currentRef = controller.modelReference.value
+            // Switching to a different model: prompt the user.
+            // Same-model "switch" (re-selecting from the dropdown) is
+            // a no-op and skips the prompt.
+            if (currentRef != null && currentRef != newRef && controller.factors.value.isNotEmpty()) {
+                handleModelSwitchPrompt(newRef)
+            } else {
+                controller.setModelReference(newRef)
+            }
+        }
+    }
+
+    /**
+     *  Prompt the user when they pick a different model and there
+     *  are existing factors that probably reference the old model's
+     *  controls.  Three outcomes:
+     *  - Switch and Clear → reset factors / design / overrides to
+     *    defaults
+     *  - Switch and Keep  → keep existing values (user will fix
+     *    bindings manually; Factors tab shows red-X markers)
+     *  - Cancel           → revert the dropdown to the prior model
+     */
+    private fun handleModelSwitchPrompt(newRef: ModelReference) {
+        val options = arrayOf("Switch and Clear", "Switch and Keep", "Cancel")
+        val choice = javax.swing.JOptionPane.showOptionDialog(
+            this,
+            "<html>Switching to a different model will likely invalidate the current " +
+                "factors (they reference the previous model's controls / RV parameters).<br><br>" +
+                "<b>Switch and Clear</b> — reset factors, design spec, and run-parameter " +
+                "overrides back to defaults.<br>" +
+                "<b>Switch and Keep</b> — keep the existing values; fix the bindings " +
+                "manually on the Factors tab.<br>" +
+                "<b>Cancel</b> — keep the previously selected model.</html>",
+            "Switch model?",
+            javax.swing.JOptionPane.YES_NO_CANCEL_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]
+        )
+        when (choice) {
+            0 -> controller.setModelReferenceAndClear(newRef)
+            1 -> controller.setModelReference(newRef)
+            else -> {
+                // Cancel — revert the dropdown to the previous model.
+                // The collector that watches modelReference will
+                // re-select the prior choice on the next tick; do
+                // nothing here.
+                programmaticComboUpdate = true
+                try {
+                    val priorRef = controller.modelReference.value as? ModelReference.ByBundleAndModelId
+                    val priorChoice = (0 until modelCombo.itemCount)
+                        .map { modelCombo.getItemAt(it) }
+                        .firstOrNull {
+                            it != null &&
+                                it.bundleId == priorRef?.bundleId &&
+                                it.modelId == priorRef.modelId
+                        }
+                    modelCombo.selectedItem = priorChoice
+                } finally { programmaticComboUpdate = false }
+            }
         }
     }
 

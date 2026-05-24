@@ -21,8 +21,10 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.config.ExecutionMode
 import ksl.app.config.experiment.DesignSpec
+import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.ManualPointSpec
+import ksl.app.config.experiment.StreamPolicy
 import ksl.app.config.experiment.materializeDesign
 import ksl.app.swing.common.notification.NotificationSeverity
 import java.awt.BorderLayout
@@ -96,6 +98,12 @@ class SimulateTabPanel(
 
     private val simulateButton = JButton("▶ Simulate").apply { isEnabled = false }
     private val cancelButton = JButton("■ Cancel run").apply { isEnabled = false }
+    private val resetButton = JButton("Reset").apply {
+        isEnabled = false
+        toolTipText = "Clear the per-design-point statuses from the previous run + " +
+            "re-enumerate the design points.  Safe escape hatch if anything looks " +
+            "stuck after a completed / cancelled run."
+    }
 
     // ── Run options ───────────────────────────────────────────────
 
@@ -114,6 +122,44 @@ class SimulateTabPanel(
         toolTipText = "Capture each design point's results in the shared KSL SQLite database " +
             "(<workspace>/output/<analysisName>/).  Required for downstream Regression + " +
             "Comparison Analyzer / Reports to have anything to read."
+    }
+    private val perPointSubdirsCheckbox = JCheckBox(
+        "Use per-design-point output folders",
+        controller.experimentOutput.value.usePerPointSubdirs
+    ).apply {
+        toolTipText = "<html>When checked, each design point gets its own " +
+            "&lt;name&gt;_DP_&lt;n&gt;_OutputDir under the analysis output directory " +
+            "(each containing kslOutput.txt and any per-point CSV / plot artifacts).<br>" +
+            "When unchecked (default), all per-point models share the analysis output " +
+            "directory; per-point logs use the filename kslOutput_DP_&lt;n&gt;.txt.<br>" +
+            "Turn on for per-point CSV / configuration workflows (Phase E11).</html>"
+    }
+
+    // Random streams (moved from Design tab in E7.10 — stream policy
+    // is a runtime variance-reduction technique, not a design spec).
+    private val indepRadio = javax.swing.JRadioButton("Independent (default)", true)
+    private val crnRadio = javax.swing.JRadioButton("Common Random Numbers (CRN)")
+    private val streamGroup = javax.swing.ButtonGroup().apply { add(indepRadio); add(crnRadio) }
+    private val advancedStreamsToggle = JCheckBox("Advanced...")
+    private val startingAdvanceField = javax.swing.JTextField("0", 6)
+    private val spacingField = javax.swing.JTextField("", 6)  // blank = null = cumulative
+    private val crnHelpLabel = JLabel(
+        "<html><body width='600'><i>CRN reuses the same random-stream block at every " +
+            "design point &mdash; reduces variance for cross-point comparisons but biases " +
+            "per-point standard errors.  Independent (default) gives each point a fresh " +
+            "non-overlapping block.</i></body></html>"
+    ).apply {
+        border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        foreground = Color(0x55, 0x55, 0x55)
+        isVisible = false   // shown only when CRN is the active selection
+    }
+    private val advancedStreamsRow: JPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0)).apply {
+        border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        add(JLabel("startingStreamAdvance:"))
+        add(startingAdvanceField)
+        add(JLabel("  streamAdvanceSpacing (blank = cumulative):"))
+        add(spacingField)
+        isVisible = false
     }
 
     // ── Status ────────────────────────────────────────────────────
@@ -175,6 +221,7 @@ class SimulateTabPanel(
         val buttonRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         buttonRow.add(simulateButton)
         buttonRow.add(cancelButton)
+        buttonRow.add(resetButton)
         stack.add(buttonRow)
 
         val optionsPanel = JPanel()
@@ -186,10 +233,23 @@ class SimulateTabPanel(
         modeRow.add(concurrentRadio)
         ButtonGroup().apply { add(sequentialRadio); add(concurrentRadio) }
         optionsPanel.add(modeRow)
+        val streamsRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+        streamsRow.add(JLabel("Random streams:"))
+        streamsRow.add(indepRadio)
+        streamsRow.add(crnRadio)
+        streamsRow.add(advancedStreamsToggle)
+        optionsPanel.add(streamsRow)
+        optionsPanel.add(crnHelpLabel)
+        optionsPanel.add(advancedStreamsRow)
+
         val outputRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         outputRow.add(JLabel("Output:"))
         outputRow.add(enableDbCheckbox)
         optionsPanel.add(outputRow)
+        val outputRow2 = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+        outputRow2.add(JLabel(" "))   // alignment placeholder
+        outputRow2.add(perPointSubdirsCheckbox)
+        optionsPanel.add(outputRow2)
         stack.add(optionsPanel)
         stack.add(statusLabel)
         return stack
@@ -213,6 +273,15 @@ class SimulateTabPanel(
             if (!controller.runningFlow.value) onSimulateRequested()
         }
         cancelButton.addActionListener { controller.cancel() }
+        resetButton.addActionListener {
+            // Clear the controller's per-point status map back to all
+            // PENDING, then re-materialise the table.  Acts as a
+            // "start fresh" affordance after a completed / failed /
+            // cancelled run.
+            if (controller.runningFlow.value) return@addActionListener
+            controller.resetDesignPointStatuses()
+            rematerialise()
+        }
     }
 
     private fun wireRunOptions() {
@@ -229,6 +298,64 @@ class SimulateTabPanel(
         enableDbCheckbox.addActionListener {
             if (!suppressEvents) controller.setEnableKSLDatabase(enableDbCheckbox.isSelected)
         }
+        perPointSubdirsCheckbox.addActionListener {
+            if (!suppressEvents) {
+                controller.setExperimentOutput(
+                    ExperimentOutputSpec(usePerPointSubdirs = perPointSubdirsCheckbox.isSelected)
+                )
+            }
+        }
+        wireStreamPolicy()
+    }
+
+    private fun wireStreamPolicy() {
+        val push = {
+            if (!suppressEvents) {
+                val next: StreamPolicy = if (crnRadio.isSelected) {
+                    StreamPolicy.CommonRandomNumbers
+                } else {
+                    parseAdvancedOrCurrent()
+                }
+                controller.setStreamPolicy(next)
+                advancedStreamsToggle.isEnabled = indepRadio.isSelected
+                if (!indepRadio.isSelected) advancedStreamsRow.isVisible = false
+                crnHelpLabel.isVisible = crnRadio.isSelected
+            }
+        }
+        indepRadio.addActionListener { push() }
+        crnRadio.addActionListener { push() }
+        advancedStreamsToggle.addActionListener {
+            advancedStreamsRow.isVisible = advancedStreamsToggle.isSelected && indepRadio.isSelected
+            revalidate()
+            repaint()
+        }
+        startingAdvanceField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) {
+                if (!suppressEvents) commitStreamAdvanced()
+            }
+        })
+        startingAdvanceField.addActionListener { if (!suppressEvents) commitStreamAdvanced() }
+        spacingField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) {
+                if (!suppressEvents) commitStreamAdvanced()
+            }
+        })
+        spacingField.addActionListener { if (!suppressEvents) commitStreamAdvanced() }
+    }
+
+    private fun parseAdvancedOrCurrent(): StreamPolicy.Independent {
+        val starting = startingAdvanceField.text.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val spacing = spacingField.text.trim().takeIf { it.isNotEmpty() }
+            ?.toIntOrNull()?.coerceAtLeast(1)
+        return StreamPolicy.Independent(
+            startingStreamAdvance = starting,
+            streamAdvanceSpacing = spacing
+        )
+    }
+
+    private fun commitStreamAdvanced() {
+        if (!indepRadio.isSelected) return
+        controller.setStreamPolicy(parseAdvancedOrCurrent())
     }
 
     private fun wireCsvButtons() {
@@ -315,8 +442,53 @@ class SimulateTabPanel(
             }
         }
         controller.edtScope.launch {
+            controller.experimentOutput.collect { spec ->
+                suppressEvents = true
+                try {
+                    if (perPointSubdirsCheckbox.isSelected != spec.usePerPointSubdirs) {
+                        perPointSubdirsCheckbox.isSelected = spec.usePerPointSubdirs
+                    }
+                } finally { suppressEvents = false }
+            }
+        }
+        controller.edtScope.launch {
+            controller.streamPolicy.collect { policy ->
+                suppressEvents = true
+                try {
+                    when (policy) {
+                        is StreamPolicy.Independent -> {
+                            indepRadio.isSelected = true
+                            startingAdvanceField.text = policy.startingStreamAdvance.toString()
+                            spacingField.text = policy.streamAdvanceSpacing?.toString() ?: ""
+                            advancedStreamsToggle.isEnabled = true
+                            crnHelpLabel.isVisible = false
+                        }
+                        is StreamPolicy.CommonRandomNumbers -> {
+                            crnRadio.isSelected = true
+                            advancedStreamsToggle.isEnabled = false
+                            advancedStreamsRow.isVisible = false
+                            crnHelpLabel.isVisible = true
+                        }
+                    }
+                } finally { suppressEvents = false }
+            }
+        }
+        controller.edtScope.launch {
+            // Track running-state edges so we can rematerialise the
+            // table when a run ends.  Without this, the table keeps
+            // showing the prior run's enumerated points and a user
+            // who changed factors / design between runs would see
+            // stale rows until they manually touched something.
+            var wasRunning = controller.runningFlow.value
             controller.runningFlow.collect { running ->
                 refreshButtonEnablement(running)
+                if (wasRunning && !running) {
+                    // Run just ended.  Re-enumerate so the table
+                    // matches the document's current design (in case
+                    // the user edited something during the run).
+                    rematerialise()
+                }
+                wasRunning = running
             }
         }
         controller.edtScope.launch {
@@ -334,6 +506,10 @@ class SimulateTabPanel(
                     }
                 }
                 refreshStatusLabel()
+                // Reset enablement depends on whether any non-
+                // PENDING statuses are present — refresh it on
+                // every status flow change.
+                refreshButtonEnablement(controller.runningFlow.value)
             }
         }
     }
@@ -343,9 +519,20 @@ class SimulateTabPanel(
         val hasFactors = controller.factors.value.isNotEmpty()
         simulateButton.isEnabled = !running && hasModel && hasFactors
         cancelButton.isEnabled = running
+        // Reset enabled only when not running AND at least one
+        // status row is non-PENDING (something to clear).
+        resetButton.isEnabled = !running && controller.designPointStatuses.value.values.any {
+            it != ExperimentAppController.DesignPointStatus.PENDING
+        }
         sequentialRadio.isEnabled = !running
         concurrentRadio.isEnabled = !running
         enableDbCheckbox.isEnabled = !running
+        perPointSubdirsCheckbox.isEnabled = !running
+        indepRadio.isEnabled = !running
+        crnRadio.isEnabled = !running
+        advancedStreamsToggle.isEnabled = !running && indepRadio.isSelected
+        startingAdvanceField.isEnabled = !running
+        spacingField.isEnabled = !running
     }
 
     private fun refreshStatusLabel() {

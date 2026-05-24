@@ -346,6 +346,28 @@ class ExperimentAppController(
         markDirty()
     }
 
+    /**
+     *  Switch the active model AND clear all model-dependent
+     *  document state (factors, design spec, run-parameter
+     *  overrides) — used by the GUI when the user confirms a model
+     *  switch that would leave behind stale bindings to the prior
+     *  model's controls.  The output config + analysis name +
+     *  execution mode + stream policy survive (they aren't model-
+     *  specific).
+     */
+    fun setModelReferenceAndClear(ref: ModelReference) {
+        myModelReference.value = ref
+        myFactors.value = emptyList()
+        mySelectedFactorIndex.value = -1
+        myDesignSpec.value = DesignSpec.FullFactorial
+        myReplications.value = ReplicationSpec.Uniform(10)
+        myRunParameterOverrides.value = RunParameterOverridesSpec()
+        myExperimentOutput.value = ExperimentOutputSpec()
+        refreshModelDescriptor()
+        dropRuntimeArtefacts()
+        markDirty()
+    }
+
     fun addFactor(spec: FactorSpec) {
         require(myFactors.value.none { it.name == spec.name }) {
             "Factor name '${spec.name}' already exists in the document"
@@ -825,6 +847,17 @@ class ExperimentAppController(
     /** Cancel the in-flight run, if any.  No-op when not running. */
     fun cancel() {
         currentHandle?.cancel("User-requested cancel")
+    }
+
+    /**
+     *  Clear the per-design-point status map back to empty.  Used by
+     *  the Simulate tab's Reset button after a completed / failed /
+     *  cancelled run when the user wants to start fresh.  No-op
+     *  while a run is in flight (don't trample the live state map).
+     */
+    fun resetDesignPointStatuses() {
+        if (myRunning.value) return
+        myDesignPointStatuses.value = emptyMap()
     }
 
     /**

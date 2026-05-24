@@ -250,6 +250,57 @@ class ExperimentAppControllerTest {
     }
 
     @Test
+    fun `setModelReferenceAndClear resets factors design and overrides`() {
+        // Switching to a different model with "Clear" should reset
+        // everything that's model-bound: factors, design, run param
+        // overrides, experiment-output prefs.  Things that aren't
+        // model-bound (analysis name, execution mode, stream policy)
+        // stay put.
+        val c = fresh()
+        c.setModelReference(mm1)
+        c.addFactor(factor("A"))
+        c.addFactor(factor("B"))
+        c.setDesignSpec(
+            ksl.app.config.experiment.DesignSpec.TwoLevelFactorial(
+                fraction = ksl.app.config.experiment.Fraction.HalfFraction()
+            )
+        )
+        c.setRunParameterOverrides(
+            ksl.app.config.experiment.RunParameterOverridesSpec(lengthOfReplication = 200.0)
+        )
+        c.setExperimentOutput(
+            ksl.app.config.experiment.ExperimentOutputSpec(usePerPointSubdirs = true)
+        )
+        assertEquals(2, c.factors.value.size)
+
+        val newRef = ModelReference.Embedded("OtherModel")
+        c.setModelReferenceAndClear(newRef)
+
+        assertEquals(newRef, c.modelReference.value)
+        assertTrue(c.factors.value.isEmpty(), "factors should be cleared")
+        assertEquals(-1, c.selectedFactorIndex.value)
+        assertIs<ksl.app.config.experiment.DesignSpec.FullFactorial>(c.designSpec.value)
+        assertEquals(null, c.runParameterOverrides.value.lengthOfReplication)
+        assertEquals(false, c.experimentOutput.value.usePerPointSubdirs)
+        // Markdirty fired:
+        assertTrue(c.isDirty.value)
+    }
+
+    @Test
+    fun `resetDesignPointStatuses clears the per-point status map`() {
+        val c = fresh()
+        c.seedRunStateForTesting(
+            designPointStatuses = mapOf(
+                1 to ExperimentAppController.DesignPointStatus.COMPLETED,
+                2 to ExperimentAppController.DesignPointStatus.FAILED
+            )
+        )
+        assertEquals(2, c.designPointStatuses.value.size)
+        c.resetDesignPointStatuses()
+        assertTrue(c.designPointStatuses.value.isEmpty())
+    }
+
+    @Test
     fun `setRunParameterOverrides marks dirty but does NOT drop lastResult`() {
         // Run-parameter overrides are document-level preferences
         // (apply to the next run); they don't invalidate prior
