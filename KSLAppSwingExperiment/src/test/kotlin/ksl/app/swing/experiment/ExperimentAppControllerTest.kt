@@ -186,7 +186,7 @@ class ExperimentAppControllerTest {
     // ── Identity-couple (Q2): factor mutations drop runtime artefacts ──────
 
     @Test
-    fun `addFactor drops lastResult and experimentInstance and lastRegressionFit`() {
+    fun `addFactor drops lastResult and experimentInstance and recentRegressionFits`() {
         val c = fresh()
         c.addFactor(factor("A"))
         c.seedRunStateForTesting(lastResult = fakeBatch())
@@ -564,7 +564,7 @@ class ExperimentAppControllerTest {
             coded = true
         )
         assertNull(result)
-        assertNull(c.lastRegressionFit.value)
+        assertTrue(c.recentRegressionFits.value.isEmpty())
     }
 
     // (Positive fitRegression delegation is exercised in the

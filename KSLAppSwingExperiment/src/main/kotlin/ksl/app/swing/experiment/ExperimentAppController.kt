@@ -379,12 +379,6 @@ class ExperimentAppController(
      *  on `resetConfiguration` / `clearFactors`. */
     val experimentInstance: StateFlow<DesignedExperimentIfc?> = myExperimentInstance.asStateFlow()
 
-    private val myLastRegressionFit = MutableStateFlow<RegressionResultsIfc?>(null)
-    /** The most recent fit produced by [fitRegression], or `null` when
-     *  none yet this session.  In-memory only; not persisted to the
-     *  TOML document.  Cleared on Simulate (R1). */
-    val lastRegressionFit: StateFlow<RegressionResultsIfc?> = myLastRegressionFit.asStateFlow()
-
     private val myRecentRegressionFits = MutableStateFlow<List<RegressionFitRecord>>(emptyList())
     /** Bounded (most-recent-first) history of successful regression fits
      *  produced by [fitRegression].  Bounded to [MAX_RECENT_FITS]
@@ -411,7 +405,7 @@ class ExperimentAppController(
     // ── Document mutators: model + factors ─────────────────────────────────
 
     /** Set the document's model reference.  Drops [lastResult] +
-     *  [experimentInstance] + [lastRegressionFit] (identity-couple:
+     *  [experimentInstance] + [recentRegressionFits] (identity-couple:
      *  changing the model invalidates everything). */
     fun setModelReference(ref: ModelReference) {
         if (myModelReference.value == ref) return
@@ -540,7 +534,7 @@ class ExperimentAppController(
      *  already empty.
      *
      *  Identity-coupled lifecycle: clears [lastResult] +
-     *  [experimentInstance] + [lastRegressionFit] + the per-point
+     *  [experimentInstance] + [recentRegressionFits] + the per-point
      *  status map.  Analysis name resets to `"Untitled"` (identity
      *  field); preference-style fields on OutputConfig (database
      *  toggle, CSV flags, databasePolicy) and the design / replication
@@ -734,14 +728,12 @@ class ExperimentAppController(
         lastResult: RunResult? = null,
         designPointStatuses: Map<Int, DesignPointStatus> = emptyMap(),
         experimentInstance: DesignedExperimentIfc? = null,
-        lastRegressionFit: RegressionResultsIfc? = null,
         editedSinceLastSim: Boolean = false,
         running: Boolean = false
     ) {
         myLastResult.value = lastResult
         myDesignPointStatuses.value = designPointStatuses
         myExperimentInstance.value = experimentInstance
-        myLastRegressionFit.value = lastRegressionFit
         myEditedSinceLastSim.value = editedSinceLastSim
         myRunning.value = running
     }
@@ -754,7 +746,6 @@ class ExperimentAppController(
         myLastResult.value = null
         myDesignPointStatuses.value = emptyMap()
         myExperimentInstance.value = null
-        myLastRegressionFit.value = null
         myRecentRegressionFits.value = emptyList()
         myEditedSinceLastSim.value = false
     }
@@ -767,7 +758,6 @@ class ExperimentAppController(
     private fun dropRuntimeArtefacts() {
         if (myLastResult.value != null) myLastResult.value = null
         if (myExperimentInstance.value != null) myExperimentInstance.value = null
-        if (myLastRegressionFit.value != null) myLastRegressionFit.value = null
         if (myRecentRegressionFits.value.isNotEmpty()) {
             myRecentRegressionFits.value = emptyList()
         }
@@ -802,7 +792,7 @@ class ExperimentAppController(
      *  running).
      *
      *  R1 lifecycle: clears [lastResult] / [experimentInstance] /
-     *  [lastRegressionFit] before launching.  Output is routed under
+     *  [recentRegressionFits] before launching.  Output is routed under
      *  `<workspace>/output/<analysisName>/` so re-runs of the same
      *  document write back into the same folder (with [DatabasePolicy]
      *  governing the .db file inside).
@@ -986,8 +976,9 @@ class ExperimentAppController(
      *  Fit a regression of [response] under [model] against the
      *  retained [experimentInstance].  Returns `null` when no
      *  experiment instance is retained (no run yet, or it was
-     *  cleared by R1 / clearFactors / resetConfiguration).  Stores
-     *  the fit in [lastRegressionFit].
+     *  cleared by R1 / clearFactors / resetConfiguration).  Prepends
+     *  a [RegressionFitRecord] to [recentRegressionFits] (subject to
+     *  FIFO eviction at [MAX_RECENT_FITS]).
      *
      *  Wraps the substrate's `DesignedExperimentIfc.regressionResults`
      *  — works identically for both `ParallelDesignedExperiment` and
@@ -1001,7 +992,6 @@ class ExperimentAppController(
     ): RegressionResultsIfc? {
         val experiment = myExperimentInstance.value ?: return null
         val result = experiment.regressionResults(response, model, coded)
-        myLastRegressionFit.value = result
         // Prepend the new record (most-recent-first) and FIFO-evict
         // beyond [MAX_RECENT_FITS].  Eviction is silent regardless of
         // saved state — per the design discussion the Recent Fits

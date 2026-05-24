@@ -23,13 +23,19 @@ import ksl.app.config.ReportFormat
 import ksl.app.config.sanitizeAnalysisName
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.controls.experiments.LinearModel
-import ksl.utilities.io.report.extensions.toReport
+import ksl.utilities.io.report.ast.ReportNode
+import ksl.utilities.io.report.dsl.ReportBuilder
+import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.regressionDiagnostics
+import ksl.utilities.io.report.extensions.regressionParameters
+import ksl.utilities.io.report.extensions.regressionSummary
 import ksl.utilities.io.report.renderer.RenderContext
 import ksl.utilities.io.report.showInBrowser
 import ksl.utilities.io.report.writeHtml
 import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
 import ksl.utilities.statistic.RegressionResultsIfc
+import org.jetbrains.kotlinx.dataframe.io.writeCsv
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -47,8 +53,11 @@ import javax.swing.BoxLayout
 import javax.swing.ButtonGroup
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JComboBox
+import javax.swing.JDialog
 import javax.swing.JLabel
+import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 import javax.swing.JScrollPane
@@ -65,26 +74,32 @@ import javax.swing.table.DefaultTableCellRenderer
  *
  *  Browser-first analysis launcher.  The panel itself is a thin form
  *  over the substrate's `DesignedExperimentIfc.regressionResults(...)`
- *  + `RegressionResultsIfc.toReport(...)` pipeline; the user reads
- *  every actual result in their system browser, not in Swing.
+ *  + `RegressionResultsIfc.toReport(...)` pipeline.
  *
- *  Lifecycle:
- *  - Empty-state cards for "no model", "no experiment instance"
- *    (no run yet) and "no results in current run" (factor changes
- *    invalidated the prior result).
- *  - When a run has produced results, the populated card shows:
- *    a model spec form, a fit button, a status chip, last-fit Open
- *    + Save buttons, and a Recent Fits table backed by
- *    [ExperimentAppController.recentRegressionFits].
- *  - R1 lifecycle clears the recent-fits list on Simulate; the
- *    unsaved-fits prompt in
- *    `ExperimentAppFrame.handleSimulate` warns the user beforehand.
+ *  Two distinct disk-side actions, each with explicit semantics:
  *
- *  Reports are written under
- *  `<workspace>/output/<analysisName>/reports/`, in whichever formats
- *  are enabled in `controller.outputConfig.value.reports`.  Same
- *  directory the Reports tab scans, so saved regression reports
- *  appear alongside the experiment summaries automatically.
+ *  - **Open** writes the HTML to an OS temporary file
+ *    ([Files.createTempFile]) and launches the system browser.  It
+ *    does **not** touch the reports directory, does **not** alter
+ *    the record's [RegressionFitRecord.savedPaths], and does not
+ *    require the user to name anything.  Iteration is cheap.
+ *
+ *  - **Save** opens [SaveRegressionReportDialog], where the user
+ *    names the file, picks formats (HTML / Markdown / Text),
+ *    picks which report sections to include, and optionally
+ *    requests CSV exports for the coefficient table and the
+ *    residual table.  Files land under
+ *    `<workspace>/output/<analysisName>/reports/` and the record's
+ *    [RegressionFitRecord.savedPaths] grows by the written paths.
+ *
+ *  - **Save all unsaved** (header button) keeps the original
+ *    auto-naming behaviour: timestamp-based stem, formats from
+ *    `OutputConfig.reports`, default [RegressionResultsIfc.toReport]
+ *    sections, no CSV.  No per-row prompting — meant for
+ *    unattended pre-Simulate rescue.
+ *
+ *  Empty-state cards keep the populated card off-screen until the
+ *  user has a real model + factors + run results to fit against.
  */
 class RegressionTabPanel(
     private val controller: ExperimentAppController,
@@ -165,13 +180,14 @@ class RegressionTabPanel(
     }
     private val openLastFitButton = JButton("Open report in browser").apply {
         isVisible = false
-        toolTipText = "Regenerate the HTML report from the most recent fit and open it in your " +
-            "system browser.  Works whether or not the fit has been saved to disk."
+        toolTipText = "Render the most-recent fit's HTML report to an OS temporary file " +
+            "and open it in your system browser.  Does not write to the reports directory."
     }
     private val saveLastFitButton = JButton("Save report to disk…").apply {
         isVisible = false
-        toolTipText = "Materialise the most recent fit to <workspace>/output/<analysisName>/reports/, " +
-            "using the formats enabled in the document's output options."
+        toolTipText = "Open the Save dialog: name the file, pick formats (HTML / Markdown / Text), " +
+            "pick report sections, and optionally export coefficient / residual CSVs to the " +
+            "workspace reports directory."
     }
 
     // ── Recent fits ────────────────────────────────────────────────────────
@@ -187,7 +203,9 @@ class RegressionTabPanel(
         font = font.deriveFont(font.size * 0.95f)
     }
     private val saveAllUnsavedButton = JButton("Save all unsaved").apply {
-        toolTipText = "Materialise every unsaved fit in the list to the reports directory."
+        toolTipText = "Materialise every unsaved fit using auto-generated timestamp names " +
+            "and the document's configured report formats.  No per-row prompting — meant for " +
+            "a quick pre-Simulate rescue."
         isEnabled = false
     }
     private val clearAllButton = JButton("Clear all").apply {
@@ -196,10 +214,14 @@ class RegressionTabPanel(
         isEnabled = false
     }
     private val openRowButton = JButton("Open").apply {
-        toolTipText = "Open the selected row's regression report in your system browser."
+        toolTipText = "Render the selected row's report to an OS temp file and open it in the browser.  " +
+            "Does not write to the reports directory."
         isEnabled = false
     }
-    private val saveRowButton = JButton("Save").apply { isEnabled = false }
+    private val saveRowButton = JButton("Save…").apply {
+        toolTipText = "Open the Save dialog for the selected row (name, formats, sections, CSV exports)."
+        isEnabled = false
+    }
     private val removeRowButton = JButton("Remove").apply {
         toolTipText = "Drop the selected row from the recent-fits list.  Files on disk are not deleted."
         isEnabled = false
@@ -260,14 +282,12 @@ class RegressionTabPanel(
             fill = GridBagConstraints.NONE
         }
 
-        // Row 0: response
         gbc.gridx = 0; gbc.gridy = 0; panel.add(JLabel("Response:"), gbc)
         gbc.gridx = 1; gbc.gridwidth = 3
         gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
         panel.add(responseCombo, gbc)
         gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
 
-        // Row 1: levels (coded/natural) + confidence
         gbc.gridx = 0; gbc.gridy = 1; panel.add(JLabel("Levels:"), gbc)
         val levelsRow = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -277,7 +297,6 @@ class RegressionTabPanel(
         gbc.gridx = 2; panel.add(JLabel("Confidence:"), gbc)
         gbc.gridx = 3; panel.add(confidenceCombo, gbc)
 
-        // Row 2-5: model presets
         gbc.gridx = 0; gbc.gridy = 2; panel.add(JLabel("Model:"), gbc)
         gbc.gridx = 1; gbc.gridwidth = 3; panel.add(firstOrderRadio, gbc)
         gbc.gridy = 3; gbc.gridx = 1; panel.add(secondOrderRadio, gbc)
@@ -290,14 +309,12 @@ class RegressionTabPanel(
         panel.add(customRow, gbc)
         gbc.gridwidth = 1
 
-        // Row 6: expression preview
         gbc.gridx = 0; gbc.gridy = 6; panel.add(JLabel("Expression:"), gbc)
         gbc.gridx = 1; gbc.gridwidth = 3
         gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
         panel.add(expressionLabel, gbc)
         gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
 
-        // Row 7: fit button
         gbc.gridx = 1; gbc.gridy = 7
         gbc.insets = Insets(8, 4, 3, 4)
         panel.add(fitButton, gbc)
@@ -345,7 +362,6 @@ class RegressionTabPanel(
         val scroll = JScrollPane(recentTable).apply {
             preferredSize = Dimension(0, 180)
         }
-        // Status column gets a centered renderer
         recentTable.columnModel.getColumn(COL_STATUS).cellRenderer =
             object : DefaultTableCellRenderer() {
                 init { horizontalAlignment = SwingConstants.CENTER }
@@ -397,8 +413,8 @@ class RegressionTabPanel(
         recentTable.selectionModel.addListSelectionListener {
             if (!it.valueIsAdjusting) refreshRowActionEnablement()
         }
-        openRowButton.addActionListener { withSelectedRecord { i, r -> openRecord(r, i) } }
-        saveRowButton.addActionListener { withSelectedRecord { i, r -> saveRecord(i, r) } }
+        openRowButton.addActionListener { withSelectedRecord { _, r -> openRecord(r) } }
+        saveRowButton.addActionListener { withSelectedRecord { i, r -> promptAndSave(i, r) } }
         removeRowButton.addActionListener {
             val sel = recentTable.selectedRow
             if (sel >= 0) controller.removeRegressionFit(sel)
@@ -408,9 +424,7 @@ class RegressionTabPanel(
     }
 
     private fun wireControllerSubscribers() {
-        controller.edtScope.launch {
-            controller.modelReference.collect { refreshCard() }
-        }
+        controller.edtScope.launch { controller.modelReference.collect { refreshCard() } }
         controller.edtScope.launch {
             controller.currentModelDescriptor.collect { refreshResponseCombo(); refreshCard() }
         }
@@ -422,23 +436,19 @@ class RegressionTabPanel(
                 refreshResponseCombo(); refreshFitEnablement(); refreshCard()
             }
         }
-        controller.edtScope.launch {
-            controller.lastResult.collect { refreshCard() }
-        }
-        controller.edtScope.launch {
-            controller.runningFlow.collect { refreshFitEnablement() }
-        }
-        controller.edtScope.launch {
-            controller.editedSinceLastSim.collect { refreshStatus() }
-        }
-        controller.edtScope.launch {
-            controller.lastRegressionFit.collect { refreshStatus() }
-        }
+        controller.edtScope.launch { controller.lastResult.collect { refreshCard() } }
+        controller.edtScope.launch { controller.runningFlow.collect { refreshFitEnablement() } }
+        controller.edtScope.launch { controller.editedSinceLastSim.collect { refreshStatus() } }
         controller.edtScope.launch {
             controller.recentRegressionFits.collect { list ->
                 recentTableModel.replace(list)
                 refreshRecentHeader()
                 refreshRowActionEnablement()
+                // Status follows the head-of-list — refreshing here
+                // means Clear All / Remove on the most-recent row /
+                // FIFO eviction all flip the chip correctly without a
+                // dedicated subscriber.
+                refreshStatus()
             }
         }
     }
@@ -449,10 +459,6 @@ class RegressionTabPanel(
         val card = when {
             controller.modelReference.value == null -> CARD_NO_MODEL
             controller.factors.value.isEmpty() -> CARD_NO_FACTORS
-            // Allow the user to author + edit the spec form even before a
-            // run completes — but Fit is gated on experimentInstance,
-            // so route through the "no results" card when there's no
-            // run yet.  Once a run completes, switch to populated.
             controller.experimentInstance.value == null -> CARD_NO_RESULTS
             else -> CARD_POPULATED
         }
@@ -493,11 +499,18 @@ class RegressionTabPanel(
         fitButton.isEnabled = gated
     }
 
+    /**
+     *  Status chip drives off the head of the recent-fits list, NOT
+     *  a separate `lastRegressionFit` field.  This way Clear All /
+     *  Remove on the head row / FIFO eviction all collapse the chip
+     *  to its idle state without separate plumbing (the fix for
+     *  Issue 3 in the round of feedback after the first cut).
+     */
     private fun refreshStatus() {
-        val fit = controller.lastRegressionFit.value
-        val stale = controller.editedSinceLastSim.value && fit != null
+        val mostRecent = controller.recentRegressionFits.value.firstOrNull()
+        val stale = controller.editedSinceLastSim.value && mostRecent != null
         when {
-            fit == null -> {
+            mostRecent == null -> {
                 statusLabel.text = " "
                 statusLabel.foreground = STATUS_GREY
                 openLastFitButton.isVisible = false
@@ -510,15 +523,9 @@ class RegressionTabPanel(
                 saveLastFitButton.isVisible = true
             }
             else -> {
-                val mostRecent = controller.recentRegressionFits.value.firstOrNull()
-                val summary = if (mostRecent != null) {
-                    val units = if (mostRecent.coded) "coded" else "natural"
-                    val alpha = "%.2f".format(1.0 - mostRecent.confidenceLevel)
-                    "✓ Fit succeeded — ${mostRecent.response}, $units, α = $alpha"
-                } else {
-                    "✓ Fit succeeded"
-                }
-                statusLabel.text = summary
+                val units = if (mostRecent.coded) "coded" else "natural"
+                val alpha = "%.2f".format(1.0 - mostRecent.confidenceLevel)
+                statusLabel.text = "✓ Fit succeeded — ${mostRecent.response}, $units, α = $alpha"
                 statusLabel.foreground = STATUS_GREEN
                 openLastFitButton.isVisible = true
                 saveLastFitButton.isVisible = true
@@ -532,7 +539,8 @@ class RegressionTabPanel(
         val unsavedCount = list.count { it.savedPaths.isEmpty() }
         saveAllUnsavedButton.isEnabled = unsavedCount > 0
         saveAllUnsavedButton.toolTipText = if (unsavedCount > 0) {
-            "Materialise the $unsavedCount unsaved fit(s) to the reports directory."
+            "Materialise the $unsavedCount unsaved fit(s) to the reports directory using " +
+                "auto-generated timestamp names and the document's configured formats."
         } else {
             "All fits already saved to disk."
         }
@@ -545,21 +553,10 @@ class RegressionTabPanel(
         openRowButton.isEnabled = record != null
         removeRowButton.isEnabled = record != null
         saveRowButton.isEnabled = record != null
-        saveRowButton.text = if (record?.savedPaths?.isNotEmpty() == true) "Save again…" else "Save"
-        saveRowButton.toolTipText = when {
-            record == null -> null
-            record.savedPaths.isEmpty() -> "Materialise this fit to the reports directory."
-            else -> "Save again to a new timestamped file (previous saves are kept)."
-        }
     }
 
     // ── LinearModel construction ───────────────────────────────────────────
 
-    /** Build the LinearModel implied by the current form state, or
-     *  `null` when invalid (no factors, or Custom selected with
-     *  unparseable / invalid terms).  Read by both the Expression
-     *  preview and the Fit handler so they agree on what would be
-     *  submitted. */
     private fun buildLinearModelOrNull(): LinearModel? {
         val factorNames = controller.factors.value.map { it.name }.toSet()
         if (factorNames.isEmpty()) return null
@@ -583,7 +580,7 @@ class RegressionTabPanel(
         }
     }
 
-    // ── Actions ────────────────────────────────────────────────────────────
+    // ── Fit ────────────────────────────────────────────────────────────────
 
     private fun handleFit() {
         val response = responseCombo.selectedItem as? String ?: run {
@@ -606,7 +603,6 @@ class RegressionTabPanel(
                     NotificationSeverity.WARNING
                 )
             }
-            // refreshStatus + recent-list collector handle the visual update.
         } catch (t: Throwable) {
             onMessage(
                 "Regression failed: ${t.message ?: t::class.simpleName}",
@@ -615,63 +611,35 @@ class RegressionTabPanel(
         }
     }
 
+    // ── Open ───────────────────────────────────────────────────────────────
+
     private fun handleOpenLastFit() {
         val record = controller.recentRegressionFits.value.firstOrNull() ?: return
-        openRecord(record, 0)
-    }
-
-    private fun handleSaveLastFit() {
-        val record = controller.recentRegressionFits.value.firstOrNull() ?: return
-        saveRecord(0, record)
+        openRecord(record)
     }
 
     /**
-     *  Materialise every unsaved record in [ExperimentAppController.recentRegressionFits]
-     *  to the reports directory.  Called by both the in-tab
-     *  "Save all unsaved" button and the frame's Simulate-prompt
-     *  "Save all and simulate" choice, so the two paths produce
-     *  identical files and surface identical toasts.
+     *  Renders the report to an **OS temp file** (not the reports
+     *  directory) and opens it in the system browser.  Pure preview;
+     *  does not modify [RegressionFitRecord.savedPaths].
+     *
+     *  Using a per-call temp file means iterative fitting doesn't
+     *  pollute the workspace, and the user is never prompted to name
+     *  something they're not committing to.
      */
-    fun saveAllUnsavedRegressionFits() {
-        val list = controller.recentRegressionFits.value
-        var saved = 0
-        for ((i, record) in list.withIndex()) {
-            if (record.savedPaths.isNotEmpty()) continue
-            if (saveRecord(i, record, suppressToast = true)) saved++
-        }
-        if (saved > 0) {
-            onMessage("Saved $saved regression report(s).", NotificationSeverity.INFO)
-        } else {
-            onMessage("Nothing to save — all fits already on disk.", NotificationSeverity.INFO)
-        }
-    }
-
-    private fun handleClearAll() {
-        val list = controller.recentRegressionFits.value
-        if (list.isEmpty()) return
-        val unsaved = list.count { it.savedPaths.isEmpty() }
-        if (unsaved > 0) {
-            val choice = javax.swing.JOptionPane.showConfirmDialog(
-                this,
-                "$unsaved unsaved fit(s) will be lost.  Continue?",
-                "Clear Recent Fits",
-                javax.swing.JOptionPane.YES_NO_OPTION,
-                javax.swing.JOptionPane.WARNING_MESSAGE
-            )
-            if (choice != javax.swing.JOptionPane.YES_OPTION) return
-        }
-        controller.clearRegressionFits()
-    }
-
-    private fun openRecord(record: RegressionFitRecord, indexForTitle: Int) {
+    private fun openRecord(record: RegressionFitRecord) {
         try {
-            val title = "Regression Analysis — ${record.response}"
+            val tempDir = Files.createTempDirectory("ksl-regression-")
             val ctx = RenderContext(
-                outputDir = reportsDirOrTemp(),
+                outputDir = tempDir,
                 confidenceLevel = record.confidenceLevel
             )
             record.fit
-                .toReport(title = title, confidenceLevel = record.confidenceLevel)
+                .toReportWithSections(
+                    title = defaultTitle(record),
+                    confidenceLevel = record.confidenceLevel,
+                    sections = ReportSections.ALL
+                )
                 .showInBrowser(ctx = ctx)
         } catch (t: Throwable) {
             onMessage(
@@ -681,42 +649,119 @@ class RegressionTabPanel(
         }
     }
 
+    // ── Save (per-row / most-recent — prompts the user) ───────────────────
+
+    private fun handleSaveLastFit() {
+        val list = controller.recentRegressionFits.value
+        val record = list.firstOrNull() ?: return
+        promptAndSave(0, record)
+    }
+
+    private fun promptAndSave(index: Int, record: RegressionFitRecord) {
+        val dir = ensureReportsDir() ?: return
+        val initialFormats = controller.outputConfig.value.reports
+            .ifEmpty { setOf(ReportFormat.HTML) }
+        val options = SaveRegressionReportDialog.prompt(
+            owner = SwingUtilities.getWindowAncestor(this),
+            defaultStem = defaultStem(record),
+            folder = dir,
+            initialFormats = initialFormats
+        ) ?: return
+        executeSave(index, record, dir, options, suppressToast = false)
+    }
+
+    // ── Save all unsaved (app naming, no dialog) ──────────────────────────
+
     /**
-     *  Write the fit's report into the reports directory in every
-     *  format the document has enabled.  Returns true when at least
-     *  one file was written successfully.  Surfaces a toast on
-     *  success unless [suppressToast] (used by the batch
-     *  Save-All-Unsaved path so the user gets one summary toast
-     *  instead of N per-row toasts).
+     *  Materialise every unsaved record in
+     *  [ExperimentAppController.recentRegressionFits] to the reports
+     *  directory using auto-generated names and the document's
+     *  configured formats.  Called by both the in-tab Save-all
+     *  button and the frame's Simulate-prompt "Save all and simulate"
+     *  branch so both paths produce identical files and surface a
+     *  single summary toast.
      */
-    private fun saveRecord(
+    fun saveAllUnsavedRegressionFits() {
+        val list = controller.recentRegressionFits.value
+        val dir = ensureReportsDir() ?: return
+        val formats = controller.outputConfig.value.reports
+            .ifEmpty { setOf(ReportFormat.HTML) }
+        var saved = 0
+        for ((i, record) in list.withIndex()) {
+            if (record.savedPaths.isNotEmpty()) continue
+            val options = SaveOptions(
+                stem = defaultStem(record),
+                formats = formats,
+                sections = ReportSections.ALL,
+                includeCoefficientCsv = false,
+                includeResidualsCsv = false,
+                overwriteExisting = true   // unattended; the user opted in by clicking Save All
+            )
+            if (executeSave(i, record, dir, options, suppressToast = true)) saved++
+        }
+        if (saved > 0) {
+            onMessage("Saved $saved regression report(s).", NotificationSeverity.INFO)
+        } else {
+            onMessage("Nothing to save — all fits already on disk.", NotificationSeverity.INFO)
+        }
+    }
+
+    // ── Save executor (shared by promptAndSave + saveAllUnsavedRegressionFits) ──
+
+    /**
+     *  Write the report (and optional CSV exports) under [dir] using
+     *  the [options] supplied by the dialog (interactive path) or by
+     *  [saveAllUnsavedRegressionFits] (batch path).  Per-file
+     *  overwrite confirmation runs only on the interactive path
+     *  (`options.overwriteExisting == false`); batch saves silently
+     *  overwrite — the user already confirmed by clicking "Save all".
+     *
+     *  Returns `true` when at least one file was written; the toast
+     *  is emitted only when `suppressToast == false`.
+     */
+    private fun executeSave(
         index: Int,
         record: RegressionFitRecord,
-        suppressToast: Boolean = false
+        dir: Path,
+        options: SaveOptions,
+        suppressToast: Boolean
     ): Boolean {
-        val dir = ensureReportsDir() ?: return false
-        val formats = controller.outputConfig.value.reports.ifEmpty { setOf(ReportFormat.HTML) }
-        val stem = "regression-${sanitizeForFilename(record.response)}-${TS_FORMATTER.format(record.timestamp)}"
-        val doc = record.fit.toReport(
-            title = "Regression Analysis — ${record.response}",
-            confidenceLevel = record.confidenceLevel
+        val doc = record.fit.toReportWithSections(
+            title = defaultTitle(record),
+            confidenceLevel = record.confidenceLevel,
+            sections = options.sections
         )
         val ctx = RenderContext(outputDir = dir, confidenceLevel = record.confidenceLevel)
         val written = mutableListOf<Path>()
         try {
-            for (fmt in formats) {
+            for (fmt in options.formats) {
                 val ext = when (fmt) {
                     ReportFormat.HTML -> "html"
                     ReportFormat.MARKDOWN -> "md"
                     ReportFormat.TEXT -> "txt"
                 }
-                val path = dir.resolve("$stem.$ext")
+                val path = dir.resolve("${options.stem}.$ext")
+                if (!confirmOverwriteIfNeeded(path, options.overwriteExisting)) continue
                 val file = when (fmt) {
                     ReportFormat.HTML -> doc.writeHtml(path = path, ctx = ctx)
                     ReportFormat.MARKDOWN -> doc.writeMarkdown(path = path, ctx = ctx)
                     ReportFormat.TEXT -> doc.writeText(path = path, ctx = ctx)
                 }
                 written.add(file.toPath())
+            }
+            if (options.includeCoefficientCsv) {
+                val csv = dir.resolve("${options.stem}-coefficients.csv")
+                if (confirmOverwriteIfNeeded(csv, options.overwriteExisting)) {
+                    record.fit.parameterResults(record.confidenceLevel).writeCsv(csv)
+                    written.add(csv)
+                }
+            }
+            if (options.includeResidualsCsv) {
+                val csv = dir.resolve("${options.stem}-residuals.csv")
+                if (confirmOverwriteIfNeeded(csv, options.overwriteExisting)) {
+                    record.fit.residualsAsDataFrame().writeCsv(csv)
+                    written.add(csv)
+                }
             }
         } catch (t: Throwable) {
             onMessage(
@@ -728,14 +773,53 @@ class RegressionTabPanel(
         if (written.isNotEmpty()) {
             controller.markRegressionFitSaved(index, written)
             if (!suppressToast) {
-                onMessage("Saved ${written.size} report file(s) to $dir", NotificationSeverity.INFO)
+                onMessage(
+                    "Saved ${written.size} file(s) to $dir",
+                    NotificationSeverity.INFO
+                )
             }
             return true
         }
         return false
     }
 
-    // ── Path helpers ───────────────────────────────────────────────────────
+    /** Returns `true` when the caller may proceed with the write —
+     *  either the file doesn't exist, [silentlyOverwrite] is true, or
+     *  the user confirmed.  Returns `false` only when the user
+     *  declined a confirmation prompt. */
+    private fun confirmOverwriteIfNeeded(path: Path, silentlyOverwrite: Boolean): Boolean {
+        if (!Files.exists(path)) return true
+        if (silentlyOverwrite) return true
+        val choice = JOptionPane.showConfirmDialog(
+            this,
+            "${path.fileName} already exists.\nOverwrite?",
+            "File Exists",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        )
+        return choice == JOptionPane.YES_OPTION
+    }
+
+    // ── Clear-all ──────────────────────────────────────────────────────────
+
+    private fun handleClearAll() {
+        val list = controller.recentRegressionFits.value
+        if (list.isEmpty()) return
+        val unsaved = list.count { it.savedPaths.isEmpty() }
+        if (unsaved > 0) {
+            val choice = JOptionPane.showConfirmDialog(
+                this,
+                "$unsaved unsaved fit(s) will be lost.  Continue?",
+                "Clear Recent Fits",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            )
+            if (choice != JOptionPane.YES_OPTION) return
+        }
+        controller.clearRegressionFits()
+    }
+
+    // ── Path / naming helpers ──────────────────────────────────────────────
 
     private fun reportsDir(): Path = controller.appWorkspace
         .resolve("output")
@@ -752,18 +836,12 @@ class RegressionTabPanel(
         null
     }
 
-    /** Output directory for the in-browser preview path.  Falls back
-     *  to the user's temp dir if the reports directory can't be
-     *  created — we don't want a transient path failure to block
-     *  Open (the user often wants the preview *because* they
-     *  haven't saved yet). */
-    private fun reportsDirOrTemp(): Path =
-        try {
-            reportsDir().also { Files.createDirectories(it) }
-        } catch (_: Throwable) {
-            System.getProperty("java.io.tmpdir")?.let { java.nio.file.Paths.get(it) }
-                ?: reportsDir()
-        }
+    private fun defaultStem(record: RegressionFitRecord): String =
+        "regression-${sanitizeForFilename(record.response)}-" +
+            TS_FORMATTER.format(record.timestamp)
+
+    private fun defaultTitle(record: RegressionFitRecord): String =
+        "Regression Analysis — ${record.response}"
 
     private fun withSelectedRecord(action: (Int, RegressionFitRecord) -> Unit) {
         val sel = recentTable.selectedRow
@@ -771,20 +849,43 @@ class RegressionTabPanel(
         SwingUtilities.invokeLater { action(sel, record) }
     }
 
+    // ── toReport with section selection ────────────────────────────────────
+
+    /** Compose a [ReportNode.Document] including only the sections
+     *  the user asked for.  Delegates to the existing
+     *  `ksl.utilities.io.report.extensions` DSL — no new KSLCore
+     *  surface required.  An empty section set falls back to
+     *  summary-only (rather than an empty document) for robustness;
+     *  the dialog disables Save when nothing is selected, so this
+     *  branch is defensive. */
+    private fun RegressionResultsIfc.toReportWithSections(
+        title: String,
+        confidenceLevel: Double,
+        sections: ReportSections
+    ): ReportNode.Document {
+        val rr = this
+        val block: ReportBuilder.() -> Unit = {
+            if (sections.summary) regressionSummary(rr, confidenceLevel = confidenceLevel)
+            if (sections.parameters) regressionParameters(rr, confidenceLevel = confidenceLevel)
+            if (sections.diagnostics) regressionDiagnostics(rr)
+            if (!sections.summary && !sections.parameters && !sections.diagnostics) {
+                regressionSummary(rr, confidenceLevel = confidenceLevel)
+            }
+        }
+        return report(title, block)
+    }
+
     // ── Recent-fits table model ────────────────────────────────────────────
 
     private inner class RecentFitsTableModel : AbstractTableModel() {
         private var rows: List<RegressionFitRecord> = emptyList()
-
         fun replace(newRows: List<RegressionFitRecord>) {
             rows = newRows
             fireTableDataChanged()
         }
-
         override fun getRowCount(): Int = rows.size
         override fun getColumnCount(): Int = 5
         override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean = false
-
         override fun getColumnName(column: Int): String = when (column) {
             COL_TIME -> "Time"
             COL_RESPONSE -> "Response"
@@ -793,7 +894,6 @@ class RegressionTabPanel(
             COL_STATUS -> "Status"
             else -> ""
         }
-
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
             val r = rows.getOrNull(rowIndex) ?: return ""
             return when (columnIndex) {
@@ -806,6 +906,39 @@ class RegressionTabPanel(
             }
         }
     }
+
+    // ── Save options ───────────────────────────────────────────────────────
+
+    /** Section-selection flags for [toReportWithSections].  Defaults
+     *  to all-on, matching `RegressionResultsIfc.toReport()`'s default. */
+    internal data class ReportSections(
+        val summary: Boolean,
+        val parameters: Boolean,
+        val diagnostics: Boolean
+    ) {
+        val anySelected: Boolean
+            get() = summary || parameters || diagnostics
+
+        companion object {
+            val ALL = ReportSections(summary = true, parameters = true, diagnostics = true)
+        }
+    }
+
+    /** Result of [SaveRegressionReportDialog.prompt] (interactive
+     *  path) or constructed directly by [saveAllUnsavedRegressionFits]
+     *  (batch path). */
+    internal data class SaveOptions(
+        val stem: String,
+        val formats: Set<ReportFormat>,
+        val sections: ReportSections,
+        val includeCoefficientCsv: Boolean,
+        val includeResidualsCsv: Boolean,
+        /** When true, [executeSave] skips per-file overwrite prompts.
+         *  Set by the Save-all batch path; the interactive dialog
+         *  always leaves this false so the user sees one prompt per
+         *  collision. */
+        val overwriteExisting: Boolean
+    )
 
     companion object {
         private const val CARD_NO_MODEL = "no-model"
@@ -828,5 +961,166 @@ class RegressionTabPanel(
 
         private fun sanitizeForFilename(name: String): String =
             name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "response" }
+    }
+}
+
+/**
+ *  Modal dialog for the Regression tab's interactive Save action.
+ *  Collects:
+ *  - a filename stem (extensions appended per selected format),
+ *  - one or more report formats (HTML / Markdown / Text),
+ *  - which report sections to include (Summary / Parameters /
+ *    Diagnostics) — mapped 1:1 to the existing
+ *    `RegressionReportExtensions` DSL,
+ *  - whether to also export the coefficient table and the residual
+ *    table as CSV files.
+ *
+ *  Save is disabled until at least one format is selected and at
+ *  least one section is selected.  The Cancel and close buttons
+ *  return `null`; Save returns the populated
+ *  [RegressionTabPanel.SaveOptions].
+ */
+internal object SaveRegressionReportDialog {
+
+    fun prompt(
+        owner: java.awt.Window?,
+        defaultStem: String,
+        folder: Path,
+        initialFormats: Set<ReportFormat>
+    ): RegressionTabPanel.SaveOptions? {
+        val dialog = JDialog(owner, "Save Regression Report", java.awt.Dialog.ModalityType.APPLICATION_MODAL)
+        val stemField = JTextField(defaultStem, 28)
+        val htmlBox = JCheckBox("HTML", ReportFormat.HTML in initialFormats)
+        val markdownBox = JCheckBox("Markdown", ReportFormat.MARKDOWN in initialFormats)
+        val textBox = JCheckBox("Text", ReportFormat.TEXT in initialFormats)
+        val summaryBox = JCheckBox("Summary", true)
+        val parametersBox = JCheckBox("Parameters", true)
+        val diagnosticsBox = JCheckBox("Diagnostics", true)
+        val coefficientsCsvBox = JCheckBox("Coefficients (CSV)", false).apply {
+            toolTipText = "Write RegressionResultsIfc.parameterResults(level) as a CSV alongside the report."
+        }
+        val residualsCsvBox = JCheckBox("Residuals (CSV)", false).apply {
+            toolTipText = "Write RegressionResultsIfc.residualsAsDataFrame() (response, predicted, " +
+                "residuals, standardized, studentized, hat-diagonal, Cook's distance) as a CSV " +
+                "alongside the report."
+        }
+        val saveButton = JButton("Save")
+        val cancelButton = JButton("Cancel")
+
+        var result: RegressionTabPanel.SaveOptions? = null
+
+        val refreshSaveEnabled = {
+            val anyFormat = htmlBox.isSelected || markdownBox.isSelected || textBox.isSelected
+            val anySection = summaryBox.isSelected || parametersBox.isSelected || diagnosticsBox.isSelected
+            val stemOk = stemField.text.trim().isNotEmpty()
+            saveButton.isEnabled = anyFormat && anySection && stemOk
+        }
+        for (b in listOf(htmlBox, markdownBox, textBox, summaryBox, parametersBox, diagnosticsBox)) {
+            b.addActionListener { refreshSaveEnabled() }
+        }
+        stemField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = refreshSaveEnabled()
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = refreshSaveEnabled()
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = refreshSaveEnabled()
+        })
+
+        saveButton.addActionListener {
+            val stem = stemField.text.trim()
+            val formats = buildSet {
+                if (htmlBox.isSelected) add(ReportFormat.HTML)
+                if (markdownBox.isSelected) add(ReportFormat.MARKDOWN)
+                if (textBox.isSelected) add(ReportFormat.TEXT)
+            }
+            val sections = RegressionTabPanel.ReportSections(
+                summary = summaryBox.isSelected,
+                parameters = parametersBox.isSelected,
+                diagnostics = diagnosticsBox.isSelected
+            )
+            result = RegressionTabPanel.SaveOptions(
+                stem = stem,
+                formats = formats,
+                sections = sections,
+                includeCoefficientCsv = coefficientsCsvBox.isSelected,
+                includeResidualsCsv = residualsCsvBox.isSelected,
+                overwriteExisting = false
+            )
+            dialog.dispose()
+        }
+        cancelButton.addActionListener { dialog.dispose() }
+
+        val body = JPanel(GridBagLayout()).apply {
+            border = BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        }
+        val gbc = GridBagConstraints().apply {
+            insets = Insets(4, 4, 4, 4)
+            anchor = GridBagConstraints.WEST
+            fill = GridBagConstraints.NONE
+        }
+
+        gbc.gridx = 0; gbc.gridy = 0; body.add(JLabel("Filename stem:"), gbc)
+        gbc.gridx = 1; gbc.gridwidth = 3
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0
+        body.add(stemField, gbc)
+        gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0.0
+        gbc.gridx = 1; gbc.gridy = 1
+        gbc.gridwidth = 3
+        body.add(
+            JLabel("Extensions appended per selected format.").apply {
+                foreground = Color(0x88, 0x88, 0x88)
+                font = font.deriveFont(font.size * 0.9f)
+            },
+            gbc
+        )
+        gbc.gridwidth = 1
+
+        gbc.gridx = 0; gbc.gridy = 2; body.add(JLabel("Folder:"), gbc)
+        gbc.gridx = 1; gbc.gridwidth = 3
+        body.add(
+            JLabel(folder.toString()).apply {
+                foreground = Color(0x55, 0x55, 0x55)
+                font = font.deriveFont(font.size * 0.95f)
+            },
+            gbc
+        )
+        gbc.gridwidth = 1
+
+        gbc.gridx = 0; gbc.gridy = 3; body.add(JLabel("Report formats:"), gbc)
+        gbc.gridx = 1; gbc.gridwidth = 3
+        val formatsRow = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            add(htmlBox); add(Box.createHorizontalStrut(8))
+            add(markdownBox); add(Box.createHorizontalStrut(8))
+            add(textBox)
+        }
+        body.add(formatsRow, gbc)
+        gbc.gridwidth = 1
+
+        gbc.gridx = 0; gbc.gridy = 4; body.add(JLabel("Report sections:"), gbc)
+        gbc.gridx = 1; gbc.gridy = 4; body.add(summaryBox, gbc)
+        gbc.gridx = 1; gbc.gridy = 5; body.add(parametersBox, gbc)
+        gbc.gridx = 1; gbc.gridy = 6; body.add(diagnosticsBox, gbc)
+
+        gbc.gridx = 0; gbc.gridy = 7; body.add(JLabel("Data exports:"), gbc)
+        gbc.gridx = 1; gbc.gridy = 7; body.add(coefficientsCsvBox, gbc)
+        gbc.gridx = 1; gbc.gridy = 8; body.add(residualsCsvBox, gbc)
+
+        val buttonRow = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            border = BorderFactory.createEmptyBorder(8, 12, 12, 12)
+            add(Box.createHorizontalGlue())
+            add(cancelButton)
+            add(Box.createHorizontalStrut(8))
+            add(saveButton)
+        }
+
+        dialog.contentPane.layout = BorderLayout()
+        dialog.contentPane.add(body, BorderLayout.CENTER)
+        dialog.contentPane.add(buttonRow, BorderLayout.SOUTH)
+        dialog.getRootPane().defaultButton = saveButton
+        refreshSaveEnabled()
+        dialog.pack()
+        dialog.setLocationRelativeTo(owner)
+        dialog.isVisible = true
+        return result
     }
 }
