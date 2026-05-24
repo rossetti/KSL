@@ -250,6 +250,28 @@ class ExperimentAppControllerTest {
     }
 
     @Test
+    fun `setRunParameterOverrides marks dirty but does NOT drop lastResult`() {
+        // Run-parameter overrides are document-level preferences
+        // (apply to the next run); they don't invalidate prior
+        // results that ran with different values.  Same contract
+        // as setStreamPolicy.
+        val c = fresh()
+        c.seedRunStateForTesting(lastResult = fakeBatch())
+        c.markSaved(java.nio.file.Paths.get("/tmp/x.toml"))
+        assertFalse(c.isDirty.value)
+        c.setRunParameterOverrides(
+            ksl.app.config.experiment.RunParameterOverridesSpec(
+                lengthOfReplication = 50.0,
+                lengthOfReplicationWarmUp = 10.0
+            )
+        )
+        assertTrue(c.isDirty.value)
+        assertNotNull(c.lastResult.value)
+        assertEquals(50.0, c.runParameterOverrides.value.lengthOfReplication)
+        assertEquals(10.0, c.runParameterOverrides.value.lengthOfReplicationWarmUp)
+    }
+
+    @Test
     fun `setExperimentOutput marks dirty but does NOT drop lastResult`() {
         // Per-design-point output-dir layout is a preference like
         // streamPolicy, not a structural change.  Same contract.

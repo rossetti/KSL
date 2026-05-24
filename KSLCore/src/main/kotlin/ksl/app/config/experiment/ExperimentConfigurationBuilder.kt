@@ -109,7 +109,12 @@ fun ExperimentConfiguration.toDesignedExperiment(
                 // experimentOutput spec (default false: flat layout
                 // with per-point log filenames; user can opt in for
                 // per-point CSV / config workflows via the GUI).
-                useDesignPointOutputDirs = experimentOutput.usePerPointSubdirs
+                useDesignPointOutputDirs = experimentOutput.usePerPointSubdirs,
+                // Document-level overrides for the model's baked-in
+                // run parameters; null = inherit the model author's
+                // value.
+                lengthOfReplication = runParameterOverrides.lengthOfReplication,
+                lengthOfReplicationWarmUp = runParameterOverrides.lengthOfReplicationWarmUp
             )
             applyStreamPolicy(parallel)
         }
@@ -122,6 +127,12 @@ fun ExperimentConfiguration.toDesignedExperiment(
             model.outputDirectory = OutputDirectory(
                 pathToOutputDirectory, outFileName = "kslOutput.txt"
             )
+            // Apply document-level run-parameter overrides directly
+            // to the shared model.  DesignedExperiment reads its
+            // base parameters from the model on each per-point run,
+            // so mutating once before construction propagates.
+            runParameterOverrides.lengthOfReplication?.let { model.lengthOfReplication = it }
+            runParameterOverrides.lengthOfReplicationWarmUp?.let { model.lengthOfReplicationWarmUp = it }
             DesignedExperiment(
                 name = effectiveName,
                 model = model,

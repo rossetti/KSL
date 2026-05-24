@@ -181,7 +181,14 @@ data class ExperimentConfiguration(
         "point output-directory layout).  Defaults to a flat layout\n" +
         "(one shared output dir with per-point log filenames)."
     )
-    val experimentOutput: ExperimentOutputSpec = ExperimentOutputSpec()
+    val experimentOutput: ExperimentOutputSpec = ExperimentOutputSpec(),
+
+    @TomlComment(
+        "Optional overrides for the model's baked-in run parameters\n" +
+        "(replication length, warm-up length).  Each field is\n" +
+        "optional; omit to inherit the model default."
+    )
+    val runParameterOverrides: RunParameterOverridesSpec = RunParameterOverridesSpec()
 ) {
     init {
         require(factors.isNotEmpty()) {

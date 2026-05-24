@@ -99,31 +99,13 @@ class ExperimentAppFrame(
         border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
     }
 
-    // ── Run-toolbar widgets ────────────────────────────────────────────────
+    // ── Toolbar widgets ────────────────────────────────────────────────────
+    //
+    // The toolbar holds output-config concerns (analysisName +
+    // databasePolicy) only.  Simulate / Cancel / Mode / Enable-database
+    // widgets moved into the Simulate tab as part of the E7.9
+    // restructure — see SimulateTabPanel.
 
-    private val simulateButton = JButton("Simulate").apply {
-        // Disabled at construction; the wireRunIndicators collectors
-        // re-evaluate the combined (not-running AND has-model AND
-        // has-factor) gate as soon as they subscribe.
-        isEnabled = false
-    }
-    private val cancelButton = JButton("Cancel").apply { isEnabled = false }
-    private val sequentialRadio = javax.swing.JRadioButton(
-        "Sequential",
-        controller.executionMode.value == ksl.app.config.ExecutionMode.SEQUENTIAL
-    )
-    private val concurrentRadio = javax.swing.JRadioButton(
-        "Concurrent",
-        controller.executionMode.value == ksl.app.config.ExecutionMode.CONCURRENT
-    )
-    private val enableDbCheckbox = javax.swing.JCheckBox(
-        "Enable database",
-        controller.outputConfig.value.enableKSLDatabase
-    ).apply {
-        toolTipText = "Capture each design point's results in the shared KSL SQLite database " +
-            "(<workspace>/output/<analysisName>/).  Required for downstream Regression + " +
-            "Comparison-Analyzer surfaces."
-    }
     private val analysisNameField = javax.swing.JTextField(
         controller.outputConfig.value.analysisName, 16
     ).apply {
@@ -164,35 +146,25 @@ class ExperimentAppFrame(
         isVisible = false
     }
 
-    /** Status line under the run toolbar, ambient design summary.
-     *  Real content arrives in Phase E8/E11 once the design preview
-     *  is enumerable; for now it shows a placeholder so the layout
-     *  region is reserved. */
-    private val designSummaryLabel: JLabel = JLabel(
-        "Design summary — populated in Phase E8."
-    ).apply {
+    /** One-line live summary of the loaded configuration.  Always
+     *  visible above the tab bar so the user can see at a glance
+     *  what model / factors / design / reps / streams are loaded
+     *  without having to switch through every tab.  Updates on
+     *  every relevant StateFlow change.  Hidden when no model is
+     *  loaded (nothing meaningful to show). */
+    private val designSummaryLabel: JLabel = JLabel(" ").apply {
         border = BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 1, 0, Color(0xE6, 0xE6, 0xE6)),
             BorderFactory.createEmptyBorder(3, 12, 3, 12)
         )
-        foreground = Color(0x66, 0x66, 0x66)
-    }
-
-    /** Per-design-point progress strip, shown only while a run is in
-     *  flight.  Updated on every `RunEvent.DesignPointCompleted`
-     *  event from the controller's event flow; hidden on RunCompleted
-     *  / RunFailed / RunCancelled.  Lets the user see live progress
-     *  without keeping the console drawer open. */
-    private val runProgressLabel: JLabel = JLabel(" ").apply {
-        isOpaque = true
-        background = Color(0xE8, 0xF1, 0xFC)        // pale blue
-        foreground = Color(0x22, 0x44, 0x77)
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 1, 0, Color(0xB0, 0xC8, 0xE8)),
-            BorderFactory.createEmptyBorder(3, 12, 3, 12)
-        )
+        foreground = Color(0x44, 0x44, 0x44)
         isVisible = false
     }
+
+    // runProgressLabel removed in E7.9 — per-design-point status now
+    // lives on the Simulate tab (SimulateTabPanel.statusLabel) where
+    // it's always reachable from the same tab that hosts the
+    // Simulate / Cancel buttons.
 
     companion object {
         private const val SAVE_BASE_TEXT: String = "Save Configuration"
@@ -210,13 +182,20 @@ class ExperimentAppFrame(
         jMenuBar = buildMenuBar()
         contentPane.layout = BorderLayout()
 
-        // Authoring tabs (E5–E9) — Model + Factors + Design functional.
-        // The previously-planned "Design Points" tab was replaced with
-        // a "Materialize design points..." button on the Design tab
-        // (see DesignPointsPreviewDialog).
+        // Authoring tabs (Model / Factors / Design) and execution tab
+        // (Simulate) take the document from "what to run" to "running
+        // it".  The toolbar Simulate / Cancel / Mode / Enable-DB
+        // widgets moved into the Simulate tab as part of the E7.9
+        // restructure; the toolbar now only carries analysisName +
+        // databasePolicy (output-config concerns).
         val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val factorsTab = FactorsTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
         val designTab = DesignTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
+        val simulateTab = SimulateTabPanel(
+            controller,
+            onMessage = { msg, sev -> notifications.show(msg, sev) },
+            onSimulateRequested = { handleSimulate() }
+        )
         val regressionTab = placeholderPanel("Regression configuration + HTML-report materialisation — Phase E9.")
 
         // Analysis tabs that already exist as generic Common panels.
@@ -257,6 +236,7 @@ class ExperimentAppFrame(
             addTab("Model", modelTab)
             addTab("Factors", factorsTab)
             addTab("Design", designTab)
+            addTab("Simulate", simulateTab)
             addTab("Regression", regressionTab)
             addTab("Comparison Analyzer", comparisonAnalyzerTab)
             addTab("Reports", reportsTab)
@@ -307,7 +287,6 @@ class ExperimentAppFrame(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(buildRunToolbar())
             add(staleResultsBanner)
-            add(runProgressLabel)
             add(designSummaryLabel)
         }
         contentPane.add(topStack, BorderLayout.NORTH)
@@ -321,6 +300,7 @@ class ExperimentAppFrame(
         wireStaleResultsBanner()
         wireOutputConfigCollector()
         wireEventNotifications()
+        wireDesignSummaryLabel()
 
         addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
@@ -410,24 +390,15 @@ class ExperimentAppFrame(
         add(buildStatusBar())
     }
 
+    /**
+     *  Toolbar holds only output-config concerns now (analysisName +
+     *  database policy combo).  Simulate / Cancel / Mode (execution)
+     *  / Enable-database moved into the Simulate tab as part of the
+     *  E7.9 restructure (configuration vs. execution separation).
+     */
     private fun buildRunToolbar(): JComponent = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.X_AXIS)
         border = BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        simulateButton.addActionListener { handleSimulate() }
-        cancelButton.addActionListener { controller.cancel() }
-        val group = javax.swing.ButtonGroup().apply {
-            add(sequentialRadio); add(concurrentRadio)
-        }
-        @Suppress("UNUSED_EXPRESSION") group
-        sequentialRadio.addActionListener {
-            if (sequentialRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.SEQUENTIAL)
-        }
-        concurrentRadio.addActionListener {
-            if (concurrentRadio.isSelected) controller.setExecutionMode(ksl.app.config.ExecutionMode.CONCURRENT)
-        }
-        enableDbCheckbox.addActionListener {
-            controller.setEnableKSLDatabase(enableDbCheckbox.isSelected)
-        }
         analysisNameField.addActionListener {
             controller.setAnalysisName(analysisNameField.text)
         }
@@ -442,22 +413,11 @@ class ExperimentAppFrame(
                 ?: return@addActionListener
             controller.setDatabasePolicy(selected)
         }
-        add(simulateButton)
-        add(Box.createHorizontalStrut(8))
-        add(cancelButton)
-        add(Box.createHorizontalStrut(16))
-        add(JLabel("Mode:"))
-        add(Box.createHorizontalStrut(4))
-        add(sequentialRadio)
-        add(concurrentRadio)
-        add(Box.createHorizontalStrut(16))
         add(JLabel("Analysis:"))
         add(Box.createHorizontalStrut(4))
         add(analysisNameField)
         add(Box.createHorizontalStrut(16))
-        add(enableDbCheckbox)
-        add(Box.createHorizontalStrut(4))
-        add(JLabel("DB:"))
+        add(JLabel("DB policy:"))
         add(Box.createHorizontalStrut(4))
         add(databasePolicyCombo)
         add(Box.createHorizontalGlue())
@@ -518,38 +478,17 @@ class ExperimentAppFrame(
         }
     }
 
-    /** Combined Simulate-button gate: not running AND model selected
-     *  AND at least one factor. */
-    private fun refreshSimulateEnablement() {
-        val running = controller.runningFlow.value
-        val hasModel = controller.modelReference.value != null
-        val hasFactors = controller.factors.value.isNotEmpty()
-        simulateButton.isEnabled = !running && hasModel && hasFactors
-    }
-
+    /**
+     *  Toolbar enablement tracking the run state.  The SimulateTab
+     *  panel handles its own Simulate / Cancel / Mode / Enable-DB
+     *  enablement; the frame only tracks the few widgets that
+     *  remain (analysisName, databasePolicy).
+     */
     private fun wireRunIndicators() {
         controller.edtScope.launch {
             controller.runningFlow.collect { running ->
-                cancelButton.isEnabled = running
-                sequentialRadio.isEnabled = !running
-                concurrentRadio.isEnabled = !running
-                enableDbCheckbox.isEnabled = !running
                 analysisNameField.isEnabled = !running
                 databasePolicyCombo.isEnabled = !running
-                refreshSimulateEnablement()
-            }
-        }
-        controller.edtScope.launch {
-            controller.modelReference.collect { _ -> refreshSimulateEnablement() }
-        }
-        controller.edtScope.launch {
-            controller.factors.collect { _ -> refreshSimulateEnablement() }
-        }
-        controller.edtScope.launch {
-            controller.executionMode.collect { mode ->
-                val wantSeq = mode == ksl.app.config.ExecutionMode.SEQUENTIAL
-                if (sequentialRadio.isSelected != wantSeq) sequentialRadio.isSelected = wantSeq
-                if (concurrentRadio.isSelected == wantSeq) concurrentRadio.isSelected = !wantSeq
             }
         }
     }
@@ -557,9 +496,6 @@ class ExperimentAppFrame(
     private fun wireOutputConfigCollector() {
         controller.edtScope.launch {
             controller.outputConfig.collect { cfg ->
-                if (enableDbCheckbox.isSelected != cfg.enableKSLDatabase) {
-                    enableDbCheckbox.isSelected = cfg.enableKSLDatabase
-                }
                 if (analysisNameField.text != cfg.analysisName && !analysisNameField.hasFocus()) {
                     analysisNameField.text = cfg.analysisName
                 }
@@ -570,80 +506,178 @@ class ExperimentAppFrame(
         }
     }
 
-    // Per-run progress state, mutated only on the EDT inside the
-    // event subscriber below.
-    private var progressTotal: Int = 0
-    private var progressCompleted: Int = 0
-    private var progressFailed: Int = 0
-    private var progressCancelled: Int = 0
-    private var progressCurrentRunning: Int? = null
-
-    private fun refreshRunProgressLabel() {
-        val parts = mutableListOf("${progressCompleted} of ${progressTotal} completed")
-        if (progressFailed > 0) parts += "${progressFailed} failed"
-        if (progressCancelled > 0) parts += "${progressCancelled} cancelled"
-        val tail = progressCurrentRunning?.let { "; current: point $it" } ?: ""
-        runProgressLabel.text = "Running: ${parts.joinToString(", ")}$tail"
+    /**
+     *  Live one-line configuration summary subscriber.  Watches every
+     *  relevant state flow and re-renders the label.  Hidden when
+     *  no model is loaded.
+     */
+    private fun wireDesignSummaryLabel() {
+        val refresh: () -> Unit = { refreshDesignSummaryLabel() }
+        controller.edtScope.launch { controller.modelReference.collect { refresh() } }
+        controller.edtScope.launch { controller.currentModelDescriptor.collect { refresh() } }
+        controller.edtScope.launch { controller.factors.collect { refresh() } }
+        controller.edtScope.launch { controller.designSpec.collect { refresh() } }
+        controller.edtScope.launch { controller.replications.collect { refresh() } }
+        controller.edtScope.launch { controller.streamPolicy.collect { refresh() } }
+        controller.edtScope.launch { controller.runParameterOverrides.collect { refresh() } }
+        refresh()
     }
 
-    private fun resetRunProgress(total: Int) {
-        progressTotal = total
-        progressCompleted = 0
-        progressFailed = 0
-        progressCancelled = 0
-        progressCurrentRunning = null
+    private fun refreshDesignSummaryLabel() {
+        val modelRef = controller.modelReference.value
+        if (modelRef == null) {
+            designSummaryLabel.text = " "
+            designSummaryLabel.isVisible = false
+            return
+        }
+        val modelName = controller.currentModelDescriptor.value?.modelName
+            ?: when (modelRef) {
+                is ksl.app.config.ModelReference.Embedded -> modelRef.modelName
+                is ksl.app.config.ModelReference.ByBundleAndModelId -> modelRef.modelId
+                is ksl.app.config.ModelReference.ByJar -> modelRef.builderClassName ?: "(unknown)"
+                is ksl.app.config.ModelReference.ByProviderId -> modelRef.providerId
+            }
+        val factors = controller.factors.value
+        val factorCount = factors.size
+        val familyAndPoints = describeDesignFamilyAndPoints()
+        val reps = describeReplications()
+        val streams = describeStreamPolicy()
+        val totalRuns = describeTotalRuns()
+        designSummaryLabel.text = buildString {
+            append("Model: ").append(modelName)
+            append(" · ").append(factorCount).append(" factor")
+                .append(if (factorCount == 1) "" else "s")
+            if (familyAndPoints.isNotEmpty()) append(" · Design: ").append(familyAndPoints)
+            if (reps.isNotEmpty()) append(" · Reps: ").append(reps)
+            if (streams.isNotEmpty()) append(" · Streams: ").append(streams)
+            if (totalRuns != null) append(" · Total runs: ").append(totalRuns)
+        }
+        designSummaryLabel.isVisible = true
     }
 
+    private fun describeDesignFamilyAndPoints(): String {
+        val spec = controller.designSpec.value
+        val factors = controller.factors.value
+        val k = factors.size
+        return when (spec) {
+            is ksl.app.config.experiment.DesignSpec.FullFactorial -> {
+                if (k == 0) return "Full factorial"
+                val product = factors.fold(1L) { acc, f -> acc * f.levels.size.toLong() }
+                "Full factorial, $product point${if (product == 1L) "" else "s"}"
+            }
+            is ksl.app.config.experiment.DesignSpec.TwoLevelFactorial -> {
+                if (k == 0) return "Two-level factorial"
+                val n: Long = when (val f = spec.fraction) {
+                    ksl.app.config.experiment.Fraction.Full -> 1L shl k
+                    is ksl.app.config.experiment.Fraction.HalfFraction -> (1L shl k) / 2
+                    is ksl.app.config.experiment.Fraction.Custom ->
+                        1L shl (k - f.words.size).coerceAtLeast(0)
+                }
+                val tag = when (val f = spec.fraction) {
+                    ksl.app.config.experiment.Fraction.Full -> "full 2^$k"
+                    is ksl.app.config.experiment.Fraction.HalfFraction -> "half-fraction"
+                    is ksl.app.config.experiment.Fraction.Custom -> "2^($k-${f.words.size}) fraction"
+                }
+                "Two-level factorial ($tag), $n point${if (n == 1L) "" else "s"}"
+            }
+            is ksl.app.config.experiment.DesignSpec.CentralComposite -> {
+                if (k == 0) return "Central composite"
+                val factorial = 1L shl k
+                val axials = 2L * k
+                val total = factorial + axials + 1
+                "Central composite, $total points " +
+                    "($factorial factorial + $axials axial + 1 centre)"
+            }
+            is ksl.app.config.experiment.DesignSpec.Manual ->
+                "Custom (${spec.points.size} point${if (spec.points.size == 1) "" else "s"})"
+        }
+    }
+
+    private fun describeReplications(): String =
+        when (val rep = controller.replications.value) {
+            is ksl.app.config.experiment.ReplicationSpec.Uniform ->
+                "Uniform (${rep.replications} each)"
+            is ksl.app.config.experiment.ReplicationSpec.PerPoint ->
+                "Per-point (default ${rep.default}, ${rep.overrides.size} override" +
+                    "${if (rep.overrides.size == 1) "" else "s"})"
+        }
+
+    private fun describeStreamPolicy(): String =
+        when (controller.streamPolicy.value) {
+            is ksl.app.config.experiment.StreamPolicy.Independent -> "Independent"
+            is ksl.app.config.experiment.StreamPolicy.CommonRandomNumbers -> "Common Random Numbers"
+        }
+
+    /**
+     *  Best-effort total-runs estimate.  CCD's three-way rep split
+     *  is computed exactly; FullFactorial / TwoLevelFactorial /
+     *  Manual multiply the document-level Uniform reps by the point
+     *  count (PerPoint policy falls back to the default since the
+     *  status bar can't fan out every override).
+     */
+    private fun describeTotalRuns(): String? {
+        val factors = controller.factors.value
+        if (factors.isEmpty()) return null
+        val k = factors.size
+        val rep = controller.replications.value
+        val baseReps = when (rep) {
+            is ksl.app.config.experiment.ReplicationSpec.Uniform -> rep.replications
+            is ksl.app.config.experiment.ReplicationSpec.PerPoint -> rep.default
+        }
+        return when (val spec = controller.designSpec.value) {
+            is ksl.app.config.experiment.DesignSpec.FullFactorial -> {
+                val product = factors.fold(1L) { acc, f -> acc * f.levels.size.toLong() }
+                (product * baseReps).toString()
+            }
+            is ksl.app.config.experiment.DesignSpec.TwoLevelFactorial -> {
+                val n: Long = when (val f = spec.fraction) {
+                    ksl.app.config.experiment.Fraction.Full -> 1L shl k
+                    is ksl.app.config.experiment.Fraction.HalfFraction -> (1L shl k) / 2
+                    is ksl.app.config.experiment.Fraction.Custom ->
+                        1L shl (k - f.words.size).coerceAtLeast(0)
+                }
+                (n * baseReps).toString()
+            }
+            is ksl.app.config.experiment.DesignSpec.CentralComposite -> {
+                val factorial = 1L shl k
+                val axials = 2L * k
+                val total = factorial * spec.numFactorialReps +
+                    axials * spec.numAxialReps +
+                    spec.numCenterReps
+                total.toString()
+            }
+            is ksl.app.config.experiment.DesignSpec.Manual ->
+                (spec.points.size.toLong() * baseReps).toString()
+        }
+    }
+
+    /**
+     *  Frame-level event subscriber.  Per-design-point progress
+     *  tracking moved to the Simulate tab in E7.9; this subscriber
+     *  now only handles the frame-level notifications (run failure
+     *  popup, per-point failure popup).
+     */
     private fun wireEventNotifications() {
         controller.edtScope.launch {
             controller.eventFlow.collect { ev ->
                 when (ev) {
-                    is RunEvent.ExperimentRunStarted -> {
-                        resetRunProgress(ev.totalDesignPoints)
-                        refreshRunProgressLabel()
-                        runProgressLabel.isVisible = true
-                    }
-                    is RunEvent.DesignPointStarted -> {
-                        // Show the most recently STARTED point as
-                        // "current".  With parallel execution multiple
-                        // points are technically running at once;
-                        // showing the latest start is the simplest
-                        // useful summary.
-                        progressCurrentRunning = ev.pointId
-                        refreshRunProgressLabel()
-                    }
                     is RunEvent.DesignPointCompleted -> {
-                        when {
-                            ev.wasCancelled -> progressCancelled += 1
-                            ev.snapshot == null -> {
-                                progressFailed += 1
-                                notifications.show(
-                                    "Design point ${ev.pointId} failed.",
-                                    NotificationSeverity.WARNING
-                                )
-                            }
-                            else -> progressCompleted += 1
+                        // Surface per-point failures as toast notifications.
+                        // Cancelled points stay quiet (the user requested it).
+                        if (ev.snapshot == null && !ev.wasCancelled) {
+                            notifications.show(
+                                "Design point ${ev.pointId} failed.",
+                                NotificationSeverity.WARNING
+                            )
                         }
-                        // If the point that just finished was the
-                        // "current" one, clear it; otherwise leave it
-                        // (another point might still be running).
-                        if (progressCurrentRunning == ev.pointId) {
-                            progressCurrentRunning = null
-                        }
-                        refreshRunProgressLabel()
-                    }
-                    is RunEvent.RunCompleted,
-                    is RunEvent.RunCancelled -> {
-                        runProgressLabel.isVisible = false
                     }
                     is RunEvent.RunFailed -> {
-                        runProgressLabel.isVisible = false
                         notifications.show(
                             "Run failed: ${describeError(ev.error)}",
                             NotificationSeverity.ERROR
                         )
                     }
-                    else -> { /* console drawer renders the rest */ }
+                    else -> { /* console drawer + Simulate tab handle the rest */ }
                 }
             }
         }

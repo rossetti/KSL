@@ -459,6 +459,73 @@ class ParallelDesignedExperimentTest {
     }
 
     @Test
+    fun lengthOfReplicationOverrideAppliesToEveryDesignPoint() = runBlocking {
+        val setup = buildDoeSetup("PDE_LenOverride_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-len-")
+        val overrideLength = 73.5
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = LENGTH, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir,
+            lengthOfReplication = overrideLength
+        )
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+        for (run in parallel.simulationRuns) {
+            assertEquals(
+                overrideLength,
+                run.experimentRunParameters.lengthOfReplication,
+                "Override $overrideLength should reach every per-point run; got " +
+                    "${run.experimentRunParameters.lengthOfReplication} for " +
+                    run.experimentRunParameters.experimentName
+            )
+        }
+    }
+
+    @Test
+    fun lengthOfReplicationWarmUpOverrideAppliesToEveryDesignPoint() = runBlocking {
+        val setup = buildDoeSetup("PDE_WarmOverride_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-warm-")
+        val overrideWarm = 12.0
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = LENGTH, warmUp = 0.0),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir,
+            lengthOfReplicationWarmUp = overrideWarm
+        )
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+        for (run in parallel.simulationRuns) {
+            assertEquals(
+                overrideWarm,
+                run.experimentRunParameters.lengthOfReplicationWarmUp,
+                "Warm-up override $overrideWarm should reach every per-point run"
+            )
+        }
+    }
+
+    @Test
+    fun runParameterOverridesNullPreservesModelDefaults() = runBlocking {
+        val setup = buildDoeSetup("PDE_NoOverride_${System.nanoTime()}")
+        val outDir = java.nio.file.Files.createTempDirectory("pde-noor-")
+        val parallel = ParallelDesignedExperiment(
+            name = "PDE_${System.nanoTime()}",
+            modelBuilder = modelBuilder(setup.modelName, length = LENGTH, warmUp = WARMUP),
+            factorSettings = setup.factorSettings,
+            design = setup.design,
+            pathToOutputDirectory = outDir
+            // both overrides intentionally omitted (default null)
+        )
+        parallel.simulateAll(numRepsPerDesignPoint = 1)
+        for (run in parallel.simulationRuns) {
+            assertEquals(LENGTH, run.experimentRunParameters.lengthOfReplication)
+            assertEquals(WARMUP, run.experimentRunParameters.lengthOfReplicationWarmUp)
+        }
+    }
+
+    @Test
     fun cancelDesignPointOnUnknownIdReturnsFalse() = runBlocking {
         val setup = buildDoeSetup("PDE_CancelUnknown_${System.nanoTime()}")
         val parallel = ParallelDesignedExperiment(

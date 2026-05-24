@@ -101,7 +101,16 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
     val pathToOutputDirectory: Path = KSL.createSubDirectory(name.replace(" ", "_") + "_OutputDir"),
     val kslDb: KSLDatabase = KSLDatabase("${name}.db".replace(" ", "_"), pathToOutputDirectory),
     private val experimentName: String? = null,
-    private val useDesignPointOutputDirs: Boolean = true
+    private val useDesignPointOutputDirs: Boolean = true,
+    /** Optional override for the template model's
+     *  `lengthOfReplication`.  Applied to `baseRunParameters` after
+     *  extraction so every design point's effective run parameters
+     *  carry the override.  Null = inherit the model author's value. */
+    private val lengthOfReplication: Double? = null,
+    /** Optional override for the template model's
+     *  `lengthOfReplicationWarmUp`.  Same flow as
+     *  [lengthOfReplication]. */
+    private val lengthOfReplicationWarmUp: Double? = null
 ) : Identity(name), DesignedExperimentIfc {
 
     private data class DesignPointRunPlan(
@@ -206,6 +215,16 @@ class ParallelDesignedExperiment @JvmOverloads constructor(
         }
     }
     private val baseRunParameters: ExperimentRunParameters = templateModel.extractRunParameters()
+        .let { base ->
+            // Apply caller-supplied overrides to the model's baked-in
+            // run parameters.  Each is independent and copy()-ed only
+            // when non-null so callers passing no overrides see the
+            // original behaviour.
+            var p = base
+            if (lengthOfReplication != null) p = p.copy(lengthOfReplication = lengthOfReplication)
+            if (lengthOfReplicationWarmUp != null) p = p.copy(lengthOfReplicationWarmUp = lengthOfReplicationWarmUp)
+            p
+        }
     private val mySimulationRuns = linkedMapOf<DesignPoint, SimulationRun>()
 
     private var myStartingStreamAdvance = 0

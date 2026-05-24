@@ -44,6 +44,7 @@ import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
+import ksl.app.config.experiment.RunParameterOverridesSpec
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.ReplicationSpec
@@ -156,6 +157,14 @@ class ExperimentAppController(
      *  land in Phase E11 polish).  Distinct from [outputConfig],
      *  which is shared across Single / Scenario / Experiment apps. */
     val experimentOutput: StateFlow<ExperimentOutputSpec> = myExperimentOutput.asStateFlow()
+
+    private val myRunParameterOverrides = MutableStateFlow(RunParameterOverridesSpec())
+    /** Document-level overrides for the model's baked-in run
+     *  parameters (length, warm-up).  Per-design-point replications
+     *  live on [replications] (`ReplicationSpec`) — not duplicated
+     *  here. */
+    val runParameterOverrides: StateFlow<RunParameterOverridesSpec> =
+        myRunParameterOverrides.asStateFlow()
 
     private val myOutputConfig = MutableStateFlow(
         OutputConfig(enableKSLDatabase = true)
@@ -507,6 +516,18 @@ class ExperimentAppController(
         markDirty()
     }
 
+    /** Update the document-level overrides for the model's baked-in
+     *  run parameters.  Marks the document dirty but does NOT drop
+     *  `lastResult` — these are values that affect the next run, not
+     *  a structural change to what gets simulated.  (A previously-
+     *  completed run was made with the old values and remains valid
+     *  for inspection.) */
+    fun setRunParameterOverrides(spec: RunParameterOverridesSpec) {
+        if (myRunParameterOverrides.value == spec) return
+        myRunParameterOverrides.value = spec
+        markDirty()
+    }
+
     // ── Document mutators: OutputConfig ────────────────────────────────────
 
     fun setEnableKSLDatabase(enabled: Boolean) {
@@ -561,6 +582,7 @@ class ExperimentAppController(
         myStreamPolicy.value = config.streamPolicy
         myExecutionMode.value = config.executionMode
         myExperimentOutput.value = config.experimentOutput
+        myRunParameterOverrides.value = config.runParameterOverrides
         myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
         mySelectedFactorIndex.value = if (config.factors.isEmpty()) -1 else 0
         myIsDirty.value = false
@@ -579,6 +601,7 @@ class ExperimentAppController(
         myStreamPolicy.value = StreamPolicy.Independent()
         myExecutionMode.value = ExecutionMode.CONCURRENT
         myExperimentOutput.value = ExperimentOutputSpec()
+        myRunParameterOverrides.value = RunParameterOverridesSpec()
         myOutputConfig.value = OutputConfig(enableKSLDatabase = true)
         mySelectedFactorIndex.value = -1
         myCurrentFile.value = null
@@ -602,7 +625,8 @@ class ExperimentAppController(
             replications = myReplications.value,
             streamPolicy = myStreamPolicy.value,
             executionMode = myExecutionMode.value,
-            experimentOutput = myExperimentOutput.value
+            experimentOutput = myExperimentOutput.value,
+            runParameterOverrides = myRunParameterOverrides.value
         )
     }
 

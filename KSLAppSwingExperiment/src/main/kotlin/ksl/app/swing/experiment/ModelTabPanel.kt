@@ -69,9 +69,15 @@ import javax.swing.SwingConstants
 class ModelTabPanel(
     private val controller: ExperimentAppController,
     private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
-) : JPanel(CardLayout()) {
+) : JPanel(BorderLayout()) {
 
+    // The outer layout is BorderLayout (added in E7.9 to host the
+    // Edited / Saved badge in SOUTH).  The original card switching
+    // moved into [cardsPanel] (BorderLayout.CENTER) so the badge
+    // and other persistent footer content sit below regardless of
+    // which card is showing.
     private val cards = CardLayout()
+    private val cardsPanel = JPanel(cards)
     private val emptyCard = JPanel(BorderLayout())
     private val pickerCard = JPanel(BorderLayout())
     private val unresolvedCard = JPanel(BorderLayout())
@@ -101,9 +107,26 @@ class ModelTabPanel(
      *  setModelReference call. */
     private var programmaticComboUpdate: Boolean = false
 
-    init {
-        layout = cards
+    // Run parameter defaults widgets — declared BEFORE init {}
+    // because Kotlin executes property initializers and init blocks
+    // in source order; init's buildRunDefaultsPanel() would NPE on
+    // any of these if they were declared below.
+    private val repsField = javax.swing.JTextField(8)
+    private val lengthField = javax.swing.JTextField(8)
+    private val warmUpField = javax.swing.JTextField(8)
+    private val repsModelDefaultLabel = JLabel(" ").apply {
+        foreground = Color(0x77, 0x77, 0x77)
+    }
+    private val lengthModelDefaultLabel = JLabel(" ").apply {
+        foreground = Color(0x77, 0x77, 0x77)
+    }
+    private val warmUpModelDefaultLabel = JLabel(" ").apply {
+        foreground = Color(0x77, 0x77, 0x77)
+    }
 
+    @Volatile private var suppressRunDefaultsEvents: Boolean = false
+
+    init {
         emptyCard.add(JLabel(
             "<html><div style='text-align:center;'>" +
                 "No model bundles loaded.<br>" +
@@ -116,14 +139,24 @@ class ModelTabPanel(
         }, BorderLayout.CENTER)
 
         pickerCard.add(buildPickerCard(), BorderLayout.CENTER)
+        pickerCard.add(buildRunDefaultsPanel(), BorderLayout.SOUTH)
         unresolvedCard.add(buildUnresolvedCard(), BorderLayout.CENTER)
 
-        add(emptyCard, CARD_EMPTY)
-        add(pickerCard, CARD_PICKER)
-        add(unresolvedCard, CARD_UNRESOLVED)
+        cardsPanel.add(emptyCard, CARD_EMPTY)
+        cardsPanel.add(pickerCard, CARD_PICKER)
+        cardsPanel.add(unresolvedCard, CARD_UNRESOLVED)
+        add(cardsPanel, BorderLayout.CENTER)
+
+        // Edited / Saved badge in the footer; the same shared
+        // widget appears at the bottom of Factors / Design /
+        // Simulate tabs as well.
+        val footer = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 4, 0))
+        footer.add(DocumentStateLabel(controller.isDirty, controller.edtScope))
+        add(footer, BorderLayout.SOUTH)
 
         wireDropdownListener()
         wireCollectors()
+        wireRunDefaultsCollectors()
         refreshCardSelection()
     }
 
@@ -154,6 +187,182 @@ class ModelTabPanel(
     private fun buildUnresolvedCard(): JPanel = JPanel(BorderLayout()).apply {
         border = BorderFactory.createEmptyBorder(48, 16, 48, 16)
         add(unresolvedLabel, BorderLayout.CENTER)
+    }
+
+    // ── Run parameter defaults ─────────────────────────────────────────────
+    //
+    // Three fields under the model picker, all optional overrides
+    // for the model's baked-in run parameters.  Replications is
+    // cross-linked to ReplicationSpec.Uniform.replications (so the
+    // user sees + edits replications here as well as on the Design
+    // tab's Replications panel).  When the document's policy is
+    // ReplicationSpec.PerPoint, the field is disabled with an
+    // explanatory tooltip; per-point overrides are edited on the
+    // Design tab.
+
+    // (Run-defaults widget declarations moved up to before init {}
+    // — see the block above the init {} block.)
+
+    private fun buildRunDefaultsPanel(): JPanel {
+        val panel = JPanel(java.awt.GridBagLayout())
+        panel.border = BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder("Run parameter defaults"),
+            BorderFactory.createEmptyBorder(2, 6, 2, 6)
+        )
+        val gbc = java.awt.GridBagConstraints().apply {
+            anchor = java.awt.GridBagConstraints.WEST
+            insets = java.awt.Insets(2, 4, 2, 8)
+        }
+        var row = 0
+
+        gbc.gridx = 0; gbc.gridy = row
+        panel.add(JLabel("Replications:"), gbc)
+        gbc.gridx = 1; panel.add(repsField, gbc)
+        gbc.gridx = 2; panel.add(repsModelDefaultLabel, gbc)
+        row++
+
+        gbc.gridx = 0; gbc.gridy = row
+        panel.add(JLabel("Length of replication:"), gbc)
+        gbc.gridx = 1; panel.add(lengthField, gbc)
+        gbc.gridx = 2; panel.add(lengthModelDefaultLabel, gbc)
+        row++
+
+        gbc.gridx = 0; gbc.gridy = row
+        panel.add(JLabel("Length of warm-up:"), gbc)
+        gbc.gridx = 1; panel.add(warmUpField, gbc)
+        gbc.gridx = 2; panel.add(warmUpModelDefaultLabel, gbc)
+        row++
+
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 3
+        val helpText = JLabel(
+            "<html><i>Leave blank to inherit the model author's defaults.  " +
+                "Replications is the document-level uniform value; switch to " +
+                "Per-point on the Design tab to author per-row overrides.</i></html>"
+        )
+        helpText.foreground = Color(0x55, 0x55, 0x55)
+        panel.add(helpText, gbc)
+
+        // Commit on Enter / focus-lost.
+        wireRunDefaultsCommit()
+
+        return panel
+    }
+
+    private fun wireRunDefaultsCommit() {
+        val commitReps: () -> Unit = {
+            if (!suppressRunDefaultsEvents) {
+                val t = repsField.text.trim()
+                val parsed = t.toIntOrNull()
+                if (parsed != null && parsed >= 1) {
+                    val rep = controller.replications.value
+                    val next = when (rep) {
+                        is ksl.app.config.experiment.ReplicationSpec.Uniform ->
+                            ksl.app.config.experiment.ReplicationSpec.Uniform(parsed)
+                        is ksl.app.config.experiment.ReplicationSpec.PerPoint ->
+                            rep.copy(default = parsed)
+                    }
+                    controller.setReplications(next)
+                }
+                // Re-read from controller in case parse failed (snaps back to current).
+                refreshRepsFieldFromController()
+            }
+        }
+        val commitLength: () -> Unit = {
+            if (!suppressRunDefaultsEvents) {
+                val t = lengthField.text.trim()
+                val parsed = if (t.isEmpty()) null else t.toDoubleOrNull()?.takeIf { it > 0.0 }
+                val cur = controller.runParameterOverrides.value
+                controller.setRunParameterOverrides(cur.copy(lengthOfReplication = parsed))
+                refreshLengthFieldFromController()
+            }
+        }
+        val commitWarmUp: () -> Unit = {
+            if (!suppressRunDefaultsEvents) {
+                val t = warmUpField.text.trim()
+                val parsed = if (t.isEmpty()) null else t.toDoubleOrNull()?.takeIf { it >= 0.0 }
+                val cur = controller.runParameterOverrides.value
+                try {
+                    controller.setRunParameterOverrides(cur.copy(lengthOfReplicationWarmUp = parsed))
+                } catch (ex: IllegalArgumentException) {
+                    onMessage(ex.message ?: "Invalid warm-up", NotificationSeverity.WARNING)
+                }
+                refreshWarmUpFieldFromController()
+            }
+        }
+        repsField.addActionListener { commitReps() }
+        repsField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) { commitReps() }
+        })
+        lengthField.addActionListener { commitLength() }
+        lengthField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) { commitLength() }
+        })
+        warmUpField.addActionListener { commitWarmUp() }
+        warmUpField.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusLost(e: java.awt.event.FocusEvent) { commitWarmUp() }
+        })
+    }
+
+    private fun wireRunDefaultsCollectors() {
+        controller.edtScope.launch {
+            controller.replications.collect { refreshRepsFieldFromController() }
+        }
+        controller.edtScope.launch {
+            controller.runParameterOverrides.collect {
+                refreshLengthFieldFromController()
+                refreshWarmUpFieldFromController()
+            }
+        }
+        controller.edtScope.launch {
+            controller.currentModelDescriptor.collect { refreshModelDefaultLabels() }
+        }
+        refreshModelDefaultLabels()
+    }
+
+    private fun refreshRepsFieldFromController() {
+        suppressRunDefaultsEvents = true
+        try {
+            val rep = controller.replications.value
+            when (rep) {
+                is ksl.app.config.experiment.ReplicationSpec.Uniform -> {
+                    repsField.text = rep.replications.toString()
+                    repsField.isEnabled = true
+                    repsField.toolTipText =
+                        "Document-level uniform replications per design point."
+                }
+                is ksl.app.config.experiment.ReplicationSpec.PerPoint -> {
+                    repsField.text = rep.default.toString()
+                    repsField.isEnabled = false
+                    repsField.toolTipText =
+                        "Policy is Per-point.  Edit the default + overrides on the " +
+                            "Design tab → Replications panel."
+                }
+            }
+        } finally { suppressRunDefaultsEvents = false }
+    }
+
+    private fun refreshLengthFieldFromController() {
+        suppressRunDefaultsEvents = true
+        try {
+            val ov = controller.runParameterOverrides.value.lengthOfReplication
+            lengthField.text = ov?.toString().orEmpty()
+        } finally { suppressRunDefaultsEvents = false }
+    }
+
+    private fun refreshWarmUpFieldFromController() {
+        suppressRunDefaultsEvents = true
+        try {
+            val ov = controller.runParameterOverrides.value.lengthOfReplicationWarmUp
+            warmUpField.text = ov?.toString().orEmpty()
+        } finally { suppressRunDefaultsEvents = false }
+    }
+
+    private fun refreshModelDefaultLabels() {
+        val desc = controller.currentModelDescriptor.value
+        val defaults = desc?.experimentRunDefaults
+        repsModelDefaultLabel.text = defaults?.let { "(model default: ${it.numberOfReplications})" } ?: " "
+        lengthModelDefaultLabel.text = defaults?.let { "(model default: ${it.lengthOfReplication})" } ?: " "
+        warmUpModelDefaultLabel.text = defaults?.let { "(model default: ${it.lengthOfReplicationWarmUp})" } ?: " "
     }
 
     // ── Wiring ─────────────────────────────────────────────────────────────
@@ -228,12 +437,12 @@ class ModelTabPanel(
         val ref = controller.modelReference.value
         val descriptor = controller.currentModelDescriptor.value
         when {
-            bundlesEmpty && ref == null -> cards.show(this, CARD_EMPTY)
-            ref == null -> cards.show(this, CARD_PICKER)
-            descriptor != null -> cards.show(this, CARD_PICKER)
+            bundlesEmpty && ref == null -> cards.show(cardsPanel, CARD_EMPTY)
+            ref == null -> cards.show(cardsPanel, CARD_PICKER)
+            descriptor != null -> cards.show(cardsPanel, CARD_PICKER)
             else -> {
                 unresolvedLabel.text = buildUnresolvedMessage(ref)
-                cards.show(this, CARD_UNRESOLVED)
+                cards.show(cardsPanel, CARD_UNRESOLVED)
             }
         }
     }

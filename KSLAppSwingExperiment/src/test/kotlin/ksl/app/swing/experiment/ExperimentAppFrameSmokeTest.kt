@@ -86,6 +86,7 @@ class ExperimentAppFrameSmokeTest {
                     "Model",
                     "Factors",
                     "Design",
+                    "Simulate",
                     "Regression",
                     "Comparison Analyzer",
                     "Reports"

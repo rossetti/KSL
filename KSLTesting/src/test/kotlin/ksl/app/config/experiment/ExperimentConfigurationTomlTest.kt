@@ -170,6 +170,27 @@ class ExperimentConfigurationTomlTest {
     }
 
     @Test
+    fun `runParameterOverrides default is all-null (inherit model)`() {
+        val cfg = baseConfig()
+        assertEquals(null, cfg.runParameterOverrides.lengthOfReplication)
+        assertEquals(null, cfg.runParameterOverrides.lengthOfReplicationWarmUp)
+    }
+
+    @Test
+    fun `runParameterOverrides populated values round-trip`() {
+        val cfg = baseConfig().copy(
+            runParameterOverrides = RunParameterOverridesSpec(
+                lengthOfReplication = 73.5,
+                lengthOfReplicationWarmUp = 12.0
+            )
+        )
+        val decoded = ExperimentConfigurationToml.decode(ExperimentConfigurationToml.encode(cfg))
+        assertEquals(cfg, decoded)
+        assertEquals(73.5, decoded.runParameterOverrides.lengthOfReplication)
+        assertEquals(12.0, decoded.runParameterOverrides.lengthOfReplicationWarmUp)
+    }
+
+    @Test
     fun `experimentOutput default is flat layout`() {
         val cfg = baseConfig()
         assertEquals(false, cfg.experimentOutput.usePerPointSubdirs)

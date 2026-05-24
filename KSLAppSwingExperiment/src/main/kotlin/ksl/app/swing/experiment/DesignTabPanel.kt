@@ -209,6 +209,11 @@ class DesignTabPanel(
         }
         add(scroll, BorderLayout.CENTER)
 
+        // Edited / Saved badge (shared widget across authoring tabs).
+        val footer = JPanel(FlowLayout(FlowLayout.RIGHT, 4, 0))
+        footer.add(DocumentStateLabel(controller.isDirty, controller.edtScope))
+        add(footer, BorderLayout.SOUTH)
+
         wireFamilyRadios()
         wireReplications()
         wireStreamRadios()
@@ -386,18 +391,29 @@ class DesignTabPanel(
 
         val radios = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         radios.add(indepRadio); radios.add(crnRadio); radios.add(advancedToggle)
+        radios.alignmentX = LEFT_ALIGNMENT
         panel.add(radios)
 
+        // The help text was previously floating to the right and
+        // getting clipped when the window was narrow.  Wrapping it
+        // in a fixed-width <html><body width="..."> + putting it in
+        // a left-aligned FlowLayout row pins it to the left edge
+        // and wraps cleanly at small window sizes.
+        val helpRow = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        helpRow.alignmentX = LEFT_ALIGNMENT
         val help = JLabel(
-            "<html><i>CRN reuses the same random-stream block at every design point " +
-                "&mdash; reduces variance for cross-point comparisons but biases per-point " +
-                "standard errors.  Independent (default) gives each point a fresh " +
-                "non-overlapping block.</i></html>"
+            "<html><body width='600'><i>CRN reuses the same random-stream block at every " +
+                "design point &mdash; reduces variance for cross-point comparisons but biases " +
+                "per-point standard errors.  Independent (default) gives each point a fresh " +
+                "non-overlapping block.</i></body></html>"
         ).apply {
             border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
             foreground = Color(0x55, 0x55, 0x55)
         }
-        panel.add(help)
+        helpRow.add(help)
+        panel.add(helpRow)
+
+        advancedRow.alignmentX = LEFT_ALIGNMENT
         panel.add(advancedRow)
         advancedRow.isVisible = false
         return panel

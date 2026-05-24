@@ -93,9 +93,14 @@ import javax.swing.table.AbstractTableModel
 class FactorsTabPanel(
     private val controller: ExperimentAppController,
     private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
-) : JPanel(CardLayout()) {
+) : JPanel(BorderLayout()) {
 
+    // Outer layout = BorderLayout (added in E7.9 to host the
+    // Edited / Saved badge in SOUTH); the card-switching moved into
+    // [cardsPanel] (BorderLayout.CENTER) so the badge sits below
+    // regardless of which card is showing.
     private val cards = CardLayout()
+    private val cardsPanel = JPanel(cards)
     private val noModelCard = makeMessageCard(
         "Select a model on the Model tab before authoring factors."
     )
@@ -205,7 +210,6 @@ class FactorsTabPanel(
     private var controlKeysByParent: Map<String, List<String>> = emptyMap()
 
     init {
-        layout = cards
         noFactorsCard = makeNoFactorsCard()
 
         populatedCard.add(buildToolbar(), BorderLayout.NORTH)
@@ -215,10 +219,16 @@ class FactorsTabPanel(
         }, BorderLayout.CENTER)
         populatedCard.add(buildDetailEditor(), BorderLayout.SOUTH)
 
-        add(noModelCard, CARD_NO_MODEL)
-        add(unresolvedCard, CARD_UNRESOLVED)
-        add(noFactorsCard, CARD_NO_FACTORS)
-        add(populatedCard, CARD_POPULATED)
+        cardsPanel.add(noModelCard, CARD_NO_MODEL)
+        cardsPanel.add(unresolvedCard, CARD_UNRESOLVED)
+        cardsPanel.add(noFactorsCard, CARD_NO_FACTORS)
+        cardsPanel.add(populatedCard, CARD_POPULATED)
+        add(cardsPanel, BorderLayout.CENTER)
+
+        // Edited / Saved badge in the footer.
+        val footer = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 4, 0))
+        footer.add(DocumentStateLabel(controller.isDirty, controller.edtScope))
+        add(footer, BorderLayout.SOUTH)
 
         wireToolbarListeners()
         wireSelectionListener()
@@ -663,7 +673,7 @@ class FactorsTabPanel(
             !hasFactors && editorMode !is EditorMode.Add -> CARD_NO_FACTORS
             else -> CARD_POPULATED
         }
-        cards.show(this, card)
+        cards.show(cardsPanel, card)
     }
 
     private fun refreshButtonEnablement() {
