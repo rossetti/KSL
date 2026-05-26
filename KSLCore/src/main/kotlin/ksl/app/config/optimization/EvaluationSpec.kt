@@ -19,6 +19,7 @@
 package ksl.app.config.optimization
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Cross-cutting evaluator/solver settings that are not specific to one
@@ -54,11 +55,46 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class EvaluationSpec(
+    @TomlComment(
+        "Boolean. When true, the evaluator caches solutions keyed by\n" +
+        "the input map so repeated requests for the same point reuse the\n" +
+        "prior estimate.  Default: true."
+    )
     val useSolutionCache: Boolean = true,
+
+    @TomlComment(
+        "Boolean. When true, the evaluator additionally caches the\n" +
+        "underlying simulation runs (per-replication data) so distinct\n" +
+        "solution requests can share replication results.  Default: false."
+    )
     val useSimulationRunCache: Boolean = false,
+
+    @TomlComment(
+        "Integer. Number of iterations between solver state snapshots.\n" +
+        "1 = emit a snapshot every iteration (the default; matches the\n" +
+        "live-progress and tracker workflows).  Must be > 0."
+    )
     val snapshotFrequency: Int = 1,
+
+    @TomlComment(
+        "Boolean. When true, the solver only sends problem-feasible\n" +
+        "inputs to the evaluator (re-sampling locally until feasibility\n" +
+        "is achieved).  Default: false."
+    )
     val ensureProblemFeasibleRequests: Boolean = false,
+
+    @TomlComment(
+        "Integer or omitted. Cap on the inner-loop sampling iterations\n" +
+        "used when searching for an input-feasible point.  Omit to keep\n" +
+        "the solver default.  Must be > 0 when present."
+    )
     val maxFeasibleSamplingIterations: Int? = null,
+
+    @TomlComment(
+        "Number or omitted. Precision used by some convergence tests.\n" +
+        "Omit to keep the solver default.  Must be > 0 and finite when\n" +
+        "present."
+    )
     val solutionPrecision: Double? = null
 ) {
     init {

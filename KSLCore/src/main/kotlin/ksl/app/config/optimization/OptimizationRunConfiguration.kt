@@ -20,6 +20,7 @@ package ksl.app.config.optimization
 
 import kotlinx.serialization.Serializable
 import ksl.app.config.ModelRunTemplate
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Top-level persistable directive for a simulation-optimization run.
@@ -55,17 +56,65 @@ import ksl.app.config.ModelRunTemplate
  * `OptimizationOrchestrator().submit(solver, …)` directly and bypass the
  * session entirely.
  *
+ * @property output document-wide output settings (analysis name and the
+ *                  host-resolved output directory).  Defaults to
+ *                  [OptimizationOutputConfig] defaults — `analysisName =
+ *                  "Untitled"` and `outputDirectory = null`.
  * @property model baseline model-construction template
  * @property problem optimization problem (objective, decision variables,
  *                   constraints)
  * @property solver solver selection and algorithm-specific parameters
  * @property evaluation cross-cutting evaluator/solver settings independent of
  *                      the chosen algorithm
+ * @property tracking optional CSV / console trace settings; defaults to
+ *                   disabled
  */
 @Serializable
 data class OptimizationRunConfiguration(
+    @TomlComment(
+        "Document-wide output settings.  analysisName names the per-run\n" +
+        "subdirectory under <workspace>/output/; outputDirectory is set\n" +
+        "by the hosting app at submit time and should NOT be edited by\n" +
+        "hand.  See [output] section below."
+    )
+    val output: OptimizationOutputConfig = OptimizationOutputConfig(),
+
+    @TomlComment(
+        "Baseline model-construction template.  modelReference picks the\n" +
+        "model; runParameters carry length / warm-up / replication-count\n" +
+        "settings; controls and rvOverrides are values held CONSTANT\n" +
+        "during the optimization (decision variables go in [[problem.inputs]]\n" +
+        "below)."
+    )
     val model: ModelRunTemplate,
+
+    @TomlComment(
+        "Optimization problem definition.  Objective, decision variables,\n" +
+        "constraints, and penalty function defaults.  See [problem]\n" +
+        "section below."
+    )
     val problem: OptimizationProblemSpec,
+
+    @TomlComment(
+        "Solver algorithm and its parameters.  type discriminates between\n" +
+        "'stochasticHillClimbing', 'simulatedAnnealing', 'crossEntropy',\n" +
+        "and 'rSpline'.  Set [solver.randomRestart] to wrap the chosen\n" +
+        "algorithm in random-restart."
+    )
     val solver: SolverSpec,
-    val evaluation: EvaluationSpec = EvaluationSpec()
+
+    @TomlComment(
+        "Cross-cutting evaluator/solver settings independent of the\n" +
+        "chosen algorithm.  Solution / simulation-run cache toggles,\n" +
+        "iteration snapshot frequency, problem-feasibility settings."
+    )
+    val evaluation: EvaluationSpec = EvaluationSpec(),
+
+    @TomlComment(
+        "Optional CSV / console trace settings.  When enableCsvTrace =\n" +
+        "true the trace is written to\n" +
+        "<workspace>/output/<analysisName>/optimization/<csvFileName>.csv.\n" +
+        "Defaults to disabled."
+    )
+    val tracking: SolverTrackingSpec = SolverTrackingSpec()
 )

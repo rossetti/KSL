@@ -19,6 +19,7 @@
 package ksl.app.config.optimization
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * App-layer mirror of [ksl.simopt.problem.InequalityType].
@@ -57,9 +58,31 @@ enum class InequalityType { LESS_THAN, GREATER_THAN }
  */
 @Serializable
 data class LinearConstraintSpec(
+    @TomlComment(
+        "Inline table. Linear coefficients keyed by decision-variable\n" +
+        "name; missing keys imply coefficient 0.  Must be non-empty;\n" +
+        "every key non-blank; every value finite.  Example:\n" +
+        "{ reorderPoint = 1.0, reorderQuantity = 1.0 }."
+    )
     val coefficients: Map<String, Double>,
+
+    @TomlComment(
+        "Number. Right-hand-side value of the inequality.  Must be\n" +
+        "finite.  Default: 0.0."
+    )
     val rhsValue: Double = 0.0,
+
+    @TomlComment(
+        "String. Direction of the inequality: 'LESS_THAN' or\n" +
+        "'GREATER_THAN'.  Default: 'LESS_THAN' (coefficients · inputs ≤ rhsValue)."
+    )
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
+
+    @TomlComment(
+        "Table or omitted. Per-constraint penalty function override.\n" +
+        "When omitted, inherits [problem.defaultLinearPenalty].  type =\n" +
+        "'withMemory' or 'dynamicPolynomial'."
+    )
     val penaltyFunction: PenaltyFunctionSpec? = null
 ) {
     init {
@@ -102,11 +125,43 @@ data class LinearConstraintSpec(
  */
 @Serializable
 data class ResponseConstraintSpec(
+    @TomlComment(
+        "String. Name of the model response being constrained.  Must\n" +
+        "appear in problem.responseNames AND match a Response on the\n" +
+        "built model.  Required (non-blank)."
+    )
     val name: String,
+
+    @TomlComment(
+        "Number. Right-hand-side value of the inequality.  Must be\n" +
+        "finite.  Example: rhsValue = 0.95 for a fill-rate ≥ 0.95\n" +
+        "constraint."
+    )
     val rhsValue: Double,
+
+    @TomlComment(
+        "String. Direction of the inequality: 'LESS_THAN' or\n" +
+        "'GREATER_THAN'.  Default: 'LESS_THAN'."
+    )
     val inequalityType: InequalityType = InequalityType.LESS_THAN,
+
+    @TomlComment(
+        "Number. Solver-specific cut-off parameter (used by some\n" +
+        "convergence tests).  Must be finite.  Default: 0.0."
+    )
     val target: Double = 0.0,
+
+    @TomlComment(
+        "Number. Solver-specific tolerance around target.  Must be >= 0\n" +
+        "and finite.  Default: 0.0."
+    )
     val tolerance: Double = 0.0,
+
+    @TomlComment(
+        "Table or omitted. Per-constraint penalty function override.\n" +
+        "When omitted, inherits [problem.defaultResponsePenalty].\n" +
+        "type = 'withMemory' or 'dynamicPolynomial'."
+    )
     val penaltyFunction: PenaltyFunctionSpec? = null
 ) {
     init {

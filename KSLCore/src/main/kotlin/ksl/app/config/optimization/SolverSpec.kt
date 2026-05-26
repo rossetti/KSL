@@ -20,6 +20,7 @@ package ksl.app.config.optimization
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Optional random-restart wrapper for any [SolverSpec] variant.
@@ -38,7 +39,13 @@ import kotlinx.serialization.Serializable
  *           validated
  */
 @Serializable
-data class RandomRestartSpec(val maxNumRestarts: Int) {
+data class RandomRestartSpec(
+    @TomlComment(
+        "Integer. Maximum number of random restarts the wrapper performs\n" +
+        "from independently-drawn starting points.  Must be > 0."
+    )
+    val maxNumRestarts: Int
+) {
     init {
         require(maxNumRestarts > 0) {
             "maxNumRestarts must be > 0; was $maxNumRestarts"
@@ -66,7 +73,12 @@ sealed class TemperatureSpec {
      */
     @Serializable
     @SerialName("fixed")
-    data class Fixed(val temperature: Double) : TemperatureSpec() {
+    data class Fixed(
+        @TomlComment(
+            "Number. Starting temperature.  Must be > 0 and finite."
+        )
+        val temperature: Double
+    ) : TemperatureSpec() {
         init {
             require(temperature > 0.0 && temperature.isFinite()) {
                 "temperature must be > 0 and finite; was $temperature"
@@ -86,7 +98,18 @@ sealed class TemperatureSpec {
     @Serializable
     @SerialName("autoCalibrate")
     data class AutoCalibrate(
+        @TomlComment(
+            "Number. Desired initial probability of accepting a worse\n" +
+            "solution; the calibration walk targets this value.  Must\n" +
+            "lie strictly in (0, 1).  Default: 0.8."
+        )
         val targetProbability: Double = 0.8,
+
+        @TomlComment(
+            "Integer. Number of random-walk steps used to estimate the\n" +
+            "cost landscape during calibration.  Must be > 0.\n" +
+            "Default: 100."
+        )
         val sampleSize: Int = 100
     ) : TemperatureSpec() {
         init {
@@ -118,8 +141,22 @@ sealed class CoolingScheduleSpec {
     @Serializable
     @SerialName("linear")
     data class Linear(
+        @TomlComment(
+            "Number. Temperature at iteration 0.  Must be > 0 and finite."
+        )
         val initialTemperature: Double,
+
+        @TomlComment(
+            "Number. Temperature at the final iteration.  Must be > 0,\n" +
+            "finite, and strictly less than initialTemperature."
+        )
         val stoppingTemperature: Double,
+
+        @TomlComment(
+            "Integer. Number of iterations over which temperature decays\n" +
+            "linearly from initialTemperature to stoppingTemperature.\n" +
+            "Must be > 0."
+        )
         val maxIterations: Int
     ) : CoolingScheduleSpec() {
         init {
@@ -143,7 +180,16 @@ sealed class CoolingScheduleSpec {
     @Serializable
     @SerialName("exponential")
     data class Exponential(
+        @TomlComment(
+            "Number. Temperature at iteration 0.  Must be > 0 and finite."
+        )
         val initialTemperature: Double,
+
+        @TomlComment(
+            "Number. Geometric decay rate; temperature at iteration i is\n" +
+            "initialTemperature * coolingRate^i.  Must lie strictly in\n" +
+            "(0, 1).  Default: 0.95."
+        )
         val coolingRate: Double = 0.95
     ) : CoolingScheduleSpec() {
         init {
@@ -160,7 +206,14 @@ sealed class CoolingScheduleSpec {
      *  guarantees. */
     @Serializable
     @SerialName("logarithmic")
-    data class Logarithmic(val initialTemperature: Double) : CoolingScheduleSpec() {
+    data class Logarithmic(
+        @TomlComment(
+            "Number. Temperature at iteration 0.  Must be > 0 and finite.\n" +
+            "Logarithmic cooling is very slow; convergence guarantees are\n" +
+            "theoretical."
+        )
+        val initialTemperature: Double
+    ) : CoolingScheduleSpec() {
         init {
             require(initialTemperature > 0.0 && initialTemperature.isFinite()) {
                 "initialTemperature must be > 0 and finite; was $initialTemperature"
@@ -197,9 +250,30 @@ sealed class CESamplerSpec {
     @Serializable
     @SerialName("normal")
     data class Normal(
+        @TomlComment(
+            "Number. Exponential-smoothing weight applied to the mean\n" +
+            "estimate (α_μ).  Must lie in (0, 1].  Default: 0.85."
+        )
         val meanSmoother: Double = 0.85,
+
+        @TomlComment(
+            "Number. Exponential-smoothing weight applied to the standard-\n" +
+            "deviation estimate (α_σ).  Must lie in (0, 1].\n" +
+            "Default: 0.85."
+        )
         val sdSmoother: Double = 0.85,
+
+        @TomlComment(
+            "Number. Convergence threshold on the coefficient of variation\n" +
+            "of the sampling distribution.  Must be > 0 and finite.\n" +
+            "Default: 0.03."
+        )
         val coefficientOfVariationThreshold: Double = 0.03,
+
+        @TomlComment(
+            "Integer. Random-number stream number for the sampler.\n" +
+            "0 (the default) means 'next available stream'.  Must be >= 0."
+        )
         val streamNum: Int = 0
     ) : CESamplerSpec() {
         init {
@@ -267,11 +341,44 @@ sealed class SolverSpec {
     @Serializable
     @SerialName("stochasticHillClimbing")
     data class StochasticHillClimbing(
+        @TomlComment(
+            "Inline table or omitted. Optional starting point keyed by\n" +
+            "decision-variable name (e.g. { reorderPoint = 10.0,\n" +
+            "reorderQuantity = 50.0 }).  Omit to let the solver pick its\n" +
+            "own starting point."
+        )
         override val startingPoint: Map<String, Double>? = null,
+
+        @TomlComment(
+            "Integer. Maximum number of solver main-loop iterations.\n" +
+            "Must be > 0."
+        )
         override val maxIterations: Int,
+
+        @TomlComment(
+            "Table or omitted. When present, wraps the solver in a\n" +
+            "random-restart wrapper that performs up to maxNumRestarts\n" +
+            "restarts from independently-drawn starting points."
+        )
         override val randomRestart: RandomRestartSpec? = null,
+
+        @TomlComment(
+            "Integer. Random-number stream number used to seed the\n" +
+            "solver's stochastic decisions.  0 means 'next available\n" +
+            "stream'.  Must be >= 0.  Default: 0."
+        )
         override val streamNum: Int = 0,
+
+        @TomlComment(
+            "String or omitted. Optional human-readable solver instance\n" +
+            "name used for tracker output and reports."
+        )
         override val name: String? = null,
+
+        @TomlComment(
+            "Integer. Number of simulation replications requested per\n" +
+            "evaluation (per oracle call).  Must be > 0."
+        )
         val replicationsPerEvaluation: Int
     ) : SolverSpec() {
         init {
@@ -288,14 +395,62 @@ sealed class SolverSpec {
     @Serializable
     @SerialName("simulatedAnnealing")
     data class SimulatedAnnealing(
+        @TomlComment(
+            "Inline table or omitted. Optional starting point keyed by\n" +
+            "decision-variable name.  Omit to let the solver pick its own."
+        )
         override val startingPoint: Map<String, Double>? = null,
+
+        @TomlComment(
+            "Integer. Maximum number of solver main-loop iterations.\n" +
+            "Must be > 0."
+        )
         override val maxIterations: Int,
+
+        @TomlComment(
+            "Table or omitted. When present, wraps the solver in a\n" +
+            "random-restart wrapper."
+        )
         override val randomRestart: RandomRestartSpec? = null,
+
+        @TomlComment(
+            "Integer. Random-number stream number; 0 means 'next\n" +
+            "available stream'.  Must be >= 0.  Default: 0."
+        )
         override val streamNum: Int = 0,
+
+        @TomlComment(
+            "String or omitted. Optional human-readable solver instance\n" +
+            "name."
+        )
         override val name: String? = null,
+
+        @TomlComment(
+            "Integer. Number of simulation replications requested per\n" +
+            "evaluation.  Must be > 0."
+        )
         val replicationsPerEvaluation: Int,
+
+        @TomlComment(
+            "Table. Strategy for choosing the initial temperature.\n" +
+            "type = 'fixed' (use a fixed value) or 'autoCalibrate' (run\n" +
+            "a brief random walk to estimate one).  Default:\n" +
+            "{ type = 'autoCalibrate', targetProbability = 0.8,\n" +
+            "sampleSize = 100 }."
+        )
         val temperature: TemperatureSpec = TemperatureSpec.AutoCalibrate(),
+
+        @TomlComment(
+            "Table. Cooling-schedule selection.  type = 'linear',\n" +
+            "'exponential', or 'logarithmic'.  Required."
+        )
         val coolingSchedule: CoolingScheduleSpec,
+
+        @TomlComment(
+            "Number. Temperature below which the algorithm halts the\n" +
+            "main loop early (even if maxIterations not yet reached).\n" +
+            "Must be > 0 and finite."
+        )
         val stoppingTemperature: Double
     ) : SolverSpec() {
         init {
@@ -320,14 +475,64 @@ sealed class SolverSpec {
     @Serializable
     @SerialName("crossEntropy")
     data class CrossEntropy(
+        @TomlComment(
+            "Inline table or omitted. Optional starting point keyed by\n" +
+            "decision-variable name.  Omit to let the solver pick its own."
+        )
         override val startingPoint: Map<String, Double>? = null,
+
+        @TomlComment(
+            "Integer. Maximum number of solver main-loop iterations.\n" +
+            "Must be > 0."
+        )
         override val maxIterations: Int,
+
+        @TomlComment(
+            "Table or omitted. When present, wraps the solver in a\n" +
+            "random-restart wrapper."
+        )
         override val randomRestart: RandomRestartSpec? = null,
+
+        @TomlComment(
+            "Integer. Random-number stream number; 0 means 'next\n" +
+            "available stream'.  Must be >= 0.  Default: 0."
+        )
         override val streamNum: Int = 0,
+
+        @TomlComment(
+            "String or omitted. Optional human-readable solver instance\n" +
+            "name."
+        )
         override val name: String? = null,
+
+        @TomlComment(
+            "Integer. Number of simulation replications requested per\n" +
+            "evaluation.  Must be > 0."
+        )
         val replicationsPerEvaluation: Int,
+
+        @TomlComment(
+            "Table. Sampler used to parameterise the search distribution.\n" +
+            "type = 'normal' (multivariate normal; currently the only\n" +
+            "option).  Default: { type = 'normal', meanSmoother = 0.85,\n" +
+            "sdSmoother = 0.85, coefficientOfVariationThreshold = 0.03,\n" +
+            "streamNum = 0 }."
+        )
         val sampler: CESamplerSpec = CESamplerSpec.Normal(),
+
+        @TomlComment(
+            "Number or omitted. Elite percentage used to update the\n" +
+            "sampling distribution each iteration.  Omit to use the\n" +
+            "solver's built-in default.  Must lie strictly in (0, 1)\n" +
+            "when present."
+        )
         val elitePct: Double? = null,
+
+        @TomlComment(
+            "Integer or omitted. Number of candidates sampled per CE\n" +
+            "iteration.  Omit to use the solver's built-in default.\n" +
+            "Must be >= 1 when present."
+        )
         val ceSampleSize: Int? = null
     ) : SolverSpec() {
         init {
@@ -356,13 +561,52 @@ sealed class SolverSpec {
     @Serializable
     @SerialName("rSpline")
     data class RSpline(
+        @TomlComment(
+            "Inline table or omitted. Optional starting point keyed by\n" +
+            "decision-variable name.  Omit to let the solver pick its own."
+        )
         override val startingPoint: Map<String, Double>? = null,
+
+        @TomlComment(
+            "Integer. Maximum number of solver main-loop iterations.\n" +
+            "Must be > 0."
+        )
         override val maxIterations: Int,
+
+        @TomlComment(
+            "Table or omitted. When present, wraps the solver in a\n" +
+            "random-restart wrapper."
+        )
         override val randomRestart: RandomRestartSpec? = null,
+
+        @TomlComment(
+            "Integer. Random-number stream number; 0 means 'next\n" +
+            "available stream'.  Must be >= 0.  Default: 0."
+        )
         override val streamNum: Int = 0,
+
+        @TomlComment(
+            "String or omitted. Optional human-readable solver instance\n" +
+            "name."
+        )
         override val name: String? = null,
+
+        @TomlComment(
+            "Integer. Replications requested for the first evaluation in\n" +
+            "the growth schedule.  Must be > 0."
+        )
         val initialNumReps: Int,
+
+        @TomlComment(
+            "Number. Per-iteration growth factor applied to the\n" +
+            "replication count.  Must be > 0 and finite."
+        )
         val sampleSizeGrowthRate: Double,
+
+        @TomlComment(
+            "Integer. Hard cap on replications per evaluation.  Must be\n" +
+            ">= initialNumReps."
+        )
         val maxNumReplications: Int
     ) : SolverSpec() {
         init {

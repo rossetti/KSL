@@ -169,7 +169,11 @@ private fun lkOptimizationConfig(): OptimizationRunConfiguration {
         maxIterations = 5,
         replicationsPerEvaluation = 3
     )
-    return OptimizationRunConfiguration(template, problem, solver)
+    return OptimizationRunConfiguration(
+        model = template,
+        problem = problem,
+        solver = solver
+    )
 }
 
 /**

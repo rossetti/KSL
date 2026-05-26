@@ -20,6 +20,7 @@ package ksl.app.config.optimization
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serializable selection of a penalty function used by an optimization
@@ -66,8 +67,22 @@ sealed class PenaltyFunctionSpec {
     @Serializable
     @SerialName("withMemory")
     data class WithMemory(
+        @TomlComment(
+            "Number. Scaling coefficient C of the penalty.  Must be > 0\n" +
+            "and finite.  Default: 100.0."
+        )
         val basePenalty: Double = 100.0,
+
+        @TomlComment(
+            "Number. Power applied to the iteration counter (β).  Must be\n" +
+            ">= 0 and finite.  Default: 1.0."
+        )
         val iterationExponent: Double = 1.0,
+
+        @TomlComment(
+            "Number. Power applied to the violation magnitude (α).  Must\n" +
+            "be > 0 and finite.  Default: 2.0."
+        )
         val violationExponent: Double = 2.0
     ) : PenaltyFunctionSpec() {
         init {
@@ -100,8 +115,22 @@ sealed class PenaltyFunctionSpec {
     @Serializable
     @SerialName("dynamicPolynomial")
     data class DynamicPolynomial(
+        @TomlComment(
+            "Number. Scaling coefficient C of the penalty.  Must be > 0\n" +
+            "and finite.  Default: 100.0."
+        )
         val basePenalty: Double = 100.0,
+
+        @TomlComment(
+            "Number. Power applied to the iteration counter (β).  Must be\n" +
+            ">= 0 and finite.  Default: 1.0."
+        )
         val iterationExponent: Double = 1.0,
+
+        @TomlComment(
+            "Number. Power applied to the violation magnitude (α).  Must\n" +
+            "be > 0 and finite.  Default: 2.0."
+        )
         val violationExponent: Double = 2.0
     ) : PenaltyFunctionSpec() {
         init {

@@ -440,7 +440,12 @@ class OptimizationRunConfigurationTest {
         model: ModelRunTemplate = defaultModel(),
         evaluation: EvaluationSpec = EvaluationSpec()
     ): OptimizationRunConfiguration =
-        OptimizationRunConfiguration(model, problem, solver, evaluation)
+        OptimizationRunConfiguration(
+            model = model,
+            problem = problem,
+            solver = solver,
+            evaluation = evaluation
+        )
 
     private fun defaultProblem(): OptimizationProblemSpec =
         OptimizationProblemSpec(

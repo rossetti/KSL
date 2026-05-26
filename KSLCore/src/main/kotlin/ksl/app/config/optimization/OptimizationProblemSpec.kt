@@ -19,6 +19,7 @@
 package ksl.app.config.optimization
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * App-layer mirror of [ksl.simopt.problem.OptimizationType].
@@ -73,17 +74,92 @@ enum class OptimizationType { MINIMIZE, MAXIMIZE }
  */
 @Serializable
 data class OptimizationProblemSpec(
+    @TomlComment(
+        "String or omitted. Optional human-readable problem name (e.g.\n" +
+        "'InventoryOpt').  Must be non-blank when present.  Default: omitted."
+    )
     val problemName: String? = null,
+
+    @TomlComment(
+        "String or omitted. Optional model identifier carried into the\n" +
+        "engine's ProblemDefinition; usually left unset so the model's\n" +
+        "own identifier is used.  Must be non-blank when present."
+    )
     val modelIdentifier: String? = null,
+
+    @TomlComment(
+        "String. Name of the model response being optimized.  Must match\n" +
+        "a Response on the built model.  Required (non-blank)."
+    )
     val objectiveResponseName: String,
+
+    @TomlComment(
+        "Array of tables. Decision variables controlled by the solver.\n" +
+        "Each entry is an [[problem.inputs]] table with name, lowerBound,\n" +
+        "upperBound, and optional granularity.  Names must be unique;\n" +
+        "the list must be non-empty."
+    )
     val inputs: List<OptimizationInputSpec>,
+
+    @TomlComment(
+        "Array of strings. Additional response names referenced by\n" +
+        "response constraints (the objective response is implied and\n" +
+        "need not be repeated here).  Entries must be non-blank and\n" +
+        "unique.  Default: empty."
+    )
     val responseNames: List<String> = emptyList(),
+
+    @TomlComment(
+        "String. 'MINIMIZE' or 'MAXIMIZE'.  Default: 'MINIMIZE'."
+    )
     val optimizationType: OptimizationType = OptimizationType.MINIMIZE,
+
+    @TomlComment(
+        "Number. Smallest objective-function difference considered\n" +
+        "practically meaningful (Δ).  Must be >= 0 and finite.\n" +
+        "Default: 0.0."
+    )
     val indifferenceZoneParameter: Double = 0.0,
+
+    @TomlComment(
+        "Number. Granularity applied to the objective function value.\n" +
+        "0.0 means full precision.  Must be >= 0 and finite.\n" +
+        "Default: 0.0."
+    )
     val objectiveGranularity: Double = 0.0,
+
+    @TomlComment(
+        "Array of tables. Linear constraints over the decision\n" +
+        "variables.  Each entry is a [[problem.linearConstraints]] table\n" +
+        "with coefficients, inequalityType, rhsValue, and optional per-\n" +
+        "constraint penalty override.  Default: empty."
+    )
     val linearConstraints: List<LinearConstraintSpec> = emptyList(),
+
+    @TomlComment(
+        "Array of tables. Constraints on simulation responses.  Each\n" +
+        "entry is a [[problem.responseConstraints]] table with name,\n" +
+        "inequalityType, rhsValue, target, tolerance, and optional per-\n" +
+        "constraint penalty override.  Default: empty."
+    )
     val responseConstraints: List<ResponseConstraintSpec> = emptyList(),
+
+    @TomlComment(
+        "Table. Problem-level default penalty function applied to every\n" +
+        "linear constraint that doesn't carry its own penaltyFunction\n" +
+        "override.  type = 'withMemory' or 'dynamicPolynomial'.\n" +
+        "Default: { type = 'dynamicPolynomial', basePenalty = 100.0,\n" +
+        "iterationExponent = 1.0, violationExponent = 2.0 }."
+    )
     val defaultLinearPenalty: PenaltyFunctionSpec = PenaltyFunctionSpec.DynamicPolynomial(),
+
+    @TomlComment(
+        "Table. Problem-level default penalty function applied to every\n" +
+        "response constraint that doesn't carry its own penaltyFunction\n" +
+        "override.  type = 'withMemory' or 'dynamicPolynomial'.\n" +
+        "Default: { type = 'withMemory', basePenalty = 100.0,\n" +
+        "iterationExponent = 1.0, violationExponent = 2.0 }."
+    )
     val defaultResponsePenalty: PenaltyFunctionSpec = PenaltyFunctionSpec.WithMemory()
 ) {
     init {

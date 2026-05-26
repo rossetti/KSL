@@ -19,6 +19,7 @@
 package ksl.app.config.optimization
 
 import kotlinx.serialization.Serializable
+import net.peanuuutz.tomlkt.TomlComment
 
 /**
  * Serializable counterpart to
@@ -45,9 +46,31 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class OptimizationInputSpec(
+    @TomlComment(
+        "String. Decision variable name; must match a model input key\n" +
+        "(a control name or an RV-parameter key like 'RVName.paramName').\n" +
+        "Required (non-blank); names must be unique within problem.inputs."
+    )
     val name: String,
+
+    @TomlComment(
+        "Number. Lower bound (inclusive).  Must be finite and strictly\n" +
+        "less than upperBound."
+    )
     val lowerBound: Double,
+
+    @TomlComment(
+        "Number. Upper bound (inclusive).  Must be finite and strictly\n" +
+        "greater than lowerBound."
+    )
     val upperBound: Double,
+
+    @TomlComment(
+        "Number. Step granularity.  0.0 means full precision; 1.0 means\n" +
+        "integer-ordered; other positive values round the input to the\n" +
+        "nearest multiple of granularity.  Must be >= 0 and finite.\n" +
+        "Default: 0.0."
+    )
     val granularity: Double = 0.0
 ) {
     init {
