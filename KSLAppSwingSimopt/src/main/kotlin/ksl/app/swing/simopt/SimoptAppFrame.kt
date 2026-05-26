@@ -260,6 +260,10 @@ class SimoptAppFrame(
             scope = controller.edtScope
         )
 
+        val loadBundleItem = JMenuItem(object : AbstractAction("Load Bundle JAR…") {
+            override fun actionPerformed(e: ActionEvent?) = handleLoadBundleJar()
+        })
+
         return JMenuBar().apply {
             add(JMenu("File").apply {
                 add(newItem)
@@ -272,14 +276,16 @@ class SimoptAppFrame(
                 addSeparator()
                 add(JMenuItem("Exit").apply { addActionListener { dispose() } })
             })
+            add(JMenu("Bundles").apply {
+                add(loadBundleItem)
+            })
             add(JMenu("Help").apply {
                 add(JMenuItem("About KSL SimOpt").apply {
                     addActionListener {
                         JOptionPane.showMessageDialog(
                             this@SimoptAppFrame,
                             "KSL Simulation-Optimization App\n\n" +
-                                "Document editor for OptimizationRunConfiguration.\n" +
-                                "Phase O2 — skeleton with empty step bodies.\n\n" +
+                                "Document editor for OptimizationRunConfiguration.\n\n" +
                                 "Reference: https://rossetti.github.io/KSLBook/",
                             "About",
                             JOptionPane.INFORMATION_MESSAGE
@@ -287,6 +293,34 @@ class SimoptAppFrame(
                     }
                 })
             })
+        }
+    }
+
+    private fun handleLoadBundleJar() {
+        val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
+            dialogTitle = "Load Bundle JAR"
+            fileFilter = FileNameExtensionFilter("JAR files (*.jar)", "jar")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path = chooser.selectedFile.toPath()
+        when (val result = controller.loadBundleJar(path)) {
+            is SimoptAppController.LoadBundleResult.Loaded ->
+                notifications.show(
+                    "Loaded ${result.newBundleIds.size} bundle(s) from ${path.fileName}: " +
+                        result.newBundleIds.joinToString(", "),
+                    NotificationSeverity.INFO
+                )
+            SimoptAppController.LoadBundleResult.NoBundles ->
+                notifications.show(
+                    "No new bundles found in ${path.fileName}.  (Already loaded, or no " +
+                        "KSLModelBundle SPI entries.)",
+                    NotificationSeverity.WARNING
+                )
+            is SimoptAppController.LoadBundleResult.Failed ->
+                notifications.show(
+                    "Could not load ${path.fileName}: ${result.reason}",
+                    NotificationSeverity.ERROR
+                )
         }
     }
 

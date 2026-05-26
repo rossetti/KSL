@@ -29,7 +29,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.swing.Swing
+import ksl.app.bundle.BundleLoader
+import ksl.app.bundle.BundleModelProvider
+import ksl.app.bundle.LoadedBundle
+import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
+import ksl.app.config.RVParameterOverride
 import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.OptimizationOutputConfig
 import ksl.app.config.optimization.OptimizationProblemSpec
@@ -42,8 +47,12 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
 import ksl.app.swing.simopt.stepper.Step
+import ksl.controls.ModelControlsExport
+import ksl.controls.experiments.ExperimentRunParameters
+import ksl.simulation.ModelDescriptor
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * State + lifecycle façade for the SimOpt App.
@@ -121,6 +130,35 @@ class SimoptAppController(
      *  mark dirty but do NOT drop [lastResult]. */
     val trackingSpec: StateFlow<SolverTrackingSpec> = myTrackingSpec.asStateFlow()
 
+    // ── Bundle library ─────────────────────────────────────────────────────
+
+    private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
+    /** Bundles available for model selection.  Auto-populated from the
+     *  classpath at construction time; grown by [loadBundleJar]. */
+    val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
+
+    private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
+    /** `BundleModelProvider` over the current [loadedBundles].  `null`
+     *  when no bundles are loaded. */
+    val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+
+    private val myCurrentModelDescriptor = MutableStateFlow<ModelDescriptor?>(null)
+    /**
+     *  Descriptor (controls, RV parameters, response names, run
+     *  defaults) for the currently-selected model.  Populated when
+     *  [modelTemplate] is a [ModelReference.ByBundleAndModelId] whose
+     *  bundle is present in [loadedBundles].  `null` for non-bundle
+     *  refs (`ByProviderId` / `Embedded` / `ByJar` — the controller
+     *  doesn't carry their introspection paths) and for refs whose
+     *  bundle isn't loaded yet.
+     *
+     *  Phase O4 reads this to populate the decision-variable picker;
+     *  Phase O5 reads `responseNames`; Phase O7a reads
+     *  `experimentRunDefaults` to display "model default: …" labels
+     *  on the Run Setup overrides panel.
+     */
+    val currentModelDescriptor: StateFlow<ModelDescriptor?> = myCurrentModelDescriptor.asStateFlow()
+
     // ── Stepper state ──────────────────────────────────────────────────────
 
     private val myActiveStep = MutableStateFlow(Step.initial)
@@ -174,6 +212,90 @@ class SimoptAppController(
      *  structural edit. */
     val lastResult: StateFlow<RunResult.OptimizationCompleted?> = myLastResult.asStateFlow()
 
+    init {
+        // Auto-discover classpath bundles so a packaged app shows
+        // available models immediately.  Mirrors Experiment / Scenario
+        // controllers.
+        val classpathBundles = BundleLoader.loadFromClasspath()
+        if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
+    }
+
+    // ── Bundle management ──────────────────────────────────────────────────
+
+    private fun updateBundles(bundles: List<LoadedBundle>) {
+        myLoadedBundles.value = bundles
+        myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
+        // Re-resolve the descriptor: a previously-unresolvable ref
+        // may now resolve because the bundle it points at just
+        // arrived in the loaded set.
+        refreshModelDescriptor()
+    }
+
+    /**
+     *  Resolve [modelTemplate]'s reference against the loaded bundles
+     *  and publish the descriptor.  Sets [currentModelDescriptor] to
+     *  `null` when:
+     *  - the template is `null` (no model picked yet),
+     *  - the ref is a non-bundle variant (`ByProviderId` / `Embedded`
+     *    / `ByJar`) — no introspection path from this controller,
+     *  - the ref is `ByBundleAndModelId` but the bundle isn't loaded
+     *    or the descriptor lookup throws.
+     */
+    private fun refreshModelDescriptor() {
+        val ref = myModelTemplate.value?.modelReference as? ModelReference.ByBundleAndModelId
+        if (ref == null) {
+            if (myCurrentModelDescriptor.value != null) myCurrentModelDescriptor.value = null
+            return
+        }
+        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
+        val descriptor = try {
+            bundle?.descriptorFor(ref.modelId)
+        } catch (_: Throwable) {
+            null
+        }
+        if (myCurrentModelDescriptor.value != descriptor) {
+            myCurrentModelDescriptor.value = descriptor
+        }
+    }
+
+    /**
+     *  Outcome of [loadBundleJar].
+     */
+    sealed class LoadBundleResult {
+        /** At least one new bundle (with a new bundleId) was loaded. */
+        data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
+
+        /** The JAR loaded successfully but exposed no new bundles
+         *  (either zero `KSLModelBundle` SPI entries or every entry's
+         *  bundleId was already present in [loadedBundles]). */
+        object NoBundles : LoadBundleResult()
+
+        /** The loader threw — typically a malformed JAR or a class
+         *  loader failure.  [reason] carries the exception message. */
+        data class Failed(val reason: String) : LoadBundleResult()
+    }
+
+    /**
+     *  Load every `KSLModelBundle` from the JAR at [jarPath] and
+     *  append the discovered bundles to [loadedBundles].  Duplicates
+     *  (bundleIds already present) are silently discarded.  Same
+     *  shape as Experiment / Scenario controllers' loaders.
+     */
+    fun loadBundleJar(jarPath: Path): LoadBundleResult {
+        val newBundles = try {
+            BundleLoader.loadJar(jarPath)
+        } catch (t: Throwable) {
+            return LoadBundleResult.Failed(t.message ?: t::class.simpleName ?: "load failed")
+        }
+        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
+        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
+        val (toAdd, duplicates) = newBundles.partition { it.bundle.bundleId !in existingIds }
+        duplicates.forEach { runCatching { it.close() } }
+        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
+        updateBundles(myLoadedBundles.value + toAdd)
+        return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
+    }
+
     // ── R1 lifecycle helpers ───────────────────────────────────────────────
 
     /** Mark the document dirty AND stale.  Called from every
@@ -212,10 +334,172 @@ class SimoptAppController(
      *  cascades through downstream specs (`problemSpec` / `solverSpec`
      *  become moot but are NOT auto-cleared; the user must clear
      *  them explicitly via [resetConfiguration] or the Model step's
-     *  switch-and-clear prompt). */
+     *  switch-and-clear prompt).  Also refreshes
+     *  [currentModelDescriptor] against [loadedBundles]. */
     fun setModelTemplate(template: ModelRunTemplate?) {
         if (myModelTemplate.value == template) return
         myModelTemplate.value = template
+        refreshModelDescriptor()
+        markDirtyStructural()
+    }
+
+    /**
+     *  Convenience over [setModelTemplate] when the user picks a
+     *  model from the GUI dropdowns.  Builds a fresh
+     *  [ModelRunTemplate] using the descriptor's
+     *  [ksl.controls.experiments.ExperimentRunDefaults] as the
+     *  starting [ExperimentRunParameters].  When [ref] points at an
+     *  unloaded bundle (or a non-bundle reference), the template is
+     *  still installed but [currentModelDescriptor] stays `null` and
+     *  the Model-step picker switches to its "unresolved" card.
+     */
+    fun setModelReference(ref: ModelReference) {
+        val template = buildTemplateFor(ref)
+        if (myModelTemplate.value == template) return
+        myModelTemplate.value = template
+        refreshModelDescriptor()
+        markDirtyStructural()
+    }
+
+    /**
+     *  Switch the active model AND clear all model-dependent
+     *  document state (problem, solver, evaluation, tracking) — used
+     *  by the GUI when the user confirms a model switch that would
+     *  leave behind stale references to the prior model's controls /
+     *  responses.  The output config + analysis name survive (they
+     *  aren't model-specific).
+     */
+    fun setModelReferenceAndClear(ref: ModelReference) {
+        val template = buildTemplateFor(ref)
+        myModelTemplate.value = template
+        myProblemSpec.value = null
+        mySolverSpec.value = null
+        myEvaluationSpec.value = EvaluationSpec()
+        myTrackingSpec.value = SolverTrackingSpec()
+        refreshModelDescriptor()
+        markDirtyStructural()
+    }
+
+    private fun buildTemplateFor(ref: ModelReference): ModelRunTemplate {
+        val descriptor: ModelDescriptor? = (ref as? ModelReference.ByBundleAndModelId)?.let { byRef ->
+            val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == byRef.bundleId }
+            try { bundle?.descriptorFor(byRef.modelId) } catch (_: Throwable) { null }
+        }
+        val runParameters = runParametersFor(descriptor, modelName = descriptorModelName(descriptor, ref))
+        val controls = ModelControlsExport(modelName = descriptorModelName(descriptor, ref))
+        return ModelRunTemplate(
+            modelReference = ref,
+            modelConfiguration = null,
+            runParameters = runParameters,
+            controls = controls,
+            rvOverrides = emptyList()
+        )
+    }
+
+    private fun descriptorModelName(descriptor: ModelDescriptor?, ref: ModelReference): String =
+        descriptor?.modelName ?: when (ref) {
+            is ModelReference.ByBundleAndModelId -> ref.modelId
+            is ModelReference.ByProviderId -> ref.providerId
+            is ModelReference.Embedded -> ref.modelName
+            is ModelReference.ByJar -> ref.builderClassName ?: "Model"
+        }
+
+    private fun runParametersFor(
+        descriptor: ModelDescriptor?,
+        modelName: String
+    ): ExperimentRunParameters {
+        val defaults = descriptor?.experimentRunDefaults
+        return ExperimentRunParameters(
+            experimentName = modelName,
+            experimentId = 1,
+            numberOfReplications = defaults?.numberOfReplications ?: 1,
+            numChunks = defaults?.numChunks ?: 1,
+            runName = modelName,
+            startingRepId = defaults?.startingRepId ?: 1,
+            lengthOfReplication = defaults?.lengthOfReplication ?: Double.POSITIVE_INFINITY,
+            lengthOfReplicationWarmUp = defaults?.lengthOfReplicationWarmUp ?: 0.0,
+            replicationInitializationOption = defaults?.replicationInitializationOption ?: true,
+            maximumAllowedExecutionTimePerReplication =
+                defaults?.maximumAllowedExecutionTimePerReplication ?: 0.minutes,
+            resetStartStreamOption = defaults?.resetStartStreamOption ?: false,
+            advanceNextSubStreamOption = defaults?.advanceNextSubStreamOption ?: true,
+            antitheticOption = defaults?.antitheticOption ?: false,
+            numberOfStreamAdvancesPriorToRunning = defaults?.numberOfStreamAdvancesPriorToRunning ?: 0,
+            garbageCollectAfterReplicationFlag = defaults?.garbageCollectAfterReplicationFlag ?: false
+        )
+    }
+
+    /** Update the baseline replication length on the current model
+     *  template.  No-op when no model is set.  Structural — drops
+     *  [lastResult].  The solver-step `replicationsPerEvaluation`
+     *  is independent of this value; this field controls the
+     *  baseline run-parameter setting saved on
+     *  `ModelRunTemplate.runParameters`. */
+    fun setLengthOfReplication(value: Double) {
+        require(value > 0.0 && value.isFinite()) {
+            "lengthOfReplication must be > 0 and finite; was $value"
+        }
+        val template = myModelTemplate.value ?: return
+        if (template.runParameters.lengthOfReplication == value) return
+        val updated = template.copy(
+            runParameters = template.runParameters.copy(lengthOfReplication = value)
+        )
+        myModelTemplate.value = updated
+        markDirtyStructural()
+    }
+
+    /** Update the baseline warm-up length.  No-op when no model is
+     *  set.  Structural — drops [lastResult]. */
+    fun setLengthOfReplicationWarmUp(value: Double) {
+        require(value >= 0.0 && value.isFinite()) {
+            "lengthOfReplicationWarmUp must be >= 0 and finite; was $value"
+        }
+        val template = myModelTemplate.value ?: return
+        if (template.runParameters.lengthOfReplicationWarmUp == value) return
+        val updated = template.copy(
+            runParameters = template.runParameters.copy(lengthOfReplicationWarmUp = value)
+        )
+        myModelTemplate.value = updated
+        markDirtyStructural()
+    }
+
+    /** Update the baseline replication count.  No-op when no model
+     *  is set.  Structural — drops [lastResult].  This value is the
+     *  baseline `numberOfReplications` saved on
+     *  `ModelRunTemplate.runParameters`; the algorithm step's
+     *  `replicationsPerEvaluation` is independent (a future phase
+     *  may default the algorithm field from this baseline when the
+     *  user has not explicitly set it). */
+    fun setNumberOfReplications(value: Int) {
+        require(value >= 1) {
+            "numberOfReplications must be >= 1; was $value"
+        }
+        val template = myModelTemplate.value ?: return
+        if (template.runParameters.numberOfReplications == value) return
+        val updated = template.copy(
+            runParameters = template.runParameters.copy(numberOfReplications = value)
+        )
+        myModelTemplate.value = updated
+        markDirtyStructural()
+    }
+
+    /** Replace the baseline controls.  No-op when no model is set.
+     *  Structural — drops [lastResult]. */
+    fun setBaselineControls(controls: ModelControlsExport) {
+        val template = myModelTemplate.value ?: return
+        if (template.controls == controls) return
+        val updated = template.copy(controls = controls)
+        myModelTemplate.value = updated
+        markDirtyStructural()
+    }
+
+    /** Replace the baseline RV-parameter overrides.  No-op when no
+     *  model is set.  Structural — drops [lastResult]. */
+    fun setBaselineRvOverrides(overrides: List<RVParameterOverride>) {
+        val template = myModelTemplate.value ?: return
+        if (template.rvOverrides == overrides) return
+        val updated = template.copy(rvOverrides = overrides)
+        myModelTemplate.value = updated
         markDirtyStructural()
     }
 
@@ -292,6 +576,7 @@ class SimoptAppController(
         myEditedSinceLastRun.value = false
         myLastResult.value = null
         myActiveStep.value = Step.initial
+        refreshModelDescriptor()
         refreshStepCompletion()
     }
 
@@ -321,6 +606,7 @@ class SimoptAppController(
         myEditedSinceLastRun.value = false
         myLastResult.value = null
         myActiveStep.value = Step.initial
+        refreshModelDescriptor()
         refreshStepCompletion()
         return LoadResult.Success(config)
     }

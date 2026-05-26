@@ -115,7 +115,17 @@ class SimoptAppFrameSmokeTest {
                 assertNotNull(menuBar)
                 val menuTexts = (0 until menuBar.menuCount).map { menuBar.getMenu(it).text }
                 assertTrue(menuTexts.contains("File"), "File menu must be present; got $menuTexts")
+                assertTrue(menuTexts.contains("Bundles"), "Bundles menu must be present; got $menuTexts")
                 assertTrue(menuTexts.contains("Help"), "Help menu must be present; got $menuTexts")
+
+                val bundlesMenu = (0 until menuBar.menuCount)
+                    .map { menuBar.getMenu(it) }
+                    .first { it.text == "Bundles" }
+                val bundleItems = (0 until bundlesMenu.itemCount).mapNotNull {
+                    (bundlesMenu.getMenuComponent(it) as? JMenuItem)?.text
+                }
+                assertTrue(bundleItems.any { it.contains("Load Bundle JAR") },
+                    "Bundles menu should include 'Load Bundle JAR…'; got $bundleItems")
 
                 val fileMenu = (0 until menuBar.menuCount)
                     .map { menuBar.getMenu(it) }
