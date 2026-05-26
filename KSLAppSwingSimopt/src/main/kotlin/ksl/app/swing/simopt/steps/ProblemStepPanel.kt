@@ -274,6 +274,11 @@ class ProblemStepPanel(
         controller.currentModelDescriptor.onEach { _ ->
             refreshObjectiveCombo()
             refreshObjectiveFields()
+            // Add Input depends on the descriptor being non-null; without
+            // this call, the button stays disabled forever after the user
+            // selects a model on the Model step (the descriptor collector
+            // fires, but enablement wasn't being recomputed here).
+            refreshButtonEnablement()
         }.launchIn(controller.edtScope)
 
         controller.objectiveResponseName.onEach { _ ->
