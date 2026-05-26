@@ -125,12 +125,12 @@ class SimoptAppFrameSmokeTest {
                 }
                 assertTrue(items.any { it.contains("New Optimization") },
                     "File menu should include 'New Optimization…'; got $items")
-                assertTrue(items.any { it.contains("Open Configuration") },
-                    "File menu should include 'Open Configuration…'; got $items")
-                assertTrue(items.any { it.contains("Save Configuration") && !it.contains("As") },
-                    "File menu should include 'Save Configuration'; got $items")
-                assertTrue(items.any { it.contains("Save Configuration As") },
-                    "File menu should include 'Save Configuration As…'; got $items")
+                assertTrue(items.any { it.contains("Open Optimization") },
+                    "File menu should include 'Open Optimization…'; got $items")
+                assertTrue(items.any { it.contains("Save Optimization") && !it.contains("As") },
+                    "File menu should include 'Save Optimization'; got $items")
+                assertTrue(items.any { it.contains("Save Optimization As") },
+                    "File menu should include 'Save Optimization As…'; got $items")
                 assertTrue(items.any { it == "Exit" }, "File menu should include 'Exit'; got $items")
             }
         } finally {

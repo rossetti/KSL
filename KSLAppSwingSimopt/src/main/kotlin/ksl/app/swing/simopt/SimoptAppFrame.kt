@@ -227,7 +227,7 @@ class SimoptAppFrame(
         }).apply {
             accelerator = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_N, menuShortcut)
         }
-        val openItem = JMenuItem(object : AbstractAction("Open Configuration…") {
+        val openItem = JMenuItem(object : AbstractAction("Open Optimization…") {
             override fun actionPerformed(e: ActionEvent?) = handleOpen()
         }).apply {
             accelerator = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, menuShortcut)
@@ -237,7 +237,7 @@ class SimoptAppFrame(
         }).apply {
             accelerator = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, menuShortcut)
         }
-        val saveAsItem = JMenuItem(object : AbstractAction("Save Configuration As…") {
+        val saveAsItem = JMenuItem(object : AbstractAction("Save Optimization As…") {
             override fun actionPerformed(e: ActionEvent?) = handleSaveAs()
         }).apply {
             accelerator = KeyStroke.getKeyStroke(
@@ -295,13 +295,13 @@ class SimoptAppFrame(
     private fun handleNew() {
         if (!confirmDiscardIfDirty()) return
         controller.newDocument()
-        notifications.show("New optimization configuration started.", NotificationSeverity.INFO)
+        notifications.show("New optimization started.", NotificationSeverity.INFO)
     }
 
     private fun handleOpen() {
         if (!confirmDiscardIfDirty()) return
         val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
-            dialogTitle = "Open Optimization Configuration"
+            dialogTitle = "Open Optimization"
             fileFilter = FileNameExtensionFilter("TOML files (*.toml)", "toml")
         }
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
@@ -352,7 +352,7 @@ class SimoptAppFrame(
             return
         }
         val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
-            dialogTitle = "Save Optimization Configuration As"
+            dialogTitle = "Save Optimization As"
             fileFilter = FileNameExtensionFilter("TOML files (*.toml)", "toml")
             selectedFile = controller.appWorkspace.resolve(defaultSaveAsName()).toFile()
         }
@@ -401,7 +401,7 @@ class SimoptAppFrame(
     }
 
     private companion object {
-        const val SAVE_BASE_TEXT: String = "Save Configuration"
-        const val SAVE_DIRTY_TEXT: String = "Save Configuration *"
+        const val SAVE_BASE_TEXT: String = "Save Optimization"
+        const val SAVE_DIRTY_TEXT: String = "Save Optimization *"
     }
 }
