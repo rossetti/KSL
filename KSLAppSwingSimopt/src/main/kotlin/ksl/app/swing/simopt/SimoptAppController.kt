@@ -36,10 +36,15 @@ import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.optimization.EvaluationSpec
+import ksl.app.config.optimization.LinearConstraintSpec
+import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationOutputConfig
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.config.optimization.OptimizationRunConfigurationToml
+import ksl.app.config.optimization.OptimizationType
+import ksl.app.config.optimization.PenaltyFunctionSpec
+import ksl.app.config.optimization.ResponseConstraintSpec
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
@@ -108,9 +113,83 @@ class SimoptAppController(
      *  bundle + model.  Step.MODEL completion gate. */
     val modelTemplate: StateFlow<ModelRunTemplate?> = myModelTemplate.asStateFlow()
 
+    // ── Problem-spec pieces ────────────────────────────────────────────────
+    //
+    // The Problem step authors a [OptimizationProblemSpec] incrementally.
+    // The substrate spec's `init {}` requires both a non-blank
+    // objectiveResponseName AND a non-empty inputs list, so we cannot
+    // pre-construct a "partial" spec — instead, every piece lives in its
+    // own StateFlow and [problemSpec] is published as a derived view
+    // that becomes non-null only when the required pieces are present.
+
+    private val myObjectiveResponseName = MutableStateFlow<String?>(null)
+    /** Name of the model response being optimized.  `null` until the
+     *  user picks one on the Problem step. */
+    val objectiveResponseName: StateFlow<String?> = myObjectiveResponseName.asStateFlow()
+
+    private val myOptimizationType = MutableStateFlow(OptimizationType.MINIMIZE)
+    /** Minimize or maximize.  Defaults to MINIMIZE. */
+    val optimizationType: StateFlow<OptimizationType> = myOptimizationType.asStateFlow()
+
+    private val myProblemName = MutableStateFlow<String?>(null)
+    /** Optional human-readable problem name (e.g. "InventoryOpt"). */
+    val problemName: StateFlow<String?> = myProblemName.asStateFlow()
+
+    private val myIndifferenceZoneParameter = MutableStateFlow(0.0)
+    /** Smallest objective-function difference considered practically
+     *  meaningful.  Must be >= 0 and finite.  Default 0.0. */
+    val indifferenceZoneParameter: StateFlow<Double> = myIndifferenceZoneParameter.asStateFlow()
+
+    private val myObjectiveGranularity = MutableStateFlow(0.0)
+    /** Granularity applied to the objective function value.  0.0 means
+     *  full precision.  Default 0.0. */
+    val objectiveGranularity: StateFlow<Double> = myObjectiveGranularity.asStateFlow()
+
+    private val myInputs = MutableStateFlow<List<OptimizationInputSpec>>(emptyList())
+    /** Ordered list of decision variables.  Step.PROBLEM completion
+     *  requires this to be non-empty AND [objectiveResponseName] to be
+     *  non-null. */
+    val inputs: StateFlow<List<OptimizationInputSpec>> = myInputs.asStateFlow()
+
+    private val mySelectedInputIndex = MutableStateFlow(-1)
+    /** Index of the currently-selected decision variable in [inputs],
+     *  or `-1` when nothing is selected.  Auto-shifts on add / delete
+     *  / reorder. */
+    val selectedInputIndex: StateFlow<Int> = mySelectedInputIndex.asStateFlow()
+
+    private val myResponseNames = MutableStateFlow<List<String>>(emptyList())
+    /** Additional response names referenced by response constraints
+     *  (the objective response is implied and need not be repeated).
+     *  Phase O5 lands the chip-row editor; O4 only carries the flow
+     *  so TOML round-trip preserves the list. */
+    val responseNames: StateFlow<List<String>> = myResponseNames.asStateFlow()
+
+    private val myLinearConstraints = MutableStateFlow<List<LinearConstraintSpec>>(emptyList())
+    /** Linear constraints over the decision variables.  Phase O5 lands
+     *  the editor; O4 only carries the flow. */
+    val linearConstraints: StateFlow<List<LinearConstraintSpec>> = myLinearConstraints.asStateFlow()
+
+    private val myResponseConstraints = MutableStateFlow<List<ResponseConstraintSpec>>(emptyList())
+    /** Constraints on simulation responses.  Phase O5 lands the editor. */
+    val responseConstraints: StateFlow<List<ResponseConstraintSpec>> = myResponseConstraints.asStateFlow()
+
+    private val myDefaultLinearPenalty = MutableStateFlow<PenaltyFunctionSpec>(
+        PenaltyFunctionSpec.DynamicPolynomial()
+    )
+    /** Problem-level default penalty function for linear constraints. */
+    val defaultLinearPenalty: StateFlow<PenaltyFunctionSpec> = myDefaultLinearPenalty.asStateFlow()
+
+    private val myDefaultResponsePenalty = MutableStateFlow<PenaltyFunctionSpec>(
+        PenaltyFunctionSpec.WithMemory()
+    )
+    /** Problem-level default penalty function for response constraints. */
+    val defaultResponsePenalty: StateFlow<PenaltyFunctionSpec> = myDefaultResponsePenalty.asStateFlow()
+
     private val myProblemSpec = MutableStateFlow<OptimizationProblemSpec?>(null)
-    /** Optimization problem definition.  `null` until the Problem
-     *  step has at least an objective + ≥ 1 decision variable.
+    /** Optimization problem definition (consolidated view).  **Derived**
+     *  — recomputed from the pieces on every mutator and on TOML load.
+     *  `null` until the Problem step has at least an objective + ≥ 1
+     *  decision variable; otherwise carries the full validated spec.
      *  Step.PROBLEM completion gate. */
     val problemSpec: StateFlow<OptimizationProblemSpec?> = myProblemSpec.asStateFlow()
 
@@ -372,7 +451,7 @@ class SimoptAppController(
     fun setModelReferenceAndClear(ref: ModelReference) {
         val template = buildTemplateFor(ref)
         myModelTemplate.value = template
-        myProblemSpec.value = null
+        setProblemSpec(null)             // fan-out clear of every problem-piece
         mySolverSpec.value = null
         myEvaluationSpec.value = EvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
@@ -503,12 +582,240 @@ class SimoptAppController(
         markDirtyStructural()
     }
 
-    /** Replace the problem specification.  Structural — drops
-     *  [lastResult]. */
+    /** Replace the problem specification by fanning out [spec] into
+     *  the per-piece StateFlows ([objectiveResponseName], [inputs],
+     *  [responseNames], etc.).  Used by TOML load and by tests /
+     *  programmatic callers that want to commit a complete spec in
+     *  one call.  Structural — drops [lastResult].
+     *
+     *  Passing `null` clears every piece back to defaults (the
+     *  consolidated [problemSpec] then publishes null on the next
+     *  recompute). */
     fun setProblemSpec(spec: OptimizationProblemSpec?) {
-        if (myProblemSpec.value == spec) return
-        myProblemSpec.value = spec
+        if (spec == null) {
+            myObjectiveResponseName.value = null
+            myOptimizationType.value = OptimizationType.MINIMIZE
+            myProblemName.value = null
+            myIndifferenceZoneParameter.value = 0.0
+            myObjectiveGranularity.value = 0.0
+            myInputs.value = emptyList()
+            mySelectedInputIndex.value = -1
+            myResponseNames.value = emptyList()
+            myLinearConstraints.value = emptyList()
+            myResponseConstraints.value = emptyList()
+            myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
+            myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
+        } else {
+            myObjectiveResponseName.value = spec.objectiveResponseName
+            myOptimizationType.value = spec.optimizationType
+            myProblemName.value = spec.problemName
+            myIndifferenceZoneParameter.value = spec.indifferenceZoneParameter
+            myObjectiveGranularity.value = spec.objectiveGranularity
+            myInputs.value = spec.inputs
+            mySelectedInputIndex.value = if (spec.inputs.isEmpty()) -1 else 0
+            myResponseNames.value = spec.responseNames
+            myLinearConstraints.value = spec.linearConstraints
+            myResponseConstraints.value = spec.responseConstraints
+            myDefaultLinearPenalty.value = spec.defaultLinearPenalty
+            myDefaultResponsePenalty.value = spec.defaultResponsePenalty
+        }
+        recomputeProblemSpec()
         markDirtyStructural()
+    }
+
+    /** Set the objective response name.  Pass `null` to clear it.
+     *  Structural — drops [lastResult]. */
+    fun setObjectiveResponseName(name: String?) {
+        val coerced = name?.takeIf { it.isNotBlank() }
+        if (myObjectiveResponseName.value == coerced) return
+        myObjectiveResponseName.value = coerced
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the optimization direction. */
+    fun setOptimizationType(type: OptimizationType) {
+        if (myOptimizationType.value == type) return
+        myOptimizationType.value = type
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the optional problem name.  Pass `null` or a blank string
+     *  to clear it. */
+    fun setProblemName(name: String?) {
+        val coerced = name?.takeIf { it.isNotBlank() }
+        if (myProblemName.value == coerced) return
+        myProblemName.value = coerced
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the indifference-zone parameter (Δ).  Must be >= 0 and
+     *  finite. */
+    fun setIndifferenceZoneParameter(value: Double) {
+        require(value >= 0.0 && value.isFinite()) {
+            "indifferenceZoneParameter must be >= 0 and finite; was $value"
+        }
+        if (myIndifferenceZoneParameter.value == value) return
+        myIndifferenceZoneParameter.value = value
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the objective-function granularity.  Must be >= 0 and
+     *  finite. */
+    fun setObjectiveGranularity(value: Double) {
+        require(value >= 0.0 && value.isFinite()) {
+            "objectiveGranularity must be >= 0 and finite; was $value"
+        }
+        if (myObjectiveGranularity.value == value) return
+        myObjectiveGranularity.value = value
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Append a new decision variable.  Rejects duplicate names with
+     *  [IllegalArgumentException].  Selects the new row. */
+    fun addInput(spec: OptimizationInputSpec) {
+        require(myInputs.value.none { it.name == spec.name }) {
+            "Decision-variable name '${spec.name}' already exists in the document"
+        }
+        val updated = myInputs.value + spec
+        myInputs.value = updated
+        mySelectedInputIndex.value = updated.lastIndex
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Replace the decision variable at [index].  Rejects an index
+     *  out of range and rejects a name collision with any *other*
+     *  existing input. */
+    fun updateInput(index: Int, updated: OptimizationInputSpec) {
+        val list = myInputs.value
+        require(index in list.indices) {
+            "updateInput: index $index out of range 0..${list.lastIndex}"
+        }
+        require(list.withIndex().none { (i, x) -> i != index && x.name == updated.name }) {
+            "Decision-variable name '${updated.name}' already exists in the document"
+        }
+        val newList = list.toMutableList().also { it[index] = updated }
+        myInputs.value = newList
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Delete the decision variable at [index].  Shifts
+     *  [selectedInputIndex] to keep the selection sane. */
+    fun deleteInput(index: Int) {
+        val list = myInputs.value
+        require(index in list.indices) {
+            "deleteInput: index $index out of range 0..${list.lastIndex}"
+        }
+        val newList = list.toMutableList().also { it.removeAt(index) }
+        myInputs.value = newList
+        // Selection: prefer to keep the same row if possible; otherwise
+        // clamp downward; -1 when the list is now empty.
+        val selected = mySelectedInputIndex.value
+        mySelectedInputIndex.value = when {
+            newList.isEmpty() -> -1
+            selected < index -> selected
+            selected == index -> (index - 1).coerceAtLeast(0)
+            else -> selected - 1
+        }
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Move the decision variable at [index] one slot earlier.
+     *  No-op when [index] is 0. */
+    fun moveInputUp(index: Int) {
+        val list = myInputs.value
+        require(index in list.indices) {
+            "moveInputUp: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == 0) return
+        val newList = list.toMutableList()
+        val tmp = newList[index - 1]
+        newList[index - 1] = newList[index]
+        newList[index] = tmp
+        myInputs.value = newList
+        if (mySelectedInputIndex.value == index) mySelectedInputIndex.value = index - 1
+        else if (mySelectedInputIndex.value == index - 1) mySelectedInputIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Move the decision variable at [index] one slot later.
+     *  No-op when [index] is the last index. */
+    fun moveInputDown(index: Int) {
+        val list = myInputs.value
+        require(index in list.indices) {
+            "moveInputDown: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == list.lastIndex) return
+        val newList = list.toMutableList()
+        val tmp = newList[index + 1]
+        newList[index + 1] = newList[index]
+        newList[index] = tmp
+        myInputs.value = newList
+        if (mySelectedInputIndex.value == index) mySelectedInputIndex.value = index + 1
+        else if (mySelectedInputIndex.value == index + 1) mySelectedInputIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the [selectedInputIndex].  Caller passes -1 to clear the
+     *  selection. */
+    fun setSelectedInputIndex(index: Int) {
+        val list = myInputs.value
+        val clamped = when {
+            index < 0 -> -1
+            index >= list.size -> list.lastIndex
+            else -> index
+        }
+        if (mySelectedInputIndex.value != clamped) mySelectedInputIndex.value = clamped
+    }
+
+    /** Replace the declared response-names list (used by O5 response
+     *  constraints).  Structural — drops [lastResult]. */
+    fun setResponseNames(names: List<String>) {
+        if (myResponseNames.value == names) return
+        myResponseNames.value = names
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Recompute [problemSpec] from the per-piece flows.  Publishes
+     *  `null` when required pieces are missing or the assembled spec
+     *  fails the substrate's `init {}` invariant (defensive — the
+     *  per-piece mutators above enforce most invariants directly). */
+    private fun recomputeProblemSpec() {
+        val obj = myObjectiveResponseName.value
+        val ins = myInputs.value
+        val next: OptimizationProblemSpec? = if (obj == null || ins.isEmpty()) {
+            null
+        } else {
+            try {
+                OptimizationProblemSpec(
+                    problemName = myProblemName.value,
+                    objectiveResponseName = obj,
+                    inputs = ins,
+                    responseNames = myResponseNames.value,
+                    optimizationType = myOptimizationType.value,
+                    indifferenceZoneParameter = myIndifferenceZoneParameter.value,
+                    objectiveGranularity = myObjectiveGranularity.value,
+                    linearConstraints = myLinearConstraints.value,
+                    responseConstraints = myResponseConstraints.value,
+                    defaultLinearPenalty = myDefaultLinearPenalty.value,
+                    defaultResponsePenalty = myDefaultResponsePenalty.value
+                )
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
+        if (myProblemSpec.value != next) myProblemSpec.value = next
+        refreshStepCompletion()
     }
 
     /** Replace the solver specification.  Structural — drops
@@ -567,6 +874,20 @@ class SimoptAppController(
     fun newDocument() {
         myOutput.value = OptimizationOutputConfig()
         myModelTemplate.value = null
+        // Clear problem-spec pieces directly (avoid the fan-out shim's
+        // markDirtyStructural — we want the document to land clean).
+        myObjectiveResponseName.value = null
+        myOptimizationType.value = OptimizationType.MINIMIZE
+        myProblemName.value = null
+        myIndifferenceZoneParameter.value = 0.0
+        myObjectiveGranularity.value = 0.0
+        myInputs.value = emptyList()
+        mySelectedInputIndex.value = -1
+        myResponseNames.value = emptyList()
+        myLinearConstraints.value = emptyList()
+        myResponseConstraints.value = emptyList()
+        myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
+        myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         myProblemSpec.value = null
         mySolverSpec.value = null
         myEvaluationSpec.value = EvaluationSpec()
@@ -614,6 +935,21 @@ class SimoptAppController(
     private fun installLoaded(config: OptimizationRunConfiguration) {
         myOutput.value = config.output
         myModelTemplate.value = config.model
+        // Fan out config.problem into the per-piece flows.
+        config.problem.let { p ->
+            myObjectiveResponseName.value = p.objectiveResponseName
+            myOptimizationType.value = p.optimizationType
+            myProblemName.value = p.problemName
+            myIndifferenceZoneParameter.value = p.indifferenceZoneParameter
+            myObjectiveGranularity.value = p.objectiveGranularity
+            myInputs.value = p.inputs
+            mySelectedInputIndex.value = if (p.inputs.isEmpty()) -1 else 0
+            myResponseNames.value = p.responseNames
+            myLinearConstraints.value = p.linearConstraints
+            myResponseConstraints.value = p.responseConstraints
+            myDefaultLinearPenalty.value = p.defaultLinearPenalty
+            myDefaultResponsePenalty.value = p.defaultResponsePenalty
+        }
         myProblemSpec.value = config.problem
         mySolverSpec.value = config.solver
         myEvaluationSpec.value = config.evaluation
