@@ -16,23 +16,23 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 5 of 6 — Execute.
+ *
+ * **Phase O2 shell.**  Replaced in Phase O7b with the Run / Cancel
+ * controls, live progress (iteration counter, best-so-far objective,
+ * lets-plot sparkline, best inputs, algorithm-specific state from
+ * `solverSpecificState`).  See `.claude/plans/simopt-app-plan.md` §5.7.
+ */
+class ExecuteStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Execute",
+    summary = "Run / Cancel the configured optimization.  Live " +
+        "progress display: iteration counter, best-so-far objective, " +
+        "lets-plot convergence sparkline, current best inputs, and " +
+        "algorithm-specific state when the snapshot carries it.",
+    pendingPhase = "Phase O7b"
+)

@@ -16,23 +16,23 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 2 of 6 — Problem.
+ *
+ * **Phase O2 shell.**  Replaced in Phases O4 + O5 with the objective
+ * form, decision-variable table + add-input dialog, declared responses
+ * row, constraint dialogs, and the advanced penalty defaults
+ * disclosure.  See `.claude/plans/simopt-app-plan.md` §5.4.
+ */
+class ProblemStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Problem",
+    summary = "Define the objective response, decision variables " +
+        "(each bound to a control or RV parameter with finite " +
+        "lower < upper bounds), declared responses, linear + " +
+        "response constraints, and problem-level penalty defaults.",
+    pendingPhase = "Phases O4 + O5"
+)

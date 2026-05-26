@@ -16,23 +16,24 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 4 of 6 — Run Setup.
+ *
+ * **Phase O2 shell.**  Replaced in Phase O7a with the evaluation
+ * settings panel, tracking & trace panel, pre-run validation
+ * checklist, and the run preview (estimated total simulation runs +
+ * resolved output directory + trace path).  See
+ * `.claude/plans/simopt-app-plan.md` §5.6.
+ */
+class RunSetupStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Run Setup",
+    summary = "Configure evaluation settings (caches, snapshot " +
+        "frequency, feasibility) and optional CSV / console trace " +
+        "tracking.  Pre-run validation against the live model with " +
+        "jump-to-fix links back to upstream steps.",
+    pendingPhase = "Phase O7a"
+)

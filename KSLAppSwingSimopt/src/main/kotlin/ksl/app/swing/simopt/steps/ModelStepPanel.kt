@@ -16,23 +16,21 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 1 of 6 — Model.
+ *
+ * **Phase O2 shell.**  Replaced in Phase O3 with the bundle picker,
+ * model dropdown, run-parameter overrides, and the advanced baseline
+ * controls disclosure.  See `.claude/plans/simopt-app-plan.md` §5.3.
+ */
+class ModelStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Model",
+    summary = "Pick a KSL bundle and model; configure run-parameter " +
+        "overrides and the fixed baseline controls held constant " +
+        "during the optimization.",
+    pendingPhase = "Phase O3"
+)

@@ -16,23 +16,23 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 3 of 6 — Algorithm.
+ *
+ * **Phase O2 shell.**  Replaced in Phase O6 with the algorithm
+ * picker, body-swap CardLayout per `SolverSpec` variant
+ * (SHC / SA / CE / RSpline), and the random-restart wrapper editor.
+ * See `.claude/plans/simopt-app-plan.md` §5.5.
+ */
+class AlgorithmStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Algorithm",
+    summary = "Choose one of the four solvers (Stochastic Hill " +
+        "Climbing, Simulated Annealing, Cross-Entropy, R-SPLINE) " +
+        "and configure its parameters.  Optional random-restart " +
+        "wrapper available for any algorithm.",
+    pendingPhase = "Phase O6"
+)

@@ -16,23 +16,24 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt
+package ksl.app.swing.simopt.steps
 
-import ksl.app.swing.common.appearance.AppTheme
-import ksl.app.swing.common.appearance.LookAndFeel
-import javax.swing.SwingUtilities
+import ksl.app.swing.simopt.SimoptAppController
 
-private const val APP_NAME = "KSL Simopt"
-
-/** Entry point for the simulation-optimization Swing application. */
-fun main() {
-    LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
-    SwingUtilities.invokeLater {
-        val controller = SimoptAppController(APP_NAME)
-        SimoptAppFrame(controller).apply {
-            pack()
-            setLocationRelativeTo(null)
-            isVisible = true
-        }
-    }
-}
+/**
+ * Step 6 of 6 — Results.
+ *
+ * **Phase O2 shell.**  Replaced in Phase O8 with the best-solution
+ * panel, full lets-plot convergence plot, iteration-history CSV
+ * export, HTML report via `SolverReportExtensions.solver(...)`, and
+ * the one-click open of any trace CSV.  See
+ * `.claude/plans/simopt-app-plan.md` §5.8.
+ */
+class ResultsStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
+    title = "Results",
+    summary = "Best-solution decision variables + estimated and " +
+        "penalized objective.  Full lets-plot convergence plot.  " +
+        "Iteration-history CSV export, HTML report via " +
+        "SolverReportExtensions, open trace CSV (if tracking was on).",
+    pendingPhase = "Phase O8"
+)
