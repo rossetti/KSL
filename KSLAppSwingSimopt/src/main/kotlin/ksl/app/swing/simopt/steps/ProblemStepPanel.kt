@@ -79,7 +79,19 @@ class ProblemStepPanel(
 
     // ── Objective widgets ─────────────────────────────────────────────────
 
-    private val objectiveCombo: JComboBox<String> = JComboBox()
+    private val objectiveCombo: JComboBox<String> = JComboBox<String>().apply {
+        // Leaf-emphasizing renderer so long hierarchy-prefixed names
+        // ("Inventory:Item:TotalCost") show the leaf segment in normal
+        // weight and the path prefix in a dimmer secondary tone.
+        renderer = ResponseNameCellRenderer()
+    }
+
+    /** Filter field next to the objective combo.  Keystrokes filter
+     *  the combo's items (case-insensitive substring); the previously
+     *  selected response is preserved if it survives the filter. */
+    private val objectiveFilterField = JTextField(14).apply {
+        toolTipText = "Filter responses by substring (case-insensitive)."
+    }
     private val minimizeRadio = JRadioButton("Minimize").apply { isSelected = true }
     private val maximizeRadio = JRadioButton("Maximize")
     private val problemNameField = JTextField(24)
@@ -94,6 +106,30 @@ class ProblemStepPanel(
         autoCreateRowSorter = false
         fillsViewportHeight = true
         rowHeight = 22
+        // Name column gets the lion's share — decision-variable names
+        // include the model-element-hierarchy path (e.g.
+        // "Inventory:Item.initialReorderQty") and truncate badly when
+        // every column shares equal width.
+        columnModel.getColumn(0).preferredWidth = 280   // Name
+        columnModel.getColumn(1).preferredWidth = 80    // Lower
+        columnModel.getColumn(2).preferredWidth = 80    // Upper
+        columnModel.getColumn(3).preferredWidth = 100   // Granularity
+        // Tooltip cell renderer for the Name column so the full name
+        // surfaces on hover when the column is still narrower than the
+        // text (small windows, very long names).
+        columnModel.getColumn(0).cellRenderer =
+            object : javax.swing.table.DefaultTableCellRenderer() {
+                override fun getTableCellRendererComponent(
+                    table: JTable?, value: Any?, isSelected: Boolean,
+                    hasFocus: Boolean, row: Int, column: Int
+                ): java.awt.Component {
+                    val c = super.getTableCellRendererComponent(
+                        table, value, isSelected, hasFocus, row, column
+                    )
+                    toolTipText = value?.toString()
+                    return c
+                }
+            }
     }
 
     private val addButton = JButton("Add input…")
@@ -136,7 +172,14 @@ class ProblemStepPanel(
 
         add(JLabel("Response:"), gbc(0, 0, anchor = GridBagConstraints.WEST,
             insets = Insets(2, 4, 2, 8)))
-        add(objectiveCombo, gbc(1, 0, weightx = 0.6, fill = GridBagConstraints.HORIZONTAL))
+        // Composite: [filter] [combo].  The filter narrows the combo's
+        // items live so long lists of hierarchy-prefixed response
+        // names stay searchable without scrolling.
+        add(JPanel(java.awt.BorderLayout(4, 0)).apply {
+            isOpaque = false
+            add(objectiveFilterField, java.awt.BorderLayout.WEST)
+            add(objectiveCombo, java.awt.BorderLayout.CENTER)
+        }, gbc(1, 0, weightx = 0.6, fill = GridBagConstraints.HORIZONTAL))
         add(JPanel().apply {
             isOpaque = false
             layout = BoxLayout(this, BoxLayout.X_AXIS)
@@ -197,6 +240,14 @@ class ProblemStepPanel(
     // ── Wiring ─────────────────────────────────────────────────────────────
 
     private fun wireObjectiveWidgets() {
+        // Filter field — rebuild the combo's items on every keystroke
+        // so long lists of hierarchy-prefixed responses stay searchable.
+        objectiveFilterField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent?) { refreshObjectiveCombo() }
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent?) { refreshObjectiveCombo() }
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent?) { refreshObjectiveCombo() }
+        })
+
         objectiveCombo.addActionListener {
             if (suppressEvents) return@addActionListener
             val name = (objectiveCombo.selectedItem as? String)?.takeIf { it.isNotBlank() }
@@ -318,7 +369,16 @@ class ProblemStepPanel(
         suppressEvents = true
         try {
             val descriptor = controller.currentModelDescriptor.value
-            val names = descriptor?.responseNames?.toList()?.sorted() ?: emptyList()
+            // Sort by leaf segment first (the user-meaningful response
+            // name) with the full path as tiebreaker, so similarly-named
+            // leaves group together regardless of their hierarchy prefix.
+            val allNames = descriptor?.responseNames?.toList()
+                ?.sortedWith(compareBy({ it.lastLeafSegment() }, { it }))
+                ?: emptyList()
+            val filter = objectiveFilterField.text.trim().lowercase()
+            val names = if (filter.isEmpty()) allNames else allNames.filter {
+                it.lowercase().contains(filter)
+            }
             val model = DefaultComboBoxModel(names.toTypedArray())
             objectiveCombo.model = model
             val current = controller.objectiveResponseName.value
@@ -505,4 +565,38 @@ class ProblemStepPanel(
             }
         }
     }
+
+    /** Renderer for response-name combo entries.  Splits the full
+     *  name at the last `:` (the model-element-hierarchy separator);
+     *  shows the leaf segment in normal weight and the path prefix
+     *  in a dimmer secondary tone so leaves like `OrderingFrequency`
+     *  visually pop out of paths like `Inventory:Item:OrderingFrequency`. */
+    private class ResponseNameCellRenderer : javax.swing.DefaultListCellRenderer() {
+        override fun getListCellRendererComponent(
+            list: javax.swing.JList<*>?,
+            value: Any?,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): java.awt.Component {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            val full = value as? String ?: return this
+            val splitAt = full.lastIndexOf(':')
+            if (splitAt < 0) {
+                text = full
+            } else {
+                val prefix = full.substring(0, splitAt + 1)
+                val leaf = full.substring(splitAt + 1)
+                val color = if (isSelected) "white" else "#888888"
+                text = "<html><span style='color:$color;'>$prefix</span>$leaf</html>"
+            }
+            toolTipText = full
+            return this
+        }
+    }
 }
+
+/** Internal helper: return the last hierarchy segment of a
+ *  colon-separated response name.  `"Inventory:Item:TotalCost"` →
+ *  `"TotalCost"`.  Plain names without `:` return unchanged. */
+private fun String.lastLeafSegment(): String = substringAfterLast(':')

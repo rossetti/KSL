@@ -38,7 +38,6 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
-import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
@@ -109,11 +108,6 @@ class ConstraintsStepPanel(
     private val lcUpButton = JButton("↑")
     private val lcDownButton = JButton("↓")
 
-    // ── Declared-responses chip row ───────────────────────────────────────
-
-    private val chipsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4))
-    private val addResponseCombo: JComboBox<String> = JComboBox()
-
     // ── Penalty defaults disclosure ───────────────────────────────────────
 
     private val penaltyToggle = JLabel("▸ Default penalty functions (advanced)").apply {
@@ -164,8 +158,6 @@ class ConstraintsStepPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
         }
-        stack.add(buildDeclaredResponsesSection())
-        stack.add(Box.createVerticalStrut(8))
         stack.add(buildResponseConstraintsSection())
         stack.add(Box.createVerticalStrut(8))
         stack.add(buildLinearConstraintsSection())
@@ -181,31 +173,16 @@ class ConstraintsStepPanel(
 
         wireResponseConstraintsButtons()
         wireLinearConstraintsButtons()
-        wireAddResponseCombo()
         wirePenaltyDisclosure()
         wireCollectors()
 
         // Initial render
         refreshResponseConstraintsTable()
         refreshLinearConstraintsTable()
-        rebuildChipRow()
-        refreshAddResponseCombo()
         refreshAllButtonEnablement()
     }
 
     // ── Section builders ──────────────────────────────────────────────────
-
-    private fun buildDeclaredResponsesSection(): JPanel = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Declared responses"),
-            BorderFactory.createEmptyBorder(2, 6, 6, 6)
-        )
-        add(chipsPanel, BorderLayout.CENTER)
-        val row = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4))
-        row.add(JLabel("Add response: "))
-        row.add(addResponseCombo)
-        add(row, BorderLayout.SOUTH)
-    }
 
     private fun buildResponseConstraintsSection(): JPanel = JPanel(BorderLayout(0, 6)).apply {
         border = BorderFactory.createCompoundBorder(
@@ -268,19 +245,6 @@ class ConstraintsStepPanel(
 
     // ── Wiring ───────────────────────────────────────────────────────────
 
-    private fun wireAddResponseCombo() {
-        addResponseCombo.addActionListener {
-            if (suppressEvents) return@addActionListener
-            val choice = addResponseCombo.selectedItem as? String ?: return@addActionListener
-            if (choice == ADD_PROMPT) return@addActionListener
-            try {
-                controller.addResponseName(choice)
-            } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Could not declare response", NotificationSeverity.ERROR)
-            }
-        }
-    }
-
     private fun wireResponseConstraintsButtons() {
         responseTable.selectionModel.addListSelectionListener { e ->
             if (e.valueIsAdjusting || suppressEvents) return@addListSelectionListener
@@ -337,20 +301,6 @@ class ConstraintsStepPanel(
     }
 
     private fun wireCollectors() {
-        controller.responseNames.onEach { _ ->
-            rebuildChipRow()
-            refreshAddResponseCombo()
-        }.launchIn(controller.edtScope)
-
-        controller.currentModelDescriptor.onEach { _ ->
-            refreshAddResponseCombo()
-        }.launchIn(controller.edtScope)
-
-        controller.objectiveResponseName.onEach { _ ->
-            rebuildChipRow()
-            refreshAddResponseCombo()
-        }.launchIn(controller.edtScope)
-
         controller.responseConstraints.onEach { _ ->
             refreshResponseConstraintsTable()
             refreshAllButtonEnablement()
@@ -429,62 +379,6 @@ class ConstraintsStepPanel(
             } else {
                 linearTable.clearSelection()
             }
-        } finally { suppressEvents = false }
-    }
-
-    private fun rebuildChipRow() {
-        chipsPanel.removeAll()
-        // Objective chip (non-removable)
-        val objName = controller.objectiveResponseName.value
-        if (objName != null) {
-            chipsPanel.add(buildChip("$objName  (objective, implied)", removable = false))
-        }
-        // Declared response chips
-        for (name in controller.responseNames.value) {
-            chipsPanel.add(buildChip("$name  ×", removable = true, onClick = {
-                controller.removeResponseName(name)
-            }))
-        }
-        chipsPanel.revalidate()
-        chipsPanel.repaint()
-    }
-
-    private fun buildChip(
-        text: String,
-        removable: Boolean,
-        onClick: () -> Unit = {}
-    ): JButton = JButton(text).apply {
-        isFocusable = false
-        isOpaque = true
-        font = font.deriveFont(Font.PLAIN, 12f)
-        margin = java.awt.Insets(2, 8, 2, 8)
-        if (removable) {
-            background = Color(0xEE, 0xF2, 0xF8)
-            border = BorderFactory.createLineBorder(Color(0xC2, 0xD0, 0xE6))
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            addActionListener { onClick() }
-        } else {
-            background = Color(0xF5, 0xF5, 0xF5)
-            border = BorderFactory.createLineBorder(Color(0xDD, 0xDD, 0xDD))
-            isEnabled = false
-        }
-    }
-
-    private fun refreshAddResponseCombo() {
-        suppressEvents = true
-        try {
-            val descriptor = controller.currentModelDescriptor.value
-            val all = descriptor?.responseNames?.toList()?.sorted().orEmpty()
-            val objective = controller.objectiveResponseName.value
-            val declared = controller.responseNames.value.toSet()
-            val available = all.filter { it != objective && it !in declared }
-            val items = mutableListOf<String>().apply {
-                add(ADD_PROMPT)
-                addAll(available)
-            }
-            addResponseCombo.model = javax.swing.DefaultComboBoxModel(items.toTypedArray())
-            addResponseCombo.selectedItem = ADD_PROMPT
-            addResponseCombo.isEnabled = available.isNotEmpty()
         } finally { suppressEvents = false }
     }
 
@@ -704,7 +598,6 @@ class ConstraintsStepPanel(
     }
 
     private companion object {
-        const val ADD_PROMPT: String = "(pick a response…)"
 
         fun renderPenalty(p: PenaltyFunctionSpec?): String = when (p) {
             null -> "(default)"

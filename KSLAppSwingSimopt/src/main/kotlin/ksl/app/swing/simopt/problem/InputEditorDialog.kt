@@ -111,12 +111,18 @@ class InputEditorDialog(
     // ── Filter + candidate list ────────────────────────────────────────────
 
     private val filterField = JTextField(20).apply {
-        toolTipText = "Case-insensitive substring filter."
+        toolTipText = "Case-insensitive substring filter — type to narrow the list below."
+    }
+    private val filterCountLabel = JLabel(" ").apply {
+        foreground = Color(0x77, 0x77, 0x77)
+        font = font.deriveFont(Font.PLAIN, 11f)
+        toolTipText = "Number of matches currently shown out of all candidates."
     }
     private val listModel = DefaultListModel<Candidate>()
     private val candidateList = JList(listModel).apply {
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         visibleRowCount = 8
+        cellRenderer = CandidateCellRenderer()
     }
 
     // ── Editable fields ────────────────────────────────────────────────────
@@ -165,6 +171,16 @@ class InputEditorDialog(
             }
         }
 
+        // Focus the filter field once the dialog is shown — users
+        // can start typing immediately to narrow long candidate lists
+        // (e.g. dozens of RV parameters or model controls with long
+        // model-element-hierarchy prefixes).
+        addWindowListener(object : java.awt.event.WindowAdapter() {
+            override fun windowOpened(e: java.awt.event.WindowEvent?) {
+                filterField.requestFocusInWindow()
+            }
+        })
+
         pack()
         minimumSize = Dimension(540, 460)
         setLocationRelativeTo(owner)
@@ -191,9 +207,13 @@ class InputEditorDialog(
 
     private fun buildCenterPanel(): JPanel = JPanel(GridBagLayout()).apply {
         border = BorderFactory.createEmptyBorder(10, 14, 10, 14)
-        // Filter row
+        // Filter row — label + field + match counter, all in one row
         add(JLabel("Filter:"), gbc(0, 0, anchor = GridBagConstraints.WEST))
-        add(filterField, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(JPanel(java.awt.BorderLayout(6, 0)).apply {
+            isOpaque = false
+            add(filterField, java.awt.BorderLayout.CENTER)
+            add(filterCountLabel, java.awt.BorderLayout.EAST)
+        }, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
         // Candidate list
         val listScroll = JScrollPane(
@@ -305,6 +325,7 @@ class InputEditorDialog(
         }
         listModel.clear()
         filtered.forEach { listModel.addElement(it) }
+        filterCountLabel.text = "Showing ${filtered.size} of ${all.size}"
     }
 
     private fun controlCandidates(): List<Candidate> {
@@ -455,6 +476,47 @@ class InputEditorDialog(
         val granularityHint: Double
     ) {
         override fun toString(): String = label
+    }
+
+    /** Two-line cell renderer.  Top line: the candidate's name (the
+     *  leaf segment after the last `:` or `.`, when the full key is
+     *  a hierarchy-prefixed path) in normal weight.  Bottom line: the
+     *  full label (type + bounds) in a dimmer, smaller font.  Keeps
+     *  long model-element-hierarchy names readable. */
+    private class CandidateCellRenderer : javax.swing.JPanel(java.awt.BorderLayout()),
+        javax.swing.ListCellRenderer<Candidate> {
+
+        private val titleLabel = JLabel().apply {
+            font = font.deriveFont(Font.PLAIN, 13f)
+        }
+        private val detailLabel = JLabel().apply {
+            font = font.deriveFont(Font.PLAIN, 11f)
+            foreground = Color(0x77, 0x77, 0x77)
+        }
+
+        init {
+            border = BorderFactory.createEmptyBorder(2, 6, 2, 6)
+            add(titleLabel, java.awt.BorderLayout.NORTH)
+            add(detailLabel, java.awt.BorderLayout.CENTER)
+        }
+
+        override fun getListCellRendererComponent(
+            list: javax.swing.JList<out Candidate>,
+            value: Candidate,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): java.awt.Component {
+            titleLabel.text = value.name
+            // detail: drop the leading "<name> — " (it's already the
+            // title) so the second line only carries type / bounds.
+            val detail = value.label.removePrefix("${value.name} — ").trim()
+            detailLabel.text = detail.ifEmpty { " " }
+            background = if (isSelected) list.selectionBackground else list.background
+            titleLabel.foreground = if (isSelected) list.selectionForeground else list.foreground
+            isOpaque = true
+            return this
+        }
     }
 
     private companion object {

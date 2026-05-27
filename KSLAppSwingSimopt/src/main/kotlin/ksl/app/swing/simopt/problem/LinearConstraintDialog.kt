@@ -24,6 +24,7 @@ import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.PenaltyFunctionSpec
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
@@ -37,40 +38,49 @@ import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JDialog
 import javax.swing.JLabel
+import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.JRadioButton
 import javax.swing.JScrollPane
+import javax.swing.JTable
 import javax.swing.JTextField
+import javax.swing.ListSelectionModel
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import javax.swing.table.AbstractTableModel
+import javax.swing.table.DefaultTableCellRenderer
 
 /**
  * Modal dialog for adding or editing one linear constraint over the
  * problem's decision variables.
  *
- * Layout:
- *   - One coefficient field per declared decision variable (vertical
- *     grid in a `JScrollPane` so the dialog stays a reasonable height
- *     for models with many inputs).  Defaults: 0.0 (excluded).
- *   - Inequality radio (≤ / ≥).
- *   - RHS field.
- *   - "Override default penalty function" checkbox + embedded
- *     [PenaltyFunctionEditor] disclosure.
+ * **Sparse entry.**  Models often have many decision variables but
+ * each constraint typically involves only a few.  The dialog renders
+ * a small table — one row per variable the user has explicitly added
+ * — instead of a fixed row per declared variable.  The substrate
+ * treats missing keys as coefficient 0, so the dialog's sparse map
+ * is exact.
  *
- * Returns a [LinearConstraintSpec] on OK, or `null` on Cancel /
- * window-close.
+ * **Equation preview.**  A read-only label renders the assembled
+ * equation as the user edits coefficients, the inequality, and the
+ * RHS — `1·reorderPoint + 2·reorderQuantity ≤ 100`.  Lets the user
+ * verify what they're building before clicking OK.
  *
- * OK is enabled only when every coefficient and the RHS parses as
- * finite, AND (when the override checkbox is checked) the penalty
- * editor is also valid.
+ * The "Add variable…" button opens a popup menu listing decision
+ * variables not yet in the constraint; clicking one appends a row
+ * with coefficient 1.0.  "Remove selected" removes the highlighted
+ * row.  An optional per-constraint penalty function override is
+ * available via the [PenaltyFunctionEditor] disclosure.
+ *
+ * Returns the [LinearConstraintSpec] on OK, or `null` on Cancel.
  *
  * @param owner parent window
  * @param declaredInputs the document's currently-declared decision
- *        variables; one coefficient row per entry
- * @param defaultLinearPenalty the problem-level default; shown as a
- *        muted label and offered when the override checkbox is first
- *        ticked
- * @param mode Add (fresh entry) or Edit (pre-populated)
+ *        variables; used to populate the "Add variable" picker
+ * @param defaultLinearPenalty the problem-level default penalty;
+ *        shown in the editor when the override checkbox is ticked
+ * @param mode Add (fresh, empty table) or Edit (pre-populated)
  */
 class LinearConstraintDialog(
     owner: Window?,
@@ -81,19 +91,59 @@ class LinearConstraintDialog(
 
     private var result: LinearConstraintSpec? = null
 
-    // Coefficient fields keyed by input name.
-    private val coefficientFields: Map<String, JTextField> =
-        declaredInputs.associate { it.name to JTextField(10) }
+    // ── Coefficient table ─────────────────────────────────────────────────
+
+    private val coeffTableModel = CoefficientTableModel()
+    private val coeffTable = JTable(coeffTableModel).apply {
+        setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+        autoCreateRowSorter = false
+        fillsViewportHeight = true
+        rowHeight = 24
+        // Wide name column; narrow coefficient column.
+        columnModel.getColumn(0).preferredWidth = 280
+        columnModel.getColumn(1).preferredWidth = 100
+        // Tooltip renderer on the Variable column so long
+        // hierarchy-prefixed names survive truncation.
+        columnModel.getColumn(0).cellRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                table: JTable?, value: Any?, isSelected: Boolean,
+                hasFocus: Boolean, row: Int, column: Int
+            ): Component {
+                val c = super.getTableCellRendererComponent(
+                    table, value, isSelected, hasFocus, row, column
+                )
+                toolTipText = value?.toString()
+                return c
+            }
+        }
+    }
+
+    private val addVariableButton = JButton("Add variable…")
+    private val removeRowButton = JButton("Remove selected")
+
+    // ── Inequality + RHS ──────────────────────────────────────────────────
 
     private val leqRadio = JRadioButton("≤  (less than)")
     private val geqRadio = JRadioButton("≥  (greater than)")
     private val rhsField = JTextField(12)
+
+    // ── Equation preview ──────────────────────────────────────────────────
+
+    private val previewLabel = JLabel(" ").apply {
+        font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+        foreground = Color(0x33, 0x33, 0x33)
+        toolTipText = "Equation currently being built; updates as you edit."
+    }
+
+    // ── Penalty override ──────────────────────────────────────────────────
 
     private val overrideCheckbox = JCheckBox("Override default penalty function")
     private val penaltyEditor = PenaltyFunctionEditor(
         initial = (mode as? Mode.Edit)?.spec?.penaltyFunction ?: defaultLinearPenalty,
         onChanged = { refreshOkEnablement() }
     )
+
+    // ── Footer ────────────────────────────────────────────────────────────
 
     private val statusLabel = JLabel(" ").apply {
         font = font.deriveFont(Font.PLAIN, 12f)
@@ -109,24 +159,26 @@ class LinearConstraintDialog(
         contentPane.add(buildCenter(), BorderLayout.CENTER)
         contentPane.add(buildButtonRow(), BorderLayout.SOUTH)
 
+        wireTableListeners()
+        wireAddVariableButton()
+        wireRemoveRowButton()
         wireFieldValidators()
         wireOverrideCheckbox()
         wireButtons()
 
-        // Pre-populate from Edit mode.
+        // Pre-populate from mode.
         when (mode) {
             is Mode.Add -> {
-                // Defaults: coefficient = 0.0, inequality = ≤, RHS = empty.
-                coefficientFields.values.forEach { it.text = "0.0" }
                 rhsField.text = "0.0"
                 overrideCheckbox.isSelected = false
                 penaltyEditor.isEnabled = false
             }
             is Mode.Edit -> {
                 val spec = mode.spec
-                coefficientFields.forEach { (name, field) ->
-                    val v = spec.coefficients[name] ?: 0.0
-                    field.text = v.toString()
+                // Migrate spec.coefficients into the sparse table.  Zero-valued
+                // entries are preserved (the user can [Remove selected] them).
+                spec.coefficients.forEach { (name, value) ->
+                    coeffTableModel.addRow(CoefficientRow(name, value))
                 }
                 if (spec.inequalityType == InequalityType.GREATER_THAN) geqRadio.isSelected = true
                 else leqRadio.isSelected = true
@@ -137,10 +189,13 @@ class LinearConstraintDialog(
                 if (override) penaltyEditor.setValue(spec.penaltyFunction!!)
             }
         }
+        refreshAddVariableEnablement()
+        refreshRemoveButtonEnablement()
+        refreshPreview()
         refreshOkEnablement()
 
         pack()
-        minimumSize = Dimension(560, 460)
+        minimumSize = Dimension(620, 560)
         setLocationRelativeTo(owner)
     }
 
@@ -154,55 +209,65 @@ class LinearConstraintDialog(
     private fun buildCenter(): JPanel = JPanel(GridBagLayout()).apply {
         border = BorderFactory.createEmptyBorder(10, 14, 10, 14)
 
-        // Coefficients section
-        add(JLabel("Coefficients (one per declared decision variable):").apply {
+        // Coefficient table section
+        add(JLabel("Variables in this constraint:").apply {
             font = font.deriveFont(Font.BOLD)
         }, gbc(0, 0, width = 2, anchor = GridBagConstraints.WEST))
 
-        val coeffPanel = JPanel(GridBagLayout())
-        if (coefficientFields.isEmpty()) {
-            coeffPanel.add(
-                JLabel("(no decision variables declared — add at least one on the Problem step)").apply {
-                    foreground = Color(0xB5, 0x40, 0x40)
-                },
-                gbc(0, 0)
-            )
+        if (declaredInputs.isEmpty()) {
+            add(JLabel(
+                "<html><i>No decision variables declared.  Add at least one on the " +
+                    "Problem step before creating a linear constraint.</i></html>"
+            ).apply { foreground = Color(0xB5, 0x40, 0x40) },
+                gbc(0, 1, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+                    insets = Insets(4, 4, 8, 4)))
         } else {
-            declaredInputs.forEachIndexed { row, input ->
-                coeffPanel.add(JLabel(input.name + "  "),
-                    gbc(0, row, anchor = GridBagConstraints.WEST, insets = Insets(2, 4, 2, 8)))
-                coeffPanel.add(coefficientFields.getValue(input.name),
-                    gbc(1, row, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
-            }
+            add(JScrollPane(
+                coeffTable,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
+            ).apply { preferredSize = Dimension(440, 140) },
+                gbc(0, 1, width = 2, weightx = 1.0, weighty = 1.0,
+                    fill = GridBagConstraints.BOTH, insets = Insets(4, 4, 4, 4)))
+
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
+                isOpaque = false
+                add(addVariableButton)
+                add(removeRowButton)
+            }, gbc(0, 2, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+                insets = Insets(0, 4, 8, 4)))
         }
-        val coeffScroll = JScrollPane(
-            coeffPanel,
-            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        ).apply { preferredSize = Dimension(440, 160) }
-        add(coeffScroll, gbc(0, 1, width = 2, weightx = 1.0, weighty = 1.0,
-            fill = GridBagConstraints.BOTH, insets = Insets(4, 4, 12, 4)))
 
         // Inequality row
-        add(JLabel("Inequality:"), gbc(0, 2, anchor = GridBagConstraints.WEST))
+        add(JLabel("Inequality:"), gbc(0, 3, anchor = GridBagConstraints.WEST))
         add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
             isOpaque = false
             add(leqRadio); add(geqRadio)
-        }, gbc(1, 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        }, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
         // RHS row
-        add(JLabel("RHS:"), gbc(0, 3, anchor = GridBagConstraints.WEST))
-        add(rhsField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(JLabel("RHS:"), gbc(0, 4, anchor = GridBagConstraints.WEST))
+        add(rhsField, gbc(1, 4, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+
+        // Equation preview
+        add(JPanel(BorderLayout()).apply {
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Preview"),
+                BorderFactory.createEmptyBorder(4, 6, 4, 6)
+            )
+            add(previewLabel, BorderLayout.CENTER)
+        }, gbc(0, 5, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+            insets = Insets(8, 4, 8, 4)))
 
         // Override penalty section
-        add(overrideCheckbox, gbc(0, 4, width = 2, anchor = GridBagConstraints.WEST,
-            insets = Insets(10, 4, 2, 4)))
+        add(overrideCheckbox, gbc(0, 6, width = 2, anchor = GridBagConstraints.WEST,
+            insets = Insets(4, 4, 2, 4)))
         add(penaltyEditor.apply {
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("Per-constraint penalty"),
                 BorderFactory.createEmptyBorder(2, 6, 2, 6)
             )
-        }, gbc(0, 5, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        }, gbc(0, 7, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(2, 14, 2, 4)))
     }
 
@@ -219,16 +284,61 @@ class LinearConstraintDialog(
 
     // ── Wiring ───────────────────────────────────────────────────────────
 
+    private fun wireTableListeners() {
+        coeffTable.selectionModel.addListSelectionListener { e ->
+            if (e.valueIsAdjusting) return@addListSelectionListener
+            refreshRemoveButtonEnablement()
+        }
+        coeffTableModel.addTableModelListener {
+            refreshPreview()
+            refreshAddVariableEnablement()
+            refreshRemoveButtonEnablement()
+            refreshOkEnablement()
+        }
+    }
+
+    private fun wireAddVariableButton() {
+        addVariableButton.addActionListener {
+            val available = availableForAdd()
+            if (available.isEmpty()) return@addActionListener
+            val popup = JPopupMenu().apply {
+                for (input in available) {
+                    add(JMenuItem(input.name).apply {
+                        toolTipText = input.name
+                        addActionListener {
+                            coeffTableModel.addRow(CoefficientRow(input.name, 1.0))
+                            // Select the newly-added row.
+                            val newRow = coeffTableModel.rowCount - 1
+                            coeffTable.setRowSelectionInterval(newRow, newRow)
+                        }
+                    })
+                }
+            }
+            popup.show(addVariableButton, 0, addVariableButton.height)
+        }
+    }
+
+    private fun wireRemoveRowButton() {
+        removeRowButton.addActionListener {
+            val row = coeffTable.selectedRow
+            if (row >= 0) coeffTableModel.removeRow(row)
+        }
+    }
+
     private fun wireFieldValidators() {
         val docListener = object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent?) { refreshOkEnablement() }
-            override fun removeUpdate(e: DocumentEvent?) { refreshOkEnablement() }
-            override fun changedUpdate(e: DocumentEvent?) { refreshOkEnablement() }
+            override fun insertUpdate(e: DocumentEvent?) { onAnyChange() }
+            override fun removeUpdate(e: DocumentEvent?) { onAnyChange() }
+            override fun changedUpdate(e: DocumentEvent?) { onAnyChange() }
         }
-        coefficientFields.values.forEach { it.document.addDocumentListener(docListener) }
         rhsField.document.addDocumentListener(docListener)
-        leqRadio.addActionListener { refreshOkEnablement() }
-        geqRadio.addActionListener { refreshOkEnablement() }
+        leqRadio.addActionListener { onAnyChange() }
+        geqRadio.addActionListener { onAnyChange() }
+    }
+
+    private fun onAnyChange() {
+        refreshPreview()
+        refreshOkEnablement()
     }
 
     private fun wireOverrideCheckbox() {
@@ -252,15 +362,61 @@ class LinearConstraintDialog(
         }
     }
 
+    private fun availableForAdd(): List<OptimizationInputSpec> {
+        val taken = (0 until coeffTableModel.rowCount).map { coeffTableModel.getRow(it).name }.toSet()
+        return declaredInputs.filter { it.name !in taken }
+    }
+
+    // ── Refresh ──────────────────────────────────────────────────────────
+
+    private fun refreshAddVariableEnablement() {
+        addVariableButton.isEnabled = availableForAdd().isNotEmpty()
+    }
+
+    private fun refreshRemoveButtonEnablement() {
+        removeRowButton.isEnabled = coeffTable.selectedRow >= 0
+    }
+
+    private fun refreshPreview() {
+        val rows = (0 until coeffTableModel.rowCount).map { coeffTableModel.getRow(it) }
+        if (rows.isEmpty()) {
+            previewLabel.text = "(add at least one variable)"
+            return
+        }
+        val ineq = if (geqRadio.isSelected) "≥" else "≤"
+        val rhs = rhsField.text.trim().ifBlank { "?" }
+        // Build the LHS term by term so signs ("+" / "-") sit between
+        // terms cleanly.  Leading minus stays attached to the first term.
+        val lhs = rows.foldIndexed("") { i, acc, row ->
+            val v = row.coefficient
+            val leaf = row.name.substringAfterLast(':').substringAfterLast('.')
+            val absV = if (v < 0.0) -v else v
+            val term = if (absV == 1.0) leaf else "${formatCoefficient(absV)}·$leaf"
+            val sign = when {
+                i == 0 && v < 0.0 -> "-"
+                i == 0 -> ""
+                v < 0.0 -> " - "
+                else -> " + "
+            }
+            acc + sign + term
+        }
+        previewLabel.text = "$lhs $ineq $rhs"
+    }
+
+    private fun formatCoefficient(v: Double): String {
+        // Render integer doubles without trailing ".0" for compactness.
+        return if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+    }
+
     // ── Validation ───────────────────────────────────────────────────────
 
     private fun buildSpecOrNull(): LinearConstraintSpec? {
-        if (declaredInputs.isEmpty()) return null
+        if (coeffTableModel.rowCount == 0) return null
         val coeffs = mutableMapOf<String, Double>()
-        for (input in declaredInputs) {
-            val v = coefficientFields.getValue(input.name).text.trim().toDoubleOrNull() ?: return null
-            if (!v.isFinite()) return null
-            coeffs[input.name] = v
+        for (i in 0 until coeffTableModel.rowCount) {
+            val row = coeffTableModel.getRow(i)
+            if (!row.coefficient.isFinite()) return null
+            coeffs[row.name] = row.coefficient
         }
         val rhs = rhsField.text.trim().toDoubleOrNull() ?: return null
         if (!rhs.isFinite()) return null
@@ -293,10 +449,10 @@ class LinearConstraintDialog(
 
     private fun validationMessage(): String? {
         if (declaredInputs.isEmpty()) return "Declare at least one decision variable first"
-        for (input in declaredInputs) {
-            val text = coefficientFields.getValue(input.name).text.trim()
-            val v = text.toDoubleOrNull() ?: return "Coefficient for '${input.name}' must be a number"
-            if (!v.isFinite()) return "Coefficient for '${input.name}' must be finite"
+        if (coeffTableModel.rowCount == 0) return "Add at least one variable to the constraint"
+        for (i in 0 until coeffTableModel.rowCount) {
+            val row = coeffTableModel.getRow(i)
+            if (!row.coefficient.isFinite()) return "Coefficient for '${row.name}' must be finite"
         }
         val rhs = rhsField.text.trim().toDoubleOrNull() ?: return "RHS must be a number"
         if (!rhs.isFinite()) return "RHS must be finite"
@@ -330,6 +486,59 @@ class LinearConstraintDialog(
     sealed class Mode {
         object Add : Mode()
         data class Edit(val index: Int, val spec: LinearConstraintSpec) : Mode()
+    }
+
+    /** One row in the sparse coefficient table. */
+    private data class CoefficientRow(val name: String, var coefficient: Double)
+
+    /** Two-column table model.  Variable column is read-only; the
+     *  Coefficient column is editable as Double. */
+    private class CoefficientTableModel : AbstractTableModel() {
+        private val columns = arrayOf("Variable", "Coefficient")
+        private val rows = mutableListOf<CoefficientRow>()
+
+        fun addRow(row: CoefficientRow) {
+            rows.add(row)
+            fireTableRowsInserted(rows.size - 1, rows.size - 1)
+        }
+
+        fun removeRow(rowIndex: Int) {
+            if (rowIndex !in rows.indices) return
+            rows.removeAt(rowIndex)
+            fireTableRowsDeleted(rowIndex, rowIndex)
+        }
+
+        fun getRow(rowIndex: Int): CoefficientRow = rows[rowIndex]
+
+        override fun getRowCount(): Int = rows.size
+        override fun getColumnCount(): Int = columns.size
+        override fun getColumnName(column: Int): String = columns[column]
+        override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
+            1 -> Double::class.javaObjectType
+            else -> String::class.java
+        }
+        override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean = columnIndex == 1
+        override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
+            val r = rows[rowIndex]
+            return when (columnIndex) {
+                0 -> r.name
+                1 -> r.coefficient
+                else -> ""
+            }
+        }
+        override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
+            if (columnIndex != 1) return
+            val parsed: Double? = when (aValue) {
+                is Double -> aValue
+                is Number -> aValue.toDouble()
+                is String -> aValue.trim().toDoubleOrNull()
+                else -> null
+            }
+            if (parsed != null && parsed.isFinite()) {
+                rows[rowIndex] = rows[rowIndex].copy(coefficient = parsed)
+                fireTableCellUpdated(rowIndex, columnIndex)
+            }
+        }
     }
 
     private companion object {

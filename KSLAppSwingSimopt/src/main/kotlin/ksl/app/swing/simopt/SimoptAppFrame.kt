@@ -125,6 +125,12 @@ class SimoptAppFrame(
 
     private lateinit var saveItem: JMenuItem
 
+    /** Tracks "user has acknowledged the analysis-name-vs-filename
+     *  mismatch for this currently-bound file" so the prompt fires
+     *  at most once per file binding.  Reset whenever the binding
+     *  changes (load, save-as, new doc). */
+    @Volatile private var mismatchAckedForBinding: Path? = null
+
     init {
         defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
         preferredSize = Dimension(1000, 720)
@@ -167,6 +173,7 @@ class SimoptAppFrame(
         wireActiveStepToCardLayout()
         wireAnalysisNameField()
         wireDirtyMarkerInTitle()
+        wireMismatchAckReset()
 
         // Window-close → close the controller (cancels coroutine scope).
         addWindowListener(object : WindowAdapter() {
@@ -219,6 +226,15 @@ class SimoptAppFrame(
     private fun wireDirtyMarkerInTitle() {
         controller.isDirty.onEach { dirty ->
             title = if (dirty) "${controller.appName} *" else controller.appName
+        }.launchIn(controller.edtScope)
+    }
+
+    /** Reset the mismatch-ack when the binding changes — load, save-as
+     *  to a new path, new-document.  Without this the user would carry
+     *  a stale ack across files. */
+    private fun wireMismatchAckReset() {
+        controller.currentFile.onEach { newPath ->
+            if (newPath != mismatchAckedForBinding) mismatchAckedForBinding = null
         }.launchIn(controller.edtScope)
     }
 
@@ -385,6 +401,47 @@ class SimoptAppFrame(
             )
             return
         }
+        // Mismatch check: warn the user once per binding when the
+        // analysis name has drifted from the bound file's stem.  This
+        // happens when the user types a new analysis name and clicks
+        // Save without realizing the file on disk has a different name.
+        // The user can choose to keep saving to the bound file (no rename)
+        // or route through Save As to write the analysis-name-derived
+        // filename instead.
+        val acked = mismatchAckedForBinding == current
+        val expectedStem = ksl.app.config.sanitizeAnalysisName(
+            controller.output.value.analysisName
+        )
+        val actualStem = current.fileName.toString().substringBeforeLast('.')
+        if (!acked && expectedStem.isNotBlank() &&
+            !expectedStem.equals(actualStem, ignoreCase = true)
+        ) {
+            val proposedName = "$expectedStem.toml"
+            val choice = JOptionPane.showOptionDialog(
+                this,
+                "<html>The analysis name <b>${controller.output.value.analysisName}</b> " +
+                    "differs from the bound file <b>${current.fileName}</b>.<br>" +
+                    "Save to the bound file anyway, or save as <b>$proposedName</b>?</html>",
+                "Analysis name differs from file name",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                arrayOf<Any>("Save to ${current.fileName}", "Save As '$proposedName'…", "Cancel"),
+                "Save As '$proposedName'…"
+            )
+            when (choice) {
+                0 -> {
+                    // Save to the bound file; remember the user's
+                    // decision so we don't re-prompt for this binding.
+                    mismatchAckedForBinding = current
+                }
+                1 -> {
+                    handleSaveAs()
+                    return
+                }
+                else -> return
+            }
+        }
         try {
             controller.saveConfiguration(current)
             notifications.show("Saved ${current.fileName}.", NotificationSeverity.INFO)
@@ -417,6 +474,19 @@ class SimoptAppFrame(
         var path: Path = chooser.selectedFile.toPath()
         if (path.toString().endsWith(".toml", ignoreCase = true).not()) {
             path = path.resolveSibling("${path.fileName}.toml")
+        }
+        // Overwrite confirmation — except when the user picked the
+        // same file they currently have open (re-saving a loaded
+        // document is the normal flow and shouldn't prompt).
+        if (java.nio.file.Files.exists(path) && path != controller.currentFile.value) {
+            val confirm = JOptionPane.showConfirmDialog(
+                this,
+                "${path.fileName} already exists.\nReplace it?",
+                "Replace File",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            )
+            if (confirm != JOptionPane.YES_OPTION) return
         }
         try {
             controller.saveConfiguration(path)

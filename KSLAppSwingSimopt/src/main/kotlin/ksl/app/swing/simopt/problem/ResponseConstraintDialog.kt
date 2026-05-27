@@ -79,9 +79,25 @@ class ResponseConstraintDialog(
 
     private var result: ResponseConstraintSpec? = null
 
+    // Sort by leaf segment first (the user-meaningful response name)
+    // with the full path as tiebreaker.  Long hierarchy-prefixed
+    // responses sit alphabetically by their leaf name.
+    private val sortedAvailableResponseNames: List<String> =
+        availableResponseNames.sortedWith(
+            compareBy({ it.substringAfterLast(':') }, { it })
+        )
+
     private val nameCombo: JComboBox<String> = JComboBox(
-        DefaultComboBoxModel(availableResponseNames.sorted().toTypedArray())
-    )
+        DefaultComboBoxModel(sortedAvailableResponseNames.toTypedArray())
+    ).apply {
+        // Leaf-emphasizing renderer.
+        renderer = ResponseNameCellRenderer()
+    }
+
+    /** Filter field — narrows the response combo's items live. */
+    private val nameFilterField = JTextField(12).apply {
+        toolTipText = "Filter responses by substring (case-insensitive)."
+    }
     private val leqRadio = JRadioButton("≤  (less than)")
     private val geqRadio = JRadioButton("≥  (greater than)")
     private val rhsField = JTextField(12)
@@ -153,7 +169,13 @@ class ResponseConstraintDialog(
         border = BorderFactory.createEmptyBorder(10, 14, 10, 14)
 
         add(JLabel("Response:"), gbc(0, 0, anchor = GridBagConstraints.WEST))
-        add(nameCombo, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        // [filter] [combo] composite so users can narrow long lists
+        // of hierarchy-prefixed responses without scrolling.
+        add(JPanel(BorderLayout(4, 0)).apply {
+            isOpaque = false
+            add(nameFilterField, BorderLayout.WEST)
+            add(nameCombo, BorderLayout.CENTER)
+        }, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
         add(JLabel("Inequality:"), gbc(0, 1, anchor = GridBagConstraints.WEST))
         add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
@@ -215,6 +237,28 @@ class ResponseConstraintDialog(
         nameCombo.addActionListener { refreshOkEnablement() }
         leqRadio.addActionListener { refreshOkEnablement() }
         geqRadio.addActionListener { refreshOkEnablement() }
+
+        // Filter — rebuild the combo's items on every keystroke.
+        nameFilterField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent?) = refreshNameCombo()
+            override fun removeUpdate(e: DocumentEvent?) = refreshNameCombo()
+            override fun changedUpdate(e: DocumentEvent?) = refreshNameCombo()
+        })
+    }
+
+    /** Re-populate the name combo from [sortedAvailableResponseNames]
+     *  applying the current filter substring (case-insensitive).
+     *  Preserves the current selection when it survives the filter. */
+    private fun refreshNameCombo() {
+        val filter = nameFilterField.text.trim().lowercase()
+        val visible = if (filter.isEmpty()) sortedAvailableResponseNames
+        else sortedAvailableResponseNames.filter { it.lowercase().contains(filter) }
+        val previouslySelected = nameCombo.selectedItem as? String
+        nameCombo.model = DefaultComboBoxModel(visible.toTypedArray())
+        if (previouslySelected != null && previouslySelected in visible) {
+            nameCombo.selectedItem = previouslySelected
+        }
+        refreshOkEnablement()
     }
 
     private fun wireOverrideCheckbox() {
@@ -318,6 +362,34 @@ class ResponseConstraintDialog(
     sealed class Mode {
         object Add : Mode()
         data class Edit(val index: Int, val spec: ResponseConstraintSpec) : Mode()
+    }
+
+    /** Same renderer used by `ProblemStepPanel` for the objective
+     *  combo.  Splits hierarchy-prefixed response names at the last
+     *  `:` so the leaf segment stands out from the prefix.  Tooltip
+     *  shows the full path on hover. */
+    private class ResponseNameCellRenderer : javax.swing.DefaultListCellRenderer() {
+        override fun getListCellRendererComponent(
+            list: javax.swing.JList<*>?,
+            value: Any?,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): java.awt.Component {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            val full = value as? String ?: return this
+            val splitAt = full.lastIndexOf(':')
+            if (splitAt < 0) {
+                text = full
+            } else {
+                val prefix = full.substring(0, splitAt + 1)
+                val leaf = full.substring(splitAt + 1)
+                val color = if (isSelected) "white" else "#888888"
+                text = "<html><span style='color:$color;'>$prefix</span>$leaf</html>"
+            }
+            toolTipText = full
+            return this
+        }
     }
 
     private companion object {
