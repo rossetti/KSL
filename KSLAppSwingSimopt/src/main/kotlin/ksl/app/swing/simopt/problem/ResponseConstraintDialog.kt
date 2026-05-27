@@ -168,47 +168,47 @@ class ResponseConstraintDialog(
     private fun buildCenter(): JPanel = JPanel(GridBagLayout()).apply {
         border = BorderFactory.createEmptyBorder(10, 14, 10, 14)
 
-        add(JLabel("Response:"), gbc(0, 0, anchor = GridBagConstraints.WEST))
-        // [filter] [combo] composite so users can narrow long lists
-        // of hierarchy-prefixed responses without scrolling.
-        add(JPanel(BorderLayout(4, 0)).apply {
-            isOpaque = false
-            add(nameFilterField, BorderLayout.WEST)
-            add(nameCombo, BorderLayout.CENTER)
-        }, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        // Filter / Response: two rows.  The filter and the combo each
+        // carry their own clearly-attached label so users don't read
+        // the filter field as a free-form "Response" entry.
+        add(JLabel("Filter:"), gbc(0, 0, anchor = GridBagConstraints.WEST))
+        add(nameFilterField, gbc(1, 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("Inequality:"), gbc(0, 1, anchor = GridBagConstraints.WEST))
+        add(JLabel("Response:"), gbc(0, 1, anchor = GridBagConstraints.WEST))
+        add(nameCombo, gbc(1, 1, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+
+        add(JLabel("Inequality:"), gbc(0, 2, anchor = GridBagConstraints.WEST))
         add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
             isOpaque = false
             add(leqRadio); add(geqRadio)
-        }, gbc(1, 1, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        }, gbc(1, 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("RHS:"), gbc(0, 2, anchor = GridBagConstraints.WEST))
-        add(rhsField, gbc(1, 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(JLabel("RHS:"), gbc(0, 3, anchor = GridBagConstraints.WEST))
+        add(rhsField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("Target:"), gbc(0, 3, anchor = GridBagConstraints.WEST))
-        add(targetField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(JLabel("Target:"), gbc(0, 4, anchor = GridBagConstraints.WEST))
+        add(targetField, gbc(1, 4, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("Tolerance:"), gbc(0, 4, anchor = GridBagConstraints.WEST))
-        add(toleranceField, gbc(1, 4, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(JLabel("Tolerance:"), gbc(0, 5, anchor = GridBagConstraints.WEST))
+        add(toleranceField, gbc(1, 5, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
         val help = JLabel(
             "<html><i>Target and tolerance are solver-specific cut-off parameters " +
                 "used by some convergence tests; both default to 0.  Tolerance must " +
                 "be ≥ 0.</i></html>"
         ).apply { foreground = Color(0x55, 0x55, 0x55) }
-        add(help, gbc(0, 5, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        add(help, gbc(0, 6, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(4, 4, 8, 4)))
 
         // Override penalty section
-        add(overrideCheckbox, gbc(0, 6, width = 2, anchor = GridBagConstraints.WEST,
+        add(overrideCheckbox, gbc(0, 7, width = 2, anchor = GridBagConstraints.WEST,
             insets = Insets(8, 4, 2, 4)))
         add(penaltyEditor.apply {
             border = BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("Per-constraint penalty"),
                 BorderFactory.createEmptyBorder(2, 6, 2, 6)
             )
-        }, gbc(0, 7, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        }, gbc(0, 8, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(2, 14, 2, 4)))
     }
 

@@ -170,39 +170,40 @@ class ProblemStepPanel(
             BorderFactory.createEmptyBorder(2, 6, 6, 6)
         )
 
-        add(JLabel("Response:"), gbc(0, 0, anchor = GridBagConstraints.WEST,
+        // Filter / Response: two rows.  The filter and the combo each
+        // carry their own clearly-attached label so users don't read
+        // the filter field as a free-form "Response" entry.
+        add(JLabel("Filter:"), gbc(0, 0, anchor = GridBagConstraints.WEST,
             insets = Insets(2, 4, 2, 8)))
-        // Composite: [filter] [combo].  The filter narrows the combo's
-        // items live so long lists of hierarchy-prefixed response
-        // names stay searchable without scrolling.
-        add(JPanel(java.awt.BorderLayout(4, 0)).apply {
-            isOpaque = false
-            add(objectiveFilterField, java.awt.BorderLayout.WEST)
-            add(objectiveCombo, java.awt.BorderLayout.CENTER)
-        }, gbc(1, 0, weightx = 0.6, fill = GridBagConstraints.HORIZONTAL))
+        add(objectiveFilterField, gbc(1, 0, width = 2, weightx = 1.0,
+            fill = GridBagConstraints.HORIZONTAL))
+
+        add(JLabel("Response:"), gbc(0, 1, anchor = GridBagConstraints.WEST,
+            insets = Insets(2, 4, 2, 8)))
+        add(objectiveCombo, gbc(1, 1, weightx = 0.6, fill = GridBagConstraints.HORIZONTAL))
         add(JPanel().apply {
             isOpaque = false
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             add(JLabel("Direction: "))
             add(minimizeRadio); add(Box.createHorizontalStrut(4))
             add(maximizeRadio)
-        }, gbc(2, 0, weightx = 0.4, fill = GridBagConstraints.HORIZONTAL,
+        }, gbc(2, 1, weightx = 0.4, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(2, 16, 2, 4)))
 
-        add(JLabel("Problem name:"), gbc(0, 1, anchor = GridBagConstraints.WEST,
+        add(JLabel("Problem name:"), gbc(0, 2, anchor = GridBagConstraints.WEST,
             insets = Insets(2, 4, 2, 8)))
-        add(problemNameField, gbc(1, 1, width = 2, weightx = 1.0,
+        add(problemNameField, gbc(1, 2, width = 2, weightx = 1.0,
             fill = GridBagConstraints.HORIZONTAL))
 
-        add(JLabel("Indifference zone (Δ):"), gbc(0, 2, anchor = GridBagConstraints.WEST,
+        add(JLabel("Indifference zone (Δ):"), gbc(0, 3, anchor = GridBagConstraints.WEST,
             insets = Insets(2, 4, 2, 8)))
-        add(deltaField, gbc(1, 2, weightx = 0.5, fill = GridBagConstraints.HORIZONTAL))
+        add(deltaField, gbc(1, 3, weightx = 0.5, fill = GridBagConstraints.HORIZONTAL))
         add(JPanel().apply {
             isOpaque = false
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             add(JLabel("Objective granularity: "))
             add(granularityField)
-        }, gbc(2, 2, weightx = 0.5, fill = GridBagConstraints.HORIZONTAL,
+        }, gbc(2, 3, weightx = 0.5, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(2, 16, 2, 4)))
 
         val help = JLabel(
@@ -210,7 +211,7 @@ class ProblemStepPanel(
                 "practically meaningful.  Objective granularity rounds the objective; " +
                 "0.0 means full precision.  Both must be ≥ 0.</i></html>"
         ).apply { foreground = Color(0x55, 0x55, 0x55) }
-        add(help, gbc(0, 3, width = 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        add(help, gbc(0, 4, width = 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(6, 4, 2, 4)))
     }
 
