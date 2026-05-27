@@ -165,13 +165,22 @@ class SimoptAppController(
     val responseNames: StateFlow<List<String>> = myResponseNames.asStateFlow()
 
     private val myLinearConstraints = MutableStateFlow<List<LinearConstraintSpec>>(emptyList())
-    /** Linear constraints over the decision variables.  Phase O5 lands
-     *  the editor; O4 only carries the flow. */
+    /** Linear constraints over the decision variables. */
     val linearConstraints: StateFlow<List<LinearConstraintSpec>> = myLinearConstraints.asStateFlow()
 
+    private val mySelectedLinearConstraintIndex = MutableStateFlow(-1)
+    /** Index of the currently-selected linear constraint, or `-1`
+     *  when nothing is selected.  Auto-shifts on add / delete / reorder. */
+    val selectedLinearConstraintIndex: StateFlow<Int> = mySelectedLinearConstraintIndex.asStateFlow()
+
     private val myResponseConstraints = MutableStateFlow<List<ResponseConstraintSpec>>(emptyList())
-    /** Constraints on simulation responses.  Phase O5 lands the editor. */
+    /** Constraints on simulation responses. */
     val responseConstraints: StateFlow<List<ResponseConstraintSpec>> = myResponseConstraints.asStateFlow()
+
+    private val mySelectedResponseConstraintIndex = MutableStateFlow(-1)
+    /** Index of the currently-selected response constraint, or `-1`
+     *  when nothing is selected.  Auto-shifts on add / delete / reorder. */
+    val selectedResponseConstraintIndex: StateFlow<Int> = mySelectedResponseConstraintIndex.asStateFlow()
 
     private val myDefaultLinearPenalty = MutableStateFlow<PenaltyFunctionSpec>(
         PenaltyFunctionSpec.DynamicPolynomial()
@@ -602,7 +611,9 @@ class SimoptAppController(
             mySelectedInputIndex.value = -1
             myResponseNames.value = emptyList()
             myLinearConstraints.value = emptyList()
+            mySelectedLinearConstraintIndex.value = -1
             myResponseConstraints.value = emptyList()
+            mySelectedResponseConstraintIndex.value = -1
             myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
             myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         } else {
@@ -777,11 +788,233 @@ class SimoptAppController(
         if (mySelectedInputIndex.value != clamped) mySelectedInputIndex.value = clamped
     }
 
-    /** Replace the declared response-names list (used by O5 response
-     *  constraints).  Structural — drops [lastResult]. */
+    /** Replace the declared response-names list.  Structural — drops
+     *  [lastResult]. */
     fun setResponseNames(names: List<String>) {
         if (myResponseNames.value == names) return
         myResponseNames.value = names
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Idempotently add [name] to the declared response-names list.
+     *  Rejects blank with [IllegalArgumentException]; no-op when [name]
+     *  is already declared. */
+    fun addResponseName(name: String) {
+        require(name.isNotBlank()) { "Response name must be non-blank" }
+        if (name in myResponseNames.value) return
+        myResponseNames.value = myResponseNames.value + name
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Remove [name] from the declared response-names list.  No-op
+     *  when [name] is not present. */
+    fun removeResponseName(name: String) {
+        if (name !in myResponseNames.value) return
+        myResponseNames.value = myResponseNames.value.filterNot { it == name }
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    // ── Linear constraints ────────────────────────────────────────────────
+
+    /** Append a new linear constraint.  Selects the new row. */
+    fun addLinearConstraint(spec: LinearConstraintSpec) {
+        val updated = myLinearConstraints.value + spec
+        myLinearConstraints.value = updated
+        mySelectedLinearConstraintIndex.value = updated.lastIndex
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Replace the linear constraint at [index].  Rejects an index
+     *  out of range. */
+    fun updateLinearConstraint(index: Int, updated: LinearConstraintSpec) {
+        val list = myLinearConstraints.value
+        require(index in list.indices) {
+            "updateLinearConstraint: index $index out of range 0..${list.lastIndex}"
+        }
+        val newList = list.toMutableList().also { it[index] = updated }
+        myLinearConstraints.value = newList
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Delete the linear constraint at [index].  Shifts
+     *  [selectedLinearConstraintIndex] to keep the selection sane. */
+    fun deleteLinearConstraint(index: Int) {
+        val list = myLinearConstraints.value
+        require(index in list.indices) {
+            "deleteLinearConstraint: index $index out of range 0..${list.lastIndex}"
+        }
+        val newList = list.toMutableList().also { it.removeAt(index) }
+        myLinearConstraints.value = newList
+        val selected = mySelectedLinearConstraintIndex.value
+        mySelectedLinearConstraintIndex.value = when {
+            newList.isEmpty() -> -1
+            selected < index -> selected
+            selected == index -> (index - 1).coerceAtLeast(0)
+            else -> selected - 1
+        }
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Move the linear constraint at [index] one slot earlier.  No-op
+     *  at index 0. */
+    fun moveLinearConstraintUp(index: Int) {
+        val list = myLinearConstraints.value
+        require(index in list.indices) {
+            "moveLinearConstraintUp: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == 0) return
+        val newList = list.toMutableList()
+        val tmp = newList[index - 1]; newList[index - 1] = newList[index]; newList[index] = tmp
+        myLinearConstraints.value = newList
+        if (mySelectedLinearConstraintIndex.value == index) mySelectedLinearConstraintIndex.value = index - 1
+        else if (mySelectedLinearConstraintIndex.value == index - 1) mySelectedLinearConstraintIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Move the linear constraint at [index] one slot later.  No-op
+     *  at the last index. */
+    fun moveLinearConstraintDown(index: Int) {
+        val list = myLinearConstraints.value
+        require(index in list.indices) {
+            "moveLinearConstraintDown: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == list.lastIndex) return
+        val newList = list.toMutableList()
+        val tmp = newList[index + 1]; newList[index + 1] = newList[index]; newList[index] = tmp
+        myLinearConstraints.value = newList
+        if (mySelectedLinearConstraintIndex.value == index) mySelectedLinearConstraintIndex.value = index + 1
+        else if (mySelectedLinearConstraintIndex.value == index + 1) mySelectedLinearConstraintIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the linear-constraint selection. */
+    fun setSelectedLinearConstraintIndex(index: Int) {
+        val list = myLinearConstraints.value
+        val clamped = when {
+            index < 0 -> -1
+            index >= list.size -> list.lastIndex
+            else -> index
+        }
+        if (mySelectedLinearConstraintIndex.value != clamped) mySelectedLinearConstraintIndex.value = clamped
+    }
+
+    // ── Response constraints ──────────────────────────────────────────────
+
+    /** Append a new response constraint.  If [spec]'s response name
+     *  is not yet in [responseNames], it is auto-declared (idempotent)
+     *  so that the consolidated [problemSpec] passes the substrate's
+     *  init check.  Selects the new row. */
+    fun addResponseConstraint(spec: ResponseConstraintSpec) {
+        if (spec.name !in myResponseNames.value) {
+            myResponseNames.value = myResponseNames.value + spec.name
+        }
+        val updated = myResponseConstraints.value + spec
+        myResponseConstraints.value = updated
+        mySelectedResponseConstraintIndex.value = updated.lastIndex
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Replace the response constraint at [index].  Rejects an index
+     *  out of range.  Auto-declares the new name when needed. */
+    fun updateResponseConstraint(index: Int, updated: ResponseConstraintSpec) {
+        val list = myResponseConstraints.value
+        require(index in list.indices) {
+            "updateResponseConstraint: index $index out of range 0..${list.lastIndex}"
+        }
+        if (updated.name !in myResponseNames.value) {
+            myResponseNames.value = myResponseNames.value + updated.name
+        }
+        val newList = list.toMutableList().also { it[index] = updated }
+        myResponseConstraints.value = newList
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Delete the response constraint at [index]. */
+    fun deleteResponseConstraint(index: Int) {
+        val list = myResponseConstraints.value
+        require(index in list.indices) {
+            "deleteResponseConstraint: index $index out of range 0..${list.lastIndex}"
+        }
+        val newList = list.toMutableList().also { it.removeAt(index) }
+        myResponseConstraints.value = newList
+        val selected = mySelectedResponseConstraintIndex.value
+        mySelectedResponseConstraintIndex.value = when {
+            newList.isEmpty() -> -1
+            selected < index -> selected
+            selected == index -> (index - 1).coerceAtLeast(0)
+            else -> selected - 1
+        }
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    fun moveResponseConstraintUp(index: Int) {
+        val list = myResponseConstraints.value
+        require(index in list.indices) {
+            "moveResponseConstraintUp: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == 0) return
+        val newList = list.toMutableList()
+        val tmp = newList[index - 1]; newList[index - 1] = newList[index]; newList[index] = tmp
+        myResponseConstraints.value = newList
+        if (mySelectedResponseConstraintIndex.value == index) mySelectedResponseConstraintIndex.value = index - 1
+        else if (mySelectedResponseConstraintIndex.value == index - 1) mySelectedResponseConstraintIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    fun moveResponseConstraintDown(index: Int) {
+        val list = myResponseConstraints.value
+        require(index in list.indices) {
+            "moveResponseConstraintDown: index $index out of range 0..${list.lastIndex}"
+        }
+        if (index == list.lastIndex) return
+        val newList = list.toMutableList()
+        val tmp = newList[index + 1]; newList[index + 1] = newList[index]; newList[index] = tmp
+        myResponseConstraints.value = newList
+        if (mySelectedResponseConstraintIndex.value == index) mySelectedResponseConstraintIndex.value = index + 1
+        else if (mySelectedResponseConstraintIndex.value == index + 1) mySelectedResponseConstraintIndex.value = index
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the response-constraint selection. */
+    fun setSelectedResponseConstraintIndex(index: Int) {
+        val list = myResponseConstraints.value
+        val clamped = when {
+            index < 0 -> -1
+            index >= list.size -> list.lastIndex
+            else -> index
+        }
+        if (mySelectedResponseConstraintIndex.value != clamped) mySelectedResponseConstraintIndex.value = clamped
+    }
+
+    // ── Penalty defaults ──────────────────────────────────────────────────
+
+    /** Set the problem-level default penalty function for linear
+     *  constraints.  Structural — drops [lastResult]. */
+    fun setDefaultLinearPenalty(spec: PenaltyFunctionSpec) {
+        if (myDefaultLinearPenalty.value == spec) return
+        myDefaultLinearPenalty.value = spec
+        recomputeProblemSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the problem-level default penalty function for response
+     *  constraints.  Structural — drops [lastResult]. */
+    fun setDefaultResponsePenalty(spec: PenaltyFunctionSpec) {
+        if (myDefaultResponsePenalty.value == spec) return
+        myDefaultResponsePenalty.value = spec
         recomputeProblemSpec()
         markDirtyStructural()
     }
@@ -950,7 +1183,9 @@ class SimoptAppController(
             mySelectedInputIndex.value = if (p.inputs.isEmpty()) -1 else 0
             myResponseNames.value = p.responseNames
             myLinearConstraints.value = p.linearConstraints
+            mySelectedLinearConstraintIndex.value = if (p.linearConstraints.isEmpty()) -1 else 0
             myResponseConstraints.value = p.responseConstraints
+            mySelectedResponseConstraintIndex.value = if (p.responseConstraints.isEmpty()) -1 else 0
             myDefaultLinearPenalty.value = p.defaultLinearPenalty
             myDefaultResponsePenalty.value = p.defaultResponsePenalty
         } else {
@@ -963,7 +1198,9 @@ class SimoptAppController(
             mySelectedInputIndex.value = -1
             myResponseNames.value = emptyList()
             myLinearConstraints.value = emptyList()
+            mySelectedLinearConstraintIndex.value = -1
             myResponseConstraints.value = emptyList()
+            mySelectedResponseConstraintIndex.value = -1
             myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
             myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         }
@@ -1050,7 +1287,12 @@ class SimoptAppController(
     private fun computeStepCompletion(): Map<Step, Boolean> {
         val model = myModelTemplate.value != null
         val problem = model && myProblemSpec.value != null
-        val solver = problem && mySolverSpec.value != null
+        // CONSTRAINTS is OPTIONAL — auto-completes the moment PROBLEM
+        // is complete.  Algorithm gating therefore does not block on
+        // constraint authoring, but the rail still shows the step so
+        // users can visit it to author constraints + penalty defaults.
+        val constraints = problem
+        val solver = constraints && mySolverSpec.value != null
         // RUN_SETUP is complete in O2 as soon as ALGORITHM is complete.
         // Phase O7a tightens this to require validation pass against
         // the live model.
@@ -1062,6 +1304,7 @@ class SimoptAppController(
         return mapOf(
             Step.MODEL to model,
             Step.PROBLEM to problem,
+            Step.CONSTRAINTS to constraints,
             Step.ALGORITHM to solver,
             Step.RUN_SETUP to runSetup,
             Step.EXECUTE to execute,

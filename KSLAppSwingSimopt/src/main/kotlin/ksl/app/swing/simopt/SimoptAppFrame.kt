@@ -32,6 +32,7 @@ import ksl.app.swing.simopt.stepper.Step
 import ksl.app.swing.simopt.stepper.StepFooterPanel
 import ksl.app.swing.simopt.stepper.StepperPanel
 import ksl.app.swing.simopt.steps.AlgorithmStepPanel
+import ksl.app.swing.simopt.steps.ConstraintsStepPanel
 import ksl.app.swing.simopt.steps.ExecuteStepPanel
 import ksl.app.swing.simopt.steps.ModelStepPanel
 import ksl.app.swing.simopt.steps.ProblemStepPanel
@@ -111,6 +112,9 @@ class SimoptAppFrame(
     private val stepPanels: Map<Step, JPanel> = mapOf(
         Step.MODEL to ModelStepPanel(controller),
         Step.PROBLEM to ProblemStepPanel(controller),
+        Step.CONSTRAINTS to ConstraintsStepPanel(controller) { msg, sev ->
+            notifications.show(msg, sev)
+        },
         Step.ALGORITHM to AlgorithmStepPanel(controller),
         Step.RUN_SETUP to RunSetupStepPanel(controller),
         Step.EXECUTE to ExecuteStepPanel(controller),

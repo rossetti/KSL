@@ -79,6 +79,7 @@ class SimoptAppFrameSmokeTest {
             assertEquals(Step.MODEL, controller.activeStep.value)
             assertTrue(controller.canAdvanceTo(Step.MODEL))
             assertFalse(controller.canAdvanceTo(Step.PROBLEM))
+            assertFalse(controller.canAdvanceTo(Step.CONSTRAINTS))
             assertFalse(controller.canAdvanceTo(Step.ALGORITHM))
             assertFalse(controller.canAdvanceTo(Step.RUN_SETUP))
             assertFalse(controller.canAdvanceTo(Step.EXECUTE))
@@ -172,6 +173,10 @@ class SimoptAppFrameSmokeTest {
                 )
             )
             controller.setProblemSpec(problem)
+            // CONSTRAINTS is the optional step between Problem and Algorithm —
+            // it auto-completes the moment Problem is complete so the user
+            // can pass through to Algorithm without authoring anything.
+            assertTrue(controller.canAdvanceTo(Step.CONSTRAINTS))
             assertTrue(controller.canAdvanceTo(Step.ALGORITHM))
             assertFalse(controller.canAdvanceTo(Step.RUN_SETUP))
 

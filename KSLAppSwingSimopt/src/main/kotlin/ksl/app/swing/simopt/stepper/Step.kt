@@ -36,10 +36,17 @@ enum class Step(val title: String) {
      *  during optimization. */
     MODEL("Model"),
 
-    /** Define the objective response, decision variables, declared
-     *  responses, linear + response constraints, and the problem-level
-     *  penalty function defaults. */
+    /** Define the objective response and decision variables.  Required.
+     *  Constraints + penalty function defaults moved to the optional
+     *  Constraints step (see [CONSTRAINTS]). */
     PROBLEM("Problem"),
+
+    /** **Optional.**  Declared response names, response constraints,
+     *  linear constraints, and problem-level default penalty functions.
+     *  Auto-completes the moment [PROBLEM] is complete — the user can
+     *  walk straight through to [ALGORITHM] without authoring anything
+     *  here.  Visiting only matters when the problem has constraints. */
+    CONSTRAINTS("Constraints"),
 
     /** Choose one of the four algorithms (SHC / SA / CE / RSpline)
      *  and configure its parameters.  Optional random-restart wrapper
