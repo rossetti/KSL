@@ -245,10 +245,9 @@ class ModelStepPanel(
             BorderFactory.createEmptyBorder(2, 6, 2, 6)
         )
 
-        repsField.toolTipText = "Baseline number of replications saved on " +
-            "ModelRunTemplate.runParameters.  The algorithm's replicationsPerEvaluation " +
-            "is independent of this value; a future phase may use this baseline as the " +
-            "algorithm's default when the user has not specified one."
+        repsField.toolTipText = "Baseline number of replications for this model.  " +
+            "Used as the default replications-per-evaluation on the Algorithm step " +
+            "when no explicit value is set there."
 
         add(JLabel("Replications:"), gbc(0, 0, anchor = GridBagConstraints.WEST, insets = Insets(2, 4, 2, 8)))
         add(repsField, gbc(1, 0, weightx = 0.6, fill = GridBagConstraints.HORIZONTAL))
@@ -263,10 +262,9 @@ class ModelStepPanel(
         add(warmUpModelDefaultLabel, gbc(2, 2, weightx = 0.4))
 
         val help = JLabel(
-            "<html><i>Edits update <b>ModelRunTemplate.runParameters</b>.  Length and warm-up " +
-                "control the simulation horizon for each replication.  The number of replications " +
-                "set here is the baseline; the algorithm step may override it via " +
-                "<code>replicationsPerEvaluation</code>.</i></html>"
+            "<html><i>Length and warm-up set the simulation horizon for each " +
+                "replication.  Replications is the baseline count; the Algorithm step " +
+                "may override it with its own replications-per-evaluation setting.</i></html>"
         ).apply { foreground = Color(0x55, 0x55, 0x55) }
         add(help, gbc(0, 3, width = 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(6, 4, 2, 4)))
