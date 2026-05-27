@@ -35,6 +35,8 @@ import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.app.config.RVParameterOverride
+import ksl.app.config.optimization.CESamplerSpec
+import ksl.app.config.optimization.CoolingScheduleSpec
 import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.LinearConstraintSpec
 import ksl.app.config.optimization.OptimizationInputSpec
@@ -43,6 +45,8 @@ import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.config.optimization.OptimizationRunConfigurationToml
 import ksl.app.config.optimization.OptimizationType
+import ksl.app.config.optimization.RandomRestartSpec
+import ksl.app.config.optimization.TemperatureSpec
 import ksl.app.config.optimization.PenaltyFunctionSpec
 import ksl.app.config.optimization.ResponseConstraintSpec
 import ksl.app.config.optimization.SolverSpec
@@ -58,6 +62,20 @@ import ksl.simulation.ModelDescriptor
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.time.Duration.Companion.minutes
+
+/**
+ *  Discriminator for the four algorithms exposed by the
+ *  [ksl.app.config.optimization.SolverSpec] sealed type.  Used by the
+ *  Algorithm step's picker; maps 1-to-1 to a substrate variant.
+ */
+enum class AlgorithmKind(val displayName: String) {
+    STOCHASTIC_HILL_CLIMBING("Stochastic Hill Climbing"),
+    SIMULATED_ANNEALING("Simulated Annealing"),
+    CROSS_ENTROPY("Cross-Entropy"),
+    R_SPLINE("R-SPLINE");
+
+    override fun toString(): String = displayName
+}
 
 /**
  * State + lifecycle façade for the SimOpt App.
@@ -202,9 +220,98 @@ class SimoptAppController(
      *  Step.PROBLEM completion gate. */
     val problemSpec: StateFlow<OptimizationProblemSpec?> = myProblemSpec.asStateFlow()
 
+    // ── Solver-spec pieces ─────────────────────────────────────────────────
+    //
+    // SolverSpec is a sealed type with four variants (SHC / SA / CE /
+    // RSpline) sharing a common header (maxIterations, streamNum,
+    // randomRestart, etc.) plus algorithm-specific fields.  The
+    // controller decomposes the spec into a selector ([algorithmKind])
+    // plus per-piece StateFlows so the GUI can edit fields
+    // incrementally and so switching algorithms preserves the
+    // sibling-algorithm's state.
+    //
+    // [solverSpec] is published as a derived view built from the
+    // pieces by [recomputeSolverSpec].  All algorithm-specific fields
+    // carry concrete substrate-aligned defaults so the user always
+    // sees a populated form when they pick an algorithm.
+
+    private val myAlgorithmKind = MutableStateFlow<AlgorithmKind?>(null)
+    /** Which algorithm is in effect.  `null` until the user commits
+     *  one (programmatically via [setAlgorithmKind] or via TOML load). */
+    val algorithmKind: StateFlow<AlgorithmKind?> = myAlgorithmKind.asStateFlow()
+
+    private val myCommonMaxIterations = MutableStateFlow(100)
+    /** Shared across all algorithms.  Default 100. */
+    val commonMaxIterations: StateFlow<Int> = myCommonMaxIterations.asStateFlow()
+
+    private val myCommonStreamNum = MutableStateFlow(0)
+    /** Shared across all algorithms.  0 = "next available stream". */
+    val commonStreamNum: StateFlow<Int> = myCommonStreamNum.asStateFlow()
+
+    private val myCommonSolverName = MutableStateFlow<String?>(null)
+    /** Shared across all algorithms.  Optional human-readable name. */
+    val commonSolverName: StateFlow<String?> = myCommonSolverName.asStateFlow()
+
+    private val myCommonStartingPoint = MutableStateFlow<Map<String, Double>?>(null)
+    /** Optional decision-variable-keyed starting point.  Not GUI-editable
+     *  in Phase O6 (deferred to a later polish phase); round-trips
+     *  through TOML untouched.  `null` = "use solver default". */
+    val commonStartingPoint: StateFlow<Map<String, Double>?> = myCommonStartingPoint.asStateFlow()
+
+    private val myCommonReplicationsPerEvaluation = MutableStateFlow(30)
+    /** Used by SHC / SA / CE.  RSpline drives replications through a
+     *  growth schedule and ignores this field.  Default 30 — a
+     *  sensible standalone value the user can adjust. */
+    val commonReplicationsPerEvaluation: StateFlow<Int> = myCommonReplicationsPerEvaluation.asStateFlow()
+
+    // SA-specific pieces
+    private val mySaTemperature = MutableStateFlow<TemperatureSpec>(TemperatureSpec.AutoCalibrate())
+    val saTemperature: StateFlow<TemperatureSpec> = mySaTemperature.asStateFlow()
+
+    private val mySaCoolingSchedule = MutableStateFlow<CoolingScheduleSpec>(
+        CoolingScheduleSpec.Exponential(initialTemperature = 100.0)
+    )
+    val saCoolingSchedule: StateFlow<CoolingScheduleSpec> = mySaCoolingSchedule.asStateFlow()
+
+    private val mySaStoppingTemperature = MutableStateFlow(0.001)
+    val saStoppingTemperature: StateFlow<Double> = mySaStoppingTemperature.asStateFlow()
+
+    // CE-specific pieces
+    private val myCeSampler = MutableStateFlow<CESamplerSpec>(CESamplerSpec.Normal())
+    val ceSampler: StateFlow<CESamplerSpec> = myCeSampler.asStateFlow()
+
+    private val myCeElitePct = MutableStateFlow(0.1)
+    /** Substrate `CrossEntropySolver.defaultElitePct` is 0.1; we seed
+     *  the same value as the GUI default so the user sees an explicit
+     *  number and commits an explicit number in the document. */
+    val ceElitePct: StateFlow<Double> = myCeElitePct.asStateFlow()
+
+    private val myCeSampleSize = MutableStateFlow(50)
+    /** Substrate's `recommendCESampleSize()` formula yields ~35 at
+     *  the default elitePct + half-width; we seed a round 50 as the
+     *  GUI default. */
+    val ceSampleSize: StateFlow<Int> = myCeSampleSize.asStateFlow()
+
+    // RSpline-specific pieces
+    private val myRsplineInitialNumReps = MutableStateFlow(2)
+    val rsplineInitialNumReps: StateFlow<Int> = myRsplineInitialNumReps.asStateFlow()
+
+    private val myRsplineGrowthRate = MutableStateFlow(1.5)
+    val rsplineGrowthRate: StateFlow<Double> = myRsplineGrowthRate.asStateFlow()
+
+    private val myRsplineMaxNumReplications = MutableStateFlow(30)
+    val rsplineMaxNumReplications: StateFlow<Int> = myRsplineMaxNumReplications.asStateFlow()
+
+    // Random-restart wrapper (lives on every variant)
+    private val myRandomRestart = MutableStateFlow<RandomRestartSpec?>(null)
+    /** Optional random-restart wrapper.  `null` = no restart. */
+    val randomRestart: StateFlow<RandomRestartSpec?> = myRandomRestart.asStateFlow()
+
     private val mySolverSpec = MutableStateFlow<SolverSpec?>(null)
-    /** Algorithm choice + parameters.  `null` until the Algorithm
-     *  step commits a `SolverSpec`.  Step.ALGORITHM completion gate. */
+    /** Algorithm choice + parameters (consolidated view).  **Derived**
+     *  — recomputed from the pieces on every mutator and on TOML load.
+     *  `null` when [algorithmKind] is null.  Step.ALGORITHM completion
+     *  gate. */
     val solverSpec: StateFlow<SolverSpec?> = mySolverSpec.asStateFlow()
 
     private val myEvaluationSpec = MutableStateFlow(EvaluationSpec())
@@ -461,7 +568,7 @@ class SimoptAppController(
         val template = buildTemplateFor(ref)
         myModelTemplate.value = template
         setProblemSpec(null)             // fan-out clear of every problem-piece
-        mySolverSpec.value = null
+        setSolverSpec(null)              // fan-out clear of every solver-piece
         myEvaluationSpec.value = EvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
         refreshModelDescriptor()
@@ -1051,12 +1158,275 @@ class SimoptAppController(
         refreshStepCompletion()
     }
 
-    /** Replace the solver specification.  Structural — drops
-     *  [lastResult]. */
+    /** Replace the solver specification by fanning out [spec] into
+     *  the per-piece StateFlows ([algorithmKind], [commonMaxIterations],
+     *  algorithm-specific flows, etc.).  Used by TOML load and by
+     *  tests / programmatic callers that commit a complete spec in
+     *  one call.  Structural — drops [lastResult].
+     *
+     *  Passing `null` resets every piece to defaults and clears the
+     *  algorithm-kind selector. */
     fun setSolverSpec(spec: SolverSpec?) {
-        if (mySolverSpec.value == spec) return
-        mySolverSpec.value = spec
+        when (spec) {
+            null -> {
+                myAlgorithmKind.value = null
+                myCommonMaxIterations.value = 100
+                myCommonStreamNum.value = 0
+                myCommonSolverName.value = null
+                myCommonStartingPoint.value = null
+                myCommonReplicationsPerEvaluation.value = 30
+                mySaTemperature.value = TemperatureSpec.AutoCalibrate()
+                mySaCoolingSchedule.value = CoolingScheduleSpec.Exponential(initialTemperature = 100.0)
+                mySaStoppingTemperature.value = 0.001
+                myCeSampler.value = CESamplerSpec.Normal()
+                myCeElitePct.value = 0.1
+                myCeSampleSize.value = 50
+                myRsplineInitialNumReps.value = 2
+                myRsplineGrowthRate.value = 1.5
+                myRsplineMaxNumReplications.value = 30
+                myRandomRestart.value = null
+            }
+            is SolverSpec.StochasticHillClimbing -> {
+                myAlgorithmKind.value = AlgorithmKind.STOCHASTIC_HILL_CLIMBING
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.SimulatedAnnealing -> {
+                myAlgorithmKind.value = AlgorithmKind.SIMULATED_ANNEALING
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                mySaTemperature.value = spec.temperature
+                mySaCoolingSchedule.value = spec.coolingSchedule
+                mySaStoppingTemperature.value = spec.stoppingTemperature
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.CrossEntropy -> {
+                myAlgorithmKind.value = AlgorithmKind.CROSS_ENTROPY
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                myCeSampler.value = spec.sampler
+                // Substrate field is nullable ("use built-in default"); the
+                // GUI surfaces concrete defaults so the user always sees a
+                // value.  Pre-load the user's prior explicit value when
+                // present; otherwise keep the GUI's seeded default.
+                spec.elitePct?.let { myCeElitePct.value = it }
+                spec.ceSampleSize?.let { myCeSampleSize.value = it }
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.RSpline -> {
+                myAlgorithmKind.value = AlgorithmKind.R_SPLINE
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myRsplineInitialNumReps.value = spec.initialNumReps
+                myRsplineGrowthRate.value = spec.sampleSizeGrowthRate
+                myRsplineMaxNumReplications.value = spec.maxNumReplications
+                myRandomRestart.value = spec.randomRestart
+            }
+        }
+        recomputeSolverSpec()
         markDirtyStructural()
+    }
+
+    // ── Solver-spec piece mutators ─────────────────────────────────────────
+
+    /** Set the active algorithm.  Pre-populates the spec by triggering
+     *  a recompute with the current per-piece values; the user
+     *  immediately sees a fully-defaulted form. */
+    fun setAlgorithmKind(kind: AlgorithmKind?) {
+        if (myAlgorithmKind.value == kind) return
+        myAlgorithmKind.value = kind
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCommonMaxIterations(value: Int) {
+        require(value > 0) { "maxIterations must be > 0; was $value" }
+        if (myCommonMaxIterations.value == value) return
+        myCommonMaxIterations.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCommonStreamNum(value: Int) {
+        require(value >= 0) { "streamNum must be >= 0; was $value" }
+        if (myCommonStreamNum.value == value) return
+        myCommonStreamNum.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCommonSolverName(name: String?) {
+        val coerced = name?.takeIf { it.isNotBlank() }
+        if (myCommonSolverName.value == coerced) return
+        myCommonSolverName.value = coerced
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCommonStartingPoint(point: Map<String, Double>?) {
+        if (myCommonStartingPoint.value == point) return
+        myCommonStartingPoint.value = point
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCommonReplicationsPerEvaluation(value: Int) {
+        require(value > 0) { "replicationsPerEvaluation must be > 0; was $value" }
+        if (myCommonReplicationsPerEvaluation.value == value) return
+        myCommonReplicationsPerEvaluation.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setSaTemperature(spec: TemperatureSpec) {
+        if (mySaTemperature.value == spec) return
+        mySaTemperature.value = spec
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setSaCoolingSchedule(spec: CoolingScheduleSpec) {
+        if (mySaCoolingSchedule.value == spec) return
+        mySaCoolingSchedule.value = spec
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setSaStoppingTemperature(value: Double) {
+        require(value > 0.0 && value.isFinite()) {
+            "stoppingTemperature must be > 0 and finite; was $value"
+        }
+        if (mySaStoppingTemperature.value == value) return
+        mySaStoppingTemperature.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCeSampler(spec: CESamplerSpec) {
+        if (myCeSampler.value == spec) return
+        myCeSampler.value = spec
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCeElitePct(value: Double) {
+        require(value > 0.0 && value < 1.0) {
+            "elitePct must be strictly in (0, 1); was $value"
+        }
+        if (myCeElitePct.value == value) return
+        myCeElitePct.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setCeSampleSize(value: Int) {
+        require(value >= 1) { "ceSampleSize must be >= 1; was $value" }
+        if (myCeSampleSize.value == value) return
+        myCeSampleSize.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setRsplineInitialNumReps(value: Int) {
+        require(value > 0) { "initialNumReps must be > 0; was $value" }
+        if (myRsplineInitialNumReps.value == value) return
+        myRsplineInitialNumReps.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setRsplineGrowthRate(value: Double) {
+        require(value > 0.0 && value.isFinite()) {
+            "sampleSizeGrowthRate must be > 0 and finite; was $value"
+        }
+        if (myRsplineGrowthRate.value == value) return
+        myRsplineGrowthRate.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    fun setRsplineMaxNumReplications(value: Int) {
+        require(value > 0) { "maxNumReplications must be > 0; was $value" }
+        if (myRsplineMaxNumReplications.value == value) return
+        myRsplineMaxNumReplications.value = value
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    /** Set the random-restart wrapper.  `null` = no restart. */
+    fun setRandomRestart(spec: RandomRestartSpec?) {
+        if (myRandomRestart.value == spec) return
+        myRandomRestart.value = spec
+        recomputeSolverSpec()
+        markDirtyStructural()
+    }
+
+    /** Recompute [solverSpec] from the per-piece flows.  Publishes
+     *  `null` when [algorithmKind] is null or the assembled spec
+     *  fails the substrate's `init {}` invariant (defensive — the
+     *  per-piece mutators above enforce most invariants directly). */
+    private fun recomputeSolverSpec() {
+        val kind = myAlgorithmKind.value
+        val next: SolverSpec? = if (kind == null) null else try {
+            when (kind) {
+                AlgorithmKind.STOCHASTIC_HILL_CLIMBING -> SolverSpec.StochasticHillClimbing(
+                    startingPoint = myCommonStartingPoint.value,
+                    maxIterations = myCommonMaxIterations.value,
+                    randomRestart = myRandomRestart.value,
+                    streamNum = myCommonStreamNum.value,
+                    name = myCommonSolverName.value,
+                    replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value
+                )
+                AlgorithmKind.SIMULATED_ANNEALING -> SolverSpec.SimulatedAnnealing(
+                    startingPoint = myCommonStartingPoint.value,
+                    maxIterations = myCommonMaxIterations.value,
+                    randomRestart = myRandomRestart.value,
+                    streamNum = myCommonStreamNum.value,
+                    name = myCommonSolverName.value,
+                    replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value,
+                    temperature = mySaTemperature.value,
+                    coolingSchedule = mySaCoolingSchedule.value,
+                    stoppingTemperature = mySaStoppingTemperature.value
+                )
+                AlgorithmKind.CROSS_ENTROPY -> SolverSpec.CrossEntropy(
+                    startingPoint = myCommonStartingPoint.value,
+                    maxIterations = myCommonMaxIterations.value,
+                    randomRestart = myRandomRestart.value,
+                    streamNum = myCommonStreamNum.value,
+                    name = myCommonSolverName.value,
+                    replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value,
+                    sampler = myCeSampler.value,
+                    elitePct = myCeElitePct.value,
+                    ceSampleSize = myCeSampleSize.value
+                )
+                AlgorithmKind.R_SPLINE -> SolverSpec.RSpline(
+                    startingPoint = myCommonStartingPoint.value,
+                    maxIterations = myCommonMaxIterations.value,
+                    randomRestart = myRandomRestart.value,
+                    streamNum = myCommonStreamNum.value,
+                    name = myCommonSolverName.value,
+                    initialNumReps = myRsplineInitialNumReps.value,
+                    sampleSizeGrowthRate = myRsplineGrowthRate.value,
+                    maxNumReplications = myRsplineMaxNumReplications.value
+                )
+            }
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (mySolverSpec.value != next) mySolverSpec.value = next
+        refreshStepCompletion()
     }
 
     /** Replace the evaluation settings.  Preference — does not drop
@@ -1122,6 +1492,24 @@ class SimoptAppController(
         myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
         myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         myProblemSpec.value = null
+        // Clear solver-spec pieces directly (avoid the fan-out shim's
+        // markDirtyStructural — same reason as problem-spec above).
+        myAlgorithmKind.value = null
+        myCommonMaxIterations.value = 100
+        myCommonStreamNum.value = 0
+        myCommonSolverName.value = null
+        myCommonStartingPoint.value = null
+        myCommonReplicationsPerEvaluation.value = 30
+        mySaTemperature.value = TemperatureSpec.AutoCalibrate()
+        mySaCoolingSchedule.value = CoolingScheduleSpec.Exponential(initialTemperature = 100.0)
+        mySaStoppingTemperature.value = 0.001
+        myCeSampler.value = CESamplerSpec.Normal()
+        myCeElitePct.value = 0.1
+        myCeSampleSize.value = 50
+        myRsplineInitialNumReps.value = 2
+        myRsplineGrowthRate.value = 1.5
+        myRsplineMaxNumReplications.value = 30
+        myRandomRestart.value = null
         mySolverSpec.value = null
         myEvaluationSpec.value = EvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
@@ -1205,9 +1593,88 @@ class SimoptAppController(
             myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         }
         myProblemSpec.value = config.problem
+        // Fan out config.solver into the per-piece flows (or reset to
+        // defaults when null).  Use the dedicated setSolverSpec
+        // fan-out helper rather than just stashing the consolidated
+        // value, so the per-piece flows reflect the loaded values
+        // and the Algorithm step's editor surfaces them on open.
+        // Since the document is just being loaded we then re-clear
+        // the dirty flag below.
+        installSolverPieces(config.solver)
         mySolverSpec.value = config.solver
         myEvaluationSpec.value = config.evaluation
         myTrackingSpec.value = config.tracking
+    }
+
+    /** Internal helper called only by [installLoaded]: pushes a loaded
+     *  [SolverSpec] (or null) into the per-piece flows without going
+     *  through the public mutator (which would mark the document
+     *  dirty).  Mirrors the problem-spec fan-out pattern. */
+    private fun installSolverPieces(spec: SolverSpec?) {
+        when (spec) {
+            null -> {
+                myAlgorithmKind.value = null
+                myCommonMaxIterations.value = 100
+                myCommonStreamNum.value = 0
+                myCommonSolverName.value = null
+                myCommonStartingPoint.value = null
+                myCommonReplicationsPerEvaluation.value = 30
+                mySaTemperature.value = TemperatureSpec.AutoCalibrate()
+                mySaCoolingSchedule.value = CoolingScheduleSpec.Exponential(initialTemperature = 100.0)
+                mySaStoppingTemperature.value = 0.001
+                myCeSampler.value = CESamplerSpec.Normal()
+                myCeElitePct.value = 0.1
+                myCeSampleSize.value = 50
+                myRsplineInitialNumReps.value = 2
+                myRsplineGrowthRate.value = 1.5
+                myRsplineMaxNumReplications.value = 30
+                myRandomRestart.value = null
+            }
+            is SolverSpec.StochasticHillClimbing -> {
+                myAlgorithmKind.value = AlgorithmKind.STOCHASTIC_HILL_CLIMBING
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.SimulatedAnnealing -> {
+                myAlgorithmKind.value = AlgorithmKind.SIMULATED_ANNEALING
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                mySaTemperature.value = spec.temperature
+                mySaCoolingSchedule.value = spec.coolingSchedule
+                mySaStoppingTemperature.value = spec.stoppingTemperature
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.CrossEntropy -> {
+                myAlgorithmKind.value = AlgorithmKind.CROSS_ENTROPY
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myCommonReplicationsPerEvaluation.value = spec.replicationsPerEvaluation
+                myCeSampler.value = spec.sampler
+                spec.elitePct?.let { myCeElitePct.value = it }
+                spec.ceSampleSize?.let { myCeSampleSize.value = it }
+                myRandomRestart.value = spec.randomRestart
+            }
+            is SolverSpec.RSpline -> {
+                myAlgorithmKind.value = AlgorithmKind.R_SPLINE
+                myCommonMaxIterations.value = spec.maxIterations
+                myCommonStreamNum.value = spec.streamNum
+                myCommonSolverName.value = spec.name
+                myCommonStartingPoint.value = spec.startingPoint
+                myRsplineInitialNumReps.value = spec.initialNumReps
+                myRsplineGrowthRate.value = spec.sampleSizeGrowthRate
+                myRsplineMaxNumReplications.value = spec.maxNumReplications
+                myRandomRestart.value = spec.randomRestart
+            }
+        }
     }
 
     /** Encode the current document to TOML and write it to [path].
