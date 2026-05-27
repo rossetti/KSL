@@ -18,22 +18,59 @@
 
 package ksl.app.swing.simopt.steps
 
+import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.simopt.SimoptAppController
+import ksl.app.swing.simopt.runsetup.EvaluationSettingsPanel
+import ksl.app.swing.simopt.runsetup.PreRunValidationPanel
+import ksl.app.swing.simopt.runsetup.RunPreviewPanel
+import ksl.app.swing.simopt.runsetup.TrackingPanel
+import java.awt.BorderLayout
+import javax.swing.BorderFactory
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.JPanel
+import javax.swing.JScrollPane
 
 /**
- * Step 4 of 6 — Run Setup.
+ *  *Run Setup* step — Phase O7a.
  *
- * **Phase O2 shell.**  Replaced in Phase O7a with the evaluation
- * settings panel, tracking & trace panel, pre-run validation
- * checklist, and the run preview (estimated total simulation runs +
- * resolved output directory + trace path).  See
- * `.claude/plans/simopt-app-plan.md` §5.6.
+ *  Hosts four sub-panels in a vertical scrollable stack:
+ *
+ *   1. **Pre-run validation** — live document checks + "Re-check
+ *      against model" button.  Informational; does not gate step
+ *      completion (Run Setup is complete when `solverSpec != null`).
+ *   2. **Evaluation settings** — `EvaluationSpec` editor.  Marks dirty
+ *      but does NOT drop `lastResult`.
+ *   3. **Tracking & trace** — `SolverTrackingSpec` editor + live
+ *      resolved-path display.  Same preference semantics.
+ *   4. **Run preview** — read-only summary: estimated total runs,
+ *      resolved output directory, resolved trace path.
  */
-class RunSetupStepPanel(controller: SimoptAppController) : PlaceholderStepPanel(
-    title = "Run Setup",
-    summary = "Configure evaluation settings (caches, snapshot " +
-        "frequency, feasibility) and optional CSV / console trace " +
-        "tracking.  Pre-run validation against the live model with " +
-        "jump-to-fix links back to upstream steps.",
-    pendingPhase = "Phase O7a"
-)
+class RunSetupStepPanel(
+    private val controller: SimoptAppController,
+    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+) : JPanel(BorderLayout()) {
+
+    init {
+        border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
+
+        val stack = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(PreRunValidationPanel(controller))
+            add(Box.createVerticalStrut(8))
+            add(EvaluationSettingsPanel(controller))
+            add(Box.createVerticalStrut(8))
+            add(TrackingPanel(controller, onMessage))
+            add(Box.createVerticalStrut(8))
+            add(RunPreviewPanel(controller))
+            add(Box.createVerticalGlue())
+        }
+
+        add(JScrollPane(
+            stack,
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        ), BorderLayout.CENTER)
+    }
+}

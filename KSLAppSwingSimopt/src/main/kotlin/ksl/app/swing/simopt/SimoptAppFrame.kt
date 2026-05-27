@@ -116,7 +116,9 @@ class SimoptAppFrame(
             notifications.show(msg, sev)
         },
         Step.ALGORITHM to AlgorithmStepPanel(controller),
-        Step.RUN_SETUP to RunSetupStepPanel(controller),
+        Step.RUN_SETUP to RunSetupStepPanel(controller) { msg, sev ->
+            notifications.show(msg, sev)
+        },
         Step.EXECUTE to ExecuteStepPanel(controller),
         Step.RESULTS to ResultsStepPanel(controller)
     )
