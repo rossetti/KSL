@@ -310,4 +310,30 @@ class SimoptAppControllerTest {
                 "No solver yet — Algorithm step must stay locked")
         }
     }
+
+    @Test
+    fun `save under workspace configs directory works and creates it lazily`(@TempDir tempDir: Path) {
+        // Mirrors the convention used by Experiment / Scenario / Single
+        // apps: TOML documents land in <appWorkspace>/configs/, created
+        // lazily on first access via WorkspaceLayout.configsDir.
+        SimoptAppController("Test").use { c ->
+            // Re-point the active workspace at a TempDir so the test
+            // doesn't write under the user's real KSLWork.
+            c.settingsStore.setCurrentDirectory(tempDir)
+            c.setModelReference(mm1Ref())
+
+            val configsDir = ksl.app.settings.WorkspaceLayout.configsDir(
+                c.appWorkspace, createIfMissing = true
+            )
+            assertTrue(java.nio.file.Files.isDirectory(configsDir),
+                "configsDir(... createIfMissing=true) must create the directory")
+            assertTrue(configsDir.endsWith(java.nio.file.Path.of(c.appNameSanitized, "configs")),
+                "configsDir should resolve to <appNameSanitized>/configs; got $configsDir")
+
+            val target = configsDir.resolve("draft.toml")
+            c.saveConfiguration(target)
+            assertTrue(target.toFile().exists())
+            assertFalse(c.isDirty.value, "Save should clear the dirty flag")
+        }
+    }
 }

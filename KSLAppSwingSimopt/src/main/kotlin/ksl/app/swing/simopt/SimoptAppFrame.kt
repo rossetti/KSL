@@ -24,6 +24,7 @@ import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
+import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
@@ -231,11 +232,13 @@ class SimoptAppFrame(
             override fun actionPerformed(e: ActionEvent?) = handleOpen()
         }).apply {
             accelerator = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, menuShortcut)
+            toolTipText = CONFIG_TOOLTIP
         }
         saveItem = JMenuItem(object : AbstractAction(SAVE_BASE_TEXT) {
             override fun actionPerformed(e: ActionEvent?) = handleSave()
         }).apply {
             accelerator = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, menuShortcut)
+            toolTipText = CONFIG_TOOLTIP
         }
         val saveAsItem = JMenuItem(object : AbstractAction("Save Optimization As…") {
             override fun actionPerformed(e: ActionEvent?) = handleSaveAs()
@@ -244,6 +247,7 @@ class SimoptAppFrame(
                 java.awt.event.KeyEvent.VK_S,
                 menuShortcut or java.awt.event.InputEvent.SHIFT_DOWN_MASK
             )
+            toolTipText = CONFIG_TOOLTIP
         }
 
         // Update the Save item text + enablement on dirty / current-file changes.
@@ -297,7 +301,9 @@ class SimoptAppFrame(
     }
 
     private fun handleLoadBundleJar() {
-        val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
+        // Bundle JARs are not workspace-local — use the platform default
+        // (last-used directory or home), matching the Experiment app.
+        val chooser = JFileChooser().apply {
             dialogTitle = "Load Bundle JAR"
             fileFilter = FileNameExtensionFilter("JAR files (*.jar)", "jar")
         }
@@ -334,7 +340,14 @@ class SimoptAppFrame(
 
     private fun handleOpen() {
         if (!confirmDiscardIfDirty()) return
-        val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
+        // Land the chooser in <workspace>/<appNameSanitized>/configs/ —
+        // matches the convention used by the Experiment / Scenario /
+        // Single apps.  configsDir() creates the directory on first
+        // access so the path is always present.
+        val startDir = WorkspaceLayout.configsDir(
+            controller.appWorkspace, createIfMissing = true
+        ).toFile()
+        val chooser = JFileChooser(startDir).apply {
             dialogTitle = "Open Optimization"
             fileFilter = FileNameExtensionFilter("TOML files (*.toml)", "toml")
         }
@@ -385,10 +398,16 @@ class SimoptAppFrame(
             )
             return
         }
-        val chooser = JFileChooser(controller.appWorkspace.toFile()).apply {
+        // Save dialogs land in <workspace>/<appNameSanitized>/configs/
+        // — the canonical TOML location per the Experiment / Scenario /
+        // Single apps' convention.
+        val configsDir = WorkspaceLayout.configsDir(
+            controller.appWorkspace, createIfMissing = true
+        )
+        val chooser = JFileChooser(configsDir.toFile()).apply {
             dialogTitle = "Save Optimization As"
             fileFilter = FileNameExtensionFilter("TOML files (*.toml)", "toml")
-            selectedFile = controller.appWorkspace.resolve(defaultSaveAsName()).toFile()
+            selectedFile = configsDir.resolve(defaultSaveAsName()).toFile()
         }
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
         var path: Path = chooser.selectedFile.toPath()
@@ -437,5 +456,10 @@ class SimoptAppFrame(
     private companion object {
         const val SAVE_BASE_TEXT: String = "Save Optimization"
         const val SAVE_DIRTY_TEXT: String = "Save Optimization *"
+        const val CONFIG_TOOLTIP: String =
+            "Save / open the optimization document (output, model, problem, " +
+                "solver, evaluation, tracking) as a TOML file under " +
+                "<workspace>/configs/.  In-progress drafts (no problem / no " +
+                "solver) are valid save targets."
     }
 }
