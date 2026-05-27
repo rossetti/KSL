@@ -363,7 +363,7 @@ class SimoptAppFrame(
         }
         if (controller.currentConfiguration() == null) {
             notifications.show(
-                "Cannot save: the document is incomplete.  Set the model, problem, and algorithm first.",
+                "Cannot save: no model selected.  Pick a model on the Model step before saving.",
                 NotificationSeverity.WARNING
             )
             return
@@ -380,7 +380,7 @@ class SimoptAppFrame(
         flushPendingAnalysisName()
         if (controller.currentConfiguration() == null) {
             notifications.show(
-                "Cannot save: the document is incomplete.  Set the model, problem, and algorithm first.",
+                "Cannot save: no model selected.  Pick a model on the Model step before saving.",
                 NotificationSeverity.WARNING
             )
             return

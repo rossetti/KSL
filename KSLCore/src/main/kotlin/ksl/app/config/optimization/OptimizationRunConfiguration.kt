@@ -35,6 +35,17 @@ import net.peanuuutz.tomlkt.TomlComment
  * carries no live `Solver` or `ProblemDefinition` objects — those are built
  * by `OptimizationSolverFactory` from the spec when the run is submitted.
  *
+ * ## Draft documents (partial saves)
+ *
+ * [problem] and [solver] are nullable so that GUI editors can persist
+ * in-progress documents before every section is authored.  A document with
+ * just a model selected (or a model + a problem but no solver yet) is a
+ * legitimate save target; loading it restores the same partial editor
+ * state.  Submit-time consumers — `OptimizationSolverFactory.build(...)`
+ * and `ksl.app.validation.OptimizationConfigurationValidator.validate(...)`
+ * — reject null problem / solver with clear errors, so an incomplete
+ * draft cannot accidentally be run.
+ *
  * ## Typical workflow
  *
  * ```kotlin
@@ -60,10 +71,14 @@ import net.peanuuutz.tomlkt.TomlComment
  *                  host-resolved output directory).  Defaults to
  *                  [OptimizationOutputConfig] defaults — `analysisName =
  *                  "Untitled"` and `outputDirectory = null`.
+
  * @property model baseline model-construction template
  * @property problem optimization problem (objective, decision variables,
- *                   constraints)
- * @property solver solver selection and algorithm-specific parameters
+ *                   constraints); `null` for in-progress drafts that have not
+ *                   yet authored the problem section.  Rejected at submit-time.
+ * @property solver solver selection and algorithm-specific parameters;
+ *                  `null` for in-progress drafts that have not yet chosen an
+ *                  algorithm.  Rejected at submit-time.
  * @property evaluation cross-cutting evaluator/solver settings independent of
  *                      the chosen algorithm
  * @property tracking optional CSV / console trace settings; defaults to
@@ -91,17 +106,21 @@ data class OptimizationRunConfiguration(
     @TomlComment(
         "Optimization problem definition.  Objective, decision variables,\n" +
         "constraints, and penalty function defaults.  See [problem]\n" +
-        "section below."
+        "section below.  Omit (or set to null) for in-progress drafts\n" +
+        "where the problem has not yet been authored; the solver factory\n" +
+        "rejects null at submit-time."
     )
-    val problem: OptimizationProblemSpec,
+    val problem: OptimizationProblemSpec? = null,
 
     @TomlComment(
         "Solver algorithm and its parameters.  type discriminates between\n" +
         "'stochasticHillClimbing', 'simulatedAnnealing', 'crossEntropy',\n" +
         "and 'rSpline'.  Set [solver.randomRestart] to wrap the chosen\n" +
-        "algorithm in random-restart."
+        "algorithm in random-restart.  Omit (or set to null) for\n" +
+        "in-progress drafts where the algorithm has not yet been chosen;\n" +
+        "the solver factory rejects null at submit-time."
     )
-    val solver: SolverSpec,
+    val solver: SolverSpec? = null,
 
     @TomlComment(
         "Cross-cutting evaluator/solver settings independent of the\n" +

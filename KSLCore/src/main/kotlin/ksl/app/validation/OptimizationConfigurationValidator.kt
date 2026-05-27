@@ -64,20 +64,48 @@ object OptimizationConfigurationValidator {
 
     /**
      * Validates fields that can be checked from the spec alone.
+     *
+     * In-progress draft documents (where
+     * [OptimizationRunConfiguration.problem] or
+     * [OptimizationRunConfiguration.solver] is `null`) are rejected
+     * here with `MISSING_SECTION` errors — the cross-reference checks
+     * downstream are vacuous for a missing section and would otherwise
+     * mask the real issue.
      */
     fun validate(config: OptimizationRunConfiguration): ValidationResult {
         val builder = RunConfigurationValidator.ValidationResultBuilder()
-        val inputNames: Set<String> = config.problem.inputs.map { it.name }.toSet()
-        val declaredResponseNames: Set<String> = config.problem.responseNames.toSet()
+        val problem = config.problem
+        val solver = config.solver
 
-        validateStartingPoint(config.solver, config.problem.inputs, inputNames, builder)
-        validateLinearConstraints(config.problem.linearConstraints, inputNames, builder)
+        if (problem == null) {
+            builder.error(
+                path = "problem",
+                code = "MISSING_SECTION",
+                message = "problem section must be set before running the optimization " +
+                    "(in-progress drafts may omit this; the GUI editor authors it on Step ② Problem)."
+            )
+        }
+        if (solver == null) {
+            builder.error(
+                path = "solver",
+                code = "MISSING_SECTION",
+                message = "solver section must be set before running the optimization " +
+                    "(in-progress drafts may omit this; the GUI editor authors it on Step ③ Algorithm)."
+            )
+        }
+        if (problem == null || solver == null) return builder.build()
+
+        val inputNames: Set<String> = problem.inputs.map { it.name }.toSet()
+        val declaredResponseNames: Set<String> = problem.responseNames.toSet()
+
+        validateStartingPoint(solver, problem.inputs, inputNames, builder)
+        validateLinearConstraints(problem.linearConstraints, inputNames, builder)
         validateResponseConstraintsDocument(
-            config.problem.responseConstraints,
+            problem.responseConstraints,
             declaredResponseNames,
             builder
         )
-        validateSimulatedAnnealing(config.solver, builder)
+        validateSimulatedAnnealing(solver, builder)
         return builder.build()
     }
 
@@ -112,10 +140,16 @@ object OptimizationConfigurationValidator {
             model,
             builder
         )
-        validateInputsAgainstModel(config.problem.inputs, model, builder)
-        validateObjectiveResponseAgainstModel(config.problem.objectiveResponseName, model, builder)
-        validateResponseConstraintsAgainstModel(config.problem.responseConstraints, model, builder)
-        validateInputControlConflict(config, model, builder)
+        // Cross-reference checks against the model.  Skip silently when
+        // the problem section is missing — the document-only pass above
+        // has already recorded a MISSING_SECTION error for that case.
+        val problem = config.problem
+        if (problem != null) {
+            validateInputsAgainstModel(problem.inputs, model, builder)
+            validateObjectiveResponseAgainstModel(problem.objectiveResponseName, model, builder)
+            validateResponseConstraintsAgainstModel(problem.responseConstraints, model, builder)
+            validateInputControlConflict(config, model, builder)
+        }
 
         return builder.build()
     }
@@ -272,11 +306,13 @@ object OptimizationConfigurationValidator {
     ) {
         // A baseline control whose key matches a decision-variable name is
         // ambiguous: the optimizer would overwrite the fixed value on every
-        // evaluation.
+        // evaluation.  Called only from the validateForRun path with a
+        // confirmed non-null problem section.
+        val problem = config.problem ?: return
         val controlKeys: Set<String> = collectControlKeys(config)
         if (controlKeys.isEmpty()) return
 
-        val problemInputs = config.problem.inputs
+        val problemInputs = problem.inputs
         for ((index, input) in problemInputs.withIndex()) {
             if (input.name in controlKeys) {
                 builder.error(

@@ -405,6 +405,52 @@ class OptimizationConfigurationValidatorTest {
         )
     }
 
+    // ── Draft-document (null problem / solver) errors ────────────────────────
+
+    @Test
+    fun `validate flags missing problem section`() {
+        val config = mm1Config().copy(problem = null)
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertFalse(result.isValid)
+        assertTrue(
+            result.hasError("problem", "MISSING_SECTION"),
+            "Expected MISSING_SECTION at path 'problem'; got ${result.errors}"
+        )
+    }
+
+    @Test
+    fun `validate flags missing solver section`() {
+        val config = mm1Config().copy(solver = null)
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertFalse(result.isValid)
+        assertTrue(
+            result.hasError("solver", "MISSING_SECTION"),
+            "Expected MISSING_SECTION at path 'solver'; got ${result.errors}"
+        )
+    }
+
+    @Test
+    fun `validate flags both missing problem and solver in one pass`() {
+        val config = mm1Config().copy(problem = null, solver = null)
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertFalse(result.isValid)
+        assertTrue(result.hasError("problem", "MISSING_SECTION"))
+        assertTrue(result.hasError("solver", "MISSING_SECTION"))
+    }
+
+    @Test
+    fun `validate skips cross-reference checks when problem is null`() {
+        // A null problem section means there's nothing to cross-reference
+        // against; the validator should report MISSING_SECTION only and
+        // not produce additional STARTING_POINT_UNKNOWN_INPUT or similar
+        // errors that would otherwise be triggered by the (now-missing)
+        // inputs list.
+        val config = mm1Config().copy(problem = null)
+        val result = OptimizationConfigurationValidator.validate(config)
+        assertTrue(result.errors.all { it.code == "MISSING_SECTION" },
+            "Expected only MISSING_SECTION errors; got ${result.errors.map { it.code }}")
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private fun ValidationResult.hasError(path: String, code: String): Boolean =

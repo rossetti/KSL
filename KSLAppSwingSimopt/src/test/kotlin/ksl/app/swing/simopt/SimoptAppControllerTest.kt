@@ -27,6 +27,7 @@ import ksl.examples.general.appsupport.MM1Bundle
 import ksl.app.swing.simopt.stepper.Step
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -241,6 +242,72 @@ class SimoptAppControllerTest {
             )
             assertEquals(3, variants.size)
             assertNotNull(c)
+        }
+    }
+
+    @Test
+    fun `currentConfiguration returns non-null after only a model is set`() {
+        // Phase O4.1: partial-save support.  As soon as a model is
+        // selected the controller can snapshot a draft document with
+        // null problem / solver.
+        SimoptAppController("Test").use { c ->
+            assertNull(c.currentConfiguration(),
+                "Fresh document has no model — snapshot should be null")
+            c.setModelReference(mm1Ref())
+            val snap = c.currentConfiguration()
+            assertNotNull(snap, "After model is set, snapshot should be non-null")
+            assertNull(snap.problem, "Partial draft has null problem")
+            assertNull(snap.solver, "Partial draft has null solver")
+        }
+    }
+
+    @Test
+    fun `saveConfiguration writes a partial document after only a model is set`(@TempDir tempDir: Path) {
+        // The previous (pre-O4.1) gate required problem + solver to
+        // be set before save; this test pins the relaxed behaviour.
+        SimoptAppController("Test").use { c ->
+            c.setModelReference(mm1Ref())
+            val target = tempDir.resolve("draft.toml")
+            c.saveConfiguration(target)
+            assertTrue(target.toFile().exists())
+            assertFalse(c.isDirty.value, "Save should clear the dirty flag")
+            // Re-decode and verify the saved draft carries null problem
+            // / solver.  Checking the raw text via substring match is
+            // unreliable because the document-header banner contains
+            // the literal text "[problem]" as commentary.
+            val decoded = ksl.app.config.optimization
+                .OptimizationRunConfigurationToml.decode(target.toFile().readText())
+            assertNotNull(decoded.model)
+            assertNull(decoded.problem, "Partial save must carry null problem")
+            assertNull(decoded.solver, "Partial save must carry null solver")
+        }
+    }
+
+    @Test
+    fun `loadConfiguration of a partial doc populates model and leaves problem and solver null`(
+        @TempDir tempDir: Path
+    ) {
+        // Save a draft from one controller, load it into another;
+        // assert the load restores the editor state for continued
+        // editing.
+        val target = tempDir.resolve("draft.toml")
+        SimoptAppController("Test").use { writer ->
+            writer.setModelReference(mm1Ref())
+            writer.saveConfiguration(target)
+        }
+        SimoptAppController("Test").use { reader ->
+            val result = reader.loadConfiguration(target)
+            assertTrue(
+                result is SimoptAppController.LoadResult.Success,
+                "Expected Success; got $result"
+            )
+            assertNotNull(reader.modelTemplate.value)
+            assertNull(reader.problemSpec.value)
+            assertNull(reader.solverSpec.value)
+            assertTrue(reader.canAdvanceTo(ksl.app.swing.simopt.stepper.Step.PROBLEM),
+                "Loaded partial doc with model set must unlock the Problem step")
+            assertFalse(reader.canAdvanceTo(ksl.app.swing.simopt.stepper.Step.ALGORITHM),
+                "No solver yet — Algorithm step must stay locked")
         }
     }
 }

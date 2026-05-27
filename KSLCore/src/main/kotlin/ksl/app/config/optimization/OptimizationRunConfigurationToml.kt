@@ -107,6 +107,12 @@ object OptimizationRunConfigurationToml {
         #                       'stochasticHillClimbing', 'simulatedAnnealing',
         #                       'crossEntropy', or 'rSpline'.  Set [solver.randomRestart]
         #                       to wrap the chosen algorithm in random-restart.
+        #
+        #  In-progress drafts: the [problem] and [solver] sections may be omitted
+        #  entirely.  Saving from the GUI editor before all sections are authored
+        #  produces such a draft; loading it restores the partial editor state.
+        #  Submit-time consumers reject drafts with a clear error.
+        #
         #    [evaluation]       Cross-cutting evaluator/solver settings (caches,
         #                       snapshot frequency, feasibility).
         #    [tracking]         Optional CSV / console trace settings.  When

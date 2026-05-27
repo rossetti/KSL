@@ -79,14 +79,34 @@ class OptimizationSolverFactory(
     /**
      * Build a runnable [Solver] from [config].  See class KDoc for the
      * translation pipeline.
+     *
+     * Rejects in-progress draft documents with a clear error:
+     * [OptimizationRunConfiguration.problem] and
+     * [OptimizationRunConfiguration.solver] are nullable to support
+     * partial saves from GUI editors, but the live runtime requires
+     * both sections present.  When either is null, this factory throws
+     * [IllegalStateException] naming the missing section(s).
      */
     fun build(config: OptimizationRunConfiguration): Solver {
-        val problem = buildProblemDefinition(config.problem)
+        val problemSpec = config.problem
+        val solverSpec = config.solver
+        val missing = buildList {
+            if (problemSpec == null) add("problem")
+            if (solverSpec == null) add("solver")
+        }
+        if (missing.isNotEmpty()) {
+            throw IllegalStateException(
+                "Cannot build solver: in-progress draft document is missing required " +
+                    "section(s): ${missing.joinToString(", ")}.  Author the section(s) " +
+                    "in the editor (or hand-author the TOML) before submitting the run."
+            )
+        }
+        val problem = buildProblemDefinition(problemSpec!!)
         val builder = ConfiguredModelBuilder(config.model, provider)
         val solutionCache = makeSolutionCache(config.evaluation)
         val simulationRunCache = makeSimulationRunCache(config.evaluation)
         val solver = dispatch(
-            spec               = config.solver,
+            spec               = solverSpec!!,
             problem            = problem,
             builder            = builder,
             solutionCache      = solutionCache,

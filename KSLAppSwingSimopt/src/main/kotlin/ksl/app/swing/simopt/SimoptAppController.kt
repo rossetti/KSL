@@ -935,8 +935,12 @@ class SimoptAppController(
     private fun installLoaded(config: OptimizationRunConfiguration) {
         myOutput.value = config.output
         myModelTemplate.value = config.model
-        // Fan out config.problem into the per-piece flows.
-        config.problem.let { p ->
+        // Fan out config.problem into the per-piece flows.  A null
+        // problem section (in-progress draft) leaves every piece at
+        // its initial default — matching the controller's fresh-doc
+        // state for the Problem step.
+        val p = config.problem
+        if (p != null) {
             myObjectiveResponseName.value = p.objectiveResponseName
             myOptimizationType.value = p.optimizationType
             myProblemName.value = p.problemName
@@ -949,6 +953,19 @@ class SimoptAppController(
             myResponseConstraints.value = p.responseConstraints
             myDefaultLinearPenalty.value = p.defaultLinearPenalty
             myDefaultResponsePenalty.value = p.defaultResponsePenalty
+        } else {
+            myObjectiveResponseName.value = null
+            myOptimizationType.value = OptimizationType.MINIMIZE
+            myProblemName.value = null
+            myIndifferenceZoneParameter.value = 0.0
+            myObjectiveGranularity.value = 0.0
+            myInputs.value = emptyList()
+            mySelectedInputIndex.value = -1
+            myResponseNames.value = emptyList()
+            myLinearConstraints.value = emptyList()
+            myResponseConstraints.value = emptyList()
+            myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
+            myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         }
         myProblemSpec.value = config.problem
         mySolverSpec.value = config.solver
@@ -957,12 +974,13 @@ class SimoptAppController(
     }
 
     /** Encode the current document to TOML and write it to [path].
-     *  Throws when the document is incomplete (model / problem /
-     *  solver not yet specified) — callers should gate Save on
-     *  [currentConfiguration] being non-null. */
+     *  Throws when no model has been selected yet — callers gate Save
+     *  on [currentConfiguration] being non-null.  Documents with only
+     *  a model (no problem / no solver) are valid in-progress drafts
+     *  and save successfully. */
     fun saveConfiguration(path: Path) {
         val config = currentConfiguration()
-            ?: error("Cannot save: document is incomplete (model, problem, and solver must be set)")
+            ?: error("Cannot save: no model selected.  Pick a model on the Model step first.")
         Files.createDirectories(path.parent)
         path.toFile().writeText(OptimizationRunConfigurationToml.encode(config))
         markSaved(path)
@@ -985,18 +1003,19 @@ class SimoptAppController(
     }
 
     /** Compose the live document from the controller's StateFlows,
-     *  or return `null` when any required spec is missing.  Used by
-     *  Save (which requires non-null) and by the Run step's
-     *  validator. */
+     *  or return `null` when no model is set.  The returned config
+     *  may carry `null` [OptimizationRunConfiguration.problem] and /
+     *  or [OptimizationRunConfiguration.solver] for in-progress
+     *  drafts; the file-save path accepts those.  Submit-time
+     *  consumers (the solver factory + validator) reject the partial
+     *  shape with clear errors. */
     fun currentConfiguration(): OptimizationRunConfiguration? {
         val model = myModelTemplate.value ?: return null
-        val problem = myProblemSpec.value ?: return null
-        val solver = mySolverSpec.value ?: return null
         return OptimizationRunConfiguration(
             output = myOutput.value,
             model = model,
-            problem = problem,
-            solver = solver,
+            problem = myProblemSpec.value,
+            solver = mySolverSpec.value,
             evaluation = myEvaluationSpec.value,
             tracking = myTrackingSpec.value
         )

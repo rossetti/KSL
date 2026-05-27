@@ -161,6 +161,65 @@ class OptimizationDocumentTomlTest {
         assertEquals(null, spec.csvFileName)
     }
 
+    // ── 9. Partial document with null problem and solver round-trips ─────────
+
+    @Test
+    fun `partial document with null problem and solver round-trips through TOML`() {
+        // A draft document the SimOpt App writes after the user has
+        // picked a model but before authoring the problem / solver.
+        val partial = OptimizationRunConfiguration(
+            output = OptimizationOutputConfig(analysisName = "Draft"),
+            model = defaultModel(),
+            problem = null,
+            solver = null,
+            evaluation = EvaluationSpec(),
+            tracking = SolverTrackingSpec()
+        )
+        val encoded = OptimizationRunConfigurationToml.encode(partial)
+        val decoded = OptimizationRunConfigurationToml.decode(encoded)
+        assertEquals(partial, decoded)
+        assertEquals(null, decoded.problem)
+        assertEquals(null, decoded.solver)
+    }
+
+    // ── 10. Omitted [problem] / [solver] sections decode as null ─────────────
+
+    @Test
+    fun `omitted problem and solver TOML sections decode as null`() {
+        // Hand-written minimal TOML — no [problem] or [solver] sections.
+        // The model section uses ByProviderId which keeps the document
+        // self-contained without needing a bundle for this test.
+        val tomlText = """
+            [output]
+            analysisName = "HandAuthored"
+
+            [model.modelReference]
+            type = "byProviderId"
+            providerId = "MM1"
+
+            [model.runParameters]
+            experimentName = "MM1"
+            experimentId = 1
+            numberOfReplications = 5
+            numChunks = 1
+            runName = "MM1"
+            startingRepId = 1
+            lengthOfReplication = 100.0
+            lengthOfReplicationWarmUp = 0.0
+            replicationInitializationOption = true
+            maximumAllowedExecutionTimePerReplication = "PT0S"
+            resetStartStreamOption = false
+            advanceNextSubStreamOption = true
+            antitheticOption = false
+            numberOfStreamAdvancesPriorToRunning = 0
+            garbageCollectAfterReplicationFlag = false
+        """.trimIndent()
+        val decoded = OptimizationRunConfigurationToml.decode(tomlText)
+        assertEquals(null, decoded.problem)
+        assertEquals(null, decoded.solver)
+        assertEquals("HandAuthored", decoded.output.analysisName)
+    }
+
     // ── shared fixture builders ──────────────────────────────────────────────
 
     private fun defaultConfig(

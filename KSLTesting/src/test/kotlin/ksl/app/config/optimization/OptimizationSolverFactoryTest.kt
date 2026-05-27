@@ -379,6 +379,42 @@ class OptimizationSolverFactoryTest {
             (response.penaltyFunction as ksl.simopt.problem.PenaltyFunctionWithMemory).basePenalty)
     }
 
+    // ── Draft-document rejection ─────────────────────────────────────────────
+
+    @Test
+    fun `factory rejects null problem with a clear error`() {
+        val cfg = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 1)
+        ).copy(problem = null)
+        val ex = assertThrows<IllegalStateException> { factory().build(cfg) }
+        assertTrue(
+            "problem" in (ex.message ?: ""),
+            "Error message should name the missing 'problem' section; was: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `factory rejects null solver with a clear error`() {
+        val cfg = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 1)
+        ).copy(solver = null)
+        val ex = assertThrows<IllegalStateException> { factory().build(cfg) }
+        assertTrue(
+            "solver" in (ex.message ?: ""),
+            "Error message should name the missing 'solver' section; was: ${ex.message}"
+        )
+    }
+
+    @Test
+    fun `factory rejects both null problem and null solver and names both`() {
+        val cfg = config(
+            solver = SolverSpec.StochasticHillClimbing(maxIterations = 5, replicationsPerEvaluation = 1)
+        ).copy(problem = null, solver = null)
+        val ex = assertThrows<IllegalStateException> { factory().build(cfg) }
+        assertTrue("problem" in (ex.message ?: "") && "solver" in (ex.message ?: ""),
+            "Error should name both missing sections; was: ${ex.message}")
+    }
+
     private companion object {
         const val MM1_MODEL_ID = "MM1OptSolverFactoryTest"
     }

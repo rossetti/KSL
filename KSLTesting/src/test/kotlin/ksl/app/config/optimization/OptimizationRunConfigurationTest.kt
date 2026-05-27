@@ -156,8 +156,8 @@ class OptimizationRunConfigurationTest {
 
         assertEquals(config, jsonDecoded)
         assertEquals(config, tomlDecoded)
-        assertEquals(4, jsonDecoded.solver.randomRestart?.maxNumRestarts)
-        assertEquals(4, tomlDecoded.solver.randomRestart?.maxNumRestarts)
+        assertEquals(4, jsonDecoded.solver!!.randomRestart?.maxNumRestarts)
+        assertEquals(4, tomlDecoded.solver!!.randomRestart?.maxNumRestarts)
     }
 
     // ── 6. Sealed SolverSpec discriminator coverage ──────────────────────────
@@ -296,8 +296,8 @@ class OptimizationRunConfigurationTest {
 
         assertEquals(config, jsonDecoded)
         assertEquals(config, tomlDecoded)
-        assertEquals(1, jsonDecoded.problem.linearConstraints.size)
-        assertEquals(1, jsonDecoded.problem.responseConstraints.size)
+        assertEquals(1, jsonDecoded.problem!!.linearConstraints.size)
+        assertEquals(1, jsonDecoded.problem!!.responseConstraints.size)
     }
 
     // ── 10. Defaults appear in encoded output (encodeDefaults = true) ────────
@@ -322,8 +322,8 @@ class OptimizationRunConfigurationTest {
         // Round-trip preserves the values populated by defaults.
         val decoded = OptimizationRunConfigurationJson.decode(json)
         assertEquals(EvaluationSpec(), decoded.evaluation)
-        assertEquals(OptimizationType.MINIMIZE, decoded.problem.optimizationType)
-        assertNull(decoded.solver.randomRestart)
+        assertEquals(OptimizationType.MINIMIZE, decoded.problem!!.optimizationType)
+        assertNull(decoded.solver!!.randomRestart)
     }
 
     // ── 11. Per-constraint penalty function round-trips ──────────────────────
@@ -369,9 +369,9 @@ class OptimizationRunConfigurationTest {
 
         assertEquals(config, jsonDecoded)
         assertEquals(config, tomlDecoded)
-        assertTrue(jsonDecoded.problem.linearConstraints.first().penaltyFunction
+        assertTrue(jsonDecoded.problem!!.linearConstraints.first().penaltyFunction
             is PenaltyFunctionSpec.DynamicPolynomial)
-        assertTrue(jsonDecoded.problem.responseConstraints.first().penaltyFunction
+        assertTrue(jsonDecoded.problem!!.responseConstraints.first().penaltyFunction
             is PenaltyFunctionSpec.WithMemory)
     }
 
