@@ -1944,13 +1944,12 @@ class SimoptAppController(
 
         // Snapshot the run output directory now so any subsequent
         // edits or `refreshAutoRunOutputDir()` calls don't move the
-        // target out from under the active run.
+        // target out from under the active run.  We do NOT create
+        // the directory here — each writer (tracker attach,
+        // future HTML report, etc.) creates its own parents
+        // lazily, so a run with no enabled artifacts leaves no
+        // empty directory behind.
         val runDir = myRunOutputDir.value
-        try {
-            Files.createDirectories(runDir)
-        } catch (_: Throwable) {
-            // Best-effort; tracker attach will retry per artifact.
-        }
 
         attachTrackers(solver, config, runDir)
 

@@ -36,12 +36,17 @@ import javax.swing.JTextField
 /**
  * Editor for [ksl.app.config.optimization.SolverTrackingSpec].
  *
- * Three toggles + two text fields:
+ * Two toggles + two text fields:
  *   - CSV-trace toggle + file-name stem (when stem is blank,
  *     "default" semantics use the solver's name).
  *   - Resolved-path read-only label, updated live.
- *   - Mirror-to-console toggle.
- *   - Experiment label (defaults to "Run1").
+ *   - Trace row label (defaults to "Run1") — tags every emitted
+ *     CSV row so manually-combined traces can distinguish runs.
+ *
+ * The substrate's `enableConsoleTrace` field is intentionally not
+ * surfaced in the GUI — `SolverTrackingSpec` still carries it for
+ * TOML round-trip compatibility, but the GUI never sets it true, so
+ * the console tracker is never attached.
  *
  * Each edit calls [SimoptAppController.setTrackingSpec], a
  * *preference* mutator (marks dirty but does NOT drop `lastResult`).
@@ -57,8 +62,11 @@ class TrackingPanel(
         foreground = Color(0x55, 0x55, 0x55)
         font = font.deriveFont(Font.PLAIN, 11f)
     }
-    private val enableConsoleCheckbox = JCheckBox("Mirror trace to console")
-    private val experimentLabelField = JTextField(16)
+    private val traceLabelField = JTextField(16).apply {
+        toolTipText = "Tagged onto every row in the CSV trace file. Distinguishes " +
+            "rows when you manually combine multiple trace files into one analysis. " +
+            "Default: Run1."
+    }
 
     private val fileNameLabel = JLabel("File name (stem):")
     private val resolvedHeader = JLabel("Resolved path:").apply {
@@ -84,19 +92,18 @@ class TrackingPanel(
             insets = Insets(2, 24, 2, 8)))
         add(resolvedPathLabel, gbc(1, 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
 
-        add(enableConsoleCheckbox, gbc(0, 3, width = 2, anchor = GridBagConstraints.WEST,
+        add(JLabel("Trace row label:"), gbc(0, 3, anchor = GridBagConstraints.WEST,
             insets = Insets(8, 4, 2, 4)))
-
-        add(JLabel("Experiment label:"), gbc(0, 4, anchor = GridBagConstraints.WEST))
-        add(experimentLabelField, gbc(1, 4, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL))
+        add(traceLabelField, gbc(1, 3, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+            insets = Insets(8, 4, 2, 4)))
 
         val help = JLabel(
             "<html><i>Tracking is a preference — editing these settings marks the " +
                 "document dirty but does NOT invalidate the previous run's results.  " +
-                "The experiment label tags every emitted tracker row so multiple runs " +
-                "into the same trace file can be distinguished.</i></html>"
+                "The trace row label is written into each CSV row so multiple traces " +
+                "manually combined into one file can still be distinguished.</i></html>"
         ).apply { foreground = Color(0x55, 0x55, 0x55); font = font.deriveFont(Font.PLAIN, 11f) }
-        add(help, gbc(0, 5, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
+        add(help, gbc(0, 4, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
             insets = Insets(6, 4, 2, 4)))
 
         wireCheckboxes()
@@ -109,7 +116,6 @@ class TrackingPanel(
 
     private fun wireCheckboxes() {
         enableCsvCheckbox.addActionListener { commitFromUi() }
-        enableConsoleCheckbox.addActionListener { commitFromUi() }
     }
 
     private fun wireFields() {
@@ -117,8 +123,8 @@ class TrackingPanel(
         fileNameField.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusLost(e: java.awt.event.FocusEvent) { commitFromUi() }
         })
-        experimentLabelField.addActionListener { commitFromUi() }
-        experimentLabelField.addFocusListener(object : java.awt.event.FocusAdapter() {
+        traceLabelField.addActionListener { commitFromUi() }
+        traceLabelField.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusLost(e: java.awt.event.FocusEvent) { commitFromUi() }
         })
     }
@@ -142,13 +148,15 @@ class TrackingPanel(
         val cur = controller.trackingSpec.value
         val csv = enableCsvCheckbox.isSelected
         val stem = fileNameField.text.trim().takeIf { it.isNotBlank() }
-        val console = enableConsoleCheckbox.isSelected
-        val label = experimentLabelField.text.trim().ifBlank { "Run1" }
+        val label = traceLabelField.text.trim().ifBlank { "Run1" }
         val updated = try {
             cur.copy(
                 enableCsvTrace = csv,
                 csvFileName = stem,
-                enableConsoleTrace = console,
+                // enableConsoleTrace is not editable from the GUI;
+                // preserve whatever value the spec already carries
+                // (false for fresh documents; whatever TOML load
+                // brought in for round-tripped documents).
                 experimentLabel = label
             )
         } catch (ex: IllegalArgumentException) {
@@ -170,9 +178,8 @@ class TrackingPanel(
             fileNameLabel.isEnabled = s.enableCsvTrace
             resolvedPathLabel.isEnabled = s.enableCsvTrace
             resolvedHeader.isEnabled = s.enableCsvTrace
-            enableConsoleCheckbox.isSelected = s.enableConsoleTrace
-            if (!experimentLabelField.hasFocus()) {
-                experimentLabelField.text = s.experimentLabel
+            if (!traceLabelField.hasFocus()) {
+                traceLabelField.text = s.experimentLabel
             }
         } finally { suppress = false }
     }

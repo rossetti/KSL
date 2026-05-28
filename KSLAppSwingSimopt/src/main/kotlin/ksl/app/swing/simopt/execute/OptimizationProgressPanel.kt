@@ -34,6 +34,29 @@ import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 /**
+ *  Render an objective-function value for the GUI.
+ *
+ *  - `+Double.MAX_VALUE` / `Double.POSITIVE_INFINITY` → `"+∞"`
+ *  - `-Double.MAX_VALUE` / `Double.NEGATIVE_INFINITY` → `"−∞"`
+ *  - `NaN` → `"—"` (em-dash, "not yet evaluated")
+ *  - everything else → four-digit fixed precision (`"%.4f"`)
+ *
+ *  Solvers commonly seed the "no feasible solution yet" state with
+ *  the `±Double.MAX_VALUE` sentinel; printing that as a 309-digit
+ *  decimal alarms users without conveying meaning.  Mapping the
+ *  sentinel to the infinity symbol matches its intent.
+ *
+ *  Top-level so it can be exercised by [SimoptAppExecuteTest] without
+ *  instantiating Swing.
+ */
+internal fun formatObjective(v: Double): String = when {
+    v == Double.MAX_VALUE || v == Double.POSITIVE_INFINITY -> "+∞"
+    v == -Double.MAX_VALUE || v == Double.NEGATIVE_INFINITY -> "−∞"
+    v.isNaN() -> "—"
+    else -> "%.4f".format(v)
+}
+
+/**
  * Numeric progress display for a running or completed optimization.
  *
  * Three live rows:
@@ -141,8 +164,9 @@ class OptimizationProgressPanel(
         }
     }
 
-    private fun formatObjective(v: Double): String =
-        if (v.isFinite()) "%.4f".format(v) else v.toString()
+    // formatObjective is a top-level helper above; the class
+    // delegates to it so the same formatting can be unit-tested
+    // without a Swing instance.
 
     // ── Layout helpers ────────────────────────────────────────────────────
 

@@ -27,6 +27,7 @@ import ksl.app.swing.simopt.algorithm.CeSamplerEditor
 import ksl.app.swing.simopt.algorithm.CoolingScheduleEditor
 import ksl.app.swing.simopt.algorithm.RandomRestartEditor
 import ksl.app.swing.simopt.algorithm.TemperatureSpecEditor
+import ksl.app.swing.simopt.runsetup.DisclosurePanel
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -152,6 +153,28 @@ class AlgorithmStepPanel(
         onChanged = { spec -> controller.setRandomRestart(spec) }
     )
 
+    // ── Disclosure wrappers ──────────────────────────────────────────────
+    //
+    // Algorithm-specific parameters and the random-restart wrapper each
+    // sit inside a `DisclosurePanel` so their headers are always
+    // visible in the rail-style stack — users discover what's there
+    // without scrolling past the common-parameter block.  Default
+    // states reflect editing frequency: algorithm-specific is expanded
+    // (primary editing surface) and random restart is collapsed (an
+    // optional wrapper most users won't touch).  Summary lines on
+    // each header keep the current state visible when collapsed.
+
+    private val algorithmSpecificDisclosure = DisclosurePanel(
+        title = "Algorithm-specific parameters",
+        body = buildAlgorithmSpecificBody(),
+        initiallyExpanded = true
+    )
+    private val randomRestartDisclosure = DisclosurePanel(
+        title = "Random restart",
+        body = buildRandomRestartBody(),
+        initiallyExpanded = false
+    )
+
     @Volatile private var suppressEvents = false
 
     init {
@@ -164,9 +187,9 @@ class AlgorithmStepPanel(
             add(Box.createVerticalStrut(8))
             add(buildCommonSection())
             add(Box.createVerticalStrut(8))
-            add(buildCardSection())
+            add(algorithmSpecificDisclosure)
             add(Box.createVerticalStrut(8))
-            add(buildRandomRestartSection())
+            add(randomRestartDisclosure)
             add(Box.createVerticalGlue())
         }
 
@@ -230,29 +253,29 @@ class AlgorithmStepPanel(
         add(rpeNote, gbc(2, 3, anchor = GridBagConstraints.WEST, insets = Insets(2, 8, 2, 4)))
     }
 
-    private fun buildCardSection(): JPanel = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Algorithm-specific parameters"),
-            BorderFactory.createEmptyBorder(2, 6, 6, 6)
-        )
+    /** Body panel for the algorithm-specific [DisclosurePanel].  Hosts
+     *  the [cards]/[cardHost] CardLayout that swaps editors per
+     *  selected [AlgorithmKind]. */
+    private fun buildAlgorithmSpecificBody(): JPanel = JPanel(BorderLayout()).apply {
+        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
         add(cardHost, BorderLayout.CENTER)
     }
 
-    private fun buildRandomRestartSection(): JPanel = JPanel(BorderLayout()).apply {
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Random restart"),
-            BorderFactory.createEmptyBorder(2, 6, 6, 6)
-        )
-        add(randomRestartEditor, BorderLayout.CENTER)
+    /** Body panel for the random-restart [DisclosurePanel].  The
+     *  what-does-this-do explainer lives inline since the disclosure
+     *  collapses everything else by default. */
+    private fun buildRandomRestartBody(): JPanel = JPanel(BorderLayout()).apply {
+        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
         val help = JLabel(
             "<html><i>When enabled, the solver factory wraps the chosen algorithm " +
                 "in a RandomRestartSolver that runs the algorithm up to N times from " +
                 "randomly-drawn starting points.</i></html>"
         ).apply {
             foreground = Color(0x55, 0x55, 0x55)
-            border = BorderFactory.createEmptyBorder(6, 4, 2, 4)
+            border = BorderFactory.createEmptyBorder(0, 0, 6, 0)
         }
-        add(help, BorderLayout.SOUTH)
+        add(help, BorderLayout.NORTH)
+        add(randomRestartEditor, BorderLayout.CENTER)
     }
 
     // ── Card builders ─────────────────────────────────────────────────────
@@ -466,6 +489,7 @@ class AlgorithmStepPanel(
             refreshPicker()
             refreshCardSelection()
             refreshRpeNote()
+            refreshDisclosureSummaries()
         }.launchIn(controller.edtScope)
 
         controller.commonMaxIterations.onEach { _ -> refreshCommonFields() }
@@ -485,26 +509,33 @@ class AlgorithmStepPanel(
         controller.saCoolingSchedule.onEach { spec ->
             if (saCoolingEditor.value != spec) saCoolingEditor.setValue(spec)
         }.launchIn(controller.edtScope)
-        controller.saStoppingTemperature.onEach { _ -> refreshSaCard() }
-            .launchIn(controller.edtScope)
+        controller.saStoppingTemperature.onEach { _ ->
+            refreshSaCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
 
         controller.ceSampler.onEach { spec ->
             if (ceSamplerEditor.value != spec) ceSamplerEditor.setValue(spec)
         }.launchIn(controller.edtScope)
-        controller.ceElitePct.onEach { _ -> refreshCeCard() }
-            .launchIn(controller.edtScope)
-        controller.ceSampleSize.onEach { _ -> refreshCeCard() }
-            .launchIn(controller.edtScope)
+        controller.ceElitePct.onEach { _ ->
+            refreshCeCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
+        controller.ceSampleSize.onEach { _ ->
+            refreshCeCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
 
-        controller.rsplineInitialNumReps.onEach { _ -> refreshRsplineCard() }
-            .launchIn(controller.edtScope)
-        controller.rsplineGrowthRate.onEach { _ -> refreshRsplineCard() }
-            .launchIn(controller.edtScope)
-        controller.rsplineMaxNumReplications.onEach { _ -> refreshRsplineCard() }
-            .launchIn(controller.edtScope)
+        controller.rsplineInitialNumReps.onEach { _ ->
+            refreshRsplineCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
+        controller.rsplineGrowthRate.onEach { _ ->
+            refreshRsplineCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
+        controller.rsplineMaxNumReplications.onEach { _ ->
+            refreshRsplineCard(); refreshDisclosureSummaries()
+        }.launchIn(controller.edtScope)
 
         controller.randomRestart.onEach { spec ->
             if (randomRestartEditor.value != spec) randomRestartEditor.setValue(spec)
+            refreshDisclosureSummaries()
         }.launchIn(controller.edtScope)
     }
 
@@ -518,6 +549,42 @@ class AlgorithmStepPanel(
         refreshRsplineCard()
         refreshCardSelection()
         refreshRpeNote()
+        refreshDisclosureSummaries()
+    }
+
+    /** Update the one-line summary lines shown on the two
+     *  [DisclosurePanel]s when they're collapsed, so users can read
+     *  the current state without expanding the section. */
+    private fun refreshDisclosureSummaries() {
+        algorithmSpecificDisclosure.setSummary(algorithmSpecificSummary())
+        randomRestartDisclosure.setSummary(randomRestartSummary())
+    }
+
+    private fun algorithmSpecificSummary(): String =
+        when (controller.algorithmKind.value) {
+            null -> "pick an algorithm above"
+            AlgorithmKind.STOCHASTIC_HILL_CLIMBING ->
+                "Stochastic Hill Climbing — no extra parameters"
+            AlgorithmKind.SIMULATED_ANNEALING -> {
+                val stop = controller.saStoppingTemperature.value
+                "Simulated Annealing — stopping T=$stop"
+            }
+            AlgorithmKind.CROSS_ENTROPY -> {
+                val elite = controller.ceElitePct.value
+                val n = controller.ceSampleSize.value
+                "Cross-Entropy — elite=$elite, sample=$n"
+            }
+            AlgorithmKind.R_SPLINE -> {
+                val init = controller.rsplineInitialNumReps.value
+                val growth = controller.rsplineGrowthRate.value
+                val max = controller.rsplineMaxNumReplications.value
+                "R-SPLINE — init=$init, growth=$growth, max=$max"
+            }
+        }
+
+    private fun randomRestartSummary(): String {
+        val r = controller.randomRestart.value ?: return "off"
+        return "on — max ${r.maxNumRestarts} restarts"
     }
 
     private fun refreshPicker() {

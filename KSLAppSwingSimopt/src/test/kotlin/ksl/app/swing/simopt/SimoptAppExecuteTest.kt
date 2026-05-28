@@ -23,9 +23,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import ksl.app.config.ModelReference
 import ksl.app.config.optimization.OptimizationInputSpec
+import ksl.app.swing.simopt.execute.formatObjective
 import ksl.controls.ControlType
 import ksl.examples.general.appsupport.SimoptTestModelsBundle
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -219,5 +221,39 @@ class SimoptAppExecuteTest {
             )
             awaitNotRunning(c)
         }
+    }
+
+    // ── formatObjective sentinel handling ─────────────────────────────
+
+    @Test
+    fun `formatObjective maps Double_MAX_VALUE to plus infinity`() {
+        assertEquals("+∞", formatObjective(Double.MAX_VALUE))
+    }
+
+    @Test
+    fun `formatObjective maps negative Double_MAX_VALUE to minus infinity`() {
+        assertEquals("−∞", formatObjective(-Double.MAX_VALUE))
+    }
+
+    @Test
+    fun `formatObjective maps POSITIVE_INFINITY to plus infinity`() {
+        assertEquals("+∞", formatObjective(Double.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun `formatObjective maps NEGATIVE_INFINITY to minus infinity`() {
+        assertEquals("−∞", formatObjective(Double.NEGATIVE_INFINITY))
+    }
+
+    @Test
+    fun `formatObjective maps NaN to em-dash`() {
+        assertEquals("—", formatObjective(Double.NaN))
+    }
+
+    @Test
+    fun `formatObjective renders finite values with four-decimal precision`() {
+        assertEquals("142.3100", formatObjective(142.31))
+        assertEquals("0.0000", formatObjective(0.0))
+        assertEquals("-3.1416", formatObjective(-3.14159))
     }
 }
