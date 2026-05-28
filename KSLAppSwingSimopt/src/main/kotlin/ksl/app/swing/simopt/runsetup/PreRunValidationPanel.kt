@@ -21,9 +21,7 @@ package ksl.app.swing.simopt.runsetup
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.validation.FieldError
-import ksl.app.validation.OptimizationConfigurationValidator
 import ksl.app.validation.ValidationResult
-import ksl.app.validation.ValidationSeverity
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.stepper.Step
 import java.awt.Color
@@ -44,16 +42,15 @@ import javax.swing.JScrollPane
 /**
  * Live pre-run validation surface.
  *
- * **Document-only checks** (cheap) run on every state change —
- * [OptimizationConfigurationValidator.validate] doesn't build a
- * probe model and is safe to call live.  Results are merged with
- * any cached model-aware result.
+ * Reads three controller flows hoisted in Phase O7b:
  *
- * **Model-aware checks** (expensive) are gated behind a *Re-check
- * against model* button.  Clicking it calls
- * [OptimizationConfigurationValidator.validateForRun] with the
- * controller's bundle provider, builds a probe model, and caches
- * the result until the next document edit invalidates it.
+ *  - `SimoptAppController.documentValidation` — cheap, recomputed on
+ *    every document edit; merged unconditionally.
+ *  - `SimoptAppController.modelAwareValidation` — populated only when
+ *    the user clicks "Re-check against model"; merged only when not
+ *    stale.
+ *  - `SimoptAppController.modelAwareStale` — gates display of the
+ *    model-aware result and drives the cache-state label.
  *
  * Each error / warning row carries a hyperlink-styled "Jump to fix"
  * link whose target step is derived from the error path:
@@ -64,9 +61,8 @@ import javax.swing.JScrollPane
  *  - `solver` / `solver.*` → [Step.ALGORITHM]
  *  - otherwise: no link rendered.
  *
- * The panel never gates the step's completion — gating stays on
- * `solverSpec != null` (set by Phase O2).  Phase O7b's Execute step
- * gates the Run button on validation.
+ * The panel never gates step completion — the Execute step's
+ * `RunControlsPanel` gates the Run button on the same flows directly.
  */
 class PreRunValidationPanel(
     private val controller: SimoptAppController
@@ -88,11 +84,6 @@ class PreRunValidationPanel(
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false
     }
-
-    /** Cached model-aware validation result.  Cleared on any document
-     *  edit; reset when the user clicks "Re-check against model". */
-    @Volatile private var modelAwareCache: ValidationResult? = null
-    @Volatile private var modelAwareStale: Boolean = true
 
     init {
         layout = GridBagLayout()
@@ -129,52 +120,23 @@ class PreRunValidationPanel(
 
     private fun wireButton() {
         recheckButton.addActionListener {
-            val config = controller.currentConfiguration() ?: run {
-                modelAwareCache = ValidationResult(
-                    errors = listOf(FieldError(
-                        path = "model", message = "Select a model on the Model step first.",
-                        severity = ValidationSeverity.ERROR, code = "MISSING_MODEL"
-                    ))
-                )
-                modelAwareStale = false
-                refresh()
-                return@addActionListener
-            }
-            val provider = controller.bundleProvider.value
-            val result = try {
-                OptimizationConfigurationValidator.validateForRun(config, provider)
-            } catch (t: Throwable) {
-                ValidationResult(
-                    errors = listOf(FieldError(
-                        path = "model", message = "Model-aware validation threw: ${t.message}",
-                        severity = ValidationSeverity.ERROR, code = "VALIDATOR_EXCEPTION"
-                    ))
-                )
-            }
-            modelAwareCache = result
-            modelAwareStale = false
-            refresh()
+            controller.runModelAwareValidationNow()
         }
     }
 
     private fun wireCollectors() {
-        val invalidate: () -> Unit = {
-            modelAwareStale = true
-            refresh()
-        }
-        controller.output.onEach { invalidate() }.launchIn(controller.edtScope)
-        controller.modelTemplate.onEach { invalidate() }.launchIn(controller.edtScope)
-        controller.problemSpec.onEach { invalidate() }.launchIn(controller.edtScope)
-        controller.solverSpec.onEach { invalidate() }.launchIn(controller.edtScope)
-        controller.evaluationSpec.onEach { invalidate() }.launchIn(controller.edtScope)
-        controller.trackingSpec.onEach { invalidate() }.launchIn(controller.edtScope)
+        controller.documentValidation.onEach { refresh() }.launchIn(controller.edtScope)
+        controller.modelAwareValidation.onEach { refresh() }.launchIn(controller.edtScope)
+        controller.modelAwareStale.onEach { refresh() }.launchIn(controller.edtScope)
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────
 
     private fun refresh() {
-        val docResult = runDocumentChecks()
-        val modelCache = modelAwareCache?.takeIf { !modelAwareStale }
+        val docResult = controller.documentValidation.value
+        val cached = controller.modelAwareValidation.value
+        val stale = controller.modelAwareStale.value
+        val modelCache = cached?.takeIf { !stale }
         val merged = merge(docResult, modelCache)
 
         // Status line + cache-state label
@@ -191,8 +153,8 @@ class PreRunValidationPanel(
             else -> Color(0x2D, 0x6D, 0x40)
         }
         cachedModelStatusLabel.text = when {
-            modelAwareCache == null -> "Model-aware checks not yet run."
-            modelAwareStale -> "Model-aware result is stale — click Re-check to refresh."
+            cached == null -> "Model-aware checks not yet run."
+            stale -> "Model-aware result is stale — click Re-check to refresh."
             else -> "Model-aware checks last passed at this state."
         }
 
@@ -210,18 +172,6 @@ class PreRunValidationPanel(
         }
         rowsContainer.revalidate()
         rowsContainer.repaint()
-    }
-
-    private fun runDocumentChecks(): ValidationResult {
-        val config = controller.currentConfiguration() ?: return ValidationResult(
-            errors = listOf(FieldError(
-                path = "model",
-                message = "Select a model on the Model step before checking.",
-                severity = ValidationSeverity.ERROR,
-                code = "MISSING_MODEL"
-            ))
-        )
-        return OptimizationConfigurationValidator.validate(config)
     }
 
     private fun merge(doc: ValidationResult, modelAware: ValidationResult?): ValidationResult {

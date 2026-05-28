@@ -18,6 +18,7 @@
 
 package ksl.app.config.optimization
 
+import ksl.app.bundle.BundleModelProvider
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.simulation.ExperimentRunParametersIfc
@@ -64,9 +65,21 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  * built [Model] but no reference to the loader, so the loader can be
  * released immediately.
  *
+ * ## Bundle resolution
+ *
+ * For [ModelReference.ByBundleAndModelId], the [provider] must be a
+ * [BundleModelProvider] (the only [ModelProviderIfc] implementation
+ * that supports the unambiguous `(bundleId, modelId)` lookup needed to
+ * disambiguate models that share the bare `modelId` across bundles).
+ * Mirrors the resolution path
+ * `ksl.app.orchestrator.ScenarioOrchestrator.buildModelFromReference`
+ * uses for the same reference variant.
+ *
  * @property template the persisted model-construction template
  * @property provider required when [ModelRunTemplate.modelReference] is
- *           [ModelReference.ByProviderId]; ignored for [ModelReference.ByJar]
+ *           [ModelReference.ByProviderId] or
+ *           [ModelReference.ByBundleAndModelId]; ignored for
+ *           [ModelReference.ByJar]
  */
 internal class ConfiguredModelBuilder(
     private val template: ModelRunTemplate,
@@ -93,13 +106,18 @@ internal class ConfiguredModelBuilder(
                 JARModelBuilder(ref.jarPath, ref.builderClassName).use {
                     it.build(effectiveConfig, effectiveRunParams)
                 }
-            is ModelReference.ByBundleAndModelId ->
-                throw UnsupportedOperationException(
-                    "ModelReference.ByBundleAndModelId is not yet supported by " +
-                            "ConfiguredModelBuilder; the Optimization-app document layout " +
-                            "is not yet using the new variant. Update this branch when the " +
-                            "Optimization workflow design lands."
+            is ModelReference.ByBundleAndModelId -> {
+                require(provider is BundleModelProvider) {
+                    "ModelReference.ByBundleAndModelId requires a BundleModelProvider; got " +
+                            (provider?.let { it::class.simpleName } ?: "null")
+                }
+                provider.provideModel(
+                    bundleId = ref.bundleId,
+                    modelId = ref.modelId,
+                    modelConfiguration = effectiveConfig,
+                    experimentRunParameters = effectiveRunParams
                 )
+            }
             is ModelReference.Embedded ->
                 throw UnsupportedOperationException(
                     "ModelReference.Embedded is not consumed by the optimization layer; " +

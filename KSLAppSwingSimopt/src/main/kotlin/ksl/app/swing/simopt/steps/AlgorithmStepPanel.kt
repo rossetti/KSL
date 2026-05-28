@@ -30,6 +30,7 @@ import ksl.app.swing.simopt.algorithm.TemperatureSpecEditor
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
+import java.awt.Component
 import java.awt.Font
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
@@ -38,8 +39,10 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.DefaultComboBoxModel
+import javax.swing.DefaultListCellRenderer
 import javax.swing.JComboBox
 import javax.swing.JLabel
+import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTextField
@@ -73,10 +76,34 @@ class AlgorithmStepPanel(
 ) : JPanel(BorderLayout()) {
 
     // ── Picker ─────────────────────────────────────────────────────────────
+    //
+    // The combo model carries a leading `null` sentinel so the picker
+    // opens to "— Choose algorithm —" on a fresh document rather than
+    // auto-selecting the first real algorithm.  Without this, Swing's
+    // default-selection behaviour displays the first entry but does
+    // **not** fire the [java.awt.event.ActionListener] — leaving
+    // `controller.algorithmKind` null even though the UI looked
+    // populated, which would silently lock every step downstream of
+    // ALGORITHM.
 
-    private val algorithmCombo: JComboBox<AlgorithmKind> = JComboBox(
-        DefaultComboBoxModel(AlgorithmKind.entries.toTypedArray())
-    )
+    private val algorithmCombo: JComboBox<AlgorithmKind?> = JComboBox<AlgorithmKind?>(
+        DefaultComboBoxModel<AlgorithmKind?>(
+            arrayOf<AlgorithmKind?>(null) + AlgorithmKind.entries.toTypedArray()
+        )
+    ).apply {
+        renderer = object : DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(
+                list: JList<*>?, value: Any?, index: Int,
+                isSelected: Boolean, cellHasFocus: Boolean
+            ): Component {
+                val text = if (value == null) "— Choose algorithm —"
+                    else (value as AlgorithmKind).displayName
+                return super.getListCellRendererComponent(
+                    list, text, index, isSelected, cellHasFocus
+                )
+            }
+        }
+    }
 
     // ── Common parameters ─────────────────────────────────────────────────
 
@@ -496,8 +523,11 @@ class AlgorithmStepPanel(
     private fun refreshPicker() {
         suppressEvents = true
         try {
-            val kind = controller.algorithmKind.value
-            algorithmCombo.selectedItem = kind ?: AlgorithmKind.STOCHASTIC_HILL_CLIMBING
+            // `null` is in the combo model as the leading sentinel
+            // (see picker construction), so assigning a null
+            // `algorithmKind` here selects the "— Choose algorithm —"
+            // row rather than silently falling back to SHC.
+            algorithmCombo.selectedItem = controller.algorithmKind.value
         } finally { suppressEvents = false }
     }
 

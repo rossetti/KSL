@@ -20,6 +20,7 @@ package ksl.app.swing.simopt
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
@@ -44,6 +46,7 @@ import ksl.app.config.optimization.OptimizationOutputConfig
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.config.optimization.OptimizationRunConfigurationToml
+import ksl.app.config.optimization.OptimizationSolverFactory
 import ksl.app.config.optimization.OptimizationType
 import ksl.app.config.optimization.RandomRestartSpec
 import ksl.app.config.optimization.TemperatureSpec
@@ -52,12 +55,25 @@ import ksl.app.config.optimization.ResponseConstraintSpec
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
+import ksl.app.orchestrator.OptimizationOrchestrator
 import ksl.app.session.RunEvent
+import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
+import ksl.app.swing.simopt.runsetup.RunSetupPaths
 import ksl.app.swing.simopt.stepper.Step
+import ksl.app.validation.FieldError
+import ksl.app.validation.OptimizationConfigurationValidator
+import ksl.app.validation.ValidationResult
+import ksl.app.validation.ValidationSeverity
 import ksl.controls.ModelControlsExport
 import ksl.controls.experiments.ExperimentRunParameters
+import ksl.simopt.solvers.Solver
+import ksl.simopt.solvers.algorithms.RandomRestartSolver
+import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
+import ksl.simopt.solvers.trackers.CsvSolverStateTracker
+import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
+import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
 import ksl.simulation.ModelDescriptor
 import java.nio.file.Files
 import java.nio.file.Path
@@ -407,12 +423,83 @@ class SimoptAppController(
      *  structural edit. */
     val lastResult: StateFlow<RunResult.OptimizationCompleted?> = myLastResult.asStateFlow()
 
+    private val myLatestIteration = MutableStateFlow<RunEvent.IterationCompleted?>(null)
+    /**
+     *  Most recent [RunEvent.IterationCompleted] from the in-flight
+     *  run.  Phase O7b's live-progress panels read iteration count,
+     *  best inputs, best estimated objective, and solver-specific
+     *  state from this single event — the full history is returned in
+     *  [lastResult] when the run terminates, so we don't accumulate
+     *  it live.
+     *
+     *  Reset to `null` on each new [submit] and on document load /
+     *  reset.
+     */
+    val latestIteration: StateFlow<RunEvent.IterationCompleted?> =
+        myLatestIteration.asStateFlow()
+
+    private val myActiveSolver = MutableStateFlow<Solver?>(null)
+    /**
+     *  Reference to the [ksl.simopt.solvers.Solver] currently
+     *  executing (or last built; cleared when the run terminates).
+     *  Lets the Execute step query solver-side state that isn't
+     *  surfaced through [RunEvent] (e.g. `maximumNumberIterations`).
+     *  `null` whenever no run is in flight.
+     */
+    val activeSolver: StateFlow<Solver?> = myActiveSolver.asStateFlow()
+
+    // ── Validation (hoisted from PreRunValidationPanel) ───────────────────
+    //
+    // Document validation recomputes synchronously on every document
+    // edit; model-aware validation is gated behind an explicit
+    // [runModelAwareValidationNow] call (it builds a probe model).
+    // Hoisting these flows lets the Execute step's Run button gate
+    // on the same source of truth that the validation panel renders.
+
+    private val myDocumentValidation = MutableStateFlow(ValidationResult())
+    /**
+     *  Live document-only validation result.  Recomputed on every
+     *  document edit via [refreshDocumentValidation].  When
+     *  [currentConfiguration] is `null` (no model selected), this
+     *  flow carries a single `MISSING_MODEL` error.
+     */
+    val documentValidation: StateFlow<ValidationResult> =
+        myDocumentValidation.asStateFlow()
+
+    private val myModelAwareValidation = MutableStateFlow<ValidationResult?>(null)
+    /**
+     *  Cached model-aware validation result.  `null` until
+     *  [runModelAwareValidationNow] is called; reset to its previous
+     *  value with [modelAwareStale] = `true` on every document edit.
+     */
+    val modelAwareValidation: StateFlow<ValidationResult?> =
+        myModelAwareValidation.asStateFlow()
+
+    private val myModelAwareStale = MutableStateFlow(true)
+    /**
+     *  `true` whenever the document has been edited since the last
+     *  [runModelAwareValidationNow].  Drives the "model-aware result
+     *  is stale" banner on the Execute step's validation surface.
+     */
+    val modelAwareStale: StateFlow<Boolean> = myModelAwareStale.asStateFlow()
+
+    /** Held privately so [submit] and [cancel] (and [close]) can see
+     *  the in-flight handle.  `null` whenever no run is active. */
+    private var currentRunHandle: RunHandle? = null
+
+    /** Event-collection Job; cancelled in the terminal branch so the
+     *  collector doesn't outlive the run. */
+    private var currentRunJob: Job? = null
+
     init {
         // Auto-discover classpath bundles so a packaged app shows
         // available models immediately.  Mirrors Experiment / Scenario
         // controllers.
         val classpathBundles = BundleLoader.loadFromClasspath()
         if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
+        // Seed validation so the Execute step sees a populated flow
+        // even before the first user edit.
+        refreshDocumentValidation()
     }
 
     // ── Bundle management ──────────────────────────────────────────────────
@@ -438,18 +525,22 @@ class SimoptAppController(
      */
     private fun refreshModelDescriptor() {
         val ref = myModelTemplate.value?.modelReference as? ModelReference.ByBundleAndModelId
-        if (ref == null) {
-            if (myCurrentModelDescriptor.value != null) myCurrentModelDescriptor.value = null
-            return
-        }
-        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
-        val descriptor = try {
-            bundle?.descriptorFor(ref.modelId)
-        } catch (_: Throwable) {
-            null
+        val descriptor: ModelDescriptor? = if (ref == null) null else {
+            val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
+            try {
+                bundle?.descriptorFor(ref.modelId)
+            } catch (_: Throwable) {
+                null
+            }
         }
         if (myCurrentModelDescriptor.value != descriptor) {
             myCurrentModelDescriptor.value = descriptor
+            // The descriptor is the preferred source of
+            // `modelIdentifier` for the problem spec; when it
+            // changes (e.g. bundle just loaded), re-emit the
+            // consolidated problem spec so the identifier reflects
+            // what the runtime will actually build.
+            recomputeProblemSpec()
         }
     }
 
@@ -501,12 +592,16 @@ class SimoptAppController(
         if (!myEditedSinceLastRun.value) myEditedSinceLastRun.value = true
         if (myLastResult.value != null) myLastResult.value = null
         refreshStepCompletion()
+        refreshDocumentValidation()
+        if (!myModelAwareStale.value) myModelAwareStale.value = true
     }
 
     /** Mark the document dirty only — used for preferences (output,
      *  evaluation, tracking) that don't invalidate a prior run. */
     private fun markDirtyPreference() {
         if (!myIsDirty.value) myIsDirty.value = true
+        refreshDocumentValidation()
+        if (!myModelAwareStale.value) myModelAwareStale.value = true
     }
 
     // ── Mutators ───────────────────────────────────────────────────────────
@@ -553,6 +648,10 @@ class SimoptAppController(
         if (myModelTemplate.value == template) return
         myModelTemplate.value = template
         refreshModelDescriptor()
+        // Model identifier on the problem spec is derived from the
+        // live model reference, so any change here must re-emit
+        // problemSpec with a fresh identifier.
+        recomputeProblemSpec()
         markDirtyStructural()
     }
 
@@ -1139,6 +1238,13 @@ class SimoptAppController(
             try {
                 OptimizationProblemSpec(
                     problemName = myProblemName.value,
+                    // Substrate runtime requires a non-blank modelIdentifier
+                    // matching the built `Model.modelIdentifier` (see
+                    // `SimulationProvider.simulate`).  We read it from
+                    // the descriptor when available — that's the same
+                    // model the runtime will build — and fall back to a
+                    // reference-derived stub otherwise.
+                    modelIdentifier = deriveModelIdentifier(),
                     objectiveResponseName = obj,
                     inputs = ins,
                     responseNames = myResponseNames.value,
@@ -1156,6 +1262,34 @@ class SimoptAppController(
         }
         if (myProblemSpec.value != next) myProblemSpec.value = next
         refreshStepCompletion()
+    }
+
+    /** Produce a non-blank `modelIdentifier` for the problem spec.
+     *
+     *  Order of preference:
+     *  1. `currentModelDescriptor.value.modelIdentifier` — the
+     *     identifier of the actual `Model` the runtime will build
+     *     (matches what `SimulationProvider.simulate` will check
+     *     against).  Used whenever the descriptor is available.
+     *  2. A natural identifier derived from the model reference,
+     *     used only when no descriptor has been resolved yet
+     *     (descriptor lookup may fail for transient bundle-load
+     *     races; document load before bundles are present; etc.).
+     *
+     *  Returns `null` only when no model is set.  The
+     *  `OptimizationProblemSpec` init accepts a `null` field but
+     *  rejects a blank string.
+     */
+    private fun deriveModelIdentifier(): String? {
+        myCurrentModelDescriptor.value?.modelIdentifier?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        return when (val ref = myModelTemplate.value?.modelReference) {
+            null -> null
+            is ModelReference.ByBundleAndModelId -> "${ref.bundleId}:${ref.modelId}"
+            is ModelReference.ByProviderId -> ref.providerId
+            is ModelReference.ByJar -> ref.builderClassName
+            is ModelReference.Embedded -> ref.modelName
+        }
     }
 
     /** Replace the solver specification by fanning out [spec] into
@@ -1517,9 +1651,15 @@ class SimoptAppController(
         myIsDirty.value = false
         myEditedSinceLastRun.value = false
         myLastResult.value = null
+        myLatestIteration.value = null
         myActiveStep.value = Step.initial
+        // Validation cache resets: empty document fails the live
+        // MISSING_MODEL check, and the model-aware cache is stale.
+        myModelAwareValidation.value = null
+        myModelAwareStale.value = true
         refreshModelDescriptor()
         refreshStepCompletion()
+        refreshDocumentValidation()
     }
 
     /** Alias for [newDocument] — matches the Experiment / Scenario
@@ -1547,9 +1687,14 @@ class SimoptAppController(
         myIsDirty.value = false
         myEditedSinceLastRun.value = false
         myLastResult.value = null
+        myLatestIteration.value = null
         myActiveStep.value = Step.initial
+        // Loaded doc fully replaces the prior validation snapshot.
+        myModelAwareValidation.value = null
+        myModelAwareStale.value = true
         refreshModelDescriptor()
         refreshStepCompletion()
+        refreshDocumentValidation()
         return LoadResult.Success(config)
     }
 
@@ -1592,7 +1737,12 @@ class SimoptAppController(
             myDefaultLinearPenalty.value = PenaltyFunctionSpec.DynamicPolynomial()
             myDefaultResponsePenalty.value = PenaltyFunctionSpec.WithMemory()
         }
-        myProblemSpec.value = config.problem
+        // Rebuild the consolidated spec from the per-piece flows we
+        // just populated — this picks up the derived modelIdentifier
+        // (see `deriveModelIdentifier`) so a loaded document whose
+        // persisted problem omitted the field still satisfies the
+        // substrate's non-blank requirement at submit time.
+        recomputeProblemSpec()
         // Fan out config.solver into the per-piece flows (or reset to
         // defaults when null).  Use the dedicated setSolverSpec
         // fan-out helper rather than just stashing the consolidated
@@ -1725,20 +1875,220 @@ class SimoptAppController(
         )
     }
 
-    // ── Run lifecycle (stubs — wired in Phase O7b) ─────────────────────────
+    // ── Run lifecycle ──────────────────────────────────────────────────────
 
-    /** Submit the document for execution.  **Stub in Phase O2** —
-     *  Phase O7b will wire `OptimizationSolverFactory` →
-     *  `KSLAppSession.submit(RunSpec.Optimization(...))`. */
+    /**
+     *  Submit the document for execution.
+     *
+     *  Builds a [ksl.simopt.solvers.Solver] via
+     *  [OptimizationSolverFactory], attaches CSV / console trackers
+     *  per [trackingSpec], and hands the solver to
+     *  [OptimizationOrchestrator].  Events are forwarded onto
+     *  [eventFlow]; [latestIteration] is overwritten on each
+     *  `IterationCompleted`; [lastResult] is populated when the run
+     *  terminates with [RunResult.OptimizationCompleted].
+     *
+     *  No-op when:
+     *  - a run is already in flight,
+     *  - [currentConfiguration] returns `null` (no model selected),
+     *  - the document carries a `null` problem or solver section
+     *    (the factory rejects in-progress drafts).
+     *
+     *  Build / factory failures (e.g. an unknown decision-variable
+     *  name) flow back as [RunResult.Failed]; the controller keeps
+     *  [lastResult] = `null`.
+     */
     fun submit() {
-        // Intentional no-op for the O2 skeleton.  The frame surfaces
-        // a notification when the user clicks Run; see ExecuteStepPanel.
+        if (myRunning.value) return
+        val config = currentConfiguration() ?: return
+        if (config.problem == null || config.solver == null) return
+
+        val provider = myBundleProvider.value
+        val solver: Solver = try {
+            OptimizationSolverFactory(provider).build(config)
+        } catch (t: Throwable) {
+            // Treat factory failures as a terminal "failed" run so the
+            // UI can show the message.  We don't have a real
+            // RunHandle to emit on, so we set running=false and leave
+            // lastResult null.  The notification surface in the
+            // Execute step handles the user-visible toast.
+            return
+        }
+
+        attachTrackers(solver, config)
+
+        val handle: RunHandle = OptimizationOrchestrator().submit(solver = solver)
+
+        currentRunHandle = handle
+        myActiveSolver.value = solver
+        myLatestIteration.value = null
+        myLastResult.value = null
+        myRunning.value = true
+
+        // Event forwarder: lives on edtScope so Swing collectors see
+        // updates on the EDT without an explicit cross-thread hop.
+        currentRunJob = edtScope.launch {
+            handle.events.collect { event ->
+                myEventFlow.emit(event)
+                if (event is RunEvent.IterationCompleted) {
+                    myLatestIteration.value = event
+                }
+            }
+        }
+
+        // Terminal-state observer.
+        edtScope.launch {
+            val result = try {
+                handle.result.await()
+            } catch (_: Throwable) {
+                null
+            }
+            if (result is RunResult.OptimizationCompleted) {
+                myLastResult.value = result
+                // A successful completion means the result matches
+                // the document — clear the stale flag.
+                myEditedSinceLastRun.value = false
+            }
+            currentRunJob?.cancel()
+            currentRunJob = null
+            currentRunHandle = null
+            myActiveSolver.value = null
+            myRunning.value = false
+            refreshStepCompletion()
+        }
     }
 
-    /** Cancel the in-flight run.  **Stub in Phase O2** — Phase O7b
-     *  will wire `RunHandle.cancel(...)`. */
+    /**
+     *  Cancel the in-flight run.  No-op when no run is active.  The
+     *  underlying [RunHandle.cancel] signals the solver to stop at
+     *  its next iteration boundary; the terminal-state observer (set
+     *  up by [submit]) clears running state once cancellation
+     *  resolves.
+     */
     fun cancel() {
-        // Intentional no-op for the O2 skeleton.
+        currentRunHandle?.cancel("Cancelled by user")
+    }
+
+    /**
+     *  Re-run the model-aware validator and refresh the cached
+     *  result + stale flag.  Synchronous — builds a probe model on
+     *  the calling thread.  Called by the Execute step's
+     *  "Re-check against model" button.
+     */
+    fun runModelAwareValidationNow() {
+        val config = currentConfiguration()
+        val result = if (config == null) {
+            ValidationResult(
+                errors = listOf(
+                    FieldError(
+                        path = "model",
+                        message = "Select a model on the Model step first.",
+                        severity = ValidationSeverity.ERROR,
+                        code = "MISSING_MODEL"
+                    )
+                )
+            )
+        } else {
+            try {
+                OptimizationConfigurationValidator.validateForRun(config, myBundleProvider.value)
+            } catch (t: Throwable) {
+                ValidationResult(
+                    errors = listOf(
+                        FieldError(
+                            path = "model",
+                            message = "Model-aware validation threw: ${t.message}",
+                            severity = ValidationSeverity.ERROR,
+                            code = "VALIDATOR_EXCEPTION"
+                        )
+                    )
+                )
+            }
+        }
+        myModelAwareValidation.value = result
+        myModelAwareStale.value = false
+    }
+
+    /** Recompute [documentValidation] from the live config.
+     *  Cheap — no model build.  Called from every dirty-marker
+     *  and after each lifecycle transition (load / reset). */
+    private fun refreshDocumentValidation() {
+        val config = currentConfiguration()
+        myDocumentValidation.value = if (config == null) {
+            ValidationResult(
+                errors = listOf(
+                    FieldError(
+                        path = "model",
+                        message = "Select a model on the Model step before checking.",
+                        severity = ValidationSeverity.ERROR,
+                        code = "MISSING_MODEL"
+                    )
+                )
+            )
+        } else {
+            OptimizationConfigurationValidator.validate(config)
+        }
+    }
+
+    /** Build + attach CSV / console trackers as configured by
+     *  [SolverTrackingSpec].  Distinguishes plain vs.
+     *  [RandomRestartSolver] (which needs the nested tracker
+     *  variants).  Creates the optimization output directory if
+     *  needed.  Errors are swallowed so a tracker failure cannot
+     *  prevent the run from starting. */
+    private fun attachTrackers(solver: Solver, config: OptimizationRunConfiguration) {
+        val tracking = config.tracking
+        if (!tracking.enableCsvTrace && !tracking.enableConsoleTrace) return
+
+        val analysisName = config.output.analysisName
+
+        if (tracking.enableCsvTrace) {
+            try {
+                val tracePath = RunSetupPaths.traceFilePath(
+                    appWorkspace = appWorkspace,
+                    analysisName = analysisName,
+                    trackingSpec = tracking,
+                    solverSpec = config.solver
+                ) ?: return
+                Files.createDirectories(tracePath.parent)
+                if (solver is RandomRestartSolver) {
+                    val tracker = NestedCsvSolverStateTracker(
+                        macroSolver = solver,
+                        microSolver = solver.restartingSolver,
+                        outputFile = tracePath.toFile()
+                    )
+                    tracker.experimentName = tracking.experimentLabel
+                    tracker.startTracking()
+                } else {
+                    val tracker = CsvSolverStateTracker(
+                        solver = solver,
+                        outputFile = tracePath.toFile()
+                    )
+                    tracker.experimentName = tracking.experimentLabel
+                    tracker.startTracking()
+                }
+            } catch (_: Throwable) {
+                // Tracker attach is best-effort; never block submit.
+            }
+        }
+
+        if (tracking.enableConsoleTrace) {
+            try {
+                if (solver is RandomRestartSolver) {
+                    val tracker = NestedConsoleSolverStateTracker(
+                        macroSolver = solver,
+                        microSolver = solver.restartingSolver
+                    )
+                    tracker.experimentName = tracking.experimentLabel
+                    tracker.startTracking()
+                } else {
+                    val tracker = ConsoleSolverStateTracker(solver = solver)
+                    tracker.experimentName = tracking.experimentLabel
+                    tracker.startTracking()
+                }
+            } catch (_: Throwable) {
+                // Console tracker attach is best-effort.
+            }
+        }
     }
 
     // ── Step completion derivation ─────────────────────────────────────────
@@ -1780,6 +2130,10 @@ class SimoptAppController(
     }
 
     override fun close() {
+        currentRunHandle?.cancel("SimoptAppController closed")
+        currentRunHandle = null
+        currentRunJob?.cancel()
+        currentRunJob = null
         edtScope.cancel("SimoptAppController closed")
     }
 
