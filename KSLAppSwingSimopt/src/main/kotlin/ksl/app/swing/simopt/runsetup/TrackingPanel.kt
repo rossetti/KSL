@@ -129,10 +129,12 @@ class TrackingPanel(
             refreshResolvedPath()
         }.launchIn(controller.edtScope)
 
-        // Resolved path also depends on output (analysisName) and the
-        // current solver spec (for the default stem).
+        // Resolved path also depends on output (analysisName), the
+        // current solver spec (for the default stem), and the live
+        // run output directory (which factors the auto run-NNN slot).
         controller.output.onEach { _ -> refreshResolvedPath() }.launchIn(controller.edtScope)
         controller.solverSpec.onEach { _ -> refreshResolvedPath() }.launchIn(controller.edtScope)
+        controller.runOutputDir.onEach { _ -> refreshResolvedPath() }.launchIn(controller.edtScope)
     }
 
     private fun commitFromUi() {
@@ -182,8 +184,7 @@ class TrackingPanel(
             return
         }
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = controller.appWorkspace,
-            analysisName = controller.output.value.analysisName,
+            runOutputDir = controller.runOutputDir.value,
             trackingSpec = tracking,
             solverSpec = controller.solverSpec.value
         )

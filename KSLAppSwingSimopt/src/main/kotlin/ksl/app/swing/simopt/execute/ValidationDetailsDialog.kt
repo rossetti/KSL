@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.runsetup
+package ksl.app.swing.simopt.execute
 
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -24,60 +24,54 @@ import ksl.app.validation.FieldError
 import ksl.app.validation.ValidationResult
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.stepper.Step
+import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Cursor
+import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
-import java.awt.Insets
+import java.awt.Window
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JDialog
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 
 /**
- * Live pre-run validation surface.
+ * Modal dialog listing every document and model-aware validation
+ * issue with a jump-to-step link per row.
  *
- * Reads three controller flows hoisted in Phase O7b:
+ * Replaces the inline `PreRunValidationPanel` that lived directly in
+ * the Execute step's body — opened on-demand from the
+ * `OptimizationPanel` validation pill so an issue-free run doesn't
+ * dedicate vertical space to an empty list.
  *
- *  - `SimoptAppController.documentValidation` — cheap, recomputed on
- *    every document edit; merged unconditionally.
- *  - `SimoptAppController.modelAwareValidation` — populated only when
- *    the user clicks "Re-check against model"; merged only when not
- *    stale.
- *  - `SimoptAppController.modelAwareStale` — gates display of the
- *    model-aware result and drives the cache-state label.
- *
- * Each error / warning row carries a hyperlink-styled "Jump to fix"
- * link whose target step is derived from the error path:
- *
- *  - `model.*` → [Step.MODEL]
- *  - `problem.linearConstraints*` / `problem.responseConstraints*` → [Step.CONSTRAINTS]
- *  - `problem` / `problem.*` → [Step.PROBLEM]
- *  - `solver` / `solver.*` → [Step.ALGORITHM]
- *  - otherwise: no link rendered.
- *
- * The panel never gates step completion — the Execute step's
- * `RunControlsPanel` gates the Run button on the same flows directly.
+ * The dialog stays open while the user fixes things; collectors on
+ * the controller's validation flows re-render rows whenever the
+ * document changes.  Close-only — no OK / Cancel semantics.
  */
-class PreRunValidationPanel(
+class ValidationDetailsDialog(
+    owner: Window?,
     private val controller: SimoptAppController
-) : JPanel() {
+) : JDialog(owner, "Pre-run validation", ModalityType.APPLICATION_MODAL) {
 
     private val statusLabel = JLabel(" ").apply {
         font = font.deriveFont(Font.PLAIN, 13f)
     }
-    private val recheckButton = JButton("Re-check against model").apply {
-        toolTipText = "Builds a probe model and runs model-aware validation. " +
-            "Cached until the next document edit."
-    }
     private val cachedModelStatusLabel = JLabel(" ").apply {
         font = font.deriveFont(Font.PLAIN, 11f)
         foreground = Color(0x77, 0x77, 0x77)
+    }
+    private val recheckButton = JButton("Re-check against model").apply {
+        toolTipText = "Builds a probe model and runs model-aware validation. " +
+            "Cached until the next document edit."
+        addActionListener { controller.runModelAwareValidationNow() }
+    }
+    private val closeButton = JButton("Close").apply {
+        addActionListener { isVisible = false }
     }
 
     private val rowsContainer = JPanel().apply {
@@ -86,42 +80,41 @@ class PreRunValidationPanel(
     }
 
     init {
-        layout = GridBagLayout()
-        border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Pre-run validation"),
-            BorderFactory.createEmptyBorder(2, 6, 6, 6)
-        )
+        layout = BorderLayout(0, 6)
+        rootPane.border = BorderFactory.createEmptyBorder(10, 12, 10, 12)
 
-        add(statusLabel, gbc(0, 0, width = 2, weightx = 1.0,
-            anchor = GridBagConstraints.WEST, fill = GridBagConstraints.HORIZONTAL))
-
-        add(JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply {
+        // Header — status line + cache-state label.
+        val header = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
-            add(recheckButton)
+            add(statusLabel)
             add(cachedModelStatusLabel)
-        }, gbc(0, 1, width = 2, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL,
-            insets = Insets(4, 4, 4, 4)))
+        }
+        add(header, BorderLayout.NORTH)
 
+        // Body — scrollable rows.
         val rowScroll = JScrollPane(
             rowsContainer,
             JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
         ).apply {
             border = BorderFactory.createEmptyBorder()
-            preferredSize = java.awt.Dimension(640, 160)
+            preferredSize = Dimension(640, 240)
         }
-        add(rowScroll, gbc(0, 2, width = 2, weightx = 1.0, weighty = 1.0,
-            fill = GridBagConstraints.BOTH, insets = Insets(2, 4, 2, 4)))
+        add(rowScroll, BorderLayout.CENTER)
 
-        wireButton()
+        // Footer — Re-check + Close.
+        val footer = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
+            isOpaque = false
+            add(recheckButton)
+            add(closeButton)
+        }
+        add(footer, BorderLayout.SOUTH)
+
         wireCollectors()
         refresh()
-    }
-
-    private fun wireButton() {
-        recheckButton.addActionListener {
-            controller.runModelAwareValidationNow()
-        }
+        pack()
+        setLocationRelativeTo(owner)
     }
 
     private fun wireCollectors() {
@@ -130,20 +123,17 @@ class PreRunValidationPanel(
         controller.modelAwareStale.onEach { refresh() }.launchIn(controller.edtScope)
     }
 
-    // ── Refresh ───────────────────────────────────────────────────────────
-
     private fun refresh() {
-        val docResult = controller.documentValidation.value
+        val doc = controller.documentValidation.value
         val cached = controller.modelAwareValidation.value
         val stale = controller.modelAwareStale.value
         val modelCache = cached?.takeIf { !stale }
-        val merged = merge(docResult, modelCache)
+        val merged = merge(doc, modelCache)
 
-        // Status line + cache-state label
         statusLabel.text = if (merged.isValid) {
-            val warnCount = merged.warnings.size
-            if (warnCount == 0) "<html><b>Status:</b> ✓ No issues found</html>"
-            else "<html><b>Status:</b> ✓ No errors  (${warnCount} warning(s))</html>"
+            val w = merged.warnings.size
+            if (w == 0) "<html><b>Status:</b> ✓ No issues found</html>"
+            else "<html><b>Status:</b> ✓ No errors  ($w warning(s))</html>"
         } else {
             "<html><b>Status:</b> ✗ ${merged.errors.size} error(s)  (${merged.warnings.size} warning(s))</html>"
         }
@@ -158,7 +148,6 @@ class PreRunValidationPanel(
             else -> "Model-aware checks last passed at this state."
         }
 
-        // Rows
         rowsContainer.removeAll()
         if (merged.errors.isEmpty() && merged.warnings.isEmpty()) {
             rowsContainer.add(JLabel("<html><i>No issues to report.</i></html>").apply {
@@ -176,45 +165,44 @@ class PreRunValidationPanel(
 
     private fun merge(doc: ValidationResult, modelAware: ValidationResult?): ValidationResult {
         if (modelAware == null) return doc
-        // Concatenate; preserve doc-first ordering.
         return ValidationResult(
             errors = doc.errors + modelAware.errors,
             warnings = doc.warnings + modelAware.warnings
         )
     }
 
-    private fun buildRow(error: FieldError, isError: Boolean): JPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
-        isOpaque = false
-        val icon = JLabel(if (isError) "✗" else "⚠").apply {
-            foreground = if (isError) Color(0xB5, 0x40, 0x40) else Color(0xB5, 0x80, 0x00)
-            font = font.deriveFont(Font.BOLD, 13f)
-            preferredSize = java.awt.Dimension(16, 16)
-        }
-        val msg = JLabel(buildString {
-            append("<html>")
-            append(error.message)
-            append(" <span style='color:#888;'>[")
-            append(error.code)
-            append("]</span></html>")
-        })
-        msg.toolTipText = "Path: ${error.path}"
-
-        add(icon)
-        add(msg)
-
-        val targetStep = jumpTarget(error.path)
-        if (targetStep != null) {
-            val link = JLabel("<html><a href='#'>Jump to ${targetStep.title}</a></html>").apply {
-                cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-                addMouseListener(object : java.awt.event.MouseAdapter() {
-                    override fun mouseClicked(e: java.awt.event.MouseEvent?) {
-                        controller.jumpToStep(targetStep)
-                    }
-                })
+    private fun buildRow(error: FieldError, isError: Boolean): JPanel =
+        JPanel(FlowLayout(FlowLayout.LEFT, 6, 2)).apply {
+            isOpaque = false
+            val icon = JLabel(if (isError) "✗" else "⚠").apply {
+                foreground = if (isError) Color(0xB5, 0x40, 0x40) else Color(0xB5, 0x80, 0x00)
+                font = font.deriveFont(Font.BOLD, 13f)
+                preferredSize = Dimension(16, 16)
             }
-            add(link)
+            val msg = JLabel(buildString {
+                append("<html>")
+                append(error.message)
+                append(" <span style='color:#888;'>[")
+                append(error.code)
+                append("]</span></html>")
+            })
+            msg.toolTipText = "Path: ${error.path}"
+            add(icon)
+            add(msg)
+            val targetStep = jumpTarget(error.path)
+            if (targetStep != null) {
+                val link = JLabel("<html><a href='#'>Jump to ${targetStep.title}</a></html>").apply {
+                    cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                    addMouseListener(object : java.awt.event.MouseAdapter() {
+                        override fun mouseClicked(e: java.awt.event.MouseEvent?) {
+                            controller.jumpToStep(targetStep)
+                            isVisible = false
+                        }
+                    })
+                }
+                add(link)
+            }
         }
-    }
 
     private fun jumpTarget(path: String): Step? = when {
         path.startsWith("model") -> Step.MODEL
@@ -223,25 +211,5 @@ class PreRunValidationPanel(
         path.startsWith("problem") -> Step.PROBLEM
         path.startsWith("solver") -> Step.ALGORITHM
         else -> null
-    }
-
-    private fun gbc(
-        col: Int,
-        row: Int,
-        weightx: Double = 0.0,
-        weighty: Double = 0.0,
-        width: Int = 1,
-        anchor: Int = GridBagConstraints.CENTER,
-        fill: Int = GridBagConstraints.NONE,
-        insets: Insets = Insets(2, 4, 2, 4)
-    ): GridBagConstraints = GridBagConstraints().apply {
-        this.gridx = col
-        this.gridy = row
-        this.gridwidth = width
-        this.weightx = weightx
-        this.weighty = weighty
-        this.anchor = anchor
-        this.fill = fill
-        this.insets = insets
     }
 }

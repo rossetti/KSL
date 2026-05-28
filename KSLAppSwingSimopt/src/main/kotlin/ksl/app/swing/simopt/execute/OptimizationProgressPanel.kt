@@ -31,55 +31,52 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.Timer
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Numeric live-progress display.
+ * Numeric progress display for a running or completed optimization.
  *
- * Shows four rows of bold-key / dynamic-value pairs:
+ * Three live rows:
  *
  *  - **Iteration:** `n / max` (or `n` when max is unbounded)
- *  - **Elapsed:** wall-clock duration since the active run started
- *  - **ETA:** linear-extrapolation estimate; visible only mid-run
+ *  - **Elapsed:** wall-clock duration since the active run started,
+ *    formatted with 1/10-second precision under 60 s
+ *    (e.g. `12.3 s`) and `m:ss` above
  *  - **Best objective:** value from the latest `IterationCompleted`
+ *    or the terminal snapshot once the run completes
  *
- * Phase O7b deliberately does not render a live convergence chart —
- * the full iteration history is available in
- * [SimoptAppController.lastResult] after the run terminates, and the
- * Results step (Phase O8) plots it once with `lets-plot`.
+ * No ETA — the framework provides none and per-iteration cost
+ * varies enough across algorithms (cooling schedules in SA, growing
+ * replication counts in R-SPLINE, population-based work in CE) that
+ * a linear extrapolation would mislead more often than help.
+ *
+ * A 100 ms `Timer` advances Elapsed during a live run so the
+ * displayed value tracks decisecond changes; the timer stops the
+ * moment the run terminates and the display freezes on the final
+ * elapsed.
  */
-class LiveProgressPanel(
+class OptimizationProgressPanel(
     private val controller: SimoptAppController
 ) : JPanel(GridBagLayout()) {
 
     private val iterLabel = mkValue()
     private val elapsedLabel = mkValue()
-    private val etaLabel = mkValue()
     private val objLabel = mkValue()
 
-    /** Captured when [SimoptAppController.runningFlow] flips true;
-     *  drives elapsed + ETA computation. */
     private var runStart: TimeSource.Monotonic.ValueTimeMark? = null
-
-    /** Captures the elapsed time at terminal-state so the display
-     *  freezes on the final value instead of resetting to "0s". */
     private var frozenElapsed: Duration? = null
 
-    /** Timer ticks once per second so Elapsed / ETA stay current
-     *  even when no new iteration events arrive. */
-    private val tick = Timer(1_000) { refresh() }.apply { isRepeats = true }
+    private val tick = Timer(100) { refresh() }.apply { isRepeats = true }
 
     init {
         border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Live progress"),
+            BorderFactory.createTitledBorder("Optimization Progress"),
             BorderFactory.createEmptyBorder(2, 6, 6, 6)
         )
 
         var row = 0
         addPair("Iteration:", iterLabel, row++)
         addPair("Elapsed:", elapsedLabel, row++)
-        addPair("ETA:", etaLabel, row++)
         addPair("Best objective:", objLabel, row++)
 
         wireCollectors()
@@ -93,8 +90,6 @@ class LiveProgressPanel(
                 frozenElapsed = null
                 tick.start()
             } else {
-                // Capture the elapsed at the moment of termination so
-                // the display freezes there.
                 frozenElapsed = runStart?.elapsedNow()
                 tick.stop()
             }
@@ -106,14 +101,11 @@ class LiveProgressPanel(
     }
 
     private fun refresh() {
-        val running = controller.runningFlow.value
         val latest = controller.latestIteration.value
         val maxIter = controller.activeSolver.value?.maximumNumberIterations
         val terminalResult = controller.lastResult.value
         val terminalSnapshot = terminalResult?.bestSolution
 
-        // Iteration count: prefer terminal snapshot's count when run
-        // has completed and we have no further live iteration events.
         val iter = latest?.iteration ?: terminalSnapshot?.iterationNumber
         iterLabel.text = when {
             iter == null -> "—"
@@ -121,38 +113,31 @@ class LiveProgressPanel(
             else -> "$iter"
         }
 
-        // Elapsed
         val elapsed = when {
-            running -> runStart?.elapsedNow()
+            controller.runningFlow.value -> runStart?.elapsedNow()
             frozenElapsed != null -> frozenElapsed
             else -> null
         }
         elapsedLabel.text = elapsed?.let { formatDuration(it) } ?: "—"
 
-        // ETA — only while running
-        val etaText: String = if (running && elapsed != null && iter != null
-            && maxIter != null && iter > 0 && iter < maxIter
-        ) {
-            val perIter = elapsed.inWholeMilliseconds.toDouble() / iter
-            val remaining = ((maxIter - iter) * perIter).toLong().milliseconds
-            "~ ${formatDuration(remaining)}"
-        } else "—"
-        etaLabel.text = etaText
-
-        // Best objective: prefer the latest live event when running;
-        // fall back to the terminal snapshot once the run completes.
         val obj = latest?.estimatedObjectiveValue
             ?: terminalSnapshot?.estimatedObjFncValue
         objLabel.text = obj?.let { formatObjective(it) } ?: "—"
     }
 
+    /** Format duration with decisecond precision under 60 s,
+     *  `m:ss` (whole-second) above.  Examples:
+     *  - 350 ms → `0.3 s`
+     *  - 12,345 ms → `12.3 s`
+     *  - 75,432 ms → `1:15`
+     */
     private fun formatDuration(d: Duration): String {
-        val secs = d.inWholeSeconds
-        return if (secs < 60) "${secs}s"
-        else {
-            val m = secs / 60
-            val s = secs % 60
-            "%d:%02d".format(m, s)
+        val totalSecs = d.inWholeMilliseconds / 1000.0
+        return if (totalSecs < 60.0) {
+            "%.1f s".format(totalSecs)
+        } else {
+            val ws = d.inWholeSeconds
+            "%d:%02d".format(ws / 60, ws % 60)
         }
     }
 

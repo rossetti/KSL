@@ -483,6 +483,26 @@ class SimoptAppController(
      */
     val modelAwareStale: StateFlow<Boolean> = myModelAwareStale.asStateFlow()
 
+    private val myRunOutputDir = MutableStateFlow(initialRunOutputDir())
+    /**
+     *  Resolved filesystem path the **next** [submit] will write into.
+     *
+     *  Default: `<appWorkspace>/output/<analysisName>/run-NNN/`, where
+     *  `NNN` is the next unused three-digit number under the analysis
+     *  directory (see [RunSetupPaths.nextRunSubdir]).  This means
+     *  consecutive runs land in distinct folders by default — a fresh
+     *  SHC run followed by a fresh SA run end up in `run-001/` and
+     *  `run-002/` respectively, never overwriting each other.
+     *
+     *  Mutable via [setRunOutputDir].  After a successful [submit]
+     *  the value is recomputed to the next auto-numbered slot — so
+     *  any one-shot override consumed by that run is replaced.
+     *
+     *  Recomputed when the analysis name changes (output config edit)
+     *  so the path always reflects the live document.
+     */
+    val runOutputDir: StateFlow<Path> = myRunOutputDir.asStateFlow()
+
     /** Held privately so [submit] and [cancel] (and [close]) can see
      *  the in-flight handle.  `null` whenever no run is active. */
     private var currentRunHandle: RunHandle? = null
@@ -610,8 +630,13 @@ class SimoptAppController(
      *  not drop [lastResult]. */
     fun setOutput(spec: OptimizationOutputConfig) {
         if (myOutput.value == spec) return
+        val analysisNameChanged = myOutput.value.analysisName != spec.analysisName
         myOutput.value = spec
         markDirtyPreference()
+        // A different analysis name implies a different analysis
+        // directory — recompute the next-run path so the GUI shows
+        // the correct destination.
+        if (analysisNameChanged) refreshAutoRunOutputDir()
     }
 
     /** Convenience setter for the toolbar's analysis-name field. */
@@ -1660,6 +1685,7 @@ class SimoptAppController(
         refreshModelDescriptor()
         refreshStepCompletion()
         refreshDocumentValidation()
+        refreshAutoRunOutputDir()
     }
 
     /** Alias for [newDocument] — matches the Experiment / Scenario
@@ -1695,6 +1721,7 @@ class SimoptAppController(
         refreshModelDescriptor()
         refreshStepCompletion()
         refreshDocumentValidation()
+        refreshAutoRunOutputDir()
         return LoadResult.Success(config)
     }
 
@@ -1915,7 +1942,17 @@ class SimoptAppController(
             return
         }
 
-        attachTrackers(solver, config)
+        // Snapshot the run output directory now so any subsequent
+        // edits or `refreshAutoRunOutputDir()` calls don't move the
+        // target out from under the active run.
+        val runDir = myRunOutputDir.value
+        try {
+            Files.createDirectories(runDir)
+        } catch (_: Throwable) {
+            // Best-effort; tracker attach will retry per artifact.
+        }
+
+        attachTrackers(solver, config, runDir)
 
         val handle: RunHandle = OptimizationOrchestrator().submit(solver = solver)
 
@@ -1954,6 +1991,11 @@ class SimoptAppController(
             currentRunHandle = null
             myActiveSolver.value = null
             myRunning.value = false
+            // Advance to the next auto run-NNN slot so a follow-up
+            // submit doesn't reuse the directory we just wrote.  This
+            // also overrides any one-shot `setRunOutputDir` the user
+            // may have set for this completed run.
+            refreshAutoRunOutputDir()
             refreshStepCompletion()
         }
     }
@@ -1967,6 +2009,38 @@ class SimoptAppController(
      */
     fun cancel() {
         currentRunHandle?.cancel("Cancelled by user")
+    }
+
+    /**
+     *  Override the [runOutputDir] for the next [submit].
+     *
+     *  Use case: the GUI's `[Change…]` button on the Execute step
+     *  opens a directory chooser and commits the picked path here.
+     *  The chosen path replaces the auto-numbered default for the
+     *  next submit only — after a successful run, [runOutputDir]
+     *  resets to the next `run-NNN` slot under the current analysis
+     *  directory.
+     */
+    fun setRunOutputDir(path: Path) {
+        if (myRunOutputDir.value == path) return
+        myRunOutputDir.value = path
+    }
+
+    /**
+     *  Recompute [runOutputDir] from the live analysis name using
+     *  [RunSetupPaths.nextRunSubdir].  Called when the analysis name
+     *  changes and after each successful run so the displayed
+     *  destination matches the next-available `run-NNN` slot.
+     */
+    private fun refreshAutoRunOutputDir() {
+        myRunOutputDir.value = computeAutoRunOutputDir()
+    }
+
+    private fun initialRunOutputDir(): Path = computeAutoRunOutputDir()
+
+    private fun computeAutoRunOutputDir(): Path {
+        val analysisDir = RunSetupPaths.outputDir(appWorkspace, myOutput.value.analysisName)
+        return RunSetupPaths.nextRunSubdir(analysisDir)
     }
 
     /**
@@ -2032,20 +2106,17 @@ class SimoptAppController(
     /** Build + attach CSV / console trackers as configured by
      *  [SolverTrackingSpec].  Distinguishes plain vs.
      *  [RandomRestartSolver] (which needs the nested tracker
-     *  variants).  Creates the optimization output directory if
-     *  needed.  Errors are swallowed so a tracker failure cannot
-     *  prevent the run from starting. */
-    private fun attachTrackers(solver: Solver, config: OptimizationRunConfiguration) {
+     *  variants).  Creates the run output directory if needed.
+     *  Errors are swallowed so a tracker failure cannot prevent the
+     *  run from starting. */
+    private fun attachTrackers(solver: Solver, config: OptimizationRunConfiguration, runDir: Path) {
         val tracking = config.tracking
         if (!tracking.enableCsvTrace && !tracking.enableConsoleTrace) return
-
-        val analysisName = config.output.analysisName
 
         if (tracking.enableCsvTrace) {
             try {
                 val tracePath = RunSetupPaths.traceFilePath(
-                    appWorkspace = appWorkspace,
-                    analysisName = analysisName,
+                    runOutputDir = runDir,
                     trackingSpec = tracking,
                     solverSpec = config.solver
                 ) ?: return

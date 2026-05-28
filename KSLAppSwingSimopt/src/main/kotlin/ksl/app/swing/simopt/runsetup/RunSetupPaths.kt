@@ -21,13 +21,15 @@ package ksl.app.swing.simopt.runsetup
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Pure helpers used by `TrackingPanel`, `RunPreviewPanel`, and the
- *  Phase O7b submit path to compute resolved output / trace paths
- *  from the current document.  Kept as top-level functions so they
- *  can be unit-tested without instantiating Swing.
+ *  Pure helpers used by `TrackingPanel`, the Execute step's
+ *  `OptimizationPanel`, and the controller's submit path to compute
+ *  resolved output / trace paths from the current document.  Kept as
+ *  top-level functions so they can be unit-tested without
+ *  instantiating Swing.
  */
 internal object RunSetupPaths {
 
@@ -39,28 +41,56 @@ internal object RunSetupPaths {
         return appWorkspace.resolve("output").resolve(sanitized)
     }
 
-    /** Resolve the optimization-specific subdirectory inside the
-     *  analysis output dir: `<outputDir>/optimization/`. */
-    fun optimizationDir(appWorkspace: Path, analysisName: String): Path =
-        outputDir(appWorkspace, analysisName).resolve("optimization")
+    /**
+     *  Find the next unused `run-NNN` subdirectory under [analysisDir].
+     *
+     *  Pattern: `run-001`, `run-002`, … Numbers are zero-padded to 3
+     *  digits. Returns `run-001` when [analysisDir] doesn't exist yet
+     *  or has no matching subdirectories; otherwise returns
+     *  `run-<max+1>` so a fresh run never overwrites a prior one.
+     *
+     *  Numbers ≥ 1000 keep growing — the format-string still produces
+     *  a unique name, just one digit longer than the typical
+     *  three-digit form.
+     *
+     *  The directory is **not created** by this helper.  Callers
+     *  create it at submit time after the path is committed.
+     */
+    fun nextRunSubdir(analysisDir: Path): Path {
+        val pattern = Regex("""run-(\d{3,})""")
+        var maxN = 0
+        if (Files.isDirectory(analysisDir)) {
+            Files.newDirectoryStream(analysisDir).use { stream ->
+                for (entry in stream) {
+                    if (!Files.isDirectory(entry)) continue
+                    val match = pattern.matchEntire(entry.fileName.toString()) ?: continue
+                    val n = match.groupValues[1].toIntOrNull() ?: continue
+                    if (n > maxN) maxN = n
+                }
+            }
+        }
+        return analysisDir.resolve("run-%03d".format(maxN + 1))
+    }
 
-    /** Compute the CSV trace file path, if tracking is enabled.
+    /**
+     *  Compute the CSV trace file path inside a specific run directory.
      *
-     *  Falls back to a solver-derived stem when [SolverTrackingSpec.csvFileName]
-     *  is null.  The fallback uses `solverSpec.name` when present,
-     *  else the algorithm-kind serial name (e.g. `"stochasticHillClimbing"`),
-     *  else "solver".
+     *  Falls back to a solver-derived stem when
+     *  [SolverTrackingSpec.csvFileName] is null.  The fallback uses
+     *  `solverSpec.name` when present, else the algorithm-kind serial
+     *  name (e.g. `"stochasticHillClimbing"`), else `"solver"`.
      *
-     *  Returns `null` when [SolverTrackingSpec.enableCsvTrace] is false. */
+     *  Returns `null` when [SolverTrackingSpec.enableCsvTrace] is
+     *  false.
+     */
     fun traceFilePath(
-        appWorkspace: Path,
-        analysisName: String,
+        runOutputDir: Path,
         trackingSpec: SolverTrackingSpec,
         solverSpec: SolverSpec?
     ): Path? {
         if (!trackingSpec.enableCsvTrace) return null
         val stem = trackingSpec.csvFileName ?: defaultTraceStem(solverSpec)
-        return optimizationDir(appWorkspace, analysisName).resolve("$stem.csv")
+        return runOutputDir.resolve("$stem.csv")
     }
 
     /** Default CSV-trace file stem when the user hasn't set one.

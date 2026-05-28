@@ -168,8 +168,7 @@ class SimoptAppRunSetupTest {
     @Test
     fun `RunSetupPaths traceFilePath returns null when tracking is disabled`(@TempDir tempDir: Path) {
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = tempDir,
-            analysisName = "MyAnalysis",
+            runOutputDir = tempDir.resolve("run-001"),
             trackingSpec = SolverTrackingSpec(enableCsvTrace = false),
             solverSpec = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1)
         )
@@ -178,37 +177,35 @@ class SimoptAppRunSetupTest {
 
     @Test
     fun `RunSetupPaths traceFilePath uses csvFileName when set`(@TempDir tempDir: Path) {
+        val runDir = tempDir.resolve("run-001")
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = tempDir,
-            analysisName = "MyAnalysis",
+            runOutputDir = runDir,
             trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = "custom"),
             solverSpec = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1)
         )
         assertNotNull(path)
-        assertTrue(path.toString().endsWith("custom.csv"),
-            "Expected custom.csv; got $path")
+        assertEquals(runDir.resolve("custom.csv"), path)
     }
 
     @Test
     fun `RunSetupPaths traceFilePath falls back to solver name when csvFileName is null`(@TempDir tempDir: Path) {
+        val runDir = tempDir.resolve("run-001")
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = tempDir,
-            analysisName = "MyAnalysis",
+            runOutputDir = runDir,
             trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
             solverSpec = SolverSpec.StochasticHillClimbing(
                 maxIterations = 1, replicationsPerEvaluation = 1, name = "my-shc"
             )
         )
         assertNotNull(path)
-        assertTrue(path.toString().endsWith("my-shc_trace.csv"),
-            "Expected my-shc_trace.csv; got $path")
+        assertEquals(runDir.resolve("my-shc_trace.csv"), path)
     }
 
     @Test
     fun `RunSetupPaths traceFilePath falls back to kind label when solver name is null`(@TempDir tempDir: Path) {
+        val runDir = tempDir.resolve("run-001")
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = tempDir,
-            analysisName = "MyAnalysis",
+            runOutputDir = runDir,
             trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
             solverSpec = SolverSpec.SimulatedAnnealing(
                 maxIterations = 1,
@@ -218,21 +215,46 @@ class SimoptAppRunSetupTest {
             )
         )
         assertNotNull(path)
-        assertTrue(path.toString().endsWith("simulatedAnnealing_trace.csv"),
-            "Expected simulatedAnnealing_trace.csv; got $path")
+        assertEquals(runDir.resolve("simulatedAnnealing_trace.csv"), path)
     }
 
     @Test
     fun `RunSetupPaths traceFilePath uses 'solver' fallback when solver spec is null`(@TempDir tempDir: Path) {
+        val runDir = tempDir.resolve("run-001")
         val path = RunSetupPaths.traceFilePath(
-            appWorkspace = tempDir,
-            analysisName = "MyAnalysis",
+            runOutputDir = runDir,
             trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
             solverSpec = null
         )
         assertNotNull(path)
-        assertTrue(path.toString().endsWith("solver_trace.csv"),
-            "Expected solver_trace.csv; got $path")
+        assertEquals(runDir.resolve("solver_trace.csv"), path)
+    }
+
+    // ── nextRunSubdir ──────────────────────────────────────────────────
+
+    @Test
+    fun `RunSetupPaths nextRunSubdir returns run-001 when analysis dir is missing`(@TempDir tempDir: Path) {
+        val analysisDir = tempDir.resolve("MyAnalysis")  // not created
+        val next = RunSetupPaths.nextRunSubdir(analysisDir)
+        assertEquals(analysisDir.resolve("run-001"), next)
+    }
+
+    @Test
+    fun `RunSetupPaths nextRunSubdir returns run-001 when analysis dir is empty`(@TempDir tempDir: Path) {
+        val analysisDir = tempDir.resolve("MyAnalysis").also { java.nio.file.Files.createDirectories(it) }
+        val next = RunSetupPaths.nextRunSubdir(analysisDir)
+        assertEquals(analysisDir.resolve("run-001"), next)
+    }
+
+    @Test
+    fun `RunSetupPaths nextRunSubdir picks the next number when run-NNN subdirs exist`(@TempDir tempDir: Path) {
+        val analysisDir = tempDir.resolve("MyAnalysis").also { java.nio.file.Files.createDirectories(it) }
+        java.nio.file.Files.createDirectories(analysisDir.resolve("run-001"))
+        java.nio.file.Files.createDirectories(analysisDir.resolve("run-002"))
+        java.nio.file.Files.createDirectories(analysisDir.resolve("run-007"))
+        java.nio.file.Files.createDirectories(analysisDir.resolve("not-a-run"))
+        val next = RunSetupPaths.nextRunSubdir(analysisDir)
+        assertEquals(analysisDir.resolve("run-008"), next)
     }
 
     // ── TOML round-trip ─────────────────────────────────────────────────

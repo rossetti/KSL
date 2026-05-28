@@ -20,11 +20,9 @@ package ksl.app.swing.simopt.steps
 
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.execute.AlgorithmStatePanel
-import ksl.app.swing.simopt.execute.BestSoFarPanel
-import ksl.app.swing.simopt.execute.LiveProgressPanel
-import ksl.app.swing.simopt.execute.RunControlsPanel
-import ksl.app.swing.simopt.runsetup.PreRunValidationPanel
-import ksl.app.swing.simopt.runsetup.RunPreviewPanel
+import ksl.app.swing.simopt.execute.CurrentBestSolutionPanel
+import ksl.app.swing.simopt.execute.OptimizationPanel
+import ksl.app.swing.simopt.execute.OptimizationProgressPanel
 import java.awt.BorderLayout
 import javax.swing.BorderFactory
 import javax.swing.Box
@@ -33,47 +31,45 @@ import javax.swing.JPanel
 import javax.swing.JScrollPane
 
 /**
- *  *Execute* step — Phase O7b.
+ *  *Execute* step — Phase O7b (post-feedback redesign).
  *
- *  Final pre-launch surface plus live progress.  Stacks six panels
- *  vertically inside a scroll pane so smaller windows still work:
+ *  Top-aligned [OptimizationPanel] is **always visible** (no scroll)
+ *  so the Optimize button stays reachable regardless of window size.
+ *  Validation status, output directory, trace-file path, and the
+ *  stale-results banner live in that same compact section.
  *
- *   1. [PreRunValidationPanel] — document + model-aware checks.
- *   2. [RunPreviewPanel] — read-only estimate of total runs, output
- *      directory, and trace file path.
- *   3. [RunControlsPanel] — Run / Cancel buttons, status line,
- *      stale-results banner.
- *   4. [LiveProgressPanel] — iteration counter, elapsed, ETA,
- *      best objective.
- *   5. [BestSoFarPanel] — one row per decision variable, updated
- *      from the latest iteration event.
- *   6. [AlgorithmStatePanel] — solver-specific state when the
- *      snapshot carries it (hidden otherwise).
+ *  The body underneath is a scroll pane containing the live
+ *  progress + solution + algorithm-state panels:
  *
- *  The Results step (Phase O8) reads
- *  [SimoptAppController.lastResult] and renders the full
- *  convergence plot via `lets-plot`; this step keeps to numeric
- *  progress while the run is in flight.
+ *   1. [OptimizationProgressPanel] — iteration counter, elapsed,
+ *      best objective.  No ETA — the framework provides no time
+ *      estimate and a linear extrapolation would mislead more than
+ *      help (cooling schedules in SA, growing replication counts
+ *      in R-SPLINE, etc.).
+ *   2. [CurrentBestSolutionPanel] — `JTable` of decision variables,
+ *      scrollable, scales to many variables.
+ *   3. [AlgorithmStatePanel] — solver-specific metrics, hidden
+ *      when the snapshot's `solverSpecificState` is empty.
+ *
+ *  Detailed validation issues open on-demand via the [View…] button
+ *  in [OptimizationPanel] — they no longer consume vertical space
+ *  when the document is clean.
  */
 class ExecuteStepPanel(controller: SimoptAppController) : JPanel(BorderLayout()) {
 
     init {
         border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
 
+        add(OptimizationPanel(controller), BorderLayout.NORTH)
+
         val stack = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
+            border = BorderFactory.createEmptyBorder(8, 0, 0, 0)
         }
-
-        stack.add(PreRunValidationPanel(controller))
+        stack.add(OptimizationProgressPanel(controller))
         stack.add(Box.createVerticalStrut(8))
-        stack.add(RunPreviewPanel(controller))
-        stack.add(Box.createVerticalStrut(8))
-        stack.add(RunControlsPanel(controller))
-        stack.add(Box.createVerticalStrut(8))
-        stack.add(LiveProgressPanel(controller))
-        stack.add(Box.createVerticalStrut(8))
-        stack.add(BestSoFarPanel(controller))
+        stack.add(CurrentBestSolutionPanel(controller))
         stack.add(Box.createVerticalStrut(8))
         stack.add(AlgorithmStatePanel(controller))
         stack.add(Box.createVerticalGlue())
@@ -82,9 +78,7 @@ class ExecuteStepPanel(controller: SimoptAppController) : JPanel(BorderLayout())
             stack,
             JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
-        ).apply {
-            border = BorderFactory.createEmptyBorder()
-        }
+        ).apply { border = BorderFactory.createEmptyBorder() }
         add(scroll, BorderLayout.CENTER)
     }
 }

@@ -26,6 +26,7 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
 import javax.swing.BorderFactory
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTable
@@ -35,20 +36,25 @@ import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableRowSorter
 
 /**
- * Tabular display of algorithm-specific state from
- * [ksl.simopt.solvers.SolverStateSnapshot.solverSpecificState].
+ * Tabular display of the best decision-variable assignment found so
+ * far.
  *
- * Examples: Simulated Annealing emits `"temperature"`, R-SPLINE
- * emits `"splineCalls"`, etc.  Solvers that never populate this
- * field (Stochastic Hill Climbing, Cross-Entropy in their stock
- * configuration) keep this panel hidden so the Execute step
- * doesn't dedicate vertical space to an empty box.
+ * Sourced from [SimoptAppController.latestIteration]`?.bestInputs`
+ * during a live run, falling back to
+ * `lastResult.bestSolution.bestSolutionSoFar.inputMap` once the run
+ * terminates — the panel keeps showing the winning point after the
+ * run ends instead of resetting.
+ *
+ * Implemented as a [JTable] (rather than stacked labels) so it
+ * scales gracefully when the problem has many decision variables;
+ * the table sits inside a scroll pane and offers sortable columns
+ * by clicking the header.
  */
-class AlgorithmStatePanel(
+class CurrentBestSolutionPanel(
     private val controller: SimoptAppController
 ) : JPanel(BorderLayout()) {
 
-    private val tableModel = object : DefaultTableModel(arrayOf("Metric", "Value"), 0) {
+    private val tableModel = object : DefaultTableModel(arrayOf("Decision variable", "Value"), 0) {
         override fun isCellEditable(row: Int, column: Int) = false
         override fun getColumnClass(columnIndex: Int): Class<*> =
             if (columnIndex == 1) java.lang.Double::class.java else String::class.java
@@ -61,23 +67,29 @@ class AlgorithmStatePanel(
         showHorizontalLines = true
         gridColor = Color(0xEC, 0xEC, 0xEC)
         font = font.deriveFont(Font.PLAIN, 12f)
+        // Sort by variable name ascending by default — stable display
+        // independent of the snapshot's hash ordering.
         val sorter = rowSorter as? TableRowSorter<*>
         sorter?.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
         columnModel.getColumn(0).preferredWidth = 220
         columnModel.getColumn(1).preferredWidth = 120
     }
+    private val emptyPlaceholder = JLabel("<html><i>No solution yet — start the optimization.</i></html>").apply {
+        foreground = Color(0x77, 0x77, 0x77)
+        font = font.deriveFont(Font.PLAIN, 12f)
+        border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
+    }
 
     private val scrollPane = JScrollPane(table).apply {
-        preferredSize = Dimension(360, 120)
+        preferredSize = Dimension(360, 160)
         border = BorderFactory.createEmptyBorder()
     }
 
     init {
         border = BorderFactory.createCompoundBorder(
-            BorderFactory.createTitledBorder("Algorithm State"),
+            BorderFactory.createTitledBorder("Current Best Solution"),
             BorderFactory.createEmptyBorder(2, 6, 6, 6)
         )
-        add(scrollPane, BorderLayout.CENTER)
 
         wireCollectors()
         refresh()
@@ -89,21 +101,25 @@ class AlgorithmStatePanel(
     }
 
     private fun refresh() {
-        val state = currentState()
-        isVisible = !state.isNullOrEmpty()
-        if (state != null) {
+        val inputs = currentInputs()
+        removeAll()
+        if (inputs.isEmpty()) {
+            add(emptyPlaceholder, BorderLayout.CENTER)
+        } else {
             tableModel.rowCount = 0
-            for ((name, value) in state.entries.sortedBy { it.key }) {
+            for ((name, value) in inputs.entries.sortedBy { it.key }) {
                 tableModel.addRow(arrayOf<Any?>(name, value))
             }
+            add(scrollPane, BorderLayout.CENTER)
         }
         revalidate()
         repaint()
     }
 
-    private fun currentState(): Map<String, Double>? {
-        controller.latestIteration.value?.solverSpecificState?.let { return it }
-        return controller.lastResult.value
-            ?.bestSolution?.solverSpecificState
+    private fun currentInputs(): Map<String, Double> {
+        controller.latestIteration.value?.bestInputs?.let { if (it.isNotEmpty()) return it }
+        controller.lastResult.value
+            ?.bestSolution?.bestSolutionSoFar?.inputMap?.let { return it }
+        return emptyMap()
     }
 }
