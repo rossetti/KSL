@@ -18,9 +18,12 @@
 
 package ksl.app.swing.simopt.results.export
 
+import kotlinx.serialization.Serializable
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
 import ksl.simopt.solvers.Solver
+import net.peanuuutz.tomlkt.Toml
+import net.peanuuutz.tomlkt.TomlComment
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -28,6 +31,7 @@ import java.nio.file.Path
  *  Status of a finished run, embedded in [RunSummary] so a partial
  *  artifact set (cancelled / failed runs) is still self-describing.
  */
+@Serializable
 enum class ResultsStatus {
     COMPLETED,
     CANCELLED,
@@ -41,60 +45,174 @@ enum class ResultsStatus {
  *  artifacts.  Lets a future "compare runs" feature ingest the
  *  metadata without parsing HTML or scraping CSV headers.
  *
+ *  Field declaration order **is** the encoded file's key order —
+ *  `tomlkt` emits fields in declaration order — so the leading
+ *  fields are the human-friendly identifiers users want to see
+ *  first, followed by termination metadata, the headline numeric
+ *  outcomes, and the substrate's UUID-based cross-reference last.
+ *  The two map-valued fields ([bestInputs], [solverConfiguration])
+ *  are emitted as TOML tables after the scalar block.
+ *
+ *  Per-field `@TomlComment` annotations show up as `#`-prefixed
+ *  lines above each key in the encoded file, so the artifact is
+ *  self-documenting for anyone opening it cold in a text editor.
+ *  This mirrors the convention `OptimizationRunConfiguration`
+ *  already uses for the document format.
+ *
  *  Optional fields ([bestEstimatedObjective], [bestPenalizedObjective],
  *  [bestFoundAtIteration], [bestInputs]) are null on partial / failed
- *  runs where no completed best snapshot is available.
- *
- *  Encoded by hand (no `kotlinx-serialization` plugin in this
- *  module) — the structure is shallow and the writer escapes
- *  user-supplied strings.
+ *  runs where no completed best snapshot is available.  Those keys
+ *  are omitted from the encoded file via `explicitNulls = false`
+ *  rather than written as `key = null`.
  */
+@Serializable
 data class RunSummary(
-    val runId: String,
-    val status: ResultsStatus,
-    val algorithm: String,
-    val solverName: String?,
+    @TomlComment(
+        "Human-readable name of the analysis (set on the Run Setup\n" +
+        "step — defaults to \"Untitled\")."
+    )
     val analysisName: String,
-    val modelIdentifier: String?,
-    val startTime: String,
-    val endTime: String,
-    val elapsedMillis: Long,
-    val totalIterations: Int,
-    val totalOracleCalls: Int?,
-    val bestEstimatedObjective: Double?,
-    val bestPenalizedObjective: Double?,
-    val bestFoundAtIteration: Int?,
-    val bestInputs: Map<String, Double> = emptyMap(),
-    /** Populated only for [ResultsStatus.CANCELLED] / [ResultsStatus.FAILED];
-     *  carries the user-facing cancel reason or the error message. */
+
+    @TomlComment(
+        "Leaf name of the run-output folder (e.g. \"run-001\").\n" +
+        "Matches the path shown on the Results step's \"Output folder\"\n" +
+        "line.  This is the human-friendly run identifier; the UUID\n" +
+        "below (runId) exists for tooling cross-reference."
+    )
+    val runDirectory: String? = null,
+
+    @TomlComment(
+        "Algorithm class name (e.g. \"StochasticHillClimbing\",\n" +
+        "\"SimulatedAnnealing\", \"CrossEntropySolver\", \"RSplineSolver\",\n" +
+        "\"RandomRestartSolver\")."
+    )
+    val algorithm: String,
+
+    @TomlComment(
+        "Human-readable solver name.  Auto-derived from the algorithm\n" +
+        "when the user leaves the Solver-name field blank on the\n" +
+        "Algorithm step (e.g. \"Stochastic Hill Climbing\")."
+    )
+    val solverName: String? = null,
+
+    @TomlComment(
+        "Identifier of the simulation Model the run was built against.\n" +
+        "Matches Model.modelIdentifier on the live engine instance."
+    )
+    val modelIdentifier: String? = null,
+
+    @TomlComment("Run termination status: COMPLETED, CANCELLED, or FAILED.")
+    val status: ResultsStatus,
+
+    @TomlComment(
+        "Cancellation reason or error message.  Populated only for\n" +
+        "CANCELLED / FAILED runs."
+    )
     val statusReason: String? = null,
-    /** Flat map of the solver's configuration properties — keys
-     *  preserve [Solver.configurationProperties] insertion order
-     *  on the encoded side.  Empty when no live solver was
-     *  available at write time (e.g. partial summaries from very
-     *  early failures). */
+
+    @TomlComment("Wall-clock instant the run began (ISO-8601 / RFC 3339).")
+    val startTime: String,
+
+    @TomlComment("Wall-clock instant the run terminated (ISO-8601 / RFC 3339).")
+    val endTime: String,
+
+    @TomlComment("Elapsed wall-clock duration, in milliseconds.")
+    val elapsedMillis: Long,
+
+    @TomlComment("Solver iterations completed.")
+    val totalIterations: Int,
+
+    @TomlComment(
+        "Cumulative number of oracle (simulation) calls the solver\n" +
+        "issued across all iterations.  Omitted on partial summaries\n" +
+        "where the count isn't available."
+    )
+    val totalOracleCalls: Int? = null,
+
+    @TomlComment(
+        "Best estimated objective-function value found by the solver.\n" +
+        "Maps to SolverStateSnapshot.estimatedObjFncValue on the best\n" +
+        "snapshot."
+    )
+    val bestEstimatedObjective: Double? = null,
+
+    @TomlComment(
+        "Best penalized objective value (estimated objective +\n" +
+        "constraint penalty terms).  Equals bestEstimatedObjective\n" +
+        "when no penalty function fires."
+    )
+    val bestPenalizedObjective: Double? = null,
+
+    @TomlComment(
+        "Iteration number at which the best estimated objective was\n" +
+        "first achieved.  Lets readers locate the convergence point\n" +
+        "in the iteration history."
+    )
+    val bestFoundAtIteration: Int? = null,
+
+    @TomlComment(
+        "Substrate-assigned UUID for the run.  Kept for log correlation\n" +
+        "and future \"compare runs\" tooling; not intended for human\n" +
+        "eyes — the runDirectory field above is the human-friendly\n" +
+        "identifier."
+    )
+    val runId: String,
+
+    @TomlComment(
+        "Best decision-variable assignment found by the solver — one\n" +
+        "key per decision variable, value at the best snapshot."
+    )
+    val bestInputs: Map<String, Double> = emptyMap(),
+
+    @TomlComment(
+        "Configuration the solver was running with: every field that\n" +
+        "Solver.configurationProperties exposes, in declaration order\n" +
+        "(base-class fields first, then subclass-specific fields).\n" +
+        "Nested values from RandomRestartSolver appear with an\n" +
+        "\"innerSolver.\" prefix."
+    )
     val solverConfiguration: Map<String, String> = emptyMap()
 )
 
 /**
  *  Writer + builder for [RunSummary].
  *
- *  All builders are pure functions over the inputs so the tests can
- *  exercise the projection without filesystem access; [write] is the
- *  only filesystem-touching call.
+ *  All builders are pure functions over the inputs so tests can
+ *  exercise the projection without filesystem access; [write] is
+ *  the only filesystem-touching call.
+ *
+ *  The TOML encoder delegates to `tomlkt` with `explicitNulls = false`,
+ *  so optional fields with `null` values are omitted from the
+ *  encoded file rather than rendered as `key = null` lines.
+ *  Round-trip decoding through [decode] is symmetric — a missing
+ *  key takes the property's declared default.
  */
 internal object RunSummaryWriter {
+
+    /** Two-line banner prepended to every encoded file.  Mirrors
+     *  the `DOCUMENT_HEADER` convention used by
+     *  `OptimizationRunConfigurationToml` for the document format. */
+    private const val DOCUMENT_HEADER =
+        "# SimOpt run summary — machine-readable.  Written automatically\n" +
+        "# at run completion; safe to ingest with any TOML 1.0 parser.\n\n"
+
+    private val toml = Toml {
+        explicitNulls = false
+    }
 
     /** Build a [RunSummary] from a successful run.  [solverInstance]
      *  is the live [Solver] reference captured before the controller
      *  cleared its handle — its
      *  [Solver.configurationProperties] are projected into the
      *  summary's `solverConfiguration` field for the
-     *  `[solverConfiguration]` TOML block. */
+     *  `[solverConfiguration]` TOML block.  [runDir] is the run-
+     *  output directory path; its leaf name becomes the human-
+     *  friendly [RunSummary.runDirectory] identifier. */
     fun forCompleted(
         config: OptimizationRunConfiguration,
         result: RunResult.OptimizationCompleted,
-        solverInstance: Solver? = null
+        solverInstance: Solver? = null,
+        runDir: Path? = null
     ): RunSummary {
         val problem = config.problem
         val solver = config.solver
@@ -104,12 +222,12 @@ internal object RunSummaryWriter {
             .firstOrNull { it.estimatedObjFncValue == bestObj }
             ?.iterationNumber
         return RunSummary(
-            runId = summary.runId,
-            status = ResultsStatus.COMPLETED,
+            analysisName = config.output.analysisName,
+            runDirectory = runDir?.fileName?.toString(),
             algorithm = solver?.let { it::class.simpleName ?: "Solver" } ?: "Solver",
             solverName = solver?.name,
-            analysisName = config.output.analysisName,
             modelIdentifier = problem?.modelIdentifier,
+            status = ResultsStatus.COMPLETED,
             startTime = summary.beginTime.toString(),
             endTime = summary.endTime.toString(),
             elapsedMillis = summary.wallClockDuration.inWholeMilliseconds,
@@ -118,6 +236,7 @@ internal object RunSummaryWriter {
             bestEstimatedObjective = bestObj,
             bestPenalizedObjective = result.bestSolution.penalizedObjFncValue,
             bestFoundAtIteration = bestIter,
+            runId = summary.runId,
             bestInputs = HashMap(result.bestSolution.bestSolutionSoFar.inputMap),
             solverConfiguration = solverInstance?.configurationProperties ?: emptyMap()
         )
@@ -137,7 +256,8 @@ internal object RunSummaryWriter {
         elapsedMillis: Long,
         latestBest: LatestBestSnapshot?,
         statusReason: String?,
-        solverInstance: Solver? = null
+        solverInstance: Solver? = null,
+        runDir: Path? = null
     ): RunSummary {
         require(status != ResultsStatus.COMPLETED) {
             "forIncomplete must not be called with COMPLETED; use forCompleted"
@@ -145,12 +265,13 @@ internal object RunSummaryWriter {
         val problem = config.problem
         val solver = config.solver
         return RunSummary(
-            runId = runId,
-            status = status,
+            analysisName = config.output.analysisName,
+            runDirectory = runDir?.fileName?.toString(),
             algorithm = solver?.let { it::class.simpleName ?: "Solver" } ?: "Solver",
             solverName = solver?.name,
-            analysisName = config.output.analysisName,
             modelIdentifier = problem?.modelIdentifier,
+            status = status,
+            statusReason = statusReason,
             startTime = startTimeIso,
             endTime = endTimeIso,
             elapsedMillis = elapsedMillis,
@@ -159,54 +280,27 @@ internal object RunSummaryWriter {
             bestEstimatedObjective = latestBest?.estimatedObjective,
             bestPenalizedObjective = null,
             bestFoundAtIteration = latestBest?.iteration,
+            runId = runId,
             bestInputs = latestBest?.bestInputs ?: emptyMap(),
-            statusReason = statusReason,
             solverConfiguration = solverInstance?.configurationProperties ?: emptyMap()
         )
     }
 
-    /** Encode [summary] as TOML text by hand.  Skips fields whose
-     *  values are `null` (TOML 1.0 doesn't support an explicit
-     *  null), so consumers should treat missing keys as "not
-     *  applicable for this status."  Strings are quoted and
-     *  escaped per TOML 1.0 basic-string rules. */
-    fun encode(summary: RunSummary): String = buildString {
-        appendLine("# SimOpt run summary — machine-readable.  Written automatically")
-        appendLine("# at run completion; safe to ingest with any TOML 1.0 parser.")
-        appendLine()
-        appendKv("runId", summary.runId)
-        appendKv("status", summary.status.name)
-        appendKv("algorithm", summary.algorithm)
-        summary.solverName?.let { appendKv("solverName", it) }
-        appendKv("analysisName", summary.analysisName)
-        summary.modelIdentifier?.let { appendKv("modelIdentifier", it) }
-        appendKv("startTime", summary.startTime)
-        appendKv("endTime", summary.endTime)
-        appendKvNum("elapsedMillis", summary.elapsedMillis)
-        appendKvNum("totalIterations", summary.totalIterations.toLong())
-        summary.totalOracleCalls?.let { appendKvNum("totalOracleCalls", it.toLong()) }
-        summary.bestEstimatedObjective?.let { appendKvDouble("bestEstimatedObjective", it) }
-        summary.bestPenalizedObjective?.let { appendKvDouble("bestPenalizedObjective", it) }
-        summary.bestFoundAtIteration?.let { appendKvNum("bestFoundAtIteration", it.toLong()) }
-        summary.statusReason?.let { appendKv("statusReason", it) }
-        if (summary.bestInputs.isNotEmpty()) {
-            appendLine()
-            appendLine("[bestInputs]")
-            for ((name, value) in summary.bestInputs.entries.sortedBy { it.key }) {
-                appendKvDouble(name, value)
-            }
-        }
-        if (summary.solverConfiguration.isNotEmpty()) {
-            appendLine()
-            appendLine("[solverConfiguration]")
-            // Preserve insertion order — Solver.configurationProperties
-            // produces base-class fields first, then subclass fields,
-            // which is exactly the order a reader wants to see.
-            for ((name, value) in summary.solverConfiguration) {
-                appendKvSafeKey(name, value)
-            }
-        }
-    }
+    /** Serialise [summary] to a TOML string, prefixed with the
+     *  [DOCUMENT_HEADER] banner.  Field order matches the
+     *  declaration order on [RunSummary]; per-field
+     *  `@TomlComment` annotations are emitted as `#` lines above
+     *  each key, making the file self-documenting for anyone
+     *  cracking it open in a text editor. */
+    fun encode(summary: RunSummary): String =
+        DOCUMENT_HEADER + toml.encodeToString(RunSummary.serializer(), summary)
+
+    /** Round-trip decoder.  Lets downstream tooling (a future
+     *  "compare runs" view, batch result inspection, etc.) load
+     *  a `summary.toml` back into the typed model without writing
+     *  its own parser. */
+    fun decode(text: String): RunSummary =
+        toml.decodeFromString(RunSummary.serializer(), text)
 
     /** Encode [summary] and write to [path] (creating parent
      *  directories as needed).  Best-effort — returns `true` on
@@ -217,60 +311,6 @@ internal object RunSummaryWriter {
         true
     } catch (_: Throwable) {
         false
-    }
-
-    private fun StringBuilder.appendKv(key: String, value: String) {
-        append(key).append(" = ").append(tomlQuote(value)).appendLine()
-    }
-
-    private fun StringBuilder.appendKvNum(key: String, value: Long) {
-        append(key).append(" = ").append(value).appendLine()
-    }
-
-    private fun StringBuilder.appendKvDouble(key: String, value: Double) {
-        append(key).append(" = ").append(tomlDouble(value)).appendLine()
-    }
-
-    /** Emit a string key/value pair, quoting the key when it
-     *  contains characters TOML 1.0 forbids in bare keys (anything
-     *  outside `[A-Za-z0-9_-]`).  Used for the
-     *  `solverConfiguration` table whose flattened nested keys
-     *  carry dots (e.g. `innerSolver.streamNumber`). */
-    private fun StringBuilder.appendKvSafeKey(key: String, value: String) {
-        val safeKey = if (key.matches(Regex("[A-Za-z0-9_-]+"))) key else tomlQuote(key)
-        append(safeKey).append(" = ").append(tomlQuote(value)).appendLine()
-    }
-
-    /** TOML basic-string quoting per the spec — escape `"` and
-     *  `\` and control characters.  Sufficient for the strings we
-     *  emit (status enums, ISO timestamps, user-provided names). */
-    private fun tomlQuote(s: String): String {
-        val sb = StringBuilder("\"")
-        for (ch in s) {
-            when {
-                ch == '\\' -> sb.append("\\\\")
-                ch == '"' -> sb.append("\\\"")
-                ch == '\n' -> sb.append("\\n")
-                ch == '\r' -> sb.append("\\r")
-                ch == '\t' -> sb.append("\\t")
-                ch.code < 0x20 -> sb.append("\\u%04X".format(ch.code))
-                else -> sb.append(ch)
-            }
-        }
-        sb.append("\"")
-        return sb.toString()
-    }
-
-    /** TOML floats require an explicit decimal point or
-     *  exponent; `inf` / `nan` are valid TOML 1.0 literals. */
-    private fun tomlDouble(v: Double): String = when {
-        v.isNaN() -> "nan"
-        v == Double.POSITIVE_INFINITY || v == Double.MAX_VALUE -> "inf"
-        v == Double.NEGATIVE_INFINITY || v == -Double.MAX_VALUE -> "-inf"
-        else -> {
-            val raw = v.toString()
-            if ('.' in raw || 'e' in raw || 'E' in raw) raw else "$raw.0"
-        }
     }
 }
 

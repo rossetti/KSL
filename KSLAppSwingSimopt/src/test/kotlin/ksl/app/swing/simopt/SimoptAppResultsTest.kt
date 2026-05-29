@@ -445,4 +445,96 @@ class SimoptAppResultsTest {
             )
         }
     }
+
+    // ── runDirectory + key-ordering ────────────────────────────────────
+
+    @Test
+    fun `summary toml carries a runDirectory matching the run output folder leaf`(@TempDir tempDir: Path) {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("rundir-test")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val toml = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
+            // Leaf name of the runOutputDir is what the user sees in
+            // the Results step's "Output folder" line — surfacing it
+            // here gives a human-friendly identifier without removing
+            // the substrate's UUID-based `runId`.
+            assertContains(toml, "runDirectory = \"rundir-test\"")
+        }
+    }
+
+    @Test
+    fun `summary toml key order leads with human-friendly fields and ends with runId before tables`(@TempDir tempDir: Path) {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("order-test")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val toml = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
+            // Match on `<key> = ` (key + space + equals + space) so we
+            // skip occurrences of the names inside `@TomlComment` blocks
+            // — e.g. the runDirectory comment references `(runId)` in
+            // its explanation, which would otherwise make a bare
+            // `indexOf("runId")` resolve to the comment text rather
+            // than the key assignment.
+            val iAnalysis = toml.indexOf("analysisName = ")
+            val iRunDir = toml.indexOf("runDirectory = ")
+            val iAlgorithm = toml.indexOf("algorithm = ")
+            val iRunId = toml.indexOf("runId = ")
+            val iBestInputs = toml.indexOf("[bestInputs]")
+            val iSolverConfiguration = toml.indexOf("[solverConfiguration]")
+            // Human-friendly identifiers lead.
+            assertTrue(iAnalysis in 0 until iRunDir,
+                "analysisName must come before runDirectory")
+            assertTrue(iRunDir in 0 until iAlgorithm,
+                "runDirectory must come before algorithm")
+            assertTrue(iAlgorithm in 0 until iRunId,
+                "algorithm must come before runId")
+            // Substrate cross-reference (UUID) lands last in the
+            // top-level keys, before any tables.
+            assertTrue(iRunId in 0 until iBestInputs,
+                "runId must precede [bestInputs]")
+            assertTrue(iRunId in 0 until iSolverConfiguration,
+                "runId must precede [solverConfiguration]")
+        }
+    }
+
+    @Test
+    fun `summary toml round-trips through encode then decode preserving every field`(@TempDir tempDir: Path) {
+        // Verifies the @Serializable / tomlkt path is symmetric — a
+        // future tool reading summary.toml back into RunSummary will
+        // recover every field the writer set.  This was untestable
+        // under the previous hand-rolled encoder (no decoder
+        // existed); now that we delegate to tomlkt, round-trip
+        // safety is the contract.
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("roundtrip-test")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val tomlText = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
+            val decoded = RunSummaryWriter.decode(tomlText)
+            // Rebuild what the writer produced and assert equality.
+            val rebuilt = RunSummaryWriter.forCompleted(
+                config = c.currentConfiguration()!!,
+                result = c.lastResult.value!!,
+                solverInstance = null,
+                runDir = target
+            ).copy(
+                // The live capture in the controller's terminal observer
+                // populated solverConfiguration from the live Solver
+                // instance; rebuilding here without it would diverge.
+                // We're testing the codec, not the writer/observer
+                // wiring — copy the decoded solverConfiguration onto
+                // the rebuilt summary so the comparison focuses on
+                // round-trip fidelity of the scalar block + bestInputs.
+                solverConfiguration = decoded.solverConfiguration
+            )
+            assertEquals(rebuilt, decoded)
+        }
+    }
 }

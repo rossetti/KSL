@@ -92,7 +92,12 @@ internal object ResultsArtifactWriter {
         val problem = config.problem
             ?: return ArtifactWriteResult(false, false, false, false, false)
 
-        val summary = RunSummaryWriter.forCompleted(config, result, solverInstance)
+        val summary = RunSummaryWriter.forCompleted(
+            config = config,
+            result = result,
+            solverInstance = solverInstance,
+            runDir = runDir
+        )
 
         val summaryOk = RunSummaryWriter.write(
             summary, runDir.resolve(ArtifactNames.SUMMARY_TOML)
@@ -151,7 +156,8 @@ internal object ResultsArtifactWriter {
             elapsedMillis = elapsedMillis,
             latestBest = latestBest,
             statusReason = statusReason,
-            solverInstance = solverInstance
+            solverInstance = solverInstance,
+            runDir = runDir
         )
         val summaryOk = RunSummaryWriter.write(
             summary, runDir.resolve(ArtifactNames.SUMMARY_TOML)
