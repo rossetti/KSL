@@ -60,6 +60,9 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
+import ksl.app.swing.simopt.results.export.LatestBestSnapshot
+import ksl.app.swing.simopt.results.export.ResultsArtifactWriter
+import ksl.app.swing.simopt.results.export.ResultsStatus
 import ksl.app.swing.simopt.runsetup.RunSetupPaths
 import ksl.app.swing.simopt.stepper.Step
 import ksl.app.validation.FieldError
@@ -503,6 +506,22 @@ class SimoptAppController(
      */
     val runOutputDir: StateFlow<Path> = myRunOutputDir.asStateFlow()
 
+    private val myLastCompletedRunDir = MutableStateFlow<Path?>(null)
+    /**
+     *  Directory where the most recent run's artifacts were
+     *  written.  Populated when [submit] resolves to any terminal
+     *  state (completed, cancelled, or failed) — the
+     *  [ResultsArtifactWriter] writes at least a summary TOML for
+     *  every terminal state.  `null` until the first terminal
+     *  resolution.
+     *
+     *  Drives the Results step's artifact-list "Open" buttons,
+     *  which need to point at the run directory that just produced
+     *  artifacts — not at the auto-advanced *next* run directory
+     *  exposed by [runOutputDir].
+     */
+    val lastCompletedRunDir: StateFlow<Path?> = myLastCompletedRunDir.asStateFlow()
+
     /** Held privately so [submit] and [cancel] (and [close]) can see
      *  the in-flight handle.  `null` whenever no run is active. */
     private var currentRunHandle: RunHandle? = null
@@ -510,6 +529,19 @@ class SimoptAppController(
     /** Event-collection Job; cancelled in the terminal branch so the
      *  collector doesn't outlive the run. */
     private var currentRunJob: Job? = null
+
+    /** Snapshot of the in-flight run's metadata captured at submit
+     *  time so the terminal observer can write a useful partial
+     *  summary even when the run cancels / fails before producing
+     *  a completed result.  `null` whenever no run is active. */
+    private var currentRunSnapshot: RunStartSnapshot? = null
+
+    private data class RunStartSnapshot(
+        val runId: String,
+        val startTimeIso: String,
+        val config: OptimizationRunConfiguration,
+        val runDir: Path
+    )
 
     init {
         // Auto-discover classpath bundles so a packaged app shows
@@ -1955,6 +1987,14 @@ class SimoptAppController(
 
         val handle: RunHandle = OptimizationOrchestrator().submit(solver = solver)
 
+        val startMillis = System.currentTimeMillis()
+        currentRunSnapshot = RunStartSnapshot(
+            runId = handle.runId,
+            startTimeIso = java.time.Instant.ofEpochMilli(startMillis).toString(),
+            config = config,
+            runDir = runDir
+        )
+
         currentRunHandle = handle
         myActiveSolver.value = solver
         myLatestIteration.value = null
@@ -1979,15 +2019,80 @@ class SimoptAppController(
             } catch (_: Throwable) {
                 null
             }
+            val snapshot = currentRunSnapshot
             if (result is RunResult.OptimizationCompleted) {
                 myLastResult.value = result
                 // A successful completion means the result matches
                 // the document — clear the stale flag.
                 myEditedSinceLastRun.value = false
+                if (snapshot != null) {
+                    // Capture solverResult from the live solver
+                    // *before* we null myActiveSolver below — the
+                    // substrate's Solver.solverResult property only
+                    // produces meaningful data while the Solver
+                    // instance is reachable.  Used by the HTML
+                    // report writer (via the framework's
+                    // `solverResult(...)` DSL extension) to render
+                    // the run-summary / evaluator-metrics / best-
+                    // solution tables.
+                    val capturedSolverResult = myActiveSolver.value?.solverResult
+                    runCatching {
+                        if (capturedSolverResult != null) {
+                            ResultsArtifactWriter.writeCompleted(
+                                config = snapshot.config,
+                                result = result,
+                                solverResult = capturedSolverResult,
+                                runDir = snapshot.runDir
+                            )
+                        }
+                    }
+                }
+            } else if (snapshot != null) {
+                // Partial summary for cancelled / failed runs —
+                // the run output directory carries a TOML record
+                // of what happened, with the best-so-far snapshot
+                // (if any iteration fired) and the reason.
+                val (status, reason) = when (result) {
+                    is RunResult.Cancelled -> ResultsStatus.CANCELLED to result.reason
+                    is RunResult.Failed -> ResultsStatus.FAILED to
+                        (result.error::class.simpleName ?: "Failed")
+                    null -> ResultsStatus.FAILED to "Terminal observer caught an exception"
+                    else -> ResultsStatus.FAILED to "Unexpected terminal result ${result::class.simpleName}"
+                }
+                val endMillis = System.currentTimeMillis()
+                val startMillis = java.time.Instant.parse(snapshot.startTimeIso).toEpochMilli()
+                val latestBest = myLatestIteration.value?.let {
+                    LatestBestSnapshot(
+                        iteration = it.iteration,
+                        estimatedObjective = it.estimatedObjectiveValue,
+                        bestInputs = HashMap(it.bestInputs)
+                    )
+                }
+                runCatching {
+                    ResultsArtifactWriter.writeIncomplete(
+                        config = snapshot.config,
+                        status = status,
+                        runId = snapshot.runId,
+                        startTimeIso = snapshot.startTimeIso,
+                        endTimeIso = java.time.Instant.ofEpochMilli(endMillis).toString(),
+                        elapsedMillis = endMillis - startMillis,
+                        latestBest = latestBest,
+                        statusReason = reason,
+                        runDir = snapshot.runDir
+                    )
+                }
+            }
+            // Expose the just-written directory so the Results
+            // step's artifact list points at it (the next `runOutputDir`
+            // refresh below will advance to a fresh run-NNN that has
+            // no artifacts yet).
+            if (snapshot != null) {
+                myLastCompletedRunDir.value = snapshot.runDir
             }
             currentRunJob?.cancel()
             currentRunJob = null
             currentRunHandle = null
+            currentRunSnapshot = null
             myActiveSolver.value = null
             myRunning.value = false
             // Advance to the next auto run-NNN slot so a follow-up
