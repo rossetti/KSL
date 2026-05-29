@@ -18,6 +18,9 @@
 
 package ksl.app.swing.common.comparison
 
+import ksl.app.results.comparison.ComparisonReportRenderer
+import ksl.app.swing.common.io.openHtmlInBrowser
+
 import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
@@ -443,6 +446,16 @@ object ConfidenceIntervalsAnalysisDialog {
                     "Wrote ${outcome.written.size} Confidence Intervals file(s) to $outputDir: $files",
                     ComparisonAnalyzerFrame.Severity.INFO
                 )
+            }
+            outcome.htmlPath?.let { html ->
+                try {
+                    openHtmlInBrowser(html)
+                } catch (t: Throwable) {
+                    onMessage(
+                        "Confidence Intervals: Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}",
+                        ComparisonAnalyzerFrame.Severity.WARNING
+                    )
+                }
             }
         }
     }

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.batchreports
+package ksl.app.results.batchreports
 
 import kotlinx.datetime.Instant
 import ksl.app.config.ReportFormat
@@ -36,7 +36,7 @@ import kotlin.test.assertTrue
 
 /**
  *  Focused tests for the `itemNames` filter on
- *  [BatchReports.renderBatchSummary].  The unfiltered path is
+ *  [BatchReportsWriter.renderBatchSummary].  The unfiltered path is
  *  exercised in practice by host apps' manual smoke tests; these
  *  tests pin down the filter semantics so the tab panel can rely on
  *  them.
@@ -58,7 +58,7 @@ class BatchReportsTest {
     @Test
     fun `null itemNames includes every snapshot`() {
         val result = threeItemResult()
-        val out = BatchReports.renderBatchSummary(
+        val out = BatchReportsWriter.renderBatchSummary(
             result = result,
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
@@ -78,7 +78,7 @@ class BatchReportsTest {
     @Test
     fun `non-null itemNames filters the Run Overview and the per-item sections`() {
         val result = threeItemResult()
-        val out = BatchReports.renderBatchSummary(
+        val out = BatchReportsWriter.renderBatchSummary(
             result = result,
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
@@ -104,7 +104,7 @@ class BatchReportsTest {
     @Test
     fun `unknown names in itemNames are silently ignored`() {
         val result = threeItemResult()
-        val out = BatchReports.renderBatchSummary(
+        val out = BatchReportsWriter.renderBatchSummary(
             result = result,
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
@@ -122,7 +122,7 @@ class BatchReportsTest {
     @Test
     fun `empty itemNames set surfaces as an error and writes no files`() {
         val result = threeItemResult()
-        val out = BatchReports.renderBatchSummary(
+        val out = BatchReportsWriter.renderBatchSummary(
             result = result,
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
@@ -137,7 +137,7 @@ class BatchReportsTest {
     @Test
     fun `itemNames whitelist matching every snapshot omits the filtered-to footer`() {
         val result = threeItemResult()
-        val out = BatchReports.renderBatchSummary(
+        val out = BatchReportsWriter.renderBatchSummary(
             result = result,
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
@@ -166,12 +166,11 @@ class BatchReportsTest {
         val written = mutableListOf<java.nio.file.Path>()
         val errors = mutableListOf<String>()
         for (name in listOf("S1", "S2", "S3")) {
-            val out = BatchReports.renderItemSummary(
+            val out = BatchReportsWriter.renderItemSummary(
                 result = result,
                 itemName = name,
                 outputDir = tempDir,
                 formats = setOf(ReportFormat.MARKDOWN),
-                openHtmlInBrowser = false
             )
             written.addAll(out.written)
             errors.addAll(out.errors.map { "[$name] $it" })
@@ -188,12 +187,11 @@ class BatchReportsTest {
         // Pass an Experiment-app-shaped stem and verify the on-disk
         // filename matches.
         val result = threeItemResult()
-        val out = BatchReports.renderItemSummary(
+        val out = BatchReportsWriter.renderItemSummary(
             result = result,
             itemName = "S1",
             outputDir = tempDir,
             formats = setOf(ReportFormat.MARKDOWN),
-            openHtmlInBrowser = false,
             itemFileStemPrefix = "item-summary"
         )
         assertEquals(1, out.written.size)

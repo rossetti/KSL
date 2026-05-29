@@ -16,10 +16,9 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.results.comparison
 
-import ksl.app.comparison.*
-
+import ksl.app.comparison.ComparisonSelectionModel
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.plotting.ConfidenceIntervalsPlot
 import ksl.utilities.io.report.ast.ReportNode
@@ -35,29 +34,40 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Renderer for the Comparison Analyzer.  Translates a current
- *  [ComparisonSelectionModel] state into a report document via the
- *  substrate's existing report-DSL extensions
- *  ([multiBoxPlot], [multipleComparison],
+ *  Renderer for the comparison analyzer.  Translates the current
+ *  observation map (gathered from a [ComparisonSelectionModel] in
+ *  practice) into a report document via the substrate's existing
+ *  report-DSL extensions ([multiBoxPlot], [multipleComparison],
  *  [ConfidenceIntervalsPlot]) and writes it in every requested
- *  [ReportFormat].  When HTML is among the formats, the rendered
- *  HTML file is opened in the user's default browser via
- *  [java.awt.Desktop.browse] so the analyst sees the result
- *  immediately.
+ *  [ReportFormat].
  *
- *  The renderer is intentionally a pure side-effect-bearing object:
- *  no UI state, no Swing dependencies.  Callers that want to
- *  drive it from a unit test can construct the inputs by hand and
- *  inspect the returned [WriteOutcome] without standing up a frame.
+ *  The renderer writes files only; it does *not* open them in any
+ *  viewer.  Hosts that want browser-open behavior consult
+ *  [WriteOutcome.htmlPath] after the render call and dispatch
+ *  through their own platform channel (e.g. `java.awt.Desktop.browse`
+ *  in a Swing host).
+ *
+ *  Pure side-effect-bearing object: no UI state, no Swing
+ *  dependencies.  Callers driving it from a unit test can build the
+ *  inputs by hand and inspect the returned [WriteOutcome] without
+ *  standing up a frame.
  */
 object ComparisonReportRenderer {
 
-    /** Result of a [render] call.  Lets the caller surface per-format
-     *  successes and errors in one notification pass. */
+    /** Result of a render call.  Lets the caller surface per-format
+     *  successes and errors in one notification pass, and locate the
+     *  HTML output (if any) for host-side browser-open. */
     data class WriteOutcome(
         val written: List<Path>,
         val errors: List<String>
-    )
+    ) {
+        /** Convenience accessor — the HTML file in [written] (if any).
+         *  Hosts that want to open the HTML in a browser after a
+         *  successful render check this and dispatch through their own
+         *  platform channel.  Returns `null` when HTML was not among the
+         *  requested formats or its write failed. */
+        val htmlPath: Path? get() = written.firstOrNull { it.toString().endsWith(".html") }
+    }
 
     // ── Per-analysis renderers ───────────────────────────────────────────
     //
@@ -67,22 +77,6 @@ object ComparisonReportRenderer {
     // — analysis-specific knobs (CL, indifference δ, title, etc.)
     // arrive through the per-analysis signature.
 
-    /**
-     *  Render a cross-experiment box plot for [responseName].
-     *
-     *  Iteration order of [observations] is preserved end-to-end:
-     *  the map's first key becomes the leftmost box, the last key
-     *  the rightmost.  Callers driving this from the analyzer pass
-     *  the LinkedHashMap returned by
-     *  [ComparisonSelectionModel.gatherObservationsFor], which
-     *  reflects the experiments column's top-to-bottom order.
-     *
-     *  @param caption  optional caption shown beneath the plot.
-     *    `null` (the default) yields "Cross-experiment distributions
-     *    — <response>".  Blank strings are treated as `null`.
-     *  @param formats  output formats to write.  Empty produces an
-     *    errors-only [WriteOutcome].
-     */
     /**
      *  Render a cross-experiment box plot for [responseName].
      *
@@ -238,7 +232,7 @@ object ComparisonReportRenderer {
      *
      *  @param level           confidence level for the CIs (default
      *    0.95).  Each alternative's CI is computed from its own
-     *    [observations] via [Statistic.confidenceIntervals], so
+     *    [observations] via `Statistic.confidenceIntervals`, so
      *    unequal replication counts are allowed (unlike MCA).
      *  @param referencePoint  optional vertical reference line on
      *    the value axis (e.g. a target throughput or known
@@ -332,7 +326,6 @@ object ComparisonReportRenderer {
         Files.createDirectories(outputDir)
         val written = mutableListOf<Path>()
         val errors = mutableListOf<String>()
-        var htmlPath: Path? = null
         for (fmt in formats) {
             try {
                 val ext = when (fmt) {
@@ -342,10 +335,7 @@ object ComparisonReportRenderer {
                 }
                 val path = outputDir.resolve("$stem.$ext")
                 when (fmt) {
-                    ReportFormat.HTML -> {
-                        doc.writeHtml(path = path)
-                        htmlPath = path
-                    }
+                    ReportFormat.HTML -> doc.writeHtml(path = path)
                     ReportFormat.MARKDOWN -> doc.writeMarkdown(path = path)
                     ReportFormat.TEXT -> doc.writeText(path = path)
                 }
@@ -354,25 +344,7 @@ object ComparisonReportRenderer {
                 errors.add("${fmt.name}: ${t.message ?: t::class.simpleName ?: "unknown error"}")
             }
         }
-        if (htmlPath != null) {
-            try {
-                openInBrowser(htmlPath)
-            } catch (t: Throwable) {
-                errors.add("Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}")
-            }
-        }
         return WriteOutcome(written, errors)
-    }
-
-    private fun openInBrowser(htmlPath: Path) {
-        if (!java.awt.Desktop.isDesktopSupported()) {
-            throw UnsupportedOperationException("Desktop browser open is not supported on this platform.")
-        }
-        val desktop = java.awt.Desktop.getDesktop()
-        if (!desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
-            throw UnsupportedOperationException("Browser action is not supported on this platform.")
-        }
-        desktop.browse(htmlPath.toUri())
     }
 
     private fun fileStem(prefix: String, key: String): String {

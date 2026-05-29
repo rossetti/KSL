@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.batchreports
+package ksl.app.results.batchreports
 
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
@@ -36,7 +36,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Reporting layer shared by every app that materialises per-batch
+ *  Reporting layer shared by every host that materialises per-batch
  *  reports (Scenario today; Experiment when its tabs land).
  *
  *  Batches are represented as `RunResult.BatchCompleted`, and each
@@ -48,9 +48,14 @@ import java.nio.file.Path
  *  bridge populates from `model.experimentName`, which the orchestrator
  *  sets from each item's name.
  *
- *  Every render path writes one file per selected [ReportFormat],
- *  then, when HTML was among the formats, asks the platform to open
- *  the HTML file in the user's default browser.
+ *  Every render path writes one file per selected [ReportFormat] and
+ *  returns a [WriteOutcome] describing the paths written and any
+ *  per-format errors.  The writer does *not* open files in a browser
+ *  or any other viewer — that's a host concern.  Callers that want
+ *  browser-open behavior consult [WriteOutcome.htmlPath] and dispatch
+ *  through their own platform-appropriate channel (e.g.
+ *  `java.awt.Desktop.browse` in a Swing host, a `target="_blank"` in
+ *  a web host).
  *
  *  ## File-stem defaults
  *
@@ -61,10 +66,11 @@ import java.nio.file.Path
  *  app) override `itemFileStemPrefix` / `batchFileStem` for
  *  domain-natural names.
  */
-object BatchReports {
+object BatchReportsWriter {
 
     /** Result of a render call.  Lets the caller surface per-format
-     *  successes and errors in one notification pass. */
+     *  successes and errors in one notification pass, and locate the
+     *  HTML output (if any) for host-side browser-open. */
     data class WriteOutcome(
         val written: List<Path>,
         val errors: List<String>,
@@ -73,7 +79,14 @@ object BatchReports {
          *  conflicting file already existed.  Distinct from a failure;
          *  callers should not flip the row state to FAILED on a skip. */
         val skipped: Boolean = false
-    )
+    ) {
+        /** Convenience accessor — the HTML file in [written] (if any).
+         *  Hosts that want to open the HTML in a browser after a
+         *  successful render check this and dispatch through their own
+         *  platform channel.  Returns `null` when HTML was not among the
+         *  requested formats or its write failed. */
+        val htmlPath: Path? get() = written.firstOrNull { it.toString().endsWith(".html") }
+    }
 
     /** Policy applied at write time when a destination file already
      *  exists for the target stem.  Picked by the user via the
@@ -119,7 +132,7 @@ object BatchReports {
     // ── Render entry points ───────────────────────────────────────────────
     //
     // Cross-item reporting (box plot, multiple comparison) lives in the
-    // Comparison Analyzer family ([ksl.app.swing.common.comparison]).
+    // comparison-analyzer renderer (`ksl.app.results.comparison`).
     // Only the per-batch summary and per-item summary renderers live
     // here — they're structurally unrelated to comparisons and have no
     // analyzer equivalent.
@@ -158,7 +171,6 @@ object BatchReports {
         outputDir: Path,
         formats: Set<ReportFormat>,
         itemNames: Set<String>? = null,
-        openHtmlInBrowser: Boolean = true,
         existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE,
         batchFileStem: String = "scenario-summaries",
         reportTitle: String = "Batch Summary — ${result.summary.orchestratorName}",
@@ -225,7 +237,7 @@ object BatchReports {
         }
         val stemDecision = decideStem(batchFileStem, outputDir, formats, existingFilePolicy)
         if (stemDecision.skipped) return stemDecision.toSkippedOutcome("summary")
-        return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
+        return writeAll(doc, outputDir, stemDecision.stem, formats)
     }
 
     /**
@@ -235,11 +247,6 @@ object BatchReports {
      *  across-replication statistics, histograms, frequencies,
      *  time-series period statistics.
      *
-     *  @param openHtmlInBrowser when `true` (the default) and HTML is
-     *    among [formats], the rendered HTML file is opened in the
-     *    user's default browser.  Pass `false` when invoking this in
-     *    a batch (e.g. one call per picked item) so only the first
-     *    invocation opens a browser tab rather than N.
      *  @param itemFileStemPrefix filename stem prefix (no key, no
      *    extension) for the per-item document.  Defaults to
      *    `"scenario-summary"` to preserve Scenario-app filenames; new
@@ -251,7 +258,6 @@ object BatchReports {
         itemName: String,
         outputDir: Path,
         formats: Set<ReportFormat>,
-        openHtmlInBrowser: Boolean = true,
         existingFilePolicy: FileHandlingPolicy = FileHandlingPolicy.OVERWRITE,
         itemFileStemPrefix: String = "scenario-summary",
         reportTitle: String = "Item Summary — $itemName"
@@ -269,7 +275,7 @@ object BatchReports {
         val baseStem = fileStem(itemFileStemPrefix, itemName)
         val stemDecision = decideStem(baseStem, outputDir, formats, existingFilePolicy)
         if (stemDecision.skipped) return stemDecision.toSkippedOutcome(itemName)
-        return writeAll(doc, outputDir, stemDecision.stem, formats, openHtmlInBrowser)
+        return writeAll(doc, outputDir, stemDecision.stem, formats)
     }
 
     /** Outcome of [decideStem] — either a stem to write to, or a
@@ -406,7 +412,8 @@ object BatchReports {
         )
     }
 
-    private fun fmt(v: Double?, digits: Int = 4): String =
+    /** Format helper: round to [digits] places, blank when NaN/Inf. */
+    private fun fmt(v: Double?, digits: Int = 6): String =
         v?.takeIf { !it.isNaN() && !it.isInfinite() }?.let { "%.${digits}f".format(it) } ?: ""
 
     private fun fmtInt(v: Double?): String =
@@ -419,26 +426,24 @@ object BatchReports {
         return fmt(v)
     }
 
-    // ── File writing + browser open ──────────────────────────────────────
+    // ── File writing ─────────────────────────────────────────────────────
 
     /** Writes [doc] in every format in [formats] using [stem] as the
-     *  filename base.  When the formats include HTML *and* the HTML
-     *  write succeeded *and* [openHtmlInBrowser] is `true`, also asks
-     *  the platform to open the HTML file in the user's default
-     *  browser.  Callers writing a batch of reports pass
-     *  `openHtmlInBrowser = false` for all but the first call so the
-     *  user doesn't get N browser tabs. */
+     *  filename base.  Errors during individual format writes are
+     *  collected into [WriteOutcome.errors]; successfully-written paths
+     *  are returned in [WriteOutcome.written].  Hosts that want to
+     *  open the rendered HTML in a browser consult
+     *  [WriteOutcome.htmlPath] and dispatch through their own platform
+     *  channel — this writer does not. */
     private fun writeAll(
         doc: ReportNode.Document,
         outputDir: Path,
         stem: String,
-        formats: Set<ReportFormat>,
-        openHtmlInBrowser: Boolean = true
+        formats: Set<ReportFormat>
     ): WriteOutcome {
         Files.createDirectories(outputDir)
         val written = mutableListOf<Path>()
         val errors = mutableListOf<String>()
-        var htmlPath: Path? = null
         for (fmt in formats) {
             try {
                 val ext = when (fmt) {
@@ -448,10 +453,7 @@ object BatchReports {
                 }
                 val path = outputDir.resolve("$stem.$ext")
                 when (fmt) {
-                    ReportFormat.HTML -> {
-                        doc.writeHtml(path = path)
-                        htmlPath = path
-                    }
+                    ReportFormat.HTML -> doc.writeHtml(path = path)
                     ReportFormat.MARKDOWN -> doc.writeMarkdown(path = path)
                     ReportFormat.TEXT -> doc.writeText(path = path)
                 }
@@ -460,29 +462,7 @@ object BatchReports {
                 errors.add("${fmt.name}: ${t.message ?: t::class.simpleName ?: "unknown error"}")
             }
         }
-        if (htmlPath != null && openHtmlInBrowser) {
-            try {
-                openInBrowser(htmlPath)
-            } catch (t: Throwable) {
-                errors.add("Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}")
-            }
-        }
         return WriteOutcome(written, errors)
-    }
-
-    /** Open [htmlPath] in the user's default browser via
-     *  [java.awt.Desktop].  Bypasses the substrate's
-     *  `ReportNode.Document.showInBrowser()` because that writes its
-     *  own temp file rather than opening the one we already wrote. */
-    private fun openInBrowser(htmlPath: Path) {
-        if (!java.awt.Desktop.isDesktopSupported()) {
-            throw UnsupportedOperationException("Desktop browser open is not supported on this platform.")
-        }
-        val desktop = java.awt.Desktop.getDesktop()
-        if (!desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
-            throw UnsupportedOperationException("Browser action is not supported on this platform.")
-        }
-        desktop.browse(htmlPath.toUri())
     }
 
     /** Stable filesystem-safe filename stem so re-renders overwrite

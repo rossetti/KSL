@@ -18,6 +18,8 @@
 
 package ksl.app.swing.common.batchreports
 
+import ksl.app.results.batchreports.BatchReportsWriter
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -641,10 +643,10 @@ class BatchReportsTabPanel(
         else -> ReportFormat.HTML
     }
 
-    private fun currentPolicy(): BatchReports.FileHandlingPolicy = when {
-        skipRadio.isSelected -> BatchReports.FileHandlingPolicy.SKIP_IF_EXISTS
-        appendTimestampRadio.isSelected -> BatchReports.FileHandlingPolicy.APPEND_TIMESTAMP
-        else -> BatchReports.FileHandlingPolicy.OVERWRITE
+    private fun currentPolicy(): BatchReportsWriter.FileHandlingPolicy = when {
+        skipRadio.isSelected -> BatchReportsWriter.FileHandlingPolicy.SKIP_IF_EXISTS
+        appendTimestampRadio.isSelected -> BatchReportsWriter.FileHandlingPolicy.APPEND_TIMESTAMP
+        else -> BatchReportsWriter.FileHandlingPolicy.OVERWRITE
     }
 
     private fun setAllChecked(checked: Boolean) {
@@ -673,12 +675,11 @@ class BatchReportsTabPanel(
         var failed = 0
         for (name in picked) {
             val outcome = try {
-                BatchReports.renderItemSummary(
+                BatchReportsWriter.renderItemSummary(
                     result = batch,
                     itemName = name,
                     outputDir = currentReportsDir,
                     formats = setOf(format),
-                    openHtmlInBrowser = false,
                     existingFilePolicy = policy,
                     itemFileStemPrefix = itemFileStemPrefix,
                     reportTitle = "$itemTypeCapitalised Summary — $name"
@@ -687,7 +688,7 @@ class BatchReportsTabPanel(
                 notifier.warn(
                     "Report error: [$name] ${t.message ?: t::class.simpleName}"
                 )
-                BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
+                BatchReportsWriter.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
             }
             if (!outcome.skipped) {
                 outcome.errors.forEach {
@@ -725,12 +726,11 @@ class BatchReportsTabPanel(
         val policy = currentPolicy()
         val format = currentFormat()
         val outcome = try {
-            BatchReports.renderBatchSummary(
+            BatchReportsWriter.renderBatchSummary(
                 result = batch,
                 outputDir = currentReportsDir,
                 formats = setOf(format),
                 itemNames = picked.toSet(),
-                openHtmlInBrowser = false,
                 existingFilePolicy = policy,
                 batchFileStem = batchFileStem,
                 reportTitle = "$itemTypePluralCapitalised Summary — ${batch.summary.orchestratorName}",
@@ -741,7 +741,7 @@ class BatchReportsTabPanel(
             notifier.warn(
                 "Report error: ${t.message ?: t::class.simpleName}"
             )
-            BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
+            BatchReportsWriter.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
         }
         if (!outcome.skipped) {
             outcome.errors.forEach { notifier.warn("Report error: $it") }
@@ -864,10 +864,10 @@ class BatchReportsTabPanel(
     // ── File / desktop helpers ────────────────────────────────────────────
 
     private fun mostRecentItemFile(name: String): Path? =
-        BatchReports.mostRecentItemFile(currentReportsDir, name, itemFileStemPrefix)
+        BatchReportsWriter.mostRecentItemFile(currentReportsDir, name, itemFileStemPrefix)
 
     private fun mostRecentSummary(): Path? =
-        BatchReports.mostRecentSummaryFile(currentReportsDir, batchFileStem)
+        BatchReportsWriter.mostRecentSummaryFile(currentReportsDir, batchFileStem)
 
     private fun deleteFileQuietly(file: Path) {
         try {
