@@ -2026,22 +2026,26 @@ class SimoptAppController(
                 // the document — clear the stale flag.
                 myEditedSinceLastRun.value = false
                 if (snapshot != null) {
-                    // Capture solverResult from the live solver
-                    // *before* we null myActiveSolver below — the
-                    // substrate's Solver.solverResult property only
-                    // produces meaningful data while the Solver
-                    // instance is reachable.  Used by the HTML
-                    // report writer (via the framework's
-                    // `solverResult(...)` DSL extension) to render
-                    // the run-summary / evaluator-metrics / best-
-                    // solution tables.
-                    val capturedSolverResult = myActiveSolver.value?.solverResult
+                    // Capture the live Solver and its SolverResult
+                    // *before* we null myActiveSolver below — both
+                    // are only meaningful while the Solver instance
+                    // is reachable.  The Solver reference itself
+                    // drives `Solver.configurationProperties` (read
+                    // by the report's "Solver configuration" section
+                    // and by summary.toml's [solverConfiguration]
+                    // block); the SolverResult drives the
+                    // run-summary / evaluator-metrics / best-solution
+                    // tables via the framework's `solverResult(...)`
+                    // DSL extension.
+                    val capturedSolver = myActiveSolver.value
+                    val capturedSolverResult = capturedSolver?.solverResult
                     runCatching {
-                        if (capturedSolverResult != null) {
+                        if (capturedSolver != null && capturedSolverResult != null) {
                             ResultsArtifactWriter.writeCompleted(
                                 config = snapshot.config,
                                 result = result,
                                 solverResult = capturedSolverResult,
+                                solverInstance = capturedSolver,
                                 runDir = snapshot.runDir
                             )
                         }
@@ -2068,6 +2072,11 @@ class SimoptAppController(
                         bestInputs = HashMap(it.bestInputs)
                     )
                 }
+                // Same capture-before-clear principle as the
+                // completed branch — the partial summary records the
+                // solver configuration so the user can correlate a
+                // cancelled run with the parameters it was using.
+                val capturedSolver = myActiveSolver.value
                 runCatching {
                     ResultsArtifactWriter.writeIncomplete(
                         config = snapshot.config,
@@ -2078,7 +2087,8 @@ class SimoptAppController(
                         elapsedMillis = endMillis - startMillis,
                         latestBest = latestBest,
                         statusReason = reason,
-                        runDir = snapshot.runDir
+                        runDir = snapshot.runDir,
+                        solverInstance = capturedSolver
                     )
                 }
             }

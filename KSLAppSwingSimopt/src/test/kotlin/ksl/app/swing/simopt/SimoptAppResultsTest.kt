@@ -305,4 +305,75 @@ class SimoptAppResultsTest {
         }
     }
 
+    // ── Solver configuration reporting ─────────────────────────────────
+
+    @Test
+    fun `summary toml carries solverConfiguration block populated from the live solver`(@TempDir tempDir: Path) {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("config-toml")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val toml = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
+            assertContains(toml, "[solverConfiguration]")
+            // Base-class fields the override merges in via `super`.
+            assertContains(toml, "maximumNumberIterations =")
+            assertContains(toml, "replicationsPerEvaluation =")
+            // StochasticSolver-level field — SHC inherits this
+            // override without adding its own.
+            assertContains(toml, "streamNumber =")
+        }
+    }
+
+    @Test
+    fun `html report contains the Solver configuration section`(@TempDir tempDir: Path) {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("config-html")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val html = Files.readString(target.resolve(ArtifactNames.REPORT_HTML))
+            assertContains(html, "Solver configuration")
+            assertContains(html, "maximumNumberIterations")
+            assertContains(html, "streamNumber")
+        }
+    }
+
+    @Test
+    fun `toml safely quotes dotted keys used by RandomRestartSolver flattening`() {
+        // Direct unit test against the encoder so we cover the
+        // dotted-key path without needing to construct a
+        // RandomRestartSolver instance.  Mirrors the format
+        // RandomRestartSolver.configurationProperties produces:
+        // each inner-solver key prefixed with "innerSolver.".
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val config = c.currentConfiguration()!!
+            val summary = RunSummaryWriter.forIncomplete(
+                config = config,
+                status = ResultsStatus.CANCELLED,
+                runId = "rr-test",
+                startTimeIso = "2026-05-27T00:00:00Z",
+                endTimeIso = "2026-05-27T00:00:01Z",
+                elapsedMillis = 1_000,
+                latestBest = null,
+                statusReason = "Test",
+                solverInstance = null
+            ).copy(
+                solverConfiguration = linkedMapOf(
+                    "clearCacheBetweenRuns" to "true",
+                    "innerSolver.streamNumber" to "1",
+                    "innerSolver.maximumNumberIterations" to "100"
+                )
+            )
+            val toml = RunSummaryWriter.encode(summary)
+            // Dotted keys must be quoted per TOML 1.0 bare-key rules.
+            assertContains(toml, "\"innerSolver.streamNumber\" = \"1\"")
+            assertContains(toml, "\"innerSolver.maximumNumberIterations\" = \"100\"")
+            // Bare keys stay bare.
+            assertContains(toml, "clearCacheBetweenRuns = \"true\"")
+        }
+    }
 }

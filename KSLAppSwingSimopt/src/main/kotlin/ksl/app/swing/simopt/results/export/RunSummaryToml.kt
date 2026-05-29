@@ -20,6 +20,7 @@ package ksl.app.swing.simopt.results.export
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
+import ksl.simopt.solvers.Solver
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -66,7 +67,13 @@ data class RunSummary(
     val bestInputs: Map<String, Double> = emptyMap(),
     /** Populated only for [ResultsStatus.CANCELLED] / [ResultsStatus.FAILED];
      *  carries the user-facing cancel reason or the error message. */
-    val statusReason: String? = null
+    val statusReason: String? = null,
+    /** Flat map of the solver's configuration properties — keys
+     *  preserve [Solver.configurationProperties] insertion order
+     *  on the encoded side.  Empty when no live solver was
+     *  available at write time (e.g. partial summaries from very
+     *  early failures). */
+    val solverConfiguration: Map<String, String> = emptyMap()
 )
 
 /**
@@ -78,10 +85,16 @@ data class RunSummary(
  */
 internal object RunSummaryWriter {
 
-    /** Build a [RunSummary] from a successful run. */
+    /** Build a [RunSummary] from a successful run.  [solverInstance]
+     *  is the live [Solver] reference captured before the controller
+     *  cleared its handle — its
+     *  [Solver.configurationProperties] are projected into the
+     *  summary's `solverConfiguration` field for the
+     *  `[solverConfiguration]` TOML block. */
     fun forCompleted(
         config: OptimizationRunConfiguration,
-        result: RunResult.OptimizationCompleted
+        result: RunResult.OptimizationCompleted,
+        solverInstance: Solver? = null
     ): RunSummary {
         val problem = config.problem
         val solver = config.solver
@@ -105,7 +118,8 @@ internal object RunSummaryWriter {
             bestEstimatedObjective = bestObj,
             bestPenalizedObjective = result.bestSolution.penalizedObjFncValue,
             bestFoundAtIteration = bestIter,
-            bestInputs = HashMap(result.bestSolution.bestSolutionSoFar.inputMap)
+            bestInputs = HashMap(result.bestSolution.bestSolutionSoFar.inputMap),
+            solverConfiguration = solverInstance?.configurationProperties ?: emptyMap()
         )
     }
 
@@ -122,7 +136,8 @@ internal object RunSummaryWriter {
         endTimeIso: String,
         elapsedMillis: Long,
         latestBest: LatestBestSnapshot?,
-        statusReason: String?
+        statusReason: String?,
+        solverInstance: Solver? = null
     ): RunSummary {
         require(status != ResultsStatus.COMPLETED) {
             "forIncomplete must not be called with COMPLETED; use forCompleted"
@@ -145,7 +160,8 @@ internal object RunSummaryWriter {
             bestPenalizedObjective = null,
             bestFoundAtIteration = latestBest?.iteration,
             bestInputs = latestBest?.bestInputs ?: emptyMap(),
-            statusReason = statusReason
+            statusReason = statusReason,
+            solverConfiguration = solverInstance?.configurationProperties ?: emptyMap()
         )
     }
 
@@ -180,6 +196,16 @@ internal object RunSummaryWriter {
                 appendKvDouble(name, value)
             }
         }
+        if (summary.solverConfiguration.isNotEmpty()) {
+            appendLine()
+            appendLine("[solverConfiguration]")
+            // Preserve insertion order — Solver.configurationProperties
+            // produces base-class fields first, then subclass fields,
+            // which is exactly the order a reader wants to see.
+            for ((name, value) in summary.solverConfiguration) {
+                appendKvSafeKey(name, value)
+            }
+        }
     }
 
     /** Encode [summary] and write to [path] (creating parent
@@ -203,6 +229,16 @@ internal object RunSummaryWriter {
 
     private fun StringBuilder.appendKvDouble(key: String, value: Double) {
         append(key).append(" = ").append(tomlDouble(value)).appendLine()
+    }
+
+    /** Emit a string key/value pair, quoting the key when it
+     *  contains characters TOML 1.0 forbids in bare keys (anything
+     *  outside `[A-Za-z0-9_-]`).  Used for the
+     *  `solverConfiguration` table whose flattened nested keys
+     *  carry dots (e.g. `innerSolver.streamNumber`). */
+    private fun StringBuilder.appendKvSafeKey(key: String, value: String) {
+        val safeKey = if (key.matches(Regex("[A-Za-z0-9_-]+"))) key else tomlQuote(key)
+        append(safeKey).append(" = ").append(tomlQuote(value)).appendLine()
     }
 
     /** TOML basic-string quoting per the spec — escape `"` and

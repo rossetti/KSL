@@ -20,8 +20,10 @@ package ksl.app.swing.simopt.results.export
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
+import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
 import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.solverConfiguration
 import ksl.utilities.io.report.extensions.solverResult
 import ksl.utilities.io.report.writeHtml
 import java.nio.file.Files
@@ -72,6 +74,7 @@ internal object HtmlReportWriter {
         config: OptimizationRunConfiguration,
         runResult: RunResult.OptimizationCompleted,
         solverResult: SolverResult,
+        solverInstance: Solver,
         path: Path
     ): Boolean = try {
         Files.createDirectories(path.parent)
@@ -88,6 +91,14 @@ internal object HtmlReportWriter {
                 section("Convergence") {
                     plot(convergencePlot, caption = "Best estimated objective vs. iteration")
                 }
+            }
+
+            // Configuration that produced the result.  Substrate
+            // extension iterates Solver.configurationProperties in
+            // insertion order (base fields first, then subclass
+            // fields, then innerSolver.* for RandomRestartSolver).
+            section("Solver configuration") {
+                solverConfiguration(solverInstance)
             }
 
             // Substrate-rendered solver summary, evaluator metrics,

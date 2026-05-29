@@ -304,14 +304,9 @@ class SimulatedAnnealing @JvmOverloads constructor(
     }
 
     override fun toString(): String {
-        val tempConfigStr = when (val config = temperatureConfiguration) {
-            is TemperatureConfiguration.Fixed -> "Fixed(temperature=${config.temperature})"
-            is TemperatureConfiguration.AutoCalibrate -> "AutoCalibrate(targetProb=${config.targetProbability}, samples=${config.sampleSize})"
-        }
-
         return """
         SimulatedAnnealing(
-            temperatureConfiguration = $tempConfigStr,
+            temperatureConfiguration = ${temperatureConfigurationDisplay()},
             coolingSchedule = ${coolingSchedule::class.simpleName},
             initialTemperature = $initialTemperature,
             stoppingTemperature = $stoppingTemperature,
@@ -320,6 +315,25 @@ class SimulatedAnnealing @JvmOverloads constructor(
         )
     """.trimIndent()
     }
+
+    override val configurationProperties: Map<String, String>
+        get() = super.configurationProperties + linkedMapOf(
+            "temperatureConfiguration" to temperatureConfigurationDisplay(),
+            "coolingSchedule" to (coolingSchedule::class.simpleName ?: ""),
+            "initialTemperature" to initialTemperature.toString(),
+            "stoppingTemperature" to stoppingTemperature.toString(),
+            "solutionEqualityChecker" to (solutionEqualityChecker::class.simpleName ?: "")
+        )
+
+    /** Shared rendering helper for both [toString] and
+     *  [configurationProperties] so the two surfaces never drift. */
+    private fun temperatureConfigurationDisplay(): String =
+        when (val c = temperatureConfiguration) {
+            is TemperatureConfiguration.Fixed ->
+                "Fixed(temperature=${c.temperature})"
+            is TemperatureConfiguration.AutoCalibrate ->
+                "AutoCalibrate(targetProb=${c.targetProbability}, samples=${c.sampleSize})"
+        }
 
     companion object {
 

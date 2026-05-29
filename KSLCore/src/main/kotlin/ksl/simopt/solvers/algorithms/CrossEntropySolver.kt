@@ -221,6 +221,17 @@ class CrossEntropySolver @JvmOverloads constructor(
     """.trimIndent()
     }
 
+    override val configurationProperties: Map<String, String>
+        get() = super.configurationProperties + linkedMapOf(
+            "elitePct" to elitePct.toString(),
+            "ceSampleSize" to ceSampleSize.toString(),
+            "eliteSize" to eliteSize().toString(),
+            "eliteSizeFn" to if (eliteSizeFn != null) "Provided" else "None",
+            "sampleSizeFn" to if (sampleSizeFn != null) "Provided" else "None",
+            "noImproveThreshold" to solutionChecker.noImproveThreshold.toString(),
+            "ceSampler" to (ceSampler::class.simpleName ?: "")
+        )
+
     companion object {
 
         /**

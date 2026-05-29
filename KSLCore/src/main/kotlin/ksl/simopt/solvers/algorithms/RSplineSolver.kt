@@ -698,6 +698,20 @@ class RSplineSolver @JvmOverloads constructor(
     """.trimIndent()
     }
 
+    override val configurationProperties: Map<String, String>
+        get() = super.configurationProperties + linkedMapOf(
+            "perturbation" to perturbation.toString(),
+            "initialLineSearchStepSize" to initialLineSearchStepSize.toString(),
+            "lineSearchStepSizeMultiplier" to lineSearchStepSizeMultiplier.toString(),
+            "lineSearchIterMax" to lineSearchIterMax.toString(),
+            "spliMaxIterations" to spliMaxIterations.toString(),
+            "splineCallGrowthRate" to splineCallGrowthRate.toString(),
+            "initialMaxSplineCallLimit" to initialMaxSplineCallLimit.toString(),
+            "maxSplineCallLimit" to maxSplineCallLimit.toString(),
+            "neighborhoodFinder" to (neighborhoodFinder::class.simpleName ?: ""),
+            "solutionEqualityChecker" to (solutionChecker::class.simpleName ?: "")
+        )
+
     companion object {
 
         /**

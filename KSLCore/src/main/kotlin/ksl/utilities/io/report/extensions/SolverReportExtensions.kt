@@ -174,6 +174,44 @@ fun ReportBuilder.solver(
     solverResult(s.solverResult, caption ?: s.name.ifBlank { null })
 }
 
+/**
+ * Appends a single [DataTable] enumerating the supplied solver's
+ * configuration properties — the structured form of
+ * [Solver.toString], usable in any [ReportBuilder]-built document.
+ *
+ * Pairs naturally with [solverResult] / [solver] in the same report:
+ * the configuration table documents *what was run* and the result
+ * tables document *what came out*.
+ *
+ * Insertion order of [Solver.configurationProperties] is preserved
+ * — base-class fields appear first, then each subclass's
+ * distinctive fields.
+ *
+ * Usage:
+ * ```kotlin
+ * solver.runAllIterations()
+ * val doc = report("Optimisation Study") {
+ *     solverConfiguration(mySolver)
+ *     solver(mySolver)
+ * }
+ * ```
+ *
+ * @param s        the solver whose configuration is enumerated
+ * @param caption  optional table caption; defaults to "Solver Configuration"
+ */
+fun ReportBuilder.solverConfiguration(
+    s: Solver,
+    caption: String = "Solver Configuration"
+) {
+    val rows = s.configurationProperties.entries.map { (k, v) -> listOf(k, v) }
+    if (rows.isEmpty()) return
+    dataTable(
+        headers = listOf("Property", "Value"),
+        rows = rows,
+        caption = caption
+    )
+}
+
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 /**

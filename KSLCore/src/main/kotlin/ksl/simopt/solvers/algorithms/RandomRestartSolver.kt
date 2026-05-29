@@ -63,6 +63,18 @@ class RandomRestartSolver(
     """.trimIndent()
     }
 
+    /**
+     *  Flat representation: the inner solver's keys are re-emitted
+     *  with an `innerSolver.` prefix so the resulting map stays
+     *  flat and TOML-friendly (no nested tables, every entry a
+     *  simple key/value pair).
+     */
+    override val configurationProperties: Map<String, String>
+        get() = super.configurationProperties + linkedMapOf(
+            "clearCacheBetweenRuns" to clearCacheBetweenRuns.toString()
+        ) + restartingSolver.configurationProperties
+            .mapKeys { (k, _) -> "innerSolver.$k" }
+
     companion object {
         /**
          * Represents the default maximum number restarts to be executed

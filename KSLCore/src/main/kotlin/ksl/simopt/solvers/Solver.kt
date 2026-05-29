@@ -881,6 +881,39 @@ abstract class Solver(
     }
 
     /**
+     *  Structured, ordered snapshot of the solver's configuration —
+     *  the same fields the [toString] implementations expose, in a
+     *  form that downstream consumers can iterate (reporting,
+     *  machine-readable summary artifacts, "compare two runs"
+     *  tooling).
+     *
+     *  Subclasses override by `super.configurationProperties + linkedMapOf(...)`
+     *  so the inherited base fields appear first, followed by the
+     *  subclass's own additions.  Insertion order is preserved via
+     *  [LinkedHashMap] so consumers can rely on a stable
+     *  presentation order.
+     *
+     *  Values are stringified for portability — TOML, CSV, and HTML
+     *  tables all consume strings cleanly without type-detection
+     *  concerns.  Numeric consumers can re-parse as needed.
+     */
+    open val configurationProperties: Map<String, String>
+        get() = linkedMapOf(
+            "name" to (name ?: ""),
+            "problemDefinition" to problemDefinition.name,
+            "maximumNumberIterations" to maximumNumberIterations.toString(),
+            "snapShotFrequency" to snapShotFrequency.toString(),
+            "ensureProblemFeasibleRequests" to ensureProblemFeasibleRequests.toString(),
+            "maxFeasibleSamplingIterations" to maxFeasibleSamplingIterations.toString(),
+            "solutionPrecision" to solutionPrecision.toString(),
+            "replicationsPerEvaluation" to replicationsPerEvaluation.toString(),
+            "startingPoint" to if (startingPoint != null) "Provided" else "Auto-generated",
+            "neighborGenerator" to (neighborGenerator?.let { it::class.simpleName } ?: "None"),
+            "solutionComparer" to (solutionComparer?.let { it::class.simpleName } ?: "Default"),
+            "solutionQualityEvaluator" to (solutionQualityEvaluator?.let { it::class.simpleName } ?: "None")
+        )
+
+    /**
      * Prints the current results of the optimization run to the console.
      * This includes details about the solver's performance,
      */

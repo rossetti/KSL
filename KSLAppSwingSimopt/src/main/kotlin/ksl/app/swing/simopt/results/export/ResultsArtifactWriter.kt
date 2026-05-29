@@ -20,6 +20,7 @@ package ksl.app.swing.simopt.results.export
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
+import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
 import java.nio.file.Path
 
@@ -85,12 +86,13 @@ internal object ResultsArtifactWriter {
         config: OptimizationRunConfiguration,
         result: RunResult.OptimizationCompleted,
         solverResult: SolverResult,
+        solverInstance: Solver,
         runDir: Path
     ): ArtifactWriteResult {
         val problem = config.problem
             ?: return ArtifactWriteResult(false, false, false, false, false)
 
-        val summary = RunSummaryWriter.forCompleted(config, result)
+        val summary = RunSummaryWriter.forCompleted(config, result, solverInstance)
 
         val summaryOk = RunSummaryWriter.write(
             summary, runDir.resolve(ArtifactNames.SUMMARY_TOML)
@@ -108,6 +110,7 @@ internal object ResultsArtifactWriter {
             config = config,
             runResult = result,
             solverResult = solverResult,
+            solverInstance = solverInstance,
             path = runDir.resolve(ArtifactNames.REPORT_HTML)
         )
 
@@ -136,7 +139,8 @@ internal object ResultsArtifactWriter {
         elapsedMillis: Long,
         latestBest: LatestBestSnapshot?,
         statusReason: String?,
-        runDir: Path
+        runDir: Path,
+        solverInstance: Solver? = null
     ): ArtifactWriteResult {
         val summary = RunSummaryWriter.forIncomplete(
             config = config,
@@ -146,7 +150,8 @@ internal object ResultsArtifactWriter {
             endTimeIso = endTimeIso,
             elapsedMillis = elapsedMillis,
             latestBest = latestBest,
-            statusReason = statusReason
+            statusReason = statusReason,
+            solverInstance = solverInstance
         )
         val summaryOk = RunSummaryWriter.write(
             summary, runDir.resolve(ArtifactNames.SUMMARY_TOML)

@@ -199,6 +199,13 @@ abstract class StochasticSolver(
     """.trimIndent()
     }
 
+    override val configurationProperties: Map<String, String>
+        get() = super.configurationProperties + linkedMapOf(
+            "streamNumber" to streamNumber.toString(),
+            "streamProvider" to (streamProvider::class.simpleName ?: ""),
+            "startingPointGenerator" to (startingPointGenerator?.let { it::class.simpleName } ?: "Default")
+        )
+
     companion object {
         /**
          * Represents the default maximum number of iterations to be executed
