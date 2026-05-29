@@ -24,7 +24,7 @@ import ksl.app.config.RunConfigurationToml
 import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.app.settings.WorkspaceLayout
-import ksl.app.swing.common.comparison.BatchCompletedComparisonSource
+import ksl.app.comparison.BatchCompletedComparisonSource
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer

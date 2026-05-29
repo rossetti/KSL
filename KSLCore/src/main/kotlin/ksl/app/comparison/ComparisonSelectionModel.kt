@@ -16,10 +16,10 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 /**
- *  Analysis types the Comparison Analyzer can produce.  Each one
+ *  Analysis types the comparison analyzer can produce.  Each one
  *  has its own validation rule against the current selection — see
  *  [ComparisonSelectionModel.validateForResponse].
  */
@@ -28,8 +28,8 @@ enum class AnalysisType { BOX_PLOT, MULTIPLE_COMPARISON, CONFIDENCE_INTERVALS }
 /**
  *  Result of pre-flight validation for a given (selection, analysis)
  *  pair.  When [ok] is `false`, [reason] carries a short user-facing
- *  explanation; the analysis dialog's *Generate* button is disabled
- *  with this text shown as a tooltip / status line.
+ *  explanation; the host's *Generate* affordance disables with this
+ *  text shown as a tooltip / status line.
  */
 data class ValidationResult(
     val ok: Boolean,
@@ -42,12 +42,12 @@ data class ValidationResult(
 }
 
 /**
- *  Shared mutable state for the Comparison Analyzer's
+ *  Shared mutable state for the comparison analyzer's
  *  experiments-first workflow.
  *
- *  The frame owns one of these and uses it for the *Experiments*
+ *  The host owns one of these and uses it for the *Experiments*
  *  column only.  Response and analysis selection have moved into
- *  the per-analysis dialogs ([BoxPlotAnalysisDialog],
+ *  the per-analysis dialogs (`BoxPlotAnalysisDialog`,
  *  `MultipleComparisonAnalysisDialog`, `ConfidenceIntervalsAnalysisDialog`)
  *  — each dialog reads experiments from this model when it opens and
  *  asks the user for a response inside its own configuration UI.
@@ -91,7 +91,7 @@ class ComparisonSelectionModel(
     }
 
     /** Check every experiment.  Used by *Select All* / clearing
-     *  with [selectNone]. */
+     *  with `selectNone`. */
     fun selectAll() {
         mySelectedExperiments.clear()
         for (e in allExperiments) mySelectedExperiments.add(e.name)
@@ -132,9 +132,9 @@ class ComparisonSelectionModel(
      *  plots.  Returns an empty map when no experiment records the
      *  response.
      *
-     *  This is the canonical input to
-     *  [ComparisonReportRenderer.renderBoxPlot] / `renderMca` /
-     *  `renderCiPlot`. */
+     *  This is the canonical input to the host-side comparison
+     *  report renderer (e.g. `ComparisonReportRenderer.renderBoxPlot`
+     *  / `renderMca` / `renderCiPlot`). */
     fun gatherObservationsFor(responseName: String): Map<String, DoubleArray> {
         val participants = experimentsRecording(responseName).map { it.name }.toSet()
         if (participants.isEmpty()) return emptyMap()
@@ -162,7 +162,7 @@ class ComparisonSelectionModel(
      *  the analysis dialog's *Generate* button can fire; otherwise
      *  [ValidationResult.fail] with a user-facing explanation.
      *
-     *  This is the only validation entry point — the frame no
+     *  This is the only validation entry point — the host no
      *  longer holds a "current" response or analysis, so callers
      *  must supply both.
      */

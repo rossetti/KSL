@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 /**
  *  Read-only access to a collection of "experiments" whose
@@ -34,20 +34,19 @@ package ksl.app.swing.common.comparison
  *  Implementations are *adapters* — they translate a host-specific
  *  data shape (e.g. `RunResult.BatchCompleted`,
  *  `DesignedExperimentIfc`, `KSLDatabase`) into the small surface
- *  this interface exposes.  The Comparison-Analyzer UI knows about
+ *  this interface exposes.  The comparison-analyzer UI knows about
  *  this interface only; it does not know which adapter is feeding
  *  it.
  *
- *  Designed for multi-source extension: the Comparison-Analyzer
- *  frame accepts a `List<ComparisonDataSourceIfc>` so a future
- *  workflow can compare experiments across two prior runs by
- *  loading two adapters.  v1 implementations and the v1 frame work
- *  with a single source.
+ *  Designed for multi-source extension: hosts accept a
+ *  `List<ComparisonDataSourceIfc>` so a future workflow can compare
+ *  experiments across two prior runs by loading two adapters.  v1
+ *  implementations and the v1 hosts work with a single source.
  */
 interface ComparisonDataSourceIfc {
 
     /** Human-readable label for the source — shown in the
-     *  Comparison-Analyzer header.  Free-form; typical values:
+     *  comparison-analyzer header.  Free-form; typical values:
      *  `"Scenario run · 2025-05-15 · 4 scenarios"`,
      *  `"Designed experiment · 12 points"`,
      *  `"KSL database · queue-study.db"`. */
@@ -146,7 +145,7 @@ enum class ResponseCategory { OBSERVATION, TIME_WEIGHTED, COUNTER }
  *  indicates a model schema collision), the first occurrence wins —
  *  the UI can surface the discrepancy separately if needed.
  *
- *  This is what the Comparison-Analyzer's response table renders:
+ *  This is what the comparison-analyzer's response table renders:
  *  "every response any of the currently-checked experiments records".
  */
 fun List<ExperimentRow>.unionOfResponses(): List<ResponseRow> {

@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

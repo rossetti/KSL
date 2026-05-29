@@ -16,15 +16,15 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 /**
  *  Test fixture implementation of [ComparisonDataSourceIfc] backed
- *  by an in-memory map.  Used by the Common module's own tests and
- *  available to downstream test code that wants to drive the
- *  Comparison-Analyzer panel without spinning up a real run.
+ *  by an in-memory map.  Used by the substrate's own tests and
+ *  available to any host (Swing, web, CLI, headless) that wants to
+ *  drive a comparison UI without spinning up a real run.
  *
- *  Construction is via the builder-style [Builder] helper so test
+ *  Construction is via the builder-style `Builder` helper so test
  *  setup reads naturally:
  *
  *  ```kotlin

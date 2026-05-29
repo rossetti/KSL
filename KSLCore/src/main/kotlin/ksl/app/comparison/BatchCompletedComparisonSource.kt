@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 import ksl.app.session.RunResult
 import ksl.utilities.io.dbutil.SimulationSnapshot
@@ -26,10 +26,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- *  Scenario-app adapter that exposes a completed scenario sweep —
- *  the [RunResult.BatchCompleted] surfaced through
- *  `ScenarioAppController.lastResult` — as a [ComparisonDataSourceIfc]
- *  for the Comparison Analyzer.
+ *  Scenario-host adapter that exposes a completed scenario sweep —
+ *  the [RunResult.BatchCompleted] surfaced through whichever
+ *  controller owns `lastResult` — as a [ComparisonDataSourceIfc] for
+ *  the comparison analyzer UI.
  *
  *  Each scenario in [result] becomes one [ExperimentRow].  The
  *  experiment's response set is the union of names recorded across

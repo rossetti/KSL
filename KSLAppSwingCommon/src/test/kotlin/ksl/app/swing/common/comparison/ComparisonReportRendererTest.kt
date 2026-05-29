@@ -18,6 +18,10 @@
 
 package ksl.app.swing.common.comparison
 
+import ksl.app.comparison.ComparisonSelectionModel
+import ksl.app.comparison.InMemoryComparisonSource
+import ksl.app.comparison.ResponseCategory
+
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.report.extensions.MCBDirection
 import org.junit.jupiter.api.Test

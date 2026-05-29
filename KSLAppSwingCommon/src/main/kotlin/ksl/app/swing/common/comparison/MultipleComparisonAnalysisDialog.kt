@@ -18,6 +18,8 @@
 
 package ksl.app.swing.common.comparison
 
+import ksl.app.comparison.*
+
 import ksl.app.config.ReportFormat
 import ksl.utilities.io.report.extensions.MCBDirection
 import java.awt.BorderLayout

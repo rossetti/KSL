@@ -19,8 +19,8 @@
 package ksl.app.swing.common.comparison.example
 
 import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
-import ksl.app.swing.common.comparison.InMemoryComparisonSource
-import ksl.app.swing.common.comparison.ResponseCategory
+import ksl.app.comparison.InMemoryComparisonSource
+import ksl.app.comparison.ResponseCategory
 import ksl.utilities.io.KSL
 import java.nio.file.Files
 import javax.swing.SwingUtilities

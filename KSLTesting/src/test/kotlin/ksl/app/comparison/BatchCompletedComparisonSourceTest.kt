@@ -16,12 +16,12 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.comparison
+package ksl.app.comparison
 
 import kotlinx.datetime.Instant
 import ksl.app.session.OrchestratorSummary
 import ksl.app.session.RunResult
-import ksl.app.swing.common.comparison.ResponseCategory
+import ksl.app.comparison.ResponseCategory
 import ksl.utilities.io.dbutil.ExperimentTableData
 import ksl.utilities.io.dbutil.SimulationRunTableData
 import ksl.utilities.io.dbutil.SimulationSnapshot
