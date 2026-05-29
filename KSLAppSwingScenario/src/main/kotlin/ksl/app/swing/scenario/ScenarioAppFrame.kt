@@ -25,7 +25,6 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.app.settings.WorkspaceLayout
 import ksl.app.swing.common.comparison.BatchCompletedComparisonSource
-import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
@@ -226,7 +225,7 @@ class ScenarioAppFrame(
             // itemTypeName / itemTypeNamePlural / file-stem defaults
             // preserve the Scenario app's pre-extraction wording and
             // on-disk filenames — no user-visible change.
-            onMessage = { msg, sev -> notifications.show(msg, sev) }
+            notifier = notifications
         )
         val comparisonAnalyzerTab = ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel(
             defaultOutputDirProvider = {
@@ -237,17 +236,14 @@ class ScenarioAppFrame(
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
             onMessage = { msg, sev ->
-                notifications.show(
-                    msg,
-                    when (sev) {
-                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.INFO ->
-                            ksl.app.swing.common.notification.NotificationSeverity.INFO
-                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.WARNING ->
-                            ksl.app.swing.common.notification.NotificationSeverity.WARNING
-                        ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.ERROR ->
-                            ksl.app.swing.common.notification.NotificationSeverity.ERROR
-                    }
-                )
+                when (sev) {
+                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.INFO ->
+                        notifications.info(msg)
+                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.WARNING ->
+                        notifications.warn(msg)
+                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.ERROR ->
+                        notifications.error(msg)
+                }
             }
         )
         val tabs = javax.swing.JTabbedPane().apply {
@@ -462,9 +458,8 @@ class ScenarioAppFrame(
         if (controller.runningFlow.value) return
         val runnable = controller.scenarios.value.count { !it.skipOnRun }
         if (runnable == 0) {
-            notifications.show(
-                "No scenarios to run.  Add at least one scenario and ensure it isn't skipped.",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "No scenarios to run.  Add at least one scenario and ensure it isn't skipped."
             )
             return
         }
@@ -488,7 +483,7 @@ class ScenarioAppFrame(
         }
         consolePanel.clear()
         if (!controller.submit()) {
-            notifications.show("Could not start the run.", NotificationSeverity.ERROR)
+            notifications.error("Could not start the run.")
         }
     }
 
@@ -554,15 +549,13 @@ class ScenarioAppFrame(
             controller.eventFlow.collect { ev ->
                 when (ev) {
                     is RunEvent.RunFailed ->
-                        notifications.show(
-                            "Run failed: ${describeError(ev.error)}",
-                            NotificationSeverity.ERROR
+                        notifications.error(
+                            "Run failed: ${describeError(ev.error)}"
                         )
                     is RunEvent.ScenarioCompleted ->
                         if (ev.snapshot == null) {
-                            notifications.show(
-                                "Scenario '${ev.scenarioName}' failed.",
-                                NotificationSeverity.WARNING
+                            notifications.warn(
+                                "Scenario '${ev.scenarioName}' failed."
                             )
                         }
                     else -> { /* console drawer renders the rest */ }
@@ -572,10 +565,9 @@ class ScenarioAppFrame(
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
                 if (result is RunResult.BatchCompleted) {
-                    notifications.show(
+                    notifications.info(
                         "Run completed: ${result.summary.completedItems} of " +
-                            "${result.summary.totalItems} scenarios.",
-                        NotificationSeverity.INFO
+                            "${result.summary.totalItems} scenarios."
                     )
                 }
             }
@@ -627,9 +619,8 @@ class ScenarioAppFrame(
             window.setLocationRelativeTo(this)
             window.isVisible = true
         } catch (t: Throwable) {
-            notifications.show(
-                "Could not open scenario editor: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Could not open scenario editor: ${t.message ?: t::class.simpleName}"
             )
         }
     }
@@ -645,18 +636,16 @@ class ScenarioAppFrame(
         when (val outcome = controller.loadBundleJar(path)) {
             is ScenarioAppController.LoadBundleResult.Loaded -> {
                 val ids = outcome.newBundleIds.joinToString(", ")
-                notifications.show(
-                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids",
-                    NotificationSeverity.INFO
+                notifications.info(
+                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids"
                 )
             }
             ScenarioAppController.LoadBundleResult.NoBundles ->
-                notifications.show(
-                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded).",
-                    NotificationSeverity.WARNING
+                notifications.warn(
+                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded)."
                 )
             is ScenarioAppController.LoadBundleResult.Failed ->
-                notifications.show("Could not load $path: ${outcome.reason}", NotificationSeverity.ERROR)
+                notifications.error("Could not load $path: ${outcome.reason}")
         }
     }
 
@@ -681,15 +670,14 @@ class ScenarioAppFrame(
         val text = try {
             Files.readString(path)
         } catch (t: Throwable) {
-            notifications.show("Could not read $path: ${t.message ?: t::class.simpleName}", NotificationSeverity.ERROR)
+            notifications.error("Could not read $path: ${t.message ?: t::class.simpleName}")
             return
         }
         val config = try {
             RunConfigurationToml.decode(text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to parse scenarios: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to parse scenarios: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -703,20 +691,19 @@ class ScenarioAppFrame(
                 // emitted below appear on a clean slate.
                 notifications.dismissAll()
                 outcome.warnings.forEach {
-                    notifications.show(it, NotificationSeverity.WARNING)
+                    notifications.warn(it)
                 }
                 val unresolved = controller.unresolvedBundleReferences()
                 if (unresolved.isNotEmpty()) {
                     val list = unresolved.joinToString("; ") { "${it.first}/${it.second}" }
-                    notifications.show(
-                        "Unresolved model references — load matching bundle JAR(s): $list",
-                        NotificationSeverity.WARNING
+                    notifications.warn(
+                        "Unresolved model references — load matching bundle JAR(s): $list"
                     )
                 }
-                notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
+                notifications.info("Opened ${path.fileName}")
             }
             is ScenarioAppController.LoadResult.Rejected -> {
-                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+                notifications.error(outcome.reason)
             }
         }
     }
@@ -824,9 +811,8 @@ class ScenarioAppFrame(
         val text = try {
             RunConfigurationToml.encode(config)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to encode scenarios: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to encode scenarios: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -834,14 +820,13 @@ class ScenarioAppFrame(
             Files.createDirectories(path.parent)
             Files.writeString(path, text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Could not write $path: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Could not write $path: ${t.message ?: t::class.simpleName}"
             )
             return
         }
         controller.markSaved(path)
-        notifications.show("Saved ${path.fileName}", NotificationSeverity.INFO)
+        notifications.info("Saved ${path.fileName}")
     }
 
     private fun confirmDiscardIfDirty(question: String): Boolean {

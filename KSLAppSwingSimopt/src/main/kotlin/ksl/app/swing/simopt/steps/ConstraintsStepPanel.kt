@@ -24,7 +24,7 @@ import ksl.app.config.optimization.InequalityType
 import ksl.app.config.optimization.LinearConstraintSpec
 import ksl.app.config.optimization.PenaltyFunctionSpec
 import ksl.app.config.optimization.ResponseConstraintSpec
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.problem.LinearConstraintDialog
 import ksl.app.swing.simopt.problem.PenaltyFunctionEditor
@@ -75,7 +75,7 @@ import javax.swing.table.AbstractTableModel
  */
 class ConstraintsStepPanel(
     private val controller: SimoptAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // ── Response constraints table ────────────────────────────────────────
@@ -410,9 +410,8 @@ class ConstraintsStepPanel(
     private fun handleAddResponseConstraint() {
         val available = availableResponseNamesForDialog()
         if (available.isEmpty()) {
-            onMessage(
-                "No non-objective responses available to constrain on this model.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "No non-objective responses available to constrain on this model."
             )
             return
         }
@@ -427,7 +426,7 @@ class ConstraintsStepPanel(
         try {
             controller.addResponseConstraint(spec)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not add response constraint", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not add response constraint")
         }
     }
 
@@ -446,7 +445,7 @@ class ConstraintsStepPanel(
         try {
             controller.updateResponseConstraint(idx, updated)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not update response constraint", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not update response constraint")
         }
     }
 
@@ -473,9 +472,8 @@ class ConstraintsStepPanel(
 
     private fun handleAddLinearConstraint() {
         if (controller.inputs.value.isEmpty()) {
-            onMessage(
-                "Declare at least one decision variable on the Problem step first.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Declare at least one decision variable on the Problem step first."
             )
             return
         }
@@ -490,7 +488,7 @@ class ConstraintsStepPanel(
         try {
             controller.addLinearConstraint(spec)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not add linear constraint", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not add linear constraint")
         }
     }
 
@@ -509,7 +507,7 @@ class ConstraintsStepPanel(
         try {
             controller.updateLinearConstraint(idx, updated)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not update linear constraint", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not update linear constraint")
         }
     }
 

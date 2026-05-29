@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.notification
+package ksl.app.notification
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds

@@ -18,6 +18,7 @@
 
 package ksl.app.swing.common.runcontrol
 
+import ksl.utilities.io.StdoutCapture
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension

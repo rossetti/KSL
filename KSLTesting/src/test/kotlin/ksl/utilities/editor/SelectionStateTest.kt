@@ -1,4 +1,4 @@
-package ksl.app.swing.common.editor
+package ksl.utilities.editor
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

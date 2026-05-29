@@ -20,7 +20,7 @@ package ksl.app.swing.simopt.steps
 
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.algorithm.CeSamplerEditor
@@ -73,7 +73,7 @@ import javax.swing.event.DocumentListener
  */
 class AlgorithmStepPanel(
     private val controller: SimoptAppController,
-    @Suppress("UNUSED_PARAMETER") onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    @Suppress("UNUSED_PARAMETER") notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // ── Picker ─────────────────────────────────────────────────────────────

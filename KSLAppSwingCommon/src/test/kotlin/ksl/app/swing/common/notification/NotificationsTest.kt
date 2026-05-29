@@ -1,5 +1,7 @@
 package ksl.app.swing.common.notification
 
+import ksl.app.notification.NotificationSeverity
+import ksl.app.notification.NotificationSpec
 import org.junit.jupiter.api.Test
 import java.awt.Dimension
 import javax.swing.JLayeredPane

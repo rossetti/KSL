@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.runcontrol
+package ksl.utilities.io
 
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
@@ -34,12 +34,13 @@ import java.nio.charset.StandardCharsets
  * writes from multiple threads cannot interleave bytes inside the line
  * buffer.  [lineSink] is invoked from whichever thread completed the
  * line.  The sink is responsible for any further dispatching it needs
- * (e.g. onto the EDT).
+ * (e.g. onto a UI thread).
  *
- * Used by [StdoutCapture] to tee `System.out` / `System.err`.  Not
- * intended for general use outside that context.
+ * Substrate-level JVM utility — usable by any host that needs to tee
+ * a [PrintStream] line-by-line.  Pairs with [StdoutCapture] for the
+ * common `System.out` / `System.err` capture case.
  */
-internal class TeePrintStream(
+class TeePrintStream(
     private val delegate: PrintStream,
     private val lineSink: (String) -> Unit
 ) : PrintStream(TeeOutputStream(delegate, lineSink), true /* autoFlush */, StandardCharsets.UTF_8) {
@@ -119,7 +120,7 @@ internal class TeePrintStream(
             // synchronized block here is the same one that ordered the
             // write — keeping it inside guarantees lines are delivered
             // in the order they were written.  Sinks are expected to be
-            // cheap (typically just a SwingUtilities.invokeLater).
+            // cheap (e.g. a UI-dispatcher invokeLater call).
             lineSink(text)
         }
     }

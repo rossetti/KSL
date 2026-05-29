@@ -21,7 +21,7 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.FactorSpec
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.controls.ControlData
 import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
@@ -92,7 +92,7 @@ import javax.swing.table.AbstractTableModel
  */
 class FactorsTabPanel(
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // Outer layout = BorderLayout (added in E7.9 to host the
@@ -458,17 +458,15 @@ class FactorsTabPanel(
 
     private fun enterAddMode() {
         val descriptor = controller.currentModelDescriptor.value ?: run {
-            onMessage(
-                "Select a model on the Model tab before adding factors.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Select a model on the Model tab before adding factors."
             )
             return
         }
         if (!confirmDiscardIfDirty("Discard the in-progress factor edits?")) return
         if (defaultBindingFor(descriptor) == null) {
-            onMessage(
-                "Selected model has no controls or RV parameters to bind to.",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Selected model has no controls or RV parameters to bind to."
             )
             return
         }
@@ -806,29 +804,27 @@ class FactorsTabPanel(
     private fun commitEditor() {
         val parsed = parseLevels(levelsField.text)
         if (parsed == null) {
-            onMessage(
+            notifier.warn(
                 "Could not parse levels.  Use comma-separated numeric values, e.g. " +
-                    "'0.5, 1.0, 1.5'.",
-                NotificationSeverity.WARNING
+                    "'0.5, 1.0, 1.5'."
             )
             return
         }
         val binding = buildBindingFromEditor() ?: run {
-            onMessage(
-                "Selected binding is incomplete.  Pick a control key or an RV parameter.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Selected binding is incomplete.  Pick a control key or an RV parameter."
             )
             return
         }
         val newName = nameField.text.trim()
         if (newName.isBlank()) {
-            onMessage("Factor name cannot be blank.", NotificationSeverity.WARNING)
+            notifier.warn("Factor name cannot be blank.")
             return
         }
         val newSpec = try {
             FactorSpec(name = newName, levels = parsed, binding = binding)
         } catch (t: IllegalArgumentException) {
-            onMessage("Invalid factor: ${t.message}", NotificationSeverity.WARNING)
+            notifier.warn("Invalid factor: ${t.message}")
             return
         }
         when (val mode = editorMode) {
@@ -836,7 +832,7 @@ class FactorsTabPanel(
                 try {
                     controller.addFactor(newSpec)
                 } catch (t: IllegalArgumentException) {
-                    onMessage("Could not add: ${t.message}", NotificationSeverity.ERROR)
+                    notifier.error("Could not add: ${t.message}")
                     return
                 }
                 // Controller selected the new last index; the
@@ -851,7 +847,7 @@ class FactorsTabPanel(
                 try {
                     controller.updateFactor(mode.index, newSpec)
                 } catch (t: IllegalArgumentException) {
-                    onMessage("Could not save: ${t.message}", NotificationSeverity.ERROR)
+                    notifier.error("Could not save: ${t.message}")
                     return
                 }
                 editsDirty = false

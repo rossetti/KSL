@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.simulation.ModelDescriptor
 import java.awt.BorderLayout
@@ -74,7 +74,7 @@ import javax.swing.SwingConstants
  */
 class ModelStepPanel(
     private val controller: SimoptAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     private val cards = CardLayout()
@@ -361,7 +361,7 @@ class ModelStepPanel(
             try {
                 controller.setNumberOfReplications(parsed)
             } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Invalid replications", NotificationSeverity.WARNING)
+                notifier.warn(ex.message ?: "Invalid replications")
             }
         }
         refreshRepsField()
@@ -374,7 +374,7 @@ class ModelStepPanel(
             try {
                 controller.setLengthOfReplication(parsed)
             } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Invalid length of replication", NotificationSeverity.WARNING)
+                notifier.warn(ex.message ?: "Invalid length of replication")
             }
         }
         refreshLengthField()
@@ -387,7 +387,7 @@ class ModelStepPanel(
             try {
                 controller.setLengthOfReplicationWarmUp(parsed)
             } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Invalid warm-up length", NotificationSeverity.WARNING)
+                notifier.warn(ex.message ?: "Invalid warm-up length")
             }
         }
         refreshWarmUpField()

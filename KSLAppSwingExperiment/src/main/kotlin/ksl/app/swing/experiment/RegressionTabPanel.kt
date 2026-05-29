@@ -21,7 +21,7 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.config.sanitizeAnalysisName
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.controls.experiments.LinearModel
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
@@ -103,7 +103,7 @@ import javax.swing.table.DefaultTableCellRenderer
  */
 class RegressionTabPanel(
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // ── Empty-state cards ──────────────────────────────────────────────────
@@ -584,12 +584,11 @@ class RegressionTabPanel(
 
     private fun handleFit() {
         val response = responseCombo.selectedItem as? String ?: run {
-            onMessage("Pick a response before fitting.", NotificationSeverity.WARNING); return
+            notifier.warn("Pick a response before fitting."); return
         }
         val model = buildLinearModelOrNull() ?: run {
-            onMessage(
-                "Model is invalid — check the custom-terms expression.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Model is invalid — check the custom-terms expression."
             )
             return
         }
@@ -598,15 +597,13 @@ class RegressionTabPanel(
         try {
             val fit = controller.fitRegression(response, model, coded, level)
             if (fit == null) {
-                onMessage(
-                    "No experiment results retained — run the experiment first.",
-                    NotificationSeverity.WARNING
+                notifier.warn(
+                    "No experiment results retained — run the experiment first."
                 )
             }
         } catch (t: Throwable) {
-            onMessage(
-                "Regression failed: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Regression failed: ${t.message ?: t::class.simpleName}"
             )
         }
     }
@@ -642,9 +639,8 @@ class RegressionTabPanel(
                 )
                 .showInBrowser(ctx = ctx)
         } catch (t: Throwable) {
-            onMessage(
-                "Could not open report: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Could not open report: ${t.message ?: t::class.simpleName}"
             )
         }
     }
@@ -700,9 +696,9 @@ class RegressionTabPanel(
             if (executeSave(i, record, dir, options, suppressToast = true)) saved++
         }
         if (saved > 0) {
-            onMessage("Saved $saved regression report(s).", NotificationSeverity.INFO)
+            notifier.info("Saved $saved regression report(s).")
         } else {
-            onMessage("Nothing to save — all fits already on disk.", NotificationSeverity.INFO)
+            notifier.info("Nothing to save — all fits already on disk.")
         }
     }
 
@@ -764,18 +760,16 @@ class RegressionTabPanel(
                 }
             }
         } catch (t: Throwable) {
-            onMessage(
-                "Could not save report: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Could not save report: ${t.message ?: t::class.simpleName}"
             )
             return false
         }
         if (written.isNotEmpty()) {
             controller.markRegressionFitSaved(index, written)
             if (!suppressToast) {
-                onMessage(
-                    "Saved ${written.size} file(s) to $dir",
-                    NotificationSeverity.INFO
+                notifier.info(
+                    "Saved ${written.size} file(s) to $dir"
                 )
             }
             return true
@@ -829,9 +823,8 @@ class RegressionTabPanel(
     private fun ensureReportsDir(): Path? = try {
         reportsDir().also { Files.createDirectories(it) }
     } catch (t: Throwable) {
-        onMessage(
-            "Could not create reports directory: ${t.message ?: t::class.simpleName}",
-            NotificationSeverity.ERROR
+        notifier.error(
+            "Could not create reports directory: ${t.message ?: t::class.simpleName}"
         )
         null
     }

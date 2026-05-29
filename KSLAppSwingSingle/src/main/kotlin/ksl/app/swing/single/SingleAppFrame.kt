@@ -21,7 +21,7 @@ package ksl.app.swing.single
 import kotlinx.coroutines.launch
 import ksl.app.config.RunConfigurationToml
 import ksl.app.session.RunResult
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
@@ -266,7 +266,7 @@ class SingleAppFrame(
     )
     private val postRunPanel = PostRunReportingPanel(
         controller = controller,
-        onMessage = { msg, sev -> notifications.show(msg, sev) },
+        notifier = notifications,
         latestSnapshot = controller.lastResult
     )
     private val consolePanel = ConsoleLogPanel(
@@ -375,16 +375,17 @@ class SingleAppFrame(
     private fun surfaceProbeFailureIfPresent() {
         val cause = controller.probeFailure ?: return
         controller.edtScope.launch {
-            javax.swing.SwingUtilities.invokeLater {
-                notifications.show(
-                    ksl.app.swing.common.notification.NotificationSpec(
-                        message = "Model builder probe failed (using safe defaults): " +
-                            (cause.message ?: cause::class.simpleName ?: "unknown error"),
-                        severity = NotificationSeverity.ERROR,
-                        dismissAfter = null
-                    )
+            // Notifications.emit() marshals onto the EDT itself —
+            // no outer invokeLater needed.  dismissAfter = null
+            // keeps the chip up until the user dismisses it.
+            notifications.emit(
+                ksl.app.notification.NotificationSpec(
+                    message = "Model builder probe failed (using safe defaults): " +
+                        (cause.message ?: cause::class.simpleName ?: "unknown error"),
+                    severity = NotificationSeverity.ERROR,
+                    dismissAfter = null
                 )
-            }
+            )
         }
     }
 
@@ -538,15 +539,14 @@ class SingleAppFrame(
         val text = try {
             Files.readString(path)
         } catch (t: Throwable) {
-            notifications.show("Could not read $path: ${t.message ?: t::class.simpleName}", NotificationSeverity.ERROR)
+            notifications.error("Could not read $path: ${t.message ?: t::class.simpleName}")
             return
         }
         val config = try {
             RunConfigurationToml.decode(text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to parse configuration: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to parse configuration: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -554,11 +554,11 @@ class SingleAppFrame(
             is SingleAppController.LoadResult.Loaded -> {
                 controller.markSaved(path)
                 controller.settingsStore.addRecentConfiguration(path)
-                outcome.warning?.let { notifications.show(it, NotificationSeverity.WARNING) }
-                notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
+                outcome.warning?.let { notifications.warn(it) }
+                notifications.info("Opened ${path.fileName}")
             }
             is SingleAppController.LoadResult.Rejected -> {
-                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+                notifications.error(outcome.reason)
             }
         }
     }
@@ -626,9 +626,8 @@ class SingleAppFrame(
         val text = try {
             RunConfigurationToml.encode(config)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to encode configuration: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to encode configuration: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -636,15 +635,14 @@ class SingleAppFrame(
             Files.createDirectories(path.parent)
             Files.writeString(path, text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Could not write $path: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Could not write $path: ${t.message ?: t::class.simpleName}"
             )
             return
         }
         controller.markSaved(path)
         controller.settingsStore.addRecentConfiguration(path)
-        notifications.show("Saved ${path.fileName}", NotificationSeverity.INFO)
+        notifications.info("Saved ${path.fileName}")
     }
 
     /**
@@ -949,7 +947,7 @@ class SingleAppFrame(
                 controlOverridesPanel.isEnabled = !running
                 rvOverridesPanel.isEnabled = !running
                 if (running) {
-                    notifications.show("Simulation started", NotificationSeverity.INFO)
+                    notifications.info("Simulation started")
                 }
             }
         }
@@ -1001,15 +999,15 @@ class SingleAppFrame(
                 latestSnapshotResult = if (hasSnapshot) result else null
                 when (result) {
                     is RunResult.Completed ->
-                        notifications.show("Simulation completed", NotificationSeverity.INFO)
+                        notifications.info("Simulation completed")
                     is RunResult.Cancelled ->
-                        notifications.show("Simulation cancelled: ${result.reason}", NotificationSeverity.WARNING)
+                        notifications.warn("Simulation cancelled: ${result.reason}")
                     is RunResult.Failed ->
-                        notifications.show("Simulation failed: ${result.error}", NotificationSeverity.ERROR)
+                        notifications.error("Simulation failed: ${result.error}")
                     is RunResult.BatchCompleted ->
-                        notifications.show("Batch completed", NotificationSeverity.INFO)
+                        notifications.info("Batch completed")
                     else ->
-                        notifications.show("Simulation finished: ${result::class.simpleName}", NotificationSeverity.INFO)
+                        notifications.info("Simulation finished: ${result::class.simpleName}")
                 }
                 // OUT5 — auto-materialize the configured report formats.
                 // Quiet failures: each materialize-or-fail is its own
@@ -1076,20 +1074,18 @@ class SingleAppFrame(
                     StandardReportFormat.TEXT -> DefaultDesktopOpener.open(outcome.file)
                 }
                 if (opened) {
-                    notifications.show(
-                        "Opened ${format.labelForButton} report: ${outcome.file.name}",
-                        NotificationSeverity.INFO
+                    notifications.info(
+                        "Opened ${format.labelForButton} report: ${outcome.file.name}"
                     )
                 } else {
-                    notifications.show(
+                    notifications.warn(
                         "${format.labelForButton} report written to ${outcome.file.absolutePath} " +
-                            "(could not auto-open; open it from your file manager).",
-                        NotificationSeverity.WARNING
+                            "(could not auto-open; open it from your file manager)."
                     )
                 }
             }
             is StandardReportOutcome.Failed -> {
-                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+                notifications.error(outcome.reason)
             }
         }
     }
@@ -1107,9 +1103,8 @@ class SingleAppFrame(
         java.nio.file.Files.createDirectories(dir)
         dir
     } catch (t: Throwable) {
-        notifications.show(
-            "Could not create reports directory: ${t.message ?: t::class.simpleName}",
-            NotificationSeverity.ERROR
+        notifications.error(
+            "Could not create reports directory: ${t.message ?: t::class.simpleName}"
         )
         null
     }

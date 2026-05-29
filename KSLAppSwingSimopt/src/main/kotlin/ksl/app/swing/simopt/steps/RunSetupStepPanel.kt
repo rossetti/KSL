@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.SolverTrackingSpec
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.runsetup.DisclosurePanel
 import ksl.app.swing.simopt.runsetup.EvaluationSettingsPanel
@@ -57,11 +57,11 @@ import javax.swing.JPanel
  */
 class RunSetupStepPanel(
     private val controller: SimoptAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     private val evaluationPanel = EvaluationSettingsPanel(controller)
-    private val trackingPanel = TrackingPanel(controller, onMessage)
+    private val trackingPanel = TrackingPanel(controller, notifier)
 
     private val evaluationDisclosure = DisclosurePanel(
         title = "Evaluation settings",

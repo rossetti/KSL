@@ -28,7 +28,6 @@ import ksl.app.swing.common.batchreports.BatchReportsTabPanel
 import ksl.app.swing.common.comparison.BatchCompletedComparisonSource
 import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel
-import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleCategory
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
@@ -213,17 +212,17 @@ class ExperimentAppFrame(
         // widgets moved into the Simulate tab as part of the E7.9
         // restructure; the toolbar now only carries analysisName +
         // databasePolicy (output-config concerns).
-        val modelTab = ModelTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
-        val factorsTab = FactorsTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
-        val designTab = DesignTabPanel(controller) { msg, sev -> notifications.show(msg, sev) }
+        val modelTab = ModelTabPanel(controller, notifications)
+        val factorsTab = FactorsTabPanel(controller, notifications)
+        val designTab = DesignTabPanel(controller, notifications)
         val simulateTab = SimulateTabPanel(
             controller,
-            onMessage = { msg, sev -> notifications.show(msg, sev) },
+            notifier = notifications,
             onSimulateRequested = { handleSimulate() }
         )
         val regressionTab = RegressionTabPanel(
             controller,
-            onMessage = { msg, sev -> notifications.show(msg, sev) }
+            notifier = notifications
         )
         this.regressionTabPanel = regressionTab
 
@@ -239,7 +238,7 @@ class ExperimentAppFrame(
             itemTypeNamePlural = "design points",
             itemFileStemPrefix = "design-point-summary",
             batchFileStem = "experiment-summary",
-            onMessage = { msg, sev -> notifications.show(msg, sev) }
+            notifier = notifications
         )
         val comparisonAnalyzerTab = ComparisonAnalyzerTabPanel(
             defaultOutputDirProvider = {
@@ -250,14 +249,11 @@ class ExperimentAppFrame(
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
             onMessage = { msg, sev ->
-                notifications.show(
-                    msg,
-                    when (sev) {
-                        ComparisonAnalyzerFrame.Severity.INFO -> NotificationSeverity.INFO
-                        ComparisonAnalyzerFrame.Severity.WARNING -> NotificationSeverity.WARNING
-                        ComparisonAnalyzerFrame.Severity.ERROR -> NotificationSeverity.ERROR
-                    }
-                )
+                when (sev) {
+                    ComparisonAnalyzerFrame.Severity.INFO -> notifications.info(msg)
+                    ComparisonAnalyzerFrame.Severity.WARNING -> notifications.warn(msg)
+                    ComparisonAnalyzerFrame.Severity.ERROR -> notifications.error(msg)
+                }
             }
         )
 
@@ -473,16 +469,14 @@ class ExperimentAppFrame(
     private fun handleSimulate() {
         if (controller.runningFlow.value) return
         if (controller.modelReference.value == null) {
-            notifications.show(
-                "No model selected.  Pick a model on the Model tab before simulating.",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "No model selected.  Pick a model on the Model tab before simulating."
             )
             return
         }
         if (controller.factors.value.isEmpty()) {
-            notifications.show(
-                "No factors defined.  Add at least one factor on the Factors tab.",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "No factors defined.  Add at least one factor on the Factors tab."
             )
             return
         }
@@ -532,18 +526,16 @@ class ExperimentAppFrame(
         // SEQUENTIAL + CRN: substrate silently degrades.  Surface a
         // one-shot warning before the user commits to the run.
         if (controller.sequentialIgnoresStreamPolicy()) {
-            notifications.show(
+            notifications.warn(
                 "Common Random Numbers is silently ignored under SEQUENTIAL execution mode.  " +
-                    "Switch to CONCURRENT to apply the stream policy.",
-                NotificationSeverity.WARNING
+                    "Switch to CONCURRENT to apply the stream policy."
             )
         }
         consolePanel.clear()
         if (!controller.submit()) {
-            notifications.show(
+            notifications.error(
                 "Could not start the run.  Check the model reference resolves against " +
-                    "the loaded bundles.",
-                NotificationSeverity.ERROR
+                    "the loaded bundles."
             )
         }
     }
@@ -744,16 +736,14 @@ class ExperimentAppFrame(
                         // Surface per-point failures as toast notifications.
                         // Cancelled points stay quiet (the user requested it).
                         if (ev.snapshot == null && !ev.wasCancelled) {
-                            notifications.show(
-                                "Design point ${ev.pointId} failed.",
-                                NotificationSeverity.WARNING
+                            notifications.warn(
+                                "Design point ${ev.pointId} failed."
                             )
                         }
                     }
                     is RunEvent.RunFailed -> {
-                        notifications.show(
-                            "Run failed: ${describeError(ev.error)}",
-                            NotificationSeverity.ERROR
+                        notifications.error(
+                            "Run failed: ${describeError(ev.error)}"
                         )
                     }
                     else -> { /* console drawer + Simulate tab handle the rest */ }
@@ -763,10 +753,9 @@ class ExperimentAppFrame(
         controller.edtScope.launch {
             controller.lastResult.collect { result ->
                 if (result is RunResult.BatchCompleted) {
-                    notifications.show(
+                    notifications.info(
                         "Run completed: ${result.summary.completedItems} of " +
-                            "${result.summary.totalItems} design points.",
-                        NotificationSeverity.INFO
+                            "${result.summary.totalItems} design points."
                     )
                 }
             }
@@ -794,18 +783,16 @@ class ExperimentAppFrame(
         when (val outcome = controller.loadBundleJar(path)) {
             is ExperimentAppController.LoadBundleResult.Loaded -> {
                 val ids = outcome.newBundleIds.joinToString(", ")
-                notifications.show(
-                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids",
-                    NotificationSeverity.INFO
+                notifications.info(
+                    "Loaded ${outcome.newBundleIds.size} bundle(s): $ids"
                 )
             }
             ExperimentAppController.LoadBundleResult.NoBundles ->
-                notifications.show(
-                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded).",
-                    NotificationSeverity.WARNING
+                notifications.warn(
+                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded)."
                 )
             is ExperimentAppController.LoadBundleResult.Failed ->
-                notifications.show("Could not load $path: ${outcome.reason}", NotificationSeverity.ERROR)
+                notifications.error("Could not load $path: ${outcome.reason}")
         }
     }
 
@@ -830,18 +817,16 @@ class ExperimentAppFrame(
         val text = try {
             Files.readString(path)
         } catch (t: Throwable) {
-            notifications.show(
-                "Could not read $path: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Could not read $path: ${t.message ?: t::class.simpleName}"
             )
             return
         }
         val config = try {
             ExperimentConfigurationToml.decode(text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to parse experiment: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to parse experiment: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -850,12 +835,12 @@ class ExperimentAppFrame(
                 controller.markSaved(path)
                 notifications.dismissAll()
                 outcome.warnings.forEach {
-                    notifications.show(it, NotificationSeverity.WARNING)
+                    notifications.warn(it)
                 }
-                notifications.show("Opened ${path.fileName}", NotificationSeverity.INFO)
+                notifications.info("Opened ${path.fileName}")
             }
             is ExperimentAppController.LoadResult.Failed -> {
-                notifications.show(outcome.reason, NotificationSeverity.ERROR)
+                notifications.error(outcome.reason)
             }
         }
     }
@@ -967,18 +952,16 @@ class ExperimentAppFrame(
         val config = try {
             controller.currentConfiguration()
         } catch (t: IllegalStateException) {
-            notifications.show(
-                "Cannot save: ${t.message ?: "model reference is required"}",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "Cannot save: ${t.message ?: "model reference is required"}"
             )
             return
         }
         val text = try {
             ExperimentConfigurationToml.encode(config)
         } catch (t: Throwable) {
-            notifications.show(
-                "Failed to encode experiment: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Failed to encode experiment: ${t.message ?: t::class.simpleName}"
             )
             return
         }
@@ -986,14 +969,13 @@ class ExperimentAppFrame(
             Files.createDirectories(path.parent)
             Files.writeString(path, text)
         } catch (t: Throwable) {
-            notifications.show(
-                "Could not write $path: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifications.error(
+                "Could not write $path: ${t.message ?: t::class.simpleName}"
             )
             return
         }
         controller.markSaved(path)
-        notifications.show("Saved ${path.fileName}", NotificationSeverity.INFO)
+        notifications.info("Saved ${path.fileName}")
     }
 
     private fun confirmDiscardIfDirty(question: String): Boolean {

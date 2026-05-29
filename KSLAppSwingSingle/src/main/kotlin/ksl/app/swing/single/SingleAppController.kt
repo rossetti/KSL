@@ -821,7 +821,7 @@ class SingleAppController(
         // a long-lived JVM (IDE Run session) isn't left with a dangling
         // tee pointing at a destroyed Swing component.  StdoutCapture
         // also registers a JVM shutdown hook as a backstop.
-        ksl.app.swing.common.runcontrol.StdoutCapture.uninstall()
+        ksl.utilities.io.StdoutCapture.uninstall()
     }
 
     companion object {

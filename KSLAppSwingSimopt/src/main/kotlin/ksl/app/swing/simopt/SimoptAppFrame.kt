@@ -21,7 +21,6 @@ package ksl.app.swing.simopt
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.swing.common.notification.Notifications
-import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
 import ksl.app.settings.WorkspaceLayout
@@ -112,13 +111,9 @@ class SimoptAppFrame(
     private val stepPanels: Map<Step, JPanel> = mapOf(
         Step.MODEL to ModelStepPanel(controller),
         Step.PROBLEM to ProblemStepPanel(controller),
-        Step.CONSTRAINTS to ConstraintsStepPanel(controller) { msg, sev ->
-            notifications.show(msg, sev)
-        },
+        Step.CONSTRAINTS to ConstraintsStepPanel(controller, notifications),
         Step.ALGORITHM to AlgorithmStepPanel(controller),
-        Step.RUN_SETUP to RunSetupStepPanel(controller) { msg, sev ->
-            notifications.show(msg, sev)
-        },
+        Step.RUN_SETUP to RunSetupStepPanel(controller, notifications),
         Step.EXECUTE to ExecuteStepPanel(controller),
         Step.RESULTS to ResultsStepPanel(controller)
     )
@@ -333,21 +328,18 @@ class SimoptAppFrame(
         val path = chooser.selectedFile.toPath()
         when (val result = controller.loadBundleJar(path)) {
             is SimoptAppController.LoadBundleResult.Loaded ->
-                notifications.show(
+                notifications.info(
                     "Loaded ${result.newBundleIds.size} bundle(s) from ${path.fileName}: " +
-                        result.newBundleIds.joinToString(", "),
-                    NotificationSeverity.INFO
+                        result.newBundleIds.joinToString(", ")
                 )
             SimoptAppController.LoadBundleResult.NoBundles ->
-                notifications.show(
+                notifications.warn(
                     "No new bundles found in ${path.fileName}.  (Already loaded, or no " +
-                        "KSLModelBundle SPI entries.)",
-                    NotificationSeverity.WARNING
+                        "KSLModelBundle SPI entries.)"
                 )
             is SimoptAppController.LoadBundleResult.Failed ->
-                notifications.show(
-                    "Could not load ${path.fileName}: ${result.reason}",
-                    NotificationSeverity.ERROR
+                notifications.error(
+                    "Could not load ${path.fileName}: ${result.reason}"
                 )
         }
     }
@@ -357,7 +349,7 @@ class SimoptAppFrame(
     private fun handleNew() {
         if (!confirmDiscardIfDirty()) return
         controller.newDocument()
-        notifications.show("New optimization started.", NotificationSeverity.INFO)
+        notifications.info("New optimization started.")
     }
 
     private fun handleOpen() {
@@ -377,14 +369,12 @@ class SimoptAppFrame(
         val path = chooser.selectedFile.toPath()
         when (val result = controller.loadConfiguration(path)) {
             is SimoptAppController.LoadResult.Success ->
-                notifications.show(
-                    "Loaded ${path.fileName}.",
-                    NotificationSeverity.INFO
+                notifications.info(
+                    "Loaded ${path.fileName}."
                 )
             is SimoptAppController.LoadResult.Failed ->
-                notifications.show(
-                    "Could not load ${path.fileName}: ${result.reason}",
-                    NotificationSeverity.ERROR
+                notifications.error(
+                    "Could not load ${path.fileName}: ${result.reason}"
                 )
         }
     }
@@ -397,9 +387,8 @@ class SimoptAppFrame(
             return
         }
         if (controller.currentConfiguration() == null) {
-            notifications.show(
-                "Cannot save: no model selected.  Pick a model on the Model step before saving.",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "Cannot save: no model selected.  Pick a model on the Model step before saving."
             )
             return
         }
@@ -446,18 +435,17 @@ class SimoptAppFrame(
         }
         try {
             controller.saveConfiguration(current)
-            notifications.show("Saved ${current.fileName}.", NotificationSeverity.INFO)
+            notifications.info("Saved ${current.fileName}.")
         } catch (e: Exception) {
-            notifications.show("Save failed: ${e.message}", NotificationSeverity.ERROR)
+            notifications.error("Save failed: ${e.message}")
         }
     }
 
     private fun handleSaveAs() {
         flushPendingAnalysisName()
         if (controller.currentConfiguration() == null) {
-            notifications.show(
-                "Cannot save: no model selected.  Pick a model on the Model step before saving.",
-                NotificationSeverity.WARNING
+            notifications.warn(
+                "Cannot save: no model selected.  Pick a model on the Model step before saving."
             )
             return
         }
@@ -492,9 +480,9 @@ class SimoptAppFrame(
         }
         try {
             controller.saveConfiguration(path)
-            notifications.show("Saved ${path.fileName}.", NotificationSeverity.INFO)
+            notifications.info("Saved ${path.fileName}.")
         } catch (e: Exception) {
-            notifications.show("Save failed: ${e.message}", NotificationSeverity.ERROR)
+            notifications.error("Save failed: ${e.message}")
         }
     }
 

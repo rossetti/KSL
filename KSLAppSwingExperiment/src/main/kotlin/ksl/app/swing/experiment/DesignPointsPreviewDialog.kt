@@ -24,7 +24,7 @@ import ksl.app.config.experiment.ManualPointSpec
 import ksl.app.config.experiment.ReplicationSpec
 import kotlinx.coroutines.launch
 import ksl.app.config.experiment.materializeDesign
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -88,7 +88,7 @@ import javax.swing.table.AbstractTableModel
 class DesignPointsPreviewDialog(
     owner: Window?,
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit
+    private val notifier: NotificationSink
 ) : JDialog(owner, "Design points preview", ModalityType.APPLICATION_MODAL) {
     //  Modal — the dialog is a pre-run preview ("did the design I
     //  configured produce the points I expected?").  Live status
@@ -245,9 +245,8 @@ class DesignPointsPreviewDialog(
         // Drop overrides that match the default — keeps the map tight.
         val cleaned = stagedRepsOverrides.filterValues { it != rep.default }
         controller.setReplications(rep.copy(overrides = cleaned))
-        onMessage(
-            "Applied ${cleaned.size} per-point replication override${if (cleaned.size == 1) "" else "s"}.",
-            NotificationSeverity.INFO
+        notifier.info(
+            "Applied ${cleaned.size} per-point replication override${if (cleaned.size == 1) "" else "s"}."
         )
         dispose()
     }
@@ -288,9 +287,8 @@ class DesignPointsPreviewDialog(
                     out.print(","); out.println(effectiveReps(p))
                 }
             }
-            onMessage(
-                "Wrote ${originalPoints.size} design points to ${file.absolutePath}",
-                NotificationSeverity.INFO
+            notifier.info(
+                "Wrote ${originalPoints.size} design points to ${file.absolutePath}"
             )
         } catch (ex: Exception) {
             JOptionPane.showMessageDialog(

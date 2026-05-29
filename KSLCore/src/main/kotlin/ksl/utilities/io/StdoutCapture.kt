@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.runcontrol
+package ksl.utilities.io
 
 import java.io.PrintStream
 
@@ -32,16 +32,19 @@ import java.io.PrintStream
  *
  * A one-time JVM shutdown hook is registered on the first install so
  * the original streams are restored if the process is killed without
- * the GUI being able to call [uninstall] (e.g. force-quit, IDE Stop
+ * the host being able to call [uninstall] (e.g. force-quit, IDE Stop
  * button, crash).  Matters for IDE Run sessions where the JVM may
  * persist across app launches.
  *
  * The sink runs on whichever thread completed the captured line.
- * Sinks targeting Swing components must dispatch onto the EDT
+ * Sinks targeting UI components must dispatch onto the right thread
  * themselves.
  *
  * Thread-safe: [install] and [uninstall] are synchronized; [isInstalled]
  * reads a volatile flag.
+ *
+ * Substrate-level JVM utility — usable by any host that wants
+ * line-by-line capture of process-wide standard streams.
  */
 object StdoutCapture {
 
@@ -65,7 +68,7 @@ object StdoutCapture {
      *
      * @param sink callback that receives `(text, fromErr)` for each
      *   completed line.  Invoked on the writer's thread; not
-     *   guaranteed to be the EDT.
+     *   guaranteed to be any particular dispatcher.
      */
     @Synchronized
     fun install(sink: (text: String, fromErr: Boolean) -> Unit) {

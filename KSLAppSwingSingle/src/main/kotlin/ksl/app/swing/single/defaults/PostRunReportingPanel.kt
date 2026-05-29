@@ -25,7 +25,7 @@ import ksl.app.session.RunResult
 import ksl.app.single.results.StandardReportFormat
 import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.single.ReportSaveRecord
 import ksl.app.swing.single.SingleAppController
 import ksl.utilities.io.dbutil.SimulationSnapshot
@@ -84,7 +84,7 @@ import javax.swing.table.DefaultTableCellRenderer
  *  Remove (drops the record without deleting the file).
  *
  *  @param controller         owning [SingleAppController]
- *  @param onMessage          notification sink (frame routes to its
+ *  @param notifier           notification sink (frame routes to its
  *                            global notifications object)
  *  @param latestSnapshot     observable signal — non-null when a
  *                            snapshot is in hand and the Save button
@@ -92,7 +92,7 @@ import javax.swing.table.DefaultTableCellRenderer
  */
 class PostRunReportingPanel(
     private val controller: SingleAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit,
+    private val notifier: NotificationSink,
     private val latestSnapshot: StateFlow<RunResult?>
 ) : JPanel(BorderLayout()) {
 
@@ -533,13 +533,13 @@ class PostRunReportingPanel(
                     saved++
                 }
                 is StandardReportOutcome.Failed ->
-                    onMessage(outcome.reason, NotificationSeverity.ERROR)
+                    notifier.error(outcome.reason)
             }
         }
         if (saved > 0) {
             statusLabel.text = "✓ Saved $saved file(s) to $dir"
             statusLabel.foreground = STATUS_GREEN
-            onMessage("Saved $saved report file(s).", NotificationSeverity.INFO)
+            notifier.info("Saved $saved report file(s).")
         }
     }
 
@@ -558,43 +558,38 @@ class PostRunReportingPanel(
         val sel = recentTable.selectedRow
         val record = controller.recentReportSaves.value.getOrNull(sel) ?: return
         if (!Files.exists(record.path)) {
-            onMessage(
-                "File no longer exists at ${record.path}",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "File no longer exists at ${record.path}"
             )
             return
         }
         try {
             if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(record.path.toFile())
         } catch (t: Throwable) {
-            onMessage(
-                "Could not open file: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Could not open file: ${t.message ?: t::class.simpleName}"
             )
         }
     }
 
     private fun openReportsFolder() {
         val dir = computeReportsDir() ?: run {
-            onMessage(
-                "Reports folder does not exist yet — save a report first.",
-                NotificationSeverity.INFO
+            notifier.info(
+                "Reports folder does not exist yet — save a report first."
             )
             return
         }
         if (!Files.exists(dir)) {
-            onMessage(
-                "Reports folder does not exist yet — save a report first.",
-                NotificationSeverity.INFO
+            notifier.info(
+                "Reports folder does not exist yet — save a report first."
             )
             return
         }
         try {
             if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(dir.toFile())
         } catch (t: Throwable) {
-            onMessage(
-                "Could not open folder: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Could not open folder: ${t.message ?: t::class.simpleName}"
             )
         }
     }
@@ -626,15 +621,14 @@ class PostRunReportingPanel(
 
     private fun ensureReportsDir(): Path? = try {
         if (currentSnapshot() == null) {
-            onMessage("No snapshot available.", NotificationSeverity.WARNING)
+            notifier.warn("No snapshot available.")
             null
         } else {
             analysisReportsDir().also { Files.createDirectories(it) }
         }
     } catch (t: Throwable) {
-        onMessage(
-            "Could not create reports directory: ${t.message ?: t::class.simpleName}",
-            NotificationSeverity.ERROR
+        notifier.error(
+            "Could not create reports directory: ${t.message ?: t::class.simpleName}"
         )
         null
     }

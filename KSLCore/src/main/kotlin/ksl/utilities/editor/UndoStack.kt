@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.editor
+package ksl.utilities.editor
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,11 +141,13 @@ class UndoStack(val limit: Int = DEFAULT_LIMIT) {
         publish()
     }
 
-    /** Test-only: depth of the undo stack. */
-    internal val undoDepthForTest: Int get() = undoStack.size
+    /** Test-only: depth of the undo stack.  Public because the test
+     *  lives in a separate Gradle module (KSLTesting) and `internal`
+     *  doesn't reach across module boundaries. */
+    val undoDepthForTest: Int get() = undoStack.size
 
     /** Test-only: depth of the redo stack. */
-    internal val redoDepthForTest: Int get() = redoStack.size
+    val redoDepthForTest: Int get() = redoStack.size
 
     private fun publish() {
         myState.value = UndoState(

@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -85,7 +85,7 @@ import javax.swing.table.TableCellRenderer
  *  - [lastResultFlow] / [runningFlow] — drive empty vs. populated cards.
  *  - [workspaceProvider] / [analysisNameProvider] — compute the default
  *    reports directory `<workspace>/output/<analysisName>/reports/`.
- *  - [onMessage] — surface render errors through the host's notification
+ *  - `notifier` — surface render errors through the host's notification
  *    overlay.
  *  - [itemTypeName] / [itemTypeNamePlural] — substituted into UI labels
  *    so the tab reads naturally in each app's domain.
@@ -121,9 +121,8 @@ class BatchReportsTabPanel(
      *  the Scenario app's pre-extraction filenames. */
     private val batchFileStem: String = "scenario-summaries",
     /** Surfaces success/error messages through the host's notification
-     *  overlay.  Optional — defaults to a no-op. */
-    private val onMessage: (message: String, severity: NotificationSeverity) -> Unit =
-        { _, _ -> }
+     *  overlay.  Optional — defaults to [NotificationSink.NOOP]. */
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(CardLayout()) {
 
     // ── Cards ──────────────────────────────────────────────────────────────
@@ -685,15 +684,14 @@ class BatchReportsTabPanel(
                     reportTitle = "$itemTypeCapitalised Summary — $name"
                 )
             } catch (t: Throwable) {
-                onMessage(
-                    "Report error: [$name] ${t.message ?: t::class.simpleName}",
-                    NotificationSeverity.WARNING
+                notifier.warn(
+                    "Report error: [$name] ${t.message ?: t::class.simpleName}"
                 )
                 BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
             }
             if (!outcome.skipped) {
                 outcome.errors.forEach {
-                    onMessage("Report error: [$name] $it", NotificationSeverity.WARNING)
+                    notifier.warn("Report error: [$name] $it")
                 }
             }
             val i = itemNames.indexOf(name)
@@ -740,14 +738,13 @@ class BatchReportsTabPanel(
                 itemColumnHeader = itemTypeCapitalised
             )
         } catch (t: Throwable) {
-            onMessage(
-                "Report error: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Report error: ${t.message ?: t::class.simpleName}"
             )
             BatchReports.WriteOutcome(emptyList(), listOf(t.message ?: ""), false)
         }
         if (!outcome.skipped) {
-            outcome.errors.forEach { onMessage("Report error: $it", NotificationSeverity.WARNING) }
+            outcome.errors.forEach { notifier.warn("Report error: $it") }
         }
         if (outcome.written.isNotEmpty()) {
             lastGeneratedSummarySelection = picked.toSet()
@@ -876,9 +873,8 @@ class BatchReportsTabPanel(
         try {
             Files.deleteIfExists(file)
         } catch (t: Throwable) {
-            onMessage(
-                "Could not delete ${file.fileName}: ${t.message ?: t::class.simpleName}",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Could not delete ${file.fileName}: ${t.message ?: t::class.simpleName}"
             )
         }
     }

@@ -21,7 +21,7 @@ package ksl.app.swing.simopt.runsetup
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.optimization.paths.OptimizationPaths
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import java.awt.Color
 import java.awt.Font
@@ -54,7 +54,7 @@ import javax.swing.JTextField
  */
 class TrackingPanel(
     private val controller: SimoptAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(GridBagLayout()) {
 
     private val enableCsvCheckbox = JCheckBox("Write CSV trace")
@@ -161,7 +161,7 @@ class TrackingPanel(
                 experimentLabel = label
             )
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Invalid tracking setting", NotificationSeverity.WARNING)
+            notifier.warn(ex.message ?: "Invalid tracking setting")
             refreshFromController()
             return
         }

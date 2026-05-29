@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationType
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.problem.InputEditorDialog
 import java.awt.BorderLayout
@@ -74,7 +74,7 @@ import javax.swing.table.AbstractTableModel
  */
 class ProblemStepPanel(
     private val controller: SimoptAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // ── Objective widgets ─────────────────────────────────────────────────
@@ -292,7 +292,7 @@ class ProblemStepPanel(
             try {
                 controller.setIndifferenceZoneParameter(parsed)
             } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Invalid Δ", NotificationSeverity.WARNING)
+                notifier.warn(ex.message ?: "Invalid Δ")
             }
         }
         refreshDeltaField()
@@ -305,7 +305,7 @@ class ProblemStepPanel(
             try {
                 controller.setObjectiveGranularity(parsed)
             } catch (ex: IllegalArgumentException) {
-                onMessage(ex.message ?: "Invalid granularity", NotificationSeverity.WARNING)
+                notifier.warn(ex.message ?: "Invalid granularity")
             }
         }
         refreshGranularityField()
@@ -457,7 +457,7 @@ class ProblemStepPanel(
     private fun handleAdd() {
         val descriptor = controller.currentModelDescriptor.value
         if (descriptor == null) {
-            onMessage("Select a model on the Model step first.", NotificationSeverity.WARNING)
+            notifier.warn("Select a model on the Model step first.")
             return
         }
         val ownerWindow = SwingUtilities.getWindowAncestor(this)
@@ -471,7 +471,7 @@ class ProblemStepPanel(
         try {
             controller.addInput(spec)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not add input", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not add input")
         }
     }
 
@@ -491,7 +491,7 @@ class ProblemStepPanel(
         try {
             controller.updateInput(idx, updated)
         } catch (ex: IllegalArgumentException) {
-            onMessage(ex.message ?: "Could not update input", NotificationSeverity.ERROR)
+            notifier.error(ex.message ?: "Could not update input")
         }
     }
 

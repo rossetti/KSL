@@ -25,7 +25,7 @@ import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.StreamPolicy
 import ksl.app.config.experiment.materializeDesign
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -83,7 +83,7 @@ import javax.swing.table.TableCellRenderer
  */
 class SimulateTabPanel(
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit,
+    private val notifier: NotificationSink,
     private val onSimulateRequested: () -> Unit
 ) : JPanel(BorderLayout(0, 6)) {
 
@@ -375,10 +375,9 @@ class SimulateTabPanel(
                 if (status == ExperimentAppController.DesignPointStatus.RUNNING) {
                     val ok = controller.cancelDesignPoint(point.pointId)
                     if (!ok) {
-                        onMessage(
+                        notifier.warn(
                             "Could not cancel design point ${point.pointId} " +
-                                "(already completed, or no run in progress).",
-                            NotificationSeverity.WARNING
+                                "(already completed, or no run in progress)."
                         )
                     }
                 }

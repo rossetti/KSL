@@ -30,11 +30,10 @@ import ksl.app.config.ExecutionMode
 import ksl.app.session.RunEvent
 import ksl.app.session.RunWarningType
 import ksl.app.settings.UserSettingsStore
-import ksl.app.swing.common.editor.SelectionState
-import ksl.app.swing.common.editor.UndoStack
-import ksl.app.swing.common.editor.UndoableOperation
-import ksl.app.swing.common.notification.NotificationSeverity
-import ksl.app.swing.common.notification.NotificationSpec
+import ksl.utilities.editor.SelectionState
+import ksl.utilities.editor.UndoStack
+import ksl.utilities.editor.UndoableOperation
+import ksl.app.notification.NotificationSeverity
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField
 import ksl.app.swing.common.overridefield.DoubleOverrideField
@@ -204,10 +203,9 @@ object CommonWidgetsDemo {
             addActionListener {
                 runningFlow.value = !runningFlow.value
                 text = if (runningFlow.value) "Stop Running" else "Simulate Run"
-                notifications.show(
+                notifications.info(
                     if (runningFlow.value) "Run started"
-                    else "Run stopped",
-                    NotificationSeverity.INFO
+                    else "Run stopped"
                 )
             }
         }
@@ -216,12 +214,7 @@ object CommonWidgetsDemo {
                 directoryPath = Path.of(System.getProperty("user.home")),
                 desktopOpener = DefaultDesktopOpener,
                 onUnavailable = { p ->
-                    notifications.show(
-                        NotificationSpec(
-                            message = "Could not open $p in the file manager.",
-                            severity = NotificationSeverity.ERROR
-                        )
-                    )
+                    notifications.error("Could not open $p in the file manager.")
                 }
             )
         )

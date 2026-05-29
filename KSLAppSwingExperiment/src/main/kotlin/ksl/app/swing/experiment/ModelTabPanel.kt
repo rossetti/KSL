@@ -21,7 +21,7 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.launch
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import ksl.simulation.ModelDescriptor
 import javax.swing.JScrollPane
 import java.awt.BorderLayout
@@ -69,7 +69,7 @@ import javax.swing.SwingConstants
  */
 class ModelTabPanel(
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit = { _, _ -> }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(BorderLayout()) {
 
     // The outer layout is BorderLayout (added in E7.9 to host the
@@ -314,7 +314,7 @@ class ModelTabPanel(
                 try {
                     controller.setRunParameterOverrides(cur.copy(lengthOfReplicationWarmUp = parsed))
                 } catch (ex: IllegalArgumentException) {
-                    onMessage(ex.message ?: "Invalid warm-up", NotificationSeverity.WARNING)
+                    notifier.warn(ex.message ?: "Invalid warm-up")
                 }
                 refreshWarmUpFieldFromController()
             }

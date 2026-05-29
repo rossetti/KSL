@@ -25,7 +25,7 @@ import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.Fraction
 import ksl.app.config.experiment.ManualPointSpec
 import ksl.app.config.experiment.ReplicationSpec
-import ksl.app.swing.common.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -117,7 +117,7 @@ private sealed class WordParseResult {
  */
 class DesignTabPanel(
     private val controller: ExperimentAppController,
-    private val onMessage: (String, NotificationSeverity) -> Unit
+    private val notifier: NotificationSink
 ) : JPanel(BorderLayout(0, 8)) {
 
     // -- Design family — sub-tabs (E7.10).  Each sub-tab IS the
@@ -227,9 +227,8 @@ class DesignTabPanel(
             TAB_FF -> DesignSpec.FullFactorial
             TAB_TLF -> {
                 if (!factorsAreTwoLevel(factors)) {
-                    onMessage(
-                        "Two-level factorial requires every factor to have exactly 2 levels.",
-                        NotificationSeverity.WARNING
+                    notifier.warn(
+                        "Two-level factorial requires every factor to have exactly 2 levels."
                     )
                     applyFamilySelectionFor(controller.designSpec.value)
                     return
@@ -238,9 +237,8 @@ class DesignTabPanel(
             }
             TAB_CCD -> {
                 if (!factorsAreTwoLevel(factors) || factors.size < 2) {
-                    onMessage(
-                        "Central composite requires at least 2 factors with exactly 2 levels each.",
-                        NotificationSeverity.WARNING
+                    notifier.warn(
+                        "Central composite requires at least 2 factors with exactly 2 levels each."
                     )
                     applyFamilySelectionFor(controller.designSpec.value)
                     return
@@ -249,9 +247,8 @@ class DesignTabPanel(
             }
             TAB_MN -> {
                 if (factors.isEmpty()) {
-                    onMessage(
-                        "Custom design points require at least 1 factor.",
-                        NotificationSeverity.WARNING
+                    notifier.warn(
+                        "Custom design points require at least 1 factor."
                     )
                     applyFamilySelectionFor(controller.designSpec.value)
                     return
@@ -353,22 +350,18 @@ class DesignTabPanel(
     private fun openPreviewDialog() {
         val factors = controller.factors.value
         if (factors.isEmpty()) {
-            onMessage(
-                "Add at least one factor on the Factors tab before previewing the design.",
-                NotificationSeverity.WARNING
+            notifier.warn(
+                "Add at least one factor on the Factors tab before previewing the design."
             )
             return
         }
         try {
             val owner = javax.swing.SwingUtilities.getWindowAncestor(this)
-            val dlg = DesignPointsPreviewDialog(owner, controller) { msg, sev ->
-                onMessage(msg, sev)
-            }
+            val dlg = DesignPointsPreviewDialog(owner, controller, notifier)
             dlg.isVisible = true
         } catch (ex: Exception) {
-            onMessage(
-                "Could not materialize design: ${ex.message ?: ex::class.simpleName}",
-                NotificationSeverity.ERROR
+            notifier.error(
+                "Could not materialize design: ${ex.message ?: ex::class.simpleName}"
             )
         }
     }
@@ -836,7 +829,7 @@ class DesignTabPanel(
 
     /** Custom design points: edit-in-place JTable. */
     private inner class ManualCard : JPanel(BorderLayout(0, 6)) {
-        private val tableModel = ManualPointsTableModel(onWarning = onMessage)
+        private val tableModel = ManualPointsTableModel(notifier = notifier)
         private val table = JTable(tableModel)
         private val addRowBtn = JButton("Add point")
         private val delRowBtn = JButton("Delete point")
@@ -874,9 +867,8 @@ class DesignTabPanel(
                 if (row >= 0 && tableModel.rowCount > 1) {
                     tableModel.removeRow(row)
                 } else if (tableModel.rowCount <= 1) {
-                    onMessage(
-                        "Custom design must keep at least one point.",
-                        NotificationSeverity.WARNING
+                    notifier.warn(
+                        "Custom design must keep at least one point."
                     )
                 }
             }
@@ -886,9 +878,8 @@ class DesignTabPanel(
         private fun importCsv() {
             val factors = controller.factors.value
             if (factors.isEmpty()) {
-                onMessage(
-                    "Add at least one factor on the Factors tab before importing.",
-                    NotificationSeverity.WARNING
+                notifier.warn(
+                    "Add at least one factor on the Factors tab before importing."
                 )
                 return
             }
@@ -919,11 +910,10 @@ class DesignTabPanel(
                 }
                 is ManualCsvImportResult.Ok -> {
                     controller.setDesignSpec(DesignSpec.Manual(result.points))
-                    onMessage(
+                    notifier.info(
                         "Imported ${result.points.size} design point" +
                             (if (result.points.size == 1) "" else "s") +
-                            " from ${file.name}.",
-                        NotificationSeverity.INFO
+                            " from ${file.name}."
                     )
                     // load() will fire via the designSpec collector
                     // and rebuild the table.
@@ -1024,7 +1014,7 @@ class DesignTabPanel(
      *    Lets the user augment CCD-style with mid-range points.
      */
     private class ManualPointsTableModel(
-        private val onWarning: (String, NotificationSeverity) -> Unit
+        private val notifier: NotificationSink
     ) : AbstractTableModel() {
         private var factors: List<FactorSpec> = emptyList()
         private val factorNames: List<String> get() = factors.map { it.name }
@@ -1060,21 +1050,19 @@ class DesignTabPanel(
                 val maxLvl = factor.levels.max()
                 // Hard reject: outside [min, max].
                 if (parsed < minLvl || parsed > maxLvl) {
-                    onWarning(
+                    notifier.warn(
                         "Value $parsed for '${factor.name}' is outside its range " +
-                            "[$minLvl, $maxLvl].  Edit reverted.",
-                        NotificationSeverity.WARNING
+                            "[$minLvl, $maxLvl].  Edit reverted."
                     )
                     fireTableCellUpdated(rowIndex, columnIndex)  // forces UI to re-read old value
                     return
                 }
                 // Soft warning: within range but not a declared level.
                 if (parsed !in factor.levels) {
-                    onWarning(
+                    notifier.info(
                         "Value $parsed for '${factor.name}' is within range but " +
                             "not one of the declared levels ${factor.levels} " +
-                            "(allowed; treated as a within-range augmentation).",
-                        NotificationSeverity.INFO
+                            "(allowed; treated as a within-range augmentation)."
                     )
                 }
                 rows[rowIndex][factor.name] = parsed

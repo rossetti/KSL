@@ -18,6 +18,9 @@
 
 package ksl.app.swing.common.notification
 
+import ksl.app.notification.NotificationSeverity
+import ksl.app.notification.NotificationSink
+import ksl.app.notification.NotificationSpec
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Cursor
@@ -67,7 +70,25 @@ class Notifications(
     private val cardWidth: Int = DEFAULT_CARD_WIDTH,
     private val margin: Int = DEFAULT_MARGIN,
     private val spacing: Int = DEFAULT_SPACING
-) {
+) : NotificationSink {
+
+    /**
+     *  [NotificationSink] entry point — thread-safe by contract.
+     *  Marshals the call onto the EDT before delegating to [show],
+     *  which manipulates Swing components and must run there.
+     *
+     *  Callers running on the EDT pay just a `SwingUtilities.isEventDispatchThread`
+     *  check; off-EDT callers go through `invokeLater` and the
+     *  notification appears asynchronously.
+     */
+    override fun emit(spec: NotificationSpec) {
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            show(spec)
+        } else {
+            javax.swing.SwingUtilities.invokeLater { show(spec) }
+        }
+    }
+
 
     private val cards: MutableList<Card> = mutableListOf()
     private var overflowLabel: JLabel? = null
