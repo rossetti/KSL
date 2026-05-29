@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
@@ -58,17 +58,18 @@ import java.nio.file.Path
  *
  *  Renders through [writeHtml] with the framework's built-in CSS so
  *  the styling matches reports produced by other KSL apps.
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal object HtmlReportWriter {
+object HtmlReportWriter {
 
     /**
      *  Write the report to [path] using a captured [SolverResult].
      *
-     *  The caller (the controller's terminal observer) is
-     *  responsible for capturing the [SolverResult] *before* the
-     *  live `Solver` reference is cleared — the substrate's
-     *  `Solver.solverResult` property is only meaningful while the
-     *  `Solver` instance is reachable.
+     *  The caller is responsible for capturing the [SolverResult]
+     *  *before* the live `Solver` reference is cleared — the
+     *  substrate's `Solver.solverResult` property is only meaningful
+     *  while the `Solver` instance is reachable.
      */
     fun write(
         config: OptimizationRunConfiguration,
@@ -136,9 +137,11 @@ internal object HtmlReportWriter {
         false
     }
 
-    /** Sentinel-aware objective formatting matching the GUI's
-     *  `formatObjective` so the report and the Execute panel agree
-     *  on how `±Double.MAX_VALUE` and `NaN` render. */
+    /** Sentinel-aware objective formatting — maps the
+     *  `Double.MAX_VALUE` / `Double.POSITIVE_INFINITY` seeds solvers
+     *  use to mark "no feasible solution yet" onto infinity glyphs
+     *  rather than printing 1.8e308.  Should be kept in sync with
+     *  any UI-side analogue. */
     private fun formatObj(v: Double): String = when {
         v == Double.MAX_VALUE || v == Double.POSITIVE_INFINITY -> "+∞"
         v == -Double.MAX_VALUE || v == Double.NEGATIVE_INFINITY -> "−∞"

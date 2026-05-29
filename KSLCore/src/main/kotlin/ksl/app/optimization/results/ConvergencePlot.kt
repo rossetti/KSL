@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import ksl.simopt.solvers.SolverStateSnapshot
 import ksl.utilities.io.plotting.BasePlot
@@ -31,7 +31,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Convergence plot for a SimOpt run.
+ *  Convergence plot for a simulation-optimization run.
  *
  *  Extends [BasePlot] so it slots directly into the framework's
  *  [ksl.utilities.io.report.dsl.ReportBuilder.plot] DSL — the HTML
@@ -47,9 +47,11 @@ import java.nio.file.Path
  *  Sentinel "no feasible solution yet" values (`±Double.MAX_VALUE`,
  *  `±Infinity`, `NaN`) are filtered out before plotting so the Y
  *  axis isn't crushed by 1.8e308 seed values.
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal class ConvergencePlot(
-    private val history: List<SolverStateSnapshot>
+class ConvergencePlot(
+    history: List<SolverStateSnapshot>
 ) : BasePlot() {
 
     init {
@@ -89,12 +91,13 @@ internal class ConvergencePlot(
  *  in the HTML report is handled by the report DSL — this writer
  *  only produces the static PNG for users who want an image they
  *  can drop into slides or share without a browser.
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal object ConvergencePlotBuilder {
+object ConvergencePlotBuilder {
 
-    /** Build the plot wrapper for [history].  Returns a
-     *  [ConvergencePlot] regardless of input; check
-     *  [ConvergencePlot.hasData] before rendering. */
+    /** Build the plot wrapper for [history].  Returns `null` when
+     *  no snapshot has a plottable (finite, non-sentinel) value. */
     fun buildPlot(history: List<SolverStateSnapshot>): ConvergencePlot? {
         val plot = ConvergencePlot(history)
         return if (plot.hasData) plot else null

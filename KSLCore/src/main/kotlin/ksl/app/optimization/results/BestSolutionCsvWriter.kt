@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.simopt.solvers.SolverStateSnapshot
@@ -34,8 +34,10 @@ import java.nio.file.Path
  *     [OptimizationProblemSpec.inputs] declaration order
  *  2. `est_obj`
  *  3. `pen_obj`
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal object BestSolutionCsvWriter {
+object BestSolutionCsvWriter {
 
     private const val SEP = ","
     private const val NL = "\n"

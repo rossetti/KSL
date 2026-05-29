@@ -21,7 +21,7 @@ package ksl.app.swing.simopt.results
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.swing.simopt.SimoptAppController
-import ksl.app.swing.simopt.results.export.ArtifactNames
+import ksl.app.optimization.results.ArtifactNames
 import java.awt.Color
 import java.awt.Desktop
 import java.awt.Font

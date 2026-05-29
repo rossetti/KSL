@@ -60,9 +60,9 @@ import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
 import ksl.app.settings.UserSettingsStore
-import ksl.app.swing.simopt.results.export.LatestBestSnapshot
-import ksl.app.swing.simopt.results.export.ResultsArtifactWriter
-import ksl.app.swing.simopt.results.export.ResultsStatus
+import ksl.app.optimization.results.LatestBestSnapshot
+import ksl.app.optimization.results.ResultsArtifactWriter
+import ksl.app.optimization.results.ResultsStatus
 import ksl.app.swing.simopt.runsetup.RunSetupPaths
 import ksl.app.swing.simopt.stepper.Step
 import ksl.app.validation.FieldError

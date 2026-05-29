@@ -32,7 +32,7 @@ import javax.swing.JPanel
  *
  *  Every successful run writes a consistent set of artifacts into
  *  its `runOutputDir` (see
- *  [ksl.app.swing.simopt.results.export.ResultsArtifactWriter]).
+ *  [ksl.app.optimization.results.ResultsArtifactWriter]).
  *  This step shows the file list with per-artifact `[Open]` buttons
  *  and an `[Open folder]` shortcut; detailed inspection happens in
  *  the user's preferred tool (Excel for CSV, browser for HTML,

@@ -23,13 +23,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import ksl.app.config.ModelReference
 import ksl.app.config.optimization.OptimizationInputSpec
-import ksl.app.swing.simopt.results.export.ArtifactNames
-import ksl.app.swing.simopt.results.export.BestSolutionCsvWriter
-import ksl.app.swing.simopt.results.export.ConvergencePlotBuilder
-import ksl.app.swing.simopt.results.export.IterationHistoryCsvWriter
-import ksl.app.swing.simopt.results.export.LatestBestSnapshot
-import ksl.app.swing.simopt.results.export.ResultsStatus
-import ksl.app.swing.simopt.results.export.RunSummaryWriter
+import ksl.app.optimization.results.ArtifactNames
+import ksl.app.optimization.results.BestSolutionCsvWriter
+import ksl.app.optimization.results.ConvergencePlotBuilder
+import ksl.app.optimization.results.IterationHistoryCsvWriter
+import ksl.app.optimization.results.LatestBestSnapshot
+import ksl.app.optimization.results.ResultsStatus
+import ksl.app.optimization.results.RunSummaryWriter
 import ksl.controls.ControlType
 import ksl.examples.general.appsupport.SimoptTestModelsBundle
 import org.junit.jupiter.api.Test
@@ -98,183 +98,13 @@ class SimoptAppResultsTest {
         }
     }
 
-    // ── Pure-writer tests ──────────────────────────────────────────────
-
-    @Test
-    fun `iteration history CSV header lists fixed columns then inputs in declaration order`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            c.submit()
-            awaitNotRunning(c)
-            val result = c.lastResult.value
-            assertNotNull(result)
-            val problem = c.currentConfiguration()!!.problem!!
-            val csv = IterationHistoryCsvWriter.encode(result.iterationHistory, problem)
-            val header = csv.lineSequence().first()
-            val cols = header.split(",")
-            // Fixed metric columns first, in this exact order.
-            assertEquals("iteration", cols[0])
-            assertEquals("oracle_calls", cols[1])
-            assertEquals("replications", cols[2])
-            assertEquals("est_obj", cols[3])
-            assertEquals("pen_obj", cols[4])
-            // Decision variables follow, in declaration order.
-            for ((i, spec) in problem.inputs.withIndex()) {
-                assertEquals(spec.name, cols[5 + i],
-                    "Input column ${spec.name} must appear in declaration order")
-            }
-        }
-    }
-
-    @Test
-    fun `iteration history CSV row count matches snapshot history length`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            c.submit()
-            awaitNotRunning(c)
-            val result = c.lastResult.value!!
-            val problem = c.currentConfiguration()!!.problem!!
-            val csv = IterationHistoryCsvWriter.encode(result.iterationHistory, problem)
-            // One header + N rows (no trailing blank line because
-            // the writer appends a newline per row).
-            val rowCount = csv.lineSequence().filter { it.isNotBlank() }.count()
-            assertEquals(1 + result.iterationHistory.size, rowCount)
-        }
-    }
-
-    @Test
-    fun `best solution CSV has one data row with inputs and objectives`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            c.submit()
-            awaitNotRunning(c)
-            val result = c.lastResult.value!!
-            val problem = c.currentConfiguration()!!.problem!!
-            val csv = BestSolutionCsvWriter.encode(result.bestSolution, problem)
-            val lines = csv.lineSequence().filter { it.isNotBlank() }.toList()
-            assertEquals(2, lines.size, "best_solution.csv = header + one row")
-            val header = lines[0].split(",")
-            assertTrue(header.last() == "pen_obj")
-            assertTrue(header[header.size - 2] == "est_obj")
-            // Decision-variable column count + 2 fixed (est_obj, pen_obj).
-            assertEquals(problem.inputs.size + 2, header.size)
-        }
-    }
-
-    @Test
-    fun `run summary TOML carries every required key and round-trip-safe types`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            c.submit()
-            awaitNotRunning(c)
-            val result = c.lastResult.value!!
-            val config = c.currentConfiguration()!!
-            val summary = RunSummaryWriter.forCompleted(config, result)
-            assertEquals(ResultsStatus.COMPLETED, summary.status)
-            assertEquals(config.output.analysisName, summary.analysisName)
-            assertEquals(result.summary.runId, summary.runId)
-            assertEquals(result.summary.completedItems, summary.totalIterations)
-            assertNotNull(summary.bestEstimatedObjective)
-            assertNotNull(summary.bestFoundAtIteration)
-            assertTrue(summary.bestInputs.isNotEmpty())
-            val toml = RunSummaryWriter.encode(summary)
-            assertContains(toml, "status = \"COMPLETED\"")
-            assertContains(toml, "[bestInputs]")
-            assertContains(toml, "elapsedMillis = ")
-        }
-    }
-
-    @Test
-    fun `run summary TOML for incomplete omits objective fields when no iteration fired`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val config = c.currentConfiguration()!!
-            val summary = RunSummaryWriter.forIncomplete(
-                config = config,
-                status = ResultsStatus.CANCELLED,
-                runId = "run-xyz",
-                startTimeIso = "2026-05-27T00:00:00Z",
-                endTimeIso = "2026-05-27T00:00:05Z",
-                elapsedMillis = 5_000,
-                latestBest = null,
-                statusReason = "Cancelled by user"
-            )
-            assertEquals(ResultsStatus.CANCELLED, summary.status)
-            assertEquals(0, summary.totalIterations)
-            assertNull(summary.bestEstimatedObjective)
-            assertNull(summary.bestFoundAtIteration)
-            val toml = RunSummaryWriter.encode(summary)
-            assertContains(toml, "status = \"CANCELLED\"")
-            assertContains(toml, "statusReason = \"Cancelled by user\"")
-            assertFalse("bestEstimatedObjective" in toml,
-                "Cancelled run with no iteration must not emit a best-estimated-objective key")
-        }
-    }
-
-    @Test
-    fun `run summary TOML for incomplete carries latest best when iteration fired`() {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val config = c.currentConfiguration()!!
-            val latest = LatestBestSnapshot(
-                iteration = 5,
-                estimatedObjective = 87.5,
-                bestInputs = mapOf("x" to 3.0, "y" to 7.5)
-            )
-            val summary = RunSummaryWriter.forIncomplete(
-                config = config,
-                status = ResultsStatus.CANCELLED,
-                runId = "run-partial",
-                startTimeIso = "2026-05-27T00:00:00Z",
-                endTimeIso = "2026-05-27T00:00:10Z",
-                elapsedMillis = 10_000,
-                latestBest = latest,
-                statusReason = "Cancelled by user"
-            )
-            assertEquals(5, summary.totalIterations)
-            assertEquals(87.5, summary.bestEstimatedObjective)
-            assertEquals(5, summary.bestFoundAtIteration)
-            assertEquals(2, summary.bestInputs.size)
-            val toml = RunSummaryWriter.encode(summary)
-            assertContains(toml, "bestEstimatedObjective = 87.5")
-            assertContains(toml, "[bestInputs]")
-            assertContains(toml, "x = 3.0")
-            assertContains(toml, "y = 7.5")
-        }
-    }
-
-    @Test
-    fun `HTML report contains substrate solver result tables and iteration metrics`(@TempDir tempDir: Path) {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val target = tempDir.resolve("report-test")
-            c.setRunOutputDir(target)
-            c.submit()
-            awaitNotRunning(c)
-            // The controller's terminal observer writes the artifact
-            // set including report.html.  Reading the file back
-            // exercises the full DSL → renderer → file pipeline.
-            val reportPath = target.resolve(ArtifactNames.REPORT_HTML)
-            assertTrue(Files.exists(reportPath), "report.html must be written")
-            val html = Files.readString(reportPath)
-            // Substrate-rendered sections from the `solverResult(...)`
-            // DSL extension.
-            assertContains(html, "Run Summary")
-            assertContains(html, "Evaluator Metrics")
-            assertContains(html, "Best Solution Found")
-            assertContains(html, "Decision Variables")
-            assertContains(html, "Objective Function")
-            // Our additions.
-            assertContains(html, "Convergence")
-            assertContains(html, "Iteration metrics")
-        }
-    }
-
-    @Test
-    fun `convergence plot builder filters sentinel MAX_VALUE seeds`() {
-        // No snapshots → no plot.
-        assertNull(ConvergencePlotBuilder.buildPlot(emptyList()))
-    }
+    // Pure-writer tests live in KSLTesting at
+    // `ksl/app/optimization/results/OptimizationResultsWriterTest.kt`.
+    // They exercise the substrate writers (CSV, TOML, HTML, plot)
+    // through `KSLAppSession.submit(RunSpec.Optimization(...))` —
+    // i.e. without any Swing controller.  This file keeps only the
+    // tests that exercise the SimopAppController's particular
+    // wiring around those writers.
 
     // ── Controller integration smoke ───────────────────────────────────
 
@@ -341,41 +171,8 @@ class SimoptAppResultsTest {
         }
     }
 
-    @Test
-    fun `toml safely quotes dotted keys used by RandomRestartSolver flattening`() {
-        // Direct unit test against the encoder so we cover the
-        // dotted-key path without needing to construct a
-        // RandomRestartSolver instance.  Mirrors the format
-        // RandomRestartSolver.configurationProperties produces:
-        // each inner-solver key prefixed with "innerSolver.".
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val config = c.currentConfiguration()!!
-            val summary = RunSummaryWriter.forIncomplete(
-                config = config,
-                status = ResultsStatus.CANCELLED,
-                runId = "rr-test",
-                startTimeIso = "2026-05-27T00:00:00Z",
-                endTimeIso = "2026-05-27T00:00:01Z",
-                elapsedMillis = 1_000,
-                latestBest = null,
-                statusReason = "Test",
-                solverInstance = null
-            ).copy(
-                solverConfiguration = linkedMapOf(
-                    "clearCacheBetweenRuns" to "true",
-                    "innerSolver.streamNumber" to "1",
-                    "innerSolver.maximumNumberIterations" to "100"
-                )
-            )
-            val toml = RunSummaryWriter.encode(summary)
-            // Dotted keys must be quoted per TOML 1.0 bare-key rules.
-            assertContains(toml, "\"innerSolver.streamNumber\" = \"1\"")
-            assertContains(toml, "\"innerSolver.maximumNumberIterations\" = \"100\"")
-            // Bare keys stay bare.
-            assertContains(toml, "clearCacheBetweenRuns = \"true\"")
-        }
-    }
+    // The dotted-key TOML quoting test lives in KSLTesting alongside
+    // the other substrate writer tests.
 
     // ── Auto-derived solver / problem names ────────────────────────────
 
@@ -465,76 +262,8 @@ class SimoptAppResultsTest {
         }
     }
 
-    @Test
-    fun `summary toml key order leads with human-friendly fields and ends with runId before tables`(@TempDir tempDir: Path) {
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val target = tempDir.resolve("order-test")
-            c.setRunOutputDir(target)
-            c.submit()
-            awaitNotRunning(c)
-            val toml = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
-            // Match on `<key> = ` (key + space + equals + space) so we
-            // skip occurrences of the names inside `@TomlComment` blocks
-            // — e.g. the runDirectory comment references `(runId)` in
-            // its explanation, which would otherwise make a bare
-            // `indexOf("runId")` resolve to the comment text rather
-            // than the key assignment.
-            val iAnalysis = toml.indexOf("analysisName = ")
-            val iRunDir = toml.indexOf("runDirectory = ")
-            val iAlgorithm = toml.indexOf("algorithm = ")
-            val iRunId = toml.indexOf("runId = ")
-            val iBestInputs = toml.indexOf("[bestInputs]")
-            val iSolverConfiguration = toml.indexOf("[solverConfiguration]")
-            // Human-friendly identifiers lead.
-            assertTrue(iAnalysis in 0 until iRunDir,
-                "analysisName must come before runDirectory")
-            assertTrue(iRunDir in 0 until iAlgorithm,
-                "runDirectory must come before algorithm")
-            assertTrue(iAlgorithm in 0 until iRunId,
-                "algorithm must come before runId")
-            // Substrate cross-reference (UUID) lands last in the
-            // top-level keys, before any tables.
-            assertTrue(iRunId in 0 until iBestInputs,
-                "runId must precede [bestInputs]")
-            assertTrue(iRunId in 0 until iSolverConfiguration,
-                "runId must precede [solverConfiguration]")
-        }
-    }
-
-    @Test
-    fun `summary toml round-trips through encode then decode preserving every field`(@TempDir tempDir: Path) {
-        // Verifies the @Serializable / tomlkt path is symmetric — a
-        // future tool reading summary.toml back into RunSummary will
-        // recover every field the writer set.  This was untestable
-        // under the previous hand-rolled encoder (no decoder
-        // existed); now that we delegate to tomlkt, round-trip
-        // safety is the contract.
-        SimoptAppController("Test").use { c ->
-            seedRunnableProblem(c)
-            val target = tempDir.resolve("roundtrip-test")
-            c.setRunOutputDir(target)
-            c.submit()
-            awaitNotRunning(c)
-            val tomlText = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
-            val decoded = RunSummaryWriter.decode(tomlText)
-            // Rebuild what the writer produced and assert equality.
-            val rebuilt = RunSummaryWriter.forCompleted(
-                config = c.currentConfiguration()!!,
-                result = c.lastResult.value!!,
-                solverInstance = null,
-                runDir = target
-            ).copy(
-                // The live capture in the controller's terminal observer
-                // populated solverConfiguration from the live Solver
-                // instance; rebuilding here without it would diverge.
-                // We're testing the codec, not the writer/observer
-                // wiring — copy the decoded solverConfiguration onto
-                // the rebuilt summary so the comparison focuses on
-                // round-trip fidelity of the scalar block + bestInputs.
-                solverConfiguration = decoded.solverConfiguration
-            )
-            assertEquals(rebuilt, decoded)
-        }
-    }
+    // TOML key-order and round-trip tests live in KSLTesting — they
+    // exercise the substrate `RunSummary` data class's field
+    // declaration order and the encoder/decoder symmetry without
+    // needing the Swing controller.
 }

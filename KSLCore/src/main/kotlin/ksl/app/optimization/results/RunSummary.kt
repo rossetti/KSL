@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import kotlinx.serialization.Serializable
 import ksl.app.config.optimization.OptimizationRunConfiguration
@@ -68,16 +68,16 @@ enum class ResultsStatus {
 @Serializable
 data class RunSummary(
     @TomlComment(
-        "Human-readable name of the analysis (set on the Run Setup\n" +
-        "step — defaults to \"Untitled\")."
+        "Human-readable name of the analysis (set by the host\n" +
+        "application — defaults to \"Untitled\")."
     )
     val analysisName: String,
 
     @TomlComment(
         "Leaf name of the run-output folder (e.g. \"run-001\").\n" +
-        "Matches the path shown on the Results step's \"Output folder\"\n" +
-        "line.  This is the human-friendly run identifier; the UUID\n" +
-        "below (runId) exists for tooling cross-reference."
+        "Matches the path shown on the host application's results\n" +
+        "surface.  This is the human-friendly run identifier; the\n" +
+        "UUID below (runId) exists for tooling cross-reference."
     )
     val runDirectory: String? = null,
 
@@ -89,9 +89,9 @@ data class RunSummary(
     val algorithm: String,
 
     @TomlComment(
-        "Human-readable solver name.  Auto-derived from the algorithm\n" +
-        "when the user leaves the Solver-name field blank on the\n" +
-        "Algorithm step (e.g. \"Stochastic Hill Climbing\")."
+        "Human-readable solver name.  Hosts typically derive this\n" +
+        "from the algorithm when the user leaves the explicit field\n" +
+        "blank (e.g. \"Stochastic Hill Climbing\")."
     )
     val solverName: String? = null,
 
@@ -177,7 +177,7 @@ data class RunSummary(
 /**
  *  Writer + builder for [RunSummary].
  *
- *  All builders are pure functions over the inputs so tests can
+ *  All builders are pure functions over the inputs so callers can
  *  exercise the projection without filesystem access; [write] is
  *  the only filesystem-touching call.
  *
@@ -186,8 +186,11 @@ data class RunSummary(
  *  encoded file rather than rendered as `key = null` lines.
  *  Round-trip decoding through [decode] is symmetric — a missing
  *  key takes the property's declared default.
+ *
+ *  Substrate-level API — usable by any UI shell (Swing, web, CLI,
+ *  text) that wants to materialise an optimization run summary.
  */
-internal object RunSummaryWriter {
+object RunSummaryWriter {
 
     /** Two-line banner prepended to every encoded file.  Mirrors
      *  the `DOCUMENT_HEADER` convention used by
@@ -201,7 +204,7 @@ internal object RunSummaryWriter {
     }
 
     /** Build a [RunSummary] from a successful run.  [solverInstance]
-     *  is the live [Solver] reference captured before the controller
+     *  is the live [Solver] reference captured before the host
      *  cleared its handle — its
      *  [Solver.configurationProperties] are projected into the
      *  summary's `solverConfiguration` field for the
@@ -243,10 +246,9 @@ internal object RunSummaryWriter {
     }
 
     /** Build a partial [RunSummary] for a run that did not complete
-     *  successfully.  [latestBest] is the best-so-far data captured
-     *  by the controller from the last `IterationCompleted` event;
-     *  it may be `null` if the run aborted before any iteration
-     *  fired. */
+     *  successfully.  [latestBest] is the best-so-far data the host
+     *  captured from the last `IterationCompleted` event; it may
+     *  be `null` if the run aborted before any iteration fired. */
     fun forIncomplete(
         config: OptimizationRunConfiguration,
         status: ResultsStatus,
@@ -317,7 +319,7 @@ internal object RunSummaryWriter {
 /**
  *  Minimal projection of a `RunEvent.IterationCompleted` used when
  *  building a partial [RunSummary].  Decoupled from the substrate
- *  type so test fixtures don't need to construct a real `RunEvent`.
+ *  type so callers don't need to construct a real `RunEvent`.
  */
 data class LatestBestSnapshot(
     val iteration: Int,

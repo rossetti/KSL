@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
 import ksl.app.session.RunResult
@@ -25,12 +25,11 @@ import ksl.simopt.solvers.SolverResult
 import java.nio.file.Path
 
 /**
- *  Canonical filenames for the auto-written artifacts.  Keeping
- *  them centralized makes it trivial for the Swing dashboard
- *  ([ksl.app.swing.simopt.results.ResultsFilesCard]) to discover
- *  what's on disk and offer per-file [Open] buttons.
+ *  Canonical filenames for the auto-written artifacts.  Centralised
+ *  so any UI shell can list and offer to open them without
+ *  re-deriving the conventions.
  */
-internal object ArtifactNames {
+object ArtifactNames {
     const val SUMMARY_TOML = "summary.toml"
     const val ITERATION_HISTORY_CSV = "iteration_history.csv"
     const val BEST_SOLUTION_CSV = "best_solution.csv"
@@ -43,7 +42,7 @@ internal object ArtifactNames {
  *  callers (and tests) verify that a partial set landed even when
  *  individual writes failed.
  */
-internal data class ArtifactWriteResult(
+data class ArtifactWriteResult(
     val summaryTomlWritten: Boolean,
     val iterationHistoryCsvWritten: Boolean,
     val bestSolutionCsvWritten: Boolean,
@@ -60,17 +59,20 @@ internal data class ArtifactWriteResult(
 
 /**
  *  Coordinator that writes the full artifact set on a successful
- *  run completion.  Each writer is best-effort — a single
- *  failure (e.g. lets-plot PNG export failing because the JVM
- *  can't find its native renderer) doesn't abort the rest.
+ *  run completion.  Each writer is best-effort — a single failure
+ *  (e.g. lets-plot PNG export failing because the JVM can't find
+ *  its native renderer) doesn't abort the rest.
  *
- *  The controller calls [writeCompleted] from its terminal-state
+ *  Host applications call [writeCompleted] from their terminal-state
  *  observer when the run resolves as
- *  [RunResult.OptimizationCompleted].  Cancelled / failed runs
- *  go through [writeIncomplete] which writes only the summary
- *  TOML with `status = CANCELLED` / `FAILED`.
+ *  [RunResult.OptimizationCompleted].  Cancelled / failed runs go
+ *  through [writeIncomplete] which writes only the summary TOML
+ *  with `status = CANCELLED` / `FAILED`.
+ *
+ *  Substrate-level API — the entry point any UI shell calls to
+ *  materialise an optimization run's results to disk.
  */
-internal object ResultsArtifactWriter {
+object ResultsArtifactWriter {
 
     /** Write the full artifact set into [runDir] for a successful
      *  run.  Returns per-artifact success flags.

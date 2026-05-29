@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.results.export
+package ksl.app.optimization.results
 
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.simopt.solvers.SolverStateSnapshot
@@ -38,13 +38,15 @@ import java.nio.file.Path
  *  Suitable for loading directly into pandas, R, or Excel.  The
  *  format does not change across runs of the same problem so
  *  cross-run scripts can rely on a stable header shape.
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal object IterationHistoryCsvWriter {
+object IterationHistoryCsvWriter {
 
     private const val SEP = ","
     private const val NL = "\n"
 
-    /** Build the CSV content as a String — pure function so tests
+    /** Build the CSV content as a String — pure function so callers
      *  can inspect rows without filesystem access. */
     fun encode(
         history: List<SolverStateSnapshot>,
