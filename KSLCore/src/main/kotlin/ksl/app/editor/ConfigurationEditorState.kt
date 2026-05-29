@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.common.editor
+package ksl.app.editor
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -29,14 +29,15 @@ import ksl.utilities.random.rvariable.parameters.RVParameterData
 
 /**
  *  Host contract for the reusable configuration-editor panels
- *  ([ParameterPanel], [ControlOverridesPanel], [RVOverridesPanel],
- *  and the composite [ConfigurationEditorPanel]).
+ *  (`ParameterPanel`, `ControlOverridesPanel`, `RVOverridesPanel`,
+ *  and the composite `ConfigurationEditorPanel`).
  *
- *  The interface decouples those panels from the Single app's
+ *  The interface decouples those panels from any specific
  *  controller so they can be re-mounted in other GUI surfaces — the
  *  Scenario app's per-scenario editor window in particular, which
  *  hosts the same three panels against a per-scenario edit-buffer
- *  rather than a process-wide controller.
+ *  rather than a process-wide controller — and so future non-Swing
+ *  hosts (web form, CLI editor) can drive the same state shape.
  *
  *  ## What the host owns
  *
@@ -68,18 +69,19 @@ import ksl.utilities.random.rvariable.parameters.RVParameterData
  *
  *  - `ksl.app.swing.single.SingleAppController` — owns single-app
  *    state directly.
- *  - Scenario app's per-scenario edit-buffer (future work) —
- *    adapts a `ScenarioSpec`-shaped buffer to this contract.
+ *  - `ksl.app.swing.scenario.ScenarioEditBuffer` — adapts a
+ *    `ScenarioSpec`-shaped buffer to this contract for the
+ *    per-scenario editor window.
  */
 interface ConfigurationEditorState {
 
-    /** Probe-time model defaults; drives placeholder text in [ParameterPanel]. */
+    /** Probe-time model defaults; drives placeholder text in `ParameterPanel`. */
     val modelDefaults: ExperimentRunDefaults
 
-    /** Probe-time controls snapshot; drives the rows of [ControlOverridesPanel]. */
+    /** Probe-time controls snapshot; drives the rows of `ControlOverridesPanel`. */
     val controlsSnapshot: ModelControlsExport
 
-    /** Probe-time RV snapshot; drives the rows of [RVOverridesPanel]. */
+    /** Probe-time RV snapshot; drives the rows of `RVOverridesPanel`. */
     val rvSnapshot: List<RVParameterData>
 
     /** Pending run-parameter overrides. */

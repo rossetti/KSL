@@ -111,7 +111,7 @@ data class ReportSaveRecord(
 class SingleAppController(
     val appName: String,
     val modelBuilder: ModelBuilderIfc
-) : AutoCloseable, ksl.app.swing.common.editor.ConfigurationEditorState {
+) : AutoCloseable, ksl.app.editor.ConfigurationEditorState {
 
     /** Scope for EDT-confined coroutine work (event forwarding, etc.). */
     override val edtScope: CoroutineScope = CoroutineScope(Dispatchers.Swing + SupervisorJob())

@@ -18,6 +18,8 @@
 
 package ksl.app.swing.common.editor
 
+import ksl.app.editor.ConfigurationEditorState
+
 import kotlinx.coroutines.launch
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.swing.common.overridefield.BooleanTriStateOverrideField

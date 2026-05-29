@@ -30,7 +30,7 @@ import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
 import ksl.app.config.RVParameterOverride
 import ksl.app.config.ScenarioSpec
-import ksl.app.swing.common.editor.ConfigurationEditorState
+import ksl.app.editor.ConfigurationEditorState
 import ksl.app.validation.ValidationFeedbackBus
 import ksl.controls.ModelControlsExport
 import ksl.controls.experiments.ExperimentRunDefaults
