@@ -301,8 +301,9 @@ class DesignPointsPreviewDialog(
     }
 
     // CSV import moved to the Custom design points tab in E7.11 —
-    // see ksl.app.swing.experiment.parseManualCsv in ManualCsvImport.kt
-    // and the ManualCard.importCsv() handler.
+    // see ksl.app.config.experiment.parseManualCsv in ManualCsvImport.kt
+    // (hoisted to KSLCore in Phase D-Experiment) and the
+    // ManualCard.importCsv() handler.
 
     // ---------------------------------------------------------------
     // Table model

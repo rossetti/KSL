@@ -16,10 +16,8 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.experiment
+package ksl.app.config.experiment
 
-import ksl.app.config.experiment.FactorSpec
-import ksl.app.config.experiment.ManualPointSpec
 import java.io.BufferedReader
 import java.io.File
 
@@ -35,9 +33,12 @@ sealed class ManualCsvImportResult {
 }
 
 /**
- *  Parse a CSV in the shape that `DesignPointsPreviewDialog`'s
- *  Export produces (and that the Custom design-points tab's Import
- *  consumes).  Shape:
+ *  Parse a CSV in the shape that the Experiment app's design-points
+ *  preview Export produces (and that the Custom design-points tab's
+ *  Import consumes).  Substrate-level helper so any host (Swing,
+ *  web, CLI) can drive the same parser.
+ *
+ *  Shape:
  *
  *  - First line is the header.  Must contain a column for every
  *    declared factor name.  Header columns `#` and `reps` are
@@ -47,16 +48,12 @@ sealed class ManualCsvImportResult {
  *    are split on commas (no quoting support — KSL factor names
  *    and numbers don't contain commas).
  *  - Each factor value is parsed as `Double` and range-checked
- *    against the factor's `[min, max]` interval.  Values within
- *    range but not equal to a declared level are accepted without
- *    a warning (the import path is for power-user workflows).
+ *    against the factor's min / max levels.  Values within range
+ *    but not equal to a declared level are accepted without a
+ *    warning (the import path is for power-user workflows).
  *  - The optional `reps` cell, when present and non-blank, becomes
  *    a per-point replications override; blank means "inherit the
  *    document default".
- *
- *  Extracted as a file-level helper in E7.11 so both the Custom
- *  design-points tab and (any future caller) can re-use the
- *  parsing logic without duplicating it.
  */
 fun parseManualCsv(file: File, factors: List<FactorSpec>): ManualCsvImportResult {
     val errors = mutableListOf<String>()
