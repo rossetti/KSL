@@ -37,6 +37,7 @@ import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.app.config.RVParameterOverride
+import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.config.optimization.CESamplerSpec
 import ksl.app.config.optimization.CoolingScheduleSpec
 import ksl.app.config.optimization.EvaluationSpec
@@ -72,29 +73,10 @@ import ksl.app.validation.ValidationSeverity
 import ksl.controls.ModelControlsExport
 import ksl.controls.experiments.ExperimentRunParameters
 import ksl.simopt.solvers.Solver
-import ksl.simopt.solvers.algorithms.RandomRestartSolver
-import ksl.simopt.solvers.trackers.ConsoleSolverStateTracker
-import ksl.simopt.solvers.trackers.CsvSolverStateTracker
-import ksl.simopt.solvers.trackers.NestedConsoleSolverStateTracker
-import ksl.simopt.solvers.trackers.NestedCsvSolverStateTracker
 import ksl.simulation.ModelDescriptor
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.time.Duration.Companion.minutes
-
-/**
- *  Discriminator for the four algorithms exposed by the
- *  [ksl.app.config.optimization.SolverSpec] sealed type.  Used by the
- *  Algorithm step's picker; maps 1-to-1 to a substrate variant.
- */
-enum class AlgorithmKind(val displayName: String) {
-    STOCHASTIC_HILL_CLIMBING("Stochastic Hill Climbing"),
-    SIMULATED_ANNEALING("Simulated Annealing"),
-    CROSS_ENTROPY("Cross-Entropy"),
-    R_SPLINE("R-SPLINE");
-
-    override fun toString(): String = displayName
-}
 
 /**
  * State + lifecycle façade for the SimOpt App.
@@ -1343,56 +1325,29 @@ class SimoptAppController(
      *  `OptimizationProblemSpec` init accepts a `null` field but
      *  rejects a blank string.
      */
-    private fun deriveModelIdentifier(): String? {
-        myCurrentModelDescriptor.value?.modelIdentifier?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-        return when (val ref = myModelTemplate.value?.modelReference) {
-            null -> null
-            is ModelReference.ByBundleAndModelId -> "${ref.bundleId}:${ref.modelId}"
-            is ModelReference.ByProviderId -> ref.providerId
-            is ModelReference.ByJar -> ref.builderClassName
-            is ModelReference.Embedded -> ref.modelName
-        }
-    }
+    // Thin wrappers over the substrate naming helpers in
+    // `ksl.app.optimization.naming` — bind the controller's live
+    // StateFlow values to the substrate functions' explicit
+    // parameters so the controller can pass its document state
+    // through without rewriting the derivation logic.
+    private fun deriveModelIdentifier(): String? =
+        ksl.app.optimization.naming.deriveModelIdentifier(
+            descriptor = myCurrentModelDescriptor.value,
+            modelReference = myModelTemplate.value?.modelReference
+        )
 
-    /** Effective problem name for the persisted spec.  Uses the
-     *  user-typed value when non-blank; otherwise derives a
-     *  readable default so reports and `summary.toml` show
-     *  something meaningful instead of the substrate's
-     *  `Identity(null)` fallback (`"ID_<counter>"`).
-     *
-     *  Order of preference:
-     *  1. user-typed [problemName],
-     *  2. `currentModelDescriptor.modelName`,
-     *  3. [deriveModelIdentifier] (the model-reference natural id),
-     *  4. `"Optimization"` (last-resort non-null sentinel).
-     */
-    private fun effectiveProblemName(): String? {
-        myProblemName.value?.takeIf { it.isNotBlank() }?.let { return it }
-        myCurrentModelDescriptor.value?.modelName?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-        deriveModelIdentifier()?.takeIf { it.isNotBlank() }?.let { return it }
-        return "Optimization"
-    }
+    private fun effectiveProblemName(): String =
+        ksl.app.optimization.naming.deriveProblemName(
+            explicitProblemName = myProblemName.value,
+            descriptor = myCurrentModelDescriptor.value,
+            modelReference = myModelTemplate.value?.modelReference
+        )
 
-    /** Effective solver name for the persisted spec.  Uses the
-     *  user-typed value when non-blank; otherwise derives a name
-     *  from the chosen algorithm so reports and `summary.toml`
-     *  describe what was run instead of the substrate's
-     *  `Identity(null)` fallback (`"ID_<counter>"`).
-     *
-     *  Order of preference:
-     *  1. user-typed [commonSolverName],
-     *  2. `algorithmKind.displayName` (e.g. `"Stochastic Hill Climbing"`).
-     *
-     *  Returns `null` only when no algorithm has been picked yet —
-     *  in that case the solver spec is itself null and the
-     *  question of a name is moot.
-     */
-    private fun effectiveSolverName(): String? {
-        myCommonSolverName.value?.takeIf { it.isNotBlank() }?.let { return it }
-        return myAlgorithmKind.value?.displayName
-    }
+    private fun effectiveSolverName(): String? =
+        ksl.app.optimization.naming.deriveSolverName(
+            explicitSolverName = myCommonSolverName.value,
+            algorithmKind = myAlgorithmKind.value
+        )
 
     /** Replace the solver specification by fanning out [spec] into
      *  the per-piece StateFlows ([algorithmKind], [commonMaxIterations],
@@ -2262,63 +2217,23 @@ class SimoptAppController(
         }
     }
 
-    /** Build + attach CSV / console trackers as configured by
-     *  [SolverTrackingSpec].  Distinguishes plain vs.
-     *  [RandomRestartSolver] (which needs the nested tracker
-     *  variants).  Creates the run output directory if needed.
-     *  Errors are swallowed so a tracker failure cannot prevent the
-     *  run from starting. */
-    private fun attachTrackers(solver: Solver, config: OptimizationRunConfiguration, runDir: Path) {
-        val tracking = config.tracking
-        if (!tracking.enableCsvTrace && !tracking.enableConsoleTrace) return
-
-        if (tracking.enableCsvTrace) {
-            try {
-                val tracePath = OptimizationPaths.traceFilePath(
-                    runOutputDir = runDir,
-                    trackingSpec = tracking,
-                    solverSpec = config.solver
-                ) ?: return
-                Files.createDirectories(tracePath.parent)
-                if (solver is RandomRestartSolver) {
-                    val tracker = NestedCsvSolverStateTracker(
-                        macroSolver = solver,
-                        microSolver = solver.restartingSolver,
-                        outputFile = tracePath.toFile()
-                    )
-                    tracker.experimentName = tracking.experimentLabel
-                    tracker.startTracking()
-                } else {
-                    val tracker = CsvSolverStateTracker(
-                        solver = solver,
-                        outputFile = tracePath.toFile()
-                    )
-                    tracker.experimentName = tracking.experimentLabel
-                    tracker.startTracking()
-                }
-            } catch (_: Throwable) {
-                // Tracker attach is best-effort; never block submit.
-            }
-        }
-
-        if (tracking.enableConsoleTrace) {
-            try {
-                if (solver is RandomRestartSolver) {
-                    val tracker = NestedConsoleSolverStateTracker(
-                        macroSolver = solver,
-                        microSolver = solver.restartingSolver
-                    )
-                    tracker.experimentName = tracking.experimentLabel
-                    tracker.startTracking()
-                } else {
-                    val tracker = ConsoleSolverStateTracker(solver = solver)
-                    tracker.experimentName = tracking.experimentLabel
-                    tracker.startTracking()
-                }
-            } catch (_: Throwable) {
-                // Console tracker attach is best-effort.
-            }
-        }
+    /** Delegate to the substrate's
+     *  [ksl.app.optimization.tracking.OptimizationTrackerAttacher].
+     *  This wrapper exists so the call site at submit() can stay
+     *  short and the substrate version remains the single source
+     *  of truth for tracker-variant selection (plain vs. nested
+     *  for `RandomRestartSolver`). */
+    private fun attachTrackers(
+        solver: Solver,
+        config: OptimizationRunConfiguration,
+        runDir: Path
+    ) {
+        ksl.app.optimization.tracking.OptimizationTrackerAttacher.attach(
+            solver = solver,
+            trackingSpec = config.tracking,
+            runDir = runDir,
+            solverSpec = config.solver
+        )
     }
 
     // ── Step completion derivation ─────────────────────────────────────────

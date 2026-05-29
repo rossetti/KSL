@@ -22,6 +22,7 @@ import ksl.app.config.ModelReference
 import ksl.app.config.optimization.CESamplerSpec
 import ksl.app.config.optimization.CoolingScheduleSpec
 import ksl.app.config.optimization.OptimizationInputSpec
+import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.config.optimization.OptimizationRunConfigurationToml
 import ksl.app.config.optimization.RandomRestartSpec
 import ksl.app.config.optimization.SolverSpec

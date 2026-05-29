@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import ksl.app.config.ModelReference
 import ksl.app.config.optimization.OptimizationInputSpec
+import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.optimization.results.ArtifactNames
 import ksl.app.optimization.results.BestSolutionCsvWriter
 import ksl.app.optimization.results.ConvergencePlotBuilder

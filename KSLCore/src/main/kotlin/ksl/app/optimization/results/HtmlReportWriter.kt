@@ -19,6 +19,7 @@
 package ksl.app.optimization.results
 
 import ksl.app.config.optimization.OptimizationRunConfiguration
+import ksl.app.optimization.formatObjective
 import ksl.app.session.RunResult
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.SolverResult
@@ -123,8 +124,8 @@ object HtmlReportWriter {
                             snap.iterationNumber.toString(),
                             snap.numOracleCalls.toString(),
                             snap.numReplicationsRequested.toString(),
-                            formatObj(snap.estimatedObjFncValue),
-                            formatObj(snap.penalizedObjFncValue)
+                            formatObjective(snap.estimatedObjFncValue),
+                            formatObjective(snap.penalizedObjFncValue)
                         )
                     },
                     caption = "Iteration metrics"
@@ -137,15 +138,4 @@ object HtmlReportWriter {
         false
     }
 
-    /** Sentinel-aware objective formatting — maps the
-     *  `Double.MAX_VALUE` / `Double.POSITIVE_INFINITY` seeds solvers
-     *  use to mark "no feasible solution yet" onto infinity glyphs
-     *  rather than printing 1.8e308.  Should be kept in sync with
-     *  any UI-side analogue. */
-    private fun formatObj(v: Double): String = when {
-        v == Double.MAX_VALUE || v == Double.POSITIVE_INFINITY -> "+∞"
-        v == -Double.MAX_VALUE || v == Double.NEGATIVE_INFINITY -> "−∞"
-        v.isNaN() -> "—"
-        else -> "%.4f".format(v)
-    }
 }

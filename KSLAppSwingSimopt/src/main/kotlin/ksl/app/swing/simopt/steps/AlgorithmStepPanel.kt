@@ -21,7 +21,7 @@ package ksl.app.swing.simopt.steps
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.swing.common.notification.NotificationSeverity
-import ksl.app.swing.simopt.AlgorithmKind
+import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.algorithm.CeSamplerEditor
 import ksl.app.swing.simopt.algorithm.CoolingScheduleEditor
