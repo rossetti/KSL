@@ -39,9 +39,9 @@ import ksl.app.swing.common.editor.ParameterPanel
 import ksl.app.swing.common.editor.RVOverridesPanel
 import ksl.app.swing.single.defaults.PostRunReportingPanel
 import ksl.app.swing.single.defaults.RunControlTabPanel
-import ksl.app.swing.single.defaults.StandardReportFormat
-import ksl.app.swing.single.defaults.StandardReportMaterializer
-import ksl.app.swing.single.defaults.StandardReportOutcome
+import ksl.app.single.results.StandardReportFormat
+import ksl.app.single.results.StandardReportMaterializer
+import ksl.app.single.results.StandardReportOutcome
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension

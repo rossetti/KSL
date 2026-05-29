@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
+import ksl.app.single.results.StandardReportFormat
+import ksl.app.single.results.StandardReportMaterializer
+import ksl.app.single.results.StandardReportOutcome
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.single.ReportSaveRecord
 import ksl.app.swing.single.SingleAppController

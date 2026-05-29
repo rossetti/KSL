@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.single.defaults
+package ksl.app.single.results
 
 import ksl.app.session.RunResult
 import ksl.utilities.io.dbutil.SimulationSnapshot
@@ -39,13 +39,12 @@ import kotlin.io.path.exists
 /**
  * Format identifier for [StandardReportMaterializer.materialize].
  *
- * Limited to the three formats surfaced by the Single-app
- * default result panel's standard buttons.  LaTeX is supported
- * by the framework
+ * Limited to the three formats that any single-run UI shell
+ * typically surfaces as the "standard" choice (matching the
+ * Single-app default result panel's primary buttons).  LaTeX is
+ * supported by the report framework
  * (`ksl.utilities.io.report.writeLaTeX`) but is exposed only
- * through the *Advanced…* affordance — not in the standard
- * trio.  Per scenario workflow §11 the standard buttons match
- * the formats most analysts reach for first.
+ * through advanced affordances, not this standard trio.
  */
 enum class StandardReportFormat(val fileExtension: String, val labelForButton: String) {
     HTML("html", "HTML"),
@@ -60,7 +59,7 @@ enum class StandardReportFormat(val fileExtension: String, val labelForButton: S
 }
 
 /**
- * Result of a single materialize attempt.
+ * Result of a single materialise attempt.
  */
 sealed class StandardReportOutcome {
     /** The report rendered successfully; [file] is the written report file. */
@@ -77,8 +76,7 @@ sealed class StandardReportOutcome {
 
 /**
  * Renders one of the framework's *standard* simulation reports
- * from a terminal [RunResult] into the per-run reports
- * directory under the active workspace.
+ * from a terminal [RunResult] into a per-run reports directory.
  *
  * The actual rendering work delegates to the existing
  * `ksl.utilities.io.report` framework:
@@ -91,13 +89,14 @@ sealed class StandardReportOutcome {
  *    histograms + frequencies + time-series stats.
  *  - File is written via
  *    `writeHtml(...)` / `writeMarkdown(...)` / `writeText(...)`
- *    with a `RenderContext` rooted at [reportsDir] so plot
- *    artifacts land alongside the report file.
+ *    with a `RenderContext` rooted at the supplied reports
+ *    directory so plot artifacts land alongside the report file.
  *
- * The helper is also reusable by the *Advanced…* dialog (later
- * N-commit) when the user selects "use the standard content
- * with these per-render options" — the customisation overrides
- * the defaults the [toReport] block applies.
+ * Substrate-level API — usable by any UI shell (Swing default
+ * result panel, web download button, CLI report command).
+ * Returns the written `File` on success; the host decides what to
+ * do with it (open in browser, attach to email, copy to remote
+ * store, etc.).
  */
 object StandardReportMaterializer {
 
@@ -105,26 +104,13 @@ object StandardReportMaterializer {
     const val DEFAULT_FILE_STEM: String = "standard"
 
     /**
-     * Renders [result]'s snapshot to [format] under [reportsDir].
-     * Creates [reportsDir] (and its parents) if absent.  The
-     * report file is named `<fileStem>.<extension>`.
-     *
-     * @param result the terminal result whose snapshot is rendered.
-     *   Must be `Completed` or `BatchCompleted` (with at least
-     *   one snapshot); other states return [StandardReportOutcome.Failed].
-     * @param format which renderer to invoke.
-     * @param reportsDir target directory; created lazily.
-     * @param fileStem filename without extension; defaults to
-     *   [DEFAULT_FILE_STEM].
-     * @return either the written file or a failure with cause.
-     */
-    /**
      *  Options controlling which sections of the snapshot's standard
      *  report appear in the materialised document.  Defaults match
      *  `SimulationSnapshot.ExperimentCompleted.toReport()`'s built-in
      *  defaults so callers that ignore this parameter get the
-     *  pre-existing report content.  The Post-Run Reporting tab
-     *  surfaces these as checkboxes; auto-render uses the defaults.
+     *  pre-existing report content.  A "Post-Run Reporting" panel
+     *  typically surfaces these as checkboxes; auto-render uses the
+     *  defaults.
      */
     data class SectionOptions(
         val showRunSummary: Boolean = true,
@@ -144,6 +130,20 @@ object StandardReportMaterializer {
         }
     }
 
+    /**
+     * Renders [result]'s snapshot to [format] under [reportsDir].
+     * Creates [reportsDir] (and its parents) if absent.  The
+     * report file is named `<fileStem>.<extension>`.
+     *
+     * @param result the terminal result whose snapshot is rendered.
+     *   Must be `Completed` or `BatchCompleted` (with at least
+     *   one snapshot); other states return [StandardReportOutcome.Failed].
+     * @param format which renderer to invoke.
+     * @param reportsDir target directory; created lazily.
+     * @param fileStem filename without extension; defaults to
+     *   [DEFAULT_FILE_STEM].
+     * @return either the written file or a failure with cause.
+     */
     fun materialize(
         result: RunResult,
         format: StandardReportFormat,
@@ -179,19 +179,19 @@ object StandardReportMaterializer {
     /**
      *  Compose a [ksl.utilities.io.report.ast.ReportNode.Document] from
      *  [snapshot] respecting per-section [sections] flags.  When
-     *  [title] is `null`, the snapshot's default title is used; when
-     *  non-null, it overrides — used by the Single app to inject a
-     *  meaningful "Standard Report — <modelName>" title instead of
-     *  the bare "Simulation Snapshot — <repRange>" default.
+     *  [title] is `null`, a generic stem is used; when non-null, it
+     *  overrides — used by hosts to inject a meaningful
+     *  "Standard Report — <modelName>" title instead of the bare
+     *  default.
      *
-     *  The section flags map 1:1 to the named
-     *  `snapshotXxx` extensions in
+     *  The section flags map 1:1 to the named `snapshotXxx`
+     *  extensions in
      *  `ksl.utilities.io.report.extensions.SimulationSnapshotReportExtensions`.
-     *  This lets the Post-Run Reporting tab build a custom block that
+     *  This lets a "Post-Run Reporting" UI build a custom block that
      *  invokes only the sections the user ticked.  An "everything off"
-     *  selection falls back to run summary alone (defensive — the
-     *  panel's Save button is disabled in that state, so this branch
-     *  is unreachable from the UI).
+     *  selection falls back to run summary alone (defensive — UI
+     *  panels typically disable Save in that state, so this branch
+     *  is unreachable from a sensible UI).
      */
     private fun buildReport(
         snapshot: SimulationSnapshot.ExperimentCompleted,
@@ -200,8 +200,8 @@ object StandardReportMaterializer {
     ): ReportNode.Document {
         // `defaultSnapshotTitle` in the report extensions is private,
         // so we fall back to a generic stem here.  Callers that want a
-        // meaningful title — like the Single app — pass one explicitly
-        // (typically `"Standard Report — <modelName>"`).
+        // meaningful title pass one explicitly (typically
+        // `"Standard Report — <modelName>"`).
         val effectiveTitle = title ?: "Standard Report"
         return snapshot.toReport(
             title = effectiveTitle,
