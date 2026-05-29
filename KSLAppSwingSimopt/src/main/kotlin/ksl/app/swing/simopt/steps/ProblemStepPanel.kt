@@ -94,7 +94,10 @@ class ProblemStepPanel(
     }
     private val minimizeRadio = JRadioButton("Minimize").apply { isSelected = true }
     private val maximizeRadio = JRadioButton("Maximize")
-    private val problemNameField = JTextField(24)
+    private val problemNameField = JTextField(24).apply {
+        toolTipText = "Optional.  When blank, the report and summary.toml use the " +
+            "selected model's name (e.g. \"LKInventoryModel\")."
+    }
     private val deltaField = JTextField(10)
     private val granularityField = JTextField(10)
 

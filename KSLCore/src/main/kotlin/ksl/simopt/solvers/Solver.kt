@@ -1122,7 +1122,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): StochasticHillClimber {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
@@ -1132,7 +1133,8 @@ abstract class Solver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
             // Inject the specific starting point if the user provided one
             if (startingPoint != null) {
@@ -1170,7 +1172,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
@@ -1180,10 +1183,11 @@ abstract class Solver(
                 problemDefinition = problemDefinition,
                 evaluator = evaluator,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
             val restartSolver = RandomRestartSolver(
-                shc, maxNumRestarts
+                restartingSolver = shc, maxNumRestarts = maxNumRestarts, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
@@ -1231,7 +1235,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): SimulatedAnnealing {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
@@ -1247,7 +1252,8 @@ abstract class Solver(
                 coolingSchedule = coolingSchedule,
                 stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
             // Inject the specific starting point if the user provided one
             if (startingPoint != null) {
@@ -1293,7 +1299,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): RandomRestartSolver {
 
             val evaluator = Evaluator.createProblemEvaluator(
@@ -1313,11 +1320,12 @@ abstract class Solver(
                 coolingSchedule = coolingSchedule,
                 stoppingTemperature = stoppingTemperature,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
 
             val restartSolver = RandomRestartSolver(
-                saSolver, maxNumRestarts
+                restartingSolver = saSolver, maxNumRestarts = maxNumRestarts, name = name
             )
 
             // The random restart solver orchestrates the starting points. We pass the user's
@@ -1357,7 +1365,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): CrossEntropySolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
@@ -1368,7 +1377,8 @@ abstract class Solver(
                 evaluator = evaluator,
                 ceSampler = ceSampler,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
             if (startingPoint != null) {
                 ce.startingPoint = problemDefinition.toInputMap(startingPoint)
@@ -1408,7 +1418,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition,
@@ -1422,10 +1433,11 @@ abstract class Solver(
                 evaluator = evaluator,
                 ceSampler = ceSampler,
                 maxIterations = maxIterations,
-                replicationsPerEvaluation = replicationsPerEvaluation
+                replicationsPerEvaluation = replicationsPerEvaluation,
+                name = name
             )
             val restartSolver = RandomRestartSolver(
-                ce, maxNumRestarts
+                restartingSolver = ce, maxNumRestarts = maxNumRestarts, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.
@@ -1465,7 +1477,8 @@ abstract class Solver(
             maxIterations: Int = defaultMaxNumberIterations,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): RSplineSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
@@ -1477,7 +1490,8 @@ abstract class Solver(
                 maxIterations = maxIterations,
                 initialNumReps = initialNumReps,
                 sampleSizeGrowthRate = sampleSizeGrowthRate,
-                maxNumReplications = maxNumReplications
+                maxNumReplications = maxNumReplications,
+                name = name
             )
             if (startingPoint != null) {
                 solver.startingPoint = problemDefinition.toInputMap(startingPoint)
@@ -1521,7 +1535,8 @@ abstract class Solver(
             replicationsPerEvaluation: Int = defaultReplicationsPerEvaluation,
             solutionCache: SolutionCacheIfc = MemorySolutionCache(),
             simulationRunCache: SimulationRunCacheIfc? = null,
-            experimentRunParameters: ExperimentRunParametersIfc? = null
+            experimentRunParameters: ExperimentRunParametersIfc? = null,
+            name: String? = null
         ): RandomRestartSolver {
             val evaluator = Evaluator.createProblemEvaluator(
                 problemDefinition = problemDefinition, modelBuilder = modelBuilder, solutionCache = solutionCache,
@@ -1533,10 +1548,11 @@ abstract class Solver(
                 maxIterations = maxIterations,
                 initialNumReps = initialNumReps,
                 sampleSizeGrowthRate = sampleSizeGrowthRate,
-                maxNumReplications = maxNumReplications
+                maxNumReplications = maxNumReplications,
+                name = name
             )
             val restartSolver = RandomRestartSolver(
-                solver, maxNumRestarts
+                restartingSolver = solver, maxNumRestarts = maxNumRestarts, name = name
             )
             // The random restart solver orchestrates the starting points. We pass the user's
             // specific point to the macro-solver, which feeds it to the SA solver on run #1.

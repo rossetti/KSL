@@ -180,7 +180,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
                 else
                     Solver.createRandomRestartStochasticHillClimbingSolver(
@@ -192,7 +193,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
 
             is SolverSpec.SimulatedAnnealing -> {
@@ -210,7 +212,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
                 else
                     Solver.createRandomRestartSimulatedAnnealingSolver(
@@ -225,7 +228,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
             }
 
@@ -241,7 +245,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
                 else
                     Solver.createRandomRestartCrossEntropySolver(
@@ -254,7 +259,8 @@ class OptimizationSolverFactory(
                         replicationsPerEvaluation = spec.replicationsPerEvaluation,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
                 // CE-specific post-construction settings (defaults preserved when null)
                 applyCrossEntropyExtras(solver, spec)
@@ -273,7 +279,8 @@ class OptimizationSolverFactory(
                         maxIterations             = spec.maxIterations,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
                 else
                     Solver.createRandomRestartRsplineSolver(
@@ -287,7 +294,8 @@ class OptimizationSolverFactory(
                         maxIterations             = spec.maxIterations,
                         solutionCache             = solutionCache,
                         simulationRunCache        = simulationRunCache,
-                        experimentRunParameters   = templateRunParameters
+                        experimentRunParameters   = templateRunParameters,
+                        name                      = spec.name
                     )
         }
     }

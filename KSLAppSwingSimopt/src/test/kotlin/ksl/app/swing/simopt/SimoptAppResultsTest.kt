@@ -376,4 +376,73 @@ class SimoptAppResultsTest {
             assertContains(toml, "clearCacheBetweenRuns = \"true\"")
         }
     }
+
+    // ── Auto-derived solver / problem names ────────────────────────────
+
+    @Test
+    fun `solver and problem names auto-derive when the user leaves the fields blank`() {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            // The seed never calls setCommonSolverName / setProblemName,
+            // so both flows stay null.  The spec recomputation must
+            // substitute readable defaults so the persisted document
+            // (and any future report) doesn't fall back to the
+            // substrate's `Identity(null)` → `"ID_<counter>"` pattern.
+            assertEquals(
+                "Stochastic Hill Climbing",
+                c.solverSpec.value?.name,
+                "Solver name must default to the algorithm display name"
+            )
+            assertEquals(
+                "LKInventoryModel",
+                c.problemSpec.value?.problemName,
+                "Problem name must default to the descriptor's model name"
+            )
+        }
+    }
+
+    @Test
+    fun `explicit solver name overrides the algorithm-derived default`() {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            c.setCommonSolverName("shc-baseline")
+            assertEquals("shc-baseline", c.solverSpec.value?.name)
+        }
+    }
+
+    @Test
+    fun `explicit problem name overrides the model-derived default`() {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            c.setProblemName("Custom problem label")
+            assertEquals("Custom problem label", c.problemSpec.value?.problemName)
+        }
+    }
+
+    @Test
+    fun `summary toml shows the derived solver and problem names not ID_ counters`(@TempDir tempDir: Path) {
+        SimoptAppController("Test").use { c ->
+            seedRunnableProblem(c)
+            val target = tempDir.resolve("names-toml")
+            c.setRunOutputDir(target)
+            c.submit()
+            awaitNotRunning(c)
+            val toml = Files.readString(target.resolve(ArtifactNames.SUMMARY_TOML))
+            // The configurationProperties values come from the live
+            // solver after it's built by the factory — if the
+            // controller's effective-name fallbacks worked, the
+            // [solverConfiguration] table shows the readable names
+            // rather than the `Identity(null)` "ID_<counter>" pattern.
+            assertContains(toml, "name = \"Stochastic Hill Climbing\"")
+            assertContains(toml, "problemDefinition = \"LKInventoryModel\"")
+            assertFalse(
+                Regex("""name = "ID_\d+"""").containsMatchIn(toml),
+                "summary.toml must not carry Identity auto-IDs as the solver name"
+            )
+            assertFalse(
+                Regex("""problemDefinition = "ID_\d+"""").containsMatchIn(toml),
+                "summary.toml must not carry Identity auto-IDs as the problem name"
+            )
+        }
+    }
 }

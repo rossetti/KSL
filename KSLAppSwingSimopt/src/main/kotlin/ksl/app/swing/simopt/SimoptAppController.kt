@@ -1294,7 +1294,13 @@ class SimoptAppController(
         } else {
             try {
                 OptimizationProblemSpec(
-                    problemName = myProblemName.value,
+                    // Auto-derived default when the user hasn't
+                    // typed a problem name on the Problem step.
+                    // Without a default, the substrate's
+                    // `Identity(null)` fallback would produce an
+                    // uninformative `"ID_<counter>"` name in reports
+                    // and summary.toml.  See `deriveProblemName`.
+                    problemName = effectiveProblemName(),
                     // Substrate runtime requires a non-blank modelIdentifier
                     // matching the built `Model.modelIdentifier` (see
                     // `SimulationProvider.simulate`).  We read it from
@@ -1347,6 +1353,45 @@ class SimoptAppController(
             is ModelReference.ByJar -> ref.builderClassName
             is ModelReference.Embedded -> ref.modelName
         }
+    }
+
+    /** Effective problem name for the persisted spec.  Uses the
+     *  user-typed value when non-blank; otherwise derives a
+     *  readable default so reports and `summary.toml` show
+     *  something meaningful instead of the substrate's
+     *  `Identity(null)` fallback (`"ID_<counter>"`).
+     *
+     *  Order of preference:
+     *  1. user-typed [problemName],
+     *  2. `currentModelDescriptor.modelName`,
+     *  3. [deriveModelIdentifier] (the model-reference natural id),
+     *  4. `"Optimization"` (last-resort non-null sentinel).
+     */
+    private fun effectiveProblemName(): String? {
+        myProblemName.value?.takeIf { it.isNotBlank() }?.let { return it }
+        myCurrentModelDescriptor.value?.modelName?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        deriveModelIdentifier()?.takeIf { it.isNotBlank() }?.let { return it }
+        return "Optimization"
+    }
+
+    /** Effective solver name for the persisted spec.  Uses the
+     *  user-typed value when non-blank; otherwise derives a name
+     *  from the chosen algorithm so reports and `summary.toml`
+     *  describe what was run instead of the substrate's
+     *  `Identity(null)` fallback (`"ID_<counter>"`).
+     *
+     *  Order of preference:
+     *  1. user-typed [commonSolverName],
+     *  2. `algorithmKind.displayName` (e.g. `"Stochastic Hill Climbing"`).
+     *
+     *  Returns `null` only when no algorithm has been picked yet —
+     *  in that case the solver spec is itself null and the
+     *  question of a name is moot.
+     */
+    private fun effectiveSolverName(): String? {
+        myCommonSolverName.value?.takeIf { it.isNotBlank() }?.let { return it }
+        return myAlgorithmKind.value?.displayName
     }
 
     /** Replace the solver specification by fanning out [spec] into
@@ -1577,7 +1622,7 @@ class SimoptAppController(
                     maxIterations = myCommonMaxIterations.value,
                     randomRestart = myRandomRestart.value,
                     streamNum = myCommonStreamNum.value,
-                    name = myCommonSolverName.value,
+                    name = effectiveSolverName(),
                     replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value
                 )
                 AlgorithmKind.SIMULATED_ANNEALING -> SolverSpec.SimulatedAnnealing(
@@ -1585,7 +1630,7 @@ class SimoptAppController(
                     maxIterations = myCommonMaxIterations.value,
                     randomRestart = myRandomRestart.value,
                     streamNum = myCommonStreamNum.value,
-                    name = myCommonSolverName.value,
+                    name = effectiveSolverName(),
                     replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value,
                     temperature = mySaTemperature.value,
                     coolingSchedule = mySaCoolingSchedule.value,
@@ -1596,7 +1641,7 @@ class SimoptAppController(
                     maxIterations = myCommonMaxIterations.value,
                     randomRestart = myRandomRestart.value,
                     streamNum = myCommonStreamNum.value,
-                    name = myCommonSolverName.value,
+                    name = effectiveSolverName(),
                     replicationsPerEvaluation = myCommonReplicationsPerEvaluation.value,
                     sampler = myCeSampler.value,
                     elitePct = myCeElitePct.value,
@@ -1607,7 +1652,7 @@ class SimoptAppController(
                     maxIterations = myCommonMaxIterations.value,
                     randomRestart = myRandomRestart.value,
                     streamNum = myCommonStreamNum.value,
-                    name = myCommonSolverName.value,
+                    name = effectiveSolverName(),
                     initialNumReps = myRsplineInitialNumReps.value,
                     sampleSizeGrowthRate = myRsplineGrowthRate.value,
                     maxNumReplications = myRsplineMaxNumReplications.value

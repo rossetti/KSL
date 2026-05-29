@@ -110,7 +110,10 @@ class AlgorithmStepPanel(
 
     private val maxIterationsField = JTextField(10)
     private val streamNumField = JTextField(10)
-    private val solverNameField = JTextField(16)
+    private val solverNameField = JTextField(16).apply {
+        toolTipText = "Optional.  When blank, the report and summary.toml use the " +
+            "algorithm name (e.g. \"Stochastic Hill Climbing\")."
+    }
     private val rpeField = JTextField(10)
     private val rpeNote = JLabel(" ").apply {
         font = font.deriveFont(Font.PLAIN, 11f)

@@ -261,6 +261,13 @@ class SimoptAppAlgorithmTest {
             val spec = SolverSpec.SimulatedAnnealing(
                 maxIterations = 100,
                 replicationsPerEvaluation = 5,
+                // Explicit name overrides the controller's auto-derived
+                // default (which would otherwise be the algorithm's
+                // displayName).  Round-trip equality needs an exact
+                // match — we're testing fan-out semantics, not the
+                // name-derivation logic (that has its own tests in
+                // SimoptAppResultsTest).
+                name = "sa-test",
                 temperature = TemperatureSpec.Fixed(50.0),
                 coolingSchedule = CoolingScheduleSpec.Logarithmic(50.0),
                 stoppingTemperature = 0.5
@@ -280,6 +287,8 @@ class SimoptAppAlgorithmTest {
             val spec = SolverSpec.CrossEntropy(
                 maxIterations = 200,
                 replicationsPerEvaluation = 30,
+                // See companion comment in the SA fan-out test.
+                name = "ce-test",
                 elitePct = 0.05,
                 ceSampleSize = 80
             )
@@ -296,6 +305,8 @@ class SimoptAppAlgorithmTest {
         SimoptAppController("Test").use { c ->
             val spec = SolverSpec.RSpline(
                 maxIterations = 50,
+                // See companion comment in the SA fan-out test.
+                name = "rspline-test",
                 initialNumReps = 4,
                 sampleSizeGrowthRate = 2.0,
                 maxNumReplications = 64
@@ -368,6 +379,8 @@ class SimoptAppAlgorithmTest {
         roundTripSpec(tempDir, SolverSpec.SimulatedAnnealing(
             maxIterations = 60,
             replicationsPerEvaluation = 4,
+            // Explicit name — see fan-out tests above.
+            name = "sa-roundtrip",
             temperature = TemperatureSpec.AutoCalibrate(targetProbability = 0.7, sampleSize = 50),
             coolingSchedule = CoolingScheduleSpec.Exponential(initialTemperature = 200.0, coolingRate = 0.9),
             stoppingTemperature = 0.005
@@ -379,6 +392,8 @@ class SimoptAppAlgorithmTest {
         roundTripSpec(tempDir, SolverSpec.CrossEntropy(
             maxIterations = 75,
             replicationsPerEvaluation = 6,
+            // Explicit name — see fan-out tests above.
+            name = "ce-roundtrip",
             sampler = CESamplerSpec.Normal(meanSmoother = 0.9, sdSmoother = 0.8),
             elitePct = 0.2,
             ceSampleSize = 40
@@ -389,6 +404,8 @@ class SimoptAppAlgorithmTest {
     fun `TOML round-trip preserves RSpline with random restart`(@TempDir tempDir: Path) {
         roundTripSpec(tempDir, SolverSpec.RSpline(
             maxIterations = 30,
+            // Explicit name — see fan-out tests above.
+            name = "rspline-roundtrip",
             initialNumReps = 3,
             sampleSizeGrowthRate = 2.5,
             maxNumReplications = 100,
