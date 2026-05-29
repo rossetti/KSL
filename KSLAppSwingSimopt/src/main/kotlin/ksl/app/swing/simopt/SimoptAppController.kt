@@ -63,7 +63,7 @@ import ksl.app.settings.UserSettingsStore
 import ksl.app.optimization.results.LatestBestSnapshot
 import ksl.app.optimization.results.ResultsArtifactWriter
 import ksl.app.optimization.results.ResultsStatus
-import ksl.app.swing.simopt.runsetup.RunSetupPaths
+import ksl.app.optimization.paths.OptimizationPaths
 import ksl.app.swing.simopt.stepper.Step
 import ksl.app.validation.FieldError
 import ksl.app.validation.OptimizationConfigurationValidator
@@ -492,7 +492,7 @@ class SimoptAppController(
      *
      *  Default: `<appWorkspace>/output/<analysisName>/run-NNN/`, where
      *  `NNN` is the next unused three-digit number under the analysis
-     *  directory (see [RunSetupPaths.nextRunSubdir]).  This means
+     *  directory (see [OptimizationPaths.nextRunSubdir]).  This means
      *  consecutive runs land in distinct folders by default — a fresh
      *  SHC run followed by a fresh SA run end up in `run-001/` and
      *  `run-002/` respectively, never overwriting each other.
@@ -2187,7 +2187,7 @@ class SimoptAppController(
 
     /**
      *  Recompute [runOutputDir] from the live analysis name using
-     *  [RunSetupPaths.nextRunSubdir].  Called when the analysis name
+     *  [OptimizationPaths.nextRunSubdir].  Called when the analysis name
      *  changes and after each successful run so the displayed
      *  destination matches the next-available `run-NNN` slot.
      */
@@ -2198,8 +2198,8 @@ class SimoptAppController(
     private fun initialRunOutputDir(): Path = computeAutoRunOutputDir()
 
     private fun computeAutoRunOutputDir(): Path {
-        val analysisDir = RunSetupPaths.outputDir(appWorkspace, myOutput.value.analysisName)
-        return RunSetupPaths.nextRunSubdir(analysisDir)
+        val analysisDir = OptimizationPaths.outputDir(appWorkspace, myOutput.value.analysisName)
+        return OptimizationPaths.nextRunSubdir(analysisDir)
     }
 
     /**
@@ -2274,7 +2274,7 @@ class SimoptAppController(
 
         if (tracking.enableCsvTrace) {
             try {
-                val tracePath = RunSetupPaths.traceFilePath(
+                val tracePath = OptimizationPaths.traceFilePath(
                     runOutputDir = runDir,
                     trackingSpec = tracking,
                     solverSpec = config.solver

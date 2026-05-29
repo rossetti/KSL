@@ -20,6 +20,7 @@ package ksl.app.swing.simopt.runsetup
 
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ksl.app.optimization.paths.OptimizationPaths
 import ksl.app.swing.common.notification.NotificationSeverity
 import ksl.app.swing.simopt.SimoptAppController
 import java.awt.Color
@@ -190,7 +191,7 @@ class TrackingPanel(
             resolvedPathLabel.text = "(disabled — enable tracking to see the path)"
             return
         }
-        val path = RunSetupPaths.traceFilePath(
+        val path = OptimizationPaths.traceFilePath(
             runOutputDir = controller.runOutputDir.value,
             trackingSpec = tracking,
             solverSpec = controller.solverSpec.value

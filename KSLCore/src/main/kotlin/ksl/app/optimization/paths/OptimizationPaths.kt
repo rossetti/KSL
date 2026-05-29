@@ -16,7 +16,7 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.swing.simopt.runsetup
+package ksl.app.optimization.paths
 
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
@@ -25,17 +25,36 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- *  Pure helpers used by `TrackingPanel`, the Execute step's
- *  `OptimizationPanel`, and the controller's submit path to compute
- *  resolved output / trace paths from the current document.  Kept as
- *  top-level functions so they can be unit-tested without
- *  instantiating Swing.
+ *  Filesystem-path conventions for optimization runs.
+ *
+ *  Lays out a stable directory shape under any host application's
+ *  workspace:
+ *
+ *  ```
+ *  <appWorkspace>/
+ *    output/
+ *      <sanitizedAnalysisName>/        ← analysis output directory
+ *        run-001/                      ← one run-NNN per submit
+ *          summary.toml
+ *          iteration_history.csv
+ *          …
+ *          <trace>.csv                 ← when tracking enabled
+ *        run-002/
+ *        …
+ *  ```
+ *
+ *  These helpers are pure functions over [Path] / [SolverSpec] /
+ *  [SolverTrackingSpec] — no Swing dependency, no live engine
+ *  state.  Any host application that wants to honour the standard
+ *  layout (so users can navigate between runs in a file manager
+ *  with stable expectations) calls these.
+ *
+ *  Substrate-level API — usable by any UI shell.
  */
-internal object RunSetupPaths {
+object OptimizationPaths {
 
     /** Resolve `<appWorkspace>/output/<sanitizedAnalysisName>/`.
-     *  Caller should ensure [appWorkspace] is the controller's
-     *  appWorkspace. */
+     *  Caller supplies the host's appWorkspace. */
     fun outputDir(appWorkspace: Path, analysisName: String): Path {
         val sanitized = sanitizeAnalysisName(analysisName)
         return appWorkspace.resolve("output").resolve(sanitized)

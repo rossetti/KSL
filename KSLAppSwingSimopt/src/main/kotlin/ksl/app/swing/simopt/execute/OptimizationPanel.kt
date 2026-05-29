@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.onEach
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.swing.simopt.SimoptAppController
-import ksl.app.swing.simopt.runsetup.RunSetupPaths
+import ksl.app.optimization.paths.OptimizationPaths
 import java.awt.Color
 import java.awt.Component
 import java.awt.FlowLayout
@@ -228,7 +228,7 @@ class OptimizationPanel(
         outputDirLabel.toolTipText = outDir.toString()
         val tracking: SolverTrackingSpec = controller.trackingSpec.value
         val solver: SolverSpec? = controller.solverSpec.value
-        val tracePath = RunSetupPaths.traceFilePath(outDir, tracking, solver)
+        val tracePath = OptimizationPaths.traceFilePath(outDir, tracking, solver)
         tracePathLabel.text = tracePath?.toString() ?: "(disabled — enable on Run Setup)"
         tracePathLabel.toolTipText = tracePath?.toString()
             ?: "Enable CSV trace on the Tracking panel of the Run Setup step."

@@ -21,9 +21,7 @@ package ksl.app.swing.simopt
 import ksl.app.config.ModelReference
 import ksl.app.config.optimization.EvaluationSpec
 import ksl.app.config.optimization.OptimizationInputSpec
-import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
-import ksl.app.swing.simopt.runsetup.RunSetupPaths
 import ksl.examples.general.appsupport.MM1Bundle
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -40,7 +38,7 @@ import kotlin.test.assertTrue
  *
  *  Pins the preference semantics of `setEvaluationSpec` and
  *  `setTrackingSpec` (mark dirty but do NOT drop `lastResult`),
- *  the path-resolution helpers in `RunSetupPaths`, and TOML
+ *  the path-helper integration via the controller, and TOML
  *  round-trip of both spec types.
  */
 class SimoptAppRunSetupTest {
@@ -150,112 +148,10 @@ class SimoptAppRunSetupTest {
         }
     }
 
-    // ── Path-resolution helpers ───────────────────────────────────────
-
-    @Test
-    fun `RunSetupPaths outputDir resolves under appWorkspace`(@TempDir tempDir: Path) {
-        val out = RunSetupPaths.outputDir(tempDir, "MyAnalysis")
-        assertEquals(tempDir.resolve("output").resolve("MyAnalysis"), out)
-    }
-
-    @Test
-    fun `RunSetupPaths outputDir sanitizes analysis name`(@TempDir tempDir: Path) {
-        val out = RunSetupPaths.outputDir(tempDir, "Bad/Name With Spaces")
-        assertTrue(out.toString().endsWith("Bad_Name_With_Spaces"),
-            "Sanitization should replace unsafe characters; got $out")
-    }
-
-    @Test
-    fun `RunSetupPaths traceFilePath returns null when tracking is disabled`(@TempDir tempDir: Path) {
-        val path = RunSetupPaths.traceFilePath(
-            runOutputDir = tempDir.resolve("run-001"),
-            trackingSpec = SolverTrackingSpec(enableCsvTrace = false),
-            solverSpec = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1)
-        )
-        assertNull(path)
-    }
-
-    @Test
-    fun `RunSetupPaths traceFilePath uses csvFileName when set`(@TempDir tempDir: Path) {
-        val runDir = tempDir.resolve("run-001")
-        val path = RunSetupPaths.traceFilePath(
-            runOutputDir = runDir,
-            trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = "custom"),
-            solverSpec = SolverSpec.StochasticHillClimbing(maxIterations = 1, replicationsPerEvaluation = 1)
-        )
-        assertNotNull(path)
-        assertEquals(runDir.resolve("custom.csv"), path)
-    }
-
-    @Test
-    fun `RunSetupPaths traceFilePath falls back to solver name when csvFileName is null`(@TempDir tempDir: Path) {
-        val runDir = tempDir.resolve("run-001")
-        val path = RunSetupPaths.traceFilePath(
-            runOutputDir = runDir,
-            trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
-            solverSpec = SolverSpec.StochasticHillClimbing(
-                maxIterations = 1, replicationsPerEvaluation = 1, name = "my-shc"
-            )
-        )
-        assertNotNull(path)
-        assertEquals(runDir.resolve("my-shc_trace.csv"), path)
-    }
-
-    @Test
-    fun `RunSetupPaths traceFilePath falls back to kind label when solver name is null`(@TempDir tempDir: Path) {
-        val runDir = tempDir.resolve("run-001")
-        val path = RunSetupPaths.traceFilePath(
-            runOutputDir = runDir,
-            trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
-            solverSpec = SolverSpec.SimulatedAnnealing(
-                maxIterations = 1,
-                replicationsPerEvaluation = 1,
-                coolingSchedule = ksl.app.config.optimization.CoolingScheduleSpec.Logarithmic(10.0),
-                stoppingTemperature = 0.1
-            )
-        )
-        assertNotNull(path)
-        assertEquals(runDir.resolve("simulatedAnnealing_trace.csv"), path)
-    }
-
-    @Test
-    fun `RunSetupPaths traceFilePath uses 'solver' fallback when solver spec is null`(@TempDir tempDir: Path) {
-        val runDir = tempDir.resolve("run-001")
-        val path = RunSetupPaths.traceFilePath(
-            runOutputDir = runDir,
-            trackingSpec = SolverTrackingSpec(enableCsvTrace = true, csvFileName = null),
-            solverSpec = null
-        )
-        assertNotNull(path)
-        assertEquals(runDir.resolve("solver_trace.csv"), path)
-    }
-
-    // ── nextRunSubdir ──────────────────────────────────────────────────
-
-    @Test
-    fun `RunSetupPaths nextRunSubdir returns run-001 when analysis dir is missing`(@TempDir tempDir: Path) {
-        val analysisDir = tempDir.resolve("MyAnalysis")  // not created
-        val next = RunSetupPaths.nextRunSubdir(analysisDir)
-        assertEquals(analysisDir.resolve("run-001"), next)
-    }
-
-    @Test
-    fun `RunSetupPaths nextRunSubdir returns run-001 when analysis dir is empty`(@TempDir tempDir: Path) {
-        val analysisDir = tempDir.resolve("MyAnalysis").also { java.nio.file.Files.createDirectories(it) }
-        val next = RunSetupPaths.nextRunSubdir(analysisDir)
-        assertEquals(analysisDir.resolve("run-001"), next)
-    }
-
-    @Test
-    fun `RunSetupPaths nextRunSubdir picks the next number when run-NNN subdirs exist`(@TempDir tempDir: Path) {
-        val analysisDir = tempDir.resolve("MyAnalysis").also { java.nio.file.Files.createDirectories(it) }
-        java.nio.file.Files.createDirectories(analysisDir.resolve("run-001"))
-        java.nio.file.Files.createDirectories(analysisDir.resolve("run-002"))
-        java.nio.file.Files.createDirectories(analysisDir.resolve("run-007"))
-        java.nio.file.Files.createDirectories(analysisDir.resolve("not-a-run"))
-        val next = RunSetupPaths.nextRunSubdir(analysisDir)
-        assertEquals(analysisDir.resolve("run-008"), next)
-    }
+    // Path-helper tests live in KSLTesting at
+    // `ksl/app/optimization/paths/OptimizationPathsTest.kt` — they
+    // exercise the pure `OptimizationPaths` substrate functions
+    // without any controller / Swing dependency.
 
     // ── TOML round-trip ─────────────────────────────────────────────────
 
