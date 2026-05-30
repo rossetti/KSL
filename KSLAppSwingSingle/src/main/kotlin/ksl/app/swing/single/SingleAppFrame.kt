@@ -150,7 +150,7 @@ class SingleAppFrame(
      *   - **Use Existing Folder** — proceed; the path is added to
      *     [approvedWorkspacePaths] so subsequent Simulates against
      *     the same path are silent.
-     *   - **Choose Different Name…** — focus the Analysis Name field
+     *   - **Choose Different Name…** — focus the Output Name field
      *     so the user can pick a non-colliding name; abort the
      *     Simulate.
      *   - **Cancel Simulate** — abort.  No approval recorded.
@@ -677,9 +677,15 @@ class SingleAppFrame(
         analysisNameField = javax.swing.JTextField(
             controller.outputConfig.value.analysisName, 16
         ).apply {
-            toolTipText = "Identity for this analysis.  Names the report sub-tree at " +
-                "<workspace>/reports/<analysisName>/ and the default report filename stem " +
-                "on the Post-Run Reporting tab."
+            toolTipText = "Base name used for this run's on-disk artefacts.  " +
+                "Drives the workspace subdirectory under your working " +
+                "directory, the SQLite database file stem " +
+                "(<outputName>.db), the CSV report stems " +
+                "(<outputName>_CSVReplicationReport.csv / " +
+                "<outputName>_CSVExperimentReport.csv), and the default " +
+                "report filename stem on the Post-Run Reporting tab.  " +
+                "Leave blank (or as \"Untitled\") to fall back to the " +
+                "model's own name."
             addActionListener { controller.setAnalysisName(text) }
             addFocusListener(object : java.awt.event.FocusListener {
                 override fun focusGained(e: java.awt.event.FocusEvent) { /* no-op */ }
@@ -712,7 +718,7 @@ class SingleAppFrame(
             add(Box.createHorizontalStrut(16))
             add(resetButton)
             add(Box.createHorizontalStrut(16))
-            add(JLabel("Analysis Name:"))
+            add(JLabel("Output Name:"))
             add(Box.createHorizontalStrut(4))
             add(analysisNameField)
             add(Box.createHorizontalGlue())

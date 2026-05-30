@@ -20,7 +20,9 @@ package ksl.app.orchestrator
 
 import ksl.app.KSLAppSession
 import ksl.app.config.RunConfiguration
+import ksl.app.config.sanitizeAnalysisName
 import ksl.app.session.RunAttachmentIfc
+import ksl.app.single.results.SingleAppPaths
 import ksl.app.session.RunHandle
 import ksl.app.session.RunRequest
 import ksl.app.session.RunWarningType
@@ -140,21 +142,64 @@ object SingleRunOrchestrator {
             model.outputDirectory = ksl.utilities.io.OutputDirectory(outRoot, "kslOutput.txt")
         }
 
-        // Per-kind CSV reporting flags.  Setting these before Runner
-        // takes the model ensures `Model.simulate()` picks them up
-        // when it decides which CSV observers to attach.  See
-        // `Model.simulate()` for the OR-semantics with `autoCSVReports`.
-        model.autoReplicationCSVReports = outputConfig.enableReplicationCSV
-        model.autoExperimentCSVReports = outputConfig.enableExperimentCSV
+        // Build the per-run filename stem for the CSV + SQLite artifacts
+        // from the analyst-supplied output (analysis) name.  Falls back to
+        // the model's own sanitised name when the analysis name is blank
+        // OR the canonical [SingleAppPaths.UNTITLED] sentinel — matching
+        // the same fallback `SingleAppPaths.appWorkspaceDir` uses for the
+        // workspace folder name, so the directory layer and the artifact
+        // layer trip the model-name fallback in lockstep.  Without the
+        // explicit isBlank/UNTITLED check, `sanitizeAnalysisName("")`
+        // returns "Untitled" (the substrate's empty-input default), which
+        // would *not* be caught by `.ifBlank { ... }` downstream.
+        val outputStem: String =
+            if (outputConfig.analysisName.isBlank() ||
+                outputConfig.analysisName == SingleAppPaths.UNTITLED) {
+                model.simulationName.replace(" ", "_")
+            } else {
+                sanitizeAnalysisName(outputConfig.analysisName)
+            }
 
-        // SQLite KSLDatabase observer.  The constructor attaches the
-        // observer to the model (via `attachModelElementObserver`
-        // inside its init block); the observer's `db` field lands
-        // at `model.outputDirectory.dbDir/<modelName>.db`.  Lifecycle
-        // is bound to the model — when this fresh-per-Run model dies,
-        // the observer goes with it.  No explicit detach needed.
+        // Per-kind CSV reporting.  The `CSVReplicationReport` /
+        // `CSVExperimentReport` constructors *self-attach* to the model in
+        // their parent `CSVReport.init` block, so we don't follow up with
+        // `model.attachModelElementObserver(...)` — that would throw
+        // "already attached".  We also do NOT toggle
+        // `model.autoReplicationCSVReports` / `autoExperimentCSVReports`:
+        // the auto path in `Model.simulate()` instantiates a default
+        // `CSVReplicationReport(model)` whose file name is model-name-
+        // derived, which would race against our analysis-named report and
+        // emit a second default-named file.  Constructing explicitly with
+        // the analysis-derived stem and leaving the auto flags off gives
+        // a single, correctly-named file per kind.
+        if (outputConfig.enableReplicationCSV) {
+            ksl.observers.textfile.CSVReplicationReport(
+                model = model,
+                reportName = "${outputStem}_CSVReplicationReport",
+                directoryPath = model.outputDirectory.csvDir
+            )
+        }
+        if (outputConfig.enableExperimentCSV) {
+            ksl.observers.textfile.CSVExperimentReport(
+                model = model,
+                reportName = "${outputStem}_CSVExperimentReport",
+                directoryPath = model.outputDirectory.csvDir
+            )
+        }
+
+        // SQLite KSLDatabase observer.  Same outputStem story — explicit
+        // [KSLDatabase] build with our stem instead of the default factory
+        // that uses `model.simulationName`.  The observer constructor
+        // attaches itself to the model (via `attachModelElementObserver`
+        // inside its own init block); lifecycle is bound to the model —
+        // when this fresh-per-Run model dies, the observer goes with it.
+        // No explicit detach needed.
         if (outputConfig.enableKSLDatabase) {
-            ksl.utilities.io.dbutil.KSLDatabaseObserver.createSQLiteKSLDatabaseObserver(model)
+            val db = ksl.utilities.io.dbutil.KSLDatabase(
+                dbName = "$outputStem.db",
+                dbDirectory = model.outputDirectory.dbDir
+            )
+            ksl.utilities.io.dbutil.KSLDatabaseObserver(model = model, db = db)
         }
 
         return model
