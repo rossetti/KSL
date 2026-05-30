@@ -22,6 +22,7 @@ import ksl.app.config.ModelReference
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationProblemSpec
 import ksl.app.config.optimization.SolverSpec
+import ksl.app.editor.BundleLibraryController
 import ksl.examples.general.appsupport.LKInventoryBundle
 import ksl.examples.general.appsupport.MM1Bundle
 import ksl.app.swing.simopt.stepper.Step
@@ -219,7 +220,7 @@ class SimoptAppControllerTest {
         SimoptAppController("Test").use { c ->
             val result = c.loadBundleJar(Path.of("/does/not/exist.jar"))
             assertTrue(
-                result is SimoptAppController.LoadBundleResult.Failed,
+                result is BundleLibraryController.LoadBundleResult.Failed,
                 "Expected Failed for a nonexistent path; got $result"
             )
         }
@@ -235,10 +236,10 @@ class SimoptAppControllerTest {
         SimoptAppController("Test").use { c ->
             // No-op exercise: just confirm the enum has all three variants
             // by exhaustive-when compilation.
-            val variants: List<SimoptAppController.LoadBundleResult> = listOf(
-                SimoptAppController.LoadBundleResult.Loaded(listOf("a")),
-                SimoptAppController.LoadBundleResult.NoBundles,
-                SimoptAppController.LoadBundleResult.Failed("x")
+            val variants: List<BundleLibraryController.LoadBundleResult> = listOf(
+                BundleLibraryController.LoadBundleResult.Loaded(listOf("a")),
+                BundleLibraryController.LoadBundleResult.NoBundles,
+                BundleLibraryController.LoadBundleResult.Failed("x")
             )
             assertEquals(3, variants.size)
             assertNotNull(c)

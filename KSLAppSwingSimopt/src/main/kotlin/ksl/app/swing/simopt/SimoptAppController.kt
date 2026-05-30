@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
-import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
@@ -58,6 +57,7 @@ import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
 import ksl.app.orchestrator.OptimizationOrchestrator
+import ksl.app.editor.BundleLibraryController
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
@@ -334,15 +334,26 @@ class SimoptAppController(
 
     // ── Bundle library ─────────────────────────────────────────────────────
 
-    private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
+    /**
+     *  Substrate-owned bundle-library bookkeeping.  Composed
+     *  (E.5.8); this controller delegates [loadedBundles],
+     *  [bundleProvider], [loadBundleJar], and bundle-ID lookups to
+     *  this object.  The [onBundlesChanged] callback wires the
+     *  Simopt-specific [refreshModelDescriptor] fan-out so a
+     *  previously-unresolvable [ModelReference.ByBundleAndModelId]
+     *  re-resolves the moment its bundle arrives.
+     */
+    private val bundleLibrary = BundleLibraryController(
+        onBundlesChanged = ::refreshModelDescriptor
+    )
+
     /** Bundles available for model selection.  Auto-populated from the
      *  classpath at construction time; grown by [loadBundleJar]. */
-    val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
+    val loadedBundles: StateFlow<List<LoadedBundle>> = bundleLibrary.loadedBundles
 
-    private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
     /** `BundleModelProvider` over the current [loadedBundles].  `null`
      *  when no bundles are loaded. */
-    val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+    val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     private val myCurrentModelDescriptor = MutableStateFlow<ModelDescriptor?>(null)
     /**
@@ -556,23 +567,13 @@ class SimoptAppController(
         // Auto-discover classpath bundles so a packaged app shows
         // available models immediately.  Mirrors Experiment / Scenario
         // controllers.
-        val classpathBundles = BundleLoader.loadFromClasspath()
-        if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
+        bundleLibrary.discoverFromClasspath()
         // Seed validation so the Execute step sees a populated flow
         // even before the first user edit.
         refreshDocumentValidation()
     }
 
     // ── Bundle management ──────────────────────────────────────────────────
-
-    private fun updateBundles(bundles: List<LoadedBundle>) {
-        myLoadedBundles.value = bundles
-        myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
-        // Re-resolve the descriptor: a previously-unresolvable ref
-        // may now resolve because the bundle it points at just
-        // arrived in the loaded set.
-        refreshModelDescriptor()
-    }
 
     /**
      *  Resolve [modelTemplate]'s reference against the loaded bundles
@@ -587,7 +588,7 @@ class SimoptAppController(
     private fun refreshModelDescriptor() {
         val ref = myModelTemplate.value?.modelReference as? ModelReference.ByBundleAndModelId
         val descriptor: ModelDescriptor? = if (ref == null) null else {
-            val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
+            val bundle = bundleLibrary.findBundle(ref.bundleId)
             try {
                 bundle?.descriptorFor(ref.modelId)
             } catch (_: Throwable) {
@@ -606,42 +607,13 @@ class SimoptAppController(
     }
 
     /**
-     *  Outcome of [loadBundleJar].
-     */
-    sealed class LoadBundleResult {
-        /** At least one new bundle (with a new bundleId) was loaded. */
-        data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
-
-        /** The JAR loaded successfully but exposed no new bundles
-         *  (either zero `KSLModelBundle` SPI entries or every entry's
-         *  bundleId was already present in [loadedBundles]). */
-        object NoBundles : LoadBundleResult()
-
-        /** The loader threw — typically a malformed JAR or a class
-         *  loader failure.  [reason] carries the exception message. */
-        data class Failed(val reason: String) : LoadBundleResult()
-    }
-
-    /**
      *  Load every `KSLModelBundle` from the JAR at [jarPath] and
      *  append the discovered bundles to [loadedBundles].  Duplicates
      *  (bundleIds already present) are silently discarded.  Same
      *  shape as Experiment / Scenario controllers' loaders.
      */
-    fun loadBundleJar(jarPath: Path): LoadBundleResult {
-        val newBundles = try {
-            BundleLoader.loadJar(jarPath)
-        } catch (t: Throwable) {
-            return LoadBundleResult.Failed(t.message ?: t::class.simpleName ?: "load failed")
-        }
-        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
-        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
-        val (toAdd, duplicates) = newBundles.partition { it.bundle.bundleId !in existingIds }
-        duplicates.forEach { runCatching { it.close() } }
-        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
-        updateBundles(myLoadedBundles.value + toAdd)
-        return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
-    }
+    fun loadBundleJar(jarPath: Path): BundleLibraryController.LoadBundleResult =
+        bundleLibrary.loadJar(jarPath)
 
     // ── R1 lifecycle helpers ───────────────────────────────────────────────
 
@@ -742,7 +714,7 @@ class SimoptAppController(
 
     private fun buildTemplateFor(ref: ModelReference): ModelRunTemplate {
         val descriptor: ModelDescriptor? = (ref as? ModelReference.ByBundleAndModelId)?.let { byRef ->
-            val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == byRef.bundleId }
+            val bundle = bundleLibrary.findBundle(byRef.bundleId)
             try { bundle?.descriptorFor(byRef.modelId) } catch (_: Throwable) { null }
         }
         val runParameters = runParametersFor(descriptor, modelName = descriptorModelName(descriptor, ref))
@@ -1983,7 +1955,7 @@ class SimoptAppController(
         val config = currentConfiguration() ?: return
         if (config.problem == null || config.solver == null) return
 
-        val provider = myBundleProvider.value
+        val provider = bundleLibrary.bundleProvider.value
         val solver: Solver = try {
             OptimizationSolverFactory(provider).build(config)
         } catch (t: Throwable) {
@@ -2199,7 +2171,7 @@ class SimoptAppController(
             )
         } else {
             try {
-                OptimizationConfigurationValidator.validateForRun(config, myBundleProvider.value)
+                OptimizationConfigurationValidator.validateForRun(config, bundleLibrary.bundleProvider.value)
             } catch (t: Throwable) {
                 ValidationResult(
                     errors = listOf(
@@ -2300,6 +2272,11 @@ class SimoptAppController(
         currentRunHandle = null
         currentRunJob?.cancel()
         currentRunJob = null
+        // E.5.8: close loaded bundles via the substrate — Simopt
+        // previously skipped this step (Scenario + Experiment had
+        // it inline).  Picks up uniform bundle-classloader
+        // cleanup as a side-benefit of the substrate extraction.
+        bundleLibrary.close()
         edtScope.cancel("SimoptAppController closed")
     }
 

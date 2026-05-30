@@ -20,6 +20,7 @@ package ksl.app.swing.simopt
 
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ksl.app.editor.BundleLibraryController
 import ksl.app.swing.common.notification.Notifications
 import ksl.app.swing.common.runcontrol.ConsoleDrawer
 import ksl.app.swing.common.runcontrol.ConsoleLogPanel
@@ -327,17 +328,17 @@ class SimoptAppFrame(
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val path = chooser.selectedFile.toPath()
         when (val result = controller.loadBundleJar(path)) {
-            is SimoptAppController.LoadBundleResult.Loaded ->
+            is BundleLibraryController.LoadBundleResult.Loaded ->
                 notifications.info(
                     "Loaded ${result.newBundleIds.size} bundle(s) from ${path.fileName}: " +
                         result.newBundleIds.joinToString(", ")
                 )
-            SimoptAppController.LoadBundleResult.NoBundles ->
+            BundleLibraryController.LoadBundleResult.NoBundles ->
                 notifications.warn(
                     "No new bundles found in ${path.fileName}.  (Already loaded, or no " +
                         "KSLModelBundle SPI entries.)"
                 )
-            is SimoptAppController.LoadBundleResult.Failed ->
+            is BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error(
                     "Could not load ${path.fileName}: ${result.reason}"
                 )

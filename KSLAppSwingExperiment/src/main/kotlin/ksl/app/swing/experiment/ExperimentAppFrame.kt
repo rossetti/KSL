@@ -21,6 +21,7 @@ package ksl.app.swing.experiment
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import ksl.app.config.experiment.ExperimentConfigurationToml
+import ksl.app.editor.BundleLibraryController
 import ksl.app.session.RunEvent
 import ksl.app.session.RunResult
 import ksl.app.settings.WorkspaceLayout
@@ -760,17 +761,17 @@ class ExperimentAppFrame(
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
         val path: Path = chooser.selectedFile?.toPath() ?: return
         when (val outcome = controller.loadBundleJar(path)) {
-            is ExperimentAppController.LoadBundleResult.Loaded -> {
+            is BundleLibraryController.LoadBundleResult.Loaded -> {
                 val ids = outcome.newBundleIds.joinToString(", ")
                 notifications.info(
                     "Loaded ${outcome.newBundleIds.size} bundle(s): $ids"
                 )
             }
-            ExperimentAppController.LoadBundleResult.NoBundles ->
+            BundleLibraryController.LoadBundleResult.NoBundles ->
                 notifications.warn(
                     "$path declares no KSLModelBundle service (or all of its bundles are already loaded)."
                 )
-            is ExperimentAppController.LoadBundleResult.Failed ->
+            is BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }
     }

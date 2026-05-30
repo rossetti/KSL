@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
-import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.BundleRef
@@ -42,6 +41,7 @@ import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.config.analysisNameFromFileStem
+import ksl.app.editor.BundleLibraryController
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
@@ -182,44 +182,31 @@ class ScenarioAppController(
 
     // ── Bundle library ─────────────────────────────────────────────────────
 
-    private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
+    /**
+     *  Substrate-owned bundle-library bookkeeping.  Composed
+     *  (E.5.8); this controller delegates [loadedBundles],
+     *  [bundleProvider], [loadBundleJar], and bundle-ID lookups to
+     *  this object.  Scenario has no host-side fan-out on bundle
+     *  changes (the model picker queries [loadedBundles] lazily),
+     *  so [onBundlesChanged] is left as the default no-op.
+     */
+    private val bundleLibrary = BundleLibraryController()
+
     /** All bundles currently loaded into this controller (classpath + any
      *  JARs the user has loaded interactively).  Append-only in v1 — no
      *  unload because `LoadedBundle`s can share classloaders. */
-    val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
+    val loadedBundles: StateFlow<List<LoadedBundle>> = bundleLibrary.loadedBundles
 
-    private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
     /** Adapter exposing every loaded bundle as a single
      *  [BundleModelProvider].  `null` when [loadedBundles] is empty. */
-    val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+    val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     init {
         // Auto-discover bundles already on the JVM classpath so analysts
         // who launch a packaged scenario app immediately see the
         // available models in the picker.  JAR-loaded bundles join this
         // list later via [loadBundleJar].
-        val classpathBundles = BundleLoader.loadFromClasspath()
-        if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
-    }
-
-    private fun updateBundles(bundles: List<LoadedBundle>) {
-        myLoadedBundles.value = bundles
-        myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
-    }
-
-    /**
-     *  Outcome of [loadBundleJar].
-     *
-     *  - [Loaded] — one or more bundles were discovered and added.
-     *  - [NoBundles] — the JAR carried no `KSLModelBundle` service
-     *    registration.
-     *  - [Failed] — the load attempt threw; [Failed.reason] is suitable
-     *    for surfacing to the user.
-     */
-    sealed class LoadBundleResult {
-        data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
-        object NoBundles : LoadBundleResult()
-        data class Failed(val reason: String) : LoadBundleResult()
+        bundleLibrary.discoverFromClasspath()
     }
 
     /**
@@ -229,21 +216,8 @@ class ScenarioAppController(
      *  first registration wins, matching [BundleModelProvider]'s
      *  duplicate-handling).
      */
-    fun loadBundleJar(jarPath: Path): LoadBundleResult {
-        val newBundles = try {
-            BundleLoader.loadJar(jarPath)
-        } catch (t: Throwable) {
-            return LoadBundleResult.Failed(t.message ?: t::class.simpleName ?: "load failed")
-        }
-        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
-        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
-        val (toAdd, duplicates) = newBundles.partition { it.bundle.bundleId !in existingIds }
-        // Close duplicates immediately — they own a redundant classloader.
-        duplicates.forEach { runCatching { it.close() } }
-        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
-        updateBundles(myLoadedBundles.value + toAdd)
-        return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
-    }
+    fun loadBundleJar(jarPath: Path): BundleLibraryController.LoadBundleResult =
+        bundleLibrary.loadJar(jarPath)
 
     // ── Run state ──────────────────────────────────────────────────────────
 
@@ -319,7 +293,7 @@ class ScenarioAppController(
         val ref = spec.modelReference as? ModelReference.ByBundleAndModelId ?: return null
         val key = ref.bundleId to ref.modelId
         modelDefaultsCache[key]?.let { return it }
-        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId } ?: return null
+        val bundle = bundleLibrary.findBundle(ref.bundleId) ?: return null
         return try {
             val d = bundle.descriptorFor(ref.modelId).experimentRunDefaults
             modelDefaultsCache[key] = d
@@ -400,7 +374,7 @@ class ScenarioAppController(
             executionMode = myExecutionMode.value
         )
 
-        val newSession = KSLAppSession(provider = myBundleProvider.value)
+        val newSession = KSLAppSession(provider = bundleLibrary.bundleProvider.value)
         session?.close()
         session = newSession
 
@@ -542,7 +516,7 @@ class ScenarioAppController(
      *  the bundled form participates in this check).
      */
     fun unresolvedBundleReferences(): List<Pair<String, String>> {
-        val provider = myBundleProvider.value
+        val provider = bundleLibrary.bundleProvider.value
         return myScenarios.value.mapNotNull { spec ->
             val ref = spec.modelReference as? ModelReference.ByBundleAndModelId ?: return@mapNotNull null
             if (provider != null && provider.isModelProvided(ref.bundleId, ref.modelId)) null
@@ -864,7 +838,7 @@ class ScenarioAppController(
             .map { it.bundleId }
             .toSet()
         if (referenced.isEmpty()) return emptyList()
-        val loadedById = myLoadedBundles.value.associateBy { it.bundle.bundleId }
+        val loadedById = bundleLibrary.loadedBundles.value.associateBy { it.bundle.bundleId }
         return referenced.sorted().map { id ->
             val path = loadedById[id]?.sourceJar?.toString()
             BundleRef(
@@ -984,7 +958,7 @@ class ScenarioAppController(
         session?.close()
         session = null
         edtScope.cancel("ScenarioAppController closed")
-        myLoadedBundles.value.forEach { runCatching { it.close() } }
+        bundleLibrary.close()
         modelDefaultsCache.clear()
     }
 }

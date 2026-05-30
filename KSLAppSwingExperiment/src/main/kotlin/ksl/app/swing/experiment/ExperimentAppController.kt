@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
-import ksl.app.bundle.BundleLoader
 import ksl.app.bundle.BundleModelProvider
 import ksl.app.bundle.LoadedBundle
 import ksl.app.config.DatabasePolicy
@@ -46,6 +45,7 @@ import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.RunParameterOverridesSpec
+import ksl.app.editor.BundleLibraryController
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.experiment.regression.RegressionFitRecord
@@ -234,11 +234,22 @@ class ExperimentAppController(
 
     // ── Bundle library ─────────────────────────────────────────────────────
 
-    private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
-    val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
+    /**
+     *  Substrate-owned bundle-library bookkeeping.  Composed
+     *  (E.5.8); this controller delegates [loadedBundles],
+     *  [bundleProvider], [loadBundleJar], and bundle-ID lookups to
+     *  this object.  The [onBundlesChanged] callback wires the
+     *  Experiment-specific [refreshModelDescriptor] fan-out so a
+     *  previously-unresolvable [ModelReference.ByBundleAndModelId]
+     *  re-resolves the moment its bundle arrives.
+     */
+    private val bundleLibrary = BundleLibraryController(
+        onBundlesChanged = ::refreshModelDescriptor
+    )
 
-    private val myBundleProvider = MutableStateFlow<BundleModelProvider?>(null)
-    val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+    val loadedBundles: StateFlow<List<LoadedBundle>> = bundleLibrary.loadedBundles
+
+    val bundleProvider: StateFlow<BundleModelProvider?> = bundleLibrary.bundleProvider
 
     private val myCurrentModelDescriptor = MutableStateFlow<ModelDescriptor?>(null)
     /**
@@ -259,17 +270,7 @@ class ExperimentAppController(
     init {
         // Auto-discover classpath bundles so a packaged app shows
         // available models immediately.  Mirrors Scenario controller.
-        val classpathBundles = BundleLoader.loadFromClasspath()
-        if (classpathBundles.isNotEmpty()) updateBundles(classpathBundles)
-    }
-
-    private fun updateBundles(bundles: List<LoadedBundle>) {
-        myLoadedBundles.value = bundles
-        myBundleProvider.value = if (bundles.isEmpty()) null else BundleModelProvider(bundles)
-        // Re-resolve the descriptor — a previously-unresolvable ref
-        // may now resolve because the bundle it points at just
-        // arrived in the loaded set.
-        refreshModelDescriptor()
+        bundleLibrary.discoverFromClasspath()
     }
 
     /**
@@ -290,7 +291,7 @@ class ExperimentAppController(
             if (myCurrentModelDescriptor.value != null) myCurrentModelDescriptor.value = null
             return
         }
-        val bundle = myLoadedBundles.value.firstOrNull { it.bundle.bundleId == ref.bundleId }
+        val bundle = bundleLibrary.findBundle(ref.bundleId)
         val descriptor = try {
             bundle?.descriptorFor(ref.modelId)
         } catch (_: Throwable) {
@@ -301,31 +302,13 @@ class ExperimentAppController(
         }
     }
 
-    sealed class LoadBundleResult {
-        data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
-        object NoBundles : LoadBundleResult()
-        data class Failed(val reason: String) : LoadBundleResult()
-    }
-
     /**
      *  Load every `KSLModelBundle` from the JAR at [jarPath] and append
      *  the discovered bundles to [loadedBundles].  Same shape as
      *  Scenario controller's loader.
      */
-    fun loadBundleJar(jarPath: Path): LoadBundleResult {
-        val newBundles = try {
-            BundleLoader.loadJar(jarPath)
-        } catch (t: Throwable) {
-            return LoadBundleResult.Failed(t.message ?: t::class.simpleName ?: "load failed")
-        }
-        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
-        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
-        val (toAdd, duplicates) = newBundles.partition { it.bundle.bundleId !in existingIds }
-        duplicates.forEach { runCatching { it.close() } }
-        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
-        updateBundles(myLoadedBundles.value + toAdd)
-        return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
-    }
+    fun loadBundleJar(jarPath: Path): BundleLibraryController.LoadBundleResult =
+        bundleLibrary.loadJar(jarPath)
 
     // ── Run state ──────────────────────────────────────────────────────────
 
@@ -787,7 +770,7 @@ class ExperimentAppController(
         val ref = myModelReference.value ?: return false
         val factors = myFactors.value
         if (factors.isEmpty()) return false
-        val provider = myBundleProvider.value ?: return false
+        val provider = bundleLibrary.bundleProvider.value ?: return false
 
         // R1: clear runtime artefacts before kickoff.  The Reports +
         // Regression tabs flip to their empty states through their
@@ -1080,7 +1063,7 @@ class ExperimentAppController(
         currentHandle = null
         session?.close()
         session = null
-        myLoadedBundles.value.forEach { runCatching { it.close() } }
+        bundleLibrary.close()
         edtScope.cancel()
     }
 }
