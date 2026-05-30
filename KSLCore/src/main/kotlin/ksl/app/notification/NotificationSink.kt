@@ -66,6 +66,32 @@ interface NotificationSink {
     fun error(message: String): Unit =
         emit(NotificationSpec(message, NotificationSeverity.ERROR))
 
+    /**
+     *  Accumulates emitted specs into a list for assertion in tests
+     *  and headless host fixtures.  Thread-safe — the underlying list
+     *  is synchronised so substrate code that emits from background
+     *  dispatchers can target this sink without coordinating its own
+     *  marshalling.
+     *
+     *  Top-level nested (not inside the companion object) so the
+     *  natural access path is `NotificationSink.Collecting()` rather
+     *  than `NotificationSink.Companion.Collecting()`.
+     */
+    class Collecting : NotificationSink {
+        private val lock = Any()
+        private val mySpecs: MutableList<NotificationSpec> = mutableListOf()
+
+        override fun emit(spec: NotificationSpec) {
+            synchronized(lock) { mySpecs.add(spec) }
+        }
+
+        /** Snapshot of the specs emitted so far. */
+        fun specs(): List<NotificationSpec> = synchronized(lock) { mySpecs.toList() }
+
+        /** Reset the collected history. */
+        fun clear(): Unit = synchronized(lock) { mySpecs.clear() }
+    }
+
     companion object {
 
         /**
@@ -76,25 +102,6 @@ interface NotificationSink {
          */
         val NOOP: NotificationSink = object : NotificationSink {
             override fun emit(spec: NotificationSpec) { /* no-op */ }
-        }
-
-        /**
-         *  Accumulates emitted specs into a list for assertion in
-         *  tests.  Thread-safe — the underlying list is synchronised.
-         */
-        class Collecting : NotificationSink {
-            private val lock = Any()
-            private val mySpecs: MutableList<NotificationSpec> = mutableListOf()
-
-            override fun emit(spec: NotificationSpec) {
-                synchronized(lock) { mySpecs.add(spec) }
-            }
-
-            /** Snapshot of the specs emitted so far. */
-            fun specs(): List<NotificationSpec> = synchronized(lock) { mySpecs.toList() }
-
-            /** Reset the collected history. */
-            fun clear(): Unit = synchronized(lock) { mySpecs.clear() }
         }
     }
 }
