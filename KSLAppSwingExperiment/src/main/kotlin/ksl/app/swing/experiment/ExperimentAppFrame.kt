@@ -248,13 +248,7 @@ class ExperimentAppFrame(
                 )
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
-            onMessage = { msg, sev ->
-                when (sev) {
-                    ComparisonAnalyzerFrame.Severity.INFO -> notifications.info(msg)
-                    ComparisonAnalyzerFrame.Severity.WARNING -> notifications.warn(msg)
-                    ComparisonAnalyzerFrame.Severity.ERROR -> notifications.error(msg)
-                }
-            }
+            notifier = notifications
         )
 
         val tabs = JTabbedPane().apply {

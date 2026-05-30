@@ -21,6 +21,7 @@ package ksl.app.swing.common.comparison
 import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -65,8 +66,7 @@ import javax.swing.table.AbstractTableModel
 class ComparisonAnalyzerTabPanel(
     private val defaultOutputDirProvider: () -> Path? = { null },
     private val defaultFormatsProvider: () -> Set<ReportFormat> = { setOf(ReportFormat.HTML) },
-    private val onMessage: (String, ComparisonAnalyzerFrame.Severity) -> Unit =
-        { msg, sev -> System.err.println("[$sev] $msg") }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JPanel(CardLayout()) {
 
     private val cards = CardLayout()
@@ -371,7 +371,7 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                onMessage = onMessage
+                notifier = notifier
             )
         }
 
@@ -381,7 +381,7 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                onMessage = onMessage
+                notifier = notifier
             )
         }
 
@@ -391,7 +391,7 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                onMessage = onMessage
+                notifier = notifier
             )
         }
     }

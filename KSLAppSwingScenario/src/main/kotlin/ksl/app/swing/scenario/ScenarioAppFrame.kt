@@ -235,16 +235,7 @@ class ScenarioAppFrame(
                 )
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
-            onMessage = { msg, sev ->
-                when (sev) {
-                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.INFO ->
-                        notifications.info(msg)
-                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.WARNING ->
-                        notifications.warn(msg)
-                    ksl.app.swing.common.comparison.ComparisonAnalyzerFrame.Severity.ERROR ->
-                        notifications.error(msg)
-                }
-            }
+            notifier = notifications
         )
         val tabs = javax.swing.JTabbedPane().apply {
             addTab("Scenarios", scenariosTab)

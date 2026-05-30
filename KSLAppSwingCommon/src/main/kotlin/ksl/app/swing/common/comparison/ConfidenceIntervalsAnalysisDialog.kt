@@ -18,6 +18,7 @@
 
 package ksl.app.swing.common.comparison
 
+import ksl.app.notification.NotificationSink
 import ksl.app.results.comparison.ComparisonReportRenderer
 import ksl.app.swing.common.io.openHtmlInBrowser
 
@@ -78,7 +79,7 @@ object ConfidenceIntervalsAnalysisDialog {
         model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        onMessage: (String, ComparisonAnalyzerFrame.Severity) -> Unit
+        notifier: NotificationSink
     ) {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
@@ -86,7 +87,7 @@ object ConfidenceIntervalsAnalysisDialog {
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)
             ?: return
-        Dialog(owner, model, defaultOutputDir, defaultFormats, onMessage).isVisible = true
+        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier).isVisible = true
     }
 
     private class Dialog(
@@ -94,7 +95,7 @@ object ConfidenceIntervalsAnalysisDialog {
         private val model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        private val onMessage: (String, ComparisonAnalyzerFrame.Severity) -> Unit
+        private val notifier: NotificationSink
     ) : JDialog(owner, "Confidence Intervals — Configure", java.awt.Dialog.ModalityType.APPLICATION_MODAL) {
 
         // ── State ────────────────────────────────────────────────────────
@@ -367,14 +368,11 @@ object ConfidenceIntervalsAnalysisDialog {
             val text = field.text.trim()
             val value = text.toDoubleOrNull()
             if (value == null) {
-                onMessage("$label must be a number; got \"$text\".", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("$label must be a number; got \"$text\".")
                 return null
             }
             if (value <= 0.0 || value >= 1.0) {
-                onMessage(
-                    "$label must lie strictly between 0 and 1; got $value.",
-                    ComparisonAnalyzerFrame.Severity.WARNING
-                )
+                notifier.warn("$label must lie strictly between 0 and 1; got $value.")
                 return null
             }
             return value
@@ -387,12 +385,12 @@ object ConfidenceIntervalsAnalysisDialog {
             }
             val formats = formatBoxes.filterValues { it.isSelected }.keys
             if (formats.isEmpty()) {
-                onMessage("Pick at least one report format.", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Pick at least one report format.")
                 return
             }
             val pathText = outputDirField.text.trim()
             if (pathText.isEmpty()) {
-                onMessage("Pick an output directory.", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Pick an output directory.")
                 return
             }
             val level = parseConfidence(levelField, "CI level") ?: return
@@ -404,9 +402,8 @@ object ConfidenceIntervalsAnalysisDialog {
             } else {
                 val parsed = refPointText.toDoubleOrNull()
                 if (parsed == null) {
-                    onMessage(
-                        "Reference point must be a number or empty; got \"$refPointText\".",
-                        ComparisonAnalyzerFrame.Severity.WARNING
+                    notifier.warn(
+                        "Reference point must be a number or empty; got \"$refPointText\"."
                     )
                     return
                 }
@@ -431,29 +428,24 @@ object ConfidenceIntervalsAnalysisDialog {
                     yAxisLabel = yAxisField.text
                 )
             } catch (t: Throwable) {
-                onMessage(
-                    "Confidence Intervals render failed: ${t.message ?: t::class.simpleName}",
-                    ComparisonAnalyzerFrame.Severity.ERROR
-                )
+                notifier.error("Confidence Intervals render failed: ${t.message ?: t::class.simpleName}")
                 return
             }
             outcome.errors.forEach {
-                onMessage("Confidence Intervals: $it", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Confidence Intervals: $it")
             }
             if (outcome.written.isNotEmpty()) {
                 val files = outcome.written.joinToString(", ") { it.fileName.toString() }
-                onMessage(
-                    "Wrote ${outcome.written.size} Confidence Intervals file(s) to $outputDir: $files",
-                    ComparisonAnalyzerFrame.Severity.INFO
+                notifier.info(
+                    "Wrote ${outcome.written.size} Confidence Intervals file(s) to $outputDir: $files"
                 )
             }
             outcome.htmlPath?.let { html ->
                 try {
                     openHtmlInBrowser(html)
                 } catch (t: Throwable) {
-                    onMessage(
-                        "Confidence Intervals: Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}",
-                        ComparisonAnalyzerFrame.Severity.WARNING
+                    notifier.warn(
+                        "Confidence Intervals: Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}"
                     )
                 }
             }

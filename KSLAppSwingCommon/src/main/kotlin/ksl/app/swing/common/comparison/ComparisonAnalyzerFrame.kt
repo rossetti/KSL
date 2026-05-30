@@ -21,6 +21,7 @@ package ksl.app.swing.common.comparison
 import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
+import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -75,11 +76,10 @@ import javax.swing.table.AbstractTableModel
  *  @param defaultFormats      formats checked by default in each
  *                             per-analysis dialog's output strip.
  *                             Defaults to HTML only.
- *  @param onMessage           optional callback for user-facing
- *                             notifications (success / error /
- *                             warning).  Default writes to stderr —
- *                             hosts hook this to their own
- *                             notifications surface.
+ *  @param notifier            sink for user-facing notifications
+ *                             (info / warn / error).  Defaults to
+ *                             [NotificationSink.NOOP] — hosts hook
+ *                             their own notifications surface.
  */
 @Deprecated(
     message = "Use ComparisonAnalyzerTabPanel — hosts now embed this UI as a tab " +
@@ -90,20 +90,8 @@ class ComparisonAnalyzerFrame(
     sources: List<ComparisonDataSourceIfc>,
     private val defaultOutputDir: Path? = null,
     private val defaultFormats: Set<ReportFormat> = setOf(ReportFormat.HTML),
-    private val onMessage: (String, Severity) -> Unit = { msg, sev -> System.err.println("[$sev] $msg") }
+    private val notifier: NotificationSink = NotificationSink.NOOP
 ) : JFrame("Comparison Analyzer") {
-
-    /**
-     *  Severity flavors for the analyzer's notification callback.
-     *  Referenced verbatim by [ComparisonAnalyzerTabPanel] and by the
-     *  per-analysis dialogs; lives here for now because the analyzer
-     *  family was originally frame-centric.  When the deprecated
-     *  frame is eventually removed, lift this enum to top-level (e.g.
-     *  `ComparisonSeverity`) in the same package — every reference is
-     *  inside this package and an IDE rename handles the migration in
-     *  one pass.  Until then the nested form is the canonical type.
-     */
-    enum class Severity { INFO, WARNING, ERROR }
 
     private val model: ComparisonSelectionModel = ComparisonSelectionModel(sources)
 
@@ -362,7 +350,7 @@ class ComparisonAnalyzerFrame(
             model = model,
             defaultOutputDir = defaultOutputDir,
             defaultFormats = defaultFormats,
-            onMessage = onMessage
+            notifier = notifier
         )
     }
 
@@ -372,7 +360,7 @@ class ComparisonAnalyzerFrame(
             model = model,
             defaultOutputDir = defaultOutputDir,
             defaultFormats = defaultFormats,
-            onMessage = onMessage
+            notifier = notifier
         )
     }
 
@@ -382,7 +370,7 @@ class ComparisonAnalyzerFrame(
             model = model,
             defaultOutputDir = defaultOutputDir,
             defaultFormats = defaultFormats,
-            onMessage = onMessage
+            notifier = notifier
         )
     }
 }

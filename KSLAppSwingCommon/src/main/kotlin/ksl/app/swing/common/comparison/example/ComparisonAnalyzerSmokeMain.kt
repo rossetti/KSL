@@ -18,9 +18,11 @@
 
 package ksl.app.swing.common.comparison.example
 
-import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.app.comparison.InMemoryComparisonSource
 import ksl.app.comparison.ResponseCategory
+import ksl.app.notification.NotificationSink
+import ksl.app.notification.NotificationSpec
+import ksl.app.swing.common.comparison.ComparisonAnalyzerFrame
 import ksl.utilities.io.KSL
 import java.nio.file.Files
 import javax.swing.SwingUtilities
@@ -54,13 +56,18 @@ fun main() {
     val outputDir = KSL.outDir.resolve("comparison-analyzer-smoke")
     Files.createDirectories(outputDir)
 
+    // Headless console-style sink so the smoke main streams analyzer
+    // events to stdout without standing up a Swing notifications widget.
+    val notifier = object : NotificationSink {
+        override fun emit(spec: NotificationSpec) {
+            println("[${spec.severity}] ${spec.message}")
+        }
+    }
     SwingUtilities.invokeLater {
         val frame = ComparisonAnalyzerFrame(
             sources = listOf(source),
             defaultOutputDir = outputDir,
-            onMessage = { msg, sev ->
-                println("[$sev] $msg")
-            }
+            notifier = notifier
         )
         frame.isVisible = true
     }

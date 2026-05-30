@@ -18,6 +18,7 @@
 
 package ksl.app.swing.common.comparison
 
+import ksl.app.notification.NotificationSink
 import ksl.app.results.comparison.ComparisonReportRenderer
 import ksl.app.swing.common.io.openHtmlInBrowser
 
@@ -77,16 +78,16 @@ object BoxPlotAnalysisDialog {
      *  [model].  The dialog handles its own lifecycle and returns
      *  when the user closes it.
      *
-     *  @param onMessage  callback for user-facing notifications;
+     *  @param notifier  sink for user-facing notifications;
      *    typically wired through to the host frame's
-     *    `ComparisonAnalyzerFrame.Severity` channel.
+     *    [NotificationSink].
      */
     fun showDialog(
         parent: Component,
         model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        onMessage: (String, ComparisonAnalyzerFrame.Severity) -> Unit
+        notifier: NotificationSink
     ) {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
@@ -95,7 +96,7 @@ object BoxPlotAnalysisDialog {
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)
             ?: return
-        Dialog(owner, model, defaultOutputDir, defaultFormats, onMessage).run {
+        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier).run {
             isVisible = true
             // After dispose() returns control here, the dialog is
             // already gone — nothing else to do.
@@ -107,7 +108,7 @@ object BoxPlotAnalysisDialog {
         private val model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        private val onMessage: (String, ComparisonAnalyzerFrame.Severity) -> Unit
+        private val notifier: NotificationSink
     ) : JDialog(owner, "Box Plot — Configure", java.awt.Dialog.ModalityType.APPLICATION_MODAL) {
 
         // ── State ────────────────────────────────────────────────────────
@@ -358,12 +359,12 @@ object BoxPlotAnalysisDialog {
             }
             val formats = formatBoxes.filterValues { it.isSelected }.keys
             if (formats.isEmpty()) {
-                onMessage("Pick at least one report format.", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Pick at least one report format.")
                 return
             }
             val pathText = outputDirField.text.trim()
             if (pathText.isEmpty()) {
-                onMessage("Pick an output directory.", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Pick an output directory.")
                 return
             }
             val outputDir = Paths.get(pathText)
@@ -381,29 +382,24 @@ object BoxPlotAnalysisDialog {
                     yAxisLabel = yAxisField.text
                 )
             } catch (t: Throwable) {
-                onMessage(
-                    "Box Plot render failed: ${t.message ?: t::class.simpleName}",
-                    ComparisonAnalyzerFrame.Severity.ERROR
-                )
+                notifier.error("Box Plot render failed: ${t.message ?: t::class.simpleName}")
                 return
             }
             outcome.errors.forEach {
-                onMessage("Box Plot: $it", ComparisonAnalyzerFrame.Severity.WARNING)
+                notifier.warn("Box Plot: $it")
             }
             if (outcome.written.isNotEmpty()) {
                 val files = outcome.written.joinToString(", ") { it.fileName.toString() }
-                onMessage(
-                    "Wrote ${outcome.written.size} Box Plot file(s) to $outputDir: $files",
-                    ComparisonAnalyzerFrame.Severity.INFO
+                notifier.info(
+                    "Wrote ${outcome.written.size} Box Plot file(s) to $outputDir: $files"
                 )
             }
             outcome.htmlPath?.let { html ->
                 try {
                     openHtmlInBrowser(html)
                 } catch (t: Throwable) {
-                    onMessage(
-                        "Box Plot: Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}",
-                        ComparisonAnalyzerFrame.Severity.WARNING
+                    notifier.warn(
+                        "Box Plot: Browser open: ${t.message ?: t::class.simpleName ?: "unknown error"}"
                     )
                 }
             }
