@@ -57,6 +57,7 @@ import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
 import ksl.app.orchestrator.OptimizationOrchestrator
+import ksl.app.editor.DocumentLifecycleController
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -374,15 +375,27 @@ class SimoptAppController(
 
     // ── Document lifecycle ─────────────────────────────────────────────────
 
-    private val myCurrentFile = MutableStateFlow<Path?>(null)
+    /**
+     *  Substrate-owned file + dirty bookkeeping.  Composed (E.5.4);
+     *  this controller delegates [currentFile], [isDirty],
+     *  [markSaved], and the file/dirty mutations inside
+     *  [newDocument] / [loadConfiguration] (plus the shared first
+     *  line of [markDirtyStructural] and [markDirtyPreference]) to
+     *  this object.  The Simopt-specific [editedSinceLastRun]
+     *  cross-flow, the structural-vs-preference fan-out (last-result
+     *  clearing, validation refreshers, model-aware-stale flag), and
+     *  the [markSaved] analysis-name-derivation block stay on the
+     *  controller.
+     */
+    private val documentLifecycle = DocumentLifecycleController()
+
     /** Absolute path of the currently-loaded TOML file, or `null`
      *  for an unsaved document. */
-    val currentFile: StateFlow<Path?> = myCurrentFile.asStateFlow()
+    val currentFile: StateFlow<Path?> = documentLifecycle.currentFile
 
-    private val myIsDirty = MutableStateFlow(false)
     /** `true` when in-memory state differs from the on-disk file
      *  (or when there is no file yet and the document is non-empty). */
-    val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+    val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
     private val myEditedSinceLastRun = MutableStateFlow(false)
     /** `true` when the document has been edited since the last
@@ -625,7 +638,7 @@ class SimoptAppController(
      *  structural mutator.  Also drops [lastResult] since the
      *  document no longer matches what produced it. */
     private fun markDirtyStructural() {
-        if (!myIsDirty.value) myIsDirty.value = true
+        documentLifecycle.markDirty()
         if (!myEditedSinceLastRun.value) myEditedSinceLastRun.value = true
         if (myLastResult.value != null) myLastResult.value = null
         refreshStepCompletion()
@@ -636,7 +649,7 @@ class SimoptAppController(
     /** Mark the document dirty only — used for preferences (output,
      *  evaluation, tracking) that don't invalidate a prior run. */
     private fun markDirtyPreference() {
-        if (!myIsDirty.value) myIsDirty.value = true
+        documentLifecycle.markDirty()
         refreshDocumentValidation()
         if (!myModelAwareStale.value) myModelAwareStale.value = true
     }
@@ -1707,8 +1720,7 @@ class SimoptAppController(
         mySolverSpec.value = null
         myEvaluationSpec.value = EvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         myEditedSinceLastRun.value = false
         myLastResult.value = null
         myLatestIteration.value = null
@@ -1744,8 +1756,7 @@ class SimoptAppController(
             return LoadResult.Failed("Could not parse TOML: ${e.message}")
         }
         installLoaded(config)
-        myCurrentFile.value = path
-        myIsDirty.value = false
+        documentLifecycle.markSaved(path)
         myEditedSinceLastRun.value = false
         myLastResult.value = null
         myLatestIteration.value = null
@@ -1906,8 +1917,7 @@ class SimoptAppController(
      *  output's [OptimizationOutputConfig.analysisName] from the
      *  file stem when still at the default "Untitled". */
     fun markSaved(path: Path) {
-        myCurrentFile.value = path
-        myIsDirty.value = false
+        documentLifecycle.markSaved(path)
         if (myOutput.value.analysisName == "Untitled") {
             val stem = path.fileName.toString().substringBeforeLast('.')
             if (stem.isNotBlank()) {

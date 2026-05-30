@@ -45,6 +45,7 @@ import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.RunParameterOverridesSpec
+import ksl.app.editor.DocumentLifecycleController
 import ksl.app.experiment.regression.RegressionFitRecord
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.app.config.experiment.FactorSpec
@@ -188,11 +189,20 @@ class ExperimentAppController(
 
     // ── File state ─────────────────────────────────────────────────────────
 
-    private val myCurrentFile = MutableStateFlow<Path?>(null)
-    val currentFile: StateFlow<Path?> = myCurrentFile.asStateFlow()
+    /**
+     *  Substrate-owned file + dirty bookkeeping.  Composed (E.5.4);
+     *  this controller delegates [currentFile], [isDirty],
+     *  [markSaved], and the file/dirty mutations inside
+     *  [clearFactors] / [resetConfiguration] / [loadConfiguration]
+     *  to this object.  The Experiment-specific [editedSinceLastSim]
+     *  cross-flow and the [markSaved] analysis-name-derivation block
+     *  stay on the controller.
+     */
+    private val documentLifecycle = DocumentLifecycleController()
 
-    private val myIsDirty = MutableStateFlow(false)
-    val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+    val currentFile: StateFlow<Path?> = documentLifecycle.currentFile
+
+    val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
     private val myEditedSinceLastSim = MutableStateFlow(false)
     /** `true` when in-memory state has been edited since the last
@@ -201,7 +211,7 @@ class ExperimentAppController(
     val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
 
     private fun markDirty() {
-        if (!myIsDirty.value) myIsDirty.value = true
+        documentLifecycle.markDirty()
         if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
     }
 
@@ -507,11 +517,10 @@ class ExperimentAppController(
      */
     fun clearFactors(): Path? {
         if (myFactors.value.isEmpty()) return null
-        val previousFile = myCurrentFile.value
+        val previousFile = currentFile.value
         myFactors.value = emptyList()
         mySelectedFactorIndex.value = -1
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         myEditedSinceLastSim.value = false
         dropRuntimeArtefacts()
         if (myOutputConfig.value.analysisName != "Untitled") {
@@ -640,7 +649,7 @@ class ExperimentAppController(
         myRunParameterOverrides.value = config.runParameterOverrides
         myOutputConfig.value = config.outputConfig.copy(outputDirectory = null)
         mySelectedFactorIndex.value = if (config.factors.isEmpty()) -1 else 0
-        myIsDirty.value = false
+        documentLifecycle.clearDirty()
         refreshModelDescriptor()
         clearRunState()
         return LoadResult.Loaded()
@@ -659,8 +668,7 @@ class ExperimentAppController(
         myRunParameterOverrides.value = RunParameterOverridesSpec()
         myOutputConfig.value = OutputConfig(enableKSLDatabase = true)
         mySelectedFactorIndex.value = -1
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         refreshModelDescriptor()
         clearRunState()
     }
@@ -737,8 +745,7 @@ class ExperimentAppController(
      *  Mirrors Scenario's `markSaved` auto-fill behaviour.
      */
     fun markSaved(path: Path) {
-        myCurrentFile.value = path
-        myIsDirty.value = false
+        documentLifecycle.markSaved(path)
         if (myOutputConfig.value.analysisName == "Untitled") {
             val stem = path.fileName.toString().substringBeforeLast('.')
             if (stem.isNotBlank()) {
