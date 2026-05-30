@@ -37,6 +37,7 @@ import ksl.app.bundle.LoadedBundle
 import ksl.app.config.ModelReference
 import ksl.app.config.ModelRunTemplate
 import ksl.app.config.RVParameterOverride
+import ksl.app.config.analysisNameFromFileStem
 import ksl.app.config.optimization.AlgorithmKind
 import ksl.app.config.optimization.CESamplerSpec
 import ksl.app.config.optimization.CoolingScheduleSpec
@@ -1926,13 +1927,12 @@ class SimoptAppController(
      *  file stem when still at the default "Untitled". */
     fun markSaved(path: Path) {
         documentLifecycle.markSaved(path)
-        if (myOutput.value.analysisName == "Untitled") {
-            val stem = path.fileName.toString().substringBeforeLast('.')
-            if (stem.isNotBlank()) {
-                myOutput.value = myOutput.value.copy(
-                    analysisName = sanitizeAnalysisName(stem)
-                )
-            }
+        analysisNameFromFileStem(
+            path = path,
+            currentName = myOutput.value.analysisName,
+            sanitizer = ::sanitizeAnalysisName
+        )?.let { newName ->
+            myOutput.value = myOutput.value.copy(analysisName = newName)
         }
     }
 

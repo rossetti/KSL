@@ -41,6 +41,7 @@ import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.config.analysisNameFromFileStem
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
@@ -970,13 +971,11 @@ class ScenarioAppController(
      */
     fun markSaved(path: Path) {
         documentLifecycle.markSaved(path)
-        if (myOutputConfig.value.analysisName == "Untitled") {
-            val stem = path.fileName.toString().substringBeforeLast('.')
-            if (stem.isNotBlank()) {
+        analysisNameFromFileStem(path, myOutputConfig.value.analysisName)
+            ?.let { newName ->
                 myOutputConfig.value =
-                    myOutputConfig.value.copy(analysisName = stem)
+                    myOutputConfig.value.copy(analysisName = newName)
             }
-        }
     }
 
     override fun close() {

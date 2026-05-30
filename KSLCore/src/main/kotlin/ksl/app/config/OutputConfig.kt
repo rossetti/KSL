@@ -20,6 +20,7 @@ package ksl.app.config
 
 import kotlinx.serialization.Serializable
 import net.peanuuutz.tomlkt.TomlComment
+import java.nio.file.Path
 
 /**
  * Per-run output choices: which side-effects the framework wires before the
@@ -219,4 +220,62 @@ fun sanitizeAnalysisName(raw: String): String {
         if (c.isLetterOrDigit() || c == '_' || c == '-') c else '_'
     }.joinToString("").take(64)
     return cleaned.ifEmpty { "Untitled" }
+}
+
+/**
+ *  Once-at-default auto-fill helper for `markSaved` paths in
+ *  configuration-shaped apps: derive a fresh analysis name from
+ *  a just-saved file's stem, but only when the current
+ *  `analysisName` is still at its default sentinel.
+ *
+ *  Pre-decomposition, Scenario / Experiment / Simopt each carried a
+ *  near-identical 6-line block inside `markSaved`:
+ *
+ *      if (myOutputConfig.value.analysisName == "Untitled") {
+ *          val stem = path.fileName.toString().substringBeforeLast('.')
+ *          if (stem.isNotBlank()) {
+ *              myOutputConfig.value =
+ *                  myOutputConfig.value.copy(analysisName = stem)
+ *          }
+ *      }
+ *
+ *  Simopt additionally piped the stem through
+ *  [sanitizeAnalysisName].  This helper captures the shared shape
+ *  so each host's `markSaved` collapses to a single call.  Returns
+ *  the new name to apply, or `null` when no change is warranted
+ *  — caller is responsible for the `copy(analysisName = …)` mutation.
+ *
+ *  Semantics:
+ *  - Returns `null` when [currentName] is not [sentinel].  Once the
+ *    user has set a non-default name, save-as to a different file
+ *    must NOT silently rename their analysis.
+ *  - Returns `null` when the file's stem (the name without the
+ *    final `.ext`) is blank — happens for hidden files like
+ *    `.config` or paths whose final segment has no characters
+ *    before the dot.
+ *  - Otherwise returns [sanitizer] applied to the stem.  The
+ *    default sanitizer is the identity function, so Scenario /
+ *    Experiment get the raw stem; Simopt passes
+ *    [sanitizeAnalysisName] to coerce the stem into the same shape
+ *    used elsewhere in the Simopt pipeline.
+ *
+ *  @param path the file the document was just persisted to —
+ *  only `path.fileName` is read; the parent path is ignored
+ *  @param currentName the document's current `analysisName`
+ *  @param sentinel the "still at default" marker; `"Untitled"` by default
+ *  @param sanitizer applied to the file stem before returning;
+ *  identity by default
+ *  @return the new name to assign, or `null` to leave the current
+ *  name alone
+ */
+fun analysisNameFromFileStem(
+    path: Path,
+    currentName: String,
+    sentinel: String = "Untitled",
+    sanitizer: (String) -> String = { it }
+): String? {
+    if (currentName != sentinel) return null
+    val stem = path.fileName.toString().substringBeforeLast('.')
+    if (stem.isBlank()) return null
+    return sanitizer(stem)
 }

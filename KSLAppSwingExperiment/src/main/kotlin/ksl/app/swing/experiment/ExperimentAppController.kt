@@ -40,6 +40,7 @@ import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
+import ksl.app.config.analysisNameFromFileStem
 import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
@@ -761,12 +762,10 @@ class ExperimentAppController(
      */
     fun markSaved(path: Path) {
         documentLifecycle.markSaved(path)
-        if (myOutputConfig.value.analysisName == "Untitled") {
-            val stem = path.fileName.toString().substringBeforeLast('.')
-            if (stem.isNotBlank()) {
-                myOutputConfig.value = myOutputConfig.value.copy(analysisName = stem)
+        analysisNameFromFileStem(path, myOutputConfig.value.analysisName)
+            ?.let { newName ->
+                myOutputConfig.value = myOutputConfig.value.copy(analysisName = newName)
             }
-        }
     }
 
     // ── Submission ─────────────────────────────────────────────────────────
