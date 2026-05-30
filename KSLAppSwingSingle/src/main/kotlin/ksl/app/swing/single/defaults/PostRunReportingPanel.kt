@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.session.RunResult
+import ksl.app.single.results.SingleAppPaths
 import ksl.app.single.results.StandardReportFormat
 import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
@@ -616,7 +617,7 @@ class PostRunReportingPanel(
      *  analysis-name-derived (see [SingleAppController.appWorkspace]),
      *  so a nested layer would just repeat the name. */
     private fun analysisReportsDir(): Path {
-        return controller.appWorkspace.resolve("reports")
+        return SingleAppPaths.reportsDir(controller.appWorkspace)
     }
 
     private fun ensureReportsDir(): Path? = try {

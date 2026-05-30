@@ -39,6 +39,7 @@ import ksl.app.swing.common.editor.ParameterPanel
 import ksl.app.swing.common.editor.RVOverridesPanel
 import ksl.app.swing.single.defaults.PostRunReportingPanel
 import ksl.app.swing.single.defaults.RunControlTabPanel
+import ksl.app.single.results.SingleAppPaths
 import ksl.app.single.results.StandardReportFormat
 import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
@@ -1099,7 +1100,7 @@ class SingleAppFrame(
      *  and Post-Run-Reporting-tab saves land directly in this folder.
      */
     private fun ensureAnalysisReportsDir(): java.nio.file.Path? = try {
-        val dir = controller.appWorkspace.resolve("reports")
+        val dir = SingleAppPaths.reportsDir(controller.appWorkspace)
         java.nio.file.Files.createDirectories(dir)
         dir
     } catch (t: Throwable) {

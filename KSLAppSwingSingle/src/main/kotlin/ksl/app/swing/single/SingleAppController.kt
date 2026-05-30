@@ -36,6 +36,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
 import ksl.app.single.results.ReportSaveRecord
+import ksl.app.single.results.SingleAppPaths
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
@@ -159,36 +160,18 @@ class SingleAppController(
      * Workspace subdirectory dedicated to this analysis.  Derived
      * each read so a change to [OutputConfig.analysisName] or to
      * [UserSettingsStore.activeWorkspace] is reflected on the next
-     * call without a subscriber.
-     *
-     * Path = `activeWorkspace.resolve(<sanitized-analysisName>)` when
-     * the analyst has set a non-blank analysis name other than the
-     * default `"Untitled"`.  Falls back to
-     * `activeWorkspace.resolve(modelName)` otherwise (the historical
-     * Single-app layout, preserved as the model-name fallback so a
-     * user who never touches the Analysis Name field keeps today's
-     * behaviour).  When the probe failed (`modelName` is empty), the
-     * parent workspace itself is returned so file dialogs still have
-     * a valid starting point.
+     * call without a subscriber.  Delegates to
+     * [SingleAppPaths.appWorkspaceDir], which encodes the
+     * single-app three-tier fallback: sanitized analysis name when
+     * set + non-blank + non-"Untitled", else the (already-sanitized)
+     * modelName, else the parent workspace itself.
      */
     val appWorkspace: Path
-        get() {
-            val parent = settingsStore.activeWorkspace()
-            val analysisName = myOutputConfig.value.analysisName
-            val folderName = when {
-                analysisName.isNotBlank() && analysisName != "Untitled" ->
-                    sanitizeWorkspaceFolder(analysisName)
-                modelName.isNotEmpty() -> modelName
-                else -> return parent
-            }
-            return parent.resolve(folderName)
-        }
-
-    /** Filesystem-safe form of [name] for use as a workspace folder
-     *  name under the working directory.  Mirrors the sanitisation
-     *  used elsewhere in the app for analysis-derived names. */
-    private fun sanitizeWorkspaceFolder(name: String): String =
-        name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { modelName.ifEmpty { "analysis" } }
+        get() = SingleAppPaths.appWorkspaceDir(
+            activeWorkspace = settingsStore.activeWorkspace(),
+            analysisName = myOutputConfig.value.analysisName,
+            modelName = modelName
+        )
 
     /**
      * Recomputes pre-run validation findings from the current
