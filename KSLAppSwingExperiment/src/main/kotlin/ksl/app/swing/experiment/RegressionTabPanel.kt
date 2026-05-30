@@ -22,7 +22,6 @@ import ksl.app.experiment.regression.RegressionFitRecord
 
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
-import ksl.app.config.sanitizeAnalysisName
 import ksl.app.notification.NotificationSink
 import ksl.controls.experiments.LinearModel
 import ksl.utilities.io.report.ast.ReportNode
@@ -817,10 +816,11 @@ class RegressionTabPanel(
 
     // ── Path / naming helpers ──────────────────────────────────────────────
 
-    private fun reportsDir(): Path = controller.appWorkspace
-        .resolve("output")
-        .resolve(sanitizeAnalysisName(controller.outputConfig.value.analysisName))
-        .resolve("reports")
+    private fun reportsDir(): Path =
+        ksl.app.session.AppWorkspacePaths.reportsDir(
+            controller.appWorkspace,
+            controller.outputConfig.value.analysisName
+        )
 
     private fun ensureReportsDir(): Path? = try {
         reportsDir().also { Files.createDirectories(it) }

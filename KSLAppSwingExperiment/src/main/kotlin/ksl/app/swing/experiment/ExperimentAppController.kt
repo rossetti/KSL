@@ -52,6 +52,7 @@ import ksl.app.config.experiment.ReplicationSpec
 import ksl.app.config.experiment.StreamPolicy
 import ksl.app.config.experiment.toDesignedExperiment
 import ksl.app.config.sanitizeAnalysisName
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
@@ -120,13 +121,15 @@ class ExperimentAppController(
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
     /** Sanitized [appName] for filesystem-segment use.  Mirrors
-     *  Scenario controller's convention (spaces → underscores). */
-    val appNameSanitized: String = appName.replace(" ", "_")
+     *  Scenario controller's convention (spaces → underscores).
+     *  Delegates to [AppWorkspacePaths.sanitizeAppName]. */
+    val appNameSanitized: String = AppWorkspacePaths.sanitizeAppName(appName)
 
     /** Workspace subdirectory dedicated to this app — see Scenario
-     *  controller's KDoc for the same property; rules are identical. */
+     *  controller's KDoc for the same property; rules are identical.
+     *  Delegates to [AppWorkspacePaths.appWorkspaceDir]. */
     val appWorkspace: Path
-        get() = settingsStore.activeWorkspace().resolve(appNameSanitized)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
 
     // ── Document state ─────────────────────────────────────────────────────
 
@@ -778,7 +781,7 @@ class ExperimentAppController(
         // status seed.
         val outputConfig = myOutputConfig.value
         val analysisDirName = sanitizeAnalysisName(outputConfig.analysisName)
-        val outputDir = appWorkspace.resolve("output").resolve(analysisDirName)
+        val outputDir = AppWorkspacePaths.outputDir(appWorkspace, outputConfig.analysisName)
             .toAbsolutePath().normalize()
         Files.createDirectories(outputDir)
 

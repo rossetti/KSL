@@ -57,6 +57,7 @@ import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
 import ksl.app.orchestrator.OptimizationOrchestrator
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
@@ -106,14 +107,16 @@ class SimoptAppController(
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
     /** Sanitised [appName] for filesystem-segment use.  Mirrors the
-     *  other apps' convention (spaces → underscores). */
-    val appNameSanitized: String = appName.replace(" ", "_")
+     *  other apps' convention (spaces → underscores).  Delegates to
+     *  [AppWorkspacePaths.sanitizeAppName]. */
+    val appNameSanitized: String = AppWorkspacePaths.sanitizeAppName(appName)
 
     /** Workspace subdirectory dedicated to this app.  Identical
      *  semantics to the Experiment / Scenario apps:
-     *  `<active-workspace>/<appNameSanitized>/`. */
+     *  `<active-workspace>/<appNameSanitized>/`.  Delegates to
+     *  [AppWorkspacePaths.appWorkspaceDir]. */
     val appWorkspace: Path
-        get() = settingsStore.activeWorkspace().resolve(appNameSanitized)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
 
     // ── Document state ─────────────────────────────────────────────────────
     //

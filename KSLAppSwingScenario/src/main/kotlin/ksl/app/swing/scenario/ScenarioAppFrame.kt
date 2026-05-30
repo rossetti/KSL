@@ -229,10 +229,10 @@ class ScenarioAppFrame(
         )
         val comparisonAnalyzerTab = ksl.app.swing.common.comparison.ComparisonAnalyzerTabPanel(
             defaultOutputDirProvider = {
-                controller.appWorkspace
-                    .resolve("output")
-                    .resolve(ksl.app.config.sanitizeAnalysisName(controller.outputConfig.value.analysisName))
-                    .resolve("reports")
+                ksl.app.session.AppWorkspacePaths.reportsDir(
+                    controller.appWorkspace,
+                    controller.outputConfig.value.analysisName
+                )
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
             onMessage = { msg, sev ->

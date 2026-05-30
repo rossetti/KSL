@@ -41,6 +41,7 @@ import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
 import ksl.app.session.RunResult
@@ -86,9 +87,10 @@ class ScenarioAppController(
      *  Sanitized version of [appName], suitable for use as a
      *  filesystem directory segment.  Spaces become underscores
      *  (matching KSL's `Model(simulationName)` convention so the two
-     *  apps agree on naming).
+     *  apps agree on naming).  Delegates to
+     *  [AppWorkspacePaths.sanitizeAppName].
      */
-    val appNameSanitized: String = appName.replace(" ", "_")
+    val appNameSanitized: String = AppWorkspacePaths.sanitizeAppName(appName)
 
     /**
      *  Workspace subdirectory dedicated to this app.  Equal to
@@ -96,10 +98,10 @@ class ScenarioAppController(
      *  All per-app files (saved configurations, model runtime
      *  output, rendered reports) live under here.  Read each access
      *  — the underlying `activeWorkspace()` is permitted to change
-     *  between calls.
+     *  between calls.  Delegates to [AppWorkspacePaths.appWorkspaceDir].
      */
     val appWorkspace: Path
-        get() = settingsStore.activeWorkspace().resolve(appNameSanitized)
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
 
     // ── Document state ─────────────────────────────────────────────────────
 
@@ -366,8 +368,7 @@ class ScenarioAppController(
         // analysis identity.  Re-running the same document writes
         // back into the same folder (with the DatabasePolicy
         // controlling what happens to the .db file inside).
-        val analysisDirName = ksl.app.config.sanitizeAnalysisName(myOutputConfig.value.analysisName)
-        val outputDir = appWorkspace.resolve("output").resolve(analysisDirName)
+        val outputDir = AppWorkspacePaths.outputDir(appWorkspace, myOutputConfig.value.analysisName)
             .toAbsolutePath().normalize().toString()
         val config = RunConfiguration(
             scenarios = scenarios,

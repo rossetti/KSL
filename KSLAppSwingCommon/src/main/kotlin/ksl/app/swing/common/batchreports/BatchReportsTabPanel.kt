@@ -24,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunResult
 import ksl.app.notification.NotificationSink
 import java.awt.BorderLayout
@@ -175,11 +176,9 @@ class BatchReportsTabPanel(
      *  the analysis name. */
     private var reportsDirFollowsAnalysis: Boolean = true
 
-    private fun defaultReportsDir(): Path = workspaceProvider()
-        .resolve("output")
-        .resolve(ksl.app.config.sanitizeAnalysisName(analysisNameProvider()))
-        .resolve("reports")
-        .toAbsolutePath()
+    private fun defaultReportsDir(): Path =
+        AppWorkspacePaths.reportsDir(workspaceProvider(), analysisNameProvider())
+            .toAbsolutePath()
 
     /** Names checked when the user last clicked Generate Summary.
      *  `null` means no summary has been generated this session (or the

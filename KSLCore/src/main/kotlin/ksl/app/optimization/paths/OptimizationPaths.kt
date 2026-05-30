@@ -20,7 +20,7 @@ package ksl.app.optimization.paths
 
 import ksl.app.config.optimization.SolverSpec
 import ksl.app.config.optimization.SolverTrackingSpec
-import ksl.app.config.sanitizeAnalysisName
+import ksl.app.session.AppWorkspacePaths
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -54,11 +54,11 @@ import java.nio.file.Path
 object OptimizationPaths {
 
     /** Resolve `<appWorkspace>/output/<sanitizedAnalysisName>/`.
-     *  Caller supplies the host's appWorkspace. */
-    fun outputDir(appWorkspace: Path, analysisName: String): Path {
-        val sanitized = sanitizeAnalysisName(analysisName)
-        return appWorkspace.resolve("output").resolve(sanitized)
-    }
+     *  Caller supplies the host's appWorkspace.  Delegates to
+     *  [AppWorkspacePaths.outputDir] — the multi-document-app
+     *  convention this layout layers on top of. */
+    fun outputDir(appWorkspace: Path, analysisName: String): Path =
+        AppWorkspacePaths.outputDir(appWorkspace, analysisName)
 
     /**
      *  Find the next unused `run-NNN` subdirectory under [analysisDir].
