@@ -41,6 +41,7 @@ import ksl.app.config.ModelReference
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
+import ksl.app.editor.DocumentLifecycleController
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -136,19 +137,28 @@ class ScenarioAppController(
 
     // ── File state ─────────────────────────────────────────────────────────
 
-    private val myCurrentFile = MutableStateFlow<Path?>(null)
+    /**
+     *  Substrate-owned file + dirty bookkeeping.  Composed (E.5.3);
+     *  this controller delegates [currentFile], [isDirty],
+     *  [markSaved], and the file/dirty mutations inside
+     *  [clearScenarios] / [resetConfiguration] / [loadConfiguration]
+     *  to this object.  The Scenario-specific [editedSinceLastSim]
+     *  cross-flow and the [markSaved] analysis-name-derivation block
+     *  stay on the controller.
+     */
+    private val documentLifecycle = DocumentLifecycleController()
+
     /** Path of the configuration file currently associated with the
      *  in-memory state, or `null` when not yet saved or loaded. */
-    val currentFile: StateFlow<Path?> = myCurrentFile.asStateFlow()
+    val currentFile: StateFlow<Path?> = documentLifecycle.currentFile
 
-    private val myIsDirty = MutableStateFlow(false)
     /** `true` when in-memory configuration has been edited since the
      *  last save or load.  Drives the title `*` marker and the
      *  Save Configuration menu-item asterisk. */
-    val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+    val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
     private fun markDirty() {
-        if (!myIsDirty.value) myIsDirty.value = true
+        documentLifecycle.markDirty()
         if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
     }
 
@@ -676,13 +686,12 @@ class ScenarioAppController(
      */
     fun clearScenarios(): Path? {
         if (myScenarios.value.isEmpty()) return null
-        val previousFile = myCurrentFile.value
+        val previousFile = currentFile.value
         myScenarios.value = emptyList()
         mySelectedIndex.value = -1
         myLastResult.value = null
         myScenarioStatuses.value = emptyMap()
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         myEditedSinceLastSim.value = false
         // Analysis name is document identity, not a session
         // preference — reset it alongside the file detach so a
@@ -870,7 +879,7 @@ class ScenarioAppController(
         mySelectedIndex.value = if (config.scenarios.isEmpty()) -1 else 0
         // Clear dirty AFTER the StateFlow assignments so any
         // listener-triggered state flip is overwritten.
-        myIsDirty.value = false
+        documentLifecycle.clearDirty()
         // Also wipe any leftover run-time state from a previous
         // document so the Reports tab doesn't think a run completed
         // and stale FAILED badges don't appear next to fresh scenario
@@ -890,8 +899,7 @@ class ScenarioAppController(
         myOutputConfig.value = OutputConfig(enableKSLDatabase = true)
         myExecutionMode.value = ExecutionMode.SEQUENTIAL
         mySelectedIndex.value = -1
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         clearRunState()
     }
 
@@ -948,8 +956,7 @@ class ScenarioAppController(
      *  because the field is no longer at the default.
      */
     fun markSaved(path: Path) {
-        myCurrentFile.value = path
-        myIsDirty.value = false
+        documentLifecycle.markSaved(path)
         if (myOutputConfig.value.analysisName == "Untitled") {
             val stem = path.fileName.toString().substringBeforeLast('.')
             if (stem.isNotBlank()) {
