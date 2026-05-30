@@ -58,6 +58,7 @@ import ksl.app.config.optimization.SolverTrackingSpec
 import ksl.app.config.sanitizeAnalysisName
 import ksl.app.orchestrator.OptimizationOrchestrator
 import ksl.app.editor.DocumentLifecycleController
+import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -397,11 +398,21 @@ class SimoptAppController(
      *  (or when there is no file yet and the document is non-empty). */
     val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
-    private val myEditedSinceLastRun = MutableStateFlow(false)
+    /**
+     *  Substrate-owned run-lifecycle bookkeeping.  Composed
+     *  (E.5.6); this controller delegates [lastResult] and
+     *  [editedSinceLastRun] to this object.  Simopt-specific
+     *  cross-flows on each edit — [modelAwareStale], the structural-
+     *  vs-preference refresher fan-out (validation, step completion),
+     *  and the [latestIteration] / [activeSolver] flows around the
+     *  run lifecycle — stay on the controller.
+     */
+    private val runLifecycle = RunLifecycleController<RunResult.OptimizationCompleted>()
+
     /** `true` when the document has been edited since the last
      *  successful run.  Drives the stale-results banner on the
      *  Execute / Results steps. */
-    val editedSinceLastRun: StateFlow<Boolean> = myEditedSinceLastRun.asStateFlow()
+    val editedSinceLastRun: StateFlow<Boolean> = runLifecycle.editedSinceLastRun
 
     // ── Runtime ────────────────────────────────────────────────────────────
 
@@ -418,11 +429,10 @@ class SimoptAppController(
      *  Phase O2 leaves the flow empty. */
     val eventFlow: SharedFlow<RunEvent> = myEventFlow.asSharedFlow()
 
-    private val myLastResult = MutableStateFlow<RunResult.OptimizationCompleted?>(null)
     /** Result of the most recent successful run, or `null` if no
      *  run has completed or the result was cleared by an R1
      *  structural edit. */
-    val lastResult: StateFlow<RunResult.OptimizationCompleted?> = myLastResult.asStateFlow()
+    val lastResult: StateFlow<RunResult.OptimizationCompleted?> = runLifecycle.lastResult
 
     private val myLatestIteration = MutableStateFlow<RunEvent.IterationCompleted?>(null)
     /**
@@ -639,8 +649,8 @@ class SimoptAppController(
      *  document no longer matches what produced it. */
     private fun markDirtyStructural() {
         documentLifecycle.markDirty()
-        if (!myEditedSinceLastRun.value) myEditedSinceLastRun.value = true
-        if (myLastResult.value != null) myLastResult.value = null
+        runLifecycle.markEdited()
+        runLifecycle.setLastResult(null)
         refreshStepCompletion()
         refreshDocumentValidation()
         if (!myModelAwareStale.value) myModelAwareStale.value = true
@@ -1721,8 +1731,7 @@ class SimoptAppController(
         myEvaluationSpec.value = EvaluationSpec()
         myTrackingSpec.value = SolverTrackingSpec()
         documentLifecycle.reset()
-        myEditedSinceLastRun.value = false
-        myLastResult.value = null
+        runLifecycle.reset()
         myLatestIteration.value = null
         myActiveStep.value = Step.initial
         // Validation cache resets: empty document fails the live
@@ -1757,8 +1766,7 @@ class SimoptAppController(
         }
         installLoaded(config)
         documentLifecycle.markSaved(path)
-        myEditedSinceLastRun.value = false
-        myLastResult.value = null
+        runLifecycle.reset()
         myLatestIteration.value = null
         myActiveStep.value = Step.initial
         // Loaded doc fully replaces the prior validation snapshot.
@@ -2011,7 +2019,7 @@ class SimoptAppController(
         currentRunHandle = handle
         myActiveSolver.value = solver
         myLatestIteration.value = null
-        myLastResult.value = null
+        runLifecycle.setLastResult(null)
         myRunning.value = true
 
         // Event forwarder: lives on edtScope so Swing collectors see
@@ -2034,10 +2042,10 @@ class SimoptAppController(
             }
             val snapshot = currentRunSnapshot
             if (result is RunResult.OptimizationCompleted) {
-                myLastResult.value = result
                 // A successful completion means the result matches
-                // the document — clear the stale flag.
-                myEditedSinceLastRun.value = false
+                // the document — bind the result AND clear the stale
+                // flag in one atomic substrate call.
+                runLifecycle.markRunCompleted(result)
                 if (snapshot != null) {
                     // Capture the live Solver and its SolverResult
                     // *before* we null myActiveSolver below — both
@@ -2272,7 +2280,7 @@ class SimoptAppController(
         // Phase O7a tightens this to require validation pass against
         // the live model.
         val runSetup = solver
-        val execute = runSetup && myLastResult.value != null
+        val execute = runSetup && runLifecycle.lastResult.value != null
         // RESULTS is "complete" the moment a run exists — it's the
         // terminal step.
         val results = execute

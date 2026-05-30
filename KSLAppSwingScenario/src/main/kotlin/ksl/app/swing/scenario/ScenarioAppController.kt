@@ -42,6 +42,7 @@ import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
 import ksl.app.editor.DocumentLifecycleController
+import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.session.RunEvent
 import ksl.app.session.RunHandle
@@ -159,7 +160,7 @@ class ScenarioAppController(
 
     private fun markDirty() {
         documentLifecycle.markDirty()
-        if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
+        runLifecycle.markEdited()
     }
 
     /**
@@ -174,8 +175,8 @@ class ScenarioAppController(
      *  call this to keep the result aligned with the editable list.
      */
     private fun dropResultFor(scenarioName: String) {
-        val current = myLastResult.value as? RunResult.BatchCompleted ?: return
-        myLastResult.value = current.withoutScenario(scenarioName)
+        val current = runLifecycle.lastResult.value as? RunResult.BatchCompleted ?: return
+        runLifecycle.setLastResult(current.withoutScenario(scenarioName))
     }
 
     // ── Bundle library ─────────────────────────────────────────────────────
@@ -267,9 +268,20 @@ class ScenarioAppController(
     /** `true` while a scenario sweep is in flight. */
     val runningFlow: StateFlow<Boolean> = myRunning.asStateFlow()
 
-    private val myLastResult = MutableStateFlow<RunResult?>(null)
+    /**
+     *  Substrate-owned run-lifecycle bookkeeping.  Composed
+     *  (E.5.6); this controller delegates [lastResult] and the
+     *  [editedSinceLastSim] flag to this object via the substrate's
+     *  `editedSinceLastRun`.  Scenario-specific orchestration —
+     *  the `withoutScenario` transform in `dropResultFor`, the
+     *  run-start lastResult clear, the per-scenario status map —
+     *  stays on the controller; this object only owns the typed
+     *  result + edited flag flips.
+     */
+    private val runLifecycle = RunLifecycleController<RunResult>()
+
     /** Most recently observed terminal [RunResult], or null when none yet. */
-    val lastResult: StateFlow<RunResult?> = myLastResult.asStateFlow()
+    val lastResult: StateFlow<RunResult?> = runLifecycle.lastResult
 
     private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
     /** Hot stream of [RunEvent]s from the active run, for console drawers. */
@@ -357,7 +369,7 @@ class ScenarioAppController(
         // ScenarioOrchestrator runs anyway).  If the new run aborts,
         // the user re-runs to repopulate; this matches the chosen
         // R1 semantics — see the lifecycle plan for the discussion.
-        myLastResult.value = null
+        runLifecycle.setLastResult(null)
 
         // Seed: skipped scenarios stay skipped, runnable scenarios start
         // PENDING (queued).  The substrate's per-scenario
@@ -446,8 +458,7 @@ class ScenarioAppController(
         }
         edtScope.launch {
             val result = handle.result.await()
-            myLastResult.value = result
-            myEditedSinceLastSim.value = false
+            runLifecycle.markRunCompleted(result)
             myRunning.value = false
             currentHandle = null
             // Reconcile leftover statuses with what actually happened.
@@ -513,10 +524,13 @@ class ScenarioAppController(
         return handle.cancelScenario(name)
     }
 
-    private val myEditedSinceLastSim = MutableStateFlow(false)
     /** `true` when in-memory state has been edited since the most
-     *  recent terminal run.  Cleared by [submit] on terminal result. */
-    val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
+     *  recent terminal run.  Cleared by [submit] on terminal result.
+     *
+     *  Re-points to `runLifecycle.editedSinceLastRun` (E.5.6);
+     *  the host-side name `editedSinceLastSim` is preserved for
+     *  public-API stability. */
+    val editedSinceLastSim: StateFlow<Boolean> = runLifecycle.editedSinceLastRun
 
     /**
      *  Returns the list of `(bundleId, modelId)` pairs in the document
@@ -689,10 +703,9 @@ class ScenarioAppController(
         val previousFile = currentFile.value
         myScenarios.value = emptyList()
         mySelectedIndex.value = -1
-        myLastResult.value = null
         myScenarioStatuses.value = emptyMap()
         documentLifecycle.reset()
-        myEditedSinceLastSim.value = false
+        runLifecycle.reset()
         // Analysis name is document identity, not a session
         // preference — reset it alongside the file detach so a
         // subsequent Simulate doesn't write into the directory of
@@ -920,10 +933,9 @@ class ScenarioAppController(
      */
     internal fun clearRunState() {
         myRunning.value = false
-        myLastResult.value = null
         myScenarioStatuses.value = emptyMap()
         myReplicationProgress.value = emptyMap()
-        myEditedSinceLastSim.value = false
+        runLifecycle.reset()
     }
 
     /** Test seam — seed run-time state so [clearRunState],
@@ -936,10 +948,11 @@ class ScenarioAppController(
         editedSinceLastSim: Boolean = false,
         running: Boolean = false
     ) {
-        myLastResult.value = lastResult
+        runLifecycle.setLastResult(lastResult)
         myScenarioStatuses.value = scenarioStatuses
         myReplicationProgress.value = replicationProgress
-        myEditedSinceLastSim.value = editedSinceLastSim
+        if (editedSinceLastSim) runLifecycle.markEdited()
+        else runLifecycle.clearEditedSinceLastRun()
         myRunning.value = running
     }
 

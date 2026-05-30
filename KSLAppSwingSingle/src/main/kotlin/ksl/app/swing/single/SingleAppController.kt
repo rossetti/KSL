@@ -36,6 +36,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
 import ksl.app.editor.DocumentLifecycleController
+import ksl.app.editor.RunLifecycleController
 import ksl.app.single.results.ReportSaveRecord
 import ksl.app.single.results.SingleAppPaths
 import ksl.app.config.DatabasePolicy
@@ -258,9 +259,18 @@ class SingleAppController(
     /** True while a run is in flight. */
     val runningFlow: StateFlow<Boolean> = myRunningFlow.asStateFlow()
 
-    private val myLastResult = MutableStateFlow<RunResult?>(null)
+    /**
+     *  Substrate-owned run-lifecycle bookkeeping.  Composed
+     *  (E.5.6); this controller delegates [lastResult] and the
+     *  [editedSinceLastSim] flag to this object via the substrate's
+     *  `editedSinceLastRun`.  Side effects on edit (this app has
+     *  none beyond the flag flip) and on run completion stay on the
+     *  controller.
+     */
+    private val runLifecycle = RunLifecycleController<RunResult>()
+
     /** Most recently observed terminal [RunResult], or null when none yet. */
-    val lastResult: StateFlow<RunResult?> = myLastResult.asStateFlow()
+    val lastResult: StateFlow<RunResult?> = runLifecycle.lastResult
 
     private val myRunOverrides = MutableStateFlow(ExperimentRunOverrides())
     /** Pending run-parameter overrides.  Threaded into the ScenarioSpec on [submit]. */
@@ -352,7 +362,6 @@ class SingleAppController(
      */
     val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
-    private val myEditedSinceLastSim = MutableStateFlow(false)
     /**
      * `true` when the in-memory configuration has been edited *since*
      * the last completed simulation.  Distinct from [isDirty], which
@@ -367,8 +376,12 @@ class SingleAppController(
      * override setters and clearers, plus this flag is left untouched
      * by saves).  Cleared when a new terminal result arrives —
      * the just-completed run reflects the configuration as submitted.
+     *
+     * Re-points to `runLifecycle.editedSinceLastRun` (E.5.6);
+     * the host-side name `editedSinceLastSim` is preserved for
+     * public-API stability.
      */
-    val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
+    val editedSinceLastSim: StateFlow<Boolean> = runLifecycle.editedSinceLastRun
 
     private fun markDirty() {
         // Editing mutators flip BOTH flags.  isDirty tracks "differs
@@ -376,7 +389,7 @@ class SingleAppController(
         // what was last simulated".  Saving clears isDirty only;
         // a new terminal result clears editedSinceLastSim only.
         documentLifecycle.markDirty()
-        if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
+        runLifecycle.markEdited()
     }
 
     private var currentHandle: RunHandle? = null
@@ -673,8 +686,7 @@ class SingleAppController(
         // any prior run's results are no longer related to this
         // configuration.
         documentLifecycle.clearDirty()
-        myEditedSinceLastSim.value = false
-        myLastResult.value = null
+        runLifecycle.reset()
         myRecentReportSaves.value = emptyList()
         return LoadResult.Loaded(warning)
     }
@@ -695,8 +707,7 @@ class SingleAppController(
         // clear lastResult + editedSinceLastSim and let the badge
         // fall back to "Defaults".  The Reports tab also disables
         // because no snapshot exists.
-        myEditedSinceLastSim.value = false
-        myLastResult.value = null
+        runLifecycle.reset()
         myRecentReportSaves.value = emptyList()
     }
 
@@ -760,12 +771,13 @@ class SingleAppController(
         }
         edtScope.launch {
             val result = handle.result.await()
-            myLastResult.value = result
             // The just-completed run reflects the configuration as
-            // submitted; clear the "edited since last sim" flag so the
-            // status badge falls back from "Edited / Previous run: …"
-            // to "Completed (etc.) …" until the next override edit.
-            myEditedSinceLastSim.value = false
+            // submitted; record the result AND clear the "edited
+            // since last sim" flag (one atomic substrate call) so
+            // the status badge falls back from "Edited / Previous
+            // run: …" to "Completed (etc.) …" until the next
+            // override edit.
+            runLifecycle.markRunCompleted(result)
             myRunningFlow.value = false
             currentHandle = null
         }

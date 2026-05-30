@@ -46,6 +46,7 @@ import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.RunParameterOverridesSpec
 import ksl.app.editor.DocumentLifecycleController
+import ksl.app.editor.RunLifecycleController
 import ksl.app.experiment.regression.RegressionFitRecord
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.app.config.experiment.FactorSpec
@@ -204,15 +205,30 @@ class ExperimentAppController(
 
     val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
-    private val myEditedSinceLastSim = MutableStateFlow(false)
+    /**
+     *  Substrate-owned run-lifecycle bookkeeping.  Composed
+     *  (E.5.6); this controller delegates [lastResult] and the
+     *  [editedSinceLastSim] flag to this object via the substrate's
+     *  `editedSinceLastRun`.  Experiment-specific orchestration —
+     *  `dropRuntimeArtefacts` (which clears [experimentInstance] +
+     *  [recentRegressionFits] alongside the lastResult drop), the
+     *  per-design-point status map, the submit-failure edit flip —
+     *  stays on the controller.
+     */
+    private val runLifecycle = RunLifecycleController<RunResult>()
+
     /** `true` when in-memory state has been edited since the last
      *  successful [submit].  Drives the "stale results" banner the
-     *  Phase E4 frame shows above the run toolbar. */
-    val editedSinceLastSim: StateFlow<Boolean> = myEditedSinceLastSim.asStateFlow()
+     *  Phase E4 frame shows above the run toolbar.
+     *
+     *  Re-points to `runLifecycle.editedSinceLastRun` (E.5.6);
+     *  the host-side name `editedSinceLastSim` is preserved for
+     *  public-API stability. */
+    val editedSinceLastSim: StateFlow<Boolean> = runLifecycle.editedSinceLastRun
 
     private fun markDirty() {
         documentLifecycle.markDirty()
-        if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
+        runLifecycle.markEdited()
     }
 
     // ── Bundle library ─────────────────────────────────────────────────────
@@ -331,8 +347,7 @@ class ExperimentAppController(
     private val myRunning = MutableStateFlow(false)
     val runningFlow: StateFlow<Boolean> = myRunning.asStateFlow()
 
-    private val myLastResult = MutableStateFlow<RunResult?>(null)
-    val lastResult: StateFlow<RunResult?> = myLastResult.asStateFlow()
+    val lastResult: StateFlow<RunResult?> = runLifecycle.lastResult
 
     private val myEventFlow = MutableSharedFlow<RunEvent>(replay = 0, extraBufferCapacity = 256)
     val eventFlow: SharedFlow<RunEvent> = myEventFlow.asSharedFlow()
@@ -521,7 +536,7 @@ class ExperimentAppController(
         myFactors.value = emptyList()
         mySelectedFactorIndex.value = -1
         documentLifecycle.reset()
-        myEditedSinceLastSim.value = false
+        runLifecycle.clearEditedSinceLastRun()
         dropRuntimeArtefacts()
         if (myOutputConfig.value.analysisName != "Untitled") {
             myOutputConfig.value = myOutputConfig.value.copy(analysisName = "Untitled")
@@ -703,10 +718,11 @@ class ExperimentAppController(
         editedSinceLastSim: Boolean = false,
         running: Boolean = false
     ) {
-        myLastResult.value = lastResult
+        runLifecycle.setLastResult(lastResult)
         myDesignPointStatuses.value = designPointStatuses
         myExperimentInstance.value = experimentInstance
-        myEditedSinceLastSim.value = editedSinceLastSim
+        if (editedSinceLastSim) runLifecycle.markEdited()
+        else runLifecycle.clearEditedSinceLastRun()
         myRunning.value = running
     }
 
@@ -715,11 +731,10 @@ class ExperimentAppController(
      *  every [submit]. */
     internal fun clearRunState() {
         myRunning.value = false
-        myLastResult.value = null
         myDesignPointStatuses.value = emptyMap()
         myExperimentInstance.value = null
         myRecentRegressionFits.value = emptyList()
-        myEditedSinceLastSim.value = false
+        runLifecycle.reset()
     }
 
     /** Drop runtime artefacts that depend on the previous run's
@@ -728,7 +743,7 @@ class ExperimentAppController(
      *  invalidate the whole [lastResult] rather than trying to
      *  preserve subsets). */
     private fun dropRuntimeArtefacts() {
-        if (myLastResult.value != null) myLastResult.value = null
+        runLifecycle.setLastResult(null)
         if (myExperimentInstance.value != null) myExperimentInstance.value = null
         if (myRecentRegressionFits.value.isNotEmpty()) {
             myRecentRegressionFits.value = emptyList()
@@ -805,7 +820,7 @@ class ExperimentAppController(
         val modelBuilder = try {
             provider.builderFor(ref.toModelIdentifier())
         } catch (t: Throwable) {
-            myEditedSinceLastSim.value = true
+            runLifecycle.markEdited()
             return false
         }
 
@@ -876,8 +891,7 @@ class ExperimentAppController(
         }
         edtScope.launch {
             val result = handle.result.await()
-            myLastResult.value = result
-            myEditedSinceLastSim.value = false
+            runLifecycle.markRunCompleted(result)
             myRunning.value = false
             currentHandle = null
         }
