@@ -35,6 +35,7 @@ import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.editor.DocumentLifecycleController
 import ksl.app.single.results.ReportSaveRecord
 import ksl.app.single.results.SingleAppPaths
 import ksl.app.config.DatabasePolicy
@@ -322,16 +323,25 @@ class SingleAppController(
     val recentReportSaves: StateFlow<List<ReportSaveRecord>> =
         myRecentReportSaves.asStateFlow()
 
-    private val myCurrentFile = MutableStateFlow<Path?>(null)
+    /**
+     *  Substrate-owned file + dirty bookkeeping.  Composed (E.5.2);
+     *  this controller delegates [currentFile], [isDirty],
+     *  [markSaved], and the file/dirty mutations inside
+     *  [resetConfiguration] / [loadConfiguration] to this object.
+     *  The app-specific [editedSinceLastSim] / [lastResult] cross-flow
+     *  stays on the controller until the run lifecycle decomposition
+     *  in E.5.5/6.
+     */
+    private val documentLifecycle = DocumentLifecycleController()
+
     /**
      * Path of the configuration file currently associated with the in-memory
      * state, or `null` when the state has not yet been saved or loaded.
      * Updated by [markSaved] and by [loadConfiguration].  The frame uses
      * this to render the current file name in the window title.
      */
-    val currentFile: StateFlow<Path?> = myCurrentFile.asStateFlow()
+    val currentFile: StateFlow<Path?> = documentLifecycle.currentFile
 
-    private val myIsDirty = MutableStateFlow(false)
     /**
      * `true` when in-memory configuration has been edited since the last
      * save or load, `false` otherwise.  Every editing mutator on this
@@ -340,7 +350,7 @@ class SingleAppController(
      * [markSaved] clear it.  The frame uses this to render an unsaved
      * marker (`*`) in the window title.
      */
-    val isDirty: StateFlow<Boolean> = myIsDirty.asStateFlow()
+    val isDirty: StateFlow<Boolean> = documentLifecycle.isDirty
 
     private val myEditedSinceLastSim = MutableStateFlow(false)
     /**
@@ -365,7 +375,7 @@ class SingleAppController(
         // from saved file"; editedSinceLastSim tracks "differs from
         // what was last simulated".  Saving clears isDirty only;
         // a new terminal result clears editedSinceLastSim only.
-        if (!myIsDirty.value) myIsDirty.value = true
+        documentLifecycle.markDirty()
         if (!myEditedSinceLastSim.value) myEditedSinceLastSim.value = true
     }
 
@@ -662,7 +672,7 @@ class SingleAppController(
         // virgin session: no unsaved changes, no pending edits, and
         // any prior run's results are no longer related to this
         // configuration.
-        myIsDirty.value = false
+        documentLifecycle.clearDirty()
         myEditedSinceLastSim.value = false
         myLastResult.value = null
         myRecentReportSaves.value = emptyList()
@@ -679,8 +689,7 @@ class SingleAppController(
         myControlOverrides.value = ModelControlsExport(modelName = controlsSnapshot.modelName)
         myRVOverrides.value = emptyList()
         myOutputConfig.value = OutputConfig()
-        myCurrentFile.value = null
-        myIsDirty.value = false
+        documentLifecycle.reset()
         // Reset to defaults means a virgin session: any prior run's
         // result no longer applies to what's now in the editor, so
         // clear lastResult + editedSinceLastSim and let the badge
@@ -697,8 +706,7 @@ class SingleAppController(
      * *Save As…* handlers after a successful write.
      */
     fun markSaved(path: Path) {
-        myCurrentFile.value = path
-        myIsDirty.value = false
+        documentLifecycle.markSaved(path)
     }
 
     /**
