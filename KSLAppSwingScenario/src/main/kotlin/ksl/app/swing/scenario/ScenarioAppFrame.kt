@@ -455,22 +455,7 @@ class ScenarioAppFrame(
             return
         }
         if (controller.isDirty.value) {
-            val choice = JOptionPane.showOptionDialog(
-                this,
-                "You have unsaved scenarios changes.\n" +
-                    "Save them before simulating?",
-                "Unsaved Changes",
-                JOptionPane.YES_NO_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                null,
-                arrayOf<Any>("Save…", "Simulate without saving", "Cancel"),
-                "Save…"
-            )
-            when (choice) {
-                0 -> handleSave()
-                1 -> { /* fall through to submit */ }
-                else -> return
-            }
+            if (!handleDirtyOnRun()) return
         }
         consolePanel.clear()
         if (!controller.submit()) {
@@ -696,6 +681,78 @@ class ScenarioAppFrame(
             is ScenarioAppController.LoadResult.Rejected -> {
                 notifications.error(outcome.reason)
             }
+        }
+    }
+
+    /**
+     *  Dirty-on-run gate fired by Simulate when the configuration has
+     *  unsaved changes.  Distinguishes between two save destinations:
+     *
+     *  - **Save to original file** — overwrite the file the analyst
+     *    opened (or last Saved-As to).  In-place update; matches the
+     *    "edit and re-run" workflow.  Hidden when no original file is
+     *    associated.
+     *  - **Save As new file…** — open the Save As chooser so the
+     *    modified configuration lands in a new file, leaving the
+     *    original untouched.  Matches the "fork to a variant" workflow
+     *    that's the most common reason for changing the Analysis name.
+     *
+     *  When no `currentFile` is associated, the original-file button
+     *  disappears (only Save As makes sense).  The dialog shows the
+     *  destination file inline so the analyst has informed consent
+     *  about what each Save button writes over.
+     *
+     *  Returns `true` when the caller may proceed with Simulate, `false`
+     *  when the analyst cancelled.  *Simulate without saving* and a
+     *  successful save both return `true`; cancelling the Save As
+     *  chooser after picking "Save As new file…" also returns `true`
+     *  (declining the chooser after asking for it is an explicit
+     *  "run anyway" choice — mirrors the Single app's behaviour).
+     */
+    private fun handleDirtyOnRun(): Boolean {
+        val existing = controller.currentFile.value
+        val pathLine = if (existing != null) {
+            "\n\nCurrent file:  $existing"
+        } else {
+            ""
+        }
+        val options = if (existing != null) {
+            arrayOf<Any>(
+                "Save to original file",
+                "Save As new file…",
+                "Simulate without saving",
+                "Cancel"
+            )
+        } else {
+            arrayOf<Any>(
+                "Save As new file…",
+                "Simulate without saving",
+                "Cancel"
+            )
+        }
+        val defaultOption = options[0]
+        val choice = JOptionPane.showOptionDialog(
+            this,
+            "You have unsaved scenarios changes.$pathLine",
+            "Unsaved Changes",
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            defaultOption
+        )
+        if (choice < 0 || choice >= options.size) return false  // window-close / Esc
+        return when (options[choice]) {
+            "Save to original file" -> {
+                handleSave()
+                true
+            }
+            "Save As new file…" -> {
+                handleSaveAs()
+                true
+            }
+            "Simulate without saving" -> true
+            else -> false   // Cancel
         }
     }
 

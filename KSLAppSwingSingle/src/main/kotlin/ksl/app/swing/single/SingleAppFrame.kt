@@ -209,51 +209,80 @@ class SingleAppFrame(
     }
 
     /**
-     * Auto-save dance when Run is clicked with a dirty configuration.
+     *  Dirty-on-run gate fired by Simulate when the configuration has
+     *  unsaved changes.  Distinguishes between two save destinations:
      *
-     *  - Clean → returns `true` immediately, nothing to do.
-     *  - Dirty *and* a file is already associated → silently writes to
-     *    that file (analyst has previously chosen where; the click is
-     *    consent), notifies, and returns `true`.
-     *  - Dirty *and* no file associated → prompts with three options:
-     *      *Save…* (opens Save As, returns `true` only after a successful
-     *        write — Cancel in the chooser aborts the run too),
-     *      *Run without saving* (returns `true`, runs with dirty state
-     *        intact),
-     *      *Cancel* (returns `false`, abort the run).
+     *  - **Save to original file** — overwrite the file the analyst
+     *    opened (or last Saved-As to).  In-place update; matches the
+     *    "edit and re-run" workflow.  Hidden when no original file is
+     *    associated.
+     *  - **Save As new file…** — open the Save As chooser so the
+     *    modified configuration lands in a new file, leaving the
+     *    original untouched.  Matches the "fork to a variant" workflow
+     *    that's the most common reason for changing the Output Name.
      *
-     * Returning `false` short-circuits the Run.
+     *  When no `currentFile` is associated, the original-file button
+     *  disappears (only Save As makes sense).  The dialog shows the
+     *  destination file inline so the analyst has informed consent
+     *  about what each Save button writes over.
+     *
+     *  Returns `true` when the caller may proceed with Simulate, `false`
+     *  when the analyst cancelled.  *Simulate without saving* and a
+     *  successful save both return `true`; cancelling the Save As
+     *  chooser after picking "Save As new file…" also returns `true`
+     *  (declining the chooser after asking for it is an explicit
+     *  "run anyway" choice).
      */
     private fun handleDirtyOnRun(): Boolean {
         if (!controller.isDirty.value) return true
         val existing = controller.currentFile.value
-        if (existing != null) {
-            writeConfigurationTo(existing)
-            return true
+        val pathLine = if (existing != null) {
+            "\n\nCurrent file:  $existing"
+        } else {
+            ""
         }
+        val options = if (existing != null) {
+            arrayOf<Any>(
+                "Save to original file",
+                "Save As new file…",
+                "Simulate without saving",
+                "Cancel"
+            )
+        } else {
+            arrayOf<Any>(
+                "Save As new file…",
+                "Simulate without saving",
+                "Cancel"
+            )
+        }
+        val defaultOption = options[0]
         val choice = javax.swing.JOptionPane.showOptionDialog(
             this,
-            "The configuration has unsaved changes.\n" +
-                "Save it to a file before simulating?",
+            "The configuration has unsaved changes.$pathLine",
             "Unsaved Configuration",
             javax.swing.JOptionPane.YES_NO_CANCEL_OPTION,
             javax.swing.JOptionPane.QUESTION_MESSAGE,
             null,
-            arrayOf<Any>("Save…", "Simulate without saving", "Cancel"),
-            "Save…"
+            options,
+            defaultOption
         )
-        return when (choice) {
-            0 -> {
-                // Save…  Returns once the chooser closes.  If the user
-                // picked a file, currentFile is now set; if they cancelled
-                // the chooser, currentFile is still null.  Either way the
-                // run proceeds — declining Save As after asking for it is
+        if (choice < 0 || choice >= options.size) return false  // window-close / Esc
+        return when (options[choice]) {
+            "Save to original file" -> {
+                writeConfigurationTo(existing!!)
+                true
+            }
+            "Save As new file…" -> {
+                // Returns once the chooser closes.  If the user picked
+                // a file, currentFile is now set; if they cancelled the
+                // chooser, currentFile is unchanged.  Either way the run
+                // proceeds — declining Save As after asking for it is
                 // an explicit "run anyway" choice.
                 handleSaveAs()
                 true
             }
-            1 -> true                          // Run without saving
-            else -> false                      // Cancel (incl. dialog dismissed)
+            "Simulate without saving" -> true
+            else -> false   // Cancel
         }
     }
     private val cancelAction = object : AbstractAction("Cancel") {
