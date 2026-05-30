@@ -1061,11 +1061,11 @@ class SingleAppFrame(
                 // Post-Run Reporting tab's Recent saves table shows
                 // the auto-rendered files alongside any manual saves.
                 controller.addReportSaveRecord(
-                    ksl.app.swing.single.ReportSaveRecord(
+                    ksl.app.single.results.ReportSaveRecord(
                         timestamp = java.time.LocalDateTime.now(),
                         fileName = outcome.file.name,
                         path = outcome.file.toPath(),
-                        origin = ksl.app.swing.single.ReportSaveRecord.Origin.AUTO
+                        origin = ksl.app.single.results.ReportSaveRecord.Origin.AUTO
                     )
                 )
                 val opened = when (format) {

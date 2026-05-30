@@ -26,7 +26,7 @@ import ksl.app.single.results.StandardReportFormat
 import ksl.app.single.results.StandardReportMaterializer
 import ksl.app.single.results.StandardReportOutcome
 import ksl.app.notification.NotificationSink
-import ksl.app.swing.single.ReportSaveRecord
+import ksl.app.single.results.ReportSaveRecord
 import ksl.app.swing.single.SingleAppController
 import ksl.utilities.io.dbutil.SimulationSnapshot
 import java.awt.BorderLayout

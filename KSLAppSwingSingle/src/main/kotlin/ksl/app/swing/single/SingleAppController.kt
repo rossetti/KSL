@@ -35,6 +35,7 @@ import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.single.results.ReportSaveRecord
 import ksl.app.config.DatabasePolicy
 import ksl.app.config.ExperimentRunOverrides
 import ksl.app.config.ModelReference
@@ -65,33 +66,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 private val logger = KotlinLogging.logger {}
-
-/**
- *  One record in the Post-Run Reporting tab's in-memory save history.
- *  Records are appended on every successful materialise (auto-render
- *  or user-initiated from the tab) and survive until the next Simulate
- *  click clears the list, the user removes them, or the bound
- *  ([SingleAppController.MAX_RECENT_REPORT_SAVES]) evicts them.
- *
- *  Files on disk are NOT removed when a record is dropped — that's
- *  the user's domain.  The list is a session-level navigation aid,
- *  not the source of truth for what's been published.
- *
- *  @param timestamp wall-clock time of the save
- *  @param fileName  the file's name (no directory component)
- *  @param path      absolute path to the file on disk
- *  @param origin    [Origin.AUTO] for auto-rendered files (post-run
- *                   completion), [Origin.MANUAL] for user-initiated
- *                   saves from the Post-Run Reporting tab
- */
-data class ReportSaveRecord(
-    val timestamp: java.time.LocalDateTime,
-    val fileName: String,
-    val path: Path,
-    val origin: Origin
-) {
-    enum class Origin { AUTO, MANUAL }
-}
 
 /**
  * Internal state-holder for one `kslSingleApp(...)` instance.

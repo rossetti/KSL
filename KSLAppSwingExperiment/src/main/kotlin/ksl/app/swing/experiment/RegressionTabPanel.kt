@@ -18,6 +18,8 @@
 
 package ksl.app.swing.experiment
 
+import ksl.app.experiment.regression.RegressionFitRecord
+
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.config.sanitizeAnalysisName

@@ -45,6 +45,7 @@ import ksl.app.config.experiment.DesignSpec
 import ksl.app.config.experiment.ExperimentConfiguration
 import ksl.app.config.experiment.ExperimentOutputSpec
 import ksl.app.config.experiment.RunParameterOverridesSpec
+import ksl.app.experiment.regression.RegressionFitRecord
 import ksl.controls.experiments.ParallelDesignedExperiment
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.config.experiment.ReplicationSpec
@@ -98,46 +99,6 @@ import java.time.format.DateTimeFormatter
  *  detaches the file and resets `analysisName` to `"Untitled"`,
  *  mirroring Scenario's Clear-All semantics.
  */
-/**
- *  One record in the Regression tab's in-memory fit history.  Records
- *  are appended by [ExperimentAppController.fitRegression] and survive
- *  until either the user removes them, the bound
- *  ([ExperimentAppController.MAX_RECENT_FITS]) evicts them, or an R1
- *  lifecycle event (Simulate / structural mutation / reset) clears the
- *  whole list.
- *
- *  The record carries the [fit] itself (a self-contained numeric
- *  object), enough metadata to re-render its HTML report at any time,
- *  and a (possibly-empty) list of paths previously written to disk by
- *  the user's Save action.  [savedPaths] is the only mutable surface:
- *  it grows when the user re-saves.  The Regression tab uses
- *  `savedPaths.isEmpty()` as the "unsaved" badge predicate.
- *
- *  @param timestamp        wall clock time of the fit (for the
- *                          Recent Fits list's time column)
- *  @param response         response variable name the fit was against
- *  @param modelExpression  the LinearModel as a parsable string
- *                          (output of [LinearModel.asString])
- *  @param coded            true if factor levels were coded (-1, +1
- *                          style), false if natural units
- *  @param confidenceLevel  CI level used to render the report (passed
- *                          through to `toReport(confidenceLevel=...)`)
- *  @param fit              the substrate regression results object
- *  @param savedPaths       paths under
- *                          `<workspace>/output/<analysisName>/reports/`
- *                          that this fit has been materialised to;
- *                          empty until the user clicks Save
- */
-data class RegressionFitRecord(
-    val timestamp: LocalDateTime,
-    val response: String,
-    val modelExpression: String,
-    val coded: Boolean,
-    val confidenceLevel: Double,
-    val fit: RegressionResultsIfc,
-    val savedPaths: List<Path> = emptyList()
-)
-
 class ExperimentAppController(
     val appName: String
 ) : AutoCloseable {
