@@ -143,9 +143,9 @@ class SingleAppFrame(
     /**
      *  Folder-collision gate, fired between the unsaved-changes prompt
      *  and the actual submit.  When the workspace path implied by the
-     *  current analysis name already exists on disk AND the analyst
-     *  hasn't previously approved that exact path this session, fire
-     *  a three-button dialog letting them:
+     *  current Output Name contains existing simulation artefacts on
+     *  disk AND the analyst hasn't previously approved that exact path
+     *  this session, fire a three-button dialog letting them:
      *
      *   - **Use Existing Folder** — proceed; the path is added to
      *     [approvedWorkspacePaths] so subsequent Simulates against
@@ -156,12 +156,25 @@ class SingleAppFrame(
      *   - **Cancel Simulate** — abort.  No approval recorded.
      *
      *  Returns `true` when the caller may proceed with submit,
-     *  `false` when it must abort.  A path that doesn't yet exist
-     *  passes through silently — the orchestrator will create it.
+     *  `false` when it must abort.
+     *
+     *  The "contains existing simulation artefacts" predicate is
+     *  whether the at-risk subdirectories — `output/` (runtime
+     *  artefacts: kslOutput.txt, dbDir, csvDir, plotDir) and
+     *  `reports/` (materialized HTML/MD reports) — already exist.
+     *  Checking only the parent appWorkspace would produce
+     *  false-positive warnings whenever an earlier code path
+     *  materialized a sibling subdirectory (e.g. `configs/` from a
+     *  save-dialog side effect), even though no actual simulation
+     *  output is at risk.
      */
     private fun confirmWorkspaceCollision(): Boolean {
         val target = controller.appWorkspace
-        if (!java.nio.file.Files.exists(target)) return true
+        val outputSubdir = target.resolve("output")
+        val reportsSubdir = target.resolve("reports")
+        val atRiskOfOverwrite = java.nio.file.Files.exists(outputSubdir) ||
+            java.nio.file.Files.exists(reportsSubdir)
+        if (!atRiskOfOverwrite) return true
         if (target in approvedWorkspacePaths) return true
         val options = arrayOf<Any>(
             "Use Existing Folder",
@@ -595,7 +608,17 @@ class SingleAppFrame(
 
     private fun handleSaveAs() {
         val workspace = controller.appWorkspace
-        val startDir = WorkspaceLayout.configsDir(workspace, createIfMissing = true)
+        // Compute the chooser's starting directory without eagerly
+        // materialising it.  Calling `WorkspaceLayout.configsDir` with
+        // `createIfMissing = true` here would create
+        // `<appWorkspace>/configs/` just to open the chooser — a side
+        // effect that materialises `appWorkspace` itself even when
+        // the user ends up cancelling the save and that trips
+        // `confirmWorkspaceCollision`'s "folder exists" gate downstream.
+        // The eventual successful write creates the parent dir on
+        // demand (see `writeConfigurationTo` line below).
+        val configsDir = WorkspaceLayout.configsDir(workspace, createIfMissing = false)
+        val startDir = if (java.nio.file.Files.exists(configsDir)) configsDir else workspace
         val defaultName = defaultSaveAsName()
         val chooser = JFileChooser(startDir.toFile()).apply {
             dialogTitle = "Save Configuration"
