@@ -540,7 +540,12 @@ class FactorsTabPanel(
     }
 
     private fun defaultBindingFor(descriptor: ModelDescriptor): ControlBinding? {
-        val firstControl = descriptor.controls.numericControls.firstOrNull()?.keyName
+        // Match the binding combo's featured-first ordering so the default IS its
+        // first visible item: the first author-nominated numeric control when a
+        // catalog is present, the alphabetical-first control otherwise.
+        val sortedKeys = descriptor.controls.numericControls.map { it.keyName }.sorted()
+        val nominatedKeys = descriptor.catalog?.nominatedInputs?.map { it.key } ?: emptyList()
+        val firstControl = CatalogLabels.featuredFirst(sortedKeys, nominatedKeys) { it }.firstOrNull()
         if (firstControl != null) return ControlBinding.Control(firstControl)
         val firstRv = descriptor.rvParameterMap.entries.firstOrNull()
         if (firstRv != null) {
