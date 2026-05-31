@@ -69,6 +69,10 @@ class RVOverridesPanel(
 ) : JPanel(BorderLayout()) {
 
     private val snapshot: List<RVParameterData> get() = state.rvSnapshot
+
+    /** Author-curated input metadata keyed by "rvName.paramName"; empty when no catalog. */
+    private val inputLookup = CatalogLabels.inputsByKey(state.modelCatalog)
+
     private var table: JTable? = null
     private var filterField: JTextField? = null
     private var resetButton: JButton? = null
@@ -102,12 +106,26 @@ class RVOverridesPanel(
 
     private fun buildTable(): JPanel {
         val model = RVOverridesTableModel(snapshot, state)
-        val tbl = JTable(model).apply {
+        val lookup = inputLookup
+        val tbl = object : JTable(model) {
+            // Surface author-curated metadata for a nominated RV parameter as a row
+            // tooltip; cell text is unchanged, so filtering/sorting/editing are
+            // unaffected; null catalog ⇒ no tooltip.
+            override fun getToolTipText(event: java.awt.event.MouseEvent): String? {
+                val viewRow = rowAtPoint(event.point)
+                if (viewRow >= 0) {
+                    val key = model.keyAt(convertRowIndexToModel(viewRow))
+                    CatalogLabels.tooltip(lookup[key])?.let { return it }
+                }
+                return super.getToolTipText(event)
+            }
+        }.apply {
             autoCreateRowSorter = false
             fillsViewportHeight = true
             rowHeight = 22
             putClientProperty("terminateEditOnFocusLost", true)
         }
+        if (lookup.isNotEmpty()) javax.swing.ToolTipManager.sharedInstance().registerComponent(tbl)
         tbl.columnModel.getColumn(RVOverridesTableModel.COL_VALUE).cellEditor =
             RVValueCellEditor(model)
         model.applyColumnWidths(tbl)
@@ -181,6 +199,12 @@ internal class RVOverridesTableModel(
     override fun getRowCount(): Int = rows.size
     override fun getColumnCount(): Int = columns.size
     override fun getColumnName(column: Int): String = columns[column]
+
+    /** Canonical flattened key ("rvName.paramName") for the row — joins catalog metadata. */
+    fun keyAt(modelRow: Int): String {
+        val r = rows[modelRow]
+        return "${r.rvName}${ksl.utilities.random.rvariable.parameters.RVParameterSetter.rvParamConCatChar}${r.paramName}"
+    }
 
     override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
         COL_OVERRIDE -> java.lang.Boolean::class.java

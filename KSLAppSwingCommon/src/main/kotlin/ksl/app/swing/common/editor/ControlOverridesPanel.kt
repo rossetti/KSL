@@ -77,6 +77,10 @@ class ControlOverridesPanel(
 ) : JPanel(BorderLayout()) {
 
     private val snapshot get() = state.controlsSnapshot
+
+    /** Author-curated input metadata keyed by control key; empty when no catalog. */
+    private val inputLookup = CatalogLabels.inputsByKey(state.modelCatalog)
+
     private val tables: MutableList<JTable> = mutableListOf()
     private val filterFields: MutableList<JTextField> = mutableListOf()
     private val resetButtons: MutableList<JButton> = mutableListOf()
@@ -222,12 +226,26 @@ class ControlOverridesPanel(
     }
 
     private fun makeTable(model: OverrideTableModel): JTable {
-        val table = JTable(model).apply {
+        val lookup = inputLookup
+        val table = object : JTable(model) {
+            // Surface author-curated metadata (display name, description, unit) for a
+            // nominated control as a row tooltip.  The cell text (raw key) is unchanged,
+            // so filtering/sorting/editing are unaffected; null catalog ⇒ no tooltip.
+            override fun getToolTipText(event: MouseEvent): String? {
+                val viewRow = rowAtPoint(event.point)
+                if (viewRow >= 0) {
+                    val key = model.keyAt(convertRowIndexToModel(viewRow))
+                    CatalogLabels.tooltip(lookup[key])?.let { return it }
+                }
+                return super.getToolTipText(event)
+            }
+        }.apply {
             autoCreateRowSorter = false
             fillsViewportHeight = true
             rowHeight = 22
             putClientProperty("terminateEditOnFocusLost", true)
         }
+        if (lookup.isNotEmpty()) javax.swing.ToolTipManager.sharedInstance().registerComponent(table)
         model.applyColumnWidths(table)
         tables.add(table)
         return table
@@ -248,6 +266,8 @@ internal abstract class OverrideTableModel : AbstractTableModel() {
     abstract fun isOverridden(modelRow: Int): Boolean
     abstract fun resetAllOverrides()
     abstract fun applyColumnWidths(table: JTable)
+    /** Canonical control key for the given model row — used to join catalog metadata. */
+    abstract fun keyAt(modelRow: Int): String
 }
 
 /**
@@ -357,6 +377,8 @@ internal class NumericControlTableModel(
         val key = controls[modelRow].keyName
         return state.controlOverrides.value.numericControls.any { it.keyName == key }
     }
+
+    override fun keyAt(modelRow: Int): String = controls[modelRow].keyName
 
     override fun resetAllOverrides() {
         for (c in controls) state.clearNumericOverride(c.keyName)
@@ -469,6 +491,8 @@ internal class StringControlTableModel(
         return state.controlOverrides.value.stringControls.any { it.keyName == key }
     }
 
+    override fun keyAt(modelRow: Int): String = controls[modelRow].keyName
+
     override fun resetAllOverrides() {
         for (c in controls) state.clearStringOverride(c.keyName)
         fireTableDataChanged()
@@ -552,6 +576,8 @@ internal class JsonControlTableModel(
         val key = controls[modelRow].keyName
         return state.controlOverrides.value.jsonControls.any { it.keyName == key }
     }
+
+    override fun keyAt(modelRow: Int): String = controls[modelRow].keyName
 
     override fun resetAllOverrides() {
         for (c in controls) state.clearJsonOverride(c.keyName)
