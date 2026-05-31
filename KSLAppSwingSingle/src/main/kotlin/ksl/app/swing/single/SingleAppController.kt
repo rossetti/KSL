@@ -173,6 +173,12 @@ class SingleAppController(
     override val rvSnapshot: List<RVParameterData>
 
     /**
+     * The model's author-curated catalog captured at probe time, or `null`
+     * when the model nominated nothing (or the probe build failed).
+     */
+    override val modelCatalog: ksl.simulation.ModelCatalog?
+
+    /**
      * Sanitized model name captured at probe time, suitable for use
      * as a directory segment under the user's workspace.  Equals
      * `model.name` from the probe build, which is itself the
@@ -195,6 +201,7 @@ class SingleAppController(
         this.modelDefaults = probe.defaults
         this.controlsSnapshot = probe.controlsSnapshot
         this.rvSnapshot = probe.rvSnapshot
+        this.modelCatalog = probe.modelCatalog
         this.modelName = probe.modelName
         this.probeFailure = probe.failure
     }
@@ -267,6 +274,7 @@ class SingleAppController(
         val defaults: ExperimentRunDefaults,
         val controlsSnapshot: ModelControlsExport,
         val rvSnapshot: List<RVParameterData>,
+        val modelCatalog: ksl.simulation.ModelCatalog?,
         val modelName: String,
         val failure: Throwable?
     )
@@ -278,6 +286,7 @@ class SingleAppController(
             defaults = descriptor.experimentRunDefaults,
             controlsSnapshot = descriptor.controls,
             rvSnapshot = descriptor.rvParameterData,
+            modelCatalog = descriptor.catalog,
             modelName = model.name,
             failure = null
         )
@@ -287,6 +296,7 @@ class SingleAppController(
             defaults = SAFE_FALLBACK_DEFAULTS,
             controlsSnapshot = ModelControlsExport(modelName = appName),
             rvSnapshot = emptyList(),
+            modelCatalog = null,
             modelName = "",
             failure = t
         )

@@ -67,7 +67,8 @@ class ScenarioEditBuffer private constructor(
     spec: ScenarioSpec,
     override val modelDefaults: ExperimentRunDefaults,
     override val controlsSnapshot: ModelControlsExport,
-    override val rvSnapshot: List<RVParameterData>
+    override val rvSnapshot: List<RVParameterData>,
+    override val modelCatalog: ksl.simulation.ModelCatalog?
 ) : ConfigurationEditorState, AutoCloseable {
 
     /** Editable scenario name. */
@@ -235,7 +236,8 @@ class ScenarioEditBuffer private constructor(
                 spec = spec,
                 modelDefaults = descriptor.experimentRunDefaults,
                 controlsSnapshot = descriptor.controls,
-                rvSnapshot = descriptor.rvParameterData
+                rvSnapshot = descriptor.rvParameterData,
+                modelCatalog = descriptor.catalog
             )
 
         /**
@@ -250,7 +252,8 @@ class ScenarioEditBuffer private constructor(
                 spec = spec,
                 modelDefaults = SAFE_FALLBACK_DEFAULTS,
                 controlsSnapshot = ModelControlsExport(modelName = ""),
-                rvSnapshot = emptyList()
+                rvSnapshot = emptyList(),
+                modelCatalog = null
             )
 
         /**

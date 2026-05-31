@@ -25,6 +25,7 @@ import ksl.app.config.RVParameterOverride
 import ksl.app.validation.ValidationFeedbackBus
 import ksl.controls.ModelControlsExport
 import ksl.controls.experiments.ExperimentRunDefaults
+import ksl.simulation.ModelCatalog
 import ksl.utilities.random.rvariable.parameters.RVParameterData
 
 /**
@@ -83,6 +84,16 @@ interface ConfigurationEditorState {
 
     /** Probe-time RV snapshot; drives the rows of `RVOverridesPanel`. */
     val rvSnapshot: List<RVParameterData>
+
+    /**
+     *  Probe-time author-curated catalog of nominated inputs and outputs, or
+     *  `null` when the model supplied none.  Optional metadata: editor panels may
+     *  use it to label and feature the salient inputs/outputs, but must behave
+     *  exactly as before when it is `null`.  Defaults to `null` so hosts that do
+     *  not supply a catalog need not override it.
+     */
+    val modelCatalog: ModelCatalog?
+        get() = null
 
     /** Pending run-parameter overrides. */
     val runOverrides: StateFlow<ExperimentRunOverrides>
