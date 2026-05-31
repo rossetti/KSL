@@ -50,6 +50,10 @@ import ksl.utilities.random.rvariable.parameters.RVParameterSetter
  *  @param rvParameterData        random variable parameter data extracted from the model
  *  @param configuration          optional `Map<String, String>` of model configuration settings
  *  @param baseTimeUnit           base time unit for the model
+ *  @param catalog                optional author-curated catalog of nominated inputs and
+ *                                outputs (see [ModelCatalog]); `null` when the model developer
+ *                                nominated nothing.  Applications may use it to focus their UX
+ *                                but must not depend on its presence.
  */
 @Serializable
 data class ModelDescriptor(
@@ -60,7 +64,8 @@ data class ModelDescriptor(
     val controls: ModelControlsExport,
     val rvParameterData: List<RVParameterData>,
     val configuration: Map<String, String>? = null,
-    val baseTimeUnit: ModelElement.TimeUnit
+    val baseTimeUnit: ModelElement.TimeUnit,
+    val catalog: ModelCatalog? = null
 ) : ToJSONIfc {
 
     /**

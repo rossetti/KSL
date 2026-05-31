@@ -381,9 +381,96 @@ class Model @JvmOverloads constructor(
             controls               = this.controls().exportAll(),
             rvParameterData        = this.rvParameterSetter.rvParametersData,
             configuration          = this.configuration,
-            baseTimeUnit           = this.baseTimeUnit
+            baseTimeUnit           = this.baseTimeUnit,
+            catalog                = this.modelCatalog
         )
     }
+
+    /**
+     *  Holds the author-curated catalog of nominated inputs and outputs, if any.
+     *  Lazily attached on the first [nominate] / [tryNominate] call, mirroring
+     *  how [controls] attaches [Controls].
+     */
+    private var myModelCatalog: ModelCatalogBuilder? = null
+
+    private fun catalogBuilder(): ModelCatalogBuilder =
+        myModelCatalog ?: ModelCatalogBuilder(this).also { myModelCatalog = it }
+
+    /**
+     *  Nominate the model's most important inputs and outputs so applications can
+     *  surface them first.  Entirely optional — a model with no nominations simply
+     *  yields a `null` [ModelDescriptor.catalog].
+     *
+     *  Nominate by object reference when possible (the type-safe path) or by string
+     *  key.  Declare nominations after the model element graph is complete:
+     *
+     *  ```
+     *  model.nominate {
+     *      output(systemTime) { displayName = "Avg Time in System"; unit = "min" }
+     *      rvParameter(serviceRV, "mean") { unit = "min" }
+     *      input(server, "numServers") { unit = "servers" }
+     *  }
+     *  ```
+     *
+     *  Fail-fast: an unknown or duplicate nomination throws `IllegalArgumentException`
+     *  with a "did you mean" suggestion.  Use [tryNominate] for a non-throwing variant.
+     */
+    fun nominate(block: ModelCatalogBuilder.() -> Unit) {
+        catalogBuilder().run(throwing = true, block)
+    }
+
+    /**
+     *  Non-throwing variant of [nominate]: applies every valid nomination in [block]
+     *  and returns the rejected ones in a [NominationResult].  Useful when nominating
+     *  from external configuration that should report problems rather than crash.
+     */
+    fun tryNominate(block: ModelCatalogBuilder.() -> Unit): NominationResult =
+        NominationResult(catalogBuilder().run(throwing = false, block))
+
+    /**
+     *  Immutable snapshot of the author-curated catalog, or `null` when [nominate]
+     *  has never been called.  Recomputed on each access from the accumulated
+     *  nominations; flows into [modelDescriptor] as [ModelDescriptor.catalog].
+     */
+    val modelCatalog: ModelCatalog?
+        get() = myModelCatalog?.build()
+
+    /**
+     *  Imperative, Java-friendly nomination of a control input by key.  Equivalent
+     *  to `nominate { input(key) { … } }`.
+     */
+    @JvmOverloads
+    fun nominateInput(
+        key: String,
+        displayName: String? = null,
+        description: String? = null,
+        unit: String? = null
+    ) = nominate { input(key) { this.displayName = displayName; this.description = description; this.unit = unit } }
+
+    /**
+     *  Imperative, Java-friendly nomination of a random-variable parameter input.
+     *  Equivalent to `nominate { rvParameter(rvName, paramName) { … } }`.
+     */
+    @JvmOverloads
+    fun nominateRVParameter(
+        rvName: String,
+        paramName: String,
+        displayName: String? = null,
+        description: String? = null,
+        unit: String? = null
+    ) = nominate { rvParameter(rvName, paramName) { this.displayName = displayName; this.description = description; this.unit = unit } }
+
+    /**
+     *  Imperative, Java-friendly nomination of a response/counter output by name.
+     *  Equivalent to `nominate { output(name) { … } }`.
+     */
+    @JvmOverloads
+    fun nominateOutput(
+        name: String,
+        displayName: String? = null,
+        description: String? = null,
+        unit: String? = null
+    ) = nominate { output(name) { this.displayName = displayName; this.description = description; this.unit = unit } }
 
     /**
      * Attaches the CSVReplicationReport to the model if not attached.
