@@ -23,7 +23,9 @@ import ksl.app.config.experiment.ControlBinding
 import ksl.app.config.experiment.FactorSpec
 import ksl.app.notification.NotificationSink
 import ksl.controls.ControlData
+import ksl.app.swing.common.editor.CatalogLabels
 import ksl.simulation.ModelDescriptor
+import ksl.simulation.NominatedInput
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -173,13 +175,41 @@ class FactorsTabPanel(
     private val controlParentFilter = JTextField(10)
     private val controlParentCombo: JComboBox<String> = JComboBox()
     private val controlKeyFilter = JTextField(14)
-    private val controlKeyCombo: JComboBox<String> = JComboBox()
+    private val controlKeyCombo: JComboBox<String> = JComboBox<String>().apply {
+        // Label a nominated control with its catalog display name + unit (if any).
+        renderer = CatalogLabels.listRenderer(
+            displayNameFor = { v -> nominatedInputFor(v)?.displayName },
+            tooltipFor = { v -> CatalogLabels.tooltip(nominatedInputFor(v)) }
+        )
+    }
 
     // RV binding widgets.  Always two-level (rvName → paramName).
     private val rvNameFilter = JTextField(12)
     private val rvNameCombo: JComboBox<String> = JComboBox()
     private val rvParamFilter = JTextField(12)
-    private val rvParamCombo: JComboBox<String> = JComboBox()
+    private val rvParamCombo: JComboBox<String> = JComboBox<String>().apply {
+        // Label a nominated RV parameter (rvName + selected param) with its display name.
+        renderer = CatalogLabels.listRenderer(
+            displayNameFor = { v -> nominatedRvInputFor(v)?.displayName },
+            tooltipFor = { v -> CatalogLabels.tooltip(nominatedRvInputFor(v)) }
+        )
+    }
+
+    /** The nominated input for a full control key combo item, or null. */
+    private fun nominatedInputFor(item: Any?): NominatedInput? {
+        val key = item as? String ?: return null
+        return controller.currentModelDescriptor.value?.catalog
+            ?.nominatedInputs?.firstOrNull { it.key == key }
+    }
+
+    /** The nominated input for an RV-parameter combo item (joined with the selected RV name), or null. */
+    private fun nominatedRvInputFor(item: Any?): NominatedInput? {
+        val param = item as? String ?: return null
+        val rv = rvNameCombo.selectedItem as? String ?: return null
+        val key = "$rv${ksl.utilities.random.rvariable.parameters.RVParameterSetter.rvParamConCatChar}$param"
+        return controller.currentModelDescriptor.value?.catalog
+            ?.nominatedInputs?.firstOrNull { it.key == key }
+    }
 
     private val levelsField = JTextField(28)
     private val levelsPreview = JLabel(" ").apply { foreground = Color(0x66, 0x66, 0x66) }

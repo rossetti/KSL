@@ -172,6 +172,11 @@ class SimulateTabPanel(
     private var enumeratedPoints: List<EnumeratedPoint> = emptyList()
     private var factorNames: List<String> = emptyList()
 
+    /** Per-factor column header, factor name plus a catalog unit suffix when the
+     *  bound control/RV parameter is nominated with a unit (e.g. "Order Qty (units)").
+     *  Same size/order as [factorNames]; falls back to the plain name. */
+    private var factorColumnLabels: List<String> = emptyList()
+
     private val tableModel = DesignPointsTableModel()
     private val table = JTable(tableModel).apply {
         selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
@@ -623,6 +628,16 @@ class SimulateTabPanel(
         if (controller.runningFlow.value) return
         val factors = controller.factors.value
         factorNames = factors.map { it.name }
+        val catalog = controller.currentModelDescriptor.value?.catalog
+        factorColumnLabels = factors.map { f ->
+            val key = when (val b = f.binding) {
+                is ksl.app.config.experiment.ControlBinding.Control -> b.controlKey
+                is ksl.app.config.experiment.ControlBinding.RVParameter ->
+                    "${b.rvName}${ksl.utilities.random.rvariable.parameters.RVParameterSetter.rvParamConCatChar}${b.paramName}"
+            }
+            val unit = catalog?.nominatedInputs?.firstOrNull { it.key == key }?.unit
+            if (unit.isNullOrBlank()) f.name else "${f.name} ($unit)"
+        }
         if (factors.isEmpty() || controller.modelReference.value == null) {
             enumeratedPoints = emptyList()
             tableModel.fireTableStructureChanged()
@@ -682,7 +697,7 @@ class SimulateTabPanel(
             repsColumn -> "reps"
             statusColumn -> "Status"
             cancelColumn -> "Action"
-            else -> factorNames[column - 1]
+            else -> factorColumnLabels.getOrNull(column - 1) ?: factorNames[column - 1]
         }
         override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
             0, repsColumn -> java.lang.Integer::class.java

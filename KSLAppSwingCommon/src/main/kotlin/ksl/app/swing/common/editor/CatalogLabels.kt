@@ -21,19 +21,24 @@ package ksl.app.swing.common.editor
 import ksl.simulation.ModelCatalog
 import ksl.simulation.NominatedInput
 import ksl.simulation.NominatedOutput
+import java.awt.Component
+import javax.swing.DefaultListCellRenderer
+import javax.swing.JList
+import javax.swing.ListCellRenderer
 
 /**
  *  Shared helpers for surfacing author-curated catalog metadata
  *  (`ksl.simulation.ModelCatalog`) in the editor widgets: lookups keyed by the
- *  canonical input key / output name, and HTML tooltip builders that render a
- *  nominated item's display name, description, and unit.
+ *  canonical input key / output name, HTML tooltip builders, and a combo/list
+ *  renderer that appends a nominated item's display name (and shows its
+ *  description/unit as a tooltip).
  *
  *  This is the **labelling** layer (Phase A of catalog → app integration): it
  *  enriches existing surfaces without changing their order or contents.  Every
  *  helper degrades to an empty map / `null` tooltip when no catalog is present,
  *  so callers behave exactly as before for non-cataloged models.
  */
-internal object CatalogLabels {
+object CatalogLabels {
 
     /** Nominated inputs keyed by their canonical key (control keyName or "rvName.paramName"). */
     fun inputsByKey(catalog: ModelCatalog?): Map<String, NominatedInput> =
@@ -61,4 +66,28 @@ internal object CatalogLabels {
 
     private fun escape(s: String): String =
         s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    /**
+     *  A combo/list cell renderer that, for an item resolving to nominated
+     *  metadata, renders "value   —   Display Name" (the raw value stays first,
+     *  so selection semantics and any text matching are unaffected) and sets the
+     *  cell tooltip to the description/unit.  Items with no display name render
+     *  unchanged.  [displayNameFor] returns the nominated display name for an
+     *  item (or `null`); [tooltipFor] returns its HTML tooltip (or `null`),
+     *  typically built from one of the `tooltip(...)` overloads above.
+     */
+    fun listRenderer(
+        displayNameFor: (Any?) -> String?,
+        tooltipFor: (Any?) -> String?
+    ): ListCellRenderer<Any?> = object : DefaultListCellRenderer() {
+        override fun getListCellRendererComponent(
+            list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean
+        ): Component {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            val display = displayNameFor(value)?.takeIf { it.isNotBlank() }
+            if (display != null && value != null) text = "$value   —   $display"
+            toolTipText = tooltipFor(value)
+            return this
+        }
+    }
 }

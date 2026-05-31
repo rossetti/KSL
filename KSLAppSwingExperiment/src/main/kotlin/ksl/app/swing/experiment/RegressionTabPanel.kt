@@ -23,6 +23,8 @@ import ksl.app.experiment.regression.RegressionFitRecord
 import kotlinx.coroutines.launch
 import ksl.app.config.ReportFormat
 import ksl.app.notification.NotificationSink
+import ksl.app.swing.common.editor.CatalogLabels
+import ksl.simulation.NominatedOutput
 import ksl.controls.experiments.LinearModel
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
@@ -128,6 +130,18 @@ class RegressionTabPanel(
         toolTipText = "Response variable from the model.  Pre-populated from " +
             "the loaded model's responseNames; refined to the experiment's " +
             "actual response set once a run completes."
+        // Label a nominated response with its catalog display name + unit (if any).
+        renderer = CatalogLabels.listRenderer(
+            displayNameFor = { v -> nominatedOutputFor(v)?.displayName },
+            tooltipFor = { v -> CatalogLabels.tooltip(nominatedOutputFor(v)) }
+        )
+    }
+
+    /** The nominated output for a response-name combo item, or null. */
+    private fun nominatedOutputFor(item: Any?): NominatedOutput? {
+        val name = item as? String ?: return null
+        return controller.currentModelDescriptor.value?.catalog
+            ?.nominatedOutputs?.firstOrNull { it.name == name }
     }
     private val codedRadio = JRadioButton("Coded (−1, +1)", true).apply {
         toolTipText = "Fit against coded factor levels.  Recommended for two-level designs " +
