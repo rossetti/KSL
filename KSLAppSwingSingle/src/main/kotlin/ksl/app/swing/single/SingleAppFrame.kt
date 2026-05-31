@@ -537,11 +537,16 @@ class SingleAppFrame(
                         outcome.newBundleIds.joinToString(", ")
                 )
             }
-            ksl.app.editor.BundleLibraryController.LoadBundleResult.NoBundles ->
-                notifications.warn(
-                    "$path declares no KSLModelBundle service (or all of its " +
-                        "bundles are already loaded)."
+            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Reloaded ->
+                notifications.info(
+                    "Reloaded from disk: " + outcome.bundleIds.joinToString(", ")
                 )
+            is ksl.app.editor.BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
+                notifications.info(
+                    "Already loaded (no change): " + outcome.bundleIds.joinToString(", ")
+                )
+            ksl.app.editor.BundleLibraryController.LoadBundleResult.NoBundles ->
+                notifications.warn("$path declares no KSLModelBundle service.")
             is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }

@@ -767,10 +767,16 @@ class ExperimentAppFrame(
                     "Loaded ${outcome.newBundleIds.size} bundle(s): $ids"
                 )
             }
-            BundleLibraryController.LoadBundleResult.NoBundles ->
-                notifications.warn(
-                    "$path declares no KSLModelBundle service (or all of its bundles are already loaded)."
+            is BundleLibraryController.LoadBundleResult.Reloaded ->
+                notifications.info(
+                    "Reloaded from disk: " + outcome.bundleIds.joinToString(", ")
                 )
+            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
+                notifications.info(
+                    "Already loaded (no change): " + outcome.bundleIds.joinToString(", ")
+                )
+            BundleLibraryController.LoadBundleResult.NoBundles ->
+                notifications.warn("$path declares no KSLModelBundle service.")
             is BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error("Could not load $path: ${outcome.reason}")
         }

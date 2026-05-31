@@ -56,6 +56,16 @@ class LoadedBundle internal constructor(
     private var closed: Boolean = false
 
     /**
+     * SHA-256 of the source JAR's bytes, or `null` for classpath-loaded
+     * bundles (which have no backing JAR file).  Lets a caller detect that a
+     * JAR at a previously-loaded path has been rebuilt — same `sourceJar`,
+     * different content — which is the signal a bundle library uses to decide
+     * a reload is warranted rather than a no-op.
+     */
+    val contentHash: String?
+        get() = jarSha256
+
+    /**
      * Returns the `ModelDescriptor` for the given `modelId`. Resolves through
      * in-JAR resource, then on-disk cache, then lazy extraction (see class
      * KDoc). The first successful resolution is memoized.

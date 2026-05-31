@@ -28,7 +28,12 @@ internal object TestBundleBuilder {
      *
      * @return the absolute path to the produced JAR
      */
-    fun build(dir: Path, name: String, bundleClasses: List<Class<*>>): Path {
+    fun build(
+        dir: Path,
+        name: String,
+        bundleClasses: List<Class<*>>,
+        extraEntries: Map<String, ByteArray> = emptyMap()
+    ): Path {
         val target = dir.resolve("$name.jar")
         Files.newOutputStream(target).use { os ->
             JarOutputStream(os, Manifest()).use { jar ->
@@ -45,6 +50,17 @@ internal object TestBundleBuilder {
                     jar.write(body.toByteArray(Charsets.UTF_8))
                     jar.closeEntry()
                     seen += servicesPath
+                }
+                // Optional extra entries — used to vary a JAR's content (and
+                // therefore its SHA-256) while keeping the same bundle classes,
+                // simulating a rebuilt-but-same-bundleId JAR for reload tests.
+                for ((entryName, bytes) in extraEntries) {
+                    if (entryName in seen) continue
+                    val entry = JarEntry(entryName).apply { time = 0L }
+                    jar.putNextEntry(entry)
+                    jar.write(bytes)
+                    jar.closeEntry()
+                    seen += entryName
                 }
             }
         }

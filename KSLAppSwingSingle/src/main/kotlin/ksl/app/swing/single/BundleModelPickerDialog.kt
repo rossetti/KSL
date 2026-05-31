@@ -253,11 +253,16 @@ private class PickerDialog(
                     )
                 }
             }
+            is BundleLibraryController.LoadBundleResult.Reloaded -> {
+                tableModel.replaceRows(buildRows())
+                refreshBannerForEmptyState()
+                showBannerInfo("Reloaded from disk: " + outcome.bundleIds.joinToString(", "))
+            }
+            is BundleLibraryController.LoadBundleResult.AlreadyLoaded -> {
+                showBannerInfo("Already loaded (no change): " + outcome.bundleIds.joinToString(", "))
+            }
             BundleLibraryController.LoadBundleResult.NoBundles -> {
-                showBannerError(
-                    "$path declares no KSLModelBundle service (or all of its bundles " +
-                        "are already loaded)."
-                )
+                showBannerError("$path declares no KSLModelBundle service.")
             }
             is BundleLibraryController.LoadBundleResult.Failed -> {
                 showBannerError("Could not load $path: ${outcome.reason}")

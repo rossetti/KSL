@@ -29,10 +29,11 @@ import java.nio.file.Path
 /**
  *  Substrate-level bundle-library bookkeeping shared by every
  *  configuration-shaped app that supports interactive bundle
- *  loading: the append-only list of [LoadedBundle]s currently in
- *  scope, the [BundleModelProvider] adapter that exposes them as a
- *  single picker source, and the load-jar mutator that grows that
- *  set while de-duplicating by `bundleId`.
+ *  loading: the list of [LoadedBundle]s currently in scope, the
+ *  [BundleModelProvider] adapter that exposes them as a single picker
+ *  source, and the load-jar mutator that grows that set while
+ *  de-duplicating by `bundleId` and reloading a JAR in place when the
+ *  same path is re-loaded with changed content.
  *
  *  Pre-decomposition, Scenario / Experiment / Simopt each
  *  reimplemented this with byte-identical state + a byte-identical
@@ -43,17 +44,18 @@ import java.nio.file.Path
  *
  *  ## What this owns
  *
- *  - The [loadedBundles] StateFlow — append-only list, populated by
- *    [discoverFromClasspath] and [loadJar].
+ *  - The [loadedBundles] StateFlow — the set in scope, populated by
+ *    [discoverFromClasspath] and [loadJar]; a reload replaces a JAR's
+ *    prior entries in place.
  *  - The [bundleProvider] StateFlow — a [BundleModelProvider]
  *    wrapping the current set, or `null` when no bundles are loaded.
  *  - [discoverFromClasspath] — one-shot probe of the JVM classpath
  *    via [BundleLoader.loadFromClasspath]; hosts call once in init.
- *  - [loadJar] — JAR-load with de-duplication and prompt cleanup of
- *    duplicate classloaders.
+ *  - [loadJar] — JAR-load with de-duplication, in-place reload of a
+ *    rebuilt JAR, and deferred close of any bundles it displaces.
  *  - [findBundle] — `bundleId`-keyed lookup helper.
- *  - [close] — closes every loaded bundle's classloader; safe to
- *    call when empty and safe to call twice.
+ *  - [close] — closes every loaded and retired bundle's classloader
+ *    and resets to empty; safe to call when empty and safe to call twice.
  *
  *  ## What this deliberately does NOT own
  *
@@ -79,19 +81,24 @@ import java.nio.file.Path
  *  | Method | Effect | Typical caller |
  *  |---|---|---|
  *  | [discoverFromClasspath] | append classpath bundles (if any) | host `init {}` |
- *  | [loadJar]               | append a JAR's bundles (dedup by `bundleId`) | host's `loadBundleJar` |
+ *  | [loadJar]               | append / reload a JAR's bundles (dedup by `bundleId`; reload by `sourceJar`) | host's `loadBundleJar` |
  *  | [findBundle]            | read-only lookup | host descriptor resolution |
- *  | [close]                 | close every loaded bundle | host `close()` |
+ *  | [close]                 | close every loaded + retired bundle, reset to empty | host `close()` |
  *
  *  Substrate-level API — usable by any UI shell.  Owns no
  *  coroutine scope and no background work; the only async-shaped
  *  contract is the [onBundlesChanged] callback which is invoked
  *  synchronously inside the mutator that grew the set.
  *
- *  @param onBundlesChanged invoked after every successful mutation
- *  ([discoverFromClasspath]'s successful add, [loadJar]'s
- *  `Loaded` outcome).  NOT invoked when [loadJar] returns `Failed`
- *  or `NoBundles`.  Defaults to a no-op.
+ *  Not thread-safe: it assumes single-threaded (typically EDT-confined)
+ *  mutation, matching how the four Swing apps drive it.  A future
+ *  multi-threaded host would need to serialize calls externally.
+ *
+ *  @param onBundlesChanged invoked after every mutation that changes
+ *  the loaded set ([discoverFromClasspath]'s successful add, and
+ *  [loadJar]'s `Loaded` and `Reloaded` outcomes).  NOT invoked when
+ *  [loadJar] returns `AlreadyLoaded`, `NoBundles`, or `Failed`.
+ *  Defaults to a no-op.
  */
 class BundleLibraryController(
     private val onBundlesChanged: () -> Unit = {}
@@ -100,10 +107,12 @@ class BundleLibraryController(
     private val myLoadedBundles = MutableStateFlow<List<LoadedBundle>>(emptyList())
     /**
      *  All bundles currently in scope — classpath-discovered +
-     *  every JAR successfully loaded via [loadJar].  Append-only:
-     *  bundles are never removed except via [close], because
-     *  [LoadedBundle]s from the same JAR share a classloader and
-     *  partial unload would invalidate sibling bundles.
+     *  every JAR successfully loaded via [loadJar].  Bundles are
+     *  removed only by a reload that replaces a whole JAR's prior
+     *  entries (keyed on [`sourceJar`][LoadedBundle.sourceJar], the
+     *  atomic classloader unit) or by [close].  A single bundle is
+     *  never removed in isolation, since [LoadedBundle]s from the same
+     *  JAR share a classloader.
      */
     val loadedBundles: StateFlow<List<LoadedBundle>> = myLoadedBundles.asStateFlow()
 
@@ -114,6 +123,16 @@ class BundleLibraryController(
      *  empty; non-null and rebuilt on every successful add.
      */
     val bundleProvider: StateFlow<BundleModelProvider?> = myBundleProvider.asStateFlow()
+
+    /**
+     *  Bundles displaced by a reload (a JAR re-loaded from a path whose
+     *  prior content differed).  Their classloaders are NOT closed at
+     *  reload time — an in-flight run or an already-built model may still
+     *  depend on them — but are retained here and closed together in
+     *  [close].  This bounds classloader retention to one displaced loader
+     *  per content-changed reload, reclaimed at shutdown.
+     */
+    private val retired = mutableListOf<LoadedBundle>()
 
     /**
      *  Discover bundles already on the JVM classpath via
@@ -128,43 +147,73 @@ class BundleLibraryController(
      */
     fun discoverFromClasspath() {
         val classpathBundles = BundleLoader.loadFromClasspath()
-        if (classpathBundles.isNotEmpty()) addBundles(classpathBundles)
+        if (classpathBundles.isNotEmpty()) commit(myLoadedBundles.value + classpathBundles)
     }
 
     /**
-     *  Load every `KSLModelBundle` from the JAR at [jarPath] and
-     *  append the discovered bundles to [loadedBundles].  Bundles
-     *  whose `bundleId` already exists in the controller are
-     *  silently dropped — the first registration wins, matching
-     *  [BundleModelProvider]'s duplicate-handling.  Duplicate
-     *  [LoadedBundle] instances are [close]d immediately so their
-     *  redundant classloaders are released.
+     *  Load every `KSLModelBundle` from the JAR at [jarPath].  The
+     *  outcome depends on whether that path — and that path's content —
+     *  is already loaded:
      *
-     *  - [LoadBundleResult.Loaded]  — at least one new bundleId was added.
-     *    [onBundlesChanged] fires after the append.
-     *  - [LoadBundleResult.NoBundles] — the JAR loaded but carried no
-     *    new bundleIds (either zero `KSLModelBundle` entries or every
-     *    entry was already loaded).  [onBundlesChanged] does NOT fire.
-     *  - [LoadBundleResult.Failed] — the loader threw; [Failed.reason]
-     *    is suitable for surfacing to the user.  [onBundlesChanged]
-     *    does NOT fire.
+     *  - **New path** — the JAR's bundles are appended.  Bundles whose
+     *    `bundleId` already exists (from a *different* source) are
+     *    dropped, first-registration-wins, matching
+     *    [BundleModelProvider]'s duplicate handling.  Returns
+     *    [LoadBundleResult.Loaded], or [LoadBundleResult.AlreadyLoaded]
+     *    if every `bundleId` was already present elsewhere.
+     *  - **Same path, identical content** (same SHA-256) — no-op;
+     *    returns [LoadBundleResult.AlreadyLoaded].
+     *  - **Same path, changed content** (a rebuilt JAR) — the prior
+     *    bundles from that path are *replaced* by the freshly-loaded
+     *    ones so the picker serves the new code, and returns
+     *    [LoadBundleResult.Reloaded].  The displaced bundles' classloaders
+     *    are NOT closed immediately (a run in flight, or an
+     *    already-built model, may still depend on them); they move to an
+     *    internal retired list and are closed in [close].  See the
+     *    [retired] field.
+     *  - **No bundles in the JAR** — returns [LoadBundleResult.NoBundles].
+     *  - **Load failure** — returns [LoadBundleResult.Failed].
+     *
+     *  [onBundlesChanged] fires only on `Loaded` and `Reloaded` (the
+     *  cases that change the loaded set), not on `AlreadyLoaded`,
+     *  `NoBundles`, or `Failed`.
+     *
+     *  Reload is keyed on [`sourceJar`][LoadedBundle.sourceJar] (the
+     *  JAR is the atomic classloader unit), so classpath-loaded bundles
+     *  (`sourceJar == null`) are never displaced by it.
      */
     fun loadJar(jarPath: Path): LoadBundleResult {
-        val newBundles = try {
+        val fresh = try {
             BundleLoader.loadJar(jarPath)
         } catch (t: Throwable) {
             return LoadBundleResult.Failed(
                 t.message ?: t::class.simpleName ?: "load failed"
             )
         }
-        if (newBundles.isEmpty()) return LoadBundleResult.NoBundles
-        val existingIds = myLoadedBundles.value.map { it.bundle.bundleId }.toSet()
-        val (toAdd, duplicates) =
-            newBundles.partition { it.bundle.bundleId !in existingIds }
-        // Close duplicates immediately — they own a redundant classloader.
-        duplicates.forEach { runCatching { it.close() } }
-        if (toAdd.isEmpty()) return LoadBundleResult.NoBundles
-        addBundles(toAdd)
+        if (fresh.isEmpty()) return LoadBundleResult.NoBundles
+
+        val priorSamePath = myLoadedBundles.value.filter { it.sourceJar == jarPath }
+        if (priorSamePath.isNotEmpty()) {
+            // Same path already loaded — reload only if the content changed.
+            if (priorSamePath.first().contentHash == fresh.first().contentHash) {
+                closeGroup(fresh)   // identical rebuild — discard the redundant loader
+                return LoadBundleResult.AlreadyLoaded(priorSamePath.map { it.bundle.bundleId })
+            }
+            val survivors = myLoadedBundles.value - priorSamePath.toSet()
+            retired += priorSamePath               // deferred close (see [retired])
+            commit(survivors + dedupAgainst(survivors, fresh))
+            return LoadBundleResult.Reloaded(fresh.map { it.bundle.bundleId })
+        }
+
+        // New path.
+        val toAdd = dedupAgainst(myLoadedBundles.value, fresh)
+        if (toAdd.isEmpty()) {
+            // Every bundleId is already loaded from another source — the whole
+            // fresh JAR is unused, so closing its shared loader is safe.
+            closeGroup(fresh)
+            return LoadBundleResult.AlreadyLoaded(fresh.map { it.bundle.bundleId })
+        }
+        commit(myLoadedBundles.value + toAdd)
         return LoadBundleResult.Loaded(toAdd.map { it.bundle.bundleId })
     }
 
@@ -176,39 +225,62 @@ class BundleLibraryController(
         myLoadedBundles.value.firstOrNull { it.bundle.bundleId == bundleId }
 
     /**
-     *  Close every loaded bundle's classloader.  Wraps each close
-     *  in [runCatching] so a single failure does not skip the
-     *  remainder.  Safe when empty; safe to call twice (idempotent
-     *  — after the second call the list is still drained because
-     *  the first call did not clear the list, but each
-     *  [LoadedBundle.close] is itself idempotent per its
-     *  documentation).
+     *  Close every loaded and retired bundle's classloader and reset
+     *  the controller to empty.  Wraps each close in [runCatching] so a
+     *  single failure does not skip the remainder.  Safe when empty;
+     *  safe to call twice (the second call sees empty lists and is a
+     *  no-op).  After this call [loadedBundles] is empty and
+     *  [bundleProvider] is `null`, so no consumer can read a stale,
+     *  closed bundle.
      */
     override fun close() {
-        myLoadedBundles.value.forEach { runCatching { it.close() } }
+        (myLoadedBundles.value + retired).forEach { runCatching { it.close() } }
+        retired.clear()
+        myLoadedBundles.value = emptyList()
+        myBundleProvider.value = null
     }
 
-    private fun addBundles(newBundles: List<LoadedBundle>) {
-        val merged = myLoadedBundles.value + newBundles
-        myLoadedBundles.value = merged
-        myBundleProvider.value =
-            if (merged.isEmpty()) null else BundleModelProvider(merged)
+    /**
+     *  Bundles from [fresh] whose `bundleId` is not already present in
+     *  [keep].  Filtering (rather than closing) is deliberate: bundles
+     *  from one JAR share a classloader, so a not-added sibling's loader
+     *  must stay open for the bundles that *are* added.  The caller
+     *  closes the whole [fresh] group only when none of it is retained.
+     */
+    private fun dedupAgainst(keep: List<LoadedBundle>, fresh: List<LoadedBundle>): List<LoadedBundle> {
+        val ids = keep.map { it.bundle.bundleId }.toSet()
+        return fresh.filter { it.bundle.bundleId !in ids }
+    }
+
+    private fun closeGroup(group: List<LoadedBundle>) {
+        group.forEach { runCatching { it.close() } }
+    }
+
+    private fun commit(live: List<LoadedBundle>) {
+        myLoadedBundles.value = live
+        myBundleProvider.value = if (live.isEmpty()) null else BundleModelProvider(live)
         onBundlesChanged()
     }
 
     /**
      *  Outcome of [loadJar].
      *
-     *  - [Loaded] — one or more new bundles were added.  Carries the
+     *  - [Loaded] — one or more new bundles were appended.  Carries the
      *    list of newly-added `bundleId`s for caller logging / UX.
-     *  - [NoBundles] — the JAR loaded but contributed no new
-     *    bundleIds (either zero SPI entries or every entry was a
-     *    duplicate of an already-loaded bundle).
+     *  - [Reloaded] — a JAR at an already-loaded path was rebuilt and
+     *    its bundles were replaced with the new content.  Carries the
+     *    reloaded `bundleId`s.
+     *  - [AlreadyLoaded] — nothing changed: either the same path with
+     *    identical content, or a new path whose every `bundleId` was
+     *    already loaded from another source.  Carries those `bundleId`s.
+     *  - [NoBundles] — the JAR declares no `KSLModelBundle` service.
      *  - [Failed] — the load attempt threw.  [Failed.reason] is
      *    suitable for surfacing to the user.
      */
     sealed class LoadBundleResult {
         data class Loaded(val newBundleIds: List<String>) : LoadBundleResult()
+        data class Reloaded(val bundleIds: List<String>) : LoadBundleResult()
+        data class AlreadyLoaded(val bundleIds: List<String>) : LoadBundleResult()
         object NoBundles : LoadBundleResult()
         data class Failed(val reason: String) : LoadBundleResult()
     }

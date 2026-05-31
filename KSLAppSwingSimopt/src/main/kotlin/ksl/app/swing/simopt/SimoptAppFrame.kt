@@ -333,10 +333,19 @@ class SimoptAppFrame(
                     "Loaded ${result.newBundleIds.size} bundle(s) from ${path.fileName}: " +
                         result.newBundleIds.joinToString(", ")
                 )
+            is BundleLibraryController.LoadBundleResult.Reloaded ->
+                notifications.info(
+                    "Reloaded from disk: ${path.fileName}: " +
+                        result.bundleIds.joinToString(", ")
+                )
+            is BundleLibraryController.LoadBundleResult.AlreadyLoaded ->
+                notifications.info(
+                    "Already loaded (no change): ${path.fileName}: " +
+                        result.bundleIds.joinToString(", ")
+                )
             BundleLibraryController.LoadBundleResult.NoBundles ->
                 notifications.warn(
-                    "No new bundles found in ${path.fileName}.  (Already loaded, or no " +
-                        "KSLModelBundle SPI entries.)"
+                    "${path.fileName} declares no KSLModelBundle SPI entries."
                 )
             is BundleLibraryController.LoadBundleResult.Failed ->
                 notifications.error(

@@ -166,23 +166,31 @@ class BundleLibraryControllerTest {
     // ── LoadBundleResult shape ───────────────────────────────────────────
 
     @Test
-    fun `LoadBundleResult has Loaded NoBundles and Failed variants`() {
+    fun `LoadBundleResult has Loaded Reloaded AlreadyLoaded NoBundles and Failed variants`() {
         // Pins the public sealed-class shape — each frame's when
-        // clause depends on these three variants existing.
+        // clause depends on these five variants existing.
         val variants: List<BundleLibraryController.LoadBundleResult> = listOf(
             BundleLibraryController.LoadBundleResult.Loaded(listOf("bundleA", "bundleB")),
+            BundleLibraryController.LoadBundleResult.Reloaded(listOf("bundleA")),
+            BundleLibraryController.LoadBundleResult.AlreadyLoaded(listOf("bundleA")),
             BundleLibraryController.LoadBundleResult.NoBundles,
             BundleLibraryController.LoadBundleResult.Failed("bad jar"),
         )
-        assertEquals(3, variants.size)
+        assertEquals(5, variants.size)
         // Type checks
         assertTrue(variants[0] is BundleLibraryController.LoadBundleResult.Loaded)
-        assertTrue(variants[1] is BundleLibraryController.LoadBundleResult.NoBundles)
-        assertTrue(variants[2] is BundleLibraryController.LoadBundleResult.Failed)
+        assertTrue(variants[1] is BundleLibraryController.LoadBundleResult.Reloaded)
+        assertTrue(variants[2] is BundleLibraryController.LoadBundleResult.AlreadyLoaded)
+        assertTrue(variants[3] is BundleLibraryController.LoadBundleResult.NoBundles)
+        assertTrue(variants[4] is BundleLibraryController.LoadBundleResult.Failed)
         // Payload accessors
         val loaded = variants[0] as BundleLibraryController.LoadBundleResult.Loaded
         assertEquals(listOf("bundleA", "bundleB"), loaded.newBundleIds)
-        val failed = variants[2] as BundleLibraryController.LoadBundleResult.Failed
+        val reloaded = variants[1] as BundleLibraryController.LoadBundleResult.Reloaded
+        assertEquals(listOf("bundleA"), reloaded.bundleIds)
+        val already = variants[2] as BundleLibraryController.LoadBundleResult.AlreadyLoaded
+        assertEquals(listOf("bundleA"), already.bundleIds)
+        val failed = variants[4] as BundleLibraryController.LoadBundleResult.Failed
         assertEquals("bad jar", failed.reason)
     }
 
