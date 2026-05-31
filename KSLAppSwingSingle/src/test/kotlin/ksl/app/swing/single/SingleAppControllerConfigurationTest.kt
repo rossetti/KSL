@@ -25,6 +25,8 @@ import ksl.app.config.ReportFormat
 import ksl.app.config.RunConfiguration
 import ksl.app.config.RunConfigurationToml
 import ksl.app.config.ScenarioSpec
+import ksl.app.editor.BundleLibraryController
+import ksl.examples.general.appsupport.MM1Bundle
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
@@ -33,6 +35,7 @@ import kotlin.test.AfterTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
@@ -364,12 +367,16 @@ class SingleAppControllerConfigurationTest {
     }
 
     @Test
-    fun `resetConfiguration restores default OutputConfig`() {
+    fun `resetConfiguration restores default OutputConfig with analysisName pre-filled from modelName`() {
+        // E.5.x analysisName-pre-fill: reset mirrors the init-time
+        // behavior — analysisName takes the probe-captured
+        // modelName, other fields restore to the OutputConfig
+        // data-class defaults.
         val c = freshController()
         c.setEnableKSLDatabase(true)
         c.setReportFormatEnabled(ReportFormat.MARKDOWN, true)
         c.resetConfiguration()
-        assertEquals(OutputConfig(), c.outputConfig.value)
+        assertEquals(OutputConfig(analysisName = "ConfigTestModel"), c.outputConfig.value)
     }
 
     @Test
@@ -377,6 +384,67 @@ class SingleAppControllerConfigurationTest {
         // ConfigTestModel has no spaces; modelName == simulationName as a string.
         val c = freshController()
         assertEquals("ConfigTestModel", c.modelName)
+    }
+
+    // ── analysisName pre-fill from modelName (E.5.x UX fix) ─────────────
+
+    @Test
+    fun `fresh builder mode controller pre-fills analysisName with modelName`() {
+        // The Output Name field should show the model name from
+        // the first frame the user sees — not the bare "Untitled"
+        // sentinel — so the visible value matches the underlying
+        // output directory + DB stem fallback.
+        val c = freshController()
+        assertEquals("ConfigTestModel", c.outputConfig.value.analysisName)
+    }
+
+    @Test
+    fun `fresh bundle mode controller pre-fills analysisName with modelName`() {
+        // Same pre-fill applies regardless of launch mode — the
+        // bundle picker's chosen model is just as known at probe
+        // time as a developer-supplied builder's model.
+        val c = freshBundleModeController()
+        assertEquals(c.modelName, c.outputConfig.value.analysisName)
+    }
+
+    @Test
+    fun `loadConfiguration preserves analysisName from the loaded config`() {
+        // Pre-fill only governs the launch / reset path — a load
+        // takes whatever the TOML carried.  The user's stored name
+        // wins over the model-name default.
+        val c = freshController()
+        assertEquals("ConfigTestModel", c.outputConfig.value.analysisName)
+        val loaded = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.Embedded("ConfigTestApp")
+                )
+            ),
+            outputConfig = OutputConfig(analysisName = "MyCustomAnalysis")
+        )
+        c.loadConfiguration(loaded)
+        assertEquals("MyCustomAnalysis", c.outputConfig.value.analysisName,
+            "Loaded analysisName must survive the load — pre-fill must not override.")
+    }
+
+    @Test
+    fun `probe-failure controller keeps Untitled sentinel`() {
+        // When the probe throws, modelName is blank — the pre-fill
+        // skips so the "Untitled" sentinel continues to drive the
+        // downstream fallback paths.
+        val throwingBuilder = object : ModelBuilderIfc {
+            override fun build(
+                modelConfiguration: Map<String, String>?,
+                experimentRunParameters: ExperimentRunParametersIfc?
+            ): Model = error("Synthetic probe failure")
+        }
+        val c = SingleAppController("ProbeFailApp", throwingBuilder)
+        controller = c
+        assertEquals("", c.modelName,
+            "Probe failure must leave modelName blank.")
+        assertEquals("Untitled", c.outputConfig.value.analysisName,
+            "Probe failure must leave the analysisName sentinel intact.")
     }
 
     @Test
@@ -424,5 +492,215 @@ class SingleAppControllerConfigurationTest {
         } finally {
             c2.close()
         }
+    }
+
+    // ── Bundle-mode launch (E.5.x — bundle fallback feature) ────────────
+
+    private val mm1BundleId = MM1Bundle().bundleId
+    private val mm1ModelId = MM1Bundle.MODEL_ID
+
+    /** Construct a bundle-mode controller backed by a real
+     *  [BundleLibraryController] with the classpath bundles
+     *  auto-discovered.  [appName] follows the same default as
+     *  [freshController]. */
+    private fun freshBundleModeController(
+        appName: String = "ConfigTestApp"
+    ): SingleAppController {
+        val lib = BundleLibraryController()
+        lib.discoverFromClasspath()
+        val c = SingleAppController(
+            appName = appName,
+            modelBuilder = builder,    // any builder suffices for probe
+            bundleLibrary = lib,
+            sourceRef = ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId)
+        )
+        controller = c
+        return c
+    }
+
+    @Test
+    fun `builder mode rejects a ByBundleAndModelId config with WrongMode`() {
+        val c = freshController()
+        val bundleConfig = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.ByBundleAndModelId(
+                        mm1BundleId, mm1ModelId
+                    )
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(bundleConfig)
+        assertTrue(
+            outcome is SingleAppController.LoadResult.WrongMode,
+            "Builder-mode controller must reject ByBundleAndModelId with WrongMode."
+        )
+        val msg = (outcome as SingleAppController.LoadResult.WrongMode).reason
+        assertTrue("modelBuilder" in msg && "bundle" in msg.lowercase(),
+            "WrongMode reason should mention modelBuilder and bundle; was: $msg")
+    }
+
+    @Test
+    fun `builder mode loadConfiguration leaves controller state unchanged on WrongMode`() {
+        val c = freshController()
+        c.updateRunOverride { it.copy(numberOfReplications = 99) }
+        assertTrue(c.isDirty.value)
+        val before = c.runOverrides.value
+        val bundleConfig = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.ByBundleAndModelId(
+                        mm1BundleId, mm1ModelId
+                    )
+                )
+            )
+        )
+        c.loadConfiguration(bundleConfig)
+        assertEquals(before, c.runOverrides.value,
+            "WrongMode must not mutate the controller's overrides.")
+        assertTrue(c.isDirty.value,
+            "WrongMode must not clear the existing dirty flag.")
+    }
+
+    @Test
+    fun `bundle mode currentConfiguration writes ByBundleAndModelId`() {
+        val c = freshBundleModeController()
+        val cfg = c.currentConfiguration()
+        val ref = cfg.scenarios.single().modelReference
+        assertTrue(ref is ModelReference.ByBundleAndModelId,
+            "Bundle-mode controller must write ByBundleAndModelId; was: $ref")
+        ref as ModelReference.ByBundleAndModelId
+        assertEquals(mm1BundleId, ref.bundleId)
+        assertEquals(mm1ModelId, ref.modelId)
+    }
+
+    @Test
+    fun `bundle mode loads a matching ByBundleAndModelId config without warning`() {
+        val c = freshBundleModeController()
+        val cfg = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.ByBundleAndModelId(
+                        mm1BundleId, mm1ModelId
+                    ),
+                    runOverrides = ExperimentRunOverrides(numberOfReplications = 5)
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(cfg)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded,
+            "Matching ByBundleAndModelId in bundle mode must load.")
+        assertNull((outcome as SingleAppController.LoadResult.Loaded).warning,
+            "Matching ByBundleAndModelId must not produce a warning.")
+        assertEquals(5, c.runOverrides.value.numberOfReplications)
+    }
+
+    @Test
+    fun `bundle mode rejects an Embedded config with WrongMode`() {
+        val c = freshBundleModeController()
+        val embeddedConfig = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.Embedded("SomeOtherApp")
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(embeddedConfig)
+        assertTrue(outcome is SingleAppController.LoadResult.WrongMode,
+            "Bundle-mode controller must reject Embedded with WrongMode.")
+        val msg = (outcome as SingleAppController.LoadResult.WrongMode).reason
+        assertTrue("developer-supplied" in msg || "modelBuilder" in msg,
+            "WrongMode reason should mention developer-supplied / modelBuilder; was: $msg")
+    }
+
+    @Test
+    fun `bundle mode rejects a ByBundleAndModelId config whose bundle is not loaded`() {
+        val c = freshBundleModeController()
+        val unknownConfig = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.ByBundleAndModelId(
+                        bundleId = "not-a-real-bundle-id-xyz",
+                        modelId = "any"
+                    )
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(unknownConfig)
+        assertTrue(outcome is SingleAppController.LoadResult.Rejected,
+            "Bundle-not-loaded must yield Rejected.")
+        val msg = (outcome as SingleAppController.LoadResult.Rejected).reason
+        assertTrue("not-a-real-bundle-id-xyz" in msg && "Load JAR" in msg,
+            "Rejected reason should name the missing bundle and point to Load JAR; was: $msg")
+    }
+
+    @Test
+    fun `bundle mode loads a different-modelId ByBundleAndModelId with warning`() {
+        // Use the same bundleId but a fake modelId.  The bundle IS
+        // loaded (so the bundle-not-loaded rejection does NOT fire),
+        // but the (bundleId, modelId) pair does not match the
+        // session's sourceRef → load proceeds with a warning.
+        val c = freshBundleModeController()
+        val cfg = RunConfiguration(
+            scenarios = listOf(
+                ScenarioSpec(
+                    name = "ConfigTestApp",
+                    modelReference = ModelReference.ByBundleAndModelId(
+                        bundleId = mm1BundleId,
+                        modelId = "some-other-model-id"
+                    ),
+                    runOverrides = ExperimentRunOverrides(numberOfReplications = 4)
+                )
+            )
+        )
+        val outcome = c.loadConfiguration(cfg)
+        assertTrue(outcome is SingleAppController.LoadResult.Loaded,
+            "Mismatched modelId on a loaded bundle must Load (with warning).")
+        val warning = (outcome as SingleAppController.LoadResult.Loaded).warning
+        assertNotNull(warning, "Mismatched modelId must produce a warning.")
+        assertTrue("some-other-model-id" in warning,
+            "Warning should name the loaded modelId; was: $warning")
+        assertEquals(4, c.runOverrides.value.numberOfReplications,
+            "Overrides should still apply.")
+    }
+
+    @Test
+    fun `bundle mode controller exposes its bundle library`() {
+        val c = freshBundleModeController()
+        assertNotNull(c.bundleLibrary,
+            "Bundle-mode controller must expose a non-null bundleLibrary.")
+        assertTrue(c.bundleLibrary!!.findBundle(mm1BundleId) != null,
+            "The exposed library should contain the auto-discovered MM1 bundle.")
+    }
+
+    @Test
+    fun `builder mode controller has a null bundle library`() {
+        val c = freshController()
+        assertNull(c.bundleLibrary,
+            "Builder-mode controller must expose a null bundleLibrary.")
+    }
+
+    @Test
+    fun `bundle mode sourceRef defaults to ByBundleAndModelId when explicitly passed`() {
+        // The default sourceRef value on the controller is
+        // ModelReference.Embedded(appName); bundle mode must pass
+        // a ByBundleAndModelId explicitly.  Verify that what's
+        // passed is what's surfaced.
+        val c = freshBundleModeController()
+        assertEquals(
+            ModelReference.ByBundleAndModelId(mm1BundleId, mm1ModelId),
+            c.sourceRef
+        )
+    }
+
+    @Test
+    fun `builder mode sourceRef defaults to Embedded keyed on appName`() {
+        val c = freshController("CustomName")
+        assertEquals(ModelReference.Embedded("CustomName"), c.sourceRef)
     }
 }

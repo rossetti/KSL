@@ -35,6 +35,7 @@ import kotlinx.coroutines.swing.Swing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.app.KSLAppSession
 import ksl.app.RunSpec
+import ksl.app.editor.BundleLibraryController
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.single.results.ReportSaveRecord
@@ -81,13 +82,53 @@ private val logger = KotlinLogging.logger {}
  * so the [eventFlow] and [runningFlow] emissions reach widgets on
  * the right thread.
  *
+ * ## Launch modes
+ *
+ * SingleApp supports two launch shapes:
+ *
+ *  - **Builder mode** — the developer registered a
+ *    [ModelBuilderIfc] inline via `kslSingleApp { modelBuilder(...) }`.
+ *    [bundleLibrary] is `null` and [sourceRef] defaults to
+ *    `ModelReference.Embedded(appName)`.  Configurations save as
+ *    [ModelReference.Embedded]; configurations referencing a
+ *    bundled or JAR-loaded model are rejected with
+ *    [LoadResult.WrongMode].
+ *
+ *  - **Bundle mode** — the developer omitted `modelBuilder(...)`
+ *    and the launch path showed the bundle picker, which selected
+ *    a `(bundleId, modelId)` pair from a [BundleLibraryController].
+ *    [bundleLibrary] is non-null and [sourceRef] is
+ *    [ModelReference.ByBundleAndModelId].  Configurations save as
+ *    [ModelReference.ByBundleAndModelId]; configurations
+ *    referencing an embedded model are rejected with
+ *    [LoadResult.WrongMode].
+ *
+ * The probe-time invariants (snapshots are stable for the
+ * controller's lifetime) are identical in both modes — by the time
+ * the controller is constructed, the [modelBuilder] has been chosen.
+ *
  * @param appName window title; also used as the embedded model
  *   identifier when constructing `ModelReference.Embedded`.
- * @param modelBuilder the developer's named [ModelBuilderIfc].
+ * @param modelBuilder the chosen [ModelBuilderIfc] — either the
+ *   developer's directly-registered builder (builder mode) or the
+ *   builder resolved from the bundle picker (bundle mode).
+ * @param bundleLibrary the bundle library backing the picker, or
+ *   `null` for builder-mode launches.  When non-null, this
+ *   controller is in bundle mode; the frame exposes a *Load JAR…*
+ *   menu item that grows the library, and `File → Open` resolves
+ *   [ModelReference.ByBundleAndModelId] references against it.
+ * @param sourceRef the [ModelReference] variant this controller's
+ *   `saveConfiguration` writes.  Defaults to
+ *   [ModelReference.Embedded] keyed on [appName] (builder mode).
+ *   The bundle-mode launch path passes
+ *   [ModelReference.ByBundleAndModelId] reflecting the picker's
+ *   selection.
  */
 class SingleAppController(
     val appName: String,
-    val modelBuilder: ModelBuilderIfc
+    val modelBuilder: ModelBuilderIfc,
+    val bundleLibrary: BundleLibraryController? = null,
+    val sourceRef: ModelReference = ModelReference.Embedded(appName),
 ) : AutoCloseable, ksl.app.editor.ConfigurationEditorState {
 
     /** Scope for EDT-confined coroutine work (event forwarding, etc.). */
@@ -395,6 +436,20 @@ class SingleAppController(
     private var currentHandle: RunHandle? = null
 
     init {
+        // Pre-fill OutputConfig.analysisName with the probe-captured
+        // modelName so the Output Name field shows something
+        // meaningful from the first frame the user sees, rather than
+        // the bare "Untitled" sentinel.  The sentinel still exists
+        // as the OutputConfig data-class default and as a backstop
+        // for blank-erase / unrecoverable-probe states — it just
+        // stops being the visible launch value.
+        //
+        // Skipped when the probe failed (modelName is blank) so the
+        // "Untitled" fallback continues to govern the output
+        // directory + DB stem fallbacks downstream.
+        if (modelName.isNotBlank()) {
+            myOutputConfig.value = myOutputConfig.value.copy(analysisName = modelName)
+        }
         // Initial validation pass + subscribe to runOverrides so the bus
         // reflects current state without the caller having to recompute.
         validationBus.publish(computeValidation())
@@ -611,12 +666,20 @@ class SingleAppController(
      *    `appName`).  The note is surfaced as a notification by the frame
      *    and the user can decide whether to keep the loaded state.
      *  - [Rejected] — the configuration was structurally unloadable
-     *    (zero scenarios, malformed input, etc.).  The controller state
-     *    is left unchanged.
+     *    (zero scenarios, malformed input, bundle-mode config whose
+     *    referenced bundle isn't loaded, etc.).  The controller state
+     *    is left unchanged; the [reason] is suitable for surfacing to
+     *    the user.
+     *  - [WrongMode] — the configuration was structurally valid but
+     *    its [ModelReference] variant does not match this SingleApp's
+     *    launch mode (e.g. a bundle-saved config opened by a
+     *    builder-launched app, or vice versa).  The controller state
+     *    is left unchanged; the [reason] explains how to relaunch.
      */
     sealed class LoadResult {
         data class Loaded(val warning: String? = null) : LoadResult()
         data class Rejected(val reason: String) : LoadResult()
+        data class WrongMode(val reason: String) : LoadResult()
     }
 
     /**
@@ -642,7 +705,7 @@ class SingleAppController(
             scenarios = listOf(
                 ScenarioSpec(
                     name = appName,
-                    modelReference = ModelReference.Embedded(appName),
+                    modelReference = sourceRef,
                     runOverrides = myRunOverrides.value,
                     controlOverrides = myControlOverrides.value,
                     rvOverrides = myRVOverrides.value
@@ -658,20 +721,67 @@ class SingleAppController(
      * [currentFile]; callers (typically the *Open* flow) should call
      * [markSaved] separately after a successful load.
      *
-     * Returns a [LoadResult] describing the outcome.  A
-     * `modelReference.modelName` that does not match this controller's
-     * [appName] is *not* a hard error — many shared configurations
-     * legitimately move between apps that wrap the same model — so the
-     * load proceeds with a [LoadResult.Loaded] carrying a warning.
+     * Returns a [LoadResult] describing the outcome.  Mode-aware dispatch:
+     *
+     *  - **Builder mode** (`bundleLibrary == null`): accepts
+     *    [ModelReference.Embedded] (warning when `modelName` does not
+     *    match [appName]).  Rejects [ModelReference.ByBundleAndModelId]
+     *    and other variants with [LoadResult.WrongMode].
+     *  - **Bundle mode** (`bundleLibrary != null`): accepts
+     *    [ModelReference.ByBundleAndModelId] when the referenced
+     *    bundle is loaded; returns [LoadResult.Rejected] when the
+     *    bundle is not loaded (the user should *Load JAR…* and
+     *    retry).  Rejects [ModelReference.Embedded] and other
+     *    variants with [LoadResult.WrongMode].  A `(bundleId,
+     *    modelId)` pair that resolves but does not match the
+     *    session's [sourceRef] proceeds with a warning — the
+     *    controller cannot rebind its model mid-session, but
+     *    overrides apply by name where they match.
      */
     fun loadConfiguration(config: RunConfiguration): LoadResult {
         val scenario = config.scenarios.firstOrNull()
             ?: return LoadResult.Rejected("Configuration has no scenarios.")
         val ref = scenario.modelReference
-        val warning: String? = if (ref is ModelReference.Embedded && ref.modelName != appName) {
-            "Loaded modelReference '${ref.modelName}' does not match this app's '$appName'. " +
-                "Overrides applied to whatever names match the current model."
-        } else null
+        val warning: String? = when {
+            // Builder mode
+            bundleLibrary == null && ref is ModelReference.Embedded -> {
+                if (ref.modelName != appName) {
+                    "Loaded modelReference '${ref.modelName}' does not match this app's '$appName'. " +
+                        "Overrides applied to whatever names match the current model."
+                } else null
+            }
+            bundleLibrary == null -> return LoadResult.WrongMode(
+                "This configuration was saved against a ${describeRefVariant(ref)} model, but " +
+                    "this SingleApp was launched with a developer-supplied modelBuilder().  " +
+                    "Relaunch SingleApp without a modelBuilder() to load configurations that " +
+                    "reference a bundled or JAR-loaded model."
+            )
+            // Bundle mode
+            ref is ModelReference.Embedded -> return LoadResult.WrongMode(
+                "This configuration was saved against a developer-supplied model " +
+                    "('${ref.modelName}'), but this SingleApp was launched from the bundle " +
+                    "picker.  Relaunch SingleApp with that model's modelBuilder() to load it."
+            )
+            ref is ModelReference.ByBundleAndModelId -> {
+                if (bundleLibrary.findBundle(ref.bundleId) == null) {
+                    return LoadResult.Rejected(
+                        "This configuration references bundle '${ref.bundleId}' which is not " +
+                            "loaded.  Use Load JAR… to load it, then re-open."
+                    )
+                }
+                val session = sourceRef as? ModelReference.ByBundleAndModelId
+                if (session != null &&
+                    (session.bundleId != ref.bundleId || session.modelId != ref.modelId)) {
+                    "Loaded reference '${ref.bundleId}/${ref.modelId}' does not match this " +
+                        "session's '${session.bundleId}/${session.modelId}'.  Overrides applied " +
+                        "to whatever names match the current model."
+                } else null
+            }
+            else -> return LoadResult.WrongMode(
+                "This configuration uses a model-reference variant " +
+                    "(${describeRefVariant(ref)}) that SingleApp does not support."
+            )
+        }
 
         myRunOverrides.value = scenario.runOverrides ?: ExperimentRunOverrides()
         myControlOverrides.value = scenario.controlOverrides
@@ -691,6 +801,16 @@ class SingleAppController(
         return LoadResult.Loaded(warning)
     }
 
+    /** Human-readable label for a non-matching [ModelReference] variant.
+     *  Used in [LoadResult.WrongMode] messages so the surfaced text
+     *  reads naturally regardless of which variant the config carries. */
+    private fun describeRefVariant(ref: ModelReference): String = when (ref) {
+        is ModelReference.Embedded -> "developer-supplied (Embedded)"
+        is ModelReference.ByBundleAndModelId -> "bundled"
+        is ModelReference.ByJar -> "JAR-loaded"
+        is ModelReference.ByProviderId -> "provider-keyed"
+    }
+
     /**
      * Reset editor state to empty defaults — equivalent to *File → New*.
      * Clears [currentFile] and [isDirty].  Validation will subsequently
@@ -700,7 +820,14 @@ class SingleAppController(
         myRunOverrides.value = ExperimentRunOverrides()
         myControlOverrides.value = ModelControlsExport(modelName = controlsSnapshot.modelName)
         myRVOverrides.value = emptyList()
-        myOutputConfig.value = OutputConfig()
+        // Reset OutputConfig to its default shape but pre-fill
+        // analysisName with the probe-captured modelName, mirroring
+        // the init-time behavior so "Reset to Model Defaults"
+        // returns the field to the same value the user saw on
+        // launch.  Probe-failure path keeps the "Untitled" sentinel.
+        myOutputConfig.value = OutputConfig(
+            analysisName = if (modelName.isNotBlank()) modelName else "Untitled"
+        )
         documentLifecycle.reset()
         // Reset to defaults means a virgin session: any prior run's
         // result no longer applies to what's now in the editor, so
@@ -793,6 +920,10 @@ class SingleAppController(
         currentHandle = null
         session.close()
         edtScope.cancel("controller closed")
+        // Bundle-mode only: close the substrate-owned classloaders.
+        // Mirrors the close-loaded-bundles step in Scenario / Experiment /
+        // Simopt.  Builder-mode leaves [bundleLibrary] null and no-ops.
+        bundleLibrary?.close()
         // Defensive: if the user enabled "Capture stdout" and closed the
         // window without unchecking it, restore the original streams so
         // a long-lived JVM (IDE Run session) isn't left with a dangling

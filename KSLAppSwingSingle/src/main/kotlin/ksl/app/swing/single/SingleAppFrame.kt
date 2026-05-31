@@ -478,11 +478,31 @@ class SingleAppFrame(
             )
             toolTipText = CONFIG_TOOLTIP
         }
+        // Bundle-mode only: a *Load JAR…* item that extends the
+        // controller's bundle library mid-session.  Useful when a
+        // configuration the user wants to open references a bundle
+        // they haven't loaded yet.  Builder-mode launches leave
+        // [SingleAppController.bundleLibrary] null, in which case
+        // this item is not added.
+        val loadJarItem: JMenuItem? = controller.bundleLibrary?.let { lib ->
+            JMenuItem(object : AbstractAction("Load JAR…") {
+                override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                    handleLoadJar(lib)
+                }
+            }).apply {
+                toolTipText = "Load a KSL Bundle JAR so its models become resolvable for " +
+                    "open / save."
+            }
+        }
         return JMenuBar().apply {
             add(JMenu("File").apply {
                 add(newItem)
                 add(openItem)
                 add(recentConfigsMenu)
+                if (loadJarItem != null) {
+                    addSeparator()
+                    add(loadJarItem)
+                }
                 addSeparator()
                 add(saveItem)
                 add(saveAsItem)
@@ -495,6 +515,35 @@ class SingleAppFrame(
             add(JMenu("View").apply {
                 add(ksl.app.swing.common.appearance.ThemeMenu.build(controller.edtScope))
             })
+        }
+    }
+
+    /**
+     *  *File → Load JAR…* (bundle mode only).  Opens a file chooser,
+     *  invokes [BundleLibraryController.loadJar] on the picked JAR,
+     *  and surfaces the outcome via the notifications strip.
+     */
+    private fun handleLoadJar(bundleLibrary: ksl.app.editor.BundleLibraryController) {
+        val chooser = JFileChooser().apply {
+            dialogTitle = "Load Bundle JAR"
+            fileFilter = FileNameExtensionFilter("Bundle JAR (*.jar)", "jar")
+        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path: Path = chooser.selectedFile?.toPath() ?: return
+        when (val outcome = bundleLibrary.loadJar(path)) {
+            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Loaded -> {
+                notifications.info(
+                    "Loaded ${outcome.newBundleIds.size} bundle(s): " +
+                        outcome.newBundleIds.joinToString(", ")
+                )
+            }
+            ksl.app.editor.BundleLibraryController.LoadBundleResult.NoBundles ->
+                notifications.warn(
+                    "$path declares no KSLModelBundle service (or all of its " +
+                        "bundles are already loaded)."
+                )
+            is ksl.app.editor.BundleLibraryController.LoadBundleResult.Failed ->
+                notifications.error("Could not load $path: ${outcome.reason}")
         }
     }
 
@@ -601,6 +650,13 @@ class SingleAppFrame(
                 notifications.info("Opened ${path.fileName}")
             }
             is SingleAppController.LoadResult.Rejected -> {
+                notifications.error(outcome.reason)
+            }
+            is SingleAppController.LoadResult.WrongMode -> {
+                // Surface mode-mismatch as an error so the user gets
+                // a clear "relaunch in the other mode" message.  The
+                // controller's state is unchanged — the document the
+                // user was working on still applies.
                 notifications.error(outcome.reason)
             }
         }
