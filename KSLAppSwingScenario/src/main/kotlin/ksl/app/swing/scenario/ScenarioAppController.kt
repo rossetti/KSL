@@ -37,6 +37,7 @@ import ksl.app.bundle.LoadedBundle
 import ksl.app.config.BundleRef
 import ksl.app.config.ExecutionMode
 import ksl.app.config.ModelReference
+import ksl.simulation.NominatedOutput
 import ksl.app.config.OutputConfig
 import ksl.app.config.RunConfiguration
 import ksl.app.config.ScenarioSpec
@@ -300,6 +301,28 @@ class ScenarioAppController(
             d
         } catch (_: Throwable) {
             null
+        }
+    }
+
+    /**
+     *  Author-curated nominated outputs (keyed by response name) for use by the
+     *  comparison response picker.  Resolved only when every scenario in the batch
+     *  references the **same** model — a mixed-model batch has potentially
+     *  conflicting catalogs (two models could nominate a same-named response with
+     *  different metadata), so this returns an empty map in that case and the
+     *  picker behaves as before.  Bundles missing / unresolvable also yield empty.
+     */
+    fun comparisonNominatedOutputs(): Map<String, NominatedOutput> {
+        val ref = myScenarios.value
+            .mapNotNull { it.modelReference as? ModelReference.ByBundleAndModelId }
+            .distinct()
+            .singleOrNull() ?: return emptyMap()
+        val bundle = bundleLibrary.findBundle(ref.bundleId) ?: return emptyMap()
+        return try {
+            bundle.descriptorFor(ref.modelId).catalog?.nominatedOutputs
+                ?.associateBy { it.name } ?: emptyMap()
+        } catch (_: Throwable) {
+            emptyMap()
         }
     }
 

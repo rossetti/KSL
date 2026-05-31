@@ -236,7 +236,8 @@ class ScenarioAppFrame(
                 )
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
-            notifier = notifications
+            notifier = notifications,
+            nominatedOutputsProvider = { controller.comparisonNominatedOutputs() }
         )
         val tabs = javax.swing.JTabbedPane().apply {
             addTab("Scenarios", scenariosTab)
