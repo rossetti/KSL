@@ -1,150 +1,149 @@
 package ksl.simulation
 
-import ksl.controls.ControlIfc
-import ksl.controls.JsonControlIfc
-import ksl.controls.StringControlIfc
-import ksl.modeling.variable.CounterCIfc
-import ksl.modeling.variable.RandomVariableCIfc
-import ksl.modeling.variable.ResponseCIfc
 import ksl.utilities.random.rvariable.parameters.RVParameterSetter
-import kotlin.reflect.KProperty1
 
 /**
- *  Mutable holder for the lean metadata attached to a single nomination.
- *  Configured inside the trailing lambda of a [ModelCatalogBuilder] method:
+ *  The engine that assembles a [ModelCatalog] for a model.  It is both the
+ *  [ElementCatalogScope] fed to each element's [ModelElement.specifyCatalog]
+ *  during roll-up and the [CatalogCurationScope] fed to each [Model.curateCatalog]
+ *  block during model-level curation.  Created and driven only by [Model]; never
+ *  constructed directly.
  *
- *  ```
- *  output(systemTime) { displayName = "Avg Time in System"; unit = "min" }
- *  ```
+ *  Assembly is two-phase (see [assemble]):
+ *
+ *  1. **Element roll-up** (lenient): the element tree is walked in creation order
+ *     and each element's `specifyCatalog` contributes nominations, each tagged
+ *     with the contributing element's id (provenance).  Because model-element
+ *     names are unique, nominated keys are globally unique, so cross-element
+ *     collisions cannot occur; should two elements nominate the *same* item
+ *     (e.g. a parent and its child both nominate the child's response), the first
+ *     wins.  An invalid element nomination is recorded as a problem and skipped —
+ *     never thrown — so a buggy reusable element cannot crash a consuming model.
+ *
+ *  2. **Model curation** (strict): each `curateCatalog` block runs, able to add
+ *     (overriding an element's nomination of the same key — model metadata wins),
+ *     remove, or clear.  An invalid model-level nomination throws.
+ *
+ *  Provenance is kept only here; it powers [denominateAllFrom] / [denominateSubtree]
+ *  and never enters the serialized [ModelCatalog].
  */
-class NominationSpec internal constructor() {
-    /** Optional human label. */
-    var displayName: String? = null
-    /** Optional one-line description of what the item means. */
-    var description: String? = null
-    /** Optional unit of measure (e.g. "minutes", "servers"). */
-    var unit: String? = null
-}
+class ModelCatalogBuilder internal constructor(private val model: Model) : CatalogCurationScope {
 
-/**
- *  Validated, model-bound accumulator for a [ModelCatalog].  Created and driven
- *  only by [Model.nominate] / [Model.tryNominate]; never constructed directly.
- *
- *  Every nomination is validated against the model the instant it is declared.
- *  An author can nominate either by **string key** (the canonical control key,
- *  RV name + parameter, or response name) or — preferably — by **object
- *  reference** when they already hold the [ksl.controls.ControlIfc],
- *  [ksl.modeling.variable.ResponseCIfc], [ksl.modeling.variable.CounterCIfc],
- *  [ksl.modeling.variable.RandomVariableCIfc], or model element.  The instance
- *  overloads derive the key/name from the object, so the author neither formats
- *  keys by hand nor guesses an auto-generated random-variable name; for a
- *  control they may also pass a property reference.  Both paths share the same
- *  validation, de-duplication, and "did you mean" suggestions, so even an
- *  instance from a *different* model is rejected cleanly.
- *
- *  Validation behaviour depends on the entry point: [Model.nominate] is
- *  fail-fast (throws `IllegalArgumentException` on the first bad or duplicate
- *  nomination), while [Model.tryNominate] applies the valid nominations and
- *  collects the rest into a [NominationResult].  Nominations accumulate across
- *  calls; declare them after the model element graph is complete.
- */
-class ModelCatalogBuilder internal constructor(private val model: Model) {
-
-    private val inputs = mutableListOf<NominatedInput>()
-    private val outputs = mutableListOf<NominatedOutput>()
-    private val seenInputKeys = mutableSetOf<String>()
-    private val seenOutputNames = mutableSetOf<String>()
+    private val inputs = LinkedHashMap<String, NominatedInput>()
+    private val inputSource = HashMap<String, Int?>()
+    private val outputs = LinkedHashMap<String, NominatedOutput>()
+    private val outputSource = HashMap<String, Int?>()
     private val problems = mutableListOf<String>()
-    private var throwOnError = true
+
+    private var lenient = false
+    private var currentSource: Int? = null
 
     private val cc: Char
         get() = RVParameterSetter.rvParamConCatChar
 
-    // ── String-keyed DSL (the validating core the overloads delegate into) ──
+    // ── Adds (core ElementCatalogScope surface) ──────────────────────────────
 
-    /** Nominate a numeric, string, or JSON control by its key ("elementName.propertyName"). */
-    fun input(key: String, configure: NominationSpec.() -> Unit = {}) {
+    override fun input(key: String, configure: NominationSpec.() -> Unit) {
         val spec = NominationSpec().apply(configure)
         val kind = inputKindOf(key)
         if (kind == null) {
-            record("No control named '$key'.${didYouMean(key, controlCandidates())}")
+            problem("No control named '$key'.${didYouMean(key, controlCandidates())}")
             return
         }
-        if (!seenInputKeys.add(key)) {
-            record("Input '$key' was nominated more than once.")
-            return
-        }
-        inputs += NominatedInput(key, kind, spec.displayName, spec.description, spec.unit)
+        if (lenient && inputs.containsKey(key)) return   // first contributor wins
+        inputs[key] = NominatedInput(key, kind, spec.displayName, spec.description, spec.unit)
+        inputSource[key] = currentSource
     }
 
-    /** Nominate a random-variable parameter (e.g. rvParameter("ServiceTimeRV", "mean")). */
-    fun rvParameter(rvName: String, paramName: String, configure: NominationSpec.() -> Unit = {}) {
+    override fun rvParameter(rvName: String, paramName: String, configure: NominationSpec.() -> Unit) {
         val spec = NominationSpec().apply(configure)
         val key = "$rvName$cc$paramName"
         if (!model.rvParameterSetter.containsParameter(rvName, paramName)) {
-            record("No random-variable parameter '$key'.${didYouMean(key, rvCandidates())}")
+            problem("No random-variable parameter '$key'.${didYouMean(key, rvCandidates())}")
             return
         }
-        if (!seenInputKeys.add(key)) {
-            record("Input '$key' was nominated more than once.")
-            return
-        }
-        inputs += NominatedInput(key, NominatedInputKind.RV_PARAMETER, spec.displayName, spec.description, spec.unit)
+        if (lenient && inputs.containsKey(key)) return
+        inputs[key] = NominatedInput(key, NominatedInputKind.RV_PARAMETER, spec.displayName, spec.description, spec.unit)
+        inputSource[key] = currentSource
     }
 
-    /** Nominate a response or counter by name. */
-    fun output(name: String, configure: NominationSpec.() -> Unit = {}) {
+    override fun output(name: String, configure: NominationSpec.() -> Unit) {
         val spec = NominationSpec().apply(configure)
         if (name !in model.responseNames) {
-            record("No response or counter named '$name'.${didYouMean(name, model.responseNames)}")
+            problem("No response or counter named '$name'.${didYouMean(name, model.responseNames)}")
             return
         }
-        if (!seenOutputNames.add(name)) {
-            record("Output '$name' was nominated more than once.")
-            return
-        }
-        outputs += NominatedOutput(name, spec.displayName, spec.description, spec.unit)
+        if (lenient && outputs.containsKey(name)) return
+        outputs[name] = NominatedOutput(name, spec.displayName, spec.description, spec.unit)
+        outputSource[name] = currentSource
     }
 
-    // ── Instance overloads — derive the key/name from the object in hand ────
+    // ── Removes (core CatalogCurationScope surface) ──────────────────────────
 
-    /** Nominate a numeric/boolean control the author already holds. */
-    fun input(control: ControlIfc, configure: NominationSpec.() -> Unit = {}) =
-        input(control.keyName, configure)
+    override fun denominateInput(key: String) {
+        inputs.remove(key); inputSource.remove(key)
+    }
 
-    /** Nominate a string control the author already holds. */
-    fun input(control: StringControlIfc, configure: NominationSpec.() -> Unit = {}) =
-        input(control.keyName, configure)
+    override fun denominateOutput(name: String) {
+        outputs.remove(name); outputSource.remove(name)
+    }
 
-    /** Nominate a JSON control the author already holds. */
-    fun input(control: JsonControlIfc, configure: NominationSpec.() -> Unit = {}) =
-        input(control.keyName, configure)
+    override fun denominateAllFrom(element: ModelElement) = removeBySource(setOf(element.id))
 
-    /** Nominate a control by its owning element plus the annotated property's name. */
-    fun input(element: ModelElement, propertyName: String, configure: NominationSpec.() -> Unit = {}) =
-        input("${element.name}.$propertyName", configure)
+    override fun denominateSubtree(element: ModelElement) {
+        val ids = mutableSetOf<Int>()
+        element.collectSubtreeIds(ids)
+        removeBySource(ids)
+    }
+
+    override fun denominateInputs(predicate: (NominatedInput) -> Boolean) {
+        inputs.values.filter(predicate).map { it.key }.forEach { denominateInput(it) }
+    }
+
+    override fun denominateOutputs(predicate: (NominatedOutput) -> Boolean) {
+        outputs.values.filter(predicate).map { it.name }.forEach { denominateOutput(it) }
+    }
+
+    override fun clearElementNominations() {
+        inputSource.filterValues { it != null }.keys.toList().forEach { denominateInput(it) }
+        outputSource.filterValues { it != null }.keys.toList().forEach { denominateOutput(it) }
+    }
+
+    private fun removeBySource(ids: Set<Int>) {
+        inputSource.filterValues { it in ids }.keys.toList().forEach { denominateInput(it) }
+        outputSource.filterValues { it in ids }.keys.toList().forEach { denominateOutput(it) }
+    }
+
+    // ── Orchestration (called only by Model) ─────────────────────────────────
+
+    internal fun beginSource(id: Int) { currentSource = id }
+    internal fun endSource() { currentSource = null }
 
     /**
-     *  Nominate a control by its owning element plus a property reference, e.g.
-     *  `input(server, ResourceWithQ::numServers)`.  Compile-time-checked against
-     *  the element's type and rename-safe.
+     *  Runs the element roll-up then the model curation, returning the assembled
+     *  catalog (or `null` when empty) paired with any problems recorded during the
+     *  lenient roll-up phase.
      */
-    fun <T : ModelElement> input(element: T, property: KProperty1<T, *>, configure: NominationSpec.() -> Unit = {}) =
-        input("${element.name}.${property.name}", configure)
+    internal fun assemble(
+        rollUp: (ModelCatalogBuilder) -> Unit,
+        curation: List<CatalogCurationScope.() -> Unit>
+    ): Pair<ModelCatalog?, List<String>> {
+        lenient = true
+        currentSource = null
+        rollUp(this)
+        lenient = false
+        currentSource = null
+        for (block in curation) this.block()
+        val catalog = ModelCatalog(inputs.values.toList(), outputs.values.toList())
+        return (if (catalog.isEmpty) null else catalog) to problems.toList()
+    }
 
-    /** Nominate a random-variable parameter; the RV's name comes from the object. */
-    fun rvParameter(rv: RandomVariableCIfc, paramName: String, configure: NominationSpec.() -> Unit = {}) =
-        rvParameter(rv.name, paramName, configure)
+    // ── Internals ────────────────────────────────────────────────────────────
 
-    /** Nominate a response the author already holds. */
-    fun output(response: ResponseCIfc, configure: NominationSpec.() -> Unit = {}) =
-        output(response.name, configure)
-
-    /** Nominate a counter the author already holds. */
-    fun output(counter: CounterCIfc, configure: NominationSpec.() -> Unit = {}) =
-        output(counter.name, configure)
-
-    // ── Internals ───────────────────────────────────────────────────────────
+    private fun problem(message: String) {
+        problems += message
+        if (!lenient) throw IllegalArgumentException(message)
+    }
 
     private fun inputKindOf(key: String): NominatedInputKind? {
         val controls = model.controls()
@@ -164,12 +163,6 @@ class ModelCatalogBuilder internal constructor(private val model: Model) {
     private fun rvCandidates(): Set<String> =
         model.rvParameterSetter.flatParametersAsDoubles.keys
 
-    private fun record(message: String) {
-        problems += message
-        if (throwOnError) throw IllegalArgumentException(message)
-    }
-
-    /** Returns a " Did you mean …?" suffix for the nearest candidates, or "" when none are close. */
     private fun didYouMean(target: String, candidates: Collection<String>): String {
         if (candidates.isEmpty()) return ""
         val threshold = maxOf(2, target.length / 3)
@@ -195,20 +188,4 @@ class ModelCatalogBuilder internal constructor(private val model: Model) {
         }
         return prev[b.length]
     }
-
-    /** Runs [block] in the given error mode, returning the problems it produced. */
-    internal fun run(throwing: Boolean, block: ModelCatalogBuilder.() -> Unit): List<String> {
-        val start = problems.size
-        val previous = throwOnError
-        throwOnError = throwing
-        try {
-            this.block()
-        } finally {
-            throwOnError = previous
-        }
-        return problems.subList(start, problems.size).toList()
-    }
-
-    /** Immutable snapshot of everything nominated so far. */
-    internal fun build(): ModelCatalog = ModelCatalog(inputs.toList(), outputs.toList())
 }

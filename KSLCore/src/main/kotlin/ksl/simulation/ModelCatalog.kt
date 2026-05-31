@@ -62,8 +62,9 @@ data class NominatedOutput(
  *  use it to focus their UX (surface the salient knobs first, pre-select the
  *  headline outputs) but must not depend on it being present.
  *
- *  List order conveys priority.  Produced by [Model.nominate] /
- *  [Model.tryNominate] and read back via [ModelDescriptor.catalog].
+ *  List order conveys priority.  Assembled by rolling up each element's
+ *  [ModelElement.specifyCatalog] and applying any [Model.curateCatalog] blocks;
+ *  read back via [ModelDescriptor.catalog].
  *
  *  @param nominatedInputs  the nominated inputs, in author-declared order
  *  @param nominatedOutputs the nominated outputs, in author-declared order
@@ -76,16 +77,4 @@ data class ModelCatalog(
     /** True when nothing has been nominated. */
     val isEmpty: Boolean
         get() = nominatedInputs.isEmpty() && nominatedOutputs.isEmpty()
-}
-
-/**
- *  Outcome of the non-throwing [Model.tryNominate].  Valid nominations are
- *  applied; rejected ones are collected here as human-readable messages.
- *
- *  @param problems one message per rejected nomination; empty when all accepted
- */
-data class NominationResult(val problems: List<String>) {
-    /** True when every nomination in the block was accepted. */
-    val isValid: Boolean
-        get() = problems.isEmpty()
 }

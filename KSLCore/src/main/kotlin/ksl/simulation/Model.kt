@@ -387,90 +387,65 @@ class Model @JvmOverloads constructor(
     }
 
     /**
-     *  Holds the author-curated catalog of nominated inputs and outputs, if any.
-     *  Lazily attached on the first [nominate] / [tryNominate] call, mirroring
-     *  how [controls] attaches [Controls].
+     *  Model-assembly-level curation blocks, replayed (in call order) after the
+     *  element roll-up during catalog assembly.  See [curateCatalog].
      */
-    private var myModelCatalog: ModelCatalogBuilder? = null
-
-    private fun catalogBuilder(): ModelCatalogBuilder =
-        myModelCatalog ?: ModelCatalogBuilder(this).also { myModelCatalog = it }
+    private val myCurationBlocks = mutableListOf<CatalogCurationScope.() -> Unit>()
 
     /**
-     *  Nominate the model's most important inputs and outputs so applications can
-     *  surface them first.  Entirely optional — a model with no nominations simply
-     *  yields a `null` [ModelDescriptor.catalog].
-     *
-     *  Nominate by object reference when possible (the type-safe path) or by string
-     *  key.  Declare nominations after the model element graph is complete:
+     *  Curate the model's catalog at assembly time: add, override, remove, or
+     *  clear nominations on top of what the element [ModelElement.specifyCatalog]
+     *  roll-up produced.  Use it to add model-specific nominations, relabel an
+     *  element's nomination (re-nominating a key replaces it — the model-level
+     *  metadata wins), or prune a catalog that a heavily-reused element has
+     *  over-populated:
      *
      *  ```
-     *  model.nominate {
-     *      output(systemTime) { displayName = "Avg Time in System"; unit = "min" }
-     *      rvParameter(serviceRV, "mean") { unit = "min" }
-     *      input(server, "numServers") { unit = "servers" }
+     *  model.curateCatalog {
+     *      clearElementNominations()                 // start from a clean slate, then…
+     *      output(bottleneck.utilization) { displayName = "Bottleneck Utilization" }
+     *      denominateInputs { it.kind == NominatedInputKind.RV_PARAMETER }
      *  }
      *  ```
      *
-     *  Fail-fast: an unknown or duplicate nomination throws `IllegalArgumentException`
-     *  with a "did you mean" suggestion.  Use [tryNominate] for a non-throwing variant.
+     *  Blocks are stored and applied when the catalog is assembled (when
+     *  [modelCatalog] or [modelDescriptor] is read).  An invalid nomination in a
+     *  curation block throws `IllegalArgumentException` at that point; `denominate`
+     *  operations are lenient (a no-op when the target is absent).
      */
-    fun nominate(block: ModelCatalogBuilder.() -> Unit) {
-        catalogBuilder().run(throwing = true, block)
+    fun curateCatalog(block: CatalogCurationScope.() -> Unit) {
+        myCurationBlocks.add(block)
     }
 
     /**
-     *  Non-throwing variant of [nominate]: applies every valid nomination in [block]
-     *  and returns the rejected ones in a [NominationResult].  Useful when nominating
-     *  from external configuration that should report problems rather than crash.
+     *  Assembles the catalog: rolls up every element's [ModelElement.specifyCatalog]
+     *  in tree order, then applies the [curateCatalog] blocks.  Returns the catalog
+     *  (or `null` when empty) with the problems recorded during the lenient roll-up.
      */
-    fun tryNominate(block: ModelCatalogBuilder.() -> Unit): NominationResult =
-        NominationResult(catalogBuilder().run(throwing = false, block))
+    private fun assembleCatalog(): Pair<ModelCatalog?, List<String>> {
+        val builder = ModelCatalogBuilder(this)
+        return builder.assemble(
+            rollUp = { b -> specifyCatalogActions(b) },
+            curation = myCurationBlocks
+        )
+    }
 
     /**
-     *  Immutable snapshot of the author-curated catalog, or `null` when [nominate]
-     *  has never been called.  Recomputed on each access from the accumulated
-     *  nominations; flows into [modelDescriptor] as [ModelDescriptor.catalog].
+     *  The author-curated catalog of nominated inputs and outputs, or `null` when
+     *  nothing was nominated.  Recomputed on each access by rolling up every
+     *  element's [ModelElement.specifyCatalog] and applying the [curateCatalog]
+     *  blocks; flows into [modelDescriptor] as [ModelDescriptor.catalog].
      */
     val modelCatalog: ModelCatalog?
-        get() = myModelCatalog?.build()
+        get() = assembleCatalog().first
 
     /**
-     *  Imperative, Java-friendly nomination of a control input by key.  Equivalent
-     *  to `nominate { input(key) { … } }`.
+     *  Problems noticed while assembling the catalog — invalid element-level
+     *  nominations that were skipped (e.g. a library element nominating a renamed
+     *  response).  Empty when the roll-up was clean.  Useful for diagnosing a
+     *  reusable element's `specifyCatalog`.
      */
-    @JvmOverloads
-    fun nominateInput(
-        key: String,
-        displayName: String? = null,
-        description: String? = null,
-        unit: String? = null
-    ) = nominate { input(key) { this.displayName = displayName; this.description = description; this.unit = unit } }
-
-    /**
-     *  Imperative, Java-friendly nomination of a random-variable parameter input.
-     *  Equivalent to `nominate { rvParameter(rvName, paramName) { … } }`.
-     */
-    @JvmOverloads
-    fun nominateRVParameter(
-        rvName: String,
-        paramName: String,
-        displayName: String? = null,
-        description: String? = null,
-        unit: String? = null
-    ) = nominate { rvParameter(rvName, paramName) { this.displayName = displayName; this.description = description; this.unit = unit } }
-
-    /**
-     *  Imperative, Java-friendly nomination of a response/counter output by name.
-     *  Equivalent to `nominate { output(name) { … } }`.
-     */
-    @JvmOverloads
-    fun nominateOutput(
-        name: String,
-        displayName: String? = null,
-        description: String? = null,
-        unit: String? = null
-    ) = nominate { output(name) { this.displayName = displayName; this.description = description; this.unit = unit } }
+    fun catalogIssues(): List<String> = assembleCatalog().second
 
     /**
      * Attaches the CSVReplicationReport to the model if not attached.

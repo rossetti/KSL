@@ -10,6 +10,7 @@ import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
+import ksl.modeling.variable.TWResponse
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -19,15 +20,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Top-level fixture element (not nested, so the controls reflection layer can
- * reach the public setters) exposing one control per family, a named random
- * variable, a response, and a counter.
- */
-class CatalogServer(parent: ModelElement, name: String) : ModelElement(parent, name) {
+/** The recommended pattern: a top-level system element that curates from whole-system context. */
+class TheSystem(parent: ModelElement, name: String = "TheSystem") : ModelElement(parent, name) {
 
     @set:KSLControl(controlType = ControlType.INTEGER, lowerBound = 1.0, upperBound = 10.0)
-    var numServers: Int = 1
+    var numServers: Int = 3
 
     @set:KSLStringControl(allowedValues = ["FCFS", "PRIORITY"])
     var policy: String = "FCFS"
@@ -42,158 +39,161 @@ class CatalogServer(parent: ModelElement, name: String) : ModelElement(parent, n
 
     private val myThroughput = Counter(this, "Throughput")
     val throughput: CounterCIfc get() = myThroughput
+
+    override fun specifyCatalog(catalog: ElementCatalogScope) = with(catalog) {
+        input(this@TheSystem, TheSystem::numServers) { displayName = "Number of Servers"; unit = "servers" }
+        input(this@TheSystem, TheSystem::policy)
+        input(this@TheSystem, TheSystem::weights)
+        rvParameter(serviceRV, "mean") { unit = "min" }
+        output(mySystemTime) { displayName = "Avg Time in System"; unit = "min" }
+        output(myThroughput)
+    }
+}
+
+/** A fine-grained, reusable element that nominates itself — the flooding source. */
+class WorkStation(parent: ModelElement, name: String) : ModelElement(parent, name) {
+    private val myUtil = TWResponse(this, "$name:Util")
+    val util: ResponseCIfc get() = myUtil
+    override fun specifyCatalog(catalog: ElementCatalogScope) {
+        catalog.output(myUtil) { displayName = "$name Utilization" }
+    }
+}
+
+/** A subsystem holding several workstations — used to test subtree denomination. */
+class StationBank(parent: ModelElement, name: String, n: Int) : ModelElement(parent, name) {
+    val stations: List<WorkStation> = (1..n).map { WorkStation(this, "$name-WS$it") }
+}
+
+/** An element whose specifyCatalog contains a bad nomination — must not crash the model. */
+class BadElement(parent: ModelElement, name: String) : ModelElement(parent, name) {
+    private val myR = Response(this, "$name:R")
+    val r: ResponseCIfc get() = myR
+    override fun specifyCatalog(catalog: ElementCatalogScope) {
+        catalog.output(myR)                  // valid
+        catalog.output("NoSuchResponse")     // invalid -> warn + skip
+    }
 }
 
 class ModelCatalogTest {
 
-    private fun fixture(serverName: String = "Server"): Pair<Model, CatalogServer> {
-        val model = Model("CatalogTestModel", autoCSVReports = false)
-        val server = CatalogServer(model, serverName)
-        return model to server
-    }
-
-    // ── Happy path: kinds and order ──────────────────────────────────────────
+    // ── Roll-up from a system element ────────────────────────────────────────
 
     @Test
-    fun `nominate by string key populates the catalog with correct kinds and order`() {
-        val (model, _) = fixture()
-        model.nominate {
-            input("Server.numServers")
-            input("Server.policy")
-            input("Server.weights")
-            rvParameter("ServiceTimeRV", "mean")
-            output("System Time")
-            output("Throughput")
-        }
-        val cat = model.modelCatalog
+    fun `element specifyCatalog rolls up into the model catalog with correct kinds`() {
+        val m = Model("M", autoCSVReports = false)
+        TheSystem(m)
+        val cat = m.modelCatalog
         assertNotNull(cat)
         assertEquals(
             listOf(
-                "Server.numServers" to NominatedInputKind.NUMERIC_CONTROL,
-                "Server.policy" to NominatedInputKind.STRING_CONTROL,
-                "Server.weights" to NominatedInputKind.JSON_CONTROL,
+                "TheSystem.numServers" to NominatedInputKind.NUMERIC_CONTROL,
+                "TheSystem.policy" to NominatedInputKind.STRING_CONTROL,
+                "TheSystem.weights" to NominatedInputKind.JSON_CONTROL,
                 "ServiceTimeRV.mean" to NominatedInputKind.RV_PARAMETER,
             ),
             cat.nominatedInputs.map { it.key to it.kind }
         )
         assertEquals(listOf("System Time", "Throughput"), cat.nominatedOutputs.map { it.name })
+        assertEquals("Number of Servers", cat.nominatedInputs[0].displayName)
+        assertEquals("min", cat.nominatedOutputs[0].unit)
     }
 
-    // ── Instance overloads ───────────────────────────────────────────────────
+    @Test
+    fun `a model with no specifyCatalog overrides has a null catalog`() {
+        val m = Model("M", autoCSVReports = false)
+        assertNull(m.modelCatalog)
+        assertNull(m.modelDescriptor().catalog)
+    }
+
+    // ── Flooding & pruning ───────────────────────────────────────────────────
 
     @Test
-    fun `nominate by object reference derives keys and names`() {
-        val (model, server) = fixture()
-        val numServersControl = model.controls().control("Server.numServers")
-        assertNotNull(numServersControl)
-        model.nominate {
-            input(numServersControl)                       // ControlIfc instance
-            input(server, "policy")                        // element + property name
-            input(server, CatalogServer::weights)          // element + property reference
-            rvParameter(server.serviceRV, "mean")          // RandomVariableCIfc
-            output(server.systemTime)                      // ResponseCIfc
-            output(server.throughput)                      // CounterCIfc
+    fun `reused elements flood the catalog and a subtree can be pruned`() {
+        val m = Model("M", autoCSVReports = false)
+        TheSystem(m)
+        val bank = StationBank(m, "Bank", 5)
+        // 5 station utilizations + the system's 2 outputs
+        assertEquals(7, m.modelCatalog!!.nominatedOutputs.size)
+
+        m.curateCatalog { denominateSubtree(bank) }
+        assertEquals(listOf("System Time", "Throughput"), m.modelCatalog!!.nominatedOutputs.map { it.name })
+    }
+
+    @Test
+    fun `denominateAllFrom removes only one element's contribution`() {
+        val m = Model("M", autoCSVReports = false)
+        val bank = StationBank(m, "Bank", 2)
+        m.curateCatalog { denominateAllFrom(bank.stations[0]) }
+        val names = m.modelCatalog!!.nominatedOutputs.map { it.name }
+        assertFalse("Bank-WS1:Util" in names)
+        assertTrue("Bank-WS2:Util" in names)
+    }
+
+    @Test
+    fun `clearElementNominations then re-curate yields only the curated items`() {
+        val m = Model("M", autoCSVReports = false)
+        val sys = TheSystem(m)
+        StationBank(m, "Bank", 3)
+        m.curateCatalog {
+            clearElementNominations()
+            output(sys.systemTime) { displayName = "Only This" }
         }
-        val cat = model.modelCatalog!!
-        assertEquals(
-            listOf("Server.numServers", "Server.policy", "Server.weights", "ServiceTimeRV.mean"),
-            cat.nominatedInputs.map { it.key }
-        )
-        assertEquals(NominatedInputKind.NUMERIC_CONTROL, cat.nominatedInputs[0].kind)
-        assertEquals(NominatedInputKind.STRING_CONTROL, cat.nominatedInputs[1].kind)
-        assertEquals(NominatedInputKind.JSON_CONTROL, cat.nominatedInputs[2].kind)
-        assertEquals(listOf("System Time", "Throughput"), cat.nominatedOutputs.map { it.name })
-    }
-
-    @Test
-    fun `lean metadata is carried through`() {
-        val (model, server) = fixture()
-        model.nominate {
-            output(server.systemTime) {
-                displayName = "Avg Time in System"; description = "mean sojourn time"; unit = "min"
-            }
-        }
-        val out = model.modelCatalog!!.nominatedOutputs.single()
-        assertEquals("System Time", out.name)
-        assertEquals("Avg Time in System", out.displayName)
-        assertEquals("mean sojourn time", out.description)
-        assertEquals("min", out.unit)
-    }
-
-    // ── Fail-fast validation ─────────────────────────────────────────────────
-
-    @Test
-    fun `unknown control key throws with a did-you-mean suggestion`() {
-        val (model, _) = fixture()
-        val ex = assertFailsWith<IllegalArgumentException> {
-            model.nominate { input("Server.numServer") }   // missing trailing 's'
-        }
-        assertTrue(ex.message!!.contains("Server.numServers"), "should suggest the real key: ${ex.message}")
-    }
-
-    @Test
-    fun `unknown rv parameter and response throw`() {
-        val (model, _) = fixture()
-        assertFailsWith<IllegalArgumentException> { model.nominate { rvParameter("ServiceTimeRV", "men") } }
-        val ex = assertFailsWith<IllegalArgumentException> { model.nominate { output("System Tim") } }
-        assertTrue(ex.message!!.contains("System Time"), "should suggest the real response: ${ex.message}")
-    }
-
-    @Test
-    fun `duplicate nomination throws`() {
-        val (model, _) = fixture()
-        assertFailsWith<IllegalArgumentException> {
-            model.nominate { input("Server.numServers"); input("Server.numServers") }
-        }
-    }
-
-    @Test
-    fun `an instance from a different model is rejected`() {
-        val (modelA, _) = fixture("Server")
-        val (modelB, _) = fixture("OtherServer")
-        val foreignControl = modelB.controls().control("OtherServer.numServers")
-        assertNotNull(foreignControl)
-        assertFailsWith<IllegalArgumentException> {
-            modelA.nominate { input(foreignControl) }   // "OtherServer.numServers" not in modelA
-        }
-    }
-
-    // ── tryNominate (non-throwing) ───────────────────────────────────────────
-
-    @Test
-    fun `tryNominate applies valid nominations and collects problems`() {
-        val (model, _) = fixture()
-        val result = model.tryNominate {
-            output("System Time")
-            output("Nope")
-            input("Server.numServers")
-            input("bad.key")
-        }
-        assertFalse(result.isValid)
-        assertEquals(2, result.problems.size)
-        val cat = model.modelCatalog!!
-        assertEquals(listOf("Server.numServers"), cat.nominatedInputs.map { it.key })
+        val cat = m.modelCatalog!!
         assertEquals(listOf("System Time"), cat.nominatedOutputs.map { it.name })
+        assertEquals("Only This", cat.nominatedOutputs[0].displayName)
+        assertTrue(cat.nominatedInputs.isEmpty())
+    }
+
+    @Test
+    fun `denominate by predicate drops a whole category`() {
+        val m = Model("M", autoCSVReports = false)
+        TheSystem(m)
+        m.curateCatalog { denominateInputs { it.kind == NominatedInputKind.RV_PARAMETER } }
+        val cat = m.modelCatalog!!
+        assertTrue(cat.nominatedInputs.none { it.kind == NominatedInputKind.RV_PARAMETER })
+        assertEquals(3, cat.nominatedInputs.size)
+    }
+
+    // ── Override precedence (model wins) ─────────────────────────────────────
+
+    @Test
+    fun `model curation overrides an element's nomination metadata`() {
+        val m = Model("M", autoCSVReports = false)
+        val sys = TheSystem(m)
+        m.curateCatalog { output(sys.systemTime) { displayName = "Relabelled" } }
+        val outs = m.modelCatalog!!.nominatedOutputs
+        assertEquals(1, outs.count { it.name == "System Time" })
+        assertEquals("Relabelled", outs.first { it.name == "System Time" }.displayName)
+    }
+
+    // ── Validation asymmetry: element warn+skip, model throw ─────────────────
+
+    @Test
+    fun `an invalid element nomination is skipped and reported, not thrown`() {
+        val m = Model("M", autoCSVReports = false)
+        BadElement(m, "B")
+        val cat = m.modelCatalog            // must not throw
+        assertNotNull(cat)
+        assertEquals(listOf("B:R"), cat.nominatedOutputs.map { it.name })
+        assertTrue(m.catalogIssues().any { it.contains("NoSuchResponse") })
+    }
+
+    @Test
+    fun `an invalid model curation throws when the catalog is assembled`() {
+        val m = Model("M", autoCSVReports = false)
+        TheSystem(m)
+        m.curateCatalog { output("NoSuchResponse") }
+        val ex = assertFailsWith<IllegalArgumentException> { m.modelCatalog }
+        assertTrue(ex.message!!.contains("NoSuchResponse"))
     }
 
     // ── Descriptor integration & serialization ───────────────────────────────
 
     @Test
-    fun `a model that never nominates yields a null catalog`() {
-        val (model, _) = fixture()
-        assertNull(model.modelCatalog)
-        assertNull(model.modelDescriptor().catalog)
-    }
-
-    @Test
-    fun `descriptor carries the catalog and round-trips through JSON`() {
-        val (model, server) = fixture()
-        model.nominate {
-            input(server, CatalogServer::numServers) { unit = "servers" }
-            rvParameter(server.serviceRV, "mean") { unit = "min" }
-            output(server.systemTime) { displayName = "Avg Time in System"; unit = "min" }
-        }
-        val descriptor = model.modelDescriptor()
+    fun `descriptor carries the rolled-up catalog and round-trips through JSON`() {
+        val m = Model("M", autoCSVReports = false)
+        TheSystem(m)
+        val descriptor = m.modelDescriptor()
         assertNotNull(descriptor.catalog)
         assertFalse(descriptor.catalog!!.isEmpty)
 

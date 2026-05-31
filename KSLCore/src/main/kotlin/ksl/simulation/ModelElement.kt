@@ -1476,6 +1476,46 @@ abstract class ModelElement internal constructor(
     protected open fun initialize() {}
 
     /**
+     *  Override to declare which of this element's inputs and outputs are most
+     *  important, so applications can surface them first.  Entirely optional and
+     *  purely declarative — nominate the controls, random-variable parameters,
+     *  responses, and counters this element exposes, preferably by passing the
+     *  instances it already holds.  Called during catalog assembly (when
+     *  [Model.modelCatalog] or [ksl.simulation.Model.modelDescriptor] is read),
+     *  after the element graph is complete, so it must be side-effect-free.
+     *
+     *  Nominations from every element roll up through the hierarchy into the
+     *  model's catalog.  Because a catalog is meant to be a small, curated set,
+     *  nominate where you have the context to judge salience — typically the
+     *  top-level element representing the system — rather than having every
+     *  fine-grained, heavily-reused element nominate itself.  A model assembler
+     *  can prune or override the result via [Model.curateCatalog].
+     */
+    protected open fun specifyCatalog(catalog: ElementCatalogScope) {}
+
+    /**
+     *  Drives [specifyCatalog] across this element and its descendants, tagging
+     *  each element's contributions with its id for provenance.  Mirrors
+     *  [initializeActions]; called by [Model] during catalog assembly.
+     */
+    internal fun specifyCatalogActions(builder: ModelCatalogBuilder) {
+        builder.beginSource(id)
+        specifyCatalog(builder)
+        builder.endSource()
+        for (m in myModelElements) {
+            m.specifyCatalogActions(builder)
+        }
+    }
+
+    /** Adds this element's id and every descendant's id to [into]. */
+    internal fun collectSubtreeIds(into: MutableSet<Int>) {
+        into.add(id)
+        for (m in myModelElements) {
+            m.collectSubtreeIds(into)
+        }
+    }
+
+    /**
      * The initializeActions method allows model elements to be initialized to a
      * standard reactor-defined state. It is called by default before each
      * replication
