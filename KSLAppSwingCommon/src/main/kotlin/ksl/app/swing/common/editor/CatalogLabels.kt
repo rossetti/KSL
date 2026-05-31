@@ -48,6 +48,23 @@ object CatalogLabels {
     fun outputsByName(catalog: ModelCatalog?): Map<String, NominatedOutput> =
         catalog?.nominatedOutputs?.associateBy { it.name } ?: emptyMap()
 
+    /**
+     *  Reorders [items] so nominated ones come first, in the catalog's declared
+     *  priority order ([priorityKeys]), with every remaining item keeping its
+     *  given relative order.  Stable: callers pre-sort the input into the order
+     *  they want the non-featured tail to keep.  Returns [items] unchanged when
+     *  [priorityKeys] is empty (no catalog), so the call is a safe no-op then.
+     *
+     *  This is the **prioritization** layer (Phase B): it never removes items —
+     *  the full list is preserved, only re-ordered.
+     */
+    fun <T> featuredFirst(items: List<T>, priorityKeys: List<String>, key: (T) -> String): List<T> {
+        if (priorityKeys.isEmpty()) return items
+        val rank = HashMap<String, Int>(priorityKeys.size)
+        priorityKeys.forEachIndexed { i, k -> rank.putIfAbsent(k, i) }
+        return items.sortedBy { rank[key(it)] ?: Int.MAX_VALUE }
+    }
+
     /** An HTML tooltip for a nominated input, or `null` when the item is not nominated. */
     fun tooltip(input: NominatedInput?): String? =
         if (input == null) null else buildTooltip(input.displayName, input.description, input.unit)

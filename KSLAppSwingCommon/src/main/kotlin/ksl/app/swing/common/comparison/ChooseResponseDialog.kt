@@ -140,11 +140,16 @@ object ChooseResponseDialog {
 
     private class PickerDialog(
         owner: Window,
-        private val rows: List<Row>,
+        inputRows: List<Row>,
         initialSelection: String?,
         private val validator: ((String) -> ValidationResult)?,
         private val nominatedOutputs: Map<String, NominatedOutput>
     ) : JDialog(owner, "Choose Response", Dialog.ModalityType.APPLICATION_MODAL) {
+
+        // Float nominated responses to the top (in catalog priority order); the
+        // full list stays below.  No-op when no catalog is supplied.
+        private val rows: List<Row> =
+            CatalogLabels.featuredFirst(inputRows, nominatedOutputs.keys.toList()) { it.name }
 
         var outcome: Result = Result.Cancelled
             private set

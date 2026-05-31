@@ -377,9 +377,15 @@ class ProblemStepPanel(
             // Sort by leaf segment first (the user-meaningful response
             // name) with the full path as tiebreaker, so similarly-named
             // leaves group together regardless of their hierarchy prefix.
-            val allNames = descriptor?.responseNames?.toList()
+            val sortedNames = descriptor?.responseNames?.toList()
                 ?.sortedWith(compareBy({ it.lastLeafSegment() }, { it }))
                 ?: emptyList()
+            // Float author-nominated responses to the top (in catalog priority order);
+            // the full sorted list stays below.
+            val allNames = CatalogLabels.featuredFirst(
+                sortedNames,
+                descriptor?.catalog?.nominatedOutputs?.map { it.name } ?: emptyList()
+            ) { it }
             val filter = objectiveFilterField.text.trim().lowercase()
             val names = if (filter.isEmpty()) allNames else allNames.filter {
                 it.lowercase().contains(filter)

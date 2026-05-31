@@ -1007,10 +1007,13 @@ class FactorsTabPanel(
     private fun rebuildBindingDropdowns(descriptor: ModelDescriptor?) {
         programmaticEditorUpdate = true
         try {
-            allControlKeys = descriptor?.controls?.numericControls
-                ?.map { it.keyName }
-                ?.sorted()
-                ?: emptyList()
+            // Author-nominated input keys, used to float nominated controls to the
+            // top of the binding pickers (in catalog priority order).
+            val nominatedInputKeys = descriptor?.catalog?.nominatedInputs?.map { it.key } ?: emptyList()
+            allControlKeys = CatalogLabels.featuredFirst(
+                descriptor?.controls?.numericControls?.map { it.keyName }?.sorted() ?: emptyList(),
+                nominatedInputKeys
+            ) { it }
 
             // Two-level Control grouping: meaningful when there are
             // multiple distinct non-null parent names.
@@ -1020,7 +1023,7 @@ class FactorsTabPanel(
                     valueTransform = { c: ControlData -> c.keyName }
                 )
                 ?.filterKeys { it.isNotBlank() }
-                ?.mapValues { (_, v) -> v.sorted() }
+                ?.mapValues { (_, v) -> CatalogLabels.featuredFirst(v.sorted(), nominatedInputKeys) { it } }
                 ?: emptyMap()
             useControlParentLevel = parentMap.size > 1
             controlKeysByParent = parentMap

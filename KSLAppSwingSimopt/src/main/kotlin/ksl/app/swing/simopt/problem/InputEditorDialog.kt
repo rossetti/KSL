@@ -318,7 +318,11 @@ class InputEditorDialog(
     // ── Candidate population ──────────────────────────────────────────────
 
     private fun rebuildCandidates() {
-        val all = if (controlRadio.isSelected) controlCandidates() else rvCandidates()
+        // Float author-nominated inputs to the top (in catalog priority order).
+        val all = ksl.app.swing.common.editor.CatalogLabels.featuredFirst(
+            if (controlRadio.isSelected) controlCandidates() else rvCandidates(),
+            descriptor?.catalog?.nominatedInputs?.map { it.key } ?: emptyList()
+        ) { it.name }
         val filter = filterField.text.trim().lowercase()
         val filtered = if (filter.isEmpty()) all else all.filter { c ->
             c.name.lowercase().contains(filter) || c.label.lowercase().contains(filter)

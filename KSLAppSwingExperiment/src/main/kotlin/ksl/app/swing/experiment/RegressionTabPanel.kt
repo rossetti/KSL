@@ -482,9 +482,14 @@ class RegressionTabPanel(
 
     private fun refreshResponseCombo() {
         val previous = responseCombo.selectedItem as? String
-        val names = (controller.experimentInstance.value?.responseNames
+        val sorted = (controller.experimentInstance.value?.responseNames
             ?: controller.currentModelDescriptor.value?.responseNames?.toList()
             ?: emptyList()).sorted()
+        // Float author-nominated responses to the top (in catalog priority order).
+        val names = CatalogLabels.featuredFirst(
+            sorted,
+            controller.currentModelDescriptor.value?.catalog?.nominatedOutputs?.map { it.name } ?: emptyList()
+        ) { it }
         val model = DefaultComboBoxModel(names.toTypedArray())
         responseCombo.model = model
         if (previous != null && previous in names) {
