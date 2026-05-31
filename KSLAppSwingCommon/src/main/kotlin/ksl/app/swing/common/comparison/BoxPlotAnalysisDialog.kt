@@ -25,6 +25,7 @@ import ksl.app.swing.common.io.openHtmlInBrowser
 import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
+import ksl.simulation.NominatedOutput
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -87,7 +88,8 @@ object BoxPlotAnalysisDialog {
         model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        notifier: NotificationSink
+        notifier: NotificationSink,
+        nominatedOutputs: Map<String, NominatedOutput> = emptyMap()
     ) {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
@@ -96,7 +98,7 @@ object BoxPlotAnalysisDialog {
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)
             ?: return
-        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier).run {
+        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier, nominatedOutputs).run {
             isVisible = true
             // After dispose() returns control here, the dialog is
             // already gone — nothing else to do.
@@ -108,7 +110,8 @@ object BoxPlotAnalysisDialog {
         private val model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        private val notifier: NotificationSink
+        private val notifier: NotificationSink,
+        private val nominatedOutputs: Map<String, NominatedOutput>
     ) : JDialog(owner, "Box Plot — Configure", java.awt.Dialog.ModalityType.APPLICATION_MODAL) {
 
         // ── State ────────────────────────────────────────────────────────
@@ -294,7 +297,8 @@ object BoxPlotAnalysisDialog {
                 parent = this,
                 rows = rows,
                 initialSelection = selectedResponse,
-                validator = { name -> model.validateForResponse(name, AnalysisType.BOX_PLOT) }
+                validator = { name -> model.validateForResponse(name, AnalysisType.BOX_PLOT) },
+                nominatedOutputs = nominatedOutputs
             )
             if (result is ChooseResponseDialog.Result.Chosen) {
                 selectedResponse = result.responseName

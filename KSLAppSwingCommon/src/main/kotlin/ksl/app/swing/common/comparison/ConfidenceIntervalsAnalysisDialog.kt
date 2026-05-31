@@ -25,6 +25,7 @@ import ksl.app.swing.common.io.openHtmlInBrowser
 import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
+import ksl.simulation.NominatedOutput
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -79,7 +80,8 @@ object ConfidenceIntervalsAnalysisDialog {
         model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        notifier: NotificationSink
+        notifier: NotificationSink,
+        nominatedOutputs: Map<String, NominatedOutput> = emptyMap()
     ) {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
@@ -87,7 +89,7 @@ object ConfidenceIntervalsAnalysisDialog {
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)
             ?: return
-        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier).isVisible = true
+        Dialog(owner, model, defaultOutputDir, defaultFormats, notifier, nominatedOutputs).isVisible = true
     }
 
     private class Dialog(
@@ -95,7 +97,8 @@ object ConfidenceIntervalsAnalysisDialog {
         private val model: ComparisonSelectionModel,
         defaultOutputDir: Path?,
         defaultFormats: Set<ReportFormat>,
-        private val notifier: NotificationSink
+        private val notifier: NotificationSink,
+        private val nominatedOutputs: Map<String, NominatedOutput>
     ) : JDialog(owner, "Confidence Intervals — Configure", java.awt.Dialog.ModalityType.APPLICATION_MODAL) {
 
         // ── State ────────────────────────────────────────────────────────
@@ -306,7 +309,8 @@ object ConfidenceIntervalsAnalysisDialog {
                 parent = this,
                 rows = rows,
                 initialSelection = selectedResponse,
-                validator = { name -> model.validateForResponse(name, AnalysisType.CONFIDENCE_INTERVALS) }
+                validator = { name -> model.validateForResponse(name, AnalysisType.CONFIDENCE_INTERVALS) },
+                nominatedOutputs = nominatedOutputs
             )
             if (result is ChooseResponseDialog.Result.Chosen) {
                 selectedResponse = result.responseName

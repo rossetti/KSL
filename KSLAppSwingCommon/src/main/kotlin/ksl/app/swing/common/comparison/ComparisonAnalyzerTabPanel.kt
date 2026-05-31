@@ -22,6 +22,7 @@ import ksl.app.comparison.*
 
 import ksl.app.config.ReportFormat
 import ksl.app.notification.NotificationSink
+import ksl.simulation.NominatedOutput
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -66,7 +67,11 @@ import javax.swing.table.AbstractTableModel
 class ComparisonAnalyzerTabPanel(
     private val defaultOutputDirProvider: () -> Path? = { null },
     private val defaultFormatsProvider: () -> Set<ReportFormat> = { setOf(ReportFormat.HTML) },
-    private val notifier: NotificationSink = NotificationSink.NOOP
+    private val notifier: NotificationSink = NotificationSink.NOOP,
+    /** Supplies the author-curated nominated outputs (by response name) for the
+     *  model under comparison, so the response picker can label them.  Defaults
+     *  to none — when empty the picker behaves exactly as before. */
+    private val nominatedOutputsProvider: () -> Map<String, NominatedOutput> = { emptyMap() }
 ) : JPanel(CardLayout()) {
 
     private val cards = CardLayout()
@@ -371,7 +376,8 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                notifier = notifier
+                notifier = notifier,
+                nominatedOutputs = nominatedOutputsProvider()
             )
         }
 
@@ -381,7 +387,8 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                notifier = notifier
+                notifier = notifier,
+                nominatedOutputs = nominatedOutputsProvider()
             )
         }
 
@@ -391,7 +398,8 @@ class ComparisonAnalyzerTabPanel(
                 model = selectionModel,
                 defaultOutputDir = defaultOutputDirProvider(),
                 defaultFormats = defaultFormatsProvider(),
-                notifier = notifier
+                notifier = notifier,
+                nominatedOutputs = nominatedOutputsProvider()
             )
         }
     }

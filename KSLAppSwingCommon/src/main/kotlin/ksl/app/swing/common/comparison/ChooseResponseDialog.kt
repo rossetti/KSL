@@ -19,6 +19,8 @@
 package ksl.app.swing.common.comparison
 
 import ksl.app.comparison.*
+import ksl.app.swing.common.editor.CatalogLabels
+import ksl.simulation.NominatedOutput
 
 import java.awt.BorderLayout
 import java.awt.Color
@@ -121,7 +123,8 @@ object ChooseResponseDialog {
         parent: Component,
         rows: List<Row>,
         initialSelection: String?,
-        validator: ((String) -> ValidationResult)?
+        validator: ((String) -> ValidationResult)?,
+        nominatedOutputs: Map<String, NominatedOutput> = emptyMap()
     ): Result {
         // SwingUtilities.getWindowAncestor walks getParent() starting
         // from parent's parent, so it returns null when parent itself
@@ -130,7 +133,7 @@ object ChooseResponseDialog {
         val owner: Window = (parent as? Window)
             ?: SwingUtilities.getWindowAncestor(parent)
             ?: return Result.Cancelled
-        val dialog = PickerDialog(owner, rows, initialSelection, validator)
+        val dialog = PickerDialog(owner, rows, initialSelection, validator, nominatedOutputs)
         dialog.isVisible = true
         return dialog.outcome
     }
@@ -139,7 +142,8 @@ object ChooseResponseDialog {
         owner: Window,
         private val rows: List<Row>,
         initialSelection: String?,
-        private val validator: ((String) -> ValidationResult)?
+        private val validator: ((String) -> ValidationResult)?,
+        private val nominatedOutputs: Map<String, NominatedOutput>
     ) : JDialog(owner, "Choose Response", Dialog.ModalityType.APPLICATION_MODAL) {
 
         var outcome: Result = Result.Cancelled
@@ -177,6 +181,7 @@ object ChooseResponseDialog {
             rootPane.defaultButton = okButton
 
             applyColumnWidths()
+            installResponseRenderer()
             installFilterableHeader()
             sorter.rowFilter = composeRowFilter()
 
@@ -211,6 +216,31 @@ object ChooseResponseDialog {
             cm.getColumn(COL_RECORDED).preferredWidth = 140
         }
 
+        /**
+         *  When a catalog is supplied, render a nominated response's *Response*
+         *  cell as "name — Display Name" (raw name stays first, so filtering and
+         *  search are unaffected) and put the description/unit in the tooltip.
+         *  No-op when no nominated outputs are supplied.
+         */
+        private fun installResponseRenderer() {
+            if (nominatedOutputs.isEmpty()) return
+            table.columnModel.getColumn(COL_RESPONSE).cellRenderer =
+                object : DefaultTableCellRenderer() {
+                    override fun getTableCellRendererComponent(
+                        t: JTable, value: Any?, isSelected: Boolean,
+                        hasFocus: Boolean, row: Int, column: Int
+                    ): Component {
+                        super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column)
+                        val name = rows.getOrNull(t.convertRowIndexToModel(row))?.name
+                        val out = name?.let { nominatedOutputs[it] }
+                        if (!out?.displayName.isNullOrBlank()) text = "$name   —   ${out!!.displayName}"
+                        toolTipText = CatalogLabels.tooltip(out)
+                        return this
+                    }
+                }
+            javax.swing.ToolTipManager.sharedInstance().registerComponent(table)
+        }
+
         private fun buildButtons(): JComponent = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             border = BorderFactory.createEmptyBorder(0, 12, 12, 12)
@@ -228,8 +258,10 @@ object ChooseResponseDialog {
                 return
             }
             val v = validator?.invoke(name)
+            val display = nominatedOutputs[name]?.displayName?.takeIf { it.isNotBlank() }
+            val label = if (display != null) "'$name' — $display" else "'$name'"
             if (v == null || v.ok) {
-                statusLabel.text = "Ready: '$name'"
+                statusLabel.text = "Ready: $label"
                 statusLabel.foreground = Color(0x33, 0x77, 0x33)
             } else {
                 statusLabel.text = "⚠ ${v.reason}"

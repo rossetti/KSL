@@ -249,7 +249,11 @@ class ExperimentAppFrame(
                 )
             },
             defaultFormatsProvider = { controller.outputConfig.value.reports },
-            notifier = notifications
+            notifier = notifications,
+            nominatedOutputsProvider = {
+                controller.currentModelDescriptor.value?.catalog?.nominatedOutputs
+                    ?.associateBy { it.name } ?: emptyMap()
+            }
         )
 
         val tabs = JTabbedPane().apply {
