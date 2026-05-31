@@ -83,10 +83,20 @@ class LKInventoryBundle : KSLModelBundle {
                 experimentRunParameters: ExperimentRunParametersIfc?
             ): Model {
                 val model = Model(modelId, autoCSVReports = false)
-                LKInventoryModel(model, "Inventory")
+                val inv = LKInventoryModel(model, "Inventory")
                 model.numberOfReplications = 10
                 model.lengthOfReplication = 120.0
                 model.lengthOfReplicationWarmUp = 20.0
+                // Author-nominated catalog of the (s,S) policy knobs and headline
+                // cost outputs, declared on the unedited LKInventoryModel.
+                model.curateCatalog {
+                    input(inv, LKInventoryModel::reorderPoint) { displayName = "Reorder Point (s)"; unit = "units" }
+                    input(inv, LKInventoryModel::orderQuantity) { displayName = "Order Quantity"; unit = "units" }
+                    input(inv, LKInventoryModel::initialInventoryLevel) { displayName = "Initial Inventory"; unit = "units" }
+                    output(inv.avgTotalCost) { displayName = "Avg Total Cost"; unit = "\$/period" }
+                    output(inv.posInventoryLevel) { displayName = "Avg On-Hand Inventory"; unit = "units" }
+                    output(inv.negInventoryLevel) { displayName = "Avg Backorders"; unit = "units" }
+                }
                 return model
             }
         }

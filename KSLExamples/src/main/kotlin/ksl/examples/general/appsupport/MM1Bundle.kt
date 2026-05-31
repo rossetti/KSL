@@ -84,10 +84,20 @@ class MM1Bundle : KSLModelBundle {
                 // The child element name must not equal the Model's own name;
                 // doing so would collide as a duplicate ModelElement at the root.
                 val model = Model(modelId, autoCSVReports = false)
-                GIGcQueue(model, numServers = 1, name = "MM1Queue")
+                val queue = GIGcQueue(model, numServers = 1, name = "MM1Queue")
                 model.numberOfReplications = 30
                 model.lengthOfReplication = 500.0
                 model.lengthOfReplicationWarmUp = 50.0
+                // Author-nominated catalog of the model's headline inputs/outputs,
+                // declared on the unedited GIGcQueue via curateCatalog.
+                model.curateCatalog {
+                    input(queue, GIGcQueue::numServers) { displayName = "Number of Servers"; unit = "servers" }
+                    rvParameter(queue.serviceRV, "mean") { displayName = "Mean Service Time"; unit = "min" }
+                    rvParameter(queue.timeBtwArrivalRV, "mean") { displayName = "Mean Time Between Arrivals"; unit = "min" }
+                    output(queue.systemTime) { displayName = "Avg Time in System"; unit = "min" }
+                    output(queue.numInSystem) { displayName = "Avg Number in System" }
+                    output(queue.numCustomersServed) { displayName = "Number Served" }
+                }
                 return model
             }
         }
