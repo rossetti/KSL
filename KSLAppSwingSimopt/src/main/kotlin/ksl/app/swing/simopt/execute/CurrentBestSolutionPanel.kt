@@ -20,6 +20,7 @@ package ksl.app.swing.simopt.execute
 
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import ksl.app.swing.common.editor.CatalogLabels
 import ksl.app.swing.simopt.SimoptAppController
 import java.awt.BorderLayout
 import java.awt.Color
@@ -73,6 +74,23 @@ class CurrentBestSolutionPanel(
         sorter?.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
         columnModel.getColumn(0).preferredWidth = 220
         columnModel.getColumn(1).preferredWidth = 120
+        // Label a nominated decision variable with its catalog display name + unit tooltip.
+        columnModel.getColumn(0).cellRenderer = object : javax.swing.table.DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                t: JTable, value: Any?, sel: Boolean, focus: Boolean, row: Int, col: Int
+            ): java.awt.Component {
+                super.getTableCellRendererComponent(t, value, sel, focus, row, col)
+                val key = value as? String
+                val input = key?.let { k ->
+                    controller.currentModelDescriptor.value?.catalog
+                        ?.nominatedInputs?.firstOrNull { it.key == k }
+                }
+                if (!input?.displayName.isNullOrBlank()) text = "$key   —   ${input!!.displayName}"
+                toolTipText = CatalogLabels.tooltip(input)
+                return this
+            }
+        }
+        javax.swing.ToolTipManager.sharedInstance().registerComponent(this)
     }
     private val emptyPlaceholder = JLabel("<html><i>No solution yet — start the optimization.</i></html>").apply {
         foreground = Color(0x77, 0x77, 0x77)

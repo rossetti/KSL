@@ -328,15 +328,22 @@ class InputEditorDialog(
         filterCountLabel.text = "Showing ${filtered.size} of ${all.size}"
     }
 
+    /** Catalog display name for an input key (suffixed onto a candidate label), or null. */
+    private fun displaySuffix(key: String): String {
+        val display = descriptor?.catalog?.nominatedInputs
+            ?.firstOrNull { it.key == key }?.displayName?.takeIf { it.isNotBlank() }
+        return if (display == null) "" else "   ·   $display"
+    }
+
     private fun controlCandidates(): List<Candidate> {
         val d = descriptor ?: return emptyList()
         return d.controls.numericControls.map { c ->
             Candidate(
                 name = c.keyName,
                 label = "${c.keyName} — type=${c.controlType}" +
-                    if (c.lowerBound.isFinite() || c.upperBound.isFinite())
+                    (if (c.lowerBound.isFinite() || c.upperBound.isFinite())
                         " [${formatBound(c.lowerBound)}, ${formatBound(c.upperBound)}]"
-                    else "",
+                    else "") + displaySuffix(c.keyName),
                 lowerHint = if (c.lowerBound.isFinite()) c.lowerBound else null,
                 upperHint = if (c.upperBound.isFinite()) c.upperBound else null,
                 granularityHint = if (c.controlType == ControlType.INTEGER) 1.0 else 0.0
@@ -350,7 +357,7 @@ class InputEditorDialog(
             val name = "${r.rvName}${RVParameterSetter.rvParamConCatChar}${r.paramName}"
             Candidate(
                 name = name,
-                label = "$name — current=${r.paramValue}",
+                label = "$name — current=${r.paramValue}" + displaySuffix(name),
                 lowerHint = null,
                 upperHint = null,
                 granularityHint = 0.0

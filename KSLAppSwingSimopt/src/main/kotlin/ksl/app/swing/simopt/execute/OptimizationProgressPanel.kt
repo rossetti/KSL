@@ -127,7 +127,15 @@ class OptimizationProgressPanel(
 
         val obj = latest?.estimatedObjectiveValue
             ?: terminalSnapshot?.estimatedObjFncValue
-        objLabel.text = obj?.let { formatObjective(it) } ?: "—"
+        objLabel.text = obj?.let { formatObjective(it) + objectiveUnitSuffix() } ?: "—"
+    }
+
+    /** " <unit>" when the objective response is nominated with a unit, else "". */
+    private fun objectiveUnitSuffix(): String {
+        val name = controller.objectiveResponseName.value ?: return ""
+        val unit = controller.currentModelDescriptor.value?.catalog
+            ?.nominatedOutputs?.firstOrNull { it.name == name }?.unit?.takeIf { it.isNotBlank() }
+        return if (unit == null) "" else " $unit"
     }
 
     /** Format duration with decisecond precision under 60 s,

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ksl.app.config.optimization.OptimizationInputSpec
 import ksl.app.config.optimization.OptimizationType
+import ksl.app.swing.common.editor.CatalogLabels
 import ksl.app.notification.NotificationSink
 import ksl.app.swing.simopt.SimoptAppController
 import ksl.app.swing.simopt.problem.InputEditorDialog
@@ -575,7 +576,7 @@ class ProblemStepPanel(
      *  shows the leaf segment in normal weight and the path prefix
      *  in a dimmer secondary tone so leaves like `OrderingFrequency`
      *  visually pop out of paths like `Inventory:Item:OrderingFrequency`. */
-    private class ResponseNameCellRenderer : javax.swing.DefaultListCellRenderer() {
+    private inner class ResponseNameCellRenderer : javax.swing.DefaultListCellRenderer() {
         override fun getListCellRendererComponent(
             list: javax.swing.JList<*>?,
             value: Any?,
@@ -585,16 +586,23 @@ class ProblemStepPanel(
         ): java.awt.Component {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
             val full = value as? String ?: return this
+            val out = controller.currentModelDescriptor.value?.catalog
+                ?.nominatedOutputs?.firstOrNull { it.name == full }
+            val display = out?.displayName?.takeIf { it.isNotBlank() }
             val splitAt = full.lastIndexOf(':')
-            if (splitAt < 0) {
-                text = full
-            } else {
-                val prefix = full.substring(0, splitAt + 1)
-                val leaf = full.substring(splitAt + 1)
+            val nameHtml = if (splitAt < 0) full else {
                 val color = if (isSelected) "white" else "#888888"
-                text = "<html><span style='color:$color;'>$prefix</span>$leaf</html>"
+                "<span style='color:$color;'>${full.substring(0, splitAt + 1)}</span>${full.substring(splitAt + 1)}"
             }
-            toolTipText = full
+            text = when {
+                display != null -> {
+                    val dc = if (isSelected) "white" else "#33689a"
+                    "<html>$nameHtml<span style='color:$dc;'>&nbsp;&nbsp;—&nbsp;&nbsp;$display</span></html>"
+                }
+                splitAt < 0 -> full
+                else -> "<html>$nameHtml</html>"
+            }
+            toolTipText = CatalogLabels.tooltip(out) ?: full
             return this
         }
     }
