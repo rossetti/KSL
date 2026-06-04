@@ -47,7 +47,9 @@ import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
 import ksl.app.session.AppWorkspacePaths
 import ksl.app.settings.UserSettingsStore
+import ksl.app.validation.FieldError
 import ksl.app.validation.ValidationResult
+import ksl.app.validation.ValidationSeverity
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -183,6 +185,36 @@ class DistributionAppController(val appName: String) {
         onConfigChanged()
     }
 
+    // --- estimator selection -------------------------------------------------
+
+    fun toggleEstimator(id: String, included: Boolean) {
+        val current = myConfig.value.estimatorIds
+        val updated = if (included) current + id else current - id
+        if (updated == current) return
+        myConfig.update { it.copy(estimatorIds = updated) }
+        onConfigChanged()
+    }
+
+    /** Resets the estimator selection to the defaults for the current kind. */
+    fun setEstimatorDefaults() {
+        myConfig.update { it.copy(estimatorIds = FittingCatalog.defaultEstimatorIds(it.kind)) }
+        onConfigChanged()
+    }
+
+    fun selectAllEstimators() {
+        val all = FittingCatalog.estimators
+            .filter { it.kind == myConfig.value.kind }
+            .mapTo(mutableSetOf()) { it.id }
+        myConfig.update { it.copy(estimatorIds = all) }
+        onConfigChanged()
+    }
+
+    fun selectNoEstimators() {
+        if (myConfig.value.estimatorIds.isEmpty()) return
+        myConfig.update { it.copy(estimatorIds = emptySet()) }
+        onConfigChanged()
+    }
+
     // --- dataset collection --------------------------------------------------
 
     /**
@@ -285,7 +317,25 @@ class DistributionAppController(val appName: String) {
     }
 
     private fun validate(config: FitConfiguration): ValidationResult =
-        FitConfigurationValidator.validate(FitSpec.Single(config))
+        FitConfigurationValidator.validate(FitSpec.Single(config)) + clientChecks(config)
+
+    /**
+     * Client-side validation layered on top of the engine validator: rules the
+     * GUI enforces but the substrate leaves to the caller. Requires at least
+     * one estimator so a fit produces results.
+     */
+    private fun clientChecks(config: FitConfiguration): ValidationResult {
+        val errors = mutableListOf<FieldError>()
+        if (config.estimatorIds.isEmpty()) {
+            errors += FieldError(
+                path = "config.estimatorIds",
+                message = "select at least one estimator",
+                severity = ValidationSeverity.ERROR,
+                code = "fit.estimator.none"
+            )
+        }
+        return ValidationResult(errors = errors.toList())
+    }
 
     private fun defaultConfig(kind: DistributionKind) = FitConfiguration(
         dataSource = DataSourceReference.Inline(emptyMap()),

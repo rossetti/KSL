@@ -25,6 +25,7 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.dist.panel.DataPanel
+import ksl.app.swing.dist.panel.EstimatorPanel
 import ksl.app.validation.ValidationResult
 import java.awt.BorderLayout
 import java.awt.Color
@@ -196,7 +197,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     private fun buildTabs(): JComponent {
         tabs.preferredSize = Dimension(940, 560)
         tabs.addTab("Data", DataPanel(controller))
-        tabs.addTab("Estimators", placeholder("Estimator selection — arrives in step 4"))
+        tabs.addTab("Estimators", EstimatorPanel(controller))
         tabs.addTab("Scoring", placeholder("Scoring models — arrives in step 5"))
         tabs.addTab("Reports", placeholder("Fit reports — arrives in step 6"))
         tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in step 8"))
