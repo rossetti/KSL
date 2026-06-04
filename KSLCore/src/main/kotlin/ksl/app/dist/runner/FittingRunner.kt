@@ -47,18 +47,34 @@ object FittingRunner {
 
     /**
      * Imports the configured data, runs PDFModeler over the configured
-     * estimator and scoring-model set, and returns the serializable result.
+     * estimator and scoring-model set, and returns only the serializable
+     * `FitReport`. Thin convenience over [run] for callers that do not need
+     * the live modeling objects (headless DTO consumers, the async session).
+     */
+    fun fit(
+        config: FitConfiguration,
+        importer: DatasetImporter = DatasetImporter.default,
+        catalog: FittingCatalog = FittingCatalog
+    ): FitReport = run(config, importer, catalog).report
+
+    /**
+     * Imports the configured data, runs PDFModeler over the configured
+     * estimator and scoring-model set, and returns a [FitOutcome] carrying
+     * both the serializable `FitReport` and the live `PDFModeler` /
+     * `PDFModelingResults`. The live objects are what the reporting layer
+     * needs to build a `ReportNode.Document` via the existing `*.toReport()`
+     * extensions; the report results hold no back-reference to the modeler.
      *
      * Discrete configurations are rejected with `IllegalArgumentException`
      * until the PMF path lands; multi-dataset sources are rejected with
      * `IllegalStateException` until the batch orchestrator lands. Both
      * become typed errors in the async layer above.
      */
-    fun fit(
+    fun run(
         config: FitConfiguration,
         importer: DatasetImporter = DatasetImporter.default,
         catalog: FittingCatalog = FittingCatalog
-    ): FitReport {
+    ): FitOutcome {
         require(config.kind == DistributionKind.CONTINUOUS) {
             "discrete fitting will arrive with the PMF path; got kind=${config.kind}"
         }
@@ -90,7 +106,13 @@ object FittingRunner {
         )
 
         val resultToId = identityMapResultsToEstimatorIds(results, orderedEstimators)
-        return buildReport(dataset, modeler, results, resultToId, catalog)
+        val report = buildReport(dataset, modeler, results, resultToId, catalog)
+        return FitOutcome.Continuous(
+            report = report,
+            datasetName = dataset.name,
+            modeler = modeler,
+            results = results
+        )
     }
 
     // ----- result -> requested-estimator-ID lookup --------------------------
