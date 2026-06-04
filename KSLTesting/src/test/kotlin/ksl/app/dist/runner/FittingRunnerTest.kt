@@ -98,13 +98,14 @@ class FittingRunnerTest {
     }
 
     @Test
-    fun `discrete kind is rejected until the PMF path lands`() {
-        val data = exponentialSample(mean = 1.0, n = 50, streamNumber = 5)
+    fun `discrete kind with non-integer data is rejected`() {
+        val data = exponentialSample(mean = 1.0, n = 50, streamNumber = 5) // continuous, non-integer
         val config = FitConfiguration(
             dataSource = DataSourceReference.Inline(mapOf("x" to data)),
-            kind = DistributionKind.DISCRETE
+            kind = DistributionKind.DISCRETE,
+            estimatorIds = setOf("poisson-mle")
         )
-        assertThrows<IllegalArgumentException> { FittingRunner.fit(config) }
+        assertThrows<IllegalStateException> { FittingRunner.fit(config) }
     }
 
     @Test

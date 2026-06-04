@@ -37,13 +37,17 @@ import ksl.app.dist.result.ModaResultDTO
 import ksl.app.dist.result.ModaScoreDTO
 import ksl.app.dist.result.ModaValueDTO
 import ksl.app.dist.result.RankFrequencyDTO
+import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
+import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
+import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.distributions.fitting.ScoringResult
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
 
@@ -103,7 +107,7 @@ object FitResultExtractor {
             datasetName = dataset.name,
             kind = DistributionKind.CONTINUOUS,
             empProbConvention = EmpProbConvention.CONTINUITY1,
-            dataSummary = dataSummaryOf(modeler),
+            dataSummary = dataSummaryOf(modeler.statistics, modeler.leftShift),
             fits = allFits,
             recommendedFamilyId = recommendedFamilyId,
             histogram = histogramOf(modeler),
@@ -112,10 +116,132 @@ object FitResultExtractor {
         )
     }
 
+    // ----- discrete (PMF) path ----------------------------------------------
+
+    /**
+     * Builds the result DTO graph for a discrete fit. Mirrors the engine's
+     * intentional PDF/PMF asymmetry: there is no MODA scoring — fits are
+     * ranked by chi-squared p-value (higher is a better fit) — and no
+     * histogram or bootstrap. Each successful fit carries a discrete
+     * `GoodnessOfFitDTO` (chi-squared plus the dispersion statistics).
+     *
+     * @param resultToId maps each estimation result to its catalog estimator ID
+     */
+    fun extractDiscrete(
+        dataset: NamedDataset,
+        modeler: PMFModeler,
+        estimationResults: List<EstimationResult>,
+        resultToId: Map<EstimationResult, String>,
+        catalog: FittingCatalog
+    ): FitResultData {
+        val doubleData = DoubleArray(modeler.data.size) { modeler.data[it].toDouble() }
+
+        // Build a (fit, p-value) for every estimation that produced a usable
+        // discrete distribution and goodness-of-fit; everything else is failed.
+        data class Scored(val fit: DistributionFitDTO, val pValue: Double)
+        val scored = mutableListOf<Scored>()
+        val failed = mutableListOf<EstimationResult>()
+        for (er in estimationResults) {
+            val params = er.parameters
+            val dist = if (er.success && params != null) {
+                PMFModeler.createDistribution(params) as? DiscretePMFInRangeDistributionIfc
+            } else null
+            if (dist == null) {
+                failed += er
+                continue
+            }
+            val estimatorId = resultToId[er] ?: er.estimator.name
+            val descriptor = catalog.estimatorOrNull(estimatorId)
+            val rvType = descriptor?.rvType
+            val numParams = rvType?.rvParameters?.numberOfParameters ?: 1
+            val gof = runCatching {
+                DiscretePMFGoodnessOfFit(doubleData, dist, numEstimatedParameters = numParams)
+            }.getOrNull()
+            if (gof == null) {
+                failed += er
+                continue
+            }
+            val familyId = descriptor?.familyId
+                ?: rvType?.let { catalog.familyIdFor(it) }
+                ?: dist.toString().lowercase()
+            val fit = DistributionFitDTO(
+                rank = 0, // assigned after p-value sort
+                familyId = familyId,
+                estimatorId = estimatorId,
+                rvTypeName = rvType?.let { rvTypeName(it) } ?: "unknown",
+                displayName = dist.toString(),
+                parameters = parametersOf(params),
+                numberOfParameters = numParams,
+                success = true,
+                message = er.message,
+                shift = 0.0,
+                chiSquaredPValue = gof.chiSquaredPValue,
+                goodnessOfFit = discreteGoodnessOfFitOf(gof)
+            )
+            scored += Scored(fit, gof.chiSquaredPValue)
+        }
+
+        val rankedScored = scored
+            .sortedByDescending { it.pValue }
+            .mapIndexed { idx, s -> s.fit.copy(rank = idx + 1) }
+        val failedFits = failed.mapIndexed { idx, er ->
+            discreteFailedSummary(er, rankedScored.size + idx + 1, resultToId, catalog)
+        }
+        val allFits = rankedScored + failedFits
+        val recommendedFamilyId = rankedScored.firstOrNull()?.familyId
+
+        return FitResultData(
+            datasetName = dataset.name,
+            kind = DistributionKind.DISCRETE,
+            empProbConvention = EmpProbConvention.CONTINUITY1,
+            dataSummary = dataSummaryOf(modeler.statistics, shift = 0.0),
+            fits = allFits,
+            recommendedFamilyId = recommendedFamilyId,
+            histogram = null,
+            scoring = null,
+            bootstrapFamilyFrequency = null
+        )
+    }
+
+    private fun discreteGoodnessOfFitOf(gof: DiscretePMFGoodnessOfFit): GoodnessOfFitDTO =
+        GoodnessOfFitDTO(
+            chiSquaredStatistic = gof.chiSquaredTestStatistic,
+            chiSquaredDOF = gof.chiSquaredTestDOF,
+            chiSquaredPValue = gof.chiSquaredPValue,
+            binBreakPoints = gof.breakPoints.toList(),
+            binProbabilities = gof.binProbabilities.toList(),
+            expectedCounts = gof.expectedCounts.toList(),
+            observedCounts = gof.histogram.binCounts.toList(),
+            indexOfDispersion = gof.indexOfDispersion,
+            poissonVarianceTestStatistic = gof.poissonVarianceTestStatistic
+        )
+
+    private fun discreteFailedSummary(
+        er: EstimationResult,
+        rank: Int,
+        resultToId: Map<EstimationResult, String>,
+        catalog: FittingCatalog
+    ): DistributionFitDTO {
+        val estimatorId = resultToId[er] ?: er.estimator.name
+        val descriptor = catalog.estimatorOrNull(estimatorId)
+        val rvType = descriptor?.rvType
+        return DistributionFitDTO(
+            rank = rank,
+            familyId = descriptor?.familyId ?: "unknown",
+            estimatorId = estimatorId,
+            rvTypeName = rvType?.let { rvTypeName(it) } ?: "unknown",
+            displayName = er.message ?: "estimation failed",
+            parameters = parametersOf(er.parameters),
+            numberOfParameters = rvType?.rvParameters?.numberOfParameters ?: parametersOf(er.parameters).size,
+            success = false,
+            message = er.message,
+            shift = 0.0
+        )
+    }
+
     // ----- data summary -----------------------------------------------------
 
-    private fun dataSummaryOf(modeler: PDFModeler): DataSummaryDTO {
-        val stats = modeler.statistics
+    private fun dataSummaryOf(stats: StatisticIfc, shift: Double): DataSummaryDTO {
         return DataSummaryDTO(
             n = stats.count.toInt(),
             min = stats.min,
@@ -128,7 +254,7 @@ object FitResultExtractor {
             zeroCount = stats.zeroCount.toInt(),
             negativeCount = stats.negativeCount.toInt(),
             positiveCount = stats.positiveCount.toInt(),
-            shift = modeler.leftShift
+            shift = shift
         )
     }
 

@@ -118,8 +118,11 @@ class DistributionModelingSessionTest {
     }
 
     @Test
-    fun `discrete kind with validation disabled surfaces as RuntimeError`(): Unit = runBlocking {
+    fun `discrete kind with non-integer data surfaces as RuntimeError`(): Unit = runBlocking {
         DistributionModelingSession().use { session ->
+            // The default sample is continuous (non-integer); discrete fitting
+            // rejects it at run time. validate = false bypasses the static
+            // integer-data check so the runtime guard is exercised.
             val spec = singleSpec(kind = DistributionKind.DISCRETE)
             val handle = session.submit(spec, validate = false)
             val result = withTimeout(5_000) { handle.result.await() }

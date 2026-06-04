@@ -162,6 +162,7 @@ fun ReportBuilder.goodnessOfFitSection(fit: DistributionFitDTO) {
         if (gof.andersonDarlingStatistic != null) testRows += listOf("Anderson-Darling", fmt(gof.andersonDarlingStatistic!!), fmtOrDash(gof.andersonDarlingPValue))
         if (gof.cramerVonMisesStatistic != null) testRows += listOf("Cramer-von Mises", fmt(gof.cramerVonMisesStatistic!!), fmtOrDash(gof.cramerVonMisesPValue))
         if (gof.indexOfDispersion != null) testRows += listOf("Index of Dispersion", fmt(gof.indexOfDispersion!!), "—")
+        if (gof.poissonVarianceTestStatistic != null) testRows += listOf("Poisson Variance Test", fmt(gof.poissonVarianceTestStatistic!!), "—")
         dataTable(listOf("Test", "Statistic", "p-value"), testRows, caption = "Goodness of Fit Tests")
 
         val binRows = gof.binProbabilities.indices.map { i ->

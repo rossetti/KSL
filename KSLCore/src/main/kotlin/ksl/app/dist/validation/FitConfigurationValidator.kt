@@ -34,6 +34,7 @@ private const val CODE_ESTIMATOR_KIND_MISMATCH = "fit.estimator.kindMismatch"
 private const val CODE_UNKNOWN_SCORING_MODEL = "fit.scoringModel.unknown"
 private const val CODE_BOOTSTRAP_SAMPLE_SIZE = "fit.bootstrap.sampleSize"
 private const val CODE_BOOTSTRAP_LEVEL = "fit.bootstrap.level"
+private const val CODE_DISCRETE_NON_INTEGER = "fit.discrete.nonInteger"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -64,6 +65,7 @@ object FitConfigurationValidator {
         validateEstimatorIds(config, path, errors)
         validateScoringModelIds(config, path, errors)
         validateBootstrap(config, path, errors)
+        validateDiscreteData(config, "$path.dataSource", errors)
         return ValidationResult(errors = errors.toList())
     }
 
@@ -152,6 +154,29 @@ object FitConfigurationValidator {
                 "bootstrap confidence level must be in (0, 1); was ${bootstrap.level}",
                 CODE_BOOTSTRAP_LEVEL
             )
+        }
+    }
+
+    private fun validateDiscreteData(
+        config: FitConfiguration,
+        path: String,
+        errors: MutableList<FieldError>
+    ) {
+        if (config.kind != DistributionKind.DISCRETE) return
+        val ref = config.dataSource
+        // Only inline data can be checked statically; file/database sources are
+        // validated for integer-ness at import time.
+        if (ref is DataSourceReference.Inline) {
+            ref.datasets.forEach { (name, data) ->
+                val offender = data.firstOrNull { kotlin.math.abs(it - Math.round(it)) > 1e-9 }
+                if (offender != null) {
+                    errors += error(
+                        "$path.datasets[\"$name\"]",
+                        "discrete fitting requires integer-valued data; '$name' contains $offender",
+                        CODE_DISCRETE_NON_INTEGER
+                    )
+                }
+            }
         }
     }
 }

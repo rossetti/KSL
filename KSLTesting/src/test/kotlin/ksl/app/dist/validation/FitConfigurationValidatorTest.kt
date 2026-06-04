@@ -91,6 +91,46 @@ class FitConfigurationValidatorTest {
     }
 
     @Test
+    fun `valid discrete configuration with integer data passes`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("counts", 1.0, 2.0, 3.0, 4.0),
+                kind = DistributionKind.DISCRETE,
+                estimatorIds = setOf("poisson-mle")
+            )
+        )
+        assertTrue(FitConfigurationValidator.validate(spec).isValid)
+    }
+
+    @Test
+    fun `non-integer discrete inline data is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("counts", 1.0, 2.5, 3.0),
+                kind = DistributionKind.DISCRETE,
+                estimatorIds = setOf("poisson-mle")
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.discrete.nonInteger", result.errors[0].code)
+    }
+
+    @Test
+    fun `continuous estimator in discrete configuration is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("counts", 1.0, 2.0, 3.0),
+                kind = DistributionKind.DISCRETE,
+                estimatorIds = setOf("normal-mle")
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.estimator.kindMismatch", result.errors[0].code)
+    }
+
+    @Test
     fun `unknown estimator id is flagged`() {
         val spec = FitSpec.Single(
             FitConfiguration(
