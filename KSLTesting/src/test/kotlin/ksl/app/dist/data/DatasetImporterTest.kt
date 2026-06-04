@@ -21,6 +21,8 @@ package ksl.app.dist.data
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.Delimiter
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.RVData
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Path
@@ -195,15 +197,19 @@ class DatasetImporterTest {
 
     // --- Generated ------------------------------------------------------
 
+    private fun generated(
+        rvType: RVType,
+        parameters: Map<String, DoubleArray>,
+        sampleSize: Int = 100,
+        streamNumber: Int = 0,
+        name: String = "generated"
+    ) = DataSourceReference.Generated(
+        rv = RVData(rvType, parameters), sampleSize = sampleSize, streamNumber = streamNumber, name = name
+    )
+
     @Test
     fun `generated source samples a random variable into one named dataset`() {
-        val ref = DataSourceReference.Generated(
-            rvType = "Exponential",
-            parameters = mapOf("mean" to 2.5),
-            sampleSize = 100,
-            streamNumber = 1,
-            name = "synthetic"
-        )
+        val ref = generated(RVType.Exponential, mapOf("mean" to doubleArrayOf(2.5)), 100, 1, "synthetic")
         val result = importer.import(ref)
         assertEquals(1, result.size)
         assertEquals("synthetic", result[0].name)
@@ -212,9 +218,7 @@ class DatasetImporterTest {
 
     @Test
     fun `generated source is reproducible for a fixed stream number`() {
-        val ref = DataSourceReference.Generated(
-            rvType = "Exponential", parameters = mapOf("mean" to 1.0), sampleSize = 50, streamNumber = 7
-        )
+        val ref = generated(RVType.Exponential, mapOf("mean" to doubleArrayOf(1.0)), 50, 7)
         val a = importer.import(ref).single().data
         val b = importer.import(ref).single().data
         assertContentEquals(a, b)
@@ -222,33 +226,22 @@ class DatasetImporterTest {
 
     @Test
     fun `generated discrete source yields integer-valued samples`() {
-        val ref = DataSourceReference.Generated(
-            rvType = "Poisson", parameters = mapOf("mean" to 5.0), sampleSize = 200, streamNumber = 3
-        )
+        val ref = generated(RVType.Poisson, mapOf("mean" to doubleArrayOf(5.0)), 200, 3)
         val data = importer.import(ref).single().data
         assertEquals(200, data.size)
         assertEquals(true, data.all { it == Math.rint(it) }, "Poisson samples should be integer-valued")
     }
 
     @Test
-    fun `generated source rejects an unknown rv type`() {
-        val ref = DataSourceReference.Generated(rvType = "NotARealRV", sampleSize = 10)
-        val ex = assertThrows<ImportException> { importer.import(ref) }
-        assertEquals(true, ex.message!!.contains("unknown rv type"))
-    }
-
-    @Test
     fun `generated source rejects an unknown parameter name`() {
-        val ref = DataSourceReference.Generated(
-            rvType = "Exponential", parameters = mapOf("notAParam" to 1.0), sampleSize = 10
-        )
+        val ref = generated(RVType.Exponential, mapOf("notAParam" to doubleArrayOf(1.0)), 10)
         val ex = assertThrows<ImportException> { importer.import(ref) }
         assertEquals(true, ex.message!!.contains("unknown parameter"))
     }
 
     @Test
     fun `generated source rejects a non-positive sample size`() {
-        val ref = DataSourceReference.Generated(rvType = "Exponential", sampleSize = 0)
+        val ref = generated(RVType.Exponential, mapOf("mean" to doubleArrayOf(1.0)), 0)
         assertThrows<ImportException> { importer.import(ref) }
     }
 }

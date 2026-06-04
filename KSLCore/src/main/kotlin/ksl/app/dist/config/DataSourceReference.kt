@@ -19,6 +19,7 @@
 package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
+import ksl.utilities.random.rvariable.parameters.RVData
 
 /**
  * Serializable locator for one or more numeric datasets that feed a
@@ -61,10 +62,10 @@ sealed class DataSourceReference {
     ) : DataSourceReference()
 
     /**
-     * Synthetic data sampled from a KSL random variable. `rvType` is the
-     * `ksl.utilities.random.rvariable.RVType` enum constant name (e.g.
-     * "Exponential", "Normal", "Poisson"); `parameters` maps that type's
-     * parameter names to values (e.g. Exponential `"mean"`).
+     * Synthetic data sampled from a KSL random variable, specified by the
+     * canonical serializable `RVData` (typed `RVType` + a name→`DoubleArray`
+     * parameter map, which faithfully carries scalar, integer, and
+     * array-valued parameters).
      *
      * `streamNumber` follows KSL's stream convention against the default
      * provider: `0` (the default) draws the next stream, so each generation is
@@ -77,8 +78,7 @@ sealed class DataSourceReference {
      */
     @Serializable
     data class Generated(
-        val rvType: String,
-        val parameters: Map<String, Double> = emptyMap(),
+        val rv: RVData,
         val sampleSize: Int,
         val streamNumber: Int = 0,
         val name: String = "generated"

@@ -38,7 +38,6 @@ private const val CODE_DISCRETE_NON_INTEGER = "fit.discrete.nonInteger"
 private const val CODE_BATCH_EMPTY = "fit.batch.empty"
 private const val CODE_BATCH_DUPLICATE_NAME = "fit.batch.duplicateName"
 private const val CODE_GENERATED_SAMPLE_SIZE = "fit.generated.sampleSize"
-private const val CODE_GENERATED_UNKNOWN_RV_TYPE = "fit.generated.unknownRvType"
 private const val CODE_DATABASE_LONG_COLUMNS = "fit.database.longColumns"
 private const val CODE_DATABASE_EMPTY_SOURCE = "fit.database.emptySource"
 
@@ -118,18 +117,13 @@ object FitConfigurationValidator {
                 }
             }
             is DataSourceReference.Generated -> {
+                // The rv type is now a typed RVData/RVType (cannot be invalid);
+                // parameter-name validity is checked at import time.
                 if (ref.sampleSize <= 0) {
                     errors += error(
                         "$path.sampleSize",
                         "generated sample size must be > 0; was ${ref.sampleSize}",
                         CODE_GENERATED_SAMPLE_SIZE
-                    )
-                }
-                if (runCatching { ksl.utilities.random.rvariable.RVType.valueOf(ref.rvType) }.isFailure) {
-                    errors += error(
-                        "$path.rvType",
-                        "unknown rv type '${ref.rvType}'",
-                        CODE_GENERATED_UNKNOWN_RV_TYPE
                     )
                 }
             }

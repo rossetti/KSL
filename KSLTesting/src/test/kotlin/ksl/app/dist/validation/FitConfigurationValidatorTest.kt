@@ -25,6 +25,8 @@ import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.FitSpec
 import ksl.app.dist.config.NamedFitConfiguration
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.RVData
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -200,7 +202,7 @@ class FitConfigurationValidatorTest {
         val spec = FitSpec.Single(
             FitConfiguration(
                 dataSource = DataSourceReference.Generated(
-                    rvType = "Exponential", parameters = mapOf("mean" to 2.0), sampleSize = 100
+                    rv = RVData(RVType.Exponential, mapOf("mean" to doubleArrayOf(2.0))), sampleSize = 100
                 ),
                 estimatorIds = setOf("exponential-mle")
             )
@@ -212,24 +214,14 @@ class FitConfigurationValidatorTest {
     fun `generated source with non-positive sample size is flagged`() {
         val spec = FitSpec.Single(
             FitConfiguration(
-                dataSource = DataSourceReference.Generated(rvType = "Exponential", sampleSize = 0)
+                dataSource = DataSourceReference.Generated(
+                    rv = RVData(RVType.Exponential, mapOf("mean" to doubleArrayOf(2.0))), sampleSize = 0
+                )
             )
         )
         val result = FitConfigurationValidator.validate(spec)
         assertEquals(1, result.errors.size)
         assertEquals("fit.generated.sampleSize", result.errors[0].code)
-    }
-
-    @Test
-    fun `generated source with unknown rv type is flagged`() {
-        val spec = FitSpec.Single(
-            FitConfiguration(
-                dataSource = DataSourceReference.Generated(rvType = "Bogus", sampleSize = 100)
-            )
-        )
-        val result = FitConfigurationValidator.validate(spec)
-        assertEquals(1, result.errors.size)
-        assertEquals("fit.generated.unknownRvType", result.errors[0].code)
     }
 
     // --- database -------------------------------------------------------

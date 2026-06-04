@@ -22,6 +22,8 @@ import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.RVData
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -147,8 +149,7 @@ class FittingRunnerTest {
     fun `fits a generated data source end to end`() {
         val config = FitConfiguration(
             dataSource = DataSourceReference.Generated(
-                rvType = "Exponential",
-                parameters = mapOf("mean" to 3.0),
+                rv = RVData(RVType.Exponential, mapOf("mean" to doubleArrayOf(3.0))),
                 sampleSize = 400,
                 streamNumber = 13,
                 name = "synthetic"

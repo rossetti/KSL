@@ -23,7 +23,6 @@ import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.Delimiter
 import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.KSLFileUtil
-import ksl.utilities.random.rvariable.RVType
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -84,17 +83,13 @@ class DefaultDatasetImporter(
         if (reference.sampleSize <= 0) {
             throw ImportException("generated sample size must be > 0; was ${reference.sampleSize}")
         }
-        val rvType = try {
-            RVType.valueOf(reference.rvType)
-        } catch (e: IllegalArgumentException) {
-            throw ImportException("unknown rv type '${reference.rvType}'", e)
-        }
+        val rvType = reference.rv.rvType
         val params = rvType.rvParameters
-        reference.parameters.forEach { (name, value) ->
-            val changed = params.changeParameter(name, value)
-            if (!changed) {
-                throw ImportException("unknown parameter '$name' for rv type '${reference.rvType}'")
-            }
+        // fillFromDoubleArrayMap silently ignores unknown keys; flag them so a
+        // mistyped parameter name is reported rather than silently defaulted.
+        val unknown = reference.rv.parameters.keys.filterNot { params.containsParameter(it) }
+        if (unknown.isNotEmpty()) {
+            throw ImportException("unknown parameter(s) $unknown for rv type '$rvType'")
         }
         // Use the application's default stream provider (KSL's standard stream
         // management). streamNumber 0 draws a fresh "next" stream each call
@@ -102,14 +97,15 @@ class DefaultDatasetImporter(
         // shared stream and resetStartStream() puts it at a known start, so a
         // given positive streamNumber reproduces.
         val data = try {
+            params.fillFromDoubleArrayMap(reference.rv.parameters)
             val rv = params.createRVariable(reference.streamNumber)
             rv.resetStartStream()
             rv.sample(reference.sampleSize)
         } catch (e: Exception) {
-            throw ImportException("failed to generate data for rv type '${reference.rvType}': ${e.message}", e)
+            throw ImportException("failed to generate data for rv type '$rvType': ${e.message}", e)
         }
         if (data.isEmpty()) {
-            throw ImportException("generated no data for rv type '${reference.rvType}'")
+            throw ImportException("generated no data for rv type '$rvType'")
         }
         return listOf(NamedDataset(reference.name, data))
     }

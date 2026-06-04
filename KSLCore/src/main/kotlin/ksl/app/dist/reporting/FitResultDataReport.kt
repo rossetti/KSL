@@ -282,7 +282,9 @@ private fun reconstructFitPlot(
     if (!fit.success) return null
     val rvType = catalog.familyOrNull(fit.familyId)?.rvType ?: return null
     val params = rvType.rvParameters
-    fit.parameters.forEach { (name, value) -> runCatching { params.changeParameter(name, value) } }
+    // Reconstruct via the canonical fill API (same path RVData uses); the
+    // scalar fit parameters are wrapped as 1-element arrays.
+    params.fillFromDoubleArrayMap(fit.parameters.mapValues { doubleArrayOf(it.value) })
     val distribution = PDFModeler.createDistribution(params) ?: return null
     // The fit was performed on left-shifted data; align the client's data the
     // same way so the empirical series match the (unshifted) fitted distribution.

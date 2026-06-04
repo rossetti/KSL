@@ -23,7 +23,10 @@ import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
+import ksl.utilities.random.rvariable.RVType
+import ksl.utilities.random.rvariable.parameters.RVData
 import org.junit.jupiter.api.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -172,8 +175,7 @@ class FitResultDataSerializationTest {
     fun `Generated data source round-trips through JSON`() {
         val config = FitConfiguration(
             dataSource = DataSourceReference.Generated(
-                rvType = "Gamma",
-                parameters = mapOf("shape" to 2.0, "scale" to 3.0),
+                rv = RVData(RVType.Gamma, mapOf("shape" to doubleArrayOf(2.0), "scale" to doubleArrayOf(3.0))),
                 sampleSize = 250,
                 streamNumber = 4,
                 name = "synthetic"
@@ -184,8 +186,9 @@ class FitResultDataSerializationTest {
         val decoded = json.decodeFromString(FitConfiguration.serializer(), encoded)
         val src = decoded.dataSource
         assertTrue(src is DataSourceReference.Generated)
-        assertEquals("Gamma", src.rvType)
-        assertEquals(mapOf("shape" to 2.0, "scale" to 3.0), src.parameters)
+        assertEquals(RVType.Gamma, src.rv.rvType)
+        assertContentEquals(doubleArrayOf(2.0), src.rv.parameters["shape"])
+        assertContentEquals(doubleArrayOf(3.0), src.rv.parameters["scale"])
         assertEquals(250, src.sampleSize)
         assertEquals("synthetic", src.name)
     }
