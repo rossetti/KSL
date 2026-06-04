@@ -30,7 +30,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Exercises the full live -> DTO extraction via FittingRunner.run(), asserting
+ * Exercises the full live -> DTO extraction via FittingRunner.fit(), asserting
  * the fields R1 left null are now populated (goodness-of-fit, histogram, full
  * MODA, bootstrap), and that the surfaced engine parameters take effect.
  */
@@ -58,7 +58,7 @@ class FitResultExtractorTest {
         evaluationMethod: ksl.app.dist.config.EvaluationMethod = ksl.app.dist.config.EvaluationMethod.SCORING
     ): FitResultData {
         val data = exponentialSample(mean = 2.0, n = 300, streamNumber = streamNumber)
-        return FittingRunner.run(config(data, bootstrap, evaluationMethod)).report
+        return FittingRunner.fit(config(data, bootstrap, evaluationMethod))
     }
 
     @Test
@@ -138,8 +138,8 @@ class FitResultExtractorTest {
             estimatorIds = setOf("exponential-mle", "weibull-mle", "gamma-mle"),
             automaticShifting = false
         )
-        val a = FittingRunner.run(cfg).report
-        val b = FittingRunner.run(cfg).report
+        val a = FittingRunner.fit(cfg)
+        val b = FittingRunner.fit(cfg)
         assertEquals(a.dataSummary, b.dataSummary)
         assertEquals(a.histogram, b.histogram)
         assertEquals(a.scoring, b.scoring)

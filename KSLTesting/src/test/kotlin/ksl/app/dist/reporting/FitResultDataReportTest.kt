@@ -58,7 +58,7 @@ class FitResultDataReportTest {
             estimatorIds = setOf("exponential-mle", "weibull-mle", "gamma-mle"),
             bootstrap = bootstrap
         )
-        return Fixture(data, FittingRunner.run(config).report)
+        return Fixture(data, FittingRunner.fit(config))
     }
 
     private fun tempContext(): RenderContext {
@@ -137,7 +137,7 @@ class FitResultDataReportTest {
             dataSource = DataSourceReference.Inline(mapOf("shifted" to shifted)),
             estimatorIds = setOf("exponential-mle", "weibull-mle", "gamma-mle")
         )
-        val report = FittingRunner.run(config).report
+        val report = FittingRunner.fit(config)
         val ctx = tempContext()
         // Should not throw, and should render (plots present for the recommended fit).
         val text = report.toDocument(rawData = shifted).toText(ctx)

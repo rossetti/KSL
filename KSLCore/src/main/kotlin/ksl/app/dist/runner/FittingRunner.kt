@@ -45,33 +45,22 @@ import ksl.utilities.statistic.Statistic
 object FittingRunner {
 
     /**
-     * Imports the configured data, runs the fit, and returns only the
-     * serializable `FitResultData`. Thin convenience over [run] for callers
-     * that do not need the live modeling objects.
-     */
-    fun fit(
-        config: FitConfiguration,
-        importer: DatasetImporter = DatasetImporter.default,
-        catalog: FittingCatalog = FittingCatalog
-    ): FitResultData = run(config, importer, catalog).report
-
-    /**
-     * Imports the configured data, runs the fit, and returns a [FitOutcome]
-     * carrying both the serializable `FitResultData` and the live
-     * `PDFModeler` / `PDFModelingResults`. The live objects are retained for
-     * in-process consumers (e.g. local plot reconstruction); they are not
-     * part of the wire contract.
+     * Imports the configured data, runs the fit, and returns the serializable
+     * `FitResultData`. The live `PDFModeler` / `PDFModelingResults` are used
+     * only transiently by [FitResultExtractor] to populate the DTO and are not
+     * exposed — presentation is driven entirely from the returned DTO (plus
+     * the caller's own raw data for plots).
      *
      * Discrete configurations are rejected with `IllegalArgumentException`
      * until the PMF path lands; multi-dataset sources are rejected with
      * `IllegalStateException` until the batch orchestrator lands. Both
      * become typed errors in the async layer above.
      */
-    fun run(
+    fun fit(
         config: FitConfiguration,
         importer: DatasetImporter = DatasetImporter.default,
         catalog: FittingCatalog = FittingCatalog
-    ): FitOutcome {
+    ): FitResultData {
         require(config.kind == DistributionKind.CONTINUOUS) {
             "discrete fitting will arrive with the PMF path; got kind=${config.kind}"
         }
@@ -107,7 +96,7 @@ object FittingRunner {
         val results = PDFModelingResults(estimationResults, scoringResults, evaluationModel)
 
         val resultToId = identityMapResultsToEstimatorIds(results, orderedEstimators)
-        val report = FitResultExtractor.extractContinuous(
+        return FitResultExtractor.extractContinuous(
             dataset = dataset,
             modeler = modeler,
             results = results,
@@ -116,12 +105,6 @@ object FittingRunner {
             rankingMethod = ranking,
             evaluationMethod = config.evaluationMethod,
             bootstrap = config.bootstrap
-        )
-        return FitOutcome.Continuous(
-            report = report,
-            datasetName = dataset.name,
-            modeler = modeler,
-            results = results
         )
     }
 
