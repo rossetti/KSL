@@ -52,6 +52,7 @@ import javax.swing.JTextField
 import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.table.AbstractTableModel
+import javax.swing.text.JTextComponent
 
 /** A supported delimited-file shape, in plain language. */
 enum class FileFormat(val label: String) {
@@ -132,6 +133,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
         add(buildAddArea(), BorderLayout.NORTH)
         add(buildCollectionArea(), BorderLayout.CENTER)
+        installContextMenus()
         wireListeners()
         bindState()
         updateLongVisibility()
@@ -316,10 +318,19 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         controller.addFrom(ref, File(path).name)
     }
 
+    private fun installContextMenus() {
+        installTextContextMenu(inlineNameField)
+        installTextContextMenu(inlineValuesArea)
+        installTextContextMenu(filePathField)
+        installTextContextMenu(previewArea)
+        (idCombo.editor.editorComponent as? JTextComponent)?.let { installTextContextMenu(it) }
+        (valueCombo.editor.editorComponent as? JTextComponent)?.let { installTextContextMenu(it) }
+    }
+
     private fun browse() {
         val start = lastBrowseDir
             ?: filePathField.text.takeIf { it.isNotBlank() }?.let { File(it).parentFile }
-            ?: controller.settingsStore.activeWorkspace().toFile()
+            ?: controller.ensureAppWorkspace().toFile()
         val chooser = JFileChooser(start).apply {
             dialogTitle = "Choose Data File"
             fileSelectionMode = JFileChooser.FILES_ONLY

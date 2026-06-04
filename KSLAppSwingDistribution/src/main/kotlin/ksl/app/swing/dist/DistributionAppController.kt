@@ -45,8 +45,10 @@ import ksl.app.dist.session.FitResult
 import ksl.app.dist.validation.FitConfigurationValidator
 import ksl.app.editor.DocumentLifecycleController
 import ksl.app.editor.RunLifecycleController
+import ksl.app.session.AppWorkspacePaths
 import ksl.app.settings.UserSettingsStore
 import ksl.app.validation.ValidationResult
+import java.nio.file.Files
 import java.nio.file.Path
 
 /** Header progress state. `Idle` hides the progress meter; `Running` drives it. */
@@ -99,6 +101,21 @@ class DistributionAppController(val appName: String) {
 
     /** User-wide settings (working directory, recent lists). Backed by ~/.ksl/settings.toml. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
+
+    /**
+     * This app's home folder under the active workspace —
+     * `<activeWorkspace>/<appName>/` — matching the sibling apps. Resolved
+     * lazily so it tracks changes to the working directory; not created here.
+     */
+    val appWorkspace: Path
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+
+    /** Returns [appWorkspace], creating it if missing (e.g. as a file-dialog start dir). */
+    fun ensureAppWorkspace(): Path {
+        val dir = appWorkspace
+        runCatching { Files.createDirectories(dir) }
+        return dir
+    }
 
     /** Emitted on New (and later Open) so views can clear transient editor state. */
     private val myDocumentReset = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
