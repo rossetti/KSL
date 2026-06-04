@@ -18,7 +18,7 @@
 
 package ksl.app.dist.runner
 
-import ksl.app.dist.result.FitReport
+import ksl.app.dist.result.FitResultData
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 
@@ -39,7 +39,7 @@ import ksl.utilities.distributions.fitting.PDFModelingResults
 sealed class FitOutcome {
 
     /** The wire-safe machine result; always present regardless of variant. */
-    abstract val report: FitReport
+    abstract val report: FitResultData
 
     /** The name of the dataset that was fit. */
     abstract val datasetName: String
@@ -50,7 +50,7 @@ sealed class FitOutcome {
      * `PDFModelingResults.toReport(modeler, ...)`.
      */
     class Continuous(
-        override val report: FitReport,
+        override val report: FitResultData,
         override val datasetName: String,
         val modeler: PDFModeler,
         val results: PDFModelingResults

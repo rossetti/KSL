@@ -22,29 +22,39 @@ import kotlinx.serialization.Serializable
 
 /**
  * Wire-safe, asymmetry-aware result for one (estimator, distribution-family)
- * outcome inside a fit report.
+ * outcome. `family + parameters + shift` is everything a distribution-capable
+ * client needs to reconstruct the fitted distribution and build any
+ * fit-quality plot from its own raw data.
  *
- * The continuous side populates the MODA-scoring fields (`weightedValue`,
- * `averageRanking`, `firstRankCount`) and leaves `chiSquaredPValue` null.
- * The discrete side does the opposite. This shape lets a uniform DTO
- * carry both kinds without forcing PMF results through scoring it does not
- * compute.
+ * The continuous side populates the headline MODA fields (`weightedValue`,
+ * `averageRanking`, `firstRankCount` — the engine's `OverallValueData`); the
+ * full per-metric MODA breakdown lives once in the report's `ModaResultDTO`,
+ * joined by `displayName == alternative`. The discrete side populates
+ * `chiSquaredPValue` (a convenience mirror of `goodnessOfFit?.chiSquaredPValue`,
+ * used as the discrete ranking key).
  *
- * Failed estimators are included with `success = false`, sorted to the
- * bottom of the ranked list, so the front-end can show "tried but
- * failed" without losing the attempt.
+ * `goodnessOfFit` and `bootstrap` are populated in a later phase by the
+ * result extractor; they are null until then.
  */
 @Serializable
-data class DistributionFitSummary(
+data class DistributionFitDTO(
     val rank: Int,
     val familyId: String,
     val estimatorId: String,
+    val rvTypeName: String,
     val displayName: String,
     val parameters: Map<String, Double>,
+    val numberOfParameters: Int,
     val success: Boolean,
     val message: String? = null,
+    val shift: Double = 0.0,
+    // headline MODA numbers (continuous; per-metric detail is in ModaResultDTO):
     val weightedValue: Double? = null,
     val averageRanking: Double? = null,
     val firstRankCount: Int? = null,
-    val chiSquaredPValue: Double? = null
+    // discrete ranking key (mirrors goodnessOfFit?.chiSquaredPValue):
+    val chiSquaredPValue: Double? = null,
+    // populated by the result extractor in a later phase:
+    val goodnessOfFit: GoodnessOfFitDTO? = null,
+    val bootstrap: List<BootstrapEstimateDTO>? = null
 )

@@ -32,6 +32,7 @@ private const val CODE_DATASET_EMPTY = "fit.dataset.empty"
 private const val CODE_UNKNOWN_ESTIMATOR = "fit.estimator.unknown"
 private const val CODE_ESTIMATOR_KIND_MISMATCH = "fit.estimator.kindMismatch"
 private const val CODE_UNKNOWN_SCORING_MODEL = "fit.scoringModel.unknown"
+private const val CODE_BOOTSTRAP_SAMPLE_SIZE = "fit.bootstrap.sampleSize"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -61,6 +62,7 @@ object FitConfigurationValidator {
         validateDataSource(config.dataSource, "$path.dataSource", errors)
         validateEstimatorIds(config, path, errors)
         validateScoringModelIds(config, path, errors)
+        validateBootstrap(config, path, errors)
         return ValidationResult(errors = errors.toList())
     }
 
@@ -127,6 +129,21 @@ object FitConfigurationValidator {
                     CODE_UNKNOWN_SCORING_MODEL
                 )
             }
+        }
+    }
+
+    private fun validateBootstrap(
+        config: FitConfiguration,
+        path: String,
+        errors: MutableList<FieldError>
+    ) {
+        val bootstrap = config.bootstrap ?: return
+        if (bootstrap.sampleSize <= 0) {
+            errors += error(
+                "$path.bootstrap.sampleSize",
+                "bootstrap sample size must be > 0; was ${bootstrap.sampleSize}",
+                CODE_BOOTSTRAP_SAMPLE_SIZE
+            )
         }
     }
 }

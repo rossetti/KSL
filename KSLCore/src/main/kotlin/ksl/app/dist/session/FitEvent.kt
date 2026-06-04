@@ -19,7 +19,7 @@
 package ksl.app.dist.session
 
 import kotlinx.datetime.Instant
-import ksl.app.dist.result.FitReport
+import ksl.app.dist.result.FitResultData
 
 /**
  * Lifecycle event emitted by a `FitHandle` during a fitting job.
@@ -54,10 +54,10 @@ sealed class FitEvent {
         override val startTime: Instant
     ) : Started()
 
-    /** Terminal: the fit produced a `FitReport` normally. */
+    /** Terminal: the fit produced a `FitResultData` normally. */
     data class FitCompleted(
         val fitId: String,
-        val report: FitReport,
+        val report: FitResultData,
         val endTime: Instant
     ) : FitEvent()
 

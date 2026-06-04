@@ -32,6 +32,9 @@ import kotlinx.serialization.Serializable
  *
  * `automaticShifting` applies only to the continuous path; it is ignored
  * for DISCRETE configurations.
+ *
+ * `bootstrap` is opt-in: a non-null `BootstrapConfig` requests engine-side
+ * bootstrap of the fitted parameters (summaries returned); null skips it.
  */
 @Serializable
 data class FitConfiguration(
@@ -39,5 +42,6 @@ data class FitConfiguration(
     val kind: DistributionKind = DistributionKind.CONTINUOUS,
     val estimatorIds: Set<String> = emptySet(),
     val scoringModelIds: Set<String> = emptySet(),
-    val automaticShifting: Boolean = true
+    val automaticShifting: Boolean = true,
+    val bootstrap: BootstrapConfig? = null
 )

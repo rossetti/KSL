@@ -26,7 +26,7 @@ import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.FitSpec
 import ksl.app.dist.data.DatasetImporter
 import ksl.app.dist.data.ImportException
-import ksl.app.dist.result.FitReport
+import ksl.app.dist.result.FitResultData
 import ksl.app.dist.runner.FittingRunner
 import java.util.UUID
 
@@ -69,7 +69,7 @@ internal object FittingExecutor {
                 lifecycle.emitProgress(
                     FitEvent.FitStarted(fitId, datasetName, Clock.System.now())
                 )
-                val report: FitReport = FittingRunner.fit(spec.config, importer = ImporterFromDatasets(datasets), catalog = catalog)
+                val report: FitResultData = FittingRunner.fit(spec.config, importer = ImporterFromDatasets(datasets), catalog = catalog)
                 lifecycle.completeWithReport(FitResult.Completed(report))
             } catch (ce: CancellationException) {
                 throw ce

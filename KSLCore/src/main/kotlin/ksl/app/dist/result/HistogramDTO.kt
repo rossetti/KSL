@@ -21,18 +21,28 @@ package ksl.app.dist.result
 import kotlinx.serialization.Serializable
 
 /**
- * Compact, wire-safe summary of the data series that was fit.
- *
- * `shift` is the left shift PDFModeler applied during automatic shifting;
- * zero when no shift was applied (either because automatic shifting was
- * disabled or because the data did not warrant one).
+ * Wire-safe mirror of one histogram bin, sourced from the engine's
+ * `HistogramBinData`. Lets a client render the same binning the engine used.
  */
 @Serializable
-data class DataSummary(
-    val n: Int,
-    val min: Double,
-    val max: Double,
-    val average: Double,
-    val standardDeviation: Double,
-    val shift: Double
+data class HistogramBinDTO(
+    val binNum: Int,
+    val binLabel: String,
+    val lowerLimit: Double,
+    val upperLimit: Double,
+    val count: Double,
+    val cumCount: Double,
+    val proportion: Double,
+    val cumProportion: Double
+)
+
+/**
+ * Wire-safe histogram: the ordered bins plus the under/overflow counts.
+ * Populated from `HistogramIfc.histogramData()` by the result extractor.
+ */
+@Serializable
+data class HistogramDTO(
+    val bins: List<HistogramBinDTO>,
+    val underFlowCount: Double,
+    val overFlowCount: Double
 )

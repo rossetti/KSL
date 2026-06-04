@@ -24,9 +24,9 @@ import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.data.DatasetImporter
 import ksl.app.dist.data.NamedDataset
-import ksl.app.dist.result.DataSummary
-import ksl.app.dist.result.DistributionFitSummary
-import ksl.app.dist.result.FitReport
+import ksl.app.dist.result.DataSummaryDTO
+import ksl.app.dist.result.DistributionFitDTO
+import ksl.app.dist.result.FitResultData
 import ksl.utilities.distributions.fitting.EstimationResult
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
@@ -55,7 +55,7 @@ object FittingRunner {
         config: FitConfiguration,
         importer: DatasetImporter = DatasetImporter.default,
         catalog: FittingCatalog = FittingCatalog
-    ): FitReport = run(config, importer, catalog).report
+    ): FitResultData = run(config, importer, catalog).report
 
     /**
      * Imports the configured data, runs PDFModeler over the configured
@@ -146,7 +146,7 @@ object FittingRunner {
         results: PDFModelingResults,
         resultToId: Map<EstimationResult, String>,
         catalog: FittingCatalog
-    ): FitReport {
+    ): FitResultData {
         val rankedScored = results.resultsSortedByScoring
         val scoredSummaries = rankedScored.mapIndexed { idx, sr ->
             scoringSummary(sr, idx + 1, resultToId, catalog)
@@ -162,7 +162,9 @@ object FittingRunner {
         val allFits = scoredSummaries + failedSummaries
         val recommendedFamilyId = scoredSummaries.firstOrNull { it.success }?.familyId
 
-        return FitReport(
+        // histogram, scoring (full MODA), and bootstrapFamilyFrequency are
+        // populated by the result extractor in a later phase; null for now.
+        return FitResultData(
             datasetName = dataset.name,
             kind = DistributionKind.CONTINUOUS,
             dataSummary = dataSummaryOf(modeler),
@@ -171,14 +173,20 @@ object FittingRunner {
         )
     }
 
-    private fun dataSummaryOf(modeler: PDFModeler): DataSummary {
+    private fun dataSummaryOf(modeler: PDFModeler): DataSummaryDTO {
         val stats = modeler.statistics
-        return DataSummary(
+        return DataSummaryDTO(
             n = stats.count.toInt(),
             min = stats.min,
             max = stats.max,
             average = stats.average,
+            variance = stats.variance,
             standardDeviation = stats.standardDeviation,
+            skewness = stats.skewness,
+            kurtosis = stats.kurtosis,
+            zeroCount = stats.zeroCount.toInt(),
+            negativeCount = stats.negativeCount.toInt(),
+            positiveCount = stats.positiveCount.toInt(),
             shift = modeler.leftShift
         )
     }
@@ -188,20 +196,24 @@ object FittingRunner {
         rank: Int,
         resultToId: Map<EstimationResult, String>,
         catalog: FittingCatalog
-    ): DistributionFitSummary {
+    ): DistributionFitDTO {
         val estimatorId = resultToId[sr.estimationResult] ?: sr.estimationResult.estimator.name
         val descriptor: EstimatorDescriptor? = catalog.estimatorOrNull(estimatorId)
         val familyId = descriptor?.familyId
             ?: catalog.familyIdFor(sr.rvType)
             ?: sr.rvType.toString().lowercase()
-        return DistributionFitSummary(
+        // goodnessOfFit and bootstrap are populated by the extractor in a later phase.
+        return DistributionFitDTO(
             rank = rank,
             familyId = familyId,
             estimatorId = estimatorId,
+            rvTypeName = rvTypeName(sr.rvType),
             displayName = sr.name,
             parameters = parametersOf(sr.estimationResult.parameters),
+            numberOfParameters = sr.numberOfParameters,
             success = sr.estimationResult.success,
             message = sr.estimationResult.message,
+            shift = sr.estimationResult.shiftedData?.shift ?: 0.0,
             weightedValue = sr.weightedValue,
             averageRanking = sr.averageRanking,
             firstRankCount = sr.firstRankCount
@@ -213,20 +225,28 @@ object FittingRunner {
         rank: Int,
         resultToId: Map<EstimationResult, String>,
         catalog: FittingCatalog
-    ): DistributionFitSummary {
+    ): DistributionFitDTO {
         val estimatorId = resultToId[er] ?: er.estimator.name
         val descriptor = catalog.estimatorOrNull(estimatorId)
         val familyId = descriptor?.familyId ?: "unknown"
-        return DistributionFitSummary(
+        val rvType = descriptor?.rvType
+        return DistributionFitDTO(
             rank = rank,
             familyId = familyId,
             estimatorId = estimatorId,
+            rvTypeName = rvType?.let { rvTypeName(it) } ?: "unknown",
             displayName = er.distribution,
             parameters = parametersOf(er.parameters),
+            numberOfParameters = rvType?.rvParameters?.numberOfParameters ?: parametersOf(er.parameters).size,
             success = false,
-            message = er.message
+            message = er.message,
+            shift = er.shiftedData?.shift ?: 0.0
         )
     }
+
+    /** The distribution family name as the RVType enum constant name (e.g. "Exponential"). */
+    private fun rvTypeName(rvType: ksl.utilities.random.rvariable.RVParametersTypeIfc): String =
+        (rvType as? Enum<*>)?.name ?: rvType.toString()
 
     private fun parametersOf(params: RVParameters?): Map<String, Double> {
         if (params == null) return emptyMap()

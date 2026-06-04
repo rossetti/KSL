@@ -16,23 +16,25 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.dist.session
+package ksl.app.dist.config
 
-import ksl.app.dist.result.FitResultData
+import kotlinx.serialization.Serializable
 
 /**
- * Terminal outcome of a fitting job, returned by `FitHandle.result.await()`
- * and `submitAndAwaitBlocking`. Always resolves to exactly one variant; the
- * matching terminal `FitEvent` is the last event on the handle's flow.
+ * Opt-in request for engine-side bootstrap of the fitted parameters. When a
+ * `FitConfiguration` carries a non-null `BootstrapConfig`, the engine performs
+ * the resampling and returns summary results only (estimate, bias, MSE,
+ * standard error, and confidence intervals) — never the raw replicate arrays.
+ * A null bootstrap config skips bootstrapping entirely.
+ *
+ * The defaults mirror the engine's own defaults. Fixing `streamNumber` makes
+ * the bootstrap reproducible.
+ *
+ * @param sampleSize   number of bootstrap resamples; must be > 0
+ * @param streamNumber random-number stream number for reproducibility
  */
-sealed class FitResult {
-
-    /** The fit produced a usable `FitResultData`. */
-    data class Completed(val report: FitResultData) : FitResult()
-
-    /** The fit failed with a structured error. */
-    data class Failed(val error: FittingError) : FitResult()
-
-    /** The fit was cancelled before completion. */
-    data class Cancelled(val reason: String) : FitResult()
-}
+@Serializable
+data class BootstrapConfig(
+    val sampleSize: Int = 399,
+    val streamNumber: Int = 0
+)

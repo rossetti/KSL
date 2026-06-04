@@ -16,23 +16,31 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.dist.session
+package ksl.app.dist.result
 
-import ksl.app.dist.result.FitResultData
+import kotlinx.serialization.Serializable
 
 /**
- * Terminal outcome of a fitting job, returned by `FitHandle.result.await()`
- * and `submitAndAwaitBlocking`. Always resolves to exactly one variant; the
- * matching terminal `FitEvent` is the last event on the handle's flow.
+ * Wire-safe summary of the data series that was fit. Every field is read
+ * directly off the engine's `StatisticIfc` view of the data. `shift` is the
+ * left shift the engine applied during automatic shifting (zero when none).
+ *
+ * Although a client that supplied the raw data could recompute these, the
+ * summary is returned so the result reflects the engine's exact statistics
+ * (and so a thin client need not recompute anything).
  */
-sealed class FitResult {
-
-    /** The fit produced a usable `FitResultData`. */
-    data class Completed(val report: FitResultData) : FitResult()
-
-    /** The fit failed with a structured error. */
-    data class Failed(val error: FittingError) : FitResult()
-
-    /** The fit was cancelled before completion. */
-    data class Cancelled(val reason: String) : FitResult()
-}
+@Serializable
+data class DataSummaryDTO(
+    val n: Int,
+    val min: Double,
+    val max: Double,
+    val average: Double,
+    val variance: Double,
+    val standardDeviation: Double,
+    val skewness: Double,
+    val kurtosis: Double,
+    val zeroCount: Int,
+    val negativeCount: Int,
+    val positiveCount: Int,
+    val shift: Double
+)

@@ -18,6 +18,7 @@
 
 package ksl.app.dist.validation
 
+import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
@@ -50,6 +51,30 @@ class FitConfigurationValidatorTest {
         val spec = FitSpec.Single(FitConfiguration(dataSource = inline("x", 1.0, 2.0)))
         val result = FitConfigurationValidator.validate(spec)
         assertTrue(result.isValid)
+    }
+
+    @Test
+    fun `valid bootstrap config passes`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("x", 1.0, 2.0, 3.0),
+                bootstrap = BootstrapConfig(sampleSize = 200, streamNumber = 2)
+            )
+        )
+        assertTrue(FitConfigurationValidator.validate(spec).isValid)
+    }
+
+    @Test
+    fun `non-positive bootstrap sample size is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("x", 1.0, 2.0, 3.0),
+                bootstrap = BootstrapConfig(sampleSize = 0)
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.bootstrap.sampleSize", result.errors[0].code)
     }
 
     @Test

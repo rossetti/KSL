@@ -18,25 +18,14 @@
 
 package ksl.app.dist.result
 
-import kotlinx.serialization.Serializable
-import ksl.app.dist.config.DistributionKind
-
 /**
- * Wire-safe machine result for one distribution-fitting job over one
- * dataset, parallel to the run-result DTOs in `ksl.app.session`. CLIs,
- * REST hosts, and agents consume this directly; human-facing reports are
- * built in-process by a separate reporting layer and are not serialized.
+ * Serializable mirror of the engine's empirical-probability plotting-position
+ * convention (`ksl.utilities.statistic.EmpDistType`). Carried on the result so
+ * a client can reproduce the engine's Q-Q / P-P plots exactly rather than
+ * choosing its own plotting-position formula.
  *
- * `recommendedFamilyId` is the family ID of the top-ranked successful fit,
- * or null when no estimator produced a usable result. `fits` is sorted
- * best-first (rank 1 is the recommended fit) with failed attempts at the
- * bottom in undefined relative order.
+ * BASE         — i/n
+ * CONTINUITY1  — (i - 0.5) / n            (the engine default)
+ * CONTINUITY2  — (i - 0.375) / (n + 0.25)
  */
-@Serializable
-data class FitReport(
-    val datasetName: String,
-    val kind: DistributionKind,
-    val dataSummary: DataSummary,
-    val fits: List<DistributionFitSummary>,
-    val recommendedFamilyId: String?
-)
+enum class EmpProbConvention { BASE, CONTINUITY1, CONTINUITY2 }
