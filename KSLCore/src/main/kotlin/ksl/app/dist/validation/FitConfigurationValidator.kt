@@ -37,6 +37,8 @@ private const val CODE_BOOTSTRAP_LEVEL = "fit.bootstrap.level"
 private const val CODE_DISCRETE_NON_INTEGER = "fit.discrete.nonInteger"
 private const val CODE_BATCH_EMPTY = "fit.batch.empty"
 private const val CODE_BATCH_DUPLICATE_NAME = "fit.batch.duplicateName"
+private const val CODE_GENERATED_SAMPLE_SIZE = "fit.generated.sampleSize"
+private const val CODE_GENERATED_UNKNOWN_RV_TYPE = "fit.generated.unknownRvType"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -97,23 +99,42 @@ object FitConfigurationValidator {
         path: String,
         errors: MutableList<FieldError>
     ) {
-        if (ref is DataSourceReference.Inline) {
-            if (ref.datasets.isEmpty()) {
-                errors += error(path, "inline reference contains no datasets", CODE_DATA_SOURCE_EMPTY)
-                return
+        when (ref) {
+            is DataSourceReference.Inline -> {
+                if (ref.datasets.isEmpty()) {
+                    errors += error(path, "inline reference contains no datasets", CODE_DATA_SOURCE_EMPTY)
+                    return
+                }
+                ref.datasets.forEach { (name, data) ->
+                    if (data.isEmpty()) {
+                        errors += error(
+                            "$path.datasets[\"$name\"]",
+                            "dataset '$name' is empty",
+                            CODE_DATASET_EMPTY
+                        )
+                    }
+                }
             }
-            ref.datasets.forEach { (name, data) ->
-                if (data.isEmpty()) {
+            is DataSourceReference.Generated -> {
+                if (ref.sampleSize <= 0) {
                     errors += error(
-                        "$path.datasets[\"$name\"]",
-                        "dataset '$name' is empty",
-                        CODE_DATASET_EMPTY
+                        "$path.sampleSize",
+                        "generated sample size must be > 0; was ${ref.sampleSize}",
+                        CODE_GENERATED_SAMPLE_SIZE
+                    )
+                }
+                if (runCatching { ksl.utilities.random.rvariable.RVType.valueOf(ref.rvType) }.isFailure) {
+                    errors += error(
+                        "$path.rvType",
+                        "unknown rv type '${ref.rvType}'",
+                        CODE_GENERATED_UNKNOWN_RV_TYPE
                     )
                 }
             }
+            // DelimitedFile resolvability (and parameter-name validity for
+            // Generated) are validated at import time as runtime concerns.
+            is DataSourceReference.DelimitedFile -> Unit
         }
-        // DelimitedFile (and future Database / Generated) are validated at
-        // import time so resolvability stays a runtime concern.
     }
 
     private fun validateEstimatorIds(

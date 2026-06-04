@@ -166,4 +166,26 @@ class FitResultDataSerializationTest {
         assertEquals(ksl.app.dist.config.EvaluationMethod.RANKING, decoded.evaluationMethod)
         assertTrue(decoded.dataSource is DataSourceReference.Inline)
     }
+
+    @Test
+    fun `Generated data source round-trips through JSON`() {
+        val config = FitConfiguration(
+            dataSource = DataSourceReference.Generated(
+                rvType = "Gamma",
+                parameters = mapOf("shape" to 2.0, "scale" to 3.0),
+                sampleSize = 250,
+                streamNumber = 4,
+                name = "synthetic"
+            ),
+            estimatorIds = setOf("gamma-mle")
+        )
+        val encoded = json.encodeToString(FitConfiguration.serializer(), config)
+        val decoded = json.decodeFromString(FitConfiguration.serializer(), encoded)
+        val src = decoded.dataSource
+        assertTrue(src is DataSourceReference.Generated)
+        assertEquals("Gamma", src.rvType)
+        assertEquals(mapOf("shape" to 2.0, "scale" to 3.0), src.parameters)
+        assertEquals(250, src.sampleSize)
+        assertEquals("synthetic", src.name)
+    }
 }

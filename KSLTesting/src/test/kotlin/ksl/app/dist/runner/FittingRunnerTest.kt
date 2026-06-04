@@ -117,4 +117,23 @@ class FittingRunnerTest {
         )
         assertThrows<IllegalStateException> { FittingRunner.fit(config) }
     }
+
+    @Test
+    fun `fits a generated data source end to end`() {
+        val config = FitConfiguration(
+            dataSource = DataSourceReference.Generated(
+                rvType = "Exponential",
+                parameters = mapOf("mean" to 3.0),
+                sampleSize = 400,
+                streamNumber = 13,
+                name = "synthetic"
+            ),
+            estimatorIds = setOf("exponential-mle", "weibull-mle", "gamma-mle")
+        )
+        val report = FittingRunner.fit(config)
+        assertEquals("synthetic", report.datasetName)
+        assertEquals(400, report.dataSummary.n)
+        assertTrue(report.fits.any { it.success })
+        assertNotNull(report.recommendedFamilyId)
+    }
 }

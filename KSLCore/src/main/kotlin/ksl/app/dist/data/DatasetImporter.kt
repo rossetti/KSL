@@ -23,6 +23,7 @@ import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.Delimiter
 import ksl.utilities.io.CSVUtil
 import ksl.utilities.io.KSLFileUtil
+import ksl.utilities.random.rvariable.RVType
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -60,12 +61,48 @@ fun interface DatasetImporter {
  *  - DelimitedFile + WIDE + COMMA   -> CSVUtil.readToColumns; one dataset per column,
  *                                      optionally filtered to `datasetColumns` (in filter order)
  *  - DelimitedFile + LONG + COMMA   -> CSVUtil.readRowsToListOfStringArrays + WideLongReshape.splitLong
+ *  - Generated                      -> sample a KSL random variable (RVType + parameters)
  */
 object DefaultDatasetImporter : DatasetImporter {
 
     override fun import(reference: DataSourceReference): List<NamedDataset> = when (reference) {
         is DataSourceReference.Inline -> importInline(reference)
         is DataSourceReference.DelimitedFile -> importDelimitedFile(reference)
+        is DataSourceReference.Generated -> importGenerated(reference)
+    }
+
+    private fun importGenerated(reference: DataSourceReference.Generated): List<NamedDataset> {
+        if (reference.sampleSize <= 0) {
+            throw ImportException("generated sample size must be > 0; was ${reference.sampleSize}")
+        }
+        val rvType = try {
+            RVType.valueOf(reference.rvType)
+        } catch (e: IllegalArgumentException) {
+            throw ImportException("unknown rv type '${reference.rvType}'", e)
+        }
+        val params = rvType.rvParameters
+        reference.parameters.forEach { (name, value) ->
+            val changed = params.changeParameter(name, value)
+            if (!changed) {
+                throw ImportException("unknown parameter '$name' for rv type '${reference.rvType}'")
+            }
+        }
+        // Use the application's default stream provider (KSL's standard stream
+        // management). streamNumber 0 draws a fresh "next" stream each call
+        // (independent generations); a positive streamNumber selects that
+        // shared stream and resetStartStream() puts it at a known start, so a
+        // given positive streamNumber reproduces.
+        val data = try {
+            val rv = params.createRVariable(reference.streamNumber)
+            rv.resetStartStream()
+            rv.sample(reference.sampleSize)
+        } catch (e: Exception) {
+            throw ImportException("failed to generate data for rv type '${reference.rvType}': ${e.message}", e)
+        }
+        if (data.isEmpty()) {
+            throw ImportException("generated no data for rv type '${reference.rvType}'")
+        }
+        return listOf(NamedDataset(reference.name, data))
     }
 
     private fun importInline(reference: DataSourceReference.Inline): List<NamedDataset> {

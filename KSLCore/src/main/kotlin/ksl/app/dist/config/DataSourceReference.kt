@@ -24,9 +24,8 @@ import kotlinx.serialization.Serializable
  * Serializable locator for one or more numeric datasets that feed a
  * distribution-fitting job.
  *
- * The hierarchy is sealed but not yet exhaustive: `Database` and `Generated`
- * variants will land in a later phase. Importers must therefore treat the
- * known variants as the closed set for now.
+ * The hierarchy is sealed; a `Database` variant will land in a later phase.
+ * Importers must therefore treat the known variants as the closed set for now.
  */
 @Serializable
 sealed class DataSourceReference {
@@ -62,5 +61,29 @@ sealed class DataSourceReference {
         val idColumn: String? = null,
         val valueColumn: String? = null,
         val datasetColumns: List<String>? = null
+    ) : DataSourceReference()
+
+    /**
+     * Synthetic data sampled from a KSL random variable. `rvType` is the
+     * `ksl.utilities.random.rvariable.RVType` enum constant name (e.g.
+     * "Exponential", "Normal", "Poisson"); `parameters` maps that type's
+     * parameter names to values (e.g. Exponential `"mean"`).
+     *
+     * `streamNumber` follows KSL's stream convention against the default
+     * provider: `0` (the default) draws the next stream, so each generation is
+     * independent; a positive number selects that shared stream, which the
+     * importer resets to its start before sampling, so a given positive
+     * `streamNumber` reproduces.
+     *
+     * Produces exactly one dataset named `name`. Discrete RV types yield
+     * integer-valued samples suitable for the discrete fitting path.
+     */
+    @Serializable
+    data class Generated(
+        val rvType: String,
+        val parameters: Map<String, Double> = emptyMap(),
+        val sampleSize: Int,
+        val streamNumber: Int = 0,
+        val name: String = "generated"
     ) : DataSourceReference()
 }

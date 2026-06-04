@@ -192,6 +192,45 @@ class FitConfigurationValidatorTest {
         assertEquals("fit.dataSource.empty", result.errors[0].code)
     }
 
+    // --- generated ------------------------------------------------------
+
+    @Test
+    fun `valid generated source passes`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Generated(
+                    rvType = "Exponential", parameters = mapOf("mean" to 2.0), sampleSize = 100
+                ),
+                estimatorIds = setOf("exponential-mle")
+            )
+        )
+        assertTrue(FitConfigurationValidator.validate(spec).isValid)
+    }
+
+    @Test
+    fun `generated source with non-positive sample size is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Generated(rvType = "Exponential", sampleSize = 0)
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.generated.sampleSize", result.errors[0].code)
+    }
+
+    @Test
+    fun `generated source with unknown rv type is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Generated(rvType = "Bogus", sampleSize = 100)
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.generated.unknownRvType", result.errors[0].code)
+    }
+
     // --- batch ----------------------------------------------------------
 
     private fun named(name: String, config: FitConfiguration) = NamedFitConfiguration(name, config)
