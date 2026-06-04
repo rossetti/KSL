@@ -47,7 +47,7 @@ fun interface DatasetImporter {
     fun import(reference: DataSourceReference): List<NamedDataset>
 
     companion object {
-        val default: DatasetImporter = DefaultDatasetImporter
+        val default: DatasetImporter = DefaultDatasetImporter()
     }
 }
 
@@ -63,14 +63,21 @@ fun interface DatasetImporter {
  *  - DelimitedFile + LONG + COMMA   -> CSVUtil.readRowsToListOfStringArrays + WideLongReshape.splitLong
  *  - Generated                      -> sample a KSL random variable (RVType + parameters)
  *  - Database                       -> DatabaseDataReader (table/query -> DataFrame -> datasets)
+ *
+ * `credentialResolver` resolves database credentials at run time for server
+ * connections; it defaults to [DefaultCredentialResolver] (env vars / TOML
+ * secrets file). A front-end that needs to prompt for credentials constructs
+ * this importer with its own resolver and passes it to the session.
  */
-object DefaultDatasetImporter : DatasetImporter {
+class DefaultDatasetImporter(
+    private val credentialResolver: CredentialResolver = DefaultCredentialResolver
+) : DatasetImporter {
 
     override fun import(reference: DataSourceReference): List<NamedDataset> = when (reference) {
         is DataSourceReference.Inline -> importInline(reference)
         is DataSourceReference.DelimitedFile -> importDelimitedFile(reference)
         is DataSourceReference.Generated -> importGenerated(reference)
-        is DataSourceReference.Database -> DatabaseDataReader.read(reference)
+        is DataSourceReference.Database -> DatabaseDataReader.read(reference, credentialResolver)
     }
 
     private fun importGenerated(reference: DataSourceReference.Generated): List<NamedDataset> {

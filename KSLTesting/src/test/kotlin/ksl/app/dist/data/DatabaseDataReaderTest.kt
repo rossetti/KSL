@@ -136,13 +136,32 @@ class DatabaseDataReaderTest {
         assertThrows<ImportException> { DatasetImporter.default.import(ref) }
     }
 
+    // --- credential-resolver wiring (no network) ------------------------
+
+    private class ResolverCalled : RuntimeException()
+
     @Test
-    fun `server database type is rejected in this phase`() {
+    fun `credential resolver is consulted for a server database`() {
+        // A Postgres source must resolve credentials before connecting; a
+        // throwing resolver proves it is reached (deterministically, no socket).
+        val importer = DefaultDatasetImporter(CredentialResolver { throw ResolverCalled() })
         val ref = DataSourceReference.Database(
-            connection = DatabaseConnectionRef(dbType = DbType.POSTGRES, location = "mydb", serverName = "localhost"),
+            connection = DatabaseConnectionRef(
+                dbType = DbType.POSTGRES, location = "mydb", serverName = "localhost", portNumber = 5432
+            ),
+            source = DbSource.Table("t")
+        )
+        assertThrows<ResolverCalled> { importer.import(ref) }
+    }
+
+    @Test
+    fun `credential resolver is not consulted for an embedded database`() {
+        val importer = DefaultDatasetImporter(CredentialResolver { throw ResolverCalled() })
+        val ref = DataSourceReference.Database(
+            connection = connection(createDb()),     // SQLite, embedded
             source = DbSource.Table("wide")
         )
-        val ex = assertThrows<ImportException> { DatasetImporter.default.import(ref) }
-        assertTrue(ex.message!!.contains("server"))
+        val result = importer.import(ref) // must not throw — resolver never consulted
+        assertTrue(result.isNotEmpty())
     }
 }

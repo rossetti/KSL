@@ -26,15 +26,29 @@ enum class DbType { SQLITE, DERBY, POSTGRES }
 
 /**
  * How database credentials are obtained at run time. The connection reference
- * itself never carries secrets. Embedded/file databases use [None]; the other
- * variants (front-end prompt, environment variables, external secrets file)
- * arrive with the server-database phase.
+ * itself never carries secrets — only *references* to where the secret lives
+ * (an env-var name, a file path) or a hint to prompt for it.
  */
 @Serializable
 sealed class CredentialSource {
     /** No credentials required (embedded/file database, or otherwise trusted). */
     @Serializable
     data object None : CredentialSource()
+
+    /** The front-end prompts the user at run time; never persisted. */
+    @Serializable
+    data class RuntimePrompt(val usernameHint: String? = null) : CredentialSource()
+
+    /** Read the username/password from named environment variables. */
+    @Serializable
+    data class Environment(val userVar: String, val passwordVar: String) : CredentialSource()
+
+    /**
+     * Read credentials from a TOML secrets file (outside the config) with
+     * `username` and `password` keys.
+     */
+    @Serializable
+    data class ExternalFile(val path: String) : CredentialSource()
 }
 
 /**

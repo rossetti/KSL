@@ -18,14 +18,15 @@
 
 package ksl.app.dist.data
 
-import ksl.app.dist.config.CredentialSource
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DatabaseConnectionRef
 import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.DbSource
 import ksl.app.dist.config.DbType
+import ksl.utilities.io.dbutil.Database
 import ksl.utilities.io.dbutil.DatabaseIfc
 import ksl.utilities.io.dbutil.DerbyDb
+import ksl.utilities.io.dbutil.PostgresDb
 import ksl.utilities.io.dbutil.SQLiteDb
 import org.jetbrains.kotlinx.dataframe.*
 import org.jetbrains.kotlinx.dataframe.api.*
@@ -36,9 +37,9 @@ import java.nio.file.Paths
  * connection, runs the table/query, converts the result set to a Kotlin
  * DataFrame, and extracts numeric columns per the requested layout.
  *
- * This phase supports embedded databases (SQLite, Derby) with no credentials.
- * Server databases and credential resolution arrive in a later phase; until
- * then a Postgres connection or a non-`None` credential source is rejected.
+ * Embedded databases (SQLite, Derby) connect by file path and ignore
+ * credentials. Server databases (Postgres) resolve credentials at run time
+ * via the supplied [CredentialResolver].
  */
 object DatabaseDataReader {
 
@@ -46,8 +47,11 @@ object DatabaseDataReader {
         Double::class, Float::class, Int::class, Long::class, Short::class, Byte::class
     )
 
-    fun read(reference: DataSourceReference.Database): List<NamedDataset> {
-        val df = queryToDataFrame(reference)
+    fun read(
+        reference: DataSourceReference.Database,
+        resolver: CredentialResolver = DefaultCredentialResolver
+    ): List<NamedDataset> {
+        val df = queryToDataFrame(reference, resolver)
         return when (reference.layout) {
             DatasetLayout.WIDE -> extractWide(df, reference.datasetColumns)
             DatasetLayout.LONG -> extractLong(
@@ -62,8 +66,11 @@ object DatabaseDataReader {
         }
     }
 
-    private fun queryToDataFrame(reference: DataSourceReference.Database): AnyFrame {
-        val db = openDatabase(reference.connection)
+    private fun queryToDataFrame(
+        reference: DataSourceReference.Database,
+        resolver: CredentialResolver
+    ): AnyFrame {
+        val db = openDatabase(reference.connection, resolver)
         // Use an open (forward-only) ResultSet for both table and query —
         // DatabaseIfc.toDataFrame wraps it in a CachedRowSet itself, and a
         // CachedRowSet (as returned by selectAll) is not compatible with that.
@@ -76,15 +83,26 @@ object DatabaseDataReader {
         return resultSet.use { DatabaseIfc.toDataFrame(it) }
     }
 
-    private fun openDatabase(connection: DatabaseConnectionRef): DatabaseIfc {
-        if (connection.credentials != CredentialSource.None) {
-            throw ImportException("database credentials are not yet supported (server-database phase)")
-        }
+    private fun openDatabase(
+        connection: DatabaseConnectionRef,
+        resolver: CredentialResolver
+    ): DatabaseIfc {
         return when (connection.dbType) {
+            // Embedded: connect by file path; credentials are not applicable.
             DbType.SQLITE -> SQLiteDb.openDatabase(Paths.get(connection.location))
             DbType.DERBY -> DerbyDb.openDatabase(Paths.get(connection.location))
-            DbType.POSTGRES ->
-                throw ImportException("server databases (Postgres) are not yet supported (server-database phase)")
+            // Server: resolve credentials at run time, then connect.
+            DbType.POSTGRES -> {
+                val creds = resolver.resolve(connection)
+                val dataSource = PostgresDb.createDataSource(
+                    dbServerName = connection.serverName ?: "localhost",
+                    dbName = connection.location,
+                    user = creds?.username ?: "",
+                    pWord = creds?.password ?: "",
+                    portNumber = connection.portNumber ?: 5432
+                )
+                Database(dataSource, connection.location)
+            }
         }
     }
 

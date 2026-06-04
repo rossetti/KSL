@@ -25,6 +25,7 @@ import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -209,5 +210,27 @@ class FitResultDataSerializationTest {
         assertEquals(ksl.app.dist.config.DbType.SQLITE, src.connection.dbType)
         assertTrue(src.source is ksl.app.dist.config.DbSource.Query)
         assertEquals(listOf("a", "b"), src.datasetColumns)
+    }
+
+    @Test
+    fun `each CredentialSource variant round-trips and carries no secret`() {
+        val sources = listOf(
+            ksl.app.dist.config.CredentialSource.None,
+            ksl.app.dist.config.CredentialSource.RuntimePrompt("alice"),
+            ksl.app.dist.config.CredentialSource.Environment("PG_USER", "PG_PASS"),
+            ksl.app.dist.config.CredentialSource.ExternalFile("/etc/secrets/db.toml")
+        )
+        for (cs in sources) {
+            val ref = ksl.app.dist.config.DatabaseConnectionRef(
+                dbType = ksl.app.dist.config.DbType.POSTGRES,
+                location = "mydb", serverName = "localhost", portNumber = 5432, credentials = cs
+            )
+            val encoded = json.encodeToString(ksl.app.dist.config.DatabaseConnectionRef.serializer(), ref)
+            val decoded = json.decodeFromString(ksl.app.dist.config.DatabaseConnectionRef.serializer(), encoded)
+            assertEquals(ref, decoded)
+            // The reference carries only references to secrets, never values.
+            assertFalse(encoded.contains("s3cret"))
+            assertFalse(encoded.contains("password=\"") || encoded.contains("\"password\":\""))
+        }
     }
 }
