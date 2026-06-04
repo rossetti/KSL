@@ -35,6 +35,8 @@ private const val CODE_UNKNOWN_SCORING_MODEL = "fit.scoringModel.unknown"
 private const val CODE_BOOTSTRAP_SAMPLE_SIZE = "fit.bootstrap.sampleSize"
 private const val CODE_BOOTSTRAP_LEVEL = "fit.bootstrap.level"
 private const val CODE_DISCRETE_NON_INTEGER = "fit.discrete.nonInteger"
+private const val CODE_BATCH_EMPTY = "fit.batch.empty"
+private const val CODE_BATCH_DUPLICATE_NAME = "fit.batch.duplicateName"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -57,6 +59,27 @@ object FitConfigurationValidator {
     /** Validates one spec. */
     fun validate(spec: FitSpec): ValidationResult = when (spec) {
         is FitSpec.Single -> validate(spec.config, path = "config")
+        is FitSpec.Batch -> validateBatch(spec)
+    }
+
+    private fun validateBatch(spec: FitSpec.Batch): ValidationResult {
+        val errors = mutableListOf<FieldError>()
+        if (spec.configs.isEmpty()) {
+            errors += error("batch", "batch contains no configurations", CODE_BATCH_EMPTY)
+            return ValidationResult(errors = errors.toList())
+        }
+        val seen = mutableSetOf<String>()
+        spec.configs.forEach { named ->
+            if (!seen.add(named.name)) {
+                errors += error(
+                    "batch[\"${named.name}\"]",
+                    "duplicate batch entry name '${named.name}'",
+                    CODE_BATCH_DUPLICATE_NAME
+                )
+            }
+            errors += validate(named.config, path = "batch[\"${named.name}\"]").errors
+        }
+        return ValidationResult(errors = errors.toList())
     }
 
     private fun validate(config: FitConfiguration, path: String): ValidationResult {

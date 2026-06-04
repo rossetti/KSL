@@ -16,24 +16,28 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.dist.config
+package ksl.app.dist.result
+
+import kotlinx.serialization.Serializable
 
 /**
- * Type-safe job spec for a distribution-fitting request, parallel to
- * `ksl.app.RunSpec`. Cardinality (single vs. batch) is encoded in the
- * variant rather than a flag, so a downstream session can dispatch by
- * exhaustive `when` without re-validating which fields are present.
+ * One failed entry in a batch: the entry's name and a human-readable message.
+ * Captured so a batch completes even when some datasets fail (bad import,
+ * non-integer discrete data, numerical failure).
  */
-sealed class FitSpec {
+@Serializable
+data class BatchFailure(
+    val name: String,
+    val message: String
+)
 
-    /** Fit one dataset using one analysis configuration. */
-    data class Single(val config: FitConfiguration) : FitSpec()
-
-    /**
-     * Fit many named datasets, each with its own configuration. A
-     * multi-dataset source sharing one analysis configuration can be turned
-     * into a `Batch` via `BatchFittingRunner.expand`; heterogeneous batches
-     * (different sources/settings per entry) are constructed directly.
-     */
-    data class Batch(val configs: List<NamedFitConfiguration>) : FitSpec()
-}
+/**
+ * Wire-safe aggregate result for a `FitSpec.Batch`: the successful per-dataset
+ * results in submission order, plus any per-dataset failures. Each
+ * `FitResultData.datasetName` identifies its entry.
+ */
+@Serializable
+data class BatchFitResultData(
+    val results: List<FitResultData>,
+    val failures: List<BatchFailure> = emptyList()
+)

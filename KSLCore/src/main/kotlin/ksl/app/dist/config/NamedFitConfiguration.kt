@@ -18,22 +18,16 @@
 
 package ksl.app.dist.config
 
+import kotlinx.serialization.Serializable
+
 /**
- * Type-safe job spec for a distribution-fitting request, parallel to
- * `ksl.app.RunSpec`. Cardinality (single vs. batch) is encoded in the
- * variant rather than a flag, so a downstream session can dispatch by
- * exhaustive `when` without re-validating which fields are present.
+ * One entry in a `FitSpec.Batch`: a human-readable name paired with the
+ * analysis configuration for that dataset. The name labels the entry in
+ * batch results, events, and the cross-dataset summary report; for batches
+ * produced by expanding a multi-dataset source it is the dataset name.
  */
-sealed class FitSpec {
-
-    /** Fit one dataset using one analysis configuration. */
-    data class Single(val config: FitConfiguration) : FitSpec()
-
-    /**
-     * Fit many named datasets, each with its own configuration. A
-     * multi-dataset source sharing one analysis configuration can be turned
-     * into a `Batch` via `BatchFittingRunner.expand`; heterogeneous batches
-     * (different sources/settings per entry) are constructed directly.
-     */
-    data class Batch(val configs: List<NamedFitConfiguration>) : FitSpec()
-}
+@Serializable
+data class NamedFitConfiguration(
+    val name: String,
+    val config: FitConfiguration
+)

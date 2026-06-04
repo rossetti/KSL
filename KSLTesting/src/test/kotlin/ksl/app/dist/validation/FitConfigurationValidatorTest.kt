@@ -23,6 +23,7 @@ import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.FitSpec
+import ksl.app.dist.config.NamedFitConfiguration
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -189,5 +190,53 @@ class FitConfigurationValidatorTest {
         val result = FitConfigurationValidator.validate(spec)
         assertEquals(1, result.errors.size)
         assertEquals("fit.dataSource.empty", result.errors[0].code)
+    }
+
+    // --- batch ----------------------------------------------------------
+
+    private fun named(name: String, config: FitConfiguration) = NamedFitConfiguration(name, config)
+
+    @Test
+    fun `valid batch passes`() {
+        val spec = FitSpec.Batch(
+            listOf(
+                named("a", FitConfiguration(dataSource = inline("a", 1.0, 2.0, 3.0), estimatorIds = setOf("normal-mle"))),
+                named("b", FitConfiguration(dataSource = inline("b", 4.0, 5.0, 6.0), estimatorIds = setOf("exponential-mle")))
+            )
+        )
+        assertTrue(FitConfigurationValidator.validate(spec).isValid)
+    }
+
+    @Test
+    fun `empty batch is flagged`() {
+        val result = FitConfigurationValidator.validate(FitSpec.Batch(emptyList()))
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.batch.empty", result.errors[0].code)
+    }
+
+    @Test
+    fun `duplicate batch entry names are flagged`() {
+        val spec = FitSpec.Batch(
+            listOf(
+                named("dup", FitConfiguration(dataSource = inline("a", 1.0, 2.0))),
+                named("dup", FitConfiguration(dataSource = inline("b", 3.0, 4.0)))
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertTrue(result.errors.any { it.code == "fit.batch.duplicateName" })
+    }
+
+    @Test
+    fun `per-entry errors are aggregated with name-prefixed paths`() {
+        val spec = FitSpec.Batch(
+            listOf(
+                named("ok", FitConfiguration(dataSource = inline("ok", 1.0, 2.0))),
+                named("bad", FitConfiguration(dataSource = inline("bad", 1.0, 2.0), estimatorIds = setOf("nope-mle")))
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.estimator.unknown", result.errors[0].code)
+        assertTrue(result.errors[0].path.contains("bad"))
     }
 }
