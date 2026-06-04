@@ -27,7 +27,12 @@ import ksl.app.dist.result.FitResultData
  */
 sealed class FitResult {
 
-    /** The fit produced a usable `FitResultData`. */
+    /**
+     * The fit produced a usable, fully-populated `FitResultData` — the
+     * complete serializable result graph (data summary, ranked fits with
+     * goodness-of-fit, full MODA scoring, and bootstrap summaries when
+     * requested) assembled by the result extractor.
+     */
     data class Completed(val report: FitResultData) : FitResult()
 
     /** The fit failed with a structured error. */
