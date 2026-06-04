@@ -41,11 +41,12 @@ import ksl.utilities.io.report.extensions.toReport
  *    for the "generate the HTML report" action: render to HTML / Markdown
  *    file or open in a browser for full fidelity.
  *
- *  - [summaryDocument] is a lightweight, deterministic, plot-free view
- *    (data summary plus the MODA scoring table). It does no bootstrapping
- *    and produces no plot nodes, so rendering it to text or Markdown writes
- *    no image files and incurs no Lets-Plot cost. Use it for an immediate
- *    in-app or console preview.
+ *  - [summaryDocument] is a lightweight, plot-free view (data summary plus
+ *    the MODA scoring table). It produces no plot nodes, so rendering it to
+ *    text or Markdown writes no image files and incurs no Lets-Plot cost.
+ *    (It is not byte-deterministic across renders: the reused data-summary
+ *    section bootstraps the minimum CI for the shift analysis.) Use it for
+ *    an immediate in-app or console preview.
  *
  * Both currently handle the continuous path only; the discrete path adds
  * its own builders when the PMF outcome variant lands.
@@ -76,9 +77,10 @@ object FitReporting {
         )
 
     /**
-     * Lightweight, plot-free, deterministic summary: the data statistical
-     * summary plus the MODA scoring table. Renders to text or Markdown with
-     * no plot image files and no bootstrapping.
+     * Lightweight, plot-free summary: the data statistical summary plus the
+     * MODA scoring table. Renders to text or Markdown with no plot image
+     * files. (Not byte-deterministic across renders: the reused data-summary
+     * section bootstraps the minimum CI for the shift analysis.)
      *
      * @param outcome         the continuous fit outcome carrying the live modeler/results
      * @param title           document title

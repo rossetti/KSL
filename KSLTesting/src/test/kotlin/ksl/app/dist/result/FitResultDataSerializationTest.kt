@@ -151,15 +151,19 @@ class FitResultDataSerializationTest {
     }
 
     @Test
-    fun `FitConfiguration with BootstrapConfig round-trips`() {
+    fun `FitConfiguration with engine parameters round-trips`() {
         val config = FitConfiguration(
             dataSource = DataSourceReference.Inline(mapOf("a" to doubleArrayOf(1.0, 2.0, 3.0))),
             estimatorIds = setOf("normal-mle"),
-            bootstrap = BootstrapConfig(sampleSize = 200, streamNumber = 3)
+            rankingMethod = ksl.app.dist.config.RankingMethod.FRACTIONAL,
+            evaluationMethod = ksl.app.dist.config.EvaluationMethod.RANKING,
+            bootstrap = BootstrapConfig(sampleSize = 200, level = 0.9, streamNumber = 3)
         )
         val encoded = json.encodeToString(FitConfiguration.serializer(), config)
         val decoded = json.decodeFromString(FitConfiguration.serializer(), encoded)
-        assertEquals(BootstrapConfig(200, 3), decoded.bootstrap)
+        assertEquals(BootstrapConfig(sampleSize = 200, level = 0.9, streamNumber = 3), decoded.bootstrap)
+        assertEquals(ksl.app.dist.config.RankingMethod.FRACTIONAL, decoded.rankingMethod)
+        assertEquals(ksl.app.dist.config.EvaluationMethod.RANKING, decoded.evaluationMethod)
         assertTrue(decoded.dataSource is DataSourceReference.Inline)
     }
 }

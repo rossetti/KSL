@@ -78,6 +78,19 @@ class FitConfigurationValidatorTest {
     }
 
     @Test
+    fun `out-of-range bootstrap confidence level is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = inline("x", 1.0, 2.0, 3.0),
+                bootstrap = BootstrapConfig(sampleSize = 100, level = 1.5)
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.bootstrap.level", result.errors[0].code)
+    }
+
+    @Test
     fun `unknown estimator id is flagged`() {
         val spec = FitSpec.Single(
             FitConfiguration(

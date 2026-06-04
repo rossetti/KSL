@@ -79,15 +79,14 @@ class FitReportingTest {
     }
 
     @Test
-    fun `summary document rendering is deterministic`() {
-        // The summary path does no bootstrapping and emits no plots, so rendering
-        // the same fit outcome twice yields byte-identical text. (We render one
-        // outcome twice rather than fitting twice, to isolate reporting
-        // determinism from random-stream management.)
-        val out = outcome(streamNumber = 7)
-        val a = FitReporting.summaryDocument(out).toText()
-        val b = FitReporting.summaryDocument(out).toText()
-        assertEquals(a, b)
+    fun `summary document includes the MODA scoring detail`() {
+        // Note: the summary is plot-free but NOT byte-deterministic across
+        // renders — the reused dataStatisticalSummary section bootstraps the
+        // minimum CI (shift analysis) on each render. So we assert structural
+        // content rather than render equality.
+        val text = FitReporting.summaryDocument(outcome()).toText()
+        assertTrue(text.contains("MODA Scoring Results"))
+        assertTrue(text.contains("Rankings"))
     }
 
     @Test

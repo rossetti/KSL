@@ -35,6 +35,10 @@ import kotlinx.serialization.Serializable
  *
  * `bootstrap` is opt-in: a non-null `BootstrapConfig` requests engine-side
  * bootstrap of the fitted parameters (summaries returned); null skips it.
+ *
+ * `rankingMethod` and `evaluationMethod` surface the engine's MODA-evaluation
+ * parameters (rank-tie handling and the recommendation criterion); both
+ * default to the engine defaults and apply to the continuous path only.
  */
 @Serializable
 data class FitConfiguration(
@@ -43,5 +47,7 @@ data class FitConfiguration(
     val estimatorIds: Set<String> = emptySet(),
     val scoringModelIds: Set<String> = emptySet(),
     val automaticShifting: Boolean = true,
+    val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
+    val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
     val bootstrap: BootstrapConfig? = null
 )

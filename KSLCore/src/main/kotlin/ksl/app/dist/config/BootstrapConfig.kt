@@ -27,14 +27,17 @@ import kotlinx.serialization.Serializable
  * standard error, and confidence intervals) — never the raw replicate arrays.
  * A null bootstrap config skips bootstrapping entirely.
  *
- * The defaults mirror the engine's own defaults. Fixing `streamNumber` makes
- * the bootstrap reproducible.
+ * Every field surfaces a parameter of the engine's
+ * `PDFModeler.bootStrapParameterEstimates` call, with the engine's own
+ * defaults. Fixing `streamNumber` makes the bootstrap reproducible.
  *
- * @param sampleSize   number of bootstrap resamples; must be > 0
+ * @param sampleSize number of bootstrap resamples; must be > 0
+ * @param level      confidence level for the reported intervals; in (0, 1)
  * @param streamNumber random-number stream number for reproducibility
  */
 @Serializable
 data class BootstrapConfig(
     val sampleSize: Int = 399,
+    val level: Double = 0.95,
     val streamNumber: Int = 0
 )

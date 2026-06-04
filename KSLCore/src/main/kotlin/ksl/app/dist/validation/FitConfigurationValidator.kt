@@ -33,6 +33,7 @@ private const val CODE_UNKNOWN_ESTIMATOR = "fit.estimator.unknown"
 private const val CODE_ESTIMATOR_KIND_MISMATCH = "fit.estimator.kindMismatch"
 private const val CODE_UNKNOWN_SCORING_MODEL = "fit.scoringModel.unknown"
 private const val CODE_BOOTSTRAP_SAMPLE_SIZE = "fit.bootstrap.sampleSize"
+private const val CODE_BOOTSTRAP_LEVEL = "fit.bootstrap.level"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -143,6 +144,13 @@ object FitConfigurationValidator {
                 "$path.bootstrap.sampleSize",
                 "bootstrap sample size must be > 0; was ${bootstrap.sampleSize}",
                 CODE_BOOTSTRAP_SAMPLE_SIZE
+            )
+        }
+        if (bootstrap.level <= 0.0 || bootstrap.level >= 1.0) {
+            errors += error(
+                "$path.bootstrap.level",
+                "bootstrap confidence level must be in (0, 1); was ${bootstrap.level}",
+                CODE_BOOTSTRAP_LEVEL
             )
         }
     }
