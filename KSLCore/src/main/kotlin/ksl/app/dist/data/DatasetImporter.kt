@@ -62,6 +62,7 @@ fun interface DatasetImporter {
  *                                      optionally filtered to `datasetColumns` (in filter order)
  *  - DelimitedFile + LONG + COMMA   -> CSVUtil.readRowsToListOfStringArrays + WideLongReshape.splitLong
  *  - Generated                      -> sample a KSL random variable (RVType + parameters)
+ *  - Database                       -> DatabaseDataReader (table/query -> DataFrame -> datasets)
  */
 object DefaultDatasetImporter : DatasetImporter {
 
@@ -69,6 +70,7 @@ object DefaultDatasetImporter : DatasetImporter {
         is DataSourceReference.Inline -> importInline(reference)
         is DataSourceReference.DelimitedFile -> importDelimitedFile(reference)
         is DataSourceReference.Generated -> importGenerated(reference)
+        is DataSourceReference.Database -> DatabaseDataReader.read(reference)
     }
 
     private fun importGenerated(reference: DataSourceReference.Generated): List<NamedDataset> {

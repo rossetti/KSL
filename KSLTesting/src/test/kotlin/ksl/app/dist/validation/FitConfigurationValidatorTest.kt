@@ -20,6 +20,7 @@ package ksl.app.dist.validation
 
 import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
+import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.FitSpec
@@ -229,6 +230,59 @@ class FitConfigurationValidatorTest {
         val result = FitConfigurationValidator.validate(spec)
         assertEquals(1, result.errors.size)
         assertEquals("fit.generated.unknownRvType", result.errors[0].code)
+    }
+
+    // --- database -------------------------------------------------------
+
+    @Test
+    fun `valid database table source passes`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Database(
+                    connection = ksl.app.dist.config.DatabaseConnectionRef(
+                        dbType = ksl.app.dist.config.DbType.SQLITE, location = "/tmp/x.db"
+                    ),
+                    source = ksl.app.dist.config.DbSource.Table("t")
+                ),
+                estimatorIds = setOf("normal-mle")
+            )
+        )
+        assertTrue(FitConfigurationValidator.validate(spec).isValid)
+    }
+
+    @Test
+    fun `database LONG layout missing id and value columns is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Database(
+                    connection = ksl.app.dist.config.DatabaseConnectionRef(
+                        dbType = ksl.app.dist.config.DbType.SQLITE, location = "/tmp/x.db"
+                    ),
+                    source = ksl.app.dist.config.DbSource.Table("t"),
+                    layout = DatasetLayout.LONG
+                )
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.database.longColumns", result.errors[0].code)
+    }
+
+    @Test
+    fun `database blank query is flagged`() {
+        val spec = FitSpec.Single(
+            FitConfiguration(
+                dataSource = DataSourceReference.Database(
+                    connection = ksl.app.dist.config.DatabaseConnectionRef(
+                        dbType = ksl.app.dist.config.DbType.SQLITE, location = "/tmp/x.db"
+                    ),
+                    source = ksl.app.dist.config.DbSource.Query("   ")
+                )
+            )
+        )
+        val result = FitConfigurationValidator.validate(spec)
+        assertEquals(1, result.errors.size)
+        assertEquals("fit.database.emptySource", result.errors[0].code)
     }
 
     // --- batch ----------------------------------------------------------

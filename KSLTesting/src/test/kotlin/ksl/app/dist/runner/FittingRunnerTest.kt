@@ -119,6 +119,31 @@ class FittingRunnerTest {
     }
 
     @Test
+    fun `fits an embedded database source end to end`() {
+        val dir = java.nio.file.Files.createTempDirectory("fit-db")
+        val db = ksl.utilities.io.dbutil.SQLiteDb("fit.db", dir, deleteIfExists = true)
+        db.executeCommand("CREATE TABLE samples (x REAL)")
+        val rv = ExponentialRV(mean = 2.0, streamNum = 31)
+        db.executeCommands((1..300).map { "INSERT INTO samples VALUES (${rv.value})" })
+        val config = FitConfiguration(
+            dataSource = DataSourceReference.Database(
+                connection = ksl.app.dist.config.DatabaseConnectionRef(
+                    dbType = ksl.app.dist.config.DbType.SQLITE,
+                    location = dir.resolve("fit.db").toString()
+                ),
+                source = ksl.app.dist.config.DbSource.Table("samples"),
+                layout = ksl.app.dist.config.DatasetLayout.WIDE
+            ),
+            estimatorIds = setOf("exponential-mle", "weibull-mle", "gamma-mle")
+        )
+        val report = FittingRunner.fit(config)
+        assertEquals("x", report.datasetName)
+        assertEquals(300, report.dataSummary.n)
+        assertTrue(report.fits.any { it.success })
+        assertNotNull(report.recommendedFamilyId)
+    }
+
+    @Test
     fun `fits a generated data source end to end`() {
         val config = FitConfiguration(
             dataSource = DataSourceReference.Generated(

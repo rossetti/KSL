@@ -23,9 +23,6 @@ import kotlinx.serialization.Serializable
 /**
  * Serializable locator for one or more numeric datasets that feed a
  * distribution-fitting job.
- *
- * The hierarchy is sealed; a `Database` variant will land in a later phase.
- * Importers must therefore treat the known variants as the closed set for now.
  */
 @Serializable
 sealed class DataSourceReference {
@@ -85,5 +82,28 @@ sealed class DataSourceReference {
         val sampleSize: Int,
         val streamNumber: Int = 0,
         val name: String = "generated"
+    ) : DataSourceReference()
+
+    /**
+     * A database table or query. Numeric columns are read into datasets.
+     *
+     * WIDE layout (the default): each numeric column becomes a dataset
+     * (filtered to `datasetColumns`, in order, when given).
+     *
+     * LONG layout: rows are grouped by `idColumn` (first-seen order) into one
+     * dataset each, with `valueColumn` supplying the numeric values; both must
+     * be set.
+     *
+     * Embedded databases (SQLite, Derby) need no credentials; server databases
+     * and credential resolution land in a later phase.
+     */
+    @Serializable
+    data class Database(
+        val connection: DatabaseConnectionRef,
+        val source: DbSource,
+        val layout: DatasetLayout = DatasetLayout.WIDE,
+        val idColumn: String? = null,
+        val valueColumn: String? = null,
+        val datasetColumns: List<String>? = null
     ) : DataSourceReference()
 }

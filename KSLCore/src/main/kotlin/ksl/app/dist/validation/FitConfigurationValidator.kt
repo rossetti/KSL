@@ -39,6 +39,8 @@ private const val CODE_BATCH_EMPTY = "fit.batch.empty"
 private const val CODE_BATCH_DUPLICATE_NAME = "fit.batch.duplicateName"
 private const val CODE_GENERATED_SAMPLE_SIZE = "fit.generated.sampleSize"
 private const val CODE_GENERATED_UNKNOWN_RV_TYPE = "fit.generated.unknownRvType"
+private const val CODE_DATABASE_LONG_COLUMNS = "fit.database.longColumns"
+private const val CODE_DATABASE_EMPTY_SOURCE = "fit.database.emptySource"
 
 private fun error(path: String, message: String, code: String): FieldError =
     FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
@@ -131,8 +133,28 @@ object FitConfigurationValidator {
                     )
                 }
             }
+            is DataSourceReference.Database -> {
+                if (ref.layout == ksl.app.dist.config.DatasetLayout.LONG &&
+                    (ref.idColumn == null || ref.valueColumn == null)
+                ) {
+                    errors += error(
+                        path,
+                        "LONG database layout requires both idColumn and valueColumn",
+                        CODE_DATABASE_LONG_COLUMNS
+                    )
+                }
+                val source = ref.source
+                val blank = when (source) {
+                    is ksl.app.dist.config.DbSource.Table -> source.name.isBlank()
+                    is ksl.app.dist.config.DbSource.Query -> source.sql.isBlank()
+                }
+                if (blank) {
+                    errors += error("$path.source", "database source is blank", CODE_DATABASE_EMPTY_SOURCE)
+                }
+            }
             // DelimitedFile resolvability (and parameter-name validity for
-            // Generated) are validated at import time as runtime concerns.
+            // Generated, connectivity/SQL for Database) are validated at
+            // import time as runtime concerns.
             is DataSourceReference.DelimitedFile -> Unit
         }
     }

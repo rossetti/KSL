@@ -80,4 +80,28 @@ object WideLongReshape {
             NamedDataset(id, DoubleArray(values.size) { values[it] })
         }
     }
+
+    /**
+     * Splits parallel id / value columns into one numeric series per distinct
+     * id, preserving first-encountered id order. Used by the database reader,
+     * which has already-typed columns rather than string rows.
+     *
+     * `ids` and `values` must have the same length. Throws ImportException
+     * when they do not, or when a resulting group is empty.
+     */
+    fun splitLong(ids: List<String>, values: DoubleArray): List<NamedDataset> {
+        if (ids.size != values.size) {
+            throw ImportException("id column size ${ids.size} != value column size ${values.size}")
+        }
+        val grouped = LinkedHashMap<String, ArrayList<Double>>()
+        for (i in ids.indices) {
+            grouped.getOrPut(ids[i]) { ArrayList() }.add(values[i])
+        }
+        return grouped.map { (id, vs) ->
+            if (vs.isEmpty()) {
+                throw ImportException("dataset '$id' has no values")
+            }
+            NamedDataset(id, DoubleArray(vs.size) { vs[it] })
+        }
+    }
 }

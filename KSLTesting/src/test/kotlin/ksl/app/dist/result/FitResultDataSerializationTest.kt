@@ -188,4 +188,26 @@ class FitResultDataSerializationTest {
         assertEquals(250, src.sampleSize)
         assertEquals("synthetic", src.name)
     }
+
+    @Test
+    fun `Database data source round-trips through JSON`() {
+        val config = FitConfiguration(
+            dataSource = DataSourceReference.Database(
+                connection = ksl.app.dist.config.DatabaseConnectionRef(
+                    dbType = ksl.app.dist.config.DbType.SQLITE, location = "/data/x.db"
+                ),
+                source = ksl.app.dist.config.DbSource.Query("SELECT a, b FROM t"),
+                layout = ksl.app.dist.config.DatasetLayout.WIDE,
+                datasetColumns = listOf("a", "b")
+            ),
+            estimatorIds = setOf("normal-mle")
+        )
+        val encoded = json.encodeToString(FitConfiguration.serializer(), config)
+        val decoded = json.decodeFromString(FitConfiguration.serializer(), encoded)
+        val src = decoded.dataSource
+        assertTrue(src is DataSourceReference.Database)
+        assertEquals(ksl.app.dist.config.DbType.SQLITE, src.connection.dbType)
+        assertTrue(src.source is ksl.app.dist.config.DbSource.Query)
+        assertEquals(listOf("a", "b"), src.datasetColumns)
+    }
 }
