@@ -26,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.FitSpec
 import ksl.app.dist.data.DatasetImporter
+import ksl.app.dist.session.BatchFittingExecutor
 import ksl.app.dist.session.FitHandle
 import ksl.app.dist.session.FitResult
 import ksl.app.dist.session.FittingError
@@ -109,16 +110,7 @@ class DistributionModelingSession(
 
         val handle = when (spec) {
             is FitSpec.Single -> FittingExecutor.submit(spec, catalog, importer, scope)
-            // Async batch execution is not yet wired; the synchronous
-            // BatchFittingRunner is available in the meantime. Returns a
-            // failed handle so the event/result protocol still applies.
-            is FitSpec.Batch -> failedFitHandle(
-                fitId = newPreFailedId(),
-                error = FittingError.RuntimeError(
-                    message = "batch is not yet available via the async session; use BatchFittingRunner",
-                    cause = null
-                )
-            )
+            is FitSpec.Batch -> BatchFittingExecutor.submit(spec, catalog, importer, scope)
         }
         handles += handle
         return handle

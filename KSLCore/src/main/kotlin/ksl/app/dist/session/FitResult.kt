@@ -18,6 +18,7 @@
 
 package ksl.app.dist.session
 
+import ksl.app.dist.result.BatchFitResultData
 import ksl.app.dist.result.FitResultData
 
 /**
@@ -34,6 +35,15 @@ sealed class FitResult {
      * requested) assembled by the result extractor.
      */
     data class Completed(val report: FitResultData) : FitResult()
+
+    /**
+     * A batch finished. The carried `BatchFitResultData` holds the complete
+     * per-dataset result graph for every dataset that fit, plus a
+     * `BatchFailure` for any entry that threw — a batch completes even when
+     * some datasets fail. Whole-batch failure or cancellation use [Failed] /
+     * [Cancelled] instead.
+     */
+    data class BatchCompleted(val report: BatchFitResultData) : FitResult()
 
     /** The fit failed with a structured error. */
     data class Failed(val error: FittingError) : FitResult()

@@ -105,6 +105,9 @@ internal class FitLifecycle(
     fun completeWithReport(result: FitResult.Completed): Boolean =
         complete(result, FitEvent.FitCompleted(fitId, result.report, Clock.System.now()))
 
+    fun completeWithBatch(result: FitResult.BatchCompleted): Boolean =
+        complete(result, FitEvent.BatchFitCompleted(fitId, result.report, Clock.System.now()))
+
     /**
      * Atomically claims the terminal state, emits the terminal event, and
      * resolves the public result.
@@ -163,6 +166,7 @@ internal class FitLifecycle(
             is FitResult.Cancelled -> terminalEvent is FitEvent.FitCancelled
             is FitResult.Failed -> terminalEvent is FitEvent.FitFailed
             is FitResult.Completed -> terminalEvent is FitEvent.FitCompleted
+            is FitResult.BatchCompleted -> terminalEvent is FitEvent.BatchFitCompleted
         }
         require(compatible) {
             "FitResult ${result::class.simpleName} is not compatible with FitEvent ${terminalEvent::class.simpleName}."
@@ -171,6 +175,7 @@ internal class FitLifecycle(
 
     private val FitEvent.isTerminal: Boolean
         get() = this is FitEvent.FitCompleted ||
+            this is FitEvent.BatchFitCompleted ||
             this is FitEvent.FitCancelled ||
             this is FitEvent.FitFailed
 }

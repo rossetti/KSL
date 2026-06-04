@@ -30,7 +30,6 @@ import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.FitSpec
-import ksl.app.dist.config.NamedFitConfiguration
 import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -129,27 +128,6 @@ class DistributionModelingSessionTest {
             val result = withTimeout(5_000) { handle.result.await() }
             val failed = assertIs<FitResult.Failed>(result)
             assertTrue(failed.error is FittingError.RuntimeError)
-        }
-    }
-
-    @Test
-    fun `batch spec is not yet available via the async session`(): Unit = runBlocking {
-        DistributionModelingSession().use { session ->
-            val batch = FitSpec.Batch(
-                listOf(
-                    NamedFitConfiguration(
-                        "a",
-                        FitConfiguration(
-                            dataSource = DataSourceReference.Inline(mapOf("a" to exponentialSample(1.0, 100, 41))),
-                            estimatorIds = setOf("exponential-mle")
-                        )
-                    )
-                )
-            )
-            val result = withTimeout(2_000) { session.submit(batch).result.await() }
-            val failed = assertIs<FitResult.Failed>(result)
-            val error = assertIs<FittingError.RuntimeError>(failed.error)
-            assertTrue(error.message.contains("batch"))
         }
     }
 
