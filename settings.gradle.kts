@@ -7,6 +7,7 @@ include(":KSLAppSwingSingle")
 include(":KSLAppSwingScenario")
 include(":KSLAppSwingExperiment")
 include(":KSLAppSwingSimopt")
+include(":KSLAppSwingDistribution")
 include(":KSLBundleTools")
 include(":KSLTesting")
 
