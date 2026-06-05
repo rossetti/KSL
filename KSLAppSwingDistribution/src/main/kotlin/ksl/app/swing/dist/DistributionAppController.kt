@@ -431,7 +431,9 @@ class DistributionAppController(val appName: String) {
                     rankingMethod = s.rankingMethod,
                     evaluationMethod = s.evaluationMethod,
                     bootstrap = myBootstrap.value,
-                    includeStandardReport = true
+                    // The GUI renders the canonical report locally from the DTO + raw data
+                    // (FitReports.single); the server-side HTML is a remote-only fallback.
+                    includeStandardReport = false
                 )
             )
         }

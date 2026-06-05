@@ -18,6 +18,7 @@
 
 package ksl.app.swing.dist.panel
 
+import ksl.app.dist.reporting.toCanonicalDocument
 import ksl.app.dist.reporting.toDocument
 import ksl.app.dist.result.BatchFitResultData
 import ksl.app.dist.result.FitResultData
@@ -26,23 +27,31 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Renders fit results to HTML using the substrate's own report builders
- * (`FitResultData.toDocument` / `BatchFitResultData.toDocument`) and writes them
- * into the analysis/dataset folders. The caller opens the returned file in the
- * system browser. Per-dataset reports take the dataset's raw observations so the
- * fit-quality plots reconstruct.
+ * Renders fit results to HTML and writes them into the analysis/dataset folders.
+ * The caller opens the returned file in the system browser.
+ *
+ * A co-located client that holds the dataset's raw observations renders the
+ * canonical engine report locally (`FitResultData.toCanonicalDocument`) — the
+ * same report a live PDFModeler/PMFModeler produces. A remote client without raw
+ * data falls back to the server-rendered `standardReportHtml`, and finally to the
+ * plot-free DTO table report.
  */
 object FitReports {
 
     fun single(result: FitResultData, rawData: DoubleArray?, dir: Path): Path {
         val file = dir.resolve("fit-report.html")
-        val canonical = result.standardReportHtml
-        return if (canonical != null) {
-            Files.writeString(file, canonical)
-            file
-        } else {
-            // Fallback to the DTO-driven report when the canonical render is absent.
-            result.toDocument(rawData = rawData, title = result.datasetName).writeHtml(path = file).toPath()
+        return when {
+            // Co-located: render the canonical report from the DTO + raw data.
+            rawData != null ->
+                result.toCanonicalDocument(rawData, title = result.datasetName).writeHtml(path = file).toPath()
+            // Remote/thin client: use the server-rendered HTML when present.
+            result.standardReportHtml != null -> {
+                Files.writeString(file, result.standardReportHtml!!)
+                file
+            }
+            // Last resort: plot-free DTO table report.
+            else ->
+                result.toDocument(title = result.datasetName).writeHtml(path = file).toPath()
         }
     }
 
