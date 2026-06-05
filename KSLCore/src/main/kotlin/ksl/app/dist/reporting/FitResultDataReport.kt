@@ -28,14 +28,19 @@ import ksl.app.dist.result.IntegerFrequencyDTO
 import ksl.app.dist.result.ModaResultDTO
 import ksl.app.dist.result.ShiftAnalysisDTO
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
 import ksl.utilities.io.report.dsl.report
 import ksl.utilities.io.report.extensions.dataStatisticalSummary
 import ksl.utilities.io.report.extensions.dataVisualization
+import ksl.utilities.io.report.extensions.discreteDataSummary
+import ksl.utilities.io.report.extensions.discreteGoodnessOfFit
+import ksl.utilities.io.report.extensions.discreteVisualization
 import ksl.utilities.io.report.extensions.goodnessOfFit
 import ksl.utilities.io.report.extensions.moda
+import kotlin.math.roundToInt
 
 /**
  * Builds a human-facing `ReportNode.Document` from a serializable
@@ -385,10 +390,17 @@ fun FitResultData.toCanonicalDocument(
                 }
             }
         }
-        // Discrete canonical rendering lands in P3b; until then fall back to the
-        // DTO table report so the entry point is usable for both kinds.
-        DistributionKind.DISCRETE ->
-            toDocument(rawData = rawData, title = title, catalog = catalog, allGoodnessOfFit = allGoodnessOfFit)
+        DistributionKind.DISCRETE -> {
+            val intData = IntArray(rawData.size) { rawData[it].roundToInt() }
+            val pmf = PMFModeler(intData)
+            report(docTitle) {
+                discreteDataSummary(pmf, confidenceLevel = confidenceLevel)
+                discreteVisualization(pmf)
+                for (fit in detailFits) {
+                    discreteGoodnessOfFit(DtoPmfFitData(fit, intData, catalog), confidenceLevel = confidenceLevel)
+                }
+            }
+        }
     }
 }
 

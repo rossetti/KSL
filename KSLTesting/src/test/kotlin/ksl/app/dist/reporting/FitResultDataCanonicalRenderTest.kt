@@ -20,10 +20,12 @@ package ksl.app.dist.reporting
 
 import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
+import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.runner.FittingRunner
 import ksl.utilities.io.report.toText
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.PoissonRV
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -79,5 +81,41 @@ class FitResultDataCanonicalRenderTest {
         ).forEach { assertTrue(text.contains(it), "canonical render missing section: '$it'") }
         // The carried bootstrap snapshot is rendered (not recomputed).
         assertTrue(text.contains("Bootstrap Parameter Estimates"), "bootstrap section missing")
+    }
+
+    private fun discreteData(): DoubleArray {
+        val rv = PoissonRV(mean = 5.0, streamNum = 22)
+        return DoubleArray(300) { rv.value }
+    }
+
+    private fun fitDiscrete(name: String, data: DoubleArray) =
+        FittingRunner.fit(
+            FitConfiguration(
+                dataSource = DataSourceReference.Inline(mapOf(name to data)),
+                kind = DistributionKind.DISCRETE
+            )
+        )
+
+    @Test
+    fun `discrete canonical render is deterministic`() {
+        val data = discreteData()
+        val result = fitDiscrete("pois", data)
+        assertEquals(DistributionKind.DISCRETE, result.kind)
+        val first = result.toCanonicalDocument(data).toText()
+        val second = result.toCanonicalDocument(data).toText()
+        assertEquals(first, second, "discrete DTO canonical render must be reproducible")
+    }
+
+    @Test
+    fun `discrete canonical render uses the standard discrete extensions`() {
+        val data = discreteData()
+        val result = fitDiscrete("pois", data)
+        val text = result.toCanonicalDocument(data).toText()
+        // Section titles only the canonical discrete extensions emit (the DTO
+        // table renderer never produces these).
+        listOf(
+            "Discrete Data Summary", "Discrete Data Visualization",
+            "Dispersion Tests", "Distribution Comparison"
+        ).forEach { assertTrue(text.contains(it), "discrete canonical render missing section: '$it'") }
     }
 }

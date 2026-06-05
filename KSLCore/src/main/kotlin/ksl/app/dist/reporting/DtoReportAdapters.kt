@@ -26,9 +26,13 @@ import ksl.app.dist.result.ModaResultDTO
 import ksl.app.dist.result.ModaValueDTO
 import ksl.utilities.Interval
 import ksl.utilities.distributions.ContinuousDistributionIfc
+import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
+import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
 import ksl.utilities.distributions.fitting.PDFData
 import ksl.utilities.distributions.fitting.PDFFitData
 import ksl.utilities.distributions.fitting.PDFModeler
+import ksl.utilities.distributions.fitting.PMFFitData
+import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.moda.MODAReportData
 import ksl.utilities.moda.MetricData
@@ -116,6 +120,27 @@ internal class DtoPdfFitData(
     override fun distributionFitPlot(): FitDistPlot = FitDistPlot(testData, distribution, distribution)
     override fun bootstrapParameterEstimates(level: Double): List<BootstrapEstimateIfc> =
         fit.bootstrap?.map { DtoBootstrapEstimate(it, rawData.size) } ?: emptyList()
+}
+
+/**
+ * Per-fit discrete view: rebuilds the chi-squared goodness-of-fit object from
+ * carried parameters and the client's integer data, exactly as the result
+ * extractor does, so the discrete report renders from the DTO.
+ */
+internal class DtoPmfFitData(
+    private val fit: DistributionFitDTO,
+    override val data: IntArray,
+    private val catalog: FittingCatalog
+) : PMFFitData {
+    override val goodnessOfFit: DiscretePMFGoodnessOfFit by lazy {
+        val rvType = catalog.familyOrNull(fit.familyId)?.rvType ?: error("Unknown family '${fit.familyId}'")
+        val p = rvType.rvParameters
+        p.fillFromDoubleArrayMap(fit.parameters.mapValues { doubleArrayOf(it.value) })
+        val dist = PMFModeler.createDistribution(p) as? DiscretePMFInRangeDistributionIfc
+            ?: error("Cannot build discrete distribution for '${fit.familyId}'")
+        val doubles = DoubleArray(data.size) { data[it].toDouble() }
+        DiscretePMFGoodnessOfFit(doubles, dist, numEstimatedParameters = fit.numberOfParameters)
+    }
 }
 
 /**
