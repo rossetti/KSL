@@ -30,7 +30,7 @@ import kotlin.math.floor
 
 class PMFModeler(
     data: IntArray
-) {
+) : PMFData {
 
     private val myData: IntArray = data.copyOf()
 
@@ -42,17 +42,17 @@ class PMFModeler(
      * A copy is returned so that the modeler's internal state cannot be
      * modified by the caller.
      */
-    val data: IntArray
+    override val data: IntArray
         get() = myData.copyOf()
 
-    val frequency: IntegerFrequency = IntegerFrequency(data = myData)
+    override val frequency: IntegerFrequency = IntegerFrequency(data = myData)
 
-    val statistics: StatisticIfc = frequency.statistic()
+    override val statistics: StatisticIfc = frequency.statistic()
 
-    val hasZeroes: Boolean
+    override val hasZeroes: Boolean
         get() = statistics.zeroCount > 0
 
-    val hasNegatives: Boolean
+    override val hasNegatives: Boolean
         get() = statistics.negativeCount > 0
 
     /**

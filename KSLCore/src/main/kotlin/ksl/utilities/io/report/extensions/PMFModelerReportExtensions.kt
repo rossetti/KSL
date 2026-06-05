@@ -20,6 +20,8 @@ package ksl.utilities.io.report.extensions
 
 import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
+import ksl.utilities.distributions.fitting.PMFData
+import ksl.utilities.distributions.fitting.PMFFitData
 import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.io.plotting.ACFPlot
 import ksl.utilities.io.plotting.ObservationsPlot
@@ -55,7 +57,7 @@ import ksl.utilities.toDoubles
 
 /**
  * Appends a self-contained section summarising the characteristics of the integer
- * data held by [modeler], with no plots.
+ * data held by [pmf], with no plots.
  *
  * **Produces (inside a section titled `caption` or `"Discrete Data Summary"`):**
  * 1. Overview paragraph — n, mean, variance, min, max, zero count, negative count
@@ -65,14 +67,14 @@ import ksl.utilities.toDoubles
  *    test statistic T = (n−1)·S²/X̄; upper-tail, lower-tail, and two-sided p-values
  *    from χ²(n−1) (Fisher 1950); equidispersion/overdispersion/underdispersion
  *    interpretation; and a small-sample warning when n < 30. All values computed
- *    directly from [PMFModeler.statistics].
+ *    directly from the sample statistics.
  *
- * @param modeler         the [PMFModeler] whose data will be summarised
+ * @param pmf             the [PMFData] whose sample will be summarised
  * @param caption         optional section title
  * @param confidenceLevel confidence level for the statistics property sheet; must be in (0, 1)
  */
 fun ReportBuilder.discreteDataSummary(
-    modeler: PMFModeler,
+    pmf: PMFData,
     caption: String? = null,
     confidenceLevel: Double = 0.95
 ) {
@@ -80,20 +82,20 @@ fun ReportBuilder.discreteDataSummary(
     section(myTitle) {
 
         // ── Overview paragraph ────────────────────────────────────────────────
-        val myStat = modeler.statistics
+        val myStat = pmf.statistics
         paragraph(
             "n = ${myStat.count.toInt()}  |  " +
             "Mean = ${fmtDouble(myStat.average)}  |  " +
             "Variance = ${fmtDouble(myStat.variance)}  |  " +
             "Min = ${fmtDouble(myStat.min)}  |  " +
             "Max = ${fmtDouble(myStat.max)}  |  " +
-            "Zeros = ${modeler.hasZeroes}  |  " +
-            "Negatives = ${modeler.hasNegatives}"
+            "Zeros = ${pmf.hasZeroes}  |  " +
+            "Negatives = ${pmf.hasNegatives}"
         )
 
         // ── Integer frequency distribution (full section via existing extension) ──
         integerFrequency(
-            freq              = modeler.frequency,
+            freq              = pmf.frequency,
             caption           = "Frequency Distribution",
             confidenceLevel   = confidenceLevel,
             showStatistics    = true
@@ -153,7 +155,7 @@ fun ReportBuilder.discreteDataSummary(
 
 /**
  * Appends a self-contained section containing three exploratory plots for the
- * integer data held by [modeler]. No fitted distribution is assumed.
+ * integer data held by [pmf]. No fitted distribution is assumed.
  *
  * **Produces (inside a section titled `caption` or `"Discrete Data Visualization"`):**
  * 1. **Frequency Distribution** sub-section — frequency bar chart
@@ -164,28 +166,28 @@ fun ReportBuilder.discreteDataSummary(
  * omitted here because it requires a fitted distribution; it belongs in
  * [discreteGoodnessOfFit].
  *
- * @param modeler the [PMFModeler] whose data will be plotted
+ * @param pmf     the [PMFData] whose sample will be plotted
  * @param caption optional section title
  */
 fun ReportBuilder.discreteVisualization(
-    modeler: PMFModeler,
+    pmf: PMFData,
     caption: String? = null
 ) {
     val myTitle = caption ?: "Discrete Data Visualization"
     section(myTitle) {
 
         section("Frequency Distribution") {
-            plot(modeler.frequency.frequencyPlot(),
+            plot(pmf.frequency.frequencyPlot(),
                 caption = "Observed Frequency Distribution")
         }
 
         section("Observations") {
-            plot(ObservationsPlot(modeler.data),
+            plot(ObservationsPlot(pmf.data),
                 caption = "Observations in Sequence")
         }
 
         section("Autocorrelation") {
-            plot(ACFPlot(modeler.data.toDoubles()),
+            plot(ACFPlot(pmf.data.toDoubles()),
                 caption = "Autocorrelation Function (ACF)")
         }
     }
@@ -206,23 +208,18 @@ fun ReportBuilder.discreteVisualization(
  * 4. **Dispersion Tests** — index of dispersion and Poisson variance test statistic
  *    from [DiscreteDistributionGOFIfc]
  * 5. **Distribution Comparison** sub-section — [PMFComparisonPlot] overlaying the
- *    empirical PMF (from [modeler]) against the theoretical PMF (from [gof.distribution])
+ *    empirical PMF (from the fit's data) against the theoretical PMF (from the fitted distribution)
  *
- * **Why [modeler] is a required parameter:**
- * [DiscretePMFGoodnessOfFit] does not back-reference the [PMFModeler] that produced it,
- * and [PMFComparisonPlot] requires the raw integer data from [PMFModeler.data].
- *
- * @param gof             the [DiscretePMFGoodnessOfFit] to report
- * @param modeler         the [PMFModeler] used to generate the data
- * @param caption         optional section title; defaults to `gof.distribution.toString()`
+ * @param fit             the [PMFFitData] to report (the goodness-of-fit object plus the data)
+ * @param caption         optional section title; defaults to the fitted distribution's name
  * @param confidenceLevel significance level for the GOF test conclusion; must be in (0, 1)
  */
 fun ReportBuilder.discreteGoodnessOfFit(
-    gof: DiscretePMFGoodnessOfFit,
-    modeler: PMFModeler,
+    fit: PMFFitData,
     caption: String? = null,
     confidenceLevel: Double = 0.95
 ) {
+    val gof = fit.goodnessOfFit
     val myTitle = caption ?: gof.distribution.toString()
     section(myTitle) {
 
@@ -311,11 +308,31 @@ fun ReportBuilder.discreteGoodnessOfFit(
         // ── PMF comparison plot ───────────────────────────────────────────────
         section("Distribution Comparison") {
             plot(
-                PMFComparisonPlot(modeler.data, gof.distribution),
+                PMFComparisonPlot(fit.data, gof.distribution),
                 caption = "Empirical vs Theoretical PMF — ${gof.distribution}"
             )
         }
     }
+}
+
+/**
+ * Backward-compatible overload that renders the discrete goodness-of-fit section
+ * for a live [DiscretePMFGoodnessOfFit], using [modeler] for the PMF comparison
+ * plot's empirical data. Delegates to the [PMFFitData] renderer.
+ */
+fun ReportBuilder.discreteGoodnessOfFit(
+    gof: DiscretePMFGoodnessOfFit,
+    modeler: PMFModeler,
+    caption: String? = null,
+    confidenceLevel: Double = 0.95
+) = discreteGoodnessOfFit(LivePmfFitData(gof, modeler), caption, confidenceLevel)
+
+/** Adapts a live [DiscretePMFGoodnessOfFit] (+ its [PMFModeler] for the empirical data) to [PMFFitData]. */
+private class LivePmfFitData(
+    override val goodnessOfFit: DiscretePMFGoodnessOfFit,
+    private val modeler: PMFModeler
+) : PMFFitData {
+    override val data get() = modeler.data
 }
 
 // ── toReport() — zero-code entry points ──────────────────────────────────────
