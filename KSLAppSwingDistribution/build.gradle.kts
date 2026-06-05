@@ -33,3 +33,12 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
 }
+
+// Writes a sample SQLite database for manually testing the Database import card:
+//   ./gradlew :KSLAppSwingDistribution:generateSampleDb
+tasks.register<JavaExec>("generateSampleDb") {
+    group = "application"
+    description = "Writes a sample SQLite database for testing the Database import card."
+    mainClass.set("ksl.app.swing.dist.tools.SampleFitDatabaseKt")
+    classpath = sourceSets["main"].runtimeClasspath
+}

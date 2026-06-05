@@ -55,7 +55,7 @@ fun ReportBuilder.crossDatasetSummarySection(batch: BatchFitResultData) {
                 r.recommendedFamilyId ?: "—",
                 topParamsString(r),
                 fmtNullable(top?.weightedValue),
-                fmtNullable(top?.chiSquaredPValue),
+                fmtNullable(top?.chiSquaredPValue ?: top?.goodnessOfFit?.chiSquaredPValue),
                 r.dataSummary.statistics.count.toInt().toString()
             )
         }

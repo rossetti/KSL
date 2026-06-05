@@ -25,6 +25,7 @@ import ksl.app.dist.catalog.DistributionFamilyDescriptor
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DatasetLayout
+import ksl.app.dist.config.DbType
 import ksl.app.dist.config.Delimiter
 import ksl.app.swing.dist.DistributionAppController
 import ksl.app.swing.dist.LoadStatus
@@ -41,6 +42,7 @@ import javax.swing.BoxLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.DefaultListCellRenderer
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JFileChooser
 import javax.swing.JLabel
@@ -98,8 +100,24 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     private var updating = false
 
     // add-source selector + cards
-    private val addSourceCombo = JComboBox(arrayOf("Inline (paste)", "Delimited File", "Generated (sample)"))
+    private val addSourceCombo =
+        JComboBox(arrayOf("Inline (paste)", "Delimited File", "Generated (sample)", "SQLite database"))
     private val cards = JPanel(CardLayout())
+
+    // database card (embedded SQLite)
+    private val dbPathField = JTextField(24).apply { isEditable = false }
+    private var dbFullPath: String = ""
+    private val dbTableCombo = JComboBox<String>()
+    private val dbLayoutCombo = JComboBox(arrayOf(DatasetLayout.WIDE, DatasetLayout.LONG))
+    private val dbColumnsPanel = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+    private val dbColumnChecks = mutableListOf<JCheckBox>()
+    private val dbColumnsRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+    private val dbIdCombo = JComboBox<String>()
+    private val dbValueCombo = JComboBox<String>()
+    private val dbLongRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+    private val dbPreviewArea = JTextArea(6, 48)
+    private val addDbButton = JButton("Add datasets")
+    private var dbTableColumns: Map<String, List<DatabaseSource.DbColumn>> = emptyMap()
 
     // generated card
     private val generatedFamilies: List<DistributionFamilyDescriptor> = FittingCatalog.families
@@ -151,6 +169,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         bindState()
         updateLongVisibility()
         rebuildParamFields()
+        updateDbLayoutVisibility()
     }
 
     // --- construction --------------------------------------------------------
@@ -164,6 +183,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         cards.add(buildInlineCard(), "INLINE")
         cards.add(buildFileCard(), "FILE")
         cards.add(buildGeneratedCard(), "GENERATED")
+        cards.add(buildDatabaseCard(), "DATABASE")
 
         val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply { add(statusLabel) }
 
@@ -285,6 +305,46 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         }
     }
 
+    private fun buildDatabaseCard(): Component {
+        dbPreviewArea.isEditable = false
+        dbPreviewArea.font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+        val pathRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("File:"))
+            add(dbPathField)
+            add(JButton("Browse…").apply { addActionListener { dbBrowse() } })
+        }
+        val tableRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("Table:"))
+            add(dbTableCombo)
+            add(JLabel("Layout:"))
+            add(dbLayoutCombo)
+        }
+        dbColumnsRow.apply {
+            add(JLabel("Import columns:"))
+            add(JScrollPane(dbColumnsPanel).apply { preferredSize = java.awt.Dimension(220, 92) })
+            add(disabledNote("checked columns are imported"))
+        }
+        dbLongRow.apply {
+            add(JLabel("Id column:"))
+            add(dbIdCombo)
+            add(JLabel("Value column:"))
+            add(dbValueCombo)
+        }
+        val top = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(pathRow.alignLeft())
+            add(tableRow.alignLeft())
+            add(dbColumnsRow.alignLeft())
+            add(dbLongRow.alignLeft())
+        }
+        val buttonRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply { add(addDbButton) }
+        return JPanel(BorderLayout(4, 4)).apply {
+            add(top, BorderLayout.NORTH)
+            add(JScrollPane(dbPreviewArea), BorderLayout.CENTER)
+            add(buttonRow, BorderLayout.SOUTH)
+        }
+    }
+
     private fun buildCollectionArea(): Component {
         table.fillsViewportHeight = true
         val selectionRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
@@ -305,7 +365,8 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
             val card = when (addSourceCombo.selectedIndex) {
                 0 -> "INLINE"
                 1 -> "FILE"
-                else -> "GENERATED"
+                2 -> "GENERATED"
+                else -> "DATABASE"
             }
             (cards.layout as CardLayout).show(cards, card)
         }
@@ -313,6 +374,9 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         addFileButton.addActionListener { addFile() }
         generatedDistCombo.addActionListener { rebuildParamFields() }
         generateButton.addActionListener { addGenerated() }
+        dbTableCombo.addActionListener { if (!updating) onDbTableSelected() }
+        dbLayoutCombo.addActionListener { updateDbLayoutVisibility() }
+        addDbButton.addActionListener { addDatabase() }
         formatCombo.addActionListener { updateLongVisibility() }
         filePathField.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusLost(e: java.awt.event.FocusEvent) {
@@ -428,6 +492,145 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     private fun formatParam(v: Double): String =
         if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
 
+    private fun dbBrowse() {
+        val start = lastBrowseDir
+            ?: dbFullPath.takeIf { it.isNotBlank() }?.let { File(it).parentFile }
+            ?: controller.ensureAppWorkspace().toFile()
+        val chooser = JFileChooser(start).apply {
+            dialogTitle = "Choose SQLite Database"
+            fileSelectionMode = JFileChooser.FILES_ONLY
+            isMultiSelectionEnabled = false
+            fileFilter = FileNameExtensionFilter(
+                "SQLite databases (*.db, *.sqlite, *.sqlite3, *.db3)", "db", "sqlite", "sqlite3", "db3"
+            )
+        }
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            val file = chooser.selectedFile
+            lastBrowseDir = file.parentFile
+            dbFullPath = file.absolutePath
+            withUpdating {
+                dbPathField.text = file.name
+                dbPathField.toolTipText = file.absolutePath
+            }
+            loadTables()
+        }
+    }
+
+    /** Opens the selected database off the EDT and populates the table/column selectors. */
+    private fun loadTables() {
+        val path = dbFullPath.trim()
+        if (path.isEmpty()) return
+        controller.edtScope.launch {
+            val res = runCatching {
+                withContext(Dispatchers.IO) {
+                    DatabaseSource.listTablesWithColumns(DbType.SQLITE, File(path).toPath())
+                }
+            }
+            res.onSuccess { map ->
+                dbTableColumns = map
+                withUpdating { dbTableCombo.model = DefaultComboBoxModel(map.keys.toTypedArray()) }
+                onDbTableSelected()
+                if (map.isEmpty()) {
+                    statusLabel.foreground = errColor
+                    statusLabel.text = "No tables found in database."
+                } else {
+                    statusLabel.foreground = okColor
+                    statusLabel.text = "Found ${map.size} table(s)."
+                }
+            }.onFailure { t ->
+                dbTableColumns = emptyMap()
+                withUpdating { dbTableCombo.model = DefaultComboBoxModel(emptyArray<String>()) }
+                dbPreviewArea.text = ""
+                statusLabel.foreground = errColor
+                statusLabel.text = "⚠ Cannot open database: ${t.message ?: t::class.simpleName}"
+            }
+        }
+    }
+
+    /** When a table is selected, refresh the column selectors and load its preview. */
+    private fun onDbTableSelected() {
+        updateDbColumnSelectors()
+        loadTablePreview()
+    }
+
+    /**
+     * Refreshes the import-column list (numeric columns) and the id/value column
+     * selectors (id: all columns; value: numeric columns) for the current table.
+     */
+    private fun updateDbColumnSelectors() {
+        val table = dbTableCombo.selectedItem as? String
+        val cols = dbTableColumns[table] ?: emptyList()
+        val numeric = cols.filter { it.numeric }.map { it.name }
+        val all = cols.map { it.name }
+        withUpdating {
+            dbColumnChecks.clear()
+            dbColumnsPanel.removeAll()
+            for (name in numeric) {
+                val cb = JCheckBox(name, true)
+                dbColumnChecks.add(cb)
+                dbColumnsPanel.add(cb)
+            }
+            dbColumnsPanel.revalidate()
+            dbColumnsPanel.repaint()
+            dbIdCombo.model = DefaultComboBoxModel(all.toTypedArray())
+            dbValueCombo.model = DefaultComboBoxModel(numeric.toTypedArray())
+        }
+    }
+
+    /** Loads the first few rows of the selected table (with header) into the preview area, off the EDT. */
+    private fun loadTablePreview() {
+        val path = dbFullPath.trim()
+        val table = dbTableCombo.selectedItem as? String
+        if (path.isEmpty() || table.isNullOrBlank()) {
+            dbPreviewArea.text = ""
+            return
+        }
+        controller.edtScope.launch {
+            val res = runCatching {
+                withContext(Dispatchers.IO) { DatabaseSource.previewTable(DbType.SQLITE, File(path).toPath(), table) }
+            }
+            res.onSuccess { text ->
+                dbPreviewArea.text = text
+                dbPreviewArea.caretPosition = 0
+            }.onFailure { t ->
+                dbPreviewArea.text = "Cannot preview table: ${t.message ?: t::class.simpleName}"
+            }
+        }
+    }
+
+    private fun updateDbLayoutVisibility() {
+        val isLong = dbLayoutCombo.selectedItem == DatasetLayout.LONG
+        dbColumnsRow.isVisible = !isLong
+        dbLongRow.isVisible = isLong
+    }
+
+    private fun addDatabase() {
+        val path = dbFullPath.trim()
+        if (path.isEmpty()) {
+            genError("Choose a database file first."); return
+        }
+        val table = dbTableCombo.selectedItem as? String
+        if (table.isNullOrBlank()) {
+            genError("Select a table."); return
+        }
+        val layout = dbLayoutCombo.selectedItem as DatasetLayout
+        val ref = if (layout == DatasetLayout.LONG) {
+            val id = dbIdCombo.selectedItem as? String
+            val value = dbValueCombo.selectedItem as? String
+            if (id.isNullOrBlank() || value.isNullOrBlank()) {
+                genError("Select id and value columns for the LONG layout."); return
+            }
+            DatabaseSource.buildRef(DbType.SQLITE, path, table, layout, null, id, value)
+        } else {
+            val checked = dbColumnChecks.filter { it.isSelected }.map { it.text }
+            if (checked.isEmpty()) {
+                genError("Select at least one column to import."); return
+            }
+            DatabaseSource.buildRef(DbType.SQLITE, path, table, DatasetLayout.WIDE, checked, null, null)
+        }
+        controller.addFrom(ref, origin = "db:${File(path).name}")
+    }
+
     private fun installContextMenus() {
         installTextContextMenu(inlineNameField)
         installTextContextMenu(inlineValuesArea)
@@ -438,6 +641,8 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         installTextContextMenu(generatedSizeField)
         installTextContextMenu(generatedStreamField)
         installTextContextMenu(generatedNameField)
+        installTextContextMenu(dbPathField)
+        installTextContextMenu(dbPreviewArea)
     }
 
     private fun browse() {
@@ -496,10 +701,22 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
             generatedSizeField.text = "100"
             generatedStreamField.text = "1"
             generatedNameField.text = ""
+            dbPathField.text = ""
+            dbPathField.toolTipText = null
+            dbTableCombo.model = DefaultComboBoxModel(emptyArray<String>())
+            dbLayoutCombo.selectedItem = DatasetLayout.WIDE
+            dbColumnChecks.clear()
+            dbColumnsPanel.removeAll()
+            dbIdCombo.model = DefaultComboBoxModel(emptyArray<String>())
+            dbValueCombo.model = DefaultComboBoxModel(emptyArray<String>())
+            dbPreviewArea.text = ""
         }
+        dbFullPath = ""
+        dbTableColumns = emptyMap()
         lastBrowseDir = null
         updateLongVisibility()
         rebuildParamFields()
+        updateDbLayoutVisibility()
     }
 
     // --- rendering -----------------------------------------------------------

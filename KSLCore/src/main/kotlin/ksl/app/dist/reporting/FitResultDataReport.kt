@@ -164,7 +164,7 @@ fun ReportBuilder.fitRankingSection(fits: List<DistributionFitDTO>) {
                 if (f.success) "yes" else "no",
                 fmtOrDash(f.weightedValue),
                 fmtOrDash(f.averageRanking),
-                fmtOrDash(f.chiSquaredPValue),
+                fmtOrDash(f.chiSquaredPValue ?: f.goodnessOfFit?.chiSquaredPValue),
                 f.message ?: ""
             )
         }
