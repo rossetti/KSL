@@ -99,9 +99,8 @@ class FitResultDataSerializationTest {
             kind = DistributionKind.CONTINUOUS,
             empProbConvention = EmpProbConvention.CONTINUITY1,
             dataSummary = DataSummaryDTO(
-                n = 100, min = 0.1, max = 9.8, average = 2.3, variance = 2.25,
-                standardDeviation = 1.5, skewness = 1.9, kurtosis = 8.1,
-                zeroCount = 0, negativeCount = 0, positiveCount = 100, shift = 0.0
+                statistics = sampleStats(count = 100.0, average = 2.3, variance = 2.25),
+                zeroCount = 0, negativeCount = 0, positiveCount = 100
             ),
             fits = fits,
             recommendedFamilyId = "exponential",
@@ -112,10 +111,35 @@ class FitResultDataSerializationTest {
                 ),
                 underFlowCount = 0.0, overFlowCount = 0.0
             ),
+            shiftAnalysis = ShiftAnalysisDTO(
+                leftShift = 0.0, hasZeroes = false, hasNegatives = false,
+                zeroTolerance = 0.001, ciForMinimumLevel = 0.95,
+                ciForMinimumLower = 0.05, ciForMinimumUpper = 0.15
+            ),
+            frequency = IntegerFrequencyDTO(
+                listOf(
+                    IntegerFrequencyCellDTO(0, 5.0, 5.0, 0.05, 0.05),
+                    IntegerFrequencyCellDTO(1, 12.0, 17.0, 0.12, 0.17)
+                )
+            ),
+            dispersion = DispersionAnalysisDTO(
+                indexOfDispersion = 0.98, poissonVarianceTestStatistic = 97.0,
+                degreesOfFreedom = 99, upperPValue = 0.55, lowerPValue = 0.45, twoSidedPValue = 0.9
+            ),
             scoring = scoring,
             bootstrapFamilyFrequency = mapOf("exponential" to 320, "weibull" to 80)
         )
     }
+
+    private fun sampleStats(count: Double, average: Double, variance: Double) = StatisticDataDTO(
+        name = "x", count = count, average = average,
+        standardDeviation = kotlin.math.sqrt(variance), standardError = 0.1, halfWidth = 0.2,
+        confidenceLevel = 0.95, lowerLimit = average - 0.2, upperLimit = average + 0.2,
+        min = 0.1, max = 9.8, sum = average * count, variance = variance,
+        deviationSumOfSquares = variance * (count - 1.0), kurtosis = 8.1, skewness = 1.9,
+        lag1Covariance = 0.01, lag1Correlation = 0.02, vonNeumannLag1TestStatistic = 1.95,
+        numberMissing = 0.0
+    )
 
     @Test
     fun `full FitResultData graph round-trips through JSON`() {
@@ -131,9 +155,8 @@ class FitResultDataSerializationTest {
             datasetName = "x",
             kind = DistributionKind.CONTINUOUS,
             dataSummary = DataSummaryDTO(
-                n = 10, min = 0.0, max = 5.0, average = 2.0, variance = 1.0,
-                standardDeviation = 1.0, skewness = 0.0, kurtosis = 3.0,
-                zeroCount = 1, negativeCount = 0, positiveCount = 9, shift = 0.0
+                statistics = sampleStats(count = 10.0, average = 2.0, variance = 1.0),
+                zeroCount = 1, negativeCount = 0, positiveCount = 9
             ),
             fits = listOf(
                 DistributionFitDTO(
@@ -150,8 +173,29 @@ class FitResultDataSerializationTest {
         val decoded = json.decodeFromString(FitResultData.serializer(), encoded)
         assertEquals(report, decoded)
         assertEquals(null, decoded.histogram)
+        assertEquals(null, decoded.shiftAnalysis)
+        assertEquals(null, decoded.frequency)
+        assertEquals(null, decoded.dispersion)
         assertEquals(null, decoded.scoring)
         assertEquals(EmpProbConvention.CONTINUITY1, decoded.empProbConvention)
+    }
+
+    @Test
+    fun `poissonDispersionTest computes index, statistic, dof, and p-values`() {
+        // equidispersed: variance == mean => IoD == 1 and T == n - 1
+        val r = ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
+            .poissonDispersionTest(mean = 5.0, variance = 5.0, sampleSize = 100.0)
+        assertEquals(1.0, r.indexOfDispersion, 1e-12)
+        assertEquals(99.0, r.testStatistic, 1e-9)
+        assertEquals(99, r.degreesOfFreedom)
+        assertTrue(r.upperPValue in 0.0..1.0)
+        assertTrue(r.lowerPValue in 0.0..1.0)
+        assertEquals(2.0 * minOf(r.upperPValue, r.lowerPValue), r.twoSidedPValue, 1e-12)
+        // degenerate: zero mean yields NaN index and p-values
+        val z = ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
+            .poissonDispersionTest(mean = 0.0, variance = 1.0, sampleSize = 50.0)
+        assertTrue(z.indexOfDispersion.isNaN())
+        assertTrue(z.upperPValue.isNaN())
     }
 
     @Test

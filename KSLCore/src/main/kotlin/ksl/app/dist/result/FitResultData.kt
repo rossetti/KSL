@@ -34,8 +34,10 @@ import ksl.app.dist.config.DistributionKind
  * null when no estimator produced a usable result. `fits` is sorted best-first
  * (rank 1 first) with failed attempts at the bottom.
  *
- * `histogram`, `scoring`, and `bootstrapFamilyFrequency` are populated by the
- * result extractor in a later phase; they are null until then.
+ * The exploratory-data fields follow the engine's continuous/discrete asymmetry:
+ * `histogram` and `shiftAnalysis` are populated only on the continuous path,
+ * while `frequency` and `dispersion` are populated only on the discrete path.
+ * `scoring` (full MODA) is continuous-only. Each is null on the other path.
  */
 @Serializable
 data class FitResultData(
@@ -45,8 +47,11 @@ data class FitResultData(
     val dataSummary: DataSummaryDTO,
     val fits: List<DistributionFitDTO>,
     val recommendedFamilyId: String?,
-    val histogram: HistogramDTO? = null,
-    val scoring: ModaResultDTO? = null,
+    val histogram: HistogramDTO? = null,            // continuous-only
+    val shiftAnalysis: ShiftAnalysisDTO? = null,    // continuous-only
+    val frequency: IntegerFrequencyDTO? = null,     // discrete-only
+    val dispersion: DispersionAnalysisDTO? = null,  // discrete-only
+    val scoring: ModaResultDTO? = null,             // continuous-only
     val bootstrapFamilyFrequency: Map<String, Int>? = null,
     /**
      * The standard PDF/PMF modeling report rendered to a complete HTML page,

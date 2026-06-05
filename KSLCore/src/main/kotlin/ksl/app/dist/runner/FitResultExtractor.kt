@@ -37,6 +37,11 @@ import ksl.app.dist.result.ModaResultDTO
 import ksl.app.dist.result.ModaScoreDTO
 import ksl.app.dist.result.ModaValueDTO
 import ksl.app.dist.result.RankFrequencyDTO
+import ksl.app.dist.result.ShiftAnalysisDTO
+import ksl.app.dist.result.StatisticDataDTO
+import ksl.app.dist.result.IntegerFrequencyDTO
+import ksl.app.dist.result.IntegerFrequencyCellDTO
+import ksl.app.dist.result.DispersionAnalysisDTO
 import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
 import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
@@ -49,6 +54,7 @@ import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.toHtml
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
+import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
@@ -116,10 +122,11 @@ object FitResultExtractor {
             datasetName = dataset.name,
             kind = DistributionKind.CONTINUOUS,
             empProbConvention = EmpProbConvention.CONTINUITY1,
-            dataSummary = dataSummaryOf(modeler.statistics, modeler.leftShift),
+            dataSummary = dataSummaryOf(modeler.statistics),
             fits = allFits,
             recommendedFamilyId = recommendedFamilyId,
             histogram = histogramOf(modeler),
+            shiftAnalysis = shiftAnalysisOf(modeler),
             scoring = modaResultOf(results.evaluationModel, rankingMethod),
             bootstrapFamilyFrequency = null,
             standardReportHtml = standardReport
@@ -213,10 +220,12 @@ object FitResultExtractor {
             datasetName = dataset.name,
             kind = DistributionKind.DISCRETE,
             empProbConvention = EmpProbConvention.CONTINUITY1,
-            dataSummary = dataSummaryOf(modeler.statistics, shift = 0.0),
+            dataSummary = dataSummaryOf(modeler.statistics),
             fits = allFits,
             recommendedFamilyId = recommendedFamilyId,
             histogram = null,
+            frequency = integerFrequencyOf(modeler.frequency),
+            dispersion = dispersionAnalysisOf(modeler.statistics),
             scoring = null,
             bootstrapFamilyFrequency = null,
             standardReportHtml = standardReport
@@ -261,20 +270,57 @@ object FitResultExtractor {
 
     // ----- data summary -----------------------------------------------------
 
-    private fun dataSummaryOf(stats: StatisticIfc, shift: Double): DataSummaryDTO {
-        return DataSummaryDTO(
-            n = stats.count.toInt(),
-            min = stats.min,
-            max = stats.max,
-            average = stats.average,
-            variance = stats.variance,
-            standardDeviation = stats.standardDeviation,
-            skewness = stats.skewness,
-            kurtosis = stats.kurtosis,
-            zeroCount = stats.zeroCount.toInt(),
+    private fun statisticDataDTOOf(stats: StatisticIfc, level: Double): StatisticDataDTO {
+        val sd = stats.statisticData(level)
+        return StatisticDataDTO(
+            sd.name, sd.count, sd.average, sd.standardDeviation, sd.standardError,
+            sd.halfWidth, sd.confidenceLevel, sd.lowerLimit, sd.upperLimit, sd.min, sd.max,
+            sd.sum, sd.variance, sd.deviationSumOfSquares, sd.kurtosis, sd.skewness,
+            sd.lag1Covariance, sd.lag1Correlation, sd.vonNeumannLag1TestStatistic, sd.numberMissing
+        )
+    }
+
+    private fun dataSummaryOf(stats: StatisticIfc, level: Double = 0.95): DataSummaryDTO =
+        DataSummaryDTO(
+            statistics    = statisticDataDTOOf(stats, level),
+            zeroCount     = stats.zeroCount.toInt(),
             negativeCount = stats.negativeCount.toInt(),
-            positiveCount = stats.positiveCount.toInt(),
-            shift = shift
+            positiveCount = stats.positiveCount.toInt()
+        )
+
+    // ----- shift analysis (continuous) --------------------------------------
+
+    private fun shiftAnalysisOf(modeler: PDFModeler, level: Double = 0.95): ShiftAnalysisDTO {
+        val ci = modeler.confidenceIntervalForMinimum(numBootstrapSamples = 399, level = level)
+        return ShiftAnalysisDTO(
+            leftShift = modeler.leftShift,
+            hasZeroes = modeler.hasZeroes,
+            hasNegatives = modeler.hasNegatives,
+            zeroTolerance = modeler.defaultZeroTolerance,
+            ciForMinimumLevel = level,
+            ciForMinimumLower = ci.lowerLimit,
+            ciForMinimumUpper = ci.upperLimit
+        )
+    }
+
+    // ----- discrete frequency + dispersion ----------------------------------
+
+    private fun integerFrequencyOf(freq: IntegerFrequency): IntegerFrequencyDTO =
+        IntegerFrequencyDTO(
+            freq.frequencyData().map {
+                IntegerFrequencyCellDTO(it.value, it.count, it.cum_count, it.proportion, it.cumProportion)
+            }
+        )
+
+    private fun dispersionAnalysisOf(stats: StatisticIfc): DispersionAnalysisDTO {
+        val d = DiscretePMFGoodnessOfFit.poissonDispersionTest(stats.average, stats.variance, stats.count)
+        return DispersionAnalysisDTO(
+            indexOfDispersion = d.indexOfDispersion,
+            poissonVarianceTestStatistic = d.testStatistic,
+            degreesOfFreedom = d.degreesOfFreedom,
+            upperPValue = d.upperPValue,
+            lowerPValue = d.lowerPValue,
+            twoSidedPValue = d.twoSidedPValue
         )
     }
 

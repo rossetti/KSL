@@ -56,7 +56,7 @@ fun ReportBuilder.crossDatasetSummarySection(batch: BatchFitResultData) {
                 topParamsString(r),
                 fmtNullable(top?.weightedValue),
                 fmtNullable(top?.chiSquaredPValue),
-                r.dataSummary.n.toString()
+                r.dataSummary.statistics.count.toInt().toString()
             )
         }
         dataTable(

@@ -47,7 +47,7 @@ class FittingRunnerTest {
 
         assertEquals("expo", report.datasetName)
         assertEquals(DistributionKind.CONTINUOUS, report.kind)
-        assertEquals(500, report.dataSummary.n)
+        assertEquals(500, report.dataSummary.statistics.count.toInt())
         assertTrue(report.fits.isNotEmpty())
         assertEquals(1, report.fits.first().rank)
 
@@ -140,7 +140,7 @@ class FittingRunnerTest {
         )
         val report = FittingRunner.fit(config)
         assertEquals("x", report.datasetName)
-        assertEquals(300, report.dataSummary.n)
+        assertEquals(300, report.dataSummary.statistics.count.toInt())
         assertTrue(report.fits.any { it.success })
         assertNotNull(report.recommendedFamilyId)
     }
@@ -158,7 +158,7 @@ class FittingRunnerTest {
         )
         val report = FittingRunner.fit(config)
         assertEquals("synthetic", report.datasetName)
-        assertEquals(400, report.dataSummary.n)
+        assertEquals(400, report.dataSummary.statistics.count.toInt())
         assertTrue(report.fits.any { it.success })
         assertNotNull(report.recommendedFamilyId)
     }

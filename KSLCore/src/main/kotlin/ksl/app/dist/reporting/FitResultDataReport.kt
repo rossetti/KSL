@@ -20,9 +20,12 @@ package ksl.app.dist.reporting
 
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.result.DataSummaryDTO
+import ksl.app.dist.result.DispersionAnalysisDTO
 import ksl.app.dist.result.DistributionFitDTO
 import ksl.app.dist.result.FitResultData
+import ksl.app.dist.result.IntegerFrequencyDTO
 import ksl.app.dist.result.ModaResultDTO
+import ksl.app.dist.result.ShiftAnalysisDTO
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.io.report.ast.ReportNode
@@ -56,24 +59,85 @@ private fun paramString(parameters: Map<String, Double>): String =
 
 /** Appends the data statistical summary as a Property/Value table. */
 fun ReportBuilder.dataSummarySection(dto: DataSummaryDTO) {
+    val s = dto.statistics
     section("Data Summary") {
         dataTable(
             headers = listOf("Property", "Value"),
             rows = listOf(
-                listOf("n", dto.n.toString()),
-                listOf("Min", fmt(dto.min)),
-                listOf("Max", fmt(dto.max)),
-                listOf("Average", fmt(dto.average)),
-                listOf("Variance", fmt(dto.variance)),
-                listOf("Std Dev", fmt(dto.standardDeviation)),
-                listOf("Skewness", fmt(dto.skewness)),
-                listOf("Kurtosis", fmt(dto.kurtosis)),
+                listOf("n", s.count.toInt().toString()),
+                listOf("Average", fmt(s.average)),
+                listOf("Std Dev", fmt(s.standardDeviation)),
+                listOf("Std Err", fmt(s.standardError)),
+                listOf("CI (level ${fmt(s.confidenceLevel, 2)})",
+                    "${fmt(s.lowerLimit)} to ${fmt(s.upperLimit)}"),
+                listOf("Min", fmt(s.min)),
+                listOf("Max", fmt(s.max)),
+                listOf("Sum", fmt(s.sum)),
+                listOf("Variance", fmt(s.variance)),
+                listOf("Skewness", fmt(s.skewness)),
+                listOf("Kurtosis", fmt(s.kurtosis)),
+                listOf("Lag-1 Correlation", fmt(s.lag1Correlation)),
+                listOf("Von Neumann Lag-1", fmt(s.vonNeumannLag1TestStatistic)),
                 listOf("Zeros", dto.zeroCount.toString()),
                 listOf("Negatives", dto.negativeCount.toString()),
-                listOf("Positives", dto.positiveCount.toString()),
-                listOf("Shift", fmt(dto.shift))
+                listOf("Positives", dto.positiveCount.toString())
             ),
             caption = "Data Statistical Summary"
+        )
+    }
+}
+
+/** Appends the left-shift analysis (continuous path; no-op when absent). */
+fun ReportBuilder.shiftAnalysisSection(dto: ShiftAnalysisDTO?) {
+    if (dto == null) return
+    section("Shift Parameter Analysis") {
+        dataTable(
+            headers = listOf("Property", "Value"),
+            rows = listOf(
+                listOf("Estimated Left Shift", fmt(dto.leftShift)),
+                listOf("Has Zeros", dto.hasZeroes.toString()),
+                listOf("Has Negatives", dto.hasNegatives.toString()),
+                listOf("Zero Tolerance", fmt(dto.zeroTolerance)),
+                listOf("CI for Minimum (Lower)", fmt(dto.ciForMinimumLower)),
+                listOf("CI for Minimum (Upper)", fmt(dto.ciForMinimumUpper))
+            ),
+            caption = "Left-Shift Estimation (${fmt(dto.ciForMinimumLevel, 2)} Bootstrap CI for Minimum)"
+        )
+    }
+}
+
+/** Appends the integer-frequency distribution (discrete path; no-op when absent). */
+fun ReportBuilder.integerFrequencySection(dto: IntegerFrequencyDTO?) {
+    if (dto == null) return
+    section("Frequency Distribution") {
+        dataTable(
+            headers = listOf("Value", "Count", "Cum Count", "Proportion", "Cum Proportion"),
+            rows = dto.cells.map {
+                listOf(
+                    it.value.toString(), fmt(it.count, 1), fmt(it.cumCount, 1),
+                    fmt(it.proportion), fmt(it.cumProportion)
+                )
+            },
+            caption = "Integer Frequency Distribution"
+        )
+    }
+}
+
+/** Appends the dataset-level dispersion analysis (discrete path; no-op when absent). */
+fun ReportBuilder.dispersionSection(dto: DispersionAnalysisDTO?) {
+    if (dto == null) return
+    section("Dispersion Analysis") {
+        dataTable(
+            headers = listOf("Property", "Value"),
+            rows = listOf(
+                listOf("Index of Dispersion (Var/Mean)", fmt(dto.indexOfDispersion)),
+                listOf("Poisson Variance Test T (DOF=${dto.degreesOfFreedom})",
+                    fmt(dto.poissonVarianceTestStatistic)),
+                listOf("p-value (upper, overdispersion)", fmt(dto.upperPValue)),
+                listOf("p-value (lower, underdispersion)", fmt(dto.lowerPValue)),
+                listOf("p-value (two-sided)", fmt(dto.twoSidedPValue))
+            ),
+            caption = "Dispersion Indicators"
         )
     }
 }
@@ -248,6 +312,9 @@ fun FitResultData.toDocument(
     }
     return report(docTitle) {
         dataSummarySection(dataSummary)
+        shiftAnalysisSection(shiftAnalysis)
+        integerFrequencySection(frequency)
+        dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
         for (fit in detailFits) {
@@ -267,6 +334,9 @@ fun FitResultData.toSummaryDocument(title: String? = null): ReportNode.Document 
     val docTitle = title ?: "Distribution Fitting Summary — $datasetName"
     return report(docTitle) {
         dataSummarySection(dataSummary)
+        shiftAnalysisSection(shiftAnalysis)
+        integerFrequencySection(frequency)
+        dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
     }

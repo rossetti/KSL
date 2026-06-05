@@ -18,7 +18,6 @@
 
 package ksl.utilities.io.report.extensions
 
-import ksl.utilities.distributions.ChiSquaredDistribution
 import ksl.utilities.distributions.fitting.DiscretePMFGoodnessOfFit
 import ksl.utilities.distributions.fitting.PMFData
 import ksl.utilities.distributions.fitting.PMFFitData
@@ -103,11 +102,15 @@ fun ReportBuilder.discreteDataSummary(
 
         // ── Dispersion analysis ───────────────────────────────────────────────
         section("Dispersion Analysis") {
-            val myMean = myStat.average
-            val myVar  = myStat.variance
-            val myN    = myStat.count
-            val myIod  = if (myMean == 0.0) Double.NaN else myVar / myMean
-            val myPvt  = if (myMean == 0.0) Double.NaN else (myN - 1.0) * myVar / myMean
+            val myN     = myStat.count
+            val myDisp  = DiscretePMFGoodnessOfFit.poissonDispersionTest(
+                myStat.average, myStat.variance, myN
+            )
+            val myIod        = myDisp.indexOfDispersion
+            val myPvt        = myDisp.testStatistic
+            val myUpperP     = myDisp.upperPValue
+            val myLowerP     = myDisp.lowerPValue
+            val myTwoSidedP  = myDisp.twoSidedPValue
             val myInterp = when {
                 myIod.isNaN()  -> "Undefined (zero mean)"
                 myIod < 0.9999 -> "Underdispersed (IoD < 1.0)"
@@ -116,8 +119,7 @@ fun ReportBuilder.discreteDataSummary(
             }
 
             // Poisson variance test p-values via χ²(n−1)
-            val (myUpperP, myLowerP, myTwoSidedP) = poissonDispersionPValues(myPvt, myN)
-            val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
+            val myDofLabel = "n\u22121 = ${myDisp.degreesOfFreedom}"
 
             val myDispRows = listOf(
                 listOf("Index of Dispersion (Var / Mean)",   fmtDouble(myIod),      myInterp),
@@ -275,7 +277,8 @@ fun ReportBuilder.discreteGoodnessOfFit(
         section("Dispersion Tests") {
             val myPvt  = gof.poissonVarianceTestStatistic
             val myN    = gof.histogram.count
-            val (myUpperP, myLowerP, myTwoSidedP) = poissonDispersionPValues(myPvt, myN)
+            val (myUpperP, myLowerP, myTwoSidedP) =
+                DiscretePMFGoodnessOfFit.poissonDispersionPValues(myPvt, myN)
             val myDofLabel = "n\u22121 = ${(myN - 1.0).toInt()}"
             val myDispRows = listOf(
                 listOf("Index of Dispersion (Var / Mean)",    fmtDouble(myIod),      myIodInterp),
@@ -416,29 +419,5 @@ fun DiscretePMFGoodnessOfFit.toReport(
     }
 ): ReportNode.Document = report(title, block)
 
-/**
- * Computes upper-tail, lower-tail, and two-sided p-values for the Poisson variance
- * test statistic [pvt] = (n−1)·S²/X̄ using a χ²(n−1) reference distribution.
- *
- * - **Upper-tail p-value** = P(χ²(n−1) ≥ T): evidence of overdispersion (variance > mean)
- * - **Lower-tail p-value** = P(χ²(n−1) ≤ T): evidence of underdispersion (variance < mean)
- * - **Two-sided p-value** = 2·min(upper, lower): evidence against equidispersion in either direction
- *
- * Returns `Triple(NaN, NaN, NaN)` when [pvt] is not finite or [n] < 2.
- *
- * Reference: Fisher (1950); Law (2015) §6.5. Requires n ≥ 30 for reliable approximation.
- *
- * @param pvt the Poisson variance test statistic T = (n−1)·S²/X̄
- * @param n   the sample size
- * @return Triple(upperP, lowerP, twoSidedP)
- */
-private fun poissonDispersionPValues(pvt: Double, n: Double): Triple<Double, Double, Double> {
-    if (pvt.isNaN() || pvt.isInfinite() || n < 2.0) {
-        return Triple(Double.NaN, Double.NaN, Double.NaN)
-    }
-    val myDof     = maxOf(1.0, n - 1.0)
-    val myChiDist = ChiSquaredDistribution(myDof)
-    val myUpperP  = myChiDist.complementaryCDF(pvt)
-    val myLowerP  = myChiDist.cdf(pvt)
-    return Triple(myUpperP, myLowerP, 2.0 * minOf(myUpperP, myLowerP))
-}
+// The Poisson dispersion p-value computation is centralized on
+// DiscretePMFGoodnessOfFit.Companion.poissonDispersionPValues / poissonDispersionTest.

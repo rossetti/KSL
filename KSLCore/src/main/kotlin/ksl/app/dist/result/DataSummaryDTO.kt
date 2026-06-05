@@ -21,9 +21,42 @@ package ksl.app.dist.result
 import kotlinx.serialization.Serializable
 
 /**
- * Wire-safe summary of the data series that was fit. Every field is read
- * directly off the engine's `StatisticIfc` view of the data. `shift` is the
- * left shift the engine applied during automatic shifting (zero when none).
+ * Wire-safe, field-for-field mirror of `ksl.utilities.statistic.StatisticData`
+ * — the full `StatisticIfc` summary at a chosen confidence level, exactly as
+ * produced by `StatisticIfc.statisticData(level)`. Keeping the DTO consistent
+ * with `StatisticData` means a client receives the engine's complete statistical
+ * view (including the confidence interval, autocorrelation, and von Neumann
+ * lag-1 statistic) rather than an ad-hoc subset.
+ */
+@Serializable
+data class StatisticDataDTO(
+    val name: String,
+    val count: Double,
+    val average: Double,
+    val standardDeviation: Double,
+    val standardError: Double,
+    val halfWidth: Double,
+    val confidenceLevel: Double,
+    val lowerLimit: Double,
+    val upperLimit: Double,
+    val min: Double,
+    val max: Double,
+    val sum: Double,
+    val variance: Double,
+    val deviationSumOfSquares: Double,
+    val kurtosis: Double,
+    val skewness: Double,
+    val lag1Covariance: Double,
+    val lag1Correlation: Double,
+    val vonNeumannLag1TestStatistic: Double,
+    val numberMissing: Double
+)
+
+/**
+ * Wire-safe summary of the data series that was fit: the full `StatisticIfc`
+ * summary ([statistics]) plus the sign/zero counts the fitting EDA needs (which
+ * `StatisticData` does not carry). The dataset-level left shift is reported
+ * separately in `ShiftAnalysisDTO` (continuous) — it is not a statistic.
  *
  * Although a client that supplied the raw data could recompute these, the
  * summary is returned so the result reflects the engine's exact statistics
@@ -31,16 +64,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class DataSummaryDTO(
-    val n: Int,
-    val min: Double,
-    val max: Double,
-    val average: Double,
-    val variance: Double,
-    val standardDeviation: Double,
-    val skewness: Double,
-    val kurtosis: Double,
+    val statistics: StatisticDataDTO,
     val zeroCount: Int,
     val negativeCount: Int,
-    val positiveCount: Int,
-    val shift: Double
+    val positiveCount: Int
 )
