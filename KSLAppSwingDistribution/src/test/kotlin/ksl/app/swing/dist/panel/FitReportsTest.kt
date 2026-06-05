@@ -48,4 +48,21 @@ class FitReportsTest {
         listOf("Box Plot Summary", "Data Visualization", "Rankings", "Goodness of Fit Tests")
             .forEach { assertTrue(html.contains(it), "canonical report missing: '$it'") }
     }
+
+    @Test
+    fun `all-fitted-distributions report details more distributions than recommended`() {
+        val rv = ExponentialRV(2.5, streamNum = 31)
+        val data = DoubleArray(300) { rv.value }
+        val result = FittingRunner.fit(
+            FitConfiguration(DataSourceReference.Inline(mapOf("expo" to data)))
+        )
+        val dir = Files.createTempDirectory("fitreports-test-all")
+        // The two writes target the same dir/file; each string is read before the next overwrites it.
+        val recommended = Files.readString(FitReports.single(result, data, dir, allGoodnessOfFit = false))
+        val allFits = Files.readString(FitReports.single(result, data, dir, allGoodnessOfFit = true))
+        val recCount = recommended.split("Goodness of Fit Tests").size - 1
+        val allCount = allFits.split("Goodness of Fit Tests").size - 1
+        assertTrue(allCount > 1, "all-fits report should detail multiple distributions, got $allCount")
+        assertTrue(allCount > recCount, "all-fits ($allCount) should detail more than recommended ($recCount)")
+    }
 }

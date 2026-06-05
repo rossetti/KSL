@@ -39,6 +39,8 @@ import javax.swing.JPanel
 import javax.swing.UIManager
 
 private const val BATCH_SUMMARY = "Batch summary"
+private const val REPORT_RECOMMENDED = "Recommended distribution"
+private const val REPORT_ALL_FITS = "All fitted distributions"
 
 /**
  * Reports tab: renders the last fit result through the substrate's report
@@ -52,6 +54,7 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
 
     private val infoLabel = JLabel("No fit results yet.")
     private val viewCombo = JComboBox<String>()
+    private val reportTypeCombo = JComboBox(arrayOf(REPORT_RECOMMENDED, REPORT_ALL_FITS))
     private val openButton = JButton("Open in browser")
     private val statusLabel = JLabel(" ")
 
@@ -72,11 +75,16 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
             add(viewCombo)
             add(openButton)
         }
+        val reportRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+            add(JLabel("Report:"))
+            add(reportTypeCombo)
+        }
         val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply { add(statusLabel) }
         return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(leftAlign(infoRow))
             add(leftAlign(viewRow))
+            add(leftAlign(reportRow))
             add(leftAlign(statusRow))
         }
     }
@@ -91,7 +99,18 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
 
     private fun wireListeners() {
         openButton.addActionListener { openSelected() }
+        viewCombo.addActionListener { updateReportTypeEnabled() }
     }
+
+    /**
+     * The report-type selector applies only to per-dataset reports; it is
+     * disabled while the cross-dataset batch summary is the chosen view.
+     */
+    private fun updateReportTypeEnabled() {
+        reportTypeCombo.isEnabled = (viewCombo.selectedItem as? String) != BATCH_SUMMARY
+    }
+
+    private fun allFitsSelected(): Boolean = reportTypeCombo.selectedItem == REPORT_ALL_FITS
 
     private fun bindState() {
         controller.edtScope.launch { controller.lastResult.collect { updateForResult(it) } }
@@ -125,7 +144,10 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
     private fun generate(result: FitResult, selected: String): java.nio.file.Path = when (result) {
         is FitResult.Completed -> {
             val r = result.report
-            FitReports.single(r, dataFor(r.datasetName), controller.datasetOutputDir(r.datasetName))
+            FitReports.single(
+                r, dataFor(r.datasetName), controller.datasetOutputDir(r.datasetName),
+                allGoodnessOfFit = allFitsSelected()
+            )
         }
         is FitResult.BatchCompleted -> {
             val batch = result.report
@@ -134,7 +156,10 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
             } else {
                 val r = batch.results.firstOrNull { it.datasetName == selected }
                     ?: error("no result for '$selected'")
-                FitReports.single(r, dataFor(selected), controller.datasetOutputDir(selected))
+                FitReports.single(
+                    r, dataFor(selected), controller.datasetOutputDir(selected),
+                    allGoodnessOfFit = allFitsSelected()
+                )
             }
         }
         else -> error("no report available")
@@ -168,6 +193,7 @@ class ReportsPanel(private val controller: DistributionAppController) : JPanel(B
         }
         viewCombo.model = DefaultComboBoxModel(entries.toTypedArray())
         openButton.isEnabled = entries.isNotEmpty()
+        updateReportTypeEnabled()
     }
 
     // --- helpers -------------------------------------------------------------

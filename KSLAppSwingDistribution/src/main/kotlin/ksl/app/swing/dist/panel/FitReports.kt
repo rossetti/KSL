@@ -38,12 +38,25 @@ import java.nio.file.Path
  */
 object FitReports {
 
-    fun single(result: FitResultData, rawData: DoubleArray?, dir: Path): Path {
+    /**
+     * Renders one dataset's fit report. When [allGoodnessOfFit] is true the
+     * report includes a goodness-of-fit section for every successful fit (the
+     * data-driven equivalent of the engine's all-distributions summary);
+     * otherwise only the recommended (top-ranked) distribution is detailed.
+     */
+    fun single(
+        result: FitResultData,
+        rawData: DoubleArray?,
+        dir: Path,
+        allGoodnessOfFit: Boolean = false
+    ): Path {
         val file = dir.resolve("fit-report.html")
         return when {
             // Co-located: render the canonical report from the DTO + raw data.
             rawData != null ->
-                result.toCanonicalDocument(rawData, title = result.datasetName).writeHtml(path = file).toPath()
+                result.toCanonicalDocument(
+                    rawData, title = result.datasetName, allGoodnessOfFit = allGoodnessOfFit
+                ).writeHtml(path = file).toPath()
             // Remote/thin client: use the server-rendered HTML when present.
             result.standardReportHtml != null -> {
                 Files.writeString(file, result.standardReportHtml!!)
@@ -51,7 +64,9 @@ object FitReports {
             }
             // Last resort: plot-free DTO table report.
             else ->
-                result.toDocument(title = result.datasetName).writeHtml(path = file).toPath()
+                result.toDocument(
+                    title = result.datasetName, allGoodnessOfFit = allGoodnessOfFit
+                ).writeHtml(path = file).toPath()
         }
     }
 
