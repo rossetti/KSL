@@ -59,33 +59,33 @@ enum class EvaluationMethod {
 class PDFModeler(
     observations: DoubleArray,
     private val scoringModels: Set<PDFScoringModel> = defaultScoringModels,
-) {
+) : PDFData {
     private val myData: DoubleArray = observations.copyOf()
 
-    val originalData: DoubleArray
+    override val originalData: DoubleArray
         get() = myData.copyOf()
 
     private val myHistogram: Histogram by lazy {
         Histogram.create(myData, name = "PDF Modeler Default Histogram")
     }
 
-    val histogram: HistogramIfc
+    override val histogram: HistogramIfc
         get() = myHistogram
 
-    val statistics: StatisticIfc
+    override val statistics: StatisticIfc
         get() = myHistogram
 
-    val hasZeroes: Boolean
+    override val hasZeroes: Boolean
         get() = myHistogram.zeroCount > 0
 
-    val hasNegatives: Boolean
+    override val hasNegatives: Boolean
         get() = myHistogram.negativeCount > 0
 
     /**
      *  How close we consider a double is to 0.0 to consider it 0.0
      *  Default is 0.001
      */
-    var defaultZeroTolerance: Double = PDFModeler.defaultZeroTolerance
+    override var defaultZeroTolerance: Double = PDFModeler.defaultZeroTolerance
         set(value) {
             require(value > 0.0) { "The default zero precision must be > 0.0" }
             field = value
@@ -94,7 +94,7 @@ class PDFModeler(
     /**
      *  Uses bootstrapping to estimate a confidence interval for the minimum
      */
-    fun confidenceIntervalForMinimum(numBootstrapSamples: Int = 399, level: Double = 0.95): Interval {
+    override fun confidenceIntervalForMinimum(numBootstrapSamples: Int, level: Double): Interval {
         return confidenceIntervalForMinimum(myData, numBootstrapSamples, level)
     }
 
@@ -143,7 +143,7 @@ class PDFModeler(
      *  for a shift to be estimated; otherwise, it will be 0.0. Any estimated shift
      *  that is less that the defaultZeroTolerance will be set to 0.0.
      */
-    val leftShift: Double
+    override val leftShift: Double
         get() = estimateLeftShiftParameter(myData, defaultZeroTolerance)
 
     /**

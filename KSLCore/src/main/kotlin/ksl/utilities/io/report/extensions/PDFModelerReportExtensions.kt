@@ -19,6 +19,8 @@
 package ksl.utilities.io.report.extensions
 
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
+import ksl.utilities.distributions.fitting.PDFData
+import ksl.utilities.distributions.fitting.PDFFitData
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.distributions.fitting.ScoringResult
@@ -54,7 +56,7 @@ import ksl.utilities.statistic.BoxPlotSummary
 
 /**
  * Appends a self-contained section summarising the characteristics of the raw
- * data held by [modeler], with no plots.
+ * data held by [data], with no plots.
  *
  * **Produces (inside a section titled `caption` or `"Data Statistical Summary"`):**
  * 1. Overview paragraph — n, mean, std dev, zero count, negative count
@@ -68,7 +70,7 @@ import ksl.utilities.statistic.BoxPlotSummary
  * 5. **Shift Parameter Analysis** sub-section — estimated left-shift, zero/negative
  *    flags, tolerance, and bootstrap 95 % CI for the minimum
  *
- * @param modeler           the [PDFModeler] whose data will be summarised
+ * @param data              the [PDFData] whose sample will be summarised
  * @param caption           optional section title
  * @param confidenceLevel   confidence level for the `StatPropertyTable` CI; must be in (0, 1)
  * @param showOutlierValues when `false` (default) each outlier category is summarised
@@ -77,7 +79,7 @@ import ksl.utilities.statistic.BoxPlotSummary
  *                          value is appended for each non-empty category.
  */
 fun ReportBuilder.dataStatisticalSummary(
-    modeler: PDFModeler,
+    data: PDFData,
     caption: String? = null,
     confidenceLevel: Double = 0.95,
     showOutlierValues: Boolean = false
@@ -86,15 +88,15 @@ fun ReportBuilder.dataStatisticalSummary(
     section(myTitle) {
 
         // ── Overview paragraph ────────────────────────────────────────────────
-        val myStat = modeler.statistics
+        val myStat = data.statistics
         paragraph(
             "n = ${myStat.count.toInt()}  |  " +
             "Mean = ${fmtDouble(myStat.average)}  |  " +
             "Std Dev = ${fmtDouble(myStat.standardDeviation)}  |  " +
             "Min = ${fmtDouble(myStat.min)}  |  " +
             "Max = ${fmtDouble(myStat.max)}  |  " +
-            "Zeros = ${modeler.hasZeroes}  |  " +
-            "Negatives = ${modeler.hasNegatives}"
+            "Zeros = ${data.hasZeroes}  |  " +
+            "Negatives = ${data.hasNegatives}"
         )
 
         // ── Full property sheet ───────────────────────────────────────────────
@@ -106,7 +108,7 @@ fun ReportBuilder.dataStatisticalSummary(
 
         // ── Box plot summary ──────────────────────────────────────────────────
         section("Box Plot Summary") {
-            val myBp     = BoxPlotSummary(modeler.originalData)
+            val myBp     = BoxPlotSummary(data.originalData)
             val myBpRows = myBp.asMap().map { (k, v) -> listOf(k, fmtDouble(v)) }
             dataTable(
                 listOf("Property", "Value"), myBpRows,
@@ -174,18 +176,18 @@ fun ReportBuilder.dataStatisticalSummary(
         }
 
         // ── Histogram (table + stats, no plot) ────────────────────────────────
-        histogram(modeler.histogram, caption = "Histogram", showPlot = false,
+        histogram(data.histogram, caption = "Histogram", showPlot = false,
             confidenceLevel = confidenceLevel)
 
         // ── Shift parameter analysis ──────────────────────────────────────────
         section("Shift Parameter Analysis") {
-            val myShift = modeler.leftShift
-            val myMinCI = PDFModeler.confidenceIntervalForMinimum(modeler.originalData)
+            val myShift = data.leftShift
+            val myMinCI = data.confidenceIntervalForMinimum()
             val myRows = listOf(
                 listOf("Estimated Left Shift",      fmtDouble(myShift)),
-                listOf("Has Zeros",                 modeler.hasZeroes.toString()),
-                listOf("Has Negatives",             modeler.hasNegatives.toString()),
-                listOf("Zero Tolerance",            fmtDouble(modeler.defaultZeroTolerance)),
+                listOf("Has Zeros",                 data.hasZeroes.toString()),
+                listOf("Has Negatives",             data.hasNegatives.toString()),
+                listOf("Zero Tolerance",            fmtDouble(data.defaultZeroTolerance)),
                 listOf("CI for Minimum — Lower",    fmtDouble(myMinCI.lowerLimit)),
                 listOf("CI for Minimum — Upper",    fmtDouble(myMinCI.upperLimit))
             )
@@ -199,7 +201,7 @@ fun ReportBuilder.dataStatisticalSummary(
 
 /**
  * Appends a self-contained section containing four exploratory plots for the
- * data held by [modeler].
+ * data held by [data].
  *
  * **Produces (inside a section titled `caption` or `"Data Visualization"`):**
  * 1. **Histogram** sub-section — histogram bar chart
@@ -207,31 +209,31 @@ fun ReportBuilder.dataStatisticalSummary(
  * 3. **Observations** sub-section — values in observation order
  * 4. **Autocorrelation** sub-section — ACF plot
  *
- * @param modeler the [PDFModeler] whose data will be plotted
+ * @param data    the [PDFData] whose sample will be plotted
  * @param caption optional section title
  */
 fun ReportBuilder.dataVisualization(
-    modeler: PDFModeler,
+    data: PDFData,
     caption: String? = null
 ) {
     val myTitle = caption ?: "Data Visualization"
     section(myTitle) {
 
         section("Histogram") {
-            plot(modeler.histogram.histogramPlot(), caption = "Histogram")
+            plot(data.histogram.histogramPlot(), caption = "Histogram")
         }
 
         section("Box Plot") {
-            plot(BoxPlot(BoxPlotSummary(modeler.originalData)), caption = "Box Plot")
+            plot(BoxPlot(BoxPlotSummary(data.originalData)), caption = "Box Plot")
         }
 
         section("Observations") {
-            plot(ObservationsPlot(modeler.originalData),
+            plot(ObservationsPlot(data.originalData),
                 caption = "Observations in Sequence")
         }
 
         section("Autocorrelation") {
-            plot(ACFPlot(modeler.originalData),
+            plot(ACFPlot(data.originalData),
                 caption = "Autocorrelation Function (ACF)")
         }
     }
@@ -241,9 +243,9 @@ fun ReportBuilder.dataVisualization(
 
 /**
  * Appends a self-contained section reporting the goodness-of-fit results for a
- * single [ScoringResult].
+ * single fitted distribution ([PDFFitData]).
  *
- * **Produces (inside a section titled `caption` or [result.name][ScoringResult.name]):**
+ * **Produces (inside a section titled `caption` or the fit's name):**
  * 1. Overview paragraph — distribution name, RV family, parameter count
  * 2. **Bootstrap Parameter Estimates** sub-section — one `DataTable` per parameter,
  *    showing original estimate, bootstrap average, bias, standard error, number of
@@ -260,34 +262,30 @@ fun ReportBuilder.dataVisualization(
  * [ksl.utilities.io.plotting.BasePlot] and implement [ksl.utilities.io.plotting.PlotIfc]
  * directly, so they are rendered individually with their own captions.
  *
- * @param result          the [ScoringResult] to analyse
- * @param modeler         the [PDFModeler] that produced the result; used for bootstrapping
- * @param caption         optional section title; defaults to [result.name]
+ * @param fit             the [PDFFitData] to analyse
+ * @param caption         optional section title; defaults to the fit's name
  * @param confidenceLevel confidence level for bootstrap CIs; must be in (0, 1)
  */
 fun ReportBuilder.goodnessOfFit(
-    result: ScoringResult,
-    modeler: PDFModeler,
+    fit: PDFFitData,
     caption: String? = null,
     confidenceLevel: Double = 0.95
 ) {
-    val myTitle = caption ?: result.name
+    val myTitle = caption ?: fit.name
     section(myTitle) {
 
         // ── Overview ──────────────────────────────────────────────────────────
         paragraph(
-            "Distribution: ${result.name}  |  " +
-            "RV Type: ${result.rvType}  |  " +
-            "Parameters: ${result.numberOfParameters}  |  " +
-            "MODA Value: ${fmtDouble(result.weightedValue)}  |  " +
-            "Avg Rank: ${fmtDouble(result.averageRanking)}"
+            "Distribution: ${fit.name}  |  " +
+            "RV Type: ${fit.rvType}  |  " +
+            "Parameters: ${fit.numberOfParameters}  |  " +
+            "MODA Value: ${fmtDouble(fit.weightedValue)}  |  " +
+            "Avg Rank: ${fmtDouble(fit.averageRanking)}"
         )
 
         // ── Bootstrap parameter estimates ─────────────────────────────────────
         section("Bootstrap Parameter Estimates") {
-            val myBootstraps = modeler.bootStrapParameterEstimates(
-                result.estimationResult, level = confidenceLevel
-            )
+            val myBootstraps = fit.bootstrapParameterEstimates(confidenceLevel)
             if (myBootstraps.isEmpty()) {
                 paragraph("No bootstrap estimates available for this distribution.")
             } else {
@@ -320,7 +318,7 @@ fun ReportBuilder.goodnessOfFit(
 
         // ── Distribution fit plots ────────────────────────────────────────────
         section("Distribution Fit Plots") {
-            val myFitPlot = result.distributionFitPlot()
+            val myFitPlot = fit.distributionFitPlot()
             plot(myFitPlot.densityPlot,
                 caption = "Density — Empirical vs Theoretical PDF")
             plot(myFitPlot.qqPlot,
@@ -334,9 +332,9 @@ fun ReportBuilder.goodnessOfFit(
         // ── Goodness of fit tests ─────────────────────────────────────────────
         section("Goodness of Fit Tests") {
             val myGof = ContinuousCDFGoodnessOfFit(
-                result.estimationResult.testData,
-                result.distribution,
-                numEstimatedParameters = result.numberOfParameters
+                fit.testData,
+                fit.distribution,
+                numEstimatedParameters = fit.numberOfParameters
             )
 
             paragraph(
@@ -379,6 +377,35 @@ fun ReportBuilder.goodnessOfFit(
                 caption = "Goodness of Fit Test Statistics")
         }
     }
+}
+
+/**
+ * Backward-compatible overload that renders the goodness-of-fit section for a
+ * live [ScoringResult], using [modeler] for the bootstrap parameter estimates.
+ * Delegates to the [PDFFitData] renderer.
+ */
+fun ReportBuilder.goodnessOfFit(
+    result: ScoringResult,
+    modeler: PDFModeler,
+    caption: String? = null,
+    confidenceLevel: Double = 0.95
+) = goodnessOfFit(LivePdfFitData(result, modeler), caption, confidenceLevel)
+
+/** Adapts a live [ScoringResult] (+ its [PDFModeler] for bootstrapping) to [PDFFitData]. */
+private class LivePdfFitData(
+    private val result: ScoringResult,
+    private val modeler: PDFModeler
+) : PDFFitData {
+    override val name get() = result.name
+    override val rvType get() = result.rvType
+    override val numberOfParameters get() = result.numberOfParameters
+    override val weightedValue get() = result.weightedValue
+    override val averageRanking get() = result.averageRanking
+    override val distribution get() = result.distribution
+    override val testData get() = result.estimationResult.testData
+    override fun distributionFitPlot() = result.distributionFitPlot()
+    override fun bootstrapParameterEstimates(level: Double) =
+        modeler.bootStrapParameterEstimates(result.estimationResult, level = level)
 }
 
 // ── DSL Function 4: Goodness of Fit (all distributions) ──────────────────────
