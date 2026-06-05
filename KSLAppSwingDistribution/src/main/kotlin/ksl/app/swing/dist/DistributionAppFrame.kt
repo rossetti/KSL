@@ -26,6 +26,7 @@ import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.dist.panel.AnalysisPanel
 import ksl.app.swing.dist.panel.DataPanel
 import ksl.app.swing.dist.panel.FittingPanel
+import ksl.app.swing.dist.panel.ReportsPanel
 import ksl.app.validation.ValidationResult
 import java.awt.BorderLayout
 import java.awt.Color
@@ -153,7 +154,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         tabs.addTab("Data", DataPanel(controller))
         tabs.addTab("Analysis", AnalysisPanel(controller))
         tabs.addTab("Fitting", FittingPanel(controller))
-        tabs.addTab("Reports", placeholder("Fit reports — arrives in R9"))
+        tabs.addTab("Reports", ReportsPanel(controller))
         tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in R10"))
         return tabs
     }

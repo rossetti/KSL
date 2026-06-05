@@ -138,10 +138,16 @@ class DistributionAppController(val appName: String) {
         return dir
     }
 
-    /** Per-dataset output folder under the app workspace; created if missing. */
+    /** Folder for the current analysis; holds its config and per-dataset work. Created if missing. */
+    fun analysisDir(): Path {
+        val dir = appWorkspace.resolve(sanitizePathSegment(myAnalysisName.value).ifBlank { "untitled" })
+        runCatching { Files.createDirectories(dir) }
+        return dir
+    }
+
+    /** Per-dataset work folder within the current analysis; created if missing. */
     fun datasetOutputDir(name: String): Path {
-        val safe = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "dataset" }
-        val dir = appWorkspace.resolve(safe)
+        val dir = analysisDir().resolve(sanitizePathSegment(name).ifBlank { "dataset" })
         runCatching { Files.createDirectories(dir) }
         return dir
     }
@@ -424,7 +430,8 @@ class DistributionAppController(val appName: String) {
                     automaticShifting = s.automaticShift,
                     rankingMethod = s.rankingMethod,
                     evaluationMethod = s.evaluationMethod,
-                    bootstrap = myBootstrap.value
+                    bootstrap = myBootstrap.value,
+                    includeStandardReport = true
                 )
             )
         }
@@ -486,6 +493,8 @@ class DistributionAppController(val appName: String) {
 
     private fun error(path: String, message: String, code: String): FieldError =
         FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
+
+    private fun sanitizePathSegment(s: String): String = s.replace(Regex("[^A-Za-z0-9._-]"), "_")
 
     private fun uniqueName(base: String, existing: Set<String>): String {
         val name = base.ifBlank { "dataset" }

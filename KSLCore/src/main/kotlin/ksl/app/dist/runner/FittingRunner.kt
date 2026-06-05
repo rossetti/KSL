@@ -109,7 +109,8 @@ object FittingRunner {
             catalog = catalog,
             rankingMethod = ranking,
             evaluationMethod = config.evaluationMethod,
-            bootstrap = config.bootstrap
+            bootstrap = config.bootstrap,
+            includeStandardReport = config.includeStandardReport
         )
     }
 
@@ -136,7 +137,8 @@ object FittingRunner {
             modeler = modeler,
             estimationResults = estimationResults,
             resultToId = resultToId,
-            catalog = catalog
+            catalog = catalog,
+            includeStandardReport = config.includeStandardReport
         )
     }
 

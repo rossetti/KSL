@@ -196,6 +196,28 @@ fun ReportNode.Document.toMarkdown(ctx: RenderContext? = null): String {
 }
 
 /**
+ * Renders this document to a complete HTML page [String] (the same content
+ * [writeHtml] writes to a file) without creating any file. Useful for carrying
+ * a rendered report across a process/network boundary or embedding it.
+ *
+ * CSS selection follows the same priority order as [writeHtml].
+ *
+ * @param ctx     shared render configuration
+ * @param cssPath path to an external CSS file; when non-null a `<link>` tag is emitted
+ * @param css     inline CSS string; only used when [cssPath] is `null`
+ * @return the complete HTML representation of this document
+ */
+fun ReportNode.Document.toHtml(
+    ctx: RenderContext? = null,
+    cssPath: Path? = null,
+    css: String? = null
+): String {
+    val myRenderer = HtmlReportRenderer(ctx ?: defaultRenderContext(), cssPath, css)
+    accept(myRenderer)
+    return myRenderer.result()
+}
+
+/**
  * Renders this document as plain text and writes it to [out].
  *
  * Defaults to [System.out] with auto-flush, making it a direct console-output call:

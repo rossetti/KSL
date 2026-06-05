@@ -47,5 +47,11 @@ data class FitResultData(
     val recommendedFamilyId: String?,
     val histogram: HistogramDTO? = null,
     val scoring: ModaResultDTO? = null,
-    val bootstrapFamilyFrequency: Map<String, Int>? = null
+    val bootstrapFamilyFrequency: Map<String, Int>? = null,
+    /**
+     * The standard PDF/PMF modeling report rendered to a complete HTML page,
+     * present only when the fit was run with `FitConfiguration.includeStandardReport`.
+     * Lets a front-end display the canonical report without a live engine.
+     */
+    val standardReportHtml: String? = null
 )

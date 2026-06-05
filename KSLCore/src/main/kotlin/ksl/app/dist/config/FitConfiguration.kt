@@ -49,5 +49,12 @@ data class FitConfiguration(
     val automaticShifting: Boolean = true,
     val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
     val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
-    val bootstrap: BootstrapConfig? = null
+    val bootstrap: BootstrapConfig? = null,
+    /**
+     * When true, the runner renders the standard PDF/PMF modeling report to an
+     * HTML string and carries it on the result (`FitResultData.standardReportHtml`).
+     * Defaults to false so remote/programmatic callers keep a bounded payload;
+     * front-ends that want the canonical report opt in.
+     */
+    val includeStandardReport: Boolean = false
 )

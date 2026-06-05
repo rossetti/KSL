@@ -45,6 +45,8 @@ import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.distributions.fitting.PMFModeler
 import ksl.utilities.distributions.fitting.ScoringResult
+import ksl.utilities.io.report.extensions.toReport
+import ksl.utilities.io.report.toHtml
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
 import ksl.utilities.statistic.StatisticIfc
@@ -83,7 +85,8 @@ object FitResultExtractor {
         catalog: FittingCatalog,
         rankingMethod: Statistic.Companion.Ranking,
         evaluationMethod: EvaluationMethod,
-        bootstrap: BootstrapConfig?
+        bootstrap: BootstrapConfig?,
+        includeStandardReport: Boolean = false
     ): FitResultData {
         val ranked = when (evaluationMethod) {
             EvaluationMethod.SCORING -> results.resultsSortedByScoring
@@ -103,6 +106,12 @@ object FitResultExtractor {
         val allFits = scoredFits + failedFits
         val recommendedFamilyId = scoredFits.firstOrNull { it.success }?.familyId
 
+        val standardReport = if (includeStandardReport) {
+            runCatching { results.toReport(modeler, title = dataset.name).toHtml() }.getOrNull()
+        } else {
+            null
+        }
+
         return FitResultData(
             datasetName = dataset.name,
             kind = DistributionKind.CONTINUOUS,
@@ -112,7 +121,8 @@ object FitResultExtractor {
             recommendedFamilyId = recommendedFamilyId,
             histogram = histogramOf(modeler),
             scoring = modaResultOf(results.evaluationModel, rankingMethod),
-            bootstrapFamilyFrequency = null
+            bootstrapFamilyFrequency = null,
+            standardReportHtml = standardReport
         )
     }
 
@@ -132,13 +142,15 @@ object FitResultExtractor {
         modeler: PMFModeler,
         estimationResults: List<EstimationResult>,
         resultToId: Map<EstimationResult, String>,
-        catalog: FittingCatalog
+        catalog: FittingCatalog,
+        includeStandardReport: Boolean = false
     ): FitResultData {
         val doubleData = DoubleArray(modeler.data.size) { modeler.data[it].toDouble() }
 
-        // Build a (fit, p-value) for every estimation that produced a usable
+        // Build a (fit, p-value, gof) for every estimation that produced a usable
         // discrete distribution and goodness-of-fit; everything else is failed.
-        data class Scored(val fit: DistributionFitDTO, val pValue: Double)
+        // The GoF of the top fit drives the standard report.
+        data class Scored(val fit: DistributionFitDTO, val pValue: Double, val gof: DiscretePMFGoodnessOfFit)
         val scored = mutableListOf<Scored>()
         val failed = mutableListOf<EstimationResult>()
         for (er in estimationResults) {
@@ -178,17 +190,24 @@ object FitResultExtractor {
                 chiSquaredPValue = gof.chiSquaredPValue,
                 goodnessOfFit = discreteGoodnessOfFitOf(gof)
             )
-            scored += Scored(fit, gof.chiSquaredPValue)
+            scored += Scored(fit, gof.chiSquaredPValue, gof)
         }
 
-        val rankedScored = scored
-            .sortedByDescending { it.pValue }
-            .mapIndexed { idx, s -> s.fit.copy(rank = idx + 1) }
+        val sortedScored = scored.sortedByDescending { it.pValue }
+        val rankedScored = sortedScored.mapIndexed { idx, s -> s.fit.copy(rank = idx + 1) }
         val failedFits = failed.mapIndexed { idx, er ->
             discreteFailedSummary(er, rankedScored.size + idx + 1, resultToId, catalog)
         }
         val allFits = rankedScored + failedFits
         val recommendedFamilyId = rankedScored.firstOrNull()?.familyId
+
+        val standardReport = if (includeStandardReport) {
+            runCatching {
+                sortedScored.firstOrNull()?.gof?.toReport(modeler, title = dataset.name)?.toHtml()
+            }.getOrNull()
+        } else {
+            null
+        }
 
         return FitResultData(
             datasetName = dataset.name,
@@ -199,7 +218,8 @@ object FitResultExtractor {
             recommendedFamilyId = recommendedFamilyId,
             histogram = null,
             scoring = null,
-            bootstrapFamilyFrequency = null
+            bootstrapFamilyFrequency = null,
+            standardReportHtml = standardReport
         )
     }
 
