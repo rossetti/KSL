@@ -210,7 +210,7 @@ class DistributionAppController(val appName: String) {
      * collection (renaming on clashes), seeding each new dataset with default
      * fit settings. [origin] is a short provenance label shown in the table.
      */
-    fun addFrom(ref: DataSourceReference, origin: String) {
+    fun addFrom(ref: DataSourceReference, origin: String, kind: DistributionKind? = null) {
         myDataLoadStatus.value = LoadStatus.Loading
         edtScope.launch {
             val result = runCatching { withContext(Dispatchers.Default) { importer.import(ref) } }
@@ -223,7 +223,7 @@ class DistributionAppController(val appName: String) {
                 }
                 myCollection.update { it + newEntries }
                 mySettings.update { current ->
-                    current + newEntries.associate { it.name to DatasetFitSettings() }
+                    current + newEntries.associate { it.name to defaultSettingsFor(kind) }
                 }
                 onModelChanged()
                 myDataLoadStatus.value = LoadStatus.Loaded(datasets.size)
@@ -232,6 +232,11 @@ class DistributionAppController(val appName: String) {
             }
         }
     }
+
+    /** Default per-dataset fit settings, tailored to a known [kind] when supplied. */
+    private fun defaultSettingsFor(kind: DistributionKind?): DatasetFitSettings =
+        if (kind == null) DatasetFitSettings()
+        else DatasetFitSettings(kind = kind, estimatorIds = FittingCatalog.defaultEstimatorIds(kind))
 
     fun removeDataset(name: String) {
         if (myCollection.value.none { it.name == name }) return

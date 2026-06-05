@@ -21,11 +21,14 @@ package ksl.app.swing.dist.panel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ksl.app.dist.catalog.DistributionFamilyDescriptor
+import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DatasetLayout
 import ksl.app.dist.config.Delimiter
 import ksl.app.swing.dist.DistributionAppController
 import ksl.app.swing.dist.LoadStatus
+import ksl.utilities.random.rvariable.RVType
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
@@ -95,8 +98,21 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     private var updating = false
 
     // add-source selector + cards
-    private val addSourceCombo = JComboBox(arrayOf("Inline (paste)", "Delimited File"))
+    private val addSourceCombo = JComboBox(arrayOf("Inline (paste)", "Delimited File", "Generated (sample)"))
     private val cards = JPanel(CardLayout())
+
+    // generated card
+    private val generatedFamilies: List<DistributionFamilyDescriptor> = FittingCatalog.families
+        .filter { it.rvType is RVType }
+        .sortedWith(compareBy({ it.kind.name }, { it.displayName }))
+    private val generatedDisplayNames: Set<String> = generatedFamilies.mapTo(mutableSetOf()) { it.displayName }
+    private val generatedDistCombo = JComboBox(generatedFamilies.toTypedArray())
+    private val generatedParamPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+    private val generatedParamFields = LinkedHashMap<String, JTextField>()
+    private val generatedSizeField = JTextField("100", 6)
+    private val generatedStreamField = JTextField("1", 4)
+    private val generatedNameField = JTextField(16)
+    private val generateButton = JButton("Generate dataset")
 
     // inline card
     private val inlineNameField = JTextField("inline", 16)
@@ -134,6 +150,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         wireListeners()
         bindState()
         updateLongVisibility()
+        rebuildParamFields()
     }
 
     // --- construction --------------------------------------------------------
@@ -142,10 +159,11 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         val sourceRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
             add(JLabel("Add datasets from:"))
             add(addSourceCombo)
-            add(disabledNote("Generated & Database arrive in R8b"))
+            add(disabledNote("Database source arrives later"))
         }
         cards.add(buildInlineCard(), "INLINE")
         cards.add(buildFileCard(), "FILE")
+        cards.add(buildGeneratedCard(), "GENERATED")
 
         val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply { add(statusLabel) }
 
@@ -222,6 +240,51 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         }
     }
 
+    private fun buildGeneratedCard(): Component {
+        generatedDistCombo.renderer = object : DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(
+                list: JList<*>?, value: Any?, index: Int, selected: Boolean, focus: Boolean
+            ): Component {
+                val c = super.getListCellRendererComponent(list, value, index, selected, focus)
+                if (value is DistributionFamilyDescriptor) {
+                    text = "${value.displayName} (${value.kind.name.lowercase()})"
+                }
+                return c
+            }
+        }
+        val distRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("Distribution:"))
+            add(generatedDistCombo)
+        }
+        val paramRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("Parameters:"))
+            add(generatedParamPanel)
+        }
+        val sizeRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("Sample size:"))
+            add(generatedSizeField)
+            add(JLabel("Stream:"))
+            add(generatedStreamField)
+            add(disabledNote("stream > 0 reproduces; 0 = independent"))
+        }
+        val nameRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply {
+            add(JLabel("Name:"))
+            add(generatedNameField)
+        }
+        val top = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(distRow.alignLeft())
+            add(paramRow.alignLeft())
+            add(sizeRow.alignLeft())
+            add(nameRow.alignLeft())
+        }
+        val buttonRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2)).apply { add(generateButton) }
+        return JPanel(BorderLayout(4, 4)).apply {
+            add(top, BorderLayout.NORTH)
+            add(buttonRow, BorderLayout.SOUTH)
+        }
+    }
+
     private fun buildCollectionArea(): Component {
         table.fillsViewportHeight = true
         val selectionRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
@@ -239,11 +302,17 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
 
     private fun wireListeners() {
         addSourceCombo.addActionListener {
-            val card = if (addSourceCombo.selectedIndex == 0) "INLINE" else "FILE"
+            val card = when (addSourceCombo.selectedIndex) {
+                0 -> "INLINE"
+                1 -> "FILE"
+                else -> "GENERATED"
+            }
             (cards.layout as CardLayout).show(cards, card)
         }
         addInlineButton.addActionListener { addInline() }
         addFileButton.addActionListener { addFile() }
+        generatedDistCombo.addActionListener { rebuildParamFields() }
+        generateButton.addActionListener { addGenerated() }
         formatCombo.addActionListener { updateLongVisibility() }
         filePathField.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusLost(e: java.awt.event.FocusEvent) {
@@ -299,6 +368,66 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         controller.addFrom(ref, File(path).name)
     }
 
+    private fun addGenerated() {
+        val family = generatedDistCombo.selectedItem as? DistributionFamilyDescriptor ?: return
+        val params = readParamFields() ?: return
+        val n = generatedSizeField.text.trim().toIntOrNull()
+        if (n == null || n <= 0) {
+            genError("Sample size must be a positive integer."); return
+        }
+        val stream = generatedStreamField.text.trim().toIntOrNull()
+        if (stream == null || stream < 0) {
+            genError("Stream number must be a non-negative integer."); return
+        }
+        val name = generatedNameField.text.ifBlank { family.displayName }
+        val ref = GeneratedDataset.buildRef(family, params, n, stream, name)
+        controller.addFrom(ref, origin = "generated", kind = family.kind)
+    }
+
+    /** Reads the per-parameter fields; null (with a status message) on any non-numeric value. */
+    private fun readParamFields(): Map<String, Double>? {
+        val out = LinkedHashMap<String, Double>()
+        for ((name, field) in generatedParamFields) {
+            val v = field.text.trim().toDoubleOrNull()
+            if (v == null) {
+                genError("Parameter '$name' must be a number."); return null
+            }
+            out[name] = v
+        }
+        return out
+    }
+
+    /** Rebuilds the per-parameter fields for the selected distribution, pre-filled with its defaults. */
+    private fun rebuildParamFields() {
+        val family = generatedDistCombo.selectedItem as? DistributionFamilyDescriptor ?: return
+        generatedParamFields.clear()
+        generatedParamPanel.removeAll()
+        val rvParams = (family.rvType as RVType).rvParameters
+        for (pname in rvParams.parameterNames) {
+            val default = runCatching { rvParams.doubleParameter(pname) }.getOrDefault(1.0)
+            val field = JTextField(formatParam(default), 8)
+            installTextContextMenu(field)
+            generatedParamFields[pname] = field
+            generatedParamPanel.add(JLabel("$pname:"))
+            generatedParamPanel.add(field)
+        }
+        // Reflect the selected family in the name, unless the user typed a custom one.
+        val currentName = generatedNameField.text.trim()
+        if (currentName.isBlank() || currentName in generatedDisplayNames) {
+            generatedNameField.text = family.displayName
+        }
+        generatedParamPanel.revalidate()
+        generatedParamPanel.repaint()
+    }
+
+    private fun genError(message: String) {
+        statusLabel.foreground = errColor
+        statusLabel.text = "⚠ $message"
+    }
+
+    private fun formatParam(v: Double): String =
+        if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+
     private fun installContextMenus() {
         installTextContextMenu(inlineNameField)
         installTextContextMenu(inlineValuesArea)
@@ -306,6 +435,9 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         installTextContextMenu(previewArea)
         (idCombo.editor.editorComponent as? JTextComponent)?.let { installTextContextMenu(it) }
         (valueCombo.editor.editorComponent as? JTextComponent)?.let { installTextContextMenu(it) }
+        installTextContextMenu(generatedSizeField)
+        installTextContextMenu(generatedStreamField)
+        installTextContextMenu(generatedNameField)
     }
 
     private fun browse() {
@@ -360,9 +492,14 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
             formatCombo.selectedItem = FileFormat.CSV_WIDE
             idCombo.model = DefaultComboBoxModel(emptyArray<String>())
             valueCombo.model = DefaultComboBoxModel(emptyArray<String>())
+            generatedDistCombo.selectedIndex = 0
+            generatedSizeField.text = "100"
+            generatedStreamField.text = "1"
+            generatedNameField.text = ""
         }
         lastBrowseDir = null
         updateLongVisibility()
+        rebuildParamFields()
     }
 
     // --- rendering -----------------------------------------------------------
