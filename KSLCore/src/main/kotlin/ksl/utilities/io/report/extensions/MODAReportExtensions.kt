@@ -24,6 +24,8 @@ import ksl.utilities.io.report.dsl.report
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.moda.MetricIfc
 import ksl.utilities.moda.MODAAnalyzer
+import ksl.utilities.moda.MODAReportData
+import ksl.utilities.moda.modaReportData
 
 /**
  * DSL extension functions on [ReportBuilder] for rendering [AdditiveMODAModel] and
@@ -40,18 +42,11 @@ import ksl.utilities.moda.MODAAnalyzer
 // ── AdditiveMODAModel DSL extension ──────────────────────────────────────────
 
 /**
- * Appends a self-contained section reporting the results of an [AdditiveMODAModel].
- *
- * **Produces (inside a section titled `caption` or [model.name][AdditiveMODAModel.name]):**
- *
- * 1. **Metric Definitions** — `DataTable` with columns
- *    `Metric | Direction | Weight | Domain Lower | Domain Upper | Units | Description`
- * 2. **Scores and Values** — two `DataTable`s:
- *    - *Raw Scores* — metric values before value-function transformation
- *    - *Transformed Values (0–1) and Overall Weighted Value* — value-function outputs
- *      plus the additive composite overall value per alternative
- * 3. **Rankings** — `DataTable` with per-metric rank, 1st-rank count, average rank,
- *    overall rank, and top-alternative flag; rows sorted by overall value (best first)
+ * Appends a self-contained section reporting the results of a live
+ * [AdditiveMODAModel]. This is a thin backward-compatible entry point: it
+ * projects the model into a [MODAReportData] holder via [modaReportData] and
+ * delegates to the [moda] overload that renders from the holder. See that
+ * overload for the section structure produced.
  *
  * Usage:
  * ```kotlin
@@ -68,14 +63,40 @@ import ksl.utilities.moda.MODAAnalyzer
 fun ReportBuilder.moda(
     model: AdditiveMODAModel,
     caption: String? = null
+) = moda(model.modaReportData(), caption)
+
+/**
+ * Appends a self-contained section reporting MODA results from a [MODAReportData]
+ * holder. The holder is produced from a live [AdditiveMODAModel] (via
+ * [modaReportData]) or from a reconstructed/serialized result, so the same
+ * standard report renders from either source.
+ *
+ * **Produces (inside a section titled `caption` or [data.name][MODAReportData.name]):**
+ *
+ * 1. **Metric Definitions** — `DataTable` with columns
+ *    `Metric | Direction | Weight | Domain Lower | Domain Upper | Units | Description`
+ * 2. **Scores and Values** — two `DataTable`s:
+ *    - *Raw Scores* — metric values before value-function transformation
+ *    - *Transformed Values (0–1) and Overall Weighted Value* — value-function outputs
+ *      plus the additive composite overall value per alternative
+ * 3. **Rankings** — `DataTable` with per-metric rank, 1st-rank count, and average rank;
+ *    rows sorted by average rank (lowest average rank first)
+ *
+ * @param data    the MODA report data whose results will be rendered
+ * @param caption optional section title; defaults to [data.name][MODAReportData.name]
+ *                or `"MODA Results"` when the name is blank
+ */
+fun ReportBuilder.moda(
+    data: MODAReportData,
+    caption: String? = null
 ) {
-    val myTitle = caption ?: model.name.ifBlank { "MODA Results" }
-    val myMetrics = model.metrics
-    val myAlts = model.alternatives
+    val myTitle = caption ?: data.name.ifBlank { "MODA Results" }
+    val myNames = data.metricNames
+    val myAlts = data.alternatives
 
     section(myTitle) {
         paragraph(
-            "Alternatives: ${myAlts.size}  |  Metrics: ${myMetrics.size}"
+            "Alternatives: ${myAlts.size}  |  Metrics: ${myNames.size}"
         )
 
         // ── 1. Metric definitions ─────────────────────────────────────────────
@@ -84,7 +105,7 @@ fun ReportBuilder.moda(
                 "Metric", "Direction", "Weight",
                 "Domain Lower", "Domain Upper", "Units", "Description"
             )
-            val myRows = model.metricData().map { md ->
+            val myRows = data.metricData.map { md ->
                 listOf(
                     md.metricName,
                     md.direction,
@@ -100,26 +121,22 @@ fun ReportBuilder.moda(
 
         // ── 2. Raw scores and transformed values ──────────────────────────────
         section("Scores and Values") {
-            val myScoresByMetric = model.scoresByMetric()   // Map<MetricIfc, List<Double>>
-            val myValuesByMetric = model.valuesByMetric()   // Map<MetricIfc, List<Double>>
-            val myMetricNames = myMetrics.map { it.name }
-
             // Raw scores — one column per metric
-            val myScoreHeaders = listOf("Alternative") + myMetricNames
+            val myScoreHeaders = listOf("Alternative") + myNames
             val myScoreRows = myAlts.mapIndexed { idx, alt ->
-                listOf(alt) + myMetrics.map { m ->
-                    fmtDouble(myScoresByMetric[m]?.getOrNull(idx) ?: Double.NaN)
+                listOf(alt) + myNames.map { n ->
+                    fmtDouble(data.scoresByMetric[n]?.getOrNull(idx) ?: Double.NaN)
                 }
             }
             dataTable(myScoreHeaders, myScoreRows,
                 caption = "Raw Scores by Alternative and Metric")
 
             // Transformed values (0–1) + overall weighted value — sorted best-first
-            val myValueHeaders = listOf("Alternative") + myMetricNames + listOf("Overall Value")
-            val myValueRows = model.sortedMultiObjectiveValuesByAlternative().map { (alt, overallValue) ->
+            val myValueHeaders = listOf("Alternative") + myNames + listOf("Overall Value")
+            val myValueRows = data.sortedOverallValues.map { (alt, overallValue) ->
                 val idx = myAlts.indexOf(alt)
                 listOf(alt) +
-                myMetrics.map { m -> fmtDouble(myValuesByMetric[m]?.getOrNull(idx) ?: Double.NaN) } +
+                myNames.map { n -> fmtDouble(data.valuesByMetric[n]?.getOrNull(idx) ?: Double.NaN) } +
                 listOf(fmtDouble(overallValue))
             }
             dataTable(myValueHeaders, myValueRows,
@@ -128,23 +145,19 @@ fun ReportBuilder.moda(
 
         // ── 3. Rankings ───────────────────────────────────────────────────────
         section("Rankings") {
-            val myRanksByMetric   = model.ranksByMetric()   // Map<MetricIfc, List<Double>>
-            val mySortedAvgRanks  = model.alternativeAverageRanking(sortByAvgRanking = true)
-            val myFirstRankCounts = model.alternativeFirstRankCounts().toMap()
-
             val myRankHeaders = listOf("Alternative") +
-                myMetrics.map { it.name } +
+                myNames +
                 listOf("1st Rank Count", "Avg Rank")
 
             // Rows sorted ascending by average rank (lowest avg rank = most consistently top-ranked)
-            val myRankRows = mySortedAvgRanks.map { (alt, avgRank) ->
+            val myRankRows = data.sortedAvgRanks.map { (alt, avgRank) ->
                 val idx = myAlts.indexOf(alt)
                 listOf(alt) +
-                myMetrics.map { m ->
-                    (myRanksByMetric[m]?.getOrNull(idx)?.toInt() ?: 0).toString()
+                myNames.map { n ->
+                    (data.ranksByMetric[n]?.getOrNull(idx)?.toInt() ?: 0).toString()
                 } +
                 listOf(
-                    (myFirstRankCounts[alt] ?: 0).toString(),
+                    (data.firstRankCounts[alt] ?: 0).toString(),
                     fmtDouble(avgRank)
                 )
             }
