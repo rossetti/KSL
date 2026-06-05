@@ -24,6 +24,7 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.dist.panel.DataPanel
+import ksl.app.swing.dist.panel.FittingPanel
 import ksl.app.validation.ValidationResult
 import java.awt.BorderLayout
 import java.awt.Color
@@ -150,7 +151,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         tabs.preferredSize = Dimension(940, 560)
         tabs.addTab("Data", DataPanel(controller))
         tabs.addTab("Analysis", placeholder("Exploratory analysis — arrives in R8"))
-        tabs.addTab("Fitting", placeholder("Fit setup & execution — arrives in R7"))
+        tabs.addTab("Fitting", FittingPanel(controller))
         tabs.addTab("Reports", placeholder("Fit reports — arrives in R9"))
         tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in R10"))
         return tabs

@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
+import ksl.app.dist.DistributionModelingSession
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
@@ -45,6 +46,8 @@ import ksl.app.dist.config.FitSpec
 import ksl.app.dist.config.NamedFitConfiguration
 import ksl.app.dist.config.RankingMethod
 import ksl.app.dist.data.DatasetImporter
+import ksl.app.dist.session.FitEvent
+import ksl.app.dist.session.FitHandle
 import ksl.app.dist.session.FitResult
 import ksl.app.dist.validation.FitConfigurationValidator
 import ksl.app.editor.DocumentLifecycleController
@@ -77,6 +80,9 @@ sealed interface LoadStatus {
     data class Loaded(val count: Int) : LoadStatus
     data class Failed(val message: String) : LoadStatus
 }
+
+/** Per-dataset progress during a fit run, shown in the Fitting tab. */
+enum class DatasetRunStatus { IDLE, QUEUED, RUNNING, DONE, FAILED }
 
 /** One dataset in the working collection, tagged with where it came from. */
 data class DatasetEntry(val name: String, val data: DoubleArray, val origin: String) {
@@ -115,6 +121,8 @@ class DistributionAppController(val appName: String) {
     private val importer: DatasetImporter = DatasetImporter.default
     private val documentLifecycle = DocumentLifecycleController()
     private val runLifecycle = RunLifecycleController<FitResult>()
+    private val session = DistributionModelingSession()
+    private var currentHandle: FitHandle? = null
 
     /** User-wide settings (working directory, recent lists). Backed by ~/.ksl/settings.toml. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
@@ -159,6 +167,9 @@ class DistributionAppController(val appName: String) {
     // --- run state -----------------------------------------------------------
     private val myRunState = MutableStateFlow<RunState>(RunState.Idle)
     val runState: StateFlow<RunState> = myRunState.asStateFlow()
+
+    private val myDatasetStatus = MutableStateFlow<Map<String, DatasetRunStatus>>(emptyMap())
+    val datasetStatus: StateFlow<Map<String, DatasetRunStatus>> = myDatasetStatus.asStateFlow()
 
     // --- document + run lifecycle (composed from KSLCore controllers) --------
     val currentFile: StateFlow<Path?> = documentLifecycle.currentFile
@@ -212,12 +223,14 @@ class DistributionAppController(val appName: String) {
         if (myCollection.value.none { it.name == name }) return
         myCollection.update { it.filterNot { entry -> entry.name == name } }
         mySettings.update { it - name }
+        myDatasetStatus.update { it - name }
         onModelChanged()
     }
 
     fun clearDatasets() {
         myCollection.value = emptyList()
         mySettings.value = emptyMap()
+        myDatasetStatus.value = emptyMap()
         myDataLoadStatus.value = LoadStatus.Idle
         onModelChanged()
     }
@@ -249,6 +262,24 @@ class DistributionAppController(val appName: String) {
         it.copy(scoringModelIds = ids, rankingMethod = ranking, evaluationMethod = evaluation)
     }
 
+    /** Applies an estimator selection to every dataset currently of [kind]. */
+    fun setEstimatorsForAllOfKind(kind: DistributionKind, ids: Set<String>) =
+        updateAllSettings { if (it.kind == kind) it.copy(estimatorIds = ids) else it }
+
+    /** Applies a scoring/ranking/evaluation selection to every dataset currently of [kind]. */
+    fun setScoringForAllOfKind(
+        kind: DistributionKind,
+        ids: Set<String>,
+        ranking: RankingMethod,
+        evaluation: EvaluationMethod
+    ) = updateAllSettings {
+        if (it.kind == kind) {
+            it.copy(scoringModelIds = ids, rankingMethod = ranking, evaluationMethod = evaluation)
+        } else {
+            it
+        }
+    }
+
     // --- bulk "apply to all" conveniences ------------------------------------
 
     fun setKindForAll(kind: DistributionKind) =
@@ -272,6 +303,7 @@ class DistributionAppController(val appName: String) {
         myAnalysisName.value = "untitled"
         myCollection.value = emptyList()
         mySettings.value = emptyMap()
+        myDatasetStatus.value = emptyMap()
         myBootstrap.value = null
         myDataLoadStatus.value = LoadStatus.Idle
         myValidation.value = computeValidation()
@@ -280,9 +312,88 @@ class DistributionAppController(val appName: String) {
         myDocumentReset.tryEmit(Unit)
     }
 
-    /** Cancels the EDT scope. The fitting session is closed here once wired. */
+    /** Cancels the EDT scope and closes the fitting session. */
     fun dispose() {
         edtScope.cancel()
+        runCatching { session.close() }
+    }
+
+    // --- run control ---------------------------------------------------------
+
+    /** Submits the included datasets to the fitting session and tracks progress. */
+    fun fit() {
+        if (myRunState.value !is RunState.Idle) return
+        if (!myValidation.value.isValid) return
+        val orderedNames = includedEntries().map { it.name }
+        val spec = assembleSpec() ?: return
+        // Reset all prior statuses/results so stale marks don't linger.
+        myDatasetStatus.value = orderedNames.associateWith { DatasetRunStatus.QUEUED }
+        runLifecycle.setLastResult(null)
+        myRunState.value = RunState.Running("starting…", 0, orderedNames.size)
+        val handle = session.submit(spec)
+        currentHandle = handle
+        edtScope.launch { handle.events.collect { onFitEvent(it, orderedNames) } }
+        edtScope.launch { onFitResult(handle.result.await()) }
+    }
+
+    fun cancel() {
+        currentHandle?.cancel("Cancelled by user")
+    }
+
+    /** Clears all fit results and per-dataset run statuses (leaves the configuration intact). */
+    fun clearResults() {
+        if (myRunState.value !is RunState.Idle) return
+        myDatasetStatus.value = emptyMap()
+        runLifecycle.setLastResult(null)
+    }
+
+    private fun onFitEvent(event: FitEvent, orderedNames: List<String>) {
+        when (event) {
+            is FitEvent.FitStarted -> {
+                setStatus(event.datasetName, DatasetRunStatus.RUNNING)
+                myRunState.value = RunState.Running("fitting ${event.datasetName}…", 0, 1)
+            }
+            is FitEvent.BatchFitStarted -> {
+                myRunState.value = RunState.Running("0 of ${event.datasetCount}", 0, event.datasetCount)
+                orderedNames.firstOrNull()?.let { setStatus(it, DatasetRunStatus.RUNNING) }
+            }
+            is FitEvent.DatasetCompleted -> {
+                setStatus(event.datasetName, if (event.success) DatasetRunStatus.DONE else DatasetRunStatus.FAILED)
+                myRunState.value = RunState.Running("${event.index} of ${event.total}", event.index, event.total)
+                orderedNames.getOrNull(event.index)?.let { setStatus(it, DatasetRunStatus.RUNNING) }
+            }
+            is FitEvent.FitCompleted,
+            is FitEvent.BatchFitCompleted,
+            is FitEvent.FitFailed,
+            is FitEvent.FitCancelled -> Unit // terminal handled via the result deferred
+        }
+    }
+
+    private fun onFitResult(result: FitResult) {
+        runLifecycle.markRunCompleted(result)
+        myRunState.value = RunState.Idle
+        currentHandle = null
+        when (result) {
+            is FitResult.Completed -> setStatus(result.report.datasetName, DatasetRunStatus.DONE)
+            is FitResult.BatchCompleted -> {
+                result.report.results.forEach { setStatus(it.datasetName, DatasetRunStatus.DONE) }
+                result.report.failures.forEach { setStatus(it.name, DatasetRunStatus.FAILED) }
+            }
+            is FitResult.Failed -> markUnfinished(DatasetRunStatus.FAILED)
+            is FitResult.Cancelled -> markUnfinished(DatasetRunStatus.IDLE)
+        }
+    }
+
+    private fun markUnfinished(status: DatasetRunStatus) {
+        myDatasetStatus.update { current ->
+            current.mapValues { (_, s) ->
+                if (s == DatasetRunStatus.QUEUED || s == DatasetRunStatus.RUNNING) status else s
+            }
+        }
+    }
+
+    private fun setStatus(name: String, status: DatasetRunStatus) {
+        myDatasetStatus.update { it + (name to status) }
     }
 
     /**
