@@ -138,6 +138,14 @@ class DistributionAppController(val appName: String) {
         return dir
     }
 
+    /** Per-dataset output folder under the app workspace; created if missing. */
+    fun datasetOutputDir(name: String): Path {
+        val safe = name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "dataset" }
+        val dir = appWorkspace.resolve(safe)
+        runCatching { Files.createDirectories(dir) }
+        return dir
+    }
+
     /** Emitted on New (and later Open) so views can clear transient editor state. */
     private val myDocumentReset = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     val documentReset: SharedFlow<Unit> = myDocumentReset.asSharedFlow()

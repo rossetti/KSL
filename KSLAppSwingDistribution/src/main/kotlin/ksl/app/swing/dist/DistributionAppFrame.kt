@@ -23,6 +23,7 @@ import ksl.app.swing.common.appearance.ThemeMenu
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
+import ksl.app.swing.dist.panel.AnalysisPanel
 import ksl.app.swing.dist.panel.DataPanel
 import ksl.app.swing.dist.panel.FittingPanel
 import ksl.app.validation.ValidationResult
@@ -150,7 +151,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     private fun buildTabs(): JComponent {
         tabs.preferredSize = Dimension(940, 560)
         tabs.addTab("Data", DataPanel(controller))
-        tabs.addTab("Analysis", placeholder("Exploratory analysis — arrives in R8"))
+        tabs.addTab("Analysis", AnalysisPanel(controller))
         tabs.addTab("Fitting", FittingPanel(controller))
         tabs.addTab("Reports", placeholder("Fit reports — arrives in R9"))
         tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in R10"))
