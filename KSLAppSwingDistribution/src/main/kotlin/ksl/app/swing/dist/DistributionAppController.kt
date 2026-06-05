@@ -36,10 +36,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import ksl.app.dist.catalog.FittingCatalog
+import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
+import ksl.app.dist.config.EvaluationMethod
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.FitSpec
+import ksl.app.dist.config.NamedFitConfiguration
+import ksl.app.dist.config.RankingMethod
 import ksl.app.dist.data.DatasetImporter
 import ksl.app.dist.session.FitResult
 import ksl.app.dist.validation.FitConfigurationValidator
@@ -59,7 +63,7 @@ sealed interface RunState {
     data class Running(val label: String, val current: Int = 0, val total: Int = 0) : RunState
 }
 
-/** What the next fit will be, derived from how many datasets are selected. */
+/** What the next fit will be, derived from how many datasets are included. */
 sealed interface RunMode {
     data object NoData : RunMode
     data object Single : RunMode
@@ -81,16 +85,27 @@ data class DatasetEntry(val name: String, val data: DoubleArray, val origin: Str
 }
 
 /**
- * Owns all editable state for the distribution-fitting app and exposes it as
- * read-only [StateFlow]s that the panels bind to. The app is essentially an
- * editor over a [FitConfiguration]: every mutator produces a new immutable
- * config, re-validates, and marks the document dirty.
- *
- * The Data tab assembles a [collection] of named datasets from any number of
- * sources via [addFrom]; `config.dataSource` is derived as a self-contained
- * `Inline` snapshot of that collection, so validation and persistence always
- * track exactly what will be fit. The run/event wiring (the
- * `DistributionModelingSession`) arrives in a later step.
+ * Per-dataset fitting settings. Each dataset in a batch is fit with its own
+ * kind, estimators, scoring models, ranking/evaluation methods, and automatic-
+ * shift flag (the substrate's heterogeneous batch). Seeded from the defaults
+ * when a dataset is added.
+ */
+data class DatasetFitSettings(
+    val kind: DistributionKind = DistributionKind.CONTINUOUS,
+    val includeInFit: Boolean = true,
+    val automaticShift: Boolean = true,
+    val estimatorIds: Set<String> = FittingCatalog.defaultEstimatorIds(DistributionKind.CONTINUOUS),
+    val scoringModelIds: Set<String> = FittingCatalog.defaultScoringModelIds(),
+    val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
+    val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING
+)
+
+/**
+ * Owns all editable state for the distribution-fitting app as read-only
+ * [StateFlow]s the panels bind to. The app is an editor over a collection of
+ * datasets, each with its own [DatasetFitSettings]; at fit time the included
+ * datasets are assembled into a `FitSpec` (single, or a heterogeneous batch).
+ * Every mutator re-validates and marks the document dirty.
  */
 class DistributionAppController(val appName: String) {
 
@@ -104,11 +119,7 @@ class DistributionAppController(val appName: String) {
     /** User-wide settings (working directory, recent lists). Backed by ~/.ksl/settings.toml. */
     val settingsStore: UserSettingsStore = UserSettingsStore()
 
-    /**
-     * This app's home folder under the active workspace —
-     * `<activeWorkspace>/<appName>/` — matching the sibling apps. Resolved
-     * lazily so it tracks changes to the working directory; not created here.
-     */
+    /** This app's home folder under the active workspace — `<activeWorkspace>/<appName>/`. */
     val appWorkspace: Path
         get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
 
@@ -123,27 +134,27 @@ class DistributionAppController(val appName: String) {
     private val myDocumentReset = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
     val documentReset: SharedFlow<Unit> = myDocumentReset.asSharedFlow()
 
-    // --- analysis name (document label / report title / default filename) ---
+    // --- analysis name (document label / report title / default filename) ----
     private val myAnalysisName = MutableStateFlow("untitled")
     val analysisName: StateFlow<String> = myAnalysisName.asStateFlow()
 
-    // --- the authored configuration -----------------------------------------
-    private val myConfig = MutableStateFlow(defaultConfig(DistributionKind.CONTINUOUS))
-    val config: StateFlow<FitConfiguration> = myConfig.asStateFlow()
-
-    // --- validate-on-edit ----------------------------------------------------
-    private val myValidation = MutableStateFlow(validate(myConfig.value))
-    val validation: StateFlow<ValidationResult> = myValidation.asStateFlow()
-
-    // --- the working dataset collection --------------------------------------
+    // --- the working dataset collection + per-dataset settings ---------------
     private val myCollection = MutableStateFlow<List<DatasetEntry>>(emptyList())
     val collection: StateFlow<List<DatasetEntry>> = myCollection.asStateFlow()
 
-    private val mySelectedDatasets = MutableStateFlow<Set<String>>(emptySet())
-    val selectedDatasets: StateFlow<Set<String>> = mySelectedDatasets.asStateFlow()
+    private val mySettings = MutableStateFlow<Map<String, DatasetFitSettings>>(emptyMap())
+    val settings: StateFlow<Map<String, DatasetFitSettings>> = mySettings.asStateFlow()
 
     private val myDataLoadStatus = MutableStateFlow<LoadStatus>(LoadStatus.Idle)
     val dataLoadStatus: StateFlow<LoadStatus> = myDataLoadStatus.asStateFlow()
+
+    // --- global fitting options ----------------------------------------------
+    private val myBootstrap = MutableStateFlow<BootstrapConfig?>(null)
+    val bootstrap: StateFlow<BootstrapConfig?> = myBootstrap.asStateFlow()
+
+    // --- validate-on-edit ----------------------------------------------------
+    private val myValidation = MutableStateFlow(computeValidation())
+    val validation: StateFlow<ValidationResult> = myValidation.asStateFlow()
 
     // --- run state -----------------------------------------------------------
     private val myRunState = MutableStateFlow<RunState>(RunState.Idle)
@@ -155,8 +166,8 @@ class DistributionAppController(val appName: String) {
     val lastResult: StateFlow<FitResult?> = runLifecycle.lastResult
 
     // --- derived: single vs batch vs not-yet-runnable ------------------------
-    val mode: StateFlow<RunMode> = mySelectedDatasets
-        .map { it.toMode() }
+    val mode: StateFlow<RunMode> = mySettings
+        .map { settings -> settings.values.count { it.includeInFit }.toMode() }
         .stateIn(edtScope, SharingStarted.Eagerly, RunMode.NoData)
 
     /** Sets the analysis name (document label); not part of validation. */
@@ -167,80 +178,29 @@ class DistributionAppController(val appName: String) {
         runLifecycle.markEdited()
     }
 
-    /**
-     * Switches the distribution kind. Because the available estimators differ
-     * by kind, the estimator selection is reset to the new kind's defaults.
-     */
-    fun setKind(kind: DistributionKind) {
-        if (kind == myConfig.value.kind) return
-        myConfig.update {
-            it.copy(kind = kind, estimatorIds = FittingCatalog.defaultEstimatorIds(kind))
-        }
-        onConfigChanged()
-    }
-
-    fun setAutomaticShifting(on: Boolean) {
-        if (on == myConfig.value.automaticShifting) return
-        myConfig.update { it.copy(automaticShifting = on) }
-        onConfigChanged()
-    }
-
-    // --- estimator selection -------------------------------------------------
-
-    fun toggleEstimator(id: String, included: Boolean) {
-        val current = myConfig.value.estimatorIds
-        val updated = if (included) current + id else current - id
-        if (updated == current) return
-        myConfig.update { it.copy(estimatorIds = updated) }
-        onConfigChanged()
-    }
-
-    /** Resets the estimator selection to the defaults for the current kind. */
-    fun setEstimatorDefaults() {
-        myConfig.update { it.copy(estimatorIds = FittingCatalog.defaultEstimatorIds(it.kind)) }
-        onConfigChanged()
-    }
-
-    fun selectAllEstimators() {
-        val all = FittingCatalog.estimators
-            .filter { it.kind == myConfig.value.kind }
-            .mapTo(mutableSetOf()) { it.id }
-        myConfig.update { it.copy(estimatorIds = all) }
-        onConfigChanged()
-    }
-
-    fun selectNoEstimators() {
-        if (myConfig.value.estimatorIds.isEmpty()) return
-        myConfig.update { it.copy(estimatorIds = emptySet()) }
-        onConfigChanged()
-    }
-
     // --- dataset collection --------------------------------------------------
 
     /**
      * Imports [ref] off the EDT and appends every resulting dataset to the
-     * collection (renaming on name clashes), selecting the new datasets.
-     * [origin] is a short provenance label shown in the table (e.g. "inline"
-     * or the file name).
+     * collection (renaming on clashes), seeding each new dataset with default
+     * fit settings. [origin] is a short provenance label shown in the table.
      */
     fun addFrom(ref: DataSourceReference, origin: String) {
         myDataLoadStatus.value = LoadStatus.Loading
         edtScope.launch {
             val result = runCatching { withContext(Dispatchers.Default) { importer.import(ref) } }
             result.onSuccess { datasets ->
-                val added = mutableListOf<String>()
-                myCollection.update { current ->
-                    val names = current.mapTo(mutableSetOf()) { it.name }
-                    val newEntries = datasets.map { d ->
-                        val unique = uniqueName(d.name, names)
-                        names += unique
-                        added += unique
-                        DatasetEntry(unique, d.data, origin)
-                    }
-                    current + newEntries
+                val names = myCollection.value.mapTo(mutableSetOf()) { it.name }
+                val newEntries = datasets.map { d ->
+                    val unique = uniqueName(d.name, names)
+                    names += unique
+                    DatasetEntry(unique, d.data, origin)
                 }
-                mySelectedDatasets.update { it + added }
-                rebuildFromCollection()
+                myCollection.update { it + newEntries }
+                mySettings.update { current ->
+                    current + newEntries.associate { it.name to DatasetFitSettings() }
+                }
+                onModelChanged()
                 myDataLoadStatus.value = LoadStatus.Loaded(datasets.size)
             }.onFailure { t ->
                 myDataLoadStatus.value = LoadStatus.Failed(t.message ?: t::class.simpleName ?: "import failed")
@@ -251,37 +211,70 @@ class DistributionAppController(val appName: String) {
     fun removeDataset(name: String) {
         if (myCollection.value.none { it.name == name }) return
         myCollection.update { it.filterNot { entry -> entry.name == name } }
-        mySelectedDatasets.update { it - name }
-        rebuildFromCollection()
+        mySettings.update { it - name }
+        onModelChanged()
     }
 
     fun clearDatasets() {
         myCollection.value = emptyList()
-        mySelectedDatasets.value = emptySet()
+        mySettings.value = emptyMap()
         myDataLoadStatus.value = LoadStatus.Idle
-        rebuildFromCollection()
+        onModelChanged()
     }
 
-    fun setDatasetIncluded(name: String, included: Boolean) {
-        mySelectedDatasets.update { if (included) it + name else it - name }
+    // --- per-dataset fitting settings ----------------------------------------
+
+    fun setDatasetIncluded(name: String, included: Boolean) =
+        updateSetting(name) { it.copy(includeInFit = included) }
+
+    /** Changes a dataset's kind and reseeds its estimators to that kind's defaults. */
+    fun setDatasetKind(name: String, kind: DistributionKind) =
+        updateSetting(name) {
+            if (it.kind == kind) it
+            else it.copy(kind = kind, estimatorIds = FittingCatalog.defaultEstimatorIds(kind))
+        }
+
+    fun setDatasetShift(name: String, on: Boolean) =
+        updateSetting(name) { it.copy(automaticShift = on) }
+
+    fun setDatasetEstimators(name: String, ids: Set<String>) =
+        updateSetting(name) { it.copy(estimatorIds = ids) }
+
+    fun setDatasetScoring(
+        name: String,
+        ids: Set<String>,
+        ranking: RankingMethod,
+        evaluation: EvaluationMethod
+    ) = updateSetting(name) {
+        it.copy(scoringModelIds = ids, rankingMethod = ranking, evaluationMethod = evaluation)
     }
 
-    fun selectAllDatasets() {
-        mySelectedDatasets.value = myCollection.value.mapTo(mutableSetOf()) { it.name }
-    }
+    // --- bulk "apply to all" conveniences ------------------------------------
 
-    fun selectNoDatasets() {
-        mySelectedDatasets.value = emptySet()
+    fun setKindForAll(kind: DistributionKind) =
+        updateAllSettings { it.copy(kind = kind, estimatorIds = FittingCatalog.defaultEstimatorIds(kind)) }
+
+    fun setShiftForAll(on: Boolean) = updateAllSettings { it.copy(automaticShift = on) }
+
+    fun resetEstimatorsForAll() =
+        updateAllSettings { it.copy(estimatorIds = FittingCatalog.defaultEstimatorIds(it.kind)) }
+
+    fun resetScoringForAll() = updateAllSettings {
+        it.copy(
+            scoringModelIds = FittingCatalog.defaultScoringModelIds(),
+            rankingMethod = RankingMethod.ORDINAL,
+            evaluationMethod = EvaluationMethod.SCORING
+        )
     }
 
     /** Resets to a fresh, empty document. */
     fun newDocument() {
         myAnalysisName.value = "untitled"
-        myConfig.value = defaultConfig(DistributionKind.CONTINUOUS)
         myCollection.value = emptyList()
-        mySelectedDatasets.value = emptySet()
+        mySettings.value = emptyMap()
+        myBootstrap.value = null
         myDataLoadStatus.value = LoadStatus.Idle
-        myValidation.value = validate(myConfig.value)
+        myValidation.value = computeValidation()
         runLifecycle.reset()
         documentLifecycle.reset()
         myDocumentReset.tryEmit(Unit)
@@ -292,21 +285,88 @@ class DistributionAppController(val appName: String) {
         edtScope.cancel()
     }
 
-    // --- internals -----------------------------------------------------------
-
-    /** Mirrors the collection into `config.dataSource` as a self-contained Inline snapshot. */
-    private fun rebuildFromCollection() {
-        val map = myCollection.value.associate { it.name to it.data }
-        myConfig.update { it.copy(dataSource = DataSourceReference.Inline(map)) }
-        onConfigChanged()
+    /**
+     * Assembles the included datasets into a runnable spec: `Single` when one
+     * dataset is included, a heterogeneous `Batch` when several. Returns null
+     * when nothing is included.
+     */
+    fun assembleSpec(): FitSpec? {
+        val included = includedEntries()
+        if (included.isEmpty()) return null
+        val configs = included.map { entry ->
+            val s = mySettings.value.getValue(entry.name)
+            NamedFitConfiguration(
+                name = entry.name,
+                config = FitConfiguration(
+                    dataSource = DataSourceReference.Inline(mapOf(entry.name to entry.data)),
+                    kind = s.kind,
+                    estimatorIds = s.estimatorIds,
+                    scoringModelIds = s.scoringModelIds,
+                    automaticShifting = s.automaticShift,
+                    rankingMethod = s.rankingMethod,
+                    evaluationMethod = s.evaluationMethod,
+                    bootstrap = myBootstrap.value
+                )
+            )
+        }
+        return if (configs.size == 1) FitSpec.Single(configs.single().config) else FitSpec.Batch(configs)
     }
 
-    /** Recompute validation and flag the document edited; call after any config change. */
-    private fun onConfigChanged() {
-        myValidation.value = validate(myConfig.value)
+    // --- internals -----------------------------------------------------------
+
+    private fun includedEntries(): List<DatasetEntry> =
+        myCollection.value.filter { mySettings.value[it.name]?.includeInFit == true }
+
+    private fun updateSetting(name: String, transform: (DatasetFitSettings) -> DatasetFitSettings) {
+        val current = mySettings.value[name] ?: return
+        mySettings.update { it + (name to transform(current)) }
+        onModelChanged()
+    }
+
+    private fun updateAllSettings(transform: (DatasetFitSettings) -> DatasetFitSettings) {
+        if (mySettings.value.isEmpty()) return
+        mySettings.update { map -> map.mapValues { (_, s) -> transform(s) } }
+        onModelChanged()
+    }
+
+    private fun onModelChanged() {
+        myValidation.value = computeValidation()
         documentLifecycle.markDirty()
         runLifecycle.markEdited()
     }
+
+    private fun computeValidation(): ValidationResult {
+        if (myCollection.value.isEmpty()) {
+            return ValidationResult(errors = listOf(error("datasets", "add at least one dataset", "fit.datasets.empty")))
+        }
+        val included = includedEntries()
+        if (included.isEmpty()) {
+            return ValidationResult(
+                errors = listOf(error("datasets", "include at least one dataset to fit", "fit.datasets.noneIncluded"))
+            )
+        }
+        val spec = assembleSpec() ?: return ValidationResult()
+        return FitConfigurationValidator.validate(spec) + clientChecks(included)
+    }
+
+    /** Client-side rules the GUI enforces but the engine leaves to the caller. */
+    private fun clientChecks(included: List<DatasetEntry>): ValidationResult {
+        val errors = mutableListOf<FieldError>()
+        included.forEach { entry ->
+            val s = mySettings.value.getValue(entry.name)
+            if (s.estimatorIds.isEmpty()) {
+                errors += error(
+                    "dataset[${entry.name}].estimators",
+                    "select at least one estimator for '${entry.name}'",
+                    "fit.estimator.none"
+                )
+            }
+        }
+        return ValidationResult(errors = errors.toList())
+    }
+
+    private fun error(path: String, message: String, code: String): FieldError =
+        FieldError(path = path, message = message, severity = ValidationSeverity.ERROR, code = code)
 
     private fun uniqueName(base: String, existing: Set<String>): String {
         val name = base.ifBlank { "dataset" }
@@ -316,37 +376,9 @@ class DistributionAppController(val appName: String) {
         return "$name ($i)"
     }
 
-    private fun validate(config: FitConfiguration): ValidationResult =
-        FitConfigurationValidator.validate(FitSpec.Single(config)) + clientChecks(config)
-
-    /**
-     * Client-side validation layered on top of the engine validator: rules the
-     * GUI enforces but the substrate leaves to the caller. Requires at least
-     * one estimator so a fit produces results.
-     */
-    private fun clientChecks(config: FitConfiguration): ValidationResult {
-        val errors = mutableListOf<FieldError>()
-        if (config.estimatorIds.isEmpty()) {
-            errors += FieldError(
-                path = "config.estimatorIds",
-                message = "select at least one estimator",
-                severity = ValidationSeverity.ERROR,
-                code = "fit.estimator.none"
-            )
-        }
-        return ValidationResult(errors = errors.toList())
-    }
-
-    private fun defaultConfig(kind: DistributionKind) = FitConfiguration(
-        dataSource = DataSourceReference.Inline(emptyMap()),
-        kind = kind,
-        estimatorIds = FittingCatalog.defaultEstimatorIds(kind),
-        scoringModelIds = FittingCatalog.defaultScoringModelIds()
-    )
-
-    private fun Set<String>.toMode(): RunMode = when (size) {
+    private fun Int.toMode(): RunMode = when (this) {
         0 -> RunMode.NoData
         1 -> RunMode.Single
-        else -> RunMode.Batch(size)
+        else -> RunMode.Batch(this)
     }
 }

@@ -19,17 +19,14 @@
 package ksl.app.swing.dist
 
 import kotlinx.coroutines.launch
-import ksl.app.dist.config.DistributionKind
 import ksl.app.swing.common.appearance.ThemeMenu
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.dist.panel.DataPanel
-import ksl.app.swing.dist.panel.EstimatorPanel
 import ksl.app.validation.ValidationResult
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.GridBagLayout
@@ -40,10 +37,7 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.nio.file.Path
 import javax.swing.BorderFactory
-import javax.swing.Box
 import javax.swing.BoxLayout
-import javax.swing.ButtonGroup
-import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
@@ -52,8 +46,6 @@ import javax.swing.JMenuBar
 import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JProgressBar
-import javax.swing.JRadioButton
 import javax.swing.JSeparator
 import javax.swing.JTabbedPane
 import javax.swing.JTextField
@@ -61,17 +53,15 @@ import javax.swing.UIManager
 import kotlin.system.exitProcess
 
 /**
- * Top-level window. Hosts a persistent header (analysis name, distribution
- * kind, Fit/Cancel, run mode + progress), the five-stage workflow as a
- * [JTabbedPane], the menu bar, and a validation/status bar.
+ * Top-level window. Hosts a slim header (analysis name), the workflow as a
+ * [JTabbedPane] (Data, Analysis, Fitting, Reports, Bootstrap), the menu bar,
+ * and a validation/workspace status bar. Run control (Fit/Cancel) and the
+ * distribution kind are now per-dataset on the Fitting tab, not in the header.
  *
  * The view is a thin binder: it renders [DistributionAppController] state
  * flows into widgets and pushes edits back through the controller's mutators.
  * The `updating` guard prevents a state→widget render from echoing back as a
  * widget→mutator edit.
- *
- * This step builds the shell with placeholder tabs; each tab's contents and
- * the Fit/Cancel run wiring arrive in subsequent steps.
  */
 class DistributionAppFrame(private val controller: DistributionAppController) : JFrame() {
 
@@ -80,17 +70,8 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
 
     private var updating = false
 
-    private val analysisNameField = JTextField(18)
-    private val kindGroup = ButtonGroup()
-    private val continuousButton = JRadioButton("Continuous", true)
-    private val discreteButton = JRadioButton("Discrete")
-    private val fitButton = JButton("▶ Fit")
-    private val cancelButton = JButton("■ Cancel")
-    private val modeLabel = JLabel()
-    private val progressBar = JProgressBar()
-
+    private val analysisNameField = JTextField(20)
     private val tabs = JTabbedPane()
-
     private val healthLabel = JLabel()
     private val fileLabel = JLabel()
 
@@ -120,15 +101,15 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         file.add(JMenuItem("New").apply { addActionListener { controller.newDocument() } })
         file.add(JMenuItem("Open…").apply {
             isEnabled = false
-            toolTipText = "Available once configuration persistence lands (step 7)"
+            toolTipText = "Available once configuration persistence lands (R11)"
         })
         file.add(JMenuItem("Save").apply {
             isEnabled = false
-            toolTipText = "Available once configuration persistence lands (step 7)"
+            toolTipText = "Available once configuration persistence lands (R11)"
         })
         file.add(JMenuItem("Save As…").apply {
             isEnabled = false
-            toolTipText = "Available once configuration persistence lands (step 7)"
+            toolTipText = "Available once configuration persistence lands (R11)"
         })
         file.addSeparator()
         file.add(JMenuItem(SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })))
@@ -153,43 +134,14 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     }
 
     private fun buildHeader(): JComponent {
-        kindGroup.add(continuousButton)
-        kindGroup.add(discreteButton)
         analysisNameField.toolTipText =
             "Names this analysis; used as the window title, the report heading, and the default save file name."
-
-        val row1 = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
-            alignmentX = Component.LEFT_ALIGNMENT
+        val row = JPanel(FlowLayout(FlowLayout.LEFT, 8, 6)).apply {
             add(JLabel("Analysis name:"))
             add(analysisNameField)
-            add(Box.createHorizontalStrut(16))
-            add(JLabel("Distribution:"))
-            add(continuousButton)
-            add(discreteButton)
         }
-
-        progressBar.isVisible = false
-        progressBar.preferredSize = Dimension(180, 18)
-
-        val row2 = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
-            alignmentX = Component.LEFT_ALIGNMENT
-            add(fitButton)
-            add(cancelButton)
-            add(Box.createHorizontalStrut(16))
-            add(modeLabel)
-            add(Box.createHorizontalStrut(16))
-            add(progressBar)
-        }
-
-        val stack = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = BorderFactory.createEmptyBorder(4, 8, 4, 8)
-            add(row1)
-            add(row2)
-        }
-
         return JPanel(BorderLayout()).apply {
-            add(stack, BorderLayout.CENTER)
+            add(row, BorderLayout.CENTER)
             add(JSeparator(), BorderLayout.SOUTH)
         }
     }
@@ -197,10 +149,10 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     private fun buildTabs(): JComponent {
         tabs.preferredSize = Dimension(940, 560)
         tabs.addTab("Data", DataPanel(controller))
-        tabs.addTab("Estimators", EstimatorPanel(controller))
-        tabs.addTab("Scoring", placeholder("Scoring models — arrives in step 5"))
-        tabs.addTab("Reports", placeholder("Fit reports — arrives in step 6"))
-        tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in step 8"))
+        tabs.addTab("Analysis", placeholder("Exploratory analysis — arrives in R8"))
+        tabs.addTab("Fitting", placeholder("Fit setup & execution — arrives in R7"))
+        tabs.addTab("Reports", placeholder("Fit reports — arrives in R9"))
+        tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in R10"))
         return tabs
     }
 
@@ -252,13 +204,6 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         analysisNameField.addFocusListener(object : FocusAdapter() {
             override fun focusLost(e: FocusEvent) = pushName()
         })
-        continuousButton.addActionListener {
-            if (!updating) controller.setKind(DistributionKind.CONTINUOUS)
-        }
-        discreteButton.addActionListener {
-            if (!updating) controller.setKind(DistributionKind.DISCRETE)
-        }
-        // Fit/Cancel action listeners are wired with the run logic in step 6.
     }
 
     private fun bindState() {
@@ -273,39 +218,14 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
                 updateTitle()
             }
         }
-        scope.launch {
-            controller.config.collect { cfg ->
-                withUpdating {
-                    when (cfg.kind) {
-                        DistributionKind.CONTINUOUS -> continuousButton.isSelected = true
-                        DistributionKind.DISCRETE -> discreteButton.isSelected = true
-                    }
-                }
-            }
-        }
-        scope.launch {
-            controller.validation.collect { renderHealth(it); refreshFitEnabled() }
-        }
-        scope.launch {
-            controller.mode.collect { renderMode(it); refreshFitEnabled() }
-        }
-        scope.launch {
-            controller.runState.collect { renderRunState(it); refreshFitEnabled() }
-        }
-        scope.launch {
-            controller.currentFile.collect { updateTitle(); renderFile() }
-        }
-        scope.launch {
-            controller.isDirty.collect { updateTitle(); renderFile() }
-        }
+        scope.launch { controller.validation.collect { renderHealth(it) } }
+        scope.launch { controller.currentFile.collect { updateTitle(); renderFile() } }
+        scope.launch { controller.isDirty.collect { updateTitle(); renderFile() } }
 
         // Initial synchronous render so nothing flashes empty before collection.
         renderHealth(controller.validation.value)
-        renderMode(controller.mode.value)
-        renderRunState(controller.runState.value)
         renderFile()
         updateTitle()
-        refreshFitEnabled()
     }
 
     private fun pushName() {
@@ -326,47 +246,10 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         }
     }
 
-    private fun renderMode(mode: RunMode) {
-        modeLabel.text = when (mode) {
-            RunMode.NoData -> "no data loaded"
-            RunMode.Single -> "mode: single fit"
-            is RunMode.Batch -> "mode: batch — ${mode.count} datasets"
-        }
-    }
-
-    private fun renderRunState(state: RunState) {
-        when (state) {
-            RunState.Idle -> {
-                progressBar.isVisible = false
-                progressBar.isIndeterminate = false
-                progressBar.isStringPainted = false
-            }
-            is RunState.Running -> {
-                progressBar.isVisible = true
-                progressBar.isStringPainted = true
-                progressBar.string = state.label
-                if (state.total > 0) {
-                    progressBar.isIndeterminate = false
-                    progressBar.maximum = state.total
-                    progressBar.value = state.current
-                } else {
-                    progressBar.isIndeterminate = true
-                }
-            }
-        }
-    }
-
     private fun renderFile() {
         val name = controller.currentFile.value?.fileName?.toString() ?: "untitled"
         val dirty = if (controller.isDirty.value) "  ●" else ""
         fileLabel.text = "file: $name$dirty"
-    }
-
-    private fun refreshFitEnabled() {
-        val idle = controller.runState.value is RunState.Idle
-        fitButton.isEnabled = idle && controller.validation.value.isValid &&
-            controller.mode.value != RunMode.NoData
-        cancelButton.isEnabled = !idle
     }
 
     private fun updateTitle() {

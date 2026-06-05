@@ -34,12 +34,10 @@ import java.awt.FlowLayout
 import java.awt.Font
 import java.io.File
 import javax.swing.BorderFactory
-import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.DefaultListCellRenderer
 import javax.swing.JButton
-import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JFileChooser
 import javax.swing.JLabel
@@ -81,8 +79,9 @@ internal object FilePreview {
 
 /**
  * Data tab: assemble a collection of named datasets from any number of sources
- * (inline paste or delimited file) and choose which to fit. The number of
- * selected datasets drives the header's single-vs-batch mode.
+ * (inline paste or delimited file). Per-dataset fit settings (kind, estimators,
+ * scoring, shift) and which datasets to fit are chosen on the Fitting tab; this
+ * tab is purely about building and reviewing the collection.
  *
  * The add-source sub-forms are transient view state; committing an "Add" calls
  * the controller, which imports and appends to the persistent collection. The
@@ -122,12 +121,10 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     private val statusLabel = JLabel(" ")
 
     // collection
-    private val automaticShiftingCheck = JCheckBox("automatic shifting")
     private val tableModel = DatasetTableModel()
     private val table = JTable(tableModel)
     private val removeButton = JButton("Remove")
     private val clearButton = JButton("Clear")
-    private val counterLabel = JLabel("0 of 0 selected")
 
     init {
         border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
@@ -227,19 +224,12 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
 
     private fun buildCollectionArea(): Component {
         table.fillsViewportHeight = true
-        table.columnModel.getColumn(0).maxWidth = 32
-        val optionsRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply { add(automaticShiftingCheck) }
         val selectionRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
             add(removeButton)
             add(clearButton)
-            add(Box.createHorizontalStrut(12))
-            add(JButton("all").apply { addActionListener { controller.selectAllDatasets() } })
-            add(JButton("none").apply { addActionListener { controller.selectNoDatasets() } })
-            add(counterLabel)
         }
         return JPanel(BorderLayout(4, 4)).apply {
             border = BorderFactory.createTitledBorder("Dataset collection")
-            add(optionsRow, BorderLayout.NORTH)
             add(JScrollPane(table), BorderLayout.CENTER)
             add(selectionRow, BorderLayout.SOUTH)
         }
@@ -260,9 +250,6 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
                 if (!updating) loadPreview(filePathField.text)
             }
         })
-        automaticShiftingCheck.addActionListener {
-            if (!updating) controller.setAutomaticShifting(automaticShiftingCheck.isSelected)
-        }
         removeButton.addActionListener {
             val row = table.selectedRow
             if (row >= 0) controller.removeDataset(tableModel.nameAt(row))
@@ -274,13 +261,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     private fun bindState() {
         val scope = controller.edtScope
         scope.launch { controller.collection.collect { refreshTable() } }
-        scope.launch { controller.selectedDatasets.collect { refreshTable() } }
         scope.launch { controller.dataLoadStatus.collect { renderStatus(it) } }
-        scope.launch {
-            controller.config.collect { cfg ->
-                withUpdating { automaticShiftingCheck.isSelected = cfg.automaticShifting }
-            }
-        }
         scope.launch { controller.documentReset.collect { resetView() } }
         renderStatus(controller.dataLoadStatus.value)
         refreshTable()
@@ -393,9 +374,7 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
     }
 
     private fun refreshTable() {
-        val entries = controller.collection.value
-        val selected = controller.selectedDatasets.value
-        val rows = entries.map { e ->
+        val rows = controller.collection.value.map { e ->
             val data = e.data
             DatasetRow(
                 name = e.name,
@@ -403,12 +382,10 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
                 n = data.size,
                 min = data.minOrNull() ?: 0.0,
                 max = data.maxOrNull() ?: 0.0,
-                average = if (data.isEmpty()) 0.0 else data.average(),
-                included = e.name in selected
+                average = if (data.isEmpty()) 0.0 else data.average()
             )
         }
         withUpdating { tableModel.setRows(rows) }
-        counterLabel.text = "${selected.size} of ${entries.size} selected"
         removeButton.isEnabled = table.selectedRow >= 0
     }
 
@@ -457,12 +434,11 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         val n: Int,
         val min: Double,
         val max: Double,
-        val average: Double,
-        val included: Boolean
+        val average: Double
     )
 
     private inner class DatasetTableModel : AbstractTableModel() {
-        private val columns = arrayOf("", "Dataset", "source", "n", "min", "max", "average")
+        private val columns = arrayOf("Dataset", "source", "n", "min", "max", "average")
         private var rows: List<DatasetRow> = emptyList()
 
         fun setRows(newRows: List<DatasetRow>) {
@@ -475,28 +451,19 @@ class DataPanel(private val controller: DistributionAppController) : JPanel(Bord
         override fun getRowCount(): Int = rows.size
         override fun getColumnCount(): Int = columns.size
         override fun getColumnName(column: Int): String = columns[column]
-        override fun isCellEditable(row: Int, column: Int): Boolean = column == 0
-
-        override fun getColumnClass(column: Int): Class<*> =
-            if (column == 0) java.lang.Boolean::class.java else java.lang.String::class.java
+        override fun isCellEditable(row: Int, column: Int): Boolean = false
+        override fun getColumnClass(column: Int): Class<*> = java.lang.String::class.java
 
         override fun getValueAt(row: Int, column: Int): Any {
             val r = rows[row]
             return when (column) {
-                0 -> r.included
-                1 -> r.name
-                2 -> r.source
-                3 -> r.n.toString()
-                4 -> fmt(r.min)
-                5 -> fmt(r.max)
-                6 -> fmt(r.average)
+                0 -> r.name
+                1 -> r.source
+                2 -> r.n.toString()
+                3 -> fmt(r.min)
+                4 -> fmt(r.max)
+                5 -> fmt(r.average)
                 else -> ""
-            }
-        }
-
-        override fun setValueAt(value: Any?, row: Int, column: Int) {
-            if (column == 0 && !updating && value is Boolean) {
-                controller.setDatasetIncluded(rows[row].name, value)
             }
         }
 
