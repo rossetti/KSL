@@ -19,6 +19,7 @@
 package ksl.app.dist.reporting
 
 import ksl.app.dist.catalog.FittingCatalog
+import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.result.DataSummaryDTO
 import ksl.app.dist.result.DispersionAnalysisDTO
 import ksl.app.dist.result.DistributionFitDTO
@@ -31,6 +32,10 @@ import ksl.utilities.io.plotting.FitDistPlot
 import ksl.utilities.io.report.ast.ReportNode
 import ksl.utilities.io.report.dsl.ReportBuilder
 import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.dataStatisticalSummary
+import ksl.utilities.io.report.extensions.dataVisualization
+import ksl.utilities.io.report.extensions.goodnessOfFit
+import ksl.utilities.io.report.extensions.moda
 
 /**
  * Builds a human-facing `ReportNode.Document` from a serializable
@@ -339,6 +344,51 @@ fun FitResultData.toSummaryDocument(title: String? = null): ReportNode.Document 
         dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
+    }
+}
+
+// ── Canonical engine report (DTO + raw data, via the standard extensions) ───────
+
+/**
+ * Renders the canonical engine report from this result plus the client's raw
+ * data, via the same report extensions a live `PDFModeler`/`PMFModeler` uses —
+ * so a remote client holding only the DTO reproduces the standard report. The
+ * stochastic bootstrap quantities are served from carried snapshots (the DTO
+ * adapters never recompute), so this render is deterministic; it will not
+ * byte-match a live render, which still recomputes bootstrap during its build.
+ *
+ * @param rawData         the client's original observations for this dataset
+ * @param title           document title; defaults to the dataset name
+ * @param catalog         maps a fit's family back to a distribution for reconstruction
+ * @param confidenceLevel confidence level for the property sheet and GOF tests
+ * @param allGoodnessOfFit when true, GOF covers every successful fit; otherwise the top one
+ */
+fun FitResultData.toCanonicalDocument(
+    rawData: DoubleArray,
+    title: String? = null,
+    catalog: FittingCatalog = FittingCatalog,
+    confidenceLevel: Double = 0.95,
+    allGoodnessOfFit: Boolean = false
+): ReportNode.Document {
+    val docTitle = title ?: "Distribution Fitting — $datasetName"
+    val successful = fits.filter { it.success }
+    val detailFits = if (allGoodnessOfFit) successful else listOfNotNull(successful.firstOrNull())
+    return when (kind) {
+        DistributionKind.CONTINUOUS -> {
+            val pdf = DtoPdfData(this, rawData)
+            report(docTitle) {
+                dataStatisticalSummary(pdf, confidenceLevel = confidenceLevel)
+                dataVisualization(pdf)
+                scoring?.let { moda(DtoModaData(it, fits), caption = "MODA Scoring Results") }
+                for (fit in detailFits) {
+                    goodnessOfFit(DtoPdfFitData(fit, rawData, catalog), confidenceLevel = confidenceLevel)
+                }
+            }
+        }
+        // Discrete canonical rendering lands in P3b; until then fall back to the
+        // DTO table report so the entry point is usable for both kinds.
+        DistributionKind.DISCRETE ->
+            toDocument(rawData = rawData, title = title, catalog = catalog, allGoodnessOfFit = allGoodnessOfFit)
     }
 }
 
