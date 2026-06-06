@@ -84,7 +84,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     private val fileLabel = JLabel()
 
     init {
-        defaultCloseOperation = EXIT_ON_CLOSE
+        defaultCloseOperation = DO_NOTHING_ON_CLOSE
         minimumSize = Dimension(720, 520)
         jMenuBar = buildMenuBar()
         layout = BorderLayout()
@@ -95,7 +95,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         bindState()
         addWindowListener(object : WindowAdapter() {
             override fun windowClosing(e: WindowEvent) {
-                controller.dispose()
+                confirmAndExit()
             }
         })
     }
@@ -114,13 +114,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         file.add(JMenuItem(SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })))
         file.add(RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope))
         file.addSeparator()
-        file.add(JMenuItem("Exit").apply {
-            addActionListener {
-                controller.dispose()
-                dispose()
-                exitProcess(0)
-            }
-        })
+        file.add(JMenuItem("Exit").apply { addActionListener { confirmAndExit() } })
         bar.add(file)
 
         bar.add(ThemeMenu.build(controller.edtScope, "Appearance"))
@@ -270,6 +264,14 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
     }
 
     // --- analysis persistence (reference-based TOML) -------------------------
+
+    /** Prompts on unsaved changes; tears down the app unless the user cancels. */
+    private fun confirmAndExit() {
+        if (!confirmDiscard()) return
+        controller.dispose()
+        dispose()
+        exitProcess(0)
+    }
 
     /** Returns true if it is safe to discard the current document (not dirty, or user confirmed). */
     private fun confirmDiscard(): Boolean {
