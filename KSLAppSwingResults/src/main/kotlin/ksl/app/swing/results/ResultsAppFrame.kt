@@ -35,6 +35,8 @@ import kotlinx.coroutines.swing.Swing
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
+import java.awt.Toolkit
+import java.awt.event.KeyEvent
 import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JFileChooser
@@ -46,6 +48,7 @@ import javax.swing.JMenuItem
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JTabbedPane
+import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 
@@ -122,14 +125,21 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
 
     private fun buildMenuBar(): JMenuBar {
         val bar = JMenuBar()
-        val file = JMenu("File")
-        file.add(JMenuItem("Open Database…").apply { addActionListener { openDatabase() } })
+        val file = JMenu("File").apply { mnemonic = KeyEvent.VK_F }
+        file.add(JMenuItem("Open Database…").apply {
+            addActionListener { openDatabase() }
+            // Cmd+O on macOS, Ctrl+O elsewhere.
+            accelerator = KeyStroke.getKeyStroke(
+                KeyEvent.VK_O,
+                Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
+            )
+        })
         file.add(JMenuItem(setWorkingDirectoryAction))
         file.addSeparator()
         file.add(JMenuItem("Exit").apply { addActionListener { dispose() } })
         bar.add(file)
 
-        val help = JMenu("Help")
+        val help = JMenu("Help").apply { mnemonic = KeyEvent.VK_H }
         help.add(JMenuItem("About").apply { addActionListener { showAbout() } })
         bar.add(help)
         return bar
@@ -190,6 +200,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
 
     private fun onDatabaseChanged() {
         dbSummaryLabel.text = controller.databaseSummary()
+        title = controller.databaseFile?.let { "${controller.appName} — ${it.name}" } ?: controller.appName
     }
 
     private fun showAbout() {
