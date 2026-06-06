@@ -24,6 +24,7 @@ import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
 import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.dist.panel.AnalysisPanel
+import ksl.app.swing.dist.panel.BootstrapPanel
 import ksl.app.swing.dist.panel.DataPanel
 import ksl.app.swing.dist.panel.FittingPanel
 import ksl.app.swing.dist.panel.ReportsPanel
@@ -155,7 +156,7 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         tabs.addTab("Analysis", AnalysisPanel(controller))
         tabs.addTab("Fitting", FittingPanel(controller))
         tabs.addTab("Reports", ReportsPanel(controller))
-        tabs.addTab("Bootstrap", placeholder("Bootstrap diagnostics — arrives in R10"))
+        tabs.addTab("Bootstrap", BootstrapPanel(controller))
         return tabs
     }
 
