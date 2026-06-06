@@ -83,16 +83,26 @@ class TimeSeriesPanel(
     private fun reload() {
         val names = controller.experiments().map { it.name }
         experimentCombo.model = DefaultComboBoxModel(names.toTypedArray())
-        val enabled = names.isNotEmpty()
-        generateButton.isEnabled = enabled
-        saveButton.isEnabled = enabled
+        // Button + combo state is driven by whether the selected experiment
+        // actually has time-series data — see updateResponses().
         updateResponses()
     }
 
     private fun updateResponses() {
         val expName = experimentCombo.selectedItem as? String
         val tsNames = if (expName == null) emptyList() else controller.timeSeriesResponseNames(expName).sorted()
-        responseCombo.model = DefaultComboBoxModel((listOf(ALL_RESPONSES) + tsNames).toTypedArray())
+        if (tsNames.isEmpty()) {
+            // Nothing to report — don't offer "(all)" over an empty set.
+            responseCombo.model = DefaultComboBoxModel(arrayOf(NO_RESPONSES))
+            responseCombo.isEnabled = false
+            generateButton.isEnabled = false
+            saveButton.isEnabled = false
+        } else {
+            responseCombo.model = DefaultComboBoxModel((listOf(ALL_RESPONSES) + tsNames).toTypedArray())
+            responseCombo.isEnabled = true
+            generateButton.isEnabled = true
+            saveButton.isEnabled = true
+        }
         updateToggleEnabled()
     }
 
@@ -100,8 +110,8 @@ class TimeSeriesPanel(
      *  response; for "all responses" the report is across-rep per
      *  response, so the toggles are disabled. */
     private fun updateToggleEnabled() {
-        val singleResponse = (responseCombo.selectedItem as? String) != null &&
-            responseCombo.selectedItem != ALL_RESPONSES
+        val selected = responseCombo.selectedItem as? String
+        val singleResponse = selected != null && selected != ALL_RESPONSES && selected != NO_RESPONSES
         overlayBox.isEnabled = singleResponse
         summaryBox.isEnabled = singleResponse
     }
@@ -110,6 +120,10 @@ class TimeSeriesPanel(
         val db = controller.database ?: return
         val expName = experimentCombo.selectedItem as? String ?: return
         val selected = responseCombo.selectedItem as? String ?: return
+        if (selected == NO_RESPONSES) {
+            notifier.warn("Experiment \"$expName\" has no time-series data.")
+            return
+        }
         val level = parseConfidenceLevel() ?: return
         val allResponses = selected == ALL_RESPONSES
 
@@ -142,5 +156,6 @@ class TimeSeriesPanel(
 
     private companion object {
         const val ALL_RESPONSES = "(all responses)"
+        const val NO_RESPONSES = "(no time-series responses)"
     }
 }

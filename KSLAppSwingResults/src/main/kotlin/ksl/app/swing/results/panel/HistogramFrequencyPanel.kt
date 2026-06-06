@@ -79,28 +79,43 @@ class HistogramFrequencyPanel(
     private fun reload() {
         val names = controller.experiments().map { it.name }
         experimentCombo.model = DefaultComboBoxModel(names.toTypedArray())
-        val enabled = names.isNotEmpty()
-        generateButton.isEnabled = enabled
-        saveButton.isEnabled = enabled
+        // Button + combo state is driven by whether the selected experiment
+        // has data of the chosen kind — see updateResponses().
         updateResponses()
     }
 
     private fun updateResponses() {
         val expName = experimentCombo.selectedItem as? String
+        val isFrequency = kindCombo.selectedItem == KIND_FREQUENCY
         val names = when {
             expName == null -> emptyList()
-            kindCombo.selectedItem == KIND_FREQUENCY -> controller.frequencyResponseNames(expName)
+            isFrequency -> controller.frequencyResponseNames(expName)
             else -> controller.histogramResponseNames(expName)
         }
-        responseCombo.model = DefaultComboBoxModel((listOf(ALL) + names).toTypedArray())
+        if (names.isEmpty()) {
+            // No data of this kind — don't offer "(all)" over an empty set.
+            responseCombo.model = DefaultComboBoxModel(arrayOf(noneLabel(isFrequency)))
+            responseCombo.isEnabled = false
+            generateButton.isEnabled = false
+            saveButton.isEnabled = false
+        } else {
+            responseCombo.model = DefaultComboBoxModel((listOf(ALL) + names).toTypedArray())
+            responseCombo.isEnabled = true
+            generateButton.isEnabled = true
+            saveButton.isEnabled = true
+        }
     }
 
     private fun generate(open: Boolean) {
         val db = controller.database ?: return
         val expName = experimentCombo.selectedItem as? String ?: return
         val selected = responseCombo.selectedItem as? String ?: return
-        val all = selected == ALL
         val isFrequency = kindCombo.selectedItem == KIND_FREQUENCY
+        if (selected == noneLabel(isFrequency)) {
+            notifier.warn("Experiment \"$expName\" has no ${if (isFrequency) "frequency" else "histogram"} data.")
+            return
+        }
+        val all = selected == ALL
 
         val doc = if (isFrequency) {
             db.toFrequencyReport(expName, if (all) null else selected)
@@ -111,6 +126,9 @@ class HistogramFrequencyPanel(
         val stem = if (all) "$kindStem-$expName" else "$kindStem-$expName-$selected"
         deliverReport(controller, notifier, doc, stem, formatChooser.selectedFormats(), open)
     }
+
+    private fun noneLabel(isFrequency: Boolean): String =
+        if (isFrequency) "(no frequency responses)" else "(no histogram responses)"
 
     private companion object {
         const val KIND_HISTOGRAM = "Histogram"
