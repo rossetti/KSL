@@ -20,6 +20,7 @@ package ksl.app.dist.runner
 
 import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
+import ksl.app.dist.config.FamilyBootstrapConfig
 import ksl.app.dist.config.FitConfiguration
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
@@ -39,6 +40,23 @@ class FittingRunnerTest {
 
     private fun inlineConfig(name: String, data: DoubleArray): FitConfiguration =
         FitConfiguration(dataSource = DataSourceReference.Inline(mapOf(name to data)))
+
+    @Test
+    fun `family-frequency bootstrap populates the result for the continuous path`() {
+        val data = exponentialSample(mean = 2.5, n = 200, streamNumber = 13)
+        val report = FittingRunner.fit(
+            FitConfiguration(
+                dataSource = DataSourceReference.Inline(mapOf("expo" to data)),
+                familyBootstrap = FamilyBootstrapConfig(numSamples = 20, streamNumber = 1)
+            )
+        )
+        val ff = report.bootstrapFamilyFrequency
+        assertNotNull(ff)
+        assertTrue(ff.cells.isNotEmpty())
+        // One recommended family is tallied per resample, so counts sum to numSamples.
+        assertEquals(20, ff.cells.sumOf { it.count }.toInt())
+        assertTrue(ff.cells.all { it.cellLabel.isNotBlank() }, "each cell carries a family name")
+    }
 
     @Test
     fun `fitting an exponential sample produces a coherent ranked report`() {

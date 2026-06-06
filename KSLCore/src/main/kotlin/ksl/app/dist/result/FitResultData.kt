@@ -52,7 +52,13 @@ data class FitResultData(
     val frequency: IntegerFrequencyDTO? = null,     // discrete-only
     val dispersion: DispersionAnalysisDTO? = null,  // discrete-only
     val scoring: ModaResultDTO? = null,             // continuous-only
-    val bootstrapFamilyFrequency: Map<String, Int>? = null,
+    /**
+     * Family-frequency bootstrap result (continuous-only) — how often each family
+     * was the recommended fit across bootstrap resamples; populated only when the
+     * fit requested `FamilyBootstrapConfig`. The cells' `cellLabel` holds the
+     * family name and `count`/`proportion` the tally.
+     */
+    val bootstrapFamilyFrequency: IntegerFrequencyDTO? = null,
     /**
      * The standard PDF/PMF modeling report rendered to a complete HTML page,
      * present only when the fit was run with `FitConfiguration.includeStandardReport`.

@@ -92,6 +92,7 @@ object FitResultExtractor {
         rankingMethod: Statistic.Companion.Ranking,
         evaluationMethod: EvaluationMethod,
         bootstrap: BootstrapConfig?,
+        familyFrequency: IntegerFrequency? = null,
         includeStandardReport: Boolean = false
     ): FitResultData {
         val ranked = when (evaluationMethod) {
@@ -128,7 +129,7 @@ object FitResultExtractor {
             histogram = histogramOf(modeler),
             shiftAnalysis = shiftAnalysisOf(modeler),
             scoring = modaResultOf(results.evaluationModel, rankingMethod),
-            bootstrapFamilyFrequency = null,
+            bootstrapFamilyFrequency = familyFrequency?.let { integerFrequencyOf(it) },
             standardReportHtml = standardReport
         )
     }
@@ -308,7 +309,7 @@ object FitResultExtractor {
     private fun integerFrequencyOf(freq: IntegerFrequency): IntegerFrequencyDTO =
         IntegerFrequencyDTO(
             freq.frequencyData().map {
-                IntegerFrequencyCellDTO(it.value, it.count, it.cum_count, it.proportion, it.cumProportion)
+                IntegerFrequencyCellDTO(it.value, it.count, it.cum_count, it.proportion, it.cumProportion, it.cellLabel)
             }
         )
 

@@ -16,33 +16,23 @@
  *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package ksl.app.dist.result
+package ksl.app.dist.config
 
 import kotlinx.serialization.Serializable
 
 /**
- * Wire-safe mirror of one integer-frequency cell, sourced from the engine's
- * `ksl.utilities.statistic.FrequencyData`. Lets a client render the same
- * frequency distribution the engine computed for the discrete data.
+ * Opt-in configuration for the family-frequency bootstrap analysis — a separate
+ * (continuous-only) analysis that resamples the data [numSamples] times, re-runs
+ * the full fit + evaluation on each resample, and tallies how often each family
+ * is recommended. It quantifies recommendation/model-selection stability.
+ *
+ * The estimators, scoring models, evaluation method, and automatic shifting are
+ * reused from the enclosing `FitConfiguration` (it bootstraps the same fitting
+ * process). A positive [streamNumber] makes the analysis reproducible; `0`
+ * draws the next stream. When this config is absent, the analysis is not run.
  */
 @Serializable
-data class IntegerFrequencyCellDTO(
-    val value: Int,
-    val count: Double,
-    val cumCount: Double,
-    val proportion: Double,
-    val cumProportion: Double,
-    /** Optional cell label (e.g., the distribution-family name for a bootstrap family frequency). */
-    val cellLabel: String = ""
-)
-
-/**
- * Wire-safe integer-frequency distribution for a discrete data series — the
- * discrete-path counterpart to `HistogramDTO`. Populated from
- * `IntegerFrequency.frequencyData()` by the result extractor; null on the
- * continuous path.
- */
-@Serializable
-data class IntegerFrequencyDTO(
-    val cells: List<IntegerFrequencyCellDTO>
+data class FamilyBootstrapConfig(
+    val numSamples: Int = 400,
+    val streamNumber: Int = 0
 )

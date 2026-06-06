@@ -295,6 +295,29 @@ fun ReportBuilder.fitPlotsSection(
     }
 }
 
+/**
+ * Appends the family-frequency bootstrap result (continuous; no-op when absent) —
+ * how often each family was the recommended fit across bootstrap resamples. This
+ * is a separate, opt-in analysis, so the section appears only when present.
+ */
+fun ReportBuilder.bootstrapFamilyFrequencySection(dto: IntegerFrequencyDTO?) {
+    if (dto == null || dto.cells.isEmpty()) return
+    val total = dto.cells.sumOf { it.count }
+    section("Bootstrap Family Frequency") {
+        paragraph(
+            "How often each family was the recommended fit across " +
+                "${total.toInt()} bootstrap resamples of the data."
+        )
+        dataTable(
+            headers = listOf("Family", "Count", "Proportion"),
+            rows = dto.cells.sortedByDescending { it.count }.map {
+                listOf(it.cellLabel.ifBlank { it.value.toString() }, fmt(it.count, 1), fmt(it.proportion))
+            },
+            caption = "Recommended-Family Frequency (Bootstrap)"
+        )
+    }
+}
+
 // ── Top-level assembly ─────────────────────────────────────────────────────────
 
 /**
@@ -327,6 +350,7 @@ fun FitResultData.toDocument(
         dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
+        bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
         for (fit in detailFits) {
             goodnessOfFitSection(fit)
             bootstrapSection(fit)
@@ -349,6 +373,7 @@ fun FitResultData.toSummaryDocument(title: String? = null): ReportNode.Document 
         dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
+        bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
     }
 }
 
@@ -388,6 +413,7 @@ fun FitResultData.toCanonicalDocument(
                 for (fit in detailFits) {
                     goodnessOfFit(DtoPdfFitData(fit, rawData, catalog), confidenceLevel = confidenceLevel)
                 }
+                bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
             }
         }
         DistributionKind.DISCRETE -> {

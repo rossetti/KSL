@@ -20,12 +20,14 @@ package ksl.app.dist.runner
 
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.DistributionKind
+import ksl.app.dist.config.EvaluationMethod
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.RankingMethod
 import ksl.app.dist.data.DatasetImporter
 import ksl.app.dist.data.NamedDataset
 import ksl.app.dist.result.FitResultData
 import ksl.utilities.distributions.fitting.EstimationResult
+import ksl.utilities.distributions.fitting.EvaluationMethod as KslEvaluationMethod
 import ksl.utilities.distributions.fitting.PDFModeler
 import ksl.utilities.distributions.fitting.PDFModelingResults
 import ksl.utilities.distributions.fitting.PMFModeler
@@ -100,6 +102,20 @@ object FittingRunner {
         val evaluationModel = modeler.evaluateScoringResults(scoringResults, ranking)
         val results = PDFModelingResults(estimationResults, scoringResults, evaluationModel)
 
+        // Family-frequency bootstrap (Kind 2): a separate, opt-in analysis that
+        // re-runs the full fit on each resample to tally the recommended family.
+        val familyFrequency = config.familyBootstrap?.let { fb ->
+            PDFModeler.bootstrapFamilyFrequency(
+                data = dataset.data,
+                evaluationMethod = config.evaluationMethod.toKsl(),
+                estimators = estimatorSet,
+                scoringModels = scoringModels,
+                numBootstrapSamples = fb.numSamples,
+                automaticShifting = config.automaticShifting,
+                streamNum = fb.streamNumber
+            )
+        }
+
         val resultToId = identityMapResultsToEstimatorIds(results.estimationResults, orderedEstimators)
         return FitResultExtractor.extractContinuous(
             dataset = dataset,
@@ -110,6 +126,7 @@ object FittingRunner {
             rankingMethod = ranking,
             evaluationMethod = config.evaluationMethod,
             bootstrap = config.bootstrap,
+            familyFrequency = familyFrequency,
             includeStandardReport = config.includeStandardReport
         )
     }
@@ -190,5 +207,10 @@ object FittingRunner {
         RankingMethod.DENSE -> Statistic.Companion.Ranking.Dense
         RankingMethod.FRACTIONAL -> Statistic.Companion.Ranking.Fractional
         RankingMethod.ORDINAL -> Statistic.Companion.Ranking.Ordinal
+    }
+
+    private fun EvaluationMethod.toKsl(): KslEvaluationMethod = when (this) {
+        EvaluationMethod.SCORING -> KslEvaluationMethod.Scoring
+        EvaluationMethod.RANKING -> KslEvaluationMethod.Ranking
     }
 }

@@ -127,7 +127,12 @@ class FitResultDataSerializationTest {
                 degreesOfFreedom = 99, upperPValue = 0.55, lowerPValue = 0.45, twoSidedPValue = 0.9
             ),
             scoring = scoring,
-            bootstrapFamilyFrequency = mapOf("exponential" to 320, "weibull" to 80)
+            bootstrapFamilyFrequency = IntegerFrequencyDTO(
+                listOf(
+                    IntegerFrequencyCellDTO(1, 320.0, 320.0, 0.8, 0.8, "Exponential"),
+                    IntegerFrequencyCellDTO(2, 80.0, 400.0, 0.2, 1.0, "Weibull")
+                )
+            )
         )
     }
 
