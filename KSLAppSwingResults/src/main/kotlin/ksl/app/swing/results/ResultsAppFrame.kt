@@ -28,6 +28,7 @@ import ksl.app.swing.results.panel.DatabasePanel
 import ksl.app.swing.results.panel.ExperimentSummaryPanel
 import ksl.app.swing.results.panel.ExportDialog
 import ksl.app.swing.results.panel.HistogramFrequencyPanel
+import ksl.app.swing.results.panel.nearestExistingDir
 import ksl.app.swing.results.panel.TimeSeriesPanel
 import ksl.app.swing.results.panel.WithinReplicationPanel
 import kotlinx.coroutines.CoroutineScope
@@ -172,7 +173,9 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
             BorderFactory.createMatteBorder(1, 0, 0, 0, Color(0xCC, 0xCC, 0xCC)),
             BorderFactory.createEmptyBorder(4, 10, 4, 10)
         )
-        add(statusLabel, BorderLayout.WEST)
+        // CENTER (not WEST) so a long status message ellipsizes within the
+        // available width instead of overrunning the workspace indicator.
+        add(statusLabel, BorderLayout.CENTER)
         // Working-directory indicator — shows the remembered workspace and
         // live-updates when the user changes it via Set Working Directory.
         add(workspaceStatusBar, BorderLayout.EAST)
@@ -249,7 +252,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     }
 
     private fun chooseExportDirectory(title: String): Path? {
-        val chooser = JFileChooser(exportDefaultDir().toFile()).apply {
+        val chooser = JFileChooser(nearestExistingDir(exportDefaultDir())).apply {
             dialogTitle = title
             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
         }

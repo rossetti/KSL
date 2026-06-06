@@ -37,6 +37,9 @@ fun main() {
     LookAndFeel.install(theme = AppTheme.SYSTEM, appName = APP_NAME)
     SwingUtilities.invokeLater {
         val controller = ResultsAppController(APP_NAME)
+        // Materialize the workspace so the Set Working Directory and export
+        // choosers open inside KSLWork instead of the home directory.
+        controller.ensureAppWorkspace()
         ResultsAppFrame(controller).apply {
             pack()
             setLocationRelativeTo(null)

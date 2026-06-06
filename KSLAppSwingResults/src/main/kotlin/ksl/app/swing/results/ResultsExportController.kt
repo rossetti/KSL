@@ -100,11 +100,11 @@ class ResultsExportController(private val appController: ResultsAppController) {
         return when (scope) {
             ExportScope.ALL_TABLES -> {
                 db.exportToExcel(wbName = base, wbDirectory = dir)
-                Outcome(true, "Wrote Excel workbook $base.xlsx (all tables) to $dir")
+                Outcome(true, "Wrote Excel workbook $base.xlsx (all tables)")
             }
             ExportScope.SELECTED_TABLES -> {
                 db.exportToExcel(tableNames = selected, wbName = base, wbDirectory = dir)
-                Outcome(true, "Wrote Excel workbook $base.xlsx (${selected.size} table(s)) to $dir")
+                Outcome(true, "Wrote Excel workbook $base.xlsx (${selected.size} table(s))")
             }
             else -> Outcome(false, "Excel export covers tables only (the views export to CSV or Markdown).")
         }
@@ -114,17 +114,17 @@ class ResultsExportController(private val appController: ResultsAppController) {
         when (scope) {
             ExportScope.ALL_TABLES -> {
                 db.exportAllTablesAsCSV(pathToOutPutDirectory = dir)
-                Outcome(true, "Wrote ${tableNames.size} table CSV file(s) to $dir")
+                Outcome(true, "Wrote ${tableNames.size} table CSV file(s)")
             }
             ExportScope.ALL_VIEWS -> {
                 db.exportAllViewsAsCSV(pathToOutPutDirectory = dir)
-                Outcome(true, "Wrote ${viewNames.size} view CSV file(s) to $dir")
+                Outcome(true, "Wrote ${viewNames.size} view CSV file(s)")
             }
             ExportScope.SELECTED_TABLES, ExportScope.SELECTED_VIEWS -> {
                 for (name in selected) {
                     writeVia(dir.resolve("$name.csv")) { db.exportTableAsCSV(tableName = name, out = it) }
                 }
-                Outcome(true, "Wrote ${selected.size} CSV file(s) to $dir")
+                Outcome(true, "Wrote ${selected.size} CSV file(s)")
             }
         }
 
@@ -133,17 +133,17 @@ class ResultsExportController(private val appController: ResultsAppController) {
         return when (scope) {
             ExportScope.ALL_TABLES -> {
                 writeVia(dir.resolve("${base}_Tables.md")) { db.writeAllTablesAsMarkdown(out = it) }
-                Outcome(true, "Wrote ${base}_Tables.md to $dir")
+                Outcome(true, "Wrote ${base}_Tables.md")
             }
             ExportScope.ALL_VIEWS -> {
                 writeVia(dir.resolve("${base}_Views.md")) { db.writeAllViewsAsMarkdown(out = it) }
-                Outcome(true, "Wrote ${base}_Views.md to $dir")
+                Outcome(true, "Wrote ${base}_Views.md")
             }
             ExportScope.SELECTED_TABLES, ExportScope.SELECTED_VIEWS -> {
                 for (name in selected) {
                     writeVia(dir.resolve("$name.md")) { db.writeTableAsMarkdown(tableName = name, out = it) }
                 }
-                Outcome(true, "Wrote ${selected.size} Markdown file(s) to $dir")
+                Outcome(true, "Wrote ${selected.size} Markdown file(s)")
             }
         }
     }
@@ -153,13 +153,13 @@ class ResultsExportController(private val appController: ResultsAppController) {
         return when (scope) {
             ExportScope.ALL_TABLES -> {
                 writeVia(dir.resolve("${base}_Tables.txt")) { db.writeAllTablesAsText(out = it) }
-                Outcome(true, "Wrote ${base}_Tables.txt to $dir")
+                Outcome(true, "Wrote ${base}_Tables.txt")
             }
             ExportScope.SELECTED_TABLES, ExportScope.SELECTED_VIEWS -> {
                 for (name in selected) {
                     writeVia(dir.resolve("$name.txt")) { db.writeTableAsText(tableName = name, out = it) }
                 }
-                Outcome(true, "Wrote ${selected.size} text file(s) to $dir")
+                Outcome(true, "Wrote ${selected.size} text file(s)")
             }
             ExportScope.ALL_VIEWS -> Outcome(false, "Text export of all views is not available; pick CSV or Markdown for views.")
         }
@@ -170,13 +170,13 @@ class ResultsExportController(private val appController: ResultsAppController) {
         return when (scope) {
             ExportScope.ALL_TABLES -> {
                 writeVia(dir.resolve("${base}_TableInserts.sql")) { db.exportAllTablesAsInsertQueries(out = it) }
-                Outcome(true, "Wrote ${base}_TableInserts.sql to $dir")
+                Outcome(true, "Wrote ${base}_TableInserts.sql")
             }
             ExportScope.SELECTED_TABLES -> {
                 for (name in selected) {
                     writeVia(dir.resolve("${name}_Inserts.sql")) { db.exportInsertQueries(tableName = name, out = it) }
                 }
-                Outcome(true, "Wrote ${selected.size} SQL file(s) to $dir")
+                Outcome(true, "Wrote ${selected.size} SQL file(s)")
             }
             else -> Outcome(false, "SQL INSERT export covers tables only.")
         }

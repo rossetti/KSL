@@ -111,7 +111,7 @@ class ExportDialog(
     }
 
     private fun browse() {
-        val chooser = JFileChooser(dirField.text).apply {
+        val chooser = JFileChooser(nearestExistingDir(Path.of(dirField.text))).apply {
             dialogTitle = "Export Output Directory"
             fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
         }

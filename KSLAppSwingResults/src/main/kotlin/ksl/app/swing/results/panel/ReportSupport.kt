@@ -28,6 +28,7 @@ import ksl.utilities.io.report.writeMarkdown
 import ksl.utilities.io.report.writeText
 import java.awt.Component
 import java.awt.FlowLayout
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JCheckBox
@@ -115,7 +116,22 @@ internal fun deliverReport(
             notifier.warn("Wrote report but could not open a browser: ${t.message ?: t::class.simpleName}")
         }
     }
-    notifier.info("Wrote ${outcome.written.size} file(s) to $outputDir")
+    // The working directory is shown in the status bar's right corner, so
+    // report just the file names rather than the full path.
+    val names = outcome.written.joinToString(", ") { it.fileName.toString() }
+    notifier.info(if (outcome.written.size == 1) "Wrote $names" else "Wrote ${outcome.written.size} files: $names")
+}
+
+/**
+ *  The nearest existing ancestor of [path], as a [File], for seeding a
+ *  `JFileChooser`.  A chooser handed a non-existent directory silently
+ *  falls back to the user's home; walking up to the first directory that
+ *  exists keeps the chooser anchored near the intended location.
+ */
+internal fun nearestExistingDir(path: Path): File {
+    var p: Path? = path
+    while (p != null && !Files.isDirectory(p)) p = p.parent
+    return (p ?: Path.of(System.getProperty("user.home"))).toFile()
 }
 
 /** Left-aligned row of components, used to lay out the analysis tabs'

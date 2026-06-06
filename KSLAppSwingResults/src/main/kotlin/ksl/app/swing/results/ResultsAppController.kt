@@ -26,6 +26,7 @@ import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SQLiteDb
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -68,6 +69,16 @@ class ResultsAppController(val appName: String) {
      *  workspace. */
     val appWorkspace: Path
         get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+
+    /** Creates this app's workspace folder (and its `KSLWork` parent) if
+     *  missing, returning it.  Called at startup so file choosers open
+     *  inside the workspace rather than falling back to the home
+     *  directory when `KSLWork` has not been created yet. */
+    fun ensureAppWorkspace(): Path {
+        val dir = appWorkspace
+        runCatching { Files.createDirectories(dir) }
+        return dir
+    }
 
     /** Directory where generated reports are written for the open
      *  database — `<KSLWork>/<appName>/output/<dbName>/reports/`.
