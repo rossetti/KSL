@@ -70,6 +70,7 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
     private val selectedLabel = JLabel("Selected: (none)")
     private val editEstimatorsButton = JButton("Edit estimators…")
     private val editScoringButton = JButton("Edit scoring…")
+    private val editBootstrapButton = JButton("Edit parameter bootstrap…")
 
     init {
         border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
@@ -130,6 +131,7 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         add(Box.createHorizontalStrut(12))
         add(editEstimatorsButton)
         add(editScoringButton)
+        add(editBootstrapButton)
     }
 
     // --- wiring --------------------------------------------------------------
@@ -140,6 +142,7 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         clearResultsButton.addActionListener { controller.clearResults() }
         editEstimatorsButton.addActionListener { editEstimators() }
         editScoringButton.addActionListener { editScoring() }
+        editBootstrapButton.addActionListener { editBootstrap() }
         table.selectionModel.addListSelectionListener { if (!it.valueIsAdjusting) updateDetailButtons() }
     }
 
@@ -192,6 +195,20 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         }
     }
 
+    private fun editBootstrap() {
+        val name = selectedDatasetName() ?: return
+        val s = controller.settings.value[name] ?: return
+        if (s.kind == DistributionKind.DISCRETE) return  // parameter bootstrap is continuous-only
+        val dialog = BootstrapSelectionDialog(SwingUtilities.getWindowAncestor(this), name, s.bootstrap)
+        dialog.isVisible = true
+        val choice = dialog.choice ?: return
+        if (choice.applyToAll) {
+            controller.setBootstrapForAllOfKind(s.kind, choice.config)
+        } else {
+            controller.setDatasetBootstrap(name, choice.config)
+        }
+    }
+
     // --- rendering -----------------------------------------------------------
 
     private fun refreshTable() {
@@ -206,6 +223,7 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
                 shift = s.automaticShift,
                 estText = estText(s),
                 scoringText = scoringText(s),
+                bootstrapText = bootstrapText(s),
                 statusText = statusText(status[entry.name] ?: DatasetRunStatus.IDLE)
             )
         }
@@ -256,6 +274,7 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         selectedLabel.text = if (name != null) "Selected: $name" else "Selected: (none)"
         editEstimatorsButton.isEnabled = name != null
         editScoringButton.isEnabled = s != null && s.kind == DistributionKind.CONTINUOUS
+        editBootstrapButton.isEnabled = s != null && s.kind == DistributionKind.CONTINUOUS
     }
 
     // --- helpers -------------------------------------------------------------
@@ -275,6 +294,10 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         val n = s.scoringModelIds.size
         return if (s.scoringModelIds == FittingCatalog.defaultScoringModelIds()) "$n" else "$n*"
     }
+
+    private fun bootstrapText(s: DatasetFitSettings): String =
+        if (s.kind == DistributionKind.DISCRETE) "n/a"
+        else s.bootstrap?.let { "${it.sampleSize}" } ?: "—"
 
     private fun statusText(status: DatasetRunStatus): String = when (status) {
         DatasetRunStatus.IDLE -> "—"
@@ -306,11 +329,12 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
         val shift: Boolean,
         val estText: String,
         val scoringText: String,
+        val bootstrapText: String,
         val statusText: String
     )
 
     private inner class FitTableModel : AbstractTableModel() {
-        private val columns = arrayOf("incl", "name", "kind", "shift", "estimators", "scoring", "status")
+        private val columns = arrayOf("incl", "name", "kind", "shift", "estimators", "scoring", "bootstrap", "status")
         private var rows: List<FitRow> = emptyList()
 
         fun setRows(newRows: List<FitRow>) {
@@ -340,7 +364,8 @@ class FittingPanel(private val controller: DistributionAppController) : JPanel(B
                 3 -> r.shift
                 4 -> r.estText
                 5 -> r.scoringText
-                6 -> r.statusText
+                6 -> r.bootstrapText
+                7 -> r.statusText
                 else -> ""
             }
         }

@@ -103,7 +103,9 @@ data class DatasetFitSettings(
     val estimatorIds: Set<String> = FittingCatalog.defaultEstimatorIds(DistributionKind.CONTINUOUS),
     val scoringModelIds: Set<String> = FittingCatalog.defaultScoringModelIds(),
     val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
-    val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING
+    val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
+    /** Opt-in per-fit parameter-estimate bootstrap (Kind 1); null = not computed. */
+    val bootstrap: BootstrapConfig? = null
 )
 
 /**
@@ -171,8 +173,6 @@ class DistributionAppController(val appName: String) {
     val dataLoadStatus: StateFlow<LoadStatus> = myDataLoadStatus.asStateFlow()
 
     // --- global fitting options ----------------------------------------------
-    private val myBootstrap = MutableStateFlow<BootstrapConfig?>(null)
-    val bootstrap: StateFlow<BootstrapConfig?> = myBootstrap.asStateFlow()
 
     // --- validate-on-edit ----------------------------------------------------
     private val myValidation = MutableStateFlow(computeValidation())
@@ -299,6 +299,14 @@ class DistributionAppController(val appName: String) {
         }
     }
 
+    /** Sets (or clears, when null) a dataset's per-fit parameter-estimate bootstrap (Kind 1). */
+    fun setDatasetBootstrap(name: String, bootstrap: BootstrapConfig?) =
+        updateSetting(name) { it.copy(bootstrap = bootstrap) }
+
+    /** Applies a parameter-estimate bootstrap setting to every dataset currently of [kind]. */
+    fun setBootstrapForAllOfKind(kind: DistributionKind, bootstrap: BootstrapConfig?) =
+        updateAllSettings { if (it.kind == kind) it.copy(bootstrap = bootstrap) else it }
+
     // --- bulk "apply to all" conveniences ------------------------------------
 
     fun setKindForAll(kind: DistributionKind) =
@@ -323,7 +331,6 @@ class DistributionAppController(val appName: String) {
         myCollection.value = emptyList()
         mySettings.value = emptyMap()
         myDatasetStatus.value = emptyMap()
-        myBootstrap.value = null
         myDataLoadStatus.value = LoadStatus.Idle
         myValidation.value = computeValidation()
         runLifecycle.reset()
@@ -435,7 +442,7 @@ class DistributionAppController(val appName: String) {
                     automaticShifting = s.automaticShift,
                     rankingMethod = s.rankingMethod,
                     evaluationMethod = s.evaluationMethod,
-                    bootstrap = myBootstrap.value,
+                    bootstrap = s.bootstrap,
                     // The GUI renders the canonical report locally from the DTO + raw data
                     // (FitReports.single); the server-side HTML is a remote-only fallback.
                     includeStandardReport = false
