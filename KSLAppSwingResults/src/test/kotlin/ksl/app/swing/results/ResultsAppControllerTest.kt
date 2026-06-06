@@ -78,6 +78,22 @@ class ResultsAppControllerTest {
         )
     }
 
+    @Test
+    fun `output directory is workspace-derived per database`() {
+        val dbName = "ctrl_db"
+        buildTwoExperimentDb(dbName)
+        val controller = ResultsAppController("My App")
+        controller.openDatabase(File(tempDir.toFile(), dbName))
+
+        // <workspace>/My_App/output/ctrl_db/reports — assert the suffix
+        // regardless of the user's workspace root, and create nothing.
+        val out = controller.outputDir.toString().replace('\\', '/')
+        assertTrue(
+            out.contains("/My_App/output/$dbName/reports"),
+            "unexpected outputDir: $out"
+        )
+    }
+
     // ── Fixture: a real on-disk SQLite KSL database ───────────────────────
 
     private fun buildTwoExperimentDb(dbName: String) {

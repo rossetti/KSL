@@ -21,8 +21,16 @@ package ksl.app.swing.results
 import ksl.app.notification.NotificationSeverity
 import ksl.app.notification.NotificationSink
 import ksl.app.notification.NotificationSpec
+import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
+import ksl.app.swing.common.workspace.WorkspaceStatusBar
 import ksl.app.swing.results.panel.CompareExperimentsPanel
 import ksl.app.swing.results.panel.DatabasePanel
+import ksl.app.swing.results.panel.ExperimentSummaryPanel
+import ksl.app.swing.results.panel.TimeSeriesPanel
+import ksl.app.swing.results.panel.WithinReplicationPanel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.swing.Swing
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
@@ -80,6 +88,20 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     private val defaultStatusColor: Color = statusLabel.foreground
     private val databasePanel = DatabasePanel(controller)
     private val comparePanel = CompareExperimentsPanel(controller, notifier)
+    private val withinReplicationPanel = WithinReplicationPanel(controller, notifier)
+    private val timeSeriesPanel = TimeSeriesPanel(controller, notifier)
+    private val experimentSummaryPanel = ExperimentSummaryPanel(controller, notifier)
+
+    /** Scope owning the workspace status bar's subscription to the
+     *  settings store; cancelled when the window closes. */
+    private val uiScope = CoroutineScope(Dispatchers.Swing)
+    private val setWorkingDirectoryAction =
+        SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })
+    private val workspaceStatusBar = WorkspaceStatusBar(
+        controller.settingsStore,
+        uiScope,
+        onSetWorkingDirectory = { setWorkingDirectoryAction.actionPerformed(null) }
+    )
 
     init {
         title = controller.appName
@@ -100,6 +122,7 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
         val bar = JMenuBar()
         val file = JMenu("File")
         file.add(JMenuItem("Open Database…").apply { addActionListener { openDatabase() } })
+        file.add(JMenuItem(setWorkingDirectoryAction))
         file.addSeparator()
         file.add(JMenuItem("Exit").apply { addActionListener { dispose() } })
         bar.add(file)
@@ -121,6 +144,9 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
     private fun buildTabs(): JTabbedPane {
         tabs.addTab("Database", databasePanel)
         tabs.addTab("Compare Experiments", comparePanel)
+        tabs.addTab("Within-Replication", withinReplicationPanel)
+        tabs.addTab("Time Series", timeSeriesPanel)
+        tabs.addTab("Experiment Summary", experimentSummaryPanel)
         return tabs
     }
 
@@ -130,6 +156,9 @@ class ResultsAppFrame(private val controller: ResultsAppController) : JFrame() {
             BorderFactory.createEmptyBorder(4, 10, 4, 10)
         )
         add(statusLabel, BorderLayout.WEST)
+        // Working-directory indicator — shows the remembered workspace and
+        // live-updates when the user changes it via Set Working Directory.
+        add(workspaceStatusBar, BorderLayout.EAST)
     }
 
     // ── Actions ───────────────────────────────────────────────────────────

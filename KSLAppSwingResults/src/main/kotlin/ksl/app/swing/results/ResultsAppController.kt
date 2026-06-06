@@ -20,6 +20,8 @@ package ksl.app.swing.results
 
 import ksl.app.comparison.ExperimentRow
 import ksl.app.comparison.KSLDatabaseComparisonSource
+import ksl.app.session.AppWorkspacePaths
+import ksl.app.settings.UserSettingsStore
 import ksl.utilities.io.dbutil.DerbyDb
 import ksl.utilities.io.dbutil.KSLDatabase
 import ksl.utilities.io.dbutil.SQLiteDb
@@ -53,11 +55,27 @@ class ResultsAppController(val appName: String) {
     var comparisonSource: KSLDatabaseComparisonSource? = null
         private set
 
-    /** Directory where generated reports are written.  Defaults to a
-     *  "results" folder under the working directory; on open it moves
-     *  next to the opened database so reports land beside their data. */
-    var outputDir: Path = Path.of(System.getProperty("user.dir"), "results")
-        private set
+    /** User-wide settings (working directory, recent lists), backed by
+     *  `~/.ksl/settings.toml`.  Remembers the chosen working directory
+     *  across sessions, defaulting to `~/Documents/KSLWork`.  Shared by
+     *  the File-menu *Set Working Directory…* action and the workspace
+     *  status bar. */
+    val settingsStore: UserSettingsStore = UserSettingsStore()
+
+    /** This app's home folder under the active workspace —
+     *  `<KSLWork>/<appName>/`.  Recomputed from the (remembered)
+     *  working directory each access so it always reflects the current
+     *  workspace. */
+    val appWorkspace: Path
+        get() = AppWorkspacePaths.appWorkspaceDir(settingsStore.activeWorkspace(), appName)
+
+    /** Directory where generated reports are written for the open
+     *  database — `<KSLWork>/<appName>/output/<dbName>/reports/`.
+     *  Computed on demand (never cached) so it tracks both the open
+     *  database and the remembered working directory.  Created lazily by
+     *  whatever writes into it. */
+    val outputDir: Path
+        get() = AppWorkspacePaths.reportsDir(appWorkspace, database?.label ?: "untitled")
 
     val isDatabaseOpen: Boolean get() = database != null
 
@@ -87,7 +105,6 @@ class ResultsAppController(val appName: String) {
         database = opened
         databaseFile = file
         comparisonSource = source
-        outputDir = file.absoluteFile.parentFile?.toPath()?.resolve("results") ?: outputDir
         notifyChanged()
     }
 
