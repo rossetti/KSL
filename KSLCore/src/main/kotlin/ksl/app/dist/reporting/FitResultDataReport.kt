@@ -23,6 +23,7 @@ import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.result.DataSummaryDTO
 import ksl.app.dist.result.DispersionAnalysisDTO
 import ksl.app.dist.result.DistributionFitDTO
+import ksl.app.dist.result.FamilyFrequencyResult
 import ksl.app.dist.result.FitResultData
 import ksl.app.dist.result.IntegerFrequencyDTO
 import ksl.app.dist.result.ModaResultDTO
@@ -318,6 +319,14 @@ fun ReportBuilder.bootstrapFamilyFrequencySection(dto: IntegerFrequencyDTO?) {
     }
 }
 
+/** Builds a standalone document for a [FamilyFrequencyResult] (the Bootstrap-tab analysis). */
+fun FamilyFrequencyResult.toDocument(title: String? = null): ReportNode.Document {
+    val docTitle = title ?: "Family-Frequency Bootstrap — $datasetName"
+    return report(docTitle) {
+        bootstrapFamilyFrequencySection(frequency)
+    }
+}
+
 // ── Top-level assembly ─────────────────────────────────────────────────────────
 
 /**
@@ -350,7 +359,6 @@ fun FitResultData.toDocument(
         dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
-        bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
         for (fit in detailFits) {
             goodnessOfFitSection(fit)
             bootstrapSection(fit)
@@ -373,7 +381,6 @@ fun FitResultData.toSummaryDocument(title: String? = null): ReportNode.Document 
         dispersionSection(dispersion)
         fitRankingSection(fits)
         scoring?.let { modaSection(it) }
-        bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
     }
 }
 
@@ -413,7 +420,6 @@ fun FitResultData.toCanonicalDocument(
                 for (fit in detailFits) {
                     goodnessOfFit(DtoPdfFitData(fit, rawData, catalog), confidenceLevel = confidenceLevel)
                 }
-                bootstrapFamilyFrequencySection(bootstrapFamilyFrequency)
             }
         }
         DistributionKind.DISCRETE -> {

@@ -126,13 +126,7 @@ class FitResultDataSerializationTest {
                 indexOfDispersion = 0.98, poissonVarianceTestStatistic = 97.0,
                 degreesOfFreedom = 99, upperPValue = 0.55, lowerPValue = 0.45, twoSidedPValue = 0.9
             ),
-            scoring = scoring,
-            bootstrapFamilyFrequency = IntegerFrequencyDTO(
-                listOf(
-                    IntegerFrequencyCellDTO(1, 320.0, 320.0, 0.8, 0.8, "Exponential"),
-                    IntegerFrequencyCellDTO(2, 80.0, 400.0, 0.2, 1.0, "Weibull")
-                )
-            )
+            scoring = scoring
         )
     }
 
@@ -145,6 +139,23 @@ class FitResultDataSerializationTest {
         lag1Covariance = 0.01, lag1Correlation = 0.02, vonNeumannLag1TestStatistic = 1.95,
         numberMissing = 0.0
     )
+
+    @Test
+    fun `FamilyFrequencyResult round-trips through JSON`() {
+        val result = FamilyFrequencyResult(
+            datasetName = "x",
+            numSamples = 400,
+            frequency = IntegerFrequencyDTO(
+                listOf(
+                    IntegerFrequencyCellDTO(1, 320.0, 320.0, 0.8, 0.8, "Exponential"),
+                    IntegerFrequencyCellDTO(2, 80.0, 400.0, 0.2, 1.0, "Weibull")
+                )
+            )
+        )
+        val encoded = json.encodeToString(FamilyFrequencyResult.serializer(), result)
+        val decoded = json.decodeFromString(FamilyFrequencyResult.serializer(), encoded)
+        assertEquals(result, decoded)
+    }
 
     @Test
     fun `full FitResultData graph round-trips through JSON`() {

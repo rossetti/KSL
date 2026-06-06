@@ -35,8 +35,8 @@ import kotlinx.serialization.Serializable
  *
  * `bootstrap` is opt-in: a non-null `BootstrapConfig` requests engine-side
  * bootstrap of the fitted parameters (summaries returned); null skips it.
- * `familyBootstrap` is a separate opt-in (continuous-only) analysis: a non-null
- * `FamilyBootstrapConfig` requests the family-frequency bootstrap; null skips it.
+ * (The family-frequency bootstrap is a separate standalone analysis — see
+ * `FittingRunner.familyFrequencyBootstrap` — not a fit option.)
  *
  * `rankingMethod` and `evaluationMethod` surface the engine's MODA-evaluation
  * parameters (rank-tie handling and the recommendation criterion); both
@@ -52,7 +52,6 @@ data class FitConfiguration(
     val rankingMethod: RankingMethod = RankingMethod.ORDINAL,
     val evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
     val bootstrap: BootstrapConfig? = null,
-    val familyBootstrap: FamilyBootstrapConfig? = null,
     /**
      * When true, the runner renders the standard PDF/PMF modeling report to an
      * HTML string and carries it on the result (`FitResultData.standardReportHtml`).

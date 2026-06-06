@@ -19,6 +19,7 @@
 package ksl.app.dist.result
 
 import kotlinx.serialization.Serializable
+import ksl.utilities.statistic.IntegerFrequency
 
 /**
  * Wire-safe mirror of one integer-frequency cell, sourced from the engine's
@@ -46,3 +47,11 @@ data class IntegerFrequencyCellDTO(
 data class IntegerFrequencyDTO(
     val cells: List<IntegerFrequencyCellDTO>
 )
+
+/** Maps a live [IntegerFrequency] to its wire-safe [IntegerFrequencyDTO]. */
+fun IntegerFrequency.toIntegerFrequencyDTO(): IntegerFrequencyDTO =
+    IntegerFrequencyDTO(
+        frequencyData().map {
+            IntegerFrequencyCellDTO(it.value, it.count, it.cum_count, it.proportion, it.cumProportion, it.cellLabel)
+        }
+    )

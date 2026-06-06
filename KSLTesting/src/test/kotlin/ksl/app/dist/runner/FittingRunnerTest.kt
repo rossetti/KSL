@@ -22,6 +22,7 @@ import ksl.app.dist.config.DataSourceReference
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.FamilyBootstrapConfig
 import ksl.app.dist.config.FitConfiguration
+import ksl.app.dist.data.NamedDataset
 import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.RVType
 import ksl.utilities.random.rvariable.parameters.RVData
@@ -42,20 +43,18 @@ class FittingRunnerTest {
         FitConfiguration(dataSource = DataSourceReference.Inline(mapOf(name to data)))
 
     @Test
-    fun `family-frequency bootstrap populates the result for the continuous path`() {
+    fun `family-frequency bootstrap is a standalone analysis tallying recommended families`() {
         val data = exponentialSample(mean = 2.5, n = 200, streamNumber = 13)
-        val report = FittingRunner.fit(
-            FitConfiguration(
-                dataSource = DataSourceReference.Inline(mapOf("expo" to data)),
-                familyBootstrap = FamilyBootstrapConfig(numSamples = 20, streamNumber = 1)
-            )
+        val result = FittingRunner.familyFrequencyBootstrap(
+            NamedDataset("expo", data),
+            FamilyBootstrapConfig(numSamples = 20, streamNumber = 1)
         )
-        val ff = report.bootstrapFamilyFrequency
-        assertNotNull(ff)
-        assertTrue(ff.cells.isNotEmpty())
+        assertEquals("expo", result.datasetName)
+        assertEquals(20, result.numSamples)
+        assertTrue(result.frequency.cells.isNotEmpty())
         // One recommended family is tallied per resample, so counts sum to numSamples.
-        assertEquals(20, ff.cells.sumOf { it.count }.toInt())
-        assertTrue(ff.cells.all { it.cellLabel.isNotBlank() }, "each cell carries a family name")
+        assertEquals(20, result.frequency.cells.sumOf { it.count }.toInt())
+        assertTrue(result.frequency.cells.all { it.cellLabel.isNotBlank() }, "each cell carries a family name")
     }
 
     @Test

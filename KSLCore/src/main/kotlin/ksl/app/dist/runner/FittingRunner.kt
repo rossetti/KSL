@@ -21,8 +21,11 @@ package ksl.app.dist.runner
 import ksl.app.dist.catalog.FittingCatalog
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.EvaluationMethod
+import ksl.app.dist.config.FamilyBootstrapConfig
 import ksl.app.dist.config.FitConfiguration
 import ksl.app.dist.config.RankingMethod
+import ksl.app.dist.result.FamilyFrequencyResult
+import ksl.app.dist.result.toIntegerFrequencyDTO
 import ksl.app.dist.data.DatasetImporter
 import ksl.app.dist.data.NamedDataset
 import ksl.app.dist.result.FitResultData
@@ -102,20 +105,6 @@ object FittingRunner {
         val evaluationModel = modeler.evaluateScoringResults(scoringResults, ranking)
         val results = PDFModelingResults(estimationResults, scoringResults, evaluationModel)
 
-        // Family-frequency bootstrap (Kind 2): a separate, opt-in analysis that
-        // re-runs the full fit on each resample to tally the recommended family.
-        val familyFrequency = config.familyBootstrap?.let { fb ->
-            PDFModeler.bootstrapFamilyFrequency(
-                data = dataset.data,
-                evaluationMethod = config.evaluationMethod.toKsl(),
-                estimators = estimatorSet,
-                scoringModels = scoringModels,
-                numBootstrapSamples = fb.numSamples,
-                automaticShifting = config.automaticShifting,
-                streamNum = fb.streamNumber
-            )
-        }
-
         val resultToId = identityMapResultsToEstimatorIds(results.estimationResults, orderedEstimators)
         return FitResultExtractor.extractContinuous(
             dataset = dataset,
@@ -126,9 +115,40 @@ object FittingRunner {
             rankingMethod = ranking,
             evaluationMethod = config.evaluationMethod,
             bootstrap = config.bootstrap,
-            familyFrequency = familyFrequency,
             includeStandardReport = config.includeStandardReport
         )
+    }
+
+    /**
+     * Runs the family-frequency bootstrap (Kind 2) — a standalone, continuous
+     * analysis, separate from [fit]. It resamples [dataset] `config.numSamples`
+     * times, re-runs the full fit + evaluation on each resample, and tallies how
+     * often each family is the recommended fit. Estimators/scoring default to the
+     * continuous catalog defaults unless provided.
+     */
+    fun familyFrequencyBootstrap(
+        dataset: NamedDataset,
+        config: FamilyBootstrapConfig,
+        estimatorIds: Set<String> = emptySet(),
+        scoringModelIds: Set<String> = emptySet(),
+        evaluationMethod: EvaluationMethod = EvaluationMethod.SCORING,
+        automaticShifting: Boolean = true,
+        catalog: FittingCatalog = FittingCatalog
+    ): FamilyFrequencyResult {
+        val estIds = estimatorIds.ifEmpty { catalog.defaultEstimatorIds(DistributionKind.CONTINUOUS) }
+        val scoreIds = scoringModelIds.ifEmpty { catalog.defaultScoringModelIds() }
+        val estimatorSet = estimatorSetOf(orderedEstimatorsOf(estIds, catalog))
+        val scoringModels = catalog.instantiateScoringModels(scoreIds)
+        val freq = PDFModeler.bootstrapFamilyFrequency(
+            data = dataset.data,
+            evaluationMethod = evaluationMethod.toKsl(),
+            estimators = estimatorSet,
+            scoringModels = scoringModels,
+            numBootstrapSamples = config.numSamples,
+            automaticShifting = automaticShifting,
+            streamNum = config.streamNumber
+        )
+        return FamilyFrequencyResult(dataset.name, config.numSamples, freq.toIntegerFrequencyDTO())
     }
 
     // ----- discrete (PMF) ----------------------------------------------------

@@ -39,8 +39,7 @@ import ksl.app.dist.result.ModaValueDTO
 import ksl.app.dist.result.RankFrequencyDTO
 import ksl.app.dist.result.ShiftAnalysisDTO
 import ksl.app.dist.result.StatisticDataDTO
-import ksl.app.dist.result.IntegerFrequencyDTO
-import ksl.app.dist.result.IntegerFrequencyCellDTO
+import ksl.app.dist.result.toIntegerFrequencyDTO
 import ksl.app.dist.result.DispersionAnalysisDTO
 import ksl.utilities.distributions.DiscretePMFInRangeDistributionIfc
 import ksl.utilities.distributions.fitting.ContinuousCDFGoodnessOfFit
@@ -54,7 +53,6 @@ import ksl.utilities.io.report.extensions.toReport
 import ksl.utilities.io.report.toHtml
 import ksl.utilities.moda.AdditiveMODAModel
 import ksl.utilities.random.rvariable.RVParametersTypeIfc
-import ksl.utilities.statistic.IntegerFrequency
 import ksl.utilities.statistic.StatisticIfc
 import ksl.utilities.random.rvariable.parameters.RVParameters
 import ksl.utilities.statistic.Statistic
@@ -92,7 +90,6 @@ object FitResultExtractor {
         rankingMethod: Statistic.Companion.Ranking,
         evaluationMethod: EvaluationMethod,
         bootstrap: BootstrapConfig?,
-        familyFrequency: IntegerFrequency? = null,
         includeStandardReport: Boolean = false
     ): FitResultData {
         val ranked = when (evaluationMethod) {
@@ -129,7 +126,6 @@ object FitResultExtractor {
             histogram = histogramOf(modeler),
             shiftAnalysis = shiftAnalysisOf(modeler),
             scoring = modaResultOf(results.evaluationModel, rankingMethod),
-            bootstrapFamilyFrequency = familyFrequency?.let { integerFrequencyOf(it) },
             standardReportHtml = standardReport
         )
     }
@@ -225,10 +221,9 @@ object FitResultExtractor {
             fits = allFits,
             recommendedFamilyId = recommendedFamilyId,
             histogram = null,
-            frequency = integerFrequencyOf(modeler.frequency),
+            frequency = modeler.frequency.toIntegerFrequencyDTO(),
             dispersion = dispersionAnalysisOf(modeler.statistics),
             scoring = null,
-            bootstrapFamilyFrequency = null,
             standardReportHtml = standardReport
         )
     }
@@ -305,13 +300,6 @@ object FitResultExtractor {
     }
 
     // ----- discrete frequency + dispersion ----------------------------------
-
-    private fun integerFrequencyOf(freq: IntegerFrequency): IntegerFrequencyDTO =
-        IntegerFrequencyDTO(
-            freq.frequencyData().map {
-                IntegerFrequencyCellDTO(it.value, it.count, it.cum_count, it.proportion, it.cumProportion, it.cellLabel)
-            }
-        )
 
     private fun dispersionAnalysisOf(stats: StatisticIfc): DispersionAnalysisDTO {
         val d = DiscretePMFGoodnessOfFit.poissonDispersionTest(stats.average, stats.variance, stats.count)
