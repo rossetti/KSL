@@ -37,8 +37,13 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import ksl.app.dist.DistributionModelingSession
 import ksl.app.dist.catalog.FittingCatalog
+import ksl.app.dist.config.AnalysisDatasetEntry
+import ksl.app.dist.config.AnalysisDocument
+import ksl.app.dist.config.AnalysisDocumentToml
 import ksl.app.dist.config.BootstrapConfig
 import ksl.app.dist.config.DataSourceReference
+import ksl.app.dist.config.DatasetLayout
+import ksl.app.dist.config.Delimiter
 import ksl.app.dist.config.DistributionKind
 import ksl.app.dist.config.EvaluationMethod
 import ksl.app.dist.config.FitConfiguration
@@ -84,11 +89,23 @@ sealed interface LoadStatus {
 /** Per-dataset progress during a fit run, shown in the Fitting tab. */
 enum class DatasetRunStatus { IDLE, QUEUED, RUNNING, DONE, FAILED }
 
-/** One dataset in the working collection, tagged with where it came from. */
-data class DatasetEntry(val name: String, val data: DoubleArray, val origin: String) {
+/**
+ * One dataset in the working collection, tagged with where it came from. [source]
+ * is the single-dataset reference this entry was imported from; it is what gets
+ * persisted (reference-based) when the analysis is saved.
+ */
+data class DatasetEntry(
+    val name: String,
+    val data: DoubleArray,
+    val origin: String,
+    val source: DataSourceReference
+) {
     override fun equals(other: Any?): Boolean = other is DatasetEntry && other.name == name
     override fun hashCode(): Int = name.hashCode()
 }
+
+/** Result of opening an analysis document: names of datasets whose source could not be re-materialized. */
+data class DocumentOpenResult(val failures: List<String>)
 
 /**
  * Per-dataset fitting settings. Each dataset in a batch is fit with its own
@@ -219,7 +236,7 @@ class DistributionAppController(val appName: String) {
                 val newEntries = datasets.map { d ->
                     val unique = uniqueName(d.name, names)
                     names += unique
-                    DatasetEntry(unique, d.data, origin)
+                    DatasetEntry(unique, d.data, origin, derivePerDatasetRef(ref, d.name))
                 }
                 myCollection.update { it + newEntries }
                 mySettings.update { current ->
@@ -323,6 +340,121 @@ class DistributionAppController(val appName: String) {
             rankingMethod = RankingMethod.ORDINAL,
             evaluationMethod = EvaluationMethod.SCORING
         )
+    }
+
+    // --- document persistence (reference-based TOML) -------------------------
+
+    /**
+     * The single-dataset reference for one of [ref]'s resulting datasets. WIDE
+     * sources are narrowed to the one column; SINGLE/Generated are already
+     * single; Inline and LONG sources are kept as-is and spilled to a sidecar
+     * file at save time (they cannot be expressed as a single external reference).
+     */
+    private fun derivePerDatasetRef(ref: DataSourceReference, sourceName: String): DataSourceReference =
+        when (ref) {
+            is DataSourceReference.DelimitedFile ->
+                if (ref.layout == DatasetLayout.WIDE) ref.copy(datasetColumns = listOf(sourceName)) else ref
+            is DataSourceReference.Database ->
+                if (ref.layout == DatasetLayout.WIDE) ref.copy(datasetColumns = listOf(sourceName)) else ref
+            else -> ref
+        }
+
+    /**
+     * Saves the analysis as reference-based TOML at [path]. Inline-pasted data
+     * and non-isolatable LONG-source datasets are spilled to sidecar CSV files
+     * under `<path-parent>/data/` and referenced by path — no dataset values are
+     * embedded in the TOML.
+     */
+    fun saveDocument(path: Path) {
+        val parent = path.toAbsolutePath().parent
+        Files.createDirectories(parent)
+        val doc = buildDocument(spillDir = parent.resolve("data"))
+        Files.writeString(path, AnalysisDocumentToml.encode(doc))
+        documentLifecycle.markSaved(path)
+    }
+
+    private fun buildDocument(spillDir: Path): AnalysisDocument {
+        val settings = mySettings.value
+        val entries = myCollection.value.map { entry ->
+            val s = settings[entry.name] ?: DatasetFitSettings()
+            val config = FitConfiguration(
+                dataSource = persistableRef(entry, spillDir),
+                kind = s.kind,
+                estimatorIds = s.estimatorIds,
+                scoringModelIds = s.scoringModelIds,
+                automaticShifting = s.automaticShift,
+                rankingMethod = s.rankingMethod,
+                evaluationMethod = s.evaluationMethod,
+                bootstrap = s.bootstrap
+            )
+            AnalysisDatasetEntry(NamedFitConfiguration(entry.name, config), included = s.includeInFit)
+        }
+        return AnalysisDocument(myAnalysisName.value, entries)
+    }
+
+    /** The reference persisted for [entry]; Inline/LONG data is spilled to a sidecar CSV under [spillDir]. */
+    private fun persistableRef(entry: DatasetEntry, spillDir: Path): DataSourceReference {
+        val src = entry.source
+        val mustSpill = src is DataSourceReference.Inline ||
+            (src is DataSourceReference.DelimitedFile && src.layout == DatasetLayout.LONG) ||
+            (src is DataSourceReference.Database && src.layout == DatasetLayout.LONG)
+        if (!mustSpill) return src
+        Files.createDirectories(spillDir)
+        val file = spillDir.resolve("${sanitizePathSegment(entry.name)}.csv")
+        Files.writeString(file, entry.data.joinToString(System.lineSeparator()))
+        return DataSourceReference.DelimitedFile(
+            path = file.toAbsolutePath().toString(),
+            delimiter = Delimiter.WHITESPACE, hasHeader = false, layout = DatasetLayout.SINGLE
+        )
+    }
+
+    /**
+     * Opens a reference-based analysis document from [path]: decodes the TOML and
+     * re-materializes each dataset via the importer (the same path imports use).
+     * Datasets whose source can no longer be read are reported in the result.
+     */
+    fun openDocument(path: Path): DocumentOpenResult {
+        val doc = AnalysisDocumentToml.decode(Files.readString(path))
+        val newCollection = mutableListOf<DatasetEntry>()
+        val newSettings = LinkedHashMap<String, DatasetFitSettings>()
+        val failures = mutableListOf<String>()
+        val names = mutableSetOf<String>()
+        for (entry in doc.datasets) {
+            val cfg = entry.config
+            val ref = cfg.config.dataSource
+            val materialized = runCatching { importer.import(ref) }.getOrNull()
+            val ds = materialized?.firstOrNull { it.name == cfg.name } ?: materialized?.firstOrNull()
+            if (ds == null) {
+                failures += cfg.name; continue
+            }
+            val unique = uniqueName(cfg.name, names); names += unique
+            newCollection += DatasetEntry(unique, ds.data, originOf(ref), ref)
+            newSettings[unique] = DatasetFitSettings(
+                kind = cfg.config.kind,
+                includeInFit = entry.included,
+                automaticShift = cfg.config.automaticShifting,
+                estimatorIds = cfg.config.estimatorIds.ifEmpty { FittingCatalog.defaultEstimatorIds(cfg.config.kind) },
+                scoringModelIds = cfg.config.scoringModelIds.ifEmpty { FittingCatalog.defaultScoringModelIds() },
+                rankingMethod = cfg.config.rankingMethod,
+                evaluationMethod = cfg.config.evaluationMethod,
+                bootstrap = cfg.config.bootstrap
+            )
+        }
+        myAnalysisName.value = doc.analysisName
+        myCollection.value = newCollection
+        mySettings.value = newSettings
+        myDatasetStatus.value = emptyMap()
+        documentLifecycle.bindFile(path)
+        documentLifecycle.clearDirty()
+        myValidation.value = computeValidation()
+        return DocumentOpenResult(failures)
+    }
+
+    private fun originOf(ref: DataSourceReference): String = when (ref) {
+        is DataSourceReference.Generated -> "generated"
+        is DataSourceReference.DelimitedFile -> java.io.File(ref.path).name
+        is DataSourceReference.Database -> "db:${java.io.File(ref.connection.location).name}"
+        is DataSourceReference.Inline -> "inline"
     }
 
     /** Resets to a fresh, empty document. */

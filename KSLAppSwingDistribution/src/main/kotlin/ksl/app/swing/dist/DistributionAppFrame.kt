@@ -18,7 +18,9 @@
 
 package ksl.app.swing.dist
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ksl.app.swing.common.appearance.ThemeMenu
 import ksl.app.swing.common.workspace.RecentWorkingDirectoriesMenu
 import ksl.app.swing.common.workspace.SetWorkingDirectoryAction
@@ -45,9 +47,11 @@ import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
+import javax.swing.JFileChooser
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
+import javax.swing.filechooser.FileNameExtensionFilter
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JSeparator
@@ -102,19 +106,10 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
         val bar = JMenuBar()
 
         val file = JMenu("File")
-        file.add(JMenuItem("New").apply { addActionListener { controller.newDocument() } })
-        file.add(JMenuItem("Open…").apply {
-            isEnabled = false
-            toolTipText = "Available once configuration persistence lands (R11)"
-        })
-        file.add(JMenuItem("Save").apply {
-            isEnabled = false
-            toolTipText = "Available once configuration persistence lands (R11)"
-        })
-        file.add(JMenuItem("Save As…").apply {
-            isEnabled = false
-            toolTipText = "Available once configuration persistence lands (R11)"
-        })
+        file.add(JMenuItem("New").apply { addActionListener { if (confirmDiscard()) controller.newDocument() } })
+        file.add(JMenuItem("Open…").apply { addActionListener { openAnalysis() } })
+        file.add(JMenuItem("Save").apply { addActionListener { saveAnalysis(controller.currentFile.value) } })
+        file.add(JMenuItem("Save As…").apply { addActionListener { saveAnalysis(null) } })
         file.addSeparator()
         file.add(JMenuItem(SetWorkingDirectoryAction(controller.settingsStore, parentSupplier = { this })))
         file.add(RecentWorkingDirectoriesMenu(controller.settingsStore, controller.edtScope))
@@ -272,6 +267,76 @@ class DistributionAppFrame(private val controller: DistributionAppController) : 
             "About",
             JOptionPane.INFORMATION_MESSAGE
         )
+    }
+
+    // --- analysis persistence (reference-based TOML) -------------------------
+
+    /** Returns true if it is safe to discard the current document (not dirty, or user confirmed). */
+    private fun confirmDiscard(): Boolean {
+        if (!controller.isDirty.value) return true
+        return JOptionPane.showConfirmDialog(
+            this, "Discard unsaved changes?", "Unsaved changes",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE
+        ) == JOptionPane.OK_OPTION
+    }
+
+    private fun analysisChooser(save: Boolean): JFileChooser {
+        val start = controller.currentFile.value?.toFile()?.parentFile
+            ?: controller.ensureAppWorkspace().toFile()
+        return JFileChooser(start).apply {
+            dialogTitle = if (save) "Save Analysis" else "Open Analysis"
+            fileSelectionMode = JFileChooser.FILES_ONLY
+            fileFilter = FileNameExtensionFilter("Analysis files (*.toml)", "toml")
+            if (save) {
+                selectedFile = java.io.File("${controller.analysisName.value.ifBlank { "analysis" }}.toml")
+            }
+        }
+    }
+
+    /** Saves to [target], or prompts for a path when null (Save As / first save). */
+    private fun saveAnalysis(target: Path?) {
+        val path = target ?: run {
+            val chooser = analysisChooser(save = true)
+            if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return
+            var f = chooser.selectedFile
+            if (f.extension.isEmpty()) f = java.io.File(f.parentFile, "${f.name}.toml")
+            f.toPath()
+        }
+        controller.edtScope.launch {
+            runCatching { withContext(Dispatchers.Default) { controller.saveDocument(path) } }
+                .onFailure {
+                    JOptionPane.showMessageDialog(
+                        this@DistributionAppFrame, "Save failed: ${it.message}", "Save",
+                        JOptionPane.ERROR_MESSAGE
+                    )
+                }
+        }
+    }
+
+    private fun openAnalysis() {
+        if (!confirmDiscard()) return
+        val chooser = analysisChooser(save = false)
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return
+        val path = chooser.selectedFile.toPath()
+        controller.edtScope.launch {
+            runCatching { withContext(Dispatchers.Default) { controller.openDocument(path) } }
+                .onSuccess { result ->
+                    if (result.failures.isNotEmpty()) {
+                        JOptionPane.showMessageDialog(
+                            this@DistributionAppFrame,
+                            "Opened, but these datasets could not be re-materialized " +
+                                "(their source may have moved):\n  " + result.failures.joinToString("\n  "),
+                            "Open", JOptionPane.WARNING_MESSAGE
+                        )
+                    }
+                }
+                .onFailure {
+                    JOptionPane.showMessageDialog(
+                        this@DistributionAppFrame, "Open failed: ${it.message}", "Open",
+                        JOptionPane.ERROR_MESSAGE
+                    )
+                }
+        }
     }
 
     private inline fun withUpdating(block: () -> Unit) {
