@@ -548,6 +548,142 @@ fun KSLDatabase.toComparisonReport(
     }
 }
 
+// ── Per-response histogram & frequency (database-sourced) ─────────────────────
+
+/**
+ * Appends a single histogram section for one in-simulation
+ * `ksl.modeling.variable.HistogramResponse`, fetched from the database by name.
+ *
+ * Convenience overload of the row-taking `dbHistogram`: it fetches the
+ * `HISTOGRAM` rows for [responseName] in [expName] via
+ * `KSLDatabase.histogramDataFor` and delegates. When the experiment has no
+ * histogram data for that response, a notice section is emitted instead of
+ * throwing.
+ *
+ * @param db           the database to query
+ * @param expName      the experiment whose histogram data is used
+ * @param responseName the histogram response name (the `response_name` column)
+ * @param showPlot     when `true` (default) a histogram bar-chart plot is appended
+ */
+fun ReportBuilder.dbHistogram(
+    db: KSLDatabase,
+    expName: String,
+    responseName: String,
+    showPlot: Boolean = true
+) {
+    val rows = db.histogramDataFor(expName).filter { it.response_name == responseName }
+    if (rows.isEmpty()) {
+        section("Histogram — $responseName") {
+            paragraph("No histogram data for \"$responseName\" in experiment \"$expName\".")
+        }
+        return
+    }
+    dbHistogram(responseName, rows, showPlot = showPlot)
+}
+
+/**
+ * Appends a single integer-frequency section for one in-simulation
+ * `ksl.modeling.variable.IntegerFrequencyResponse`, fetched from the database
+ * by name.
+ *
+ * Convenience overload of the row-taking `dbIntegerFrequency`: it fetches the
+ * `FREQUENCY` rows for [name] in [expName] via `KSLDatabase.frequencyDataFor`
+ * and delegates. When the experiment has no frequency data for that name, a
+ * notice section is emitted instead of throwing.
+ *
+ * @param db       the database to query
+ * @param expName  the experiment whose frequency data is used
+ * @param name     the frequency response name (the `name` column)
+ * @param showPlot when `true` (default) a frequency bar-chart plot is appended
+ */
+fun ReportBuilder.dbIntegerFrequency(
+    db: KSLDatabase,
+    expName: String,
+    name: String,
+    showPlot: Boolean = true
+) {
+    val rows = db.frequencyDataFor(expName).filter { it.name == name }
+    if (rows.isEmpty()) {
+        section("Frequency — $name") {
+            paragraph("No frequency data for \"$name\" in experiment \"$expName\".")
+        }
+        return
+    }
+    dbIntegerFrequency(name, rows, showPlot = showPlot)
+}
+
+/**
+ * Builds a [ReportNode.Document] for the stored histogram data of one
+ * experiment.
+ *
+ * When [responseName] is supplied, the document covers that one histogram
+ * response; when it is `null` (the default), the document covers every
+ * histogram response recorded for the experiment (via `dbSimulationHistograms`).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * val db = KSLDatabase("pharmacy.db")
+ * db.toHistogramReport("Experiment 1", "SystemTime:Histogram").showInBrowser()
+ * db.toHistogramReport("Experiment 1").writeMarkdown()   // every histogram
+ * ```
+ *
+ * @param expName      the experiment to report
+ * @param responseName a single histogram response, or `null` for all of them
+ * @param title        document title; defaults to "Histograms — <expName>"
+ *                     (or "Histogram — <responseName> (<expName>)" for one)
+ * @param showPlot     when `true` (default) include the histogram plots
+ * @return the assembled [ReportNode.Document]
+ */
+fun KSLDatabase.toHistogramReport(
+    expName: String,
+    responseName: String? = null,
+    title: String = if (responseName == null) "Histograms — $expName"
+                    else "Histogram — $responseName ($expName)",
+    showPlot: Boolean = true
+): ReportNode.Document = report(title) {
+    if (responseName != null) {
+        dbHistogram(this@toHistogramReport, expName, responseName, showPlot)
+    } else {
+        dbSimulationHistograms(this@toHistogramReport, expName, showPlot)
+    }
+}
+
+/**
+ * Builds a [ReportNode.Document] for the stored integer-frequency data of one
+ * experiment.
+ *
+ * When [name] is supplied, the document covers that one frequency response;
+ * when it is `null` (the default), the document covers every frequency response
+ * recorded for the experiment (via `dbSimulationFrequencies`).
+ *
+ * Zero-code path:
+ * ```kotlin
+ * val db = KSLDatabase("pharmacy.db")
+ * db.toFrequencyReport("Experiment 1", "NQUponArrival").showInBrowser()
+ * db.toFrequencyReport("Experiment 1").writeMarkdown()   // every frequency
+ * ```
+ *
+ * @param expName  the experiment to report
+ * @param name     a single frequency response, or `null` for all of them
+ * @param title    document title; defaults to "Frequencies — <expName>"
+ *                 (or "Frequency — <name> (<expName>)" for one)
+ * @param showPlot when `true` (default) include the frequency plots
+ * @return the assembled [ReportNode.Document]
+ */
+fun KSLDatabase.toFrequencyReport(
+    expName: String,
+    name: String? = null,
+    title: String = if (name == null) "Frequencies — $expName"
+                    else "Frequency — $name ($expName)",
+    showPlot: Boolean = true
+): ReportNode.Document = report(title) {
+    if (name != null) {
+        dbIntegerFrequency(this@toFrequencyReport, expName, name, showPlot)
+    } else {
+        dbSimulationFrequencies(this@toFrequencyReport, expName, showPlot)
+    }
+}
+
 // ── Private formatting helpers ────────────────────────────────────────────────
 
 /**
